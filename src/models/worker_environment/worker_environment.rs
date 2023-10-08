@@ -8,10 +8,11 @@ pub struct WorkerEnvironment {
 
 impl WorkerEnvironment {
     pub fn new(crew: Crew) -> Self {
-        let work_centers = HashMap::<String, f64>::new();
+        let mut work_centers = HashMap::<String, f64>::new();
         let multiskill_tracker = HashMap::new();
         for (id, worker) in crew.get_workers() {
-            *work_centers.entry(*worker.get_trait()).or_insert(0.0) += worker.get_capacity();
+            let worker_trait = worker.get_trait().clone();
+            *work_centers.entry(worker_trait).or_insert(0.0) += worker.get_capacity();
         }
         WorkerEnvironment {
             crew,
