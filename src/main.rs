@@ -1,5 +1,4 @@
-mod models;
-mod data_processing;
+mod models; mod data_processing;
 
 use calamine::{Xlsx};
 use std::io::BufReader;
