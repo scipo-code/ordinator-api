@@ -1,6 +1,6 @@
 pub struct Revision {
-    string: String,
-    shutdown: bool,
+    pub string: String,
+    pub shutdown: bool,
 }
 
 impl Revision {

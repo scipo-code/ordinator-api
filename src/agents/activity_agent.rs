@@ -1,4 +1,4 @@
-struct ActivityAgent {
+async pub struct ActivityAgent {
     order: Int,
     activity: Union{Int, Missing},
     sch_start: DateTime,

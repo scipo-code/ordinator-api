@@ -7,4 +7,6 @@ edition = "2021"
 
 [dependencies]
 chrono = "0.4"
-calamine = "0.22.0" 
+calamine = "0.22.0"
+regex = "1.10"
+actix-web = "4.4.0"

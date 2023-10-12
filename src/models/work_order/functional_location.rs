@@ -1,3 +1,3 @@
 pub struct FunctionalLocation {
-    string: String
+    pub string: String
 }
