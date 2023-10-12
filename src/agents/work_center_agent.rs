@@ -1,4 +1,4 @@
-struct WorkcenterAgent 
+async pub struct WorkcenterAgent 
     work_trait: String,
     capacities: Vec<f32>,
     loading: Vec<f32>,
