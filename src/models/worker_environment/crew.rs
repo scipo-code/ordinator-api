@@ -3,7 +3,7 @@ use crate::models::worker_environment::worker::Worker;
 
 
 pub struct Crew {
-    workers: HashMap<u32, Worker>,
+    pub workers: HashMap<u32, Worker>,
 }
 
 impl Crew {

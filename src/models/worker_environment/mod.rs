@@ -5,7 +5,7 @@ pub mod worker;
 use std::collections::HashMap;
 use crate::models::worker_environment::crew::Crew;
 pub struct WorkerEnvironment {
-    crew: Crew,
+    pub crew: Crew,
     work_centers: HashMap<String, f64>,
 }
 

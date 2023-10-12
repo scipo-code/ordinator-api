@@ -1,11 +1,8 @@
-enum PeriodNone {
-    Period,
-    None,
-}
+use crate::models::period::PeriodNone;
 
 pub struct UnloadingPoint {
-    string: String,
-    present: bool,
-    period: PeriodNone,
+    pub string: String,
+    pub present: bool,
+    pub period: PeriodNone,
 }
 
