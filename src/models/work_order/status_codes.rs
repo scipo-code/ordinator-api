@@ -1,3 +1,6 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
 pub struct StatusCodes {
     pub SMAT: bool,
     pub NMAT: bool,

@@ -1,4 +1,4 @@
-async pub struct WorkerAgent {
+pub struct WorkerAgent {
     id: u32,
     agent_traits: String,
     capacity: f32,
