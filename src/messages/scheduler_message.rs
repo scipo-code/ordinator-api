@@ -2,6 +2,7 @@ use serde::{Serialize, Deserialize};
 use std::collections::{HashMap, HashSet};
 use crate::models::order_period::OrderPeriod;
 use std::fmt::{self, Display};
+use crate::models::period::Period;
 
 /// Represents various types of messages that can be sent to the scheduler.
 /// This ensures standardized communication with the rest of the system 
@@ -21,6 +22,7 @@ pub struct InputMessage {
     platform: String,
     schedule_work_order: Vec<OrderPeriod>,
     unschedule_work_order: HashSet<u32>,
+    manual_resource: HashMap<(String, Period), f64>,
     period_lock: HashMap<String, bool>
 }
 
