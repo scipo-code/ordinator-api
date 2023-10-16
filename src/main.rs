@@ -14,7 +14,6 @@ use std::path::Path;
 use std::env;
 use crate::data_processing::sources::excel::load_data_file;
 
-
 use crate::messages::scheduler_message::{RawInputMessage, InputMessage};
 
 use actix_web::{get, web, App, HttpServer, HttpRequest, HttpResponse, Result};
@@ -64,6 +63,7 @@ async fn ws_index(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse
     res
 }
 
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 
@@ -81,6 +81,12 @@ async fn main() -> std::io::Result<()> {
         App::new().service(ws_index)
     })
     .bind(("127.0.0.1", 8001))?
+
     .run()
     .await
+}
+
+#[get("/hello/{name}")]
+async fn greet(name: web::Path<String>) -> impl Responder {
+    format!("Hello {}!", name)
 }

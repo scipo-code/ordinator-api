@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 
 #[derive(Serialize, Deserialize)]
+
 pub enum PeriodNone {
     Period(Period),
     None,

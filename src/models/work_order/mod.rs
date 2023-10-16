@@ -9,11 +9,9 @@ pub mod revision;
 use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-
 use std::fmt;
 
 use crate::models::work_order::operation::Operation;
-
 use crate::models::work_order::order_dates::OrderDates;
 use crate::models::work_order::order_text::OrderText;
 use crate::models::work_order::status_codes::StatusCodes;
