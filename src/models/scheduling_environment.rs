@@ -25,7 +25,6 @@ pub struct SchedulingEnvironment {
     worker_environment: WorkerEnvironment,
     // time_and_period
     // material
-
 }
 
 impl SchedulingEnvironment {    
