@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::fmt::{self, Display};
 
 #[derive(Serialize, Deserialize)]
 pub enum PeriodNone {
@@ -25,5 +26,12 @@ impl Period {
 impl Period {
     pub fn get_period(&self) -> String {
         self.period_string.clone()
+    }
+}
+
+impl Display for Period {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "Period: ");
+        write!(f, "Period: {}, \nStart Date: {}, \nEnd Date: {}", self.period_string, self.start_date, self.end_date)
     }
 }

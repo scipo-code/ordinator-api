@@ -1,3 +1,5 @@
+use chrono::{DateTime, Utc};
+
 pub struct WorkerAgent {
     id: u32,
     agent_traits: String,
@@ -7,13 +9,13 @@ pub struct WorkerAgent {
 }
 
 struct Availability {
-    start: DateTime,
-    end: DateTime
+    start: DateTime<Utc>,
+    end: DateTime<Utc>
 }
 
 struct AssignedWork {
-    work: Work,
-    start: DateTime,
-    end: DateTime
+    work: u32,
+    start: DateTime<Utc>,
+    end: DateTime<Utc>
 }
 

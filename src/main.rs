@@ -1,3 +1,4 @@
+mod agents;
 mod models;
 mod data_processing;
 mod messages;
@@ -14,7 +15,7 @@ use std::env;
 use crate::data_processing::sources::excel::load_data_file;
 
 
-use crate::messages::scheduler_message::InputMessage;
+use crate::messages::scheduler_message::{RawInputMessage, InputMessage};
 
 use actix_web::{get, web, App, HttpServer, HttpRequest, HttpResponse, Result};
 
@@ -31,16 +32,21 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MessageAgent {
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
             Ok(ws::Message::Text(text)) => {
-                let data: Result<InputMessage, serde_json::Error> = serde_json::from_str(&text);
-                println!("{}", data.as_ref().unwrap());
-                match data { 
-                    Ok(data) => {
-                        println!("Data: {}", data);
-                    }
-                    Err(data) => {
-                        println!("Error: {}", data);
+
+                let raw_input_scheduler_data: Result<RawInputMessage, serde_json::Error> = serde_json::from_str(&text);
+                let input_scheduler_data: InputMessage;
+                match raw_input_scheduler_data {
+                    Ok(raw_input_scheduler_data) => {
+                        input_scheduler_data = raw_input_scheduler_data.into();
+                    },
+                    Err(e) => {
+                        println!("Error: {}", e);
+                        return;
                     }
                 }
+
+                println!("{}", input_scheduler_data);
+          
                 ctx.text(text)
             },
             Ok(ws::Message::Binary(bin)) => ctx.binary(bin),

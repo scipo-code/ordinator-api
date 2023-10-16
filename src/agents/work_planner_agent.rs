@@ -1,6 +1,7 @@
-async pub struct WorkPlannerAgent 
+pub struct WorkPlannerAgent {
     id: i32,
-    orders: Vec<Int>,
-end
+    orders: Vec<u32>,
+
+}
 
 
