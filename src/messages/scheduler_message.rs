@@ -1,13 +1,15 @@
+use actix::Message;
 use serde::{Serialize, Deserialize};
 use std::collections::{HashMap, HashSet};
-use crate::models::order_period::OrderPeriod;
 use std::fmt::{self, Display};
+
+use crate::models::order_period::OrderPeriod;
 use crate::models::period::Period;
 
 /// Represents various types of messages that can be sent to the scheduler.
 /// This ensures standardized communication with the rest of the system 
 /// for business compliance.
-enum SchedulerMessage {
+pub enum SchedulerMessages {
     Input(InputMessage),
     Output(OutputMessage),
     WorkPlanner(WorkPlannerMessage),
@@ -28,11 +30,11 @@ pub struct InputMessage {
 
 /// Represents the message sent to the front-end.
 #[allow(dead_code)]
-struct OutputMessage {}
+pub struct OutputMessage {}
 
 /// Represents the message sent to the WorkPlannerAgent.
 #[allow(dead_code)]
-struct WorkPlannerMessage {}
+pub struct WorkPlannerMessage {}
 
 impl Display for InputMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -103,4 +105,9 @@ impl Display for SchedulerResources<'_> {
         }
         write!(f, "--------------------------")
     }
+}
+
+
+impl Message for SchedulerMessages {
+    type Result = ();
 }
