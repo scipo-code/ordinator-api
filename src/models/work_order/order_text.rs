@@ -1,3 +1,6 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
 pub struct OrderText {
     pub order_system_status: String,
     pub order_user_status: String,

@@ -1,8 +1,10 @@
-async pub struct ActivityAgent {
-    order: Int,
-    activity: Union{Int, Missing},
-    sch_start: DateTime,
-    sch_date: DateTime,
+use chrono::{DateTime, Utc};
+use crate::models::period::Period;
+pub struct ActivityAgent {
+    order: u32,
+    activity: u32,
+    sch_start: DateTime<Utc>,
+    sch_date: DateTime<Utc>,
     period: Period,
-    assigned: Vector{Int},
+    assigned: Vec<u32>,
 }
