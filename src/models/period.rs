@@ -10,6 +10,7 @@ pub enum PeriodNone {
 }
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[derive(Debug)]
 pub struct Period {
     id: u32,
     period_string: String,

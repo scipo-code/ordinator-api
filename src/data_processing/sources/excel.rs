@@ -81,7 +81,7 @@ fn populate_work_orders<'a>(work_orders: &'a mut WorkOrders, sheet: &'a calamine
                 }
             }
         }
-        println!("new work order key: {}", work_orders.new_work_order(work_order_number));
+        // println!("new work order key: {}", work_orders.new_work_order(work_order_number));
         if work_orders.new_work_order(work_order_number) {
             work_orders.insert(create_new_work_order(row, &header_to_index)
                 .expect("Could not insert new work order"));
@@ -204,7 +204,7 @@ fn create_new_operation(row: &[DataType], header_to_index: &HashMap<String, usiz
                 _ => 0
             },
             None => {
-                dbg!("Duration is None");
+                // dbg!("Duration is None");
                 0
             }
         },

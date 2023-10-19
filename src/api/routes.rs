@@ -5,10 +5,7 @@ use crate::api::websocket::MessageAgent;
 
 #[get("/")]
 async fn ws_index(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse> {
-    dbg!();
     let res = ws::start(MessageAgent {}, &req, stream);
-    dbg!();
-    println!("{:?}", res.as_ref().unwrap().body());
     res
 }
 

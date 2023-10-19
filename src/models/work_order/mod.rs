@@ -38,11 +38,11 @@ pub struct WorkOrder {
     pub finish_start: Vec<bool>,
     pub postpone: Vec<DateTime<Utc>>,
     pub order_type: String,
-    pub status_codes: StatusCodes,  // Assuming StatusCodesOrder is another struct.
+    pub status_codes: StatusCodes,  
     pub order_dates: OrderDates,
     pub revision: Revision,
-    pub unloading_point: UnloadingPoint, // Assuming UnloadingPoint is another struct.
-    pub functional_location: FunctionalLocation, // Assuming FunctionalLocation is another struct.
+    pub unloading_point: UnloadingPoint, 
+    pub functional_location: FunctionalLocation, 
     pub order_text: OrderText,
     pub vendor: bool,
 }

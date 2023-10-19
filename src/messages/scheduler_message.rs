@@ -9,8 +9,10 @@ use crate::models::period::Period;
 /// Represents various types of messages that can be sent to the scheduler.
 /// This ensures standardized communication with the rest of the system 
 /// for business compliance.
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "scheduler_message_type")]
 pub enum SchedulerMessages {
-    Input(InputMessage),
+    Input(RawInputMessage),
     Output(OutputMessage),
     WorkPlanner(WorkPlannerMessage),
 }
@@ -18,8 +20,8 @@ pub enum SchedulerMessages {
 /// Represents the message received from the front-end.
 /// The data from the front-end will be used to instantiate this struct.
 #[derive(Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct InputMessage {
-    message_type: String, 
     name: String,
     platform: String,
     schedule_work_order: Vec<OrderPeriod>,
@@ -30,43 +32,27 @@ pub struct InputMessage {
 
 /// Represents the message sent to the front-end.
 #[allow(dead_code)]
+#[derive(Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct OutputMessage {}
 
 /// Represents the message sent to the WorkPlannerAgent.
 #[allow(dead_code)]
+#[derive(Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct WorkPlannerMessage {}
 
-impl Display for InputMessage {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        
-        let manual_resource_pretty = SchedulerResources(&self.manual_resource);
-        write!(f, 
-            "Name: {}, 
-            \nPlatform: {}, 
-            \nSchedule Work Order: {}, 
-            \nUnschedule Work Order: {:?}, 
-            \nManual Resource: {},
-            \nPeriod Lock: {:?}", 
-            self.name, 
-            self.platform, 
-            self.schedule_work_order.len(), 
-            self.unschedule_work_order, 
-            manual_resource_pretty,
-            self.period_lock
-        )
-    } 
-}
 
-#[derive(Deserialize)]
+
+#[derive(Serialize, Deserialize)]
 pub struct ManualResource {
     resource: String,
     period: Period,
     capacity: f64
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct RawInputMessage {
-    message_type: String, 
     name: String,
     platform: String,
     schedule_work_order: Vec<OrderPeriod>,
@@ -81,9 +67,9 @@ impl From<RawInputMessage> for InputMessage {
         for res in raw.manual_resource {
             manual_resource_map.insert((res.resource, res.period), res.capacity);   
         }
+        println!("{:?}", manual_resource_map);
     
         InputMessage {
-            message_type: raw.message_type,
             name: raw.name,
             platform: raw.platform,
             schedule_work_order: raw.schedule_work_order,
@@ -107,7 +93,45 @@ impl Display for SchedulerResources<'_> {
     }
 }
 
-
 impl Message for SchedulerMessages {
     type Result = ();
+}
+
+impl Display for InputMessage {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let manual_resource_pretty = SchedulerResources(&self.manual_resource);
+        write!(f, 
+            "Name: {}, 
+            \nPlatform: {}, 
+            \nSchedule Work Order: {}, 
+            \nUnschedule Work Order: {:?}, 
+            nManual Resource: {},
+            \nPeriod Lock: {:?}", 
+            self.name, 
+            self.platform, 
+            self.schedule_work_order.len(), 
+            self.unschedule_work_order, 
+            manual_resource_pretty,
+            self.period_lock
+        )
+    } 
+}
+
+impl Display for RawInputMessage {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, 
+            "Name: {}, 
+            \nPlatform: {}, 
+            \nSchedule Work Order: {}, 
+            \nUnschedule Work Order: {:?}, 
+            nManual Resource: {},
+            \nPeriod Lock: {:?}", 
+            self.name, 
+            self.platform, 
+            self.schedule_work_order.len(), 
+            self.unschedule_work_order, 
+            self.manual_resource.len(),
+            self.period_lock
+        )
+    } 
 }
