@@ -1,5 +1,6 @@
 pub mod scheduler_agent;
 pub mod scheduler_message;
+pub mod scheduler_algorithm;
 
 use crate::models::work_order::WorkOrder;
 use crate::models::order_period::OrderPeriod;

@@ -1,7 +1,6 @@
 mod agents;
 mod models;
 mod data_processing;
-mod messages;
 mod api;
 
 use std::collections::{HashMap};
