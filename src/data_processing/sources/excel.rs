@@ -33,9 +33,9 @@ pub fn load_data_file(file_path: &Path) -> Result<SchedulingEnvironment, calamin
         .ok_or(calamine::Error::Msg("Cannot find work order sheet"))?.expect("Could not load work order sheet.");
 
     let mut work_orders: WorkOrders = WorkOrders::new();
-    let mut worker_environment: WorkerEnvironment = WorkerEnvironment::new();
+    let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
 
-    populate_work_orders(&mut work_orders, sheet);
+    populate_work_orders(&mut work_orders, sheet).expect("could not populate the work orders");
 
     let scheduling_environment = SchedulingEnvironment::new(work_orders, worker_environment);
 

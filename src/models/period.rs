@@ -33,7 +33,12 @@ impl Period {
 
 impl Display for Period {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Period: ");
-        write!(f, "Period: {}, \nStart Date: {}, \nEnd Date: {}", self.period_string, self.start_date, self.end_date)
+        write!(f, 
+            "Period: {}, \n
+            Start Date: {}, \n
+            End Date: {}", 
+            self.period_string, 
+            self.start_date, 
+            self.end_date)
     }
 }

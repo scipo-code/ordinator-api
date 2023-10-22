@@ -34,12 +34,16 @@ impl Handler<SchedulerMessages> for SchedulerAgent {
     fn handle(&mut self, msg: SchedulerMessages, ctx: &mut Self::Context) -> Self::Result {
         match msg {
             SchedulerMessages::Input(msg) => {
+                println!("SchedulerAgentReceived a FrontEnd message");
                 let input_message: InputMessage = msg.into();
+                // TODO - modify state of scheduler agent
+
             }
             SchedulerMessages::WorkPlanner(msg) => {
                println!("SchedulerAgentReceived a WorkPlannerMessage message");
             },
             SchedulerMessages::ExecuteIteration => {
+                // TODO - execute one optimization iteration of the scheduler agent
                 self.execute_iteration(ctx);
             }
         }	
