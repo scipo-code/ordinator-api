@@ -59,6 +59,6 @@ impl WorkOrder {
 
 impl fmt::Display for WorkOrder {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Order Number: {}, \nNumber of activities: {}, \nVendor: {}, \nAWSC: {}, \nShutdown", self.order_number, self.operations.len(), self.vendor, self.status_codes.AWSC)
+        write!(f, "Order Number: {}, \nNumber of activities: {}, \nVendor: {}, \nAWSC: {}, \nShutdown", self.order_number, self.operations.len(), self.vendor, self.status_codes.awsc)
     }
 }

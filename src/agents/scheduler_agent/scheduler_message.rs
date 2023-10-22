@@ -13,8 +13,8 @@ use crate::models::period::Period;
 #[serde(tag = "scheduler_message_type")]
 pub enum SchedulerMessages {
     Input(RawInputMessage),
-    Output(OutputMessage),
     WorkPlanner(WorkPlannerMessage),
+    ExecuteIteration,
 }
 
 /// Represents the message received from the front-end.
@@ -30,17 +30,15 @@ pub struct InputMessage {
     period_lock: HashMap<String, bool>
 }
 
-/// Represents the message sent to the front-end.
-#[allow(dead_code)]
-#[derive(Serialize, Deserialize)]
-#[derive(Debug)]
-pub struct OutputMessage {}
 
 /// Represents the message sent to the WorkPlannerAgent.
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize)]
 #[derive(Debug)]
-pub struct WorkPlannerMessage {}
+pub struct WorkPlannerMessage {
+    cannot_schedule: Vec<u32>,
+    under_loaded_work_centers: Vec<String>,
+}
 
 
 

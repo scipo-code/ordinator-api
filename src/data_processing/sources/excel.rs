@@ -6,17 +6,17 @@ use std::path::Path;
 use crate::models::period::Period;
 use crate::models::period::PeriodNone;
 
-use chrono::{DateTime, Utc, NaiveDate, Duration, TimeZone, naive, NaiveTime, Datelike, IsoWeek, Weekday};
+use chrono::{DateTime, Utc, NaiveDate, Duration, TimeZone, naive, NaiveTime, Datelike, Weekday};
 use crate::models::scheduling_environment::{SchedulingEnvironment, WorkOrders};
 use crate::models::work_order::WorkOrder;
 use crate::models::work_order::revision::Revision;
 use crate::models::work_order::unloading_point::UnloadingPoint;
-use crate::models::worker_environment::WorkerEnvironment;
 use crate::models::work_order::functional_location::FunctionalLocation;
 use crate::models::work_order::order_text::OrderText;
-use crate::models::work_order::status_codes::StatusCodes;
+use crate::models::work_order::status_codes::{StatusCodes, MaterialStatus};
 use crate::models::work_order::order_dates::OrderDates;
 use crate::models::work_order::Priority;
+use crate::models::worker_environment::WorkerEnvironment;
 
 extern crate regex;
 
@@ -292,17 +292,15 @@ fn extract_status_codes(row: &[DataType], header_to_index: &HashMap<String, usiz
 
     let pattern = regex::Regex::new(r"SMAT|NMAT|CMAT|WMAT|PMAT|PCNF|AWSC|WELL|SCH").unwrap();
 
+    let material_status: MaterialStatus = MaterialStatus::from_status_code_string(&status_codes_string);
+
     Ok(StatusCodes {
-        SMAT: pattern.is_match(&status_codes_string),
-        NMAT: pattern.is_match(&status_codes_string),
-        CMAT: pattern.is_match(&status_codes_string),
-        WMAT: pattern.is_match(&status_codes_string),
-        PMAT: pattern.is_match(&status_codes_string),
-        PCNF: pattern.is_match(&status_codes_string),
-        AWSC: pattern.is_match(&status_codes_string),
-        WELL: pattern.is_match(&status_codes_string),
-        SCH: pattern.is_match(&status_codes_string),
-        Unloading_Point: false, // Assuming default value; modify as needed
+        material_status,
+        pcnf: pattern.is_match(&status_codes_string),
+        awsc: pattern.is_match(&status_codes_string),
+        well: pattern.is_match(&status_codes_string),
+        sch: pattern.is_match(&status_codes_string),
+        unloading_point: false, // Assuming default value; modify as needed
     })
 }
 
