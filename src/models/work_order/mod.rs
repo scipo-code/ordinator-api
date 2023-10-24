@@ -12,7 +12,11 @@ pub mod priority;
 use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+<<<<<<< HEAD
 use std::fs;
+=======
+use std::fmt;
+>>>>>>> origin
 
 use crate::models::work_order::operation::Operation;
 use crate::models::work_order::order_dates::OrderDates;
@@ -24,9 +28,18 @@ use crate::models::work_order::revision::Revision;
 use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::work_order::priority::Priority;
 
+<<<<<<< HEAD
 use self::{order_type::{WDFPriority, WGNPriority, WPMPriority}, status_codes::MaterialStatus};
 
 #[derive(Clone)]
+=======
+#[derive(Serialize, Deserialize)]
+pub enum Priority {
+    IntValue(i32),
+    StringValue(String),
+}
+
+>>>>>>> origin
 #[derive(Serialize, Deserialize)]
 pub struct WorkOrder {
     pub order_number: u32,
@@ -59,6 +72,7 @@ impl WorkOrder {
     }
 }
 
+<<<<<<< HEAD
 #[derive(Serialize, Deserialize)]
 struct WeightParam {
     WDF_priority_map: std::collections::HashMap<String, u32>,
@@ -167,3 +181,10 @@ impl WorkOrder {
 //    end
 //    return weight
 // end
+=======
+impl fmt::Display for WorkOrder {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Order Number: {}, \nNumber of activities: {}, \nVendor: {}, \nAWSC: {}, \nShutdown", self.order_number, self.operations.len(), self.vendor, self.status_codes.AWSC)
+    }
+}
+>>>>>>> origin
