@@ -1,0 +1,41 @@
+{
+    "WDF_priority_map": {
+      "1": 10000,
+      "2": 100,
+      "3": 10,
+      "4": 1
+    },
+
+    "WGN_priority_map": {
+      "1": 10000,
+      "2": 100,
+      "3": 10,
+      "4": 1
+    },
+
+    "WPM_priority_map": {
+      "A": 10000,
+      "B": 100,
+      "C": 10,
+      "D": 1
+    },
+
+    "VIS_priority_map": {
+      "V": 100,
+      "I": 10,
+      "S": 10
+    },
+
+    "order_type_weights": {
+      "WDF": 10,
+      "WGN": 8,
+      "WPM": 5,
+      "Other": 0
+    },
+
+    "status_weights": {
+      "SECE": 75000,
+      "PCNF_NMAT_SMAT": 15000,
+      "AWSC": 100000
+    }
+}

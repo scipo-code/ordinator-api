@@ -1,9 +1,10 @@
-use crate::models::work_order::WorkOrder;
-use crate::models::worker_environment::WorkerEnvironment;
 use std::collections::HashMap;
-
 use std::fmt;
 
+use crate::models::work_order::WorkOrder;
+use crate::models::worker_environment::WorkerEnvironment;
+
+#[derive(Clone)]
 pub struct WorkOrders {
     pub inner: HashMap<u32, WorkOrder>
 }
@@ -21,7 +22,7 @@ impl WorkOrders {
 }
 
 pub struct SchedulingEnvironment {
-    work_orders: WorkOrders,
+    pub work_orders: WorkOrders,
     worker_environment: WorkerEnvironment,
     // time_and_period
     // material
@@ -34,6 +35,11 @@ impl SchedulingEnvironment {
             worker_environment,
         }
     }
+
+    pub fn get_work_orders(&self) -> WorkOrders {
+        let work_orders_clone = self.work_orders.clone();
+        work_orders_clone
+    }
 }
 
 impl WorkOrders {
@@ -45,5 +51,15 @@ impl WorkOrders {
 impl fmt::Display for SchedulingEnvironment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "The Scheduling Environment is currently comprised of \n  work_orders: {},\n  number of worker entries: {}", self.work_orders.inner.len(), self.worker_environment.crew.workers.len())
+    }
+}
+
+impl fmt::Display for WorkOrders {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "The Work Orders are currently comprised of \n  work_orders: {}", self.inner.len());
+        for (_, work_order) in self.inner.iter() {
+            write!(f, "{}", work_order)?;
+        }
+        Ok(())
     }
 }

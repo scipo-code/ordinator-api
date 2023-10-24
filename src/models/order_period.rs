@@ -4,6 +4,10 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Serialize, Deserialize)]
+<<<<<<< HEAD
+#[derive(Debug)]
+=======
+>>>>>>> origin
 pub struct OrderPeriod {
     period: Period,  // Assuming Period is another struct you've defined.
     work_order_number: u32,
