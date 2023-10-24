@@ -41,7 +41,6 @@ impl Display for Period {
             self.period_string, 
             self.start_date, 
             self.end_date)
-        writeln!(f, "Period: ");
-        write!(f, "Period: {}, \nStart Date: {}, \nEnd Date: {}", self.period_string, self.start_date, self.end_date)
+
     }
 }

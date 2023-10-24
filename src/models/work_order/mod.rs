@@ -13,7 +13,6 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::fmt;
 
 use crate::models::work_order::operation::Operation;
 use crate::models::work_order::order_dates::OrderDates;
@@ -27,14 +26,8 @@ use crate::models::work_order::priority::Priority;
 
 use self::{order_type::{WDFPriority, WGNPriority, WPMPriority}, status_codes::MaterialStatus};
 
+#[derive(Serialize, Deserialize)]
 #[derive(Clone)]
-#[derive(Serialize, Deserialize)]
-pub enum Priority {
-    IntValue(i32),
-    StringValue(String),
-}
-
-#[derive(Serialize, Deserialize)]
 pub struct WorkOrder {
     pub order_number: u32,
     pub fixed: bool,
@@ -87,7 +80,17 @@ impl WeightParam {
 }
 
 impl WorkOrder {
-    pub fn calculate_weight(&mut self) {
+
+    pub fn initialize(&mut self) {
+        dbg!("Initializing Work Orders");
+        self.initialize_weight();
+        self.initialize_work_load();
+        // TODO : Other fields
+    }
+
+    pub fn initialize_weight(&mut self) {
+        dbg!("Initializing Work Orders");
+
         let parameters: WeightParam = WeightParam::read_config().unwrap();
 
         self.order_weight = 0;
@@ -129,5 +132,19 @@ impl WorkOrder {
         // TODO Implement for VIS and ABC
 
     }  
-}
 
+
+
+    pub fn initialize_work_load(&mut self) {
+        dbg!("Initializing Work Orders");
+
+        let mut work_load: HashMap<String, f64> = HashMap::new();
+
+        for (_, operation) in self.operations.iter() {
+            work_load.insert(operation.work_center.clone(), operation.work_remaining);
+        }
+
+        self.work_load = work_load;
+
+    }
+}
