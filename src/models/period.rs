@@ -3,22 +3,15 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 
 #[derive(Serialize, Deserialize)]
-<<<<<<< HEAD
 #[derive(Clone)]
-=======
-
->>>>>>> origin
 pub enum PeriodNone {
     Period(Period),
     None,
 }
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Hash)]
-<<<<<<< HEAD
 #[derive(Debug)]
 #[derive(Clone)]
-=======
->>>>>>> origin
 pub struct Period {
     id: u32,
     period_string: String,
@@ -41,7 +34,6 @@ impl Period {
 
 impl Display for Period {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-<<<<<<< HEAD
         write!(f, 
             "Period: {}, \n
             Start Date: {}, \n
@@ -49,9 +41,7 @@ impl Display for Period {
             self.period_string, 
             self.start_date, 
             self.end_date)
-=======
         writeln!(f, "Period: ");
         write!(f, "Period: {}, \nStart Date: {}, \nEnd Date: {}", self.period_string, self.start_date, self.end_date)
->>>>>>> origin
     }
 }
