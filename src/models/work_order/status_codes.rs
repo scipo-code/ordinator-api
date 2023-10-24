@@ -1,11 +1,7 @@
 use serde::{Deserialize, Serialize};
-<<<<<<< HEAD
 use regex::Regex;
 
 #[derive(Clone)]
-=======
-
->>>>>>> origin
 #[derive(Serialize, Deserialize)]
 pub struct StatusCodes {
     pub material_status: MaterialStatus,
