@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-
+use actix::prelude::*;
 pub struct WorkerAgent {
     id: u32,
     agent_traits: String,
@@ -19,3 +19,7 @@ struct AssignedWork {
     end: DateTime<Utc>
 }
 
+
+impl Actor for WorkerAgent {
+    type Context = Context<Self>;
+}

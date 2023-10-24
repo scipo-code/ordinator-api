@@ -1,5 +1,5 @@
 pub mod routes;
-pub mod websocket;
+pub mod websocket_agent;
 
 use crate::agents::scheduler_agent::scheduler_message::SchedulerMessages;
 

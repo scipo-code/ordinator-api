@@ -1,5 +1,6 @@
 use calamine::{open_workbook, Xlsx, Reader, DataType, Error};
 use regex::Regex;
+use core::fmt;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -15,12 +16,23 @@ use crate::models::work_order::functional_location::FunctionalLocation;
 use crate::models::work_order::order_text::OrderText;
 use crate::models::work_order::status_codes::{StatusCodes, MaterialStatus};
 use crate::models::work_order::order_dates::OrderDates;
-use crate::models::work_order::Priority;
+use crate::models::work_order::order_type::{WDFPriority, WGNPriority, WPMPriority};
+use crate::models::work_order::priority::Priority;
+use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::worker_environment::WorkerEnvironment;
 
 extern crate regex;
 
 use crate::models::work_order::operation::Operation;
+
+#[derive(Debug)]
+struct ExcelLoadError(String);
+
+impl fmt::Display for ExcelLoadError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ExcelLoadError: {}", self.0)
+    }
+}
 
 /// This function will load data from excel. It is crucial that the approach is modular and scalable
 /// so that it will always be possible to add new data sources and data transformers in the future.
@@ -109,6 +121,22 @@ fn populate_work_orders<'a>(work_orders: &'a mut WorkOrders, sheet: &'a calamine
 /// operation reading on each row! Yes that is the approach that I want to take.
 fn create_new_work_order(row: &[DataType], header_to_index: &HashMap<String, usize>) -> Result<WorkOrder, Error> {
     
+
+    let priority = match row.get(*header_to_index.get("Priority").ok_or("Priority header not found")?).cloned() {
+        Some(DataType::Int(n)) => Priority::IntValue(n as i32),
+        Some(DataType::String(s)) => {
+
+            match s.parse::<i32>() {
+                Ok(num) => Priority::IntValue(num), // If successful, use the integer value
+                Err(_) => Priority::StringValue(s), // If not, fall back to using the string
+            }
+
+        }
+        Some(DataType::Float(n)) => Priority::IntValue(n as i32),
+        _ => Priority::StringValue(String::new())
+    };
+
+    println!("priority: {:?}", priority);
     Ok(WorkOrder {
         order_number: match row.get(*header_to_index.get("Order").ok_or("Order header not found")?).cloned() {
             Some(DataType::Int(n)) => n as u32,
@@ -118,12 +146,7 @@ fn create_new_work_order(row: &[DataType], header_to_index: &HashMap<String, usi
         },
         fixed: false,
         order_weight: 0, // TODO: Implement calculate_weight method.
-        priority: match row.get(*header_to_index.get("Priority").ok_or("Priority header not found")?).cloned() {
-            Some(DataType::Int(n)) => Priority::IntValue(n as i32),
-            Some(DataType::String(s)) => Priority::StringValue(s),
-            Some(DataType::Float(n)) => Priority::IntValue(n as i32),
-            _ => Priority::StringValue(String::new())
-        },
+        priority: priority.clone(),
         order_work: 0.0,
         operations: HashMap::<u32, Operation>::new(),
         work_load: HashMap::<String, f64>::new(),
@@ -131,14 +154,57 @@ fn create_new_work_order(row: &[DataType], header_to_index: &HashMap<String, usi
         finish_start: Vec::<bool>::new(),
         postpone: Vec::<DateTime<Utc>>::new(),
         order_type: match row.get(*header_to_index.get("Order_Type").ok_or("Order_Type header not found")?).cloned() {
-            Some(DataType::String(s)) => s,
+            Some(DataType::String(work_order_type)) => {
+                match work_order_type.as_str() {
+                    "WDF" => match &priority {
+                        Priority::IntValue(value) => {
+                            dbg!(value);
+                            match value {
+                                1 => Ok(WorkOrderType::WDF(WDFPriority::One)),
+                                2 => Ok(WorkOrderType::WDF(WDFPriority::Two)),
+                                3 => Ok(WorkOrderType::WDF(WDFPriority::Three)),
+                                4 => Ok(WorkOrderType::WDF(WDFPriority::Four)),
+                                _ => Ok(WorkOrderType::Other),
+                            }
+                        },
+                        _ => Err(ExcelLoadError("Could not parse WDF priority as int".into()))
+                    },
+                    "WGN" => match &priority {
+                        Priority::IntValue(value) => {
+                            match value {
+                                1 => Ok(WorkOrderType::WGN(WGNPriority::One)),
+                                2 => Ok(WorkOrderType::WGN(WGNPriority::Two)),
+                                3 => Ok(WorkOrderType::WGN(WGNPriority::Three)),
+                                4 => Ok(WorkOrderType::WGN(WGNPriority::Four)),
+                                _ => Ok(WorkOrderType::Other),
+                            }
+                        },
+                        _ => Err(ExcelLoadError("Could not parse WGN priority as int".into()))
+                    },
+                    "WPM" => match &priority {
+                        Priority::StringValue(value) => {
+                            match value.as_str() {
+                                "A" => Ok(WorkOrderType::WPM(WPMPriority::A)),
+                                "B" => Ok(WorkOrderType::WPM(WPMPriority::B)),
+                                "C" => Ok(WorkOrderType::WPM(WPMPriority::C)),
+                                "D" => Ok(WorkOrderType::WPM(WPMPriority::D)),
+                                _ => Ok(WorkOrderType::Other),
+                            }
+                        },
+                        _ => Err(ExcelLoadError("Could not parse WPM priority as int".into()))
+                    
+                    },
+                    _ => Ok(WorkOrderType::Other),
+                }
+                
+            },
             None => {
                 println!("Order_Type is None");
-                "None".to_string()
+                Ok(WorkOrderType::Other)
             }
             _ => return Err(Error::Msg("Could not parse revision as string"))
 
-        },
+        }.expect("Could not parse order type"),
         status_codes: extract_status_codes(row, &header_to_index).expect("Failed to extract StatusCodes"), 
         order_dates: extract_order_dates(row, &header_to_index).expect("Failed to extract OrderDates"), 
         revision: extract_revision(row, &header_to_index).expect("Failed to extract Revision"), 
@@ -289,17 +355,21 @@ fn extract_status_codes(row: &[DataType], header_to_index: &HashMap<String, usiz
     // concatenate the status codes into a single string
     let status_codes_string = format!("{} {} {} {}", system_status, user_status, opr_user_status, opr_system_status);
 
-
-    let pattern = regex::Regex::new(r"SMAT|NMAT|CMAT|WMAT|PMAT|PCNF|AWSC|WELL|SCH").unwrap();
+    let pcnf_pattern = regex::Regex::new(r"PCNF").unwrap();
+    let awsc_pattern = regex::Regex::new(r"AWSC").unwrap();
+    let well_pattern = regex::Regex::new(r"WELL").unwrap();
+    let sch_pattern = regex::Regex::new(r"SCH").unwrap();
+    let sece_pattern = regex::Regex::new(r"SECE").unwrap();
 
     let material_status: MaterialStatus = MaterialStatus::from_status_code_string(&status_codes_string);
 
     Ok(StatusCodes {
         material_status,
-        pcnf: pattern.is_match(&status_codes_string),
-        awsc: pattern.is_match(&status_codes_string),
-        well: pattern.is_match(&status_codes_string),
-        sch: pattern.is_match(&status_codes_string),
+        pcnf: pcnf_pattern.is_match(&status_codes_string),
+        awsc: awsc_pattern.is_match(&status_codes_string),
+        well: well_pattern.is_match(&status_codes_string),
+        sch: sch_pattern.is_match(&status_codes_string),
+        sece: sece_pattern.is_match(&status_codes_string),
         unloading_point: false, // Assuming default value; modify as needed
     })
 }

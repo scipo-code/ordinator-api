@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct Operation {
     pub activity: u32,
     pub number: u32,

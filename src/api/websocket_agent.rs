@@ -1,26 +1,28 @@
 use actix::prelude::*;
 use actix_web_actors::ws;
 use actix_web::Result;
+use std::sync::Arc;
+use tracing::{Level, event};
 
 use crate::api::FrontendMessages;
 use crate::agents::scheduler_agent::SchedulerAgent;
-use std::sync::Arc;
-pub struct MessageAgent {
+use crate::agents::scheduler_agent::scheduler_message::SetAgentAddrMessage;
+
+pub struct WebSocketAgent {
     scheduler_agent_addr: Arc<Addr<SchedulerAgent>>,
 }
 
-
-
-impl Actor for MessageAgent {
+impl Actor for WebSocketAgent {
     type Context = ws::WebsocketContext<Self>;
+
+    fn started(&mut self, ctx: &mut Self::Context) {
+        event!(Level::INFO, "WebSocketAgent is alive");
+        let addr = ctx.address();
+        self.scheduler_agent_addr.do_send(SetAgentAddrMessage { addr });
+    }
 }
 
-/// What should I import to make this work correctly? I want to be able to use the SchedulerAgents
-/// Addr to send messages to it. Where do I get that from? I think it comes from the Context of the
-/// SchedulerAgent that we create in main.rs. How do I get that Context here?
-/// 
-/// 
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MessageAgent {
+impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
@@ -65,9 +67,9 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MessageAgent {
     }
 }
 
-impl MessageAgent {
+impl WebSocketAgent {
     pub fn new(scheduler_agent_addr: Arc<Addr<SchedulerAgent>>) -> Self {
-        MessageAgent {
+        WebSocketAgent {
             scheduler_agent_addr
         }
     }

@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc, Duration};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct OrderDates {
     pub earliest_allowed_start_date: DateTime<Utc>,
     pub latest_allowed_finish_date: DateTime<Utc>,

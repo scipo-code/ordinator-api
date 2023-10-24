@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 
 #[derive(Serialize, Deserialize)]
-
+#[derive(Clone)]
 pub enum PeriodNone {
     Period(Period),
     None,
@@ -11,6 +11,7 @@ pub enum PeriodNone {
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Hash)]
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct Period {
     id: u32,
     period_string: String,

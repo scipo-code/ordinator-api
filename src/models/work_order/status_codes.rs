@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use regex::Regex;
 
-#[allow(dead_code)]
+#[derive(Clone)]
 #[derive(Serialize, Deserialize)]
 pub struct StatusCodes {
     pub material_status: MaterialStatus,
@@ -9,10 +9,13 @@ pub struct StatusCodes {
     pub awsc: bool,
     pub well: bool,
     pub sch: bool,
+    pub sece: bool,
     pub unloading_point: bool,
 }
 
+#[derive(Clone)]
 #[derive(Serialize, Deserialize)]
+#[derive(PartialEq)]
 pub enum MaterialStatus {
     Smat,
     Nmat,

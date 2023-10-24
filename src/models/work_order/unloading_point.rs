@@ -1,7 +1,8 @@
-use crate::models::period::PeriodNone;
-
 use serde::{Deserialize, Serialize};
 
+use crate::models::period::PeriodNone;
+
+#[derive(Clone)]
 #[derive(Serialize, Deserialize)]
 pub struct UnloadingPoint {
     pub string: String,
