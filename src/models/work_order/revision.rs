@@ -4,7 +4,7 @@ pub struct Revision {
     pub string: String,
     pub shutdown: bool,
 }
-
+#[allow(dead_code)]
 impl Revision {
     pub fn new(string: String) -> Self {
         Revision {
