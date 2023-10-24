@@ -12,11 +12,7 @@ pub mod priority;
 use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-<<<<<<< HEAD
 use std::fs;
-=======
-use std::fmt;
->>>>>>> origin
 
 use crate::models::work_order::operation::Operation;
 use crate::models::work_order::order_dates::OrderDates;
@@ -28,19 +24,10 @@ use crate::models::work_order::revision::Revision;
 use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::work_order::priority::Priority;
 
-<<<<<<< HEAD
 use self::{order_type::{WDFPriority, WGNPriority, WPMPriority}, status_codes::MaterialStatus};
 
+#[derive(Serialize, Deserialize)]
 #[derive(Clone)]
-=======
-#[derive(Serialize, Deserialize)]
-pub enum Priority {
-    IntValue(i32),
-    StringValue(String),
-}
-
->>>>>>> origin
-#[derive(Serialize, Deserialize)]
 pub struct WorkOrder {
     pub order_number: u32,
     pub fixed: bool,
@@ -72,7 +59,6 @@ impl WorkOrder {
     }
 }
 
-<<<<<<< HEAD
 #[derive(Serialize, Deserialize)]
 struct WeightParam {
     WDF_priority_map: std::collections::HashMap<String, u32>,
@@ -94,7 +80,17 @@ impl WeightParam {
 }
 
 impl WorkOrder {
-    pub fn calculate_weight(&mut self) {
+
+    pub fn initialize(&mut self) {
+        dbg!("Initializing Work Orders");
+        self.initialize_weight();
+        self.initialize_work_load();
+        // TODO : Other fields
+    }
+
+    pub fn initialize_weight(&mut self) {
+        dbg!("Initializing Work Orders");
+
         let parameters: WeightParam = WeightParam::read_config().unwrap();
 
         self.order_weight = 0;
@@ -136,55 +132,19 @@ impl WorkOrder {
         // TODO Implement for VIS and ABC
 
     }  
-}
 
-// function create_weights(orders::OrderData)
-//    priority_map = Dict(
-//          "A"   =>  10000, 
-//          "B"   =>    100, 
-//          "C"   =>     10, 
-//          "D"   =>      1, 
-//          "1"   =>  10000, 
-//          "2"   =>    100, 
-//          "3"   =>     10, 
-//          "4"   =>      1,
-//          "V"   =>    100,
-//          "I"   =>     10,
-//          "S"   =>     10)
 
-//    weight = zeros(Int, orders.operations)
-//    for k in 1:orders.operations
-//       if orders.order_type[k] == "WDF"
-//          weight[k] += 10 * priority_map[orders.priority[k]]
-//       end
 
-//       if orders.order_type[k] == "WGN"
-//          weight[k] += 8 * priority_map[orders.priority[k]]
-//       end
+    pub fn initialize_work_load(&mut self) {
+        dbg!("Initializing Work Orders");
 
-//       if orders.order_type[k] == "WPM"
-//          weight[k] += 5 * priority_map[orders.priority[k]]
-//       end
+        let mut work_load: HashMap<String, f64> = HashMap::new();
 
-//       if occursin(r"(SECE)", orders.order_user_status[k])
-//          weight[k] += 75000
-//       end
-     
-//       if occursin(r"(PCNF)", orders.order_system_status[k]) && occursin(r"(NMAT)", orders.order_user_status[k]) && occursin(r"(SMAT)", orders.order_user_status[k])
-//          weight[k] += 15000
-//       end
+        for (_, operation) in self.operations.iter() {
+            work_load.insert(operation.work_center.clone(), operation.work_remaining);
+        }
 
-//       if occursin(r"(AWSC)", orders.order_user_status[k])
-//          weight[k] += 100000
-//       end
-//       # weight[k] += (ismissing(orders.abc[k]) ? 0 : 10 * priority_map[orders.abc[k]])
-//    end
-//    return weight
-// end
-=======
-impl fmt::Display for WorkOrder {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Order Number: {}, \nNumber of activities: {}, \nVendor: {}, \nAWSC: {}, \nShutdown", self.order_number, self.operations.len(), self.vendor, self.status_codes.AWSC)
+        self.work_load = work_load;
+
     }
 }
->>>>>>> origin

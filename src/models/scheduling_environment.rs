@@ -21,6 +21,16 @@ impl WorkOrders {
     }
 }
 
+impl WorkOrders {
+    pub fn initialize_work_orders(&mut self) {
+        dbg!("Initializing Work Orders");
+        for (_, work_order) in self.inner.iter_mut() {
+            work_order.initialize();
+        }
+    }
+}
+
+
 pub struct SchedulingEnvironment {
     pub work_orders: WorkOrders,
     worker_environment: WorkerEnvironment,
@@ -36,10 +46,6 @@ impl SchedulingEnvironment {
         }
     }
 
-    pub fn get_work_orders(&self) -> WorkOrders {
-        let work_orders_clone = self.work_orders.clone();
-        work_orders_clone
-    }
 }
 
 impl WorkOrders {
@@ -56,7 +62,7 @@ impl fmt::Display for SchedulingEnvironment {
 
 impl fmt::Display for WorkOrders {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "The Work Orders are currently comprised of \n  work_orders: {}", self.inner.len());
+        write!(f, "The Work Orders are currently comprised of \n  work_orders: {}", self.inner.len())?;
         for (_, work_order) in self.inner.iter() {
             write!(f, "{}", work_order)?;
         }
