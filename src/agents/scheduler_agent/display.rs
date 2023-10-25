@@ -13,10 +13,10 @@ impl Display for SchedulerAgent {
             Periods: {:?}, \n
             WebSocketAgent Addr: {:?}", 
             self.platform, 
-            self.manual_resources, 
-            self.backlog.inner.len(), 
-            self.scheduled_work_orders, 
-            self.periods, 
+            self.scheduler_agent_algorithm.manual_resources_capacity, 
+            self.scheduler_agent_algorithm.backlog.inner.len(), 
+            self.scheduler_agent_algorithm.scheduled_work_orders, 
+            self.scheduler_agent_algorithm.periods, 
             self.ws_agent_addr)
     }
 }

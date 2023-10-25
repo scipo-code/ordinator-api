@@ -3,14 +3,9 @@ use serde::{Serialize, Deserialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display};
 
-
 use crate::models::order_period::OrderPeriod;
 use crate::models::period::Period;
 
-
-/// Represents various types of messages that can be sent to the scheduler.
-/// This ensures standardized communication with the rest of the system 
-/// for business compliance.
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "scheduler_message_type")]
 pub enum SchedulerMessages {
@@ -19,8 +14,6 @@ pub enum SchedulerMessages {
     ExecuteIteration,
 }
 
-/// Represents the message received from the front-end.
-/// The data from the front-end will be used to instantiate this struct.
 #[derive(Serialize, Deserialize)]
 #[derive(Debug)]
 pub struct InputMessage {
@@ -44,7 +37,6 @@ pub struct SetAgentAddrMessage<T: actix::Actor> {
     pub addr: Addr<T>
 }
 
-/// Represents the message sent to the WorkPlannerAgent.
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize)]
 #[derive(Debug)]
@@ -70,32 +62,13 @@ pub struct RawInputMessage {
     period_lock: HashMap<String, bool>
 }
 
-impl From<RawInputMessage> for InputMessage {
-    fn from(raw: RawInputMessage) -> Self {
-        let mut manual_resources_map: HashMap<(String, Period), f64> = HashMap::new();
-        for res in raw.manual_resources {
-            manual_resources_map.insert((res.resource, res.period), res.capacity);   
-        }
-        println!("{:?}", manual_resources_map);
-    
-        InputMessage {
-            name: raw.name,
-            platform: raw.platform,
-            schedule_work_order: raw.schedule_work_order,
-            unschedule_work_order: raw.unschedule_work_order,
-            manual_resources: manual_resources_map,
-            period_lock: raw.period_lock
-        }
-    }
-}
-
 struct SchedulerResources<'a>(&'a HashMap<(String, Period), f64>);
 
 impl Display for SchedulerResources<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "--------------------------")?;
         for ((resource, period), capacity) in self.0 {
-            writeln!(f, "Resource: {}, Period: {}, Capacity: {}", resource, period, capacity)?;
+            writeln!(f, "Resource: {}\nPeriod: {}\nCapacity: {}", resource, period, capacity)?;
         }
         write!(f, "--------------------------")
     }
@@ -125,6 +98,25 @@ impl Display for InputMessage {
     } 
 }
 
+impl From<RawInputMessage> for InputMessage {
+    fn from(raw: RawInputMessage) -> Self {
+        let mut manual_resources_map: HashMap<(String, Period), f64> = HashMap::new();
+        for res in raw.manual_resources {
+            manual_resources_map.insert((res.resource, res.period), res.capacity);   
+        }
+        println!("{:?}", manual_resources_map);
+    
+        InputMessage {
+            name: raw.name,
+            platform: raw.platform,
+            schedule_work_order: raw.schedule_work_order,
+            unschedule_work_order: raw.unschedule_work_order,
+            manual_resources: manual_resources_map,
+            period_lock: raw.period_lock
+        }
+    }
+}
+
 impl Display for RawInputMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, 
@@ -143,5 +135,3 @@ impl Display for RawInputMessage {
         )
     } 
 }
-
-

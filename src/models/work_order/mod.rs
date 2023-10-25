@@ -8,6 +8,8 @@ pub mod revision;
 pub mod order_type;
 pub mod display;
 pub mod priority;
+pub mod optimized_work_order;
+
 
 use std::collections::HashMap;
 use chrono::{DateTime, Utc};
@@ -23,13 +25,14 @@ use crate::models::work_order::unloading_point::UnloadingPoint;
 use crate::models::work_order::revision::Revision;
 use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::work_order::priority::Priority;
-
-use self::{order_type::{WDFPriority, WGNPriority, WPMPriority}, status_codes::MaterialStatus};
+use crate::models::work_order::optimized_work_order::OptimizedWorkOrder;
+use crate::models::work_order::{order_type::{WDFPriority, WGNPriority, WPMPriority}, status_codes::MaterialStatus};
 
 #[derive(Serialize, Deserialize)]
 #[derive(Clone)]
 pub struct WorkOrder {
     pub order_number: u32,
+    pub optimized_work_order: OptimizedWorkOrder,
     pub fixed: bool,
     pub order_weight: u32,
     pub priority: Priority,
@@ -133,8 +136,6 @@ impl WorkOrder {
 
     }  
 
-
-
     pub fn initialize_work_load(&mut self) {
         dbg!("Initializing Work Orders");
 
@@ -145,6 +146,5 @@ impl WorkOrder {
         }
 
         self.work_load = work_load;
-
     }
 }

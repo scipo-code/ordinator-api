@@ -10,8 +10,15 @@ pub struct OrderPeriod {
     work_order_number: u32,
 }
 
+impl OrderPeriod {
+    pub fn new(period: Period, work_order_number: u32) -> OrderPeriod {
+        OrderPeriod { period: period, work_order_number: work_order_number }
+    }
+}
+
+
 impl fmt::Display for OrderPeriod {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "OrdersPeriod: {{ period: {}, work_orders: {} }}", self.period.get_period(), self.work_order_number)
+        write!(f, "OrdersPeriod: {{ period: {}, work_orders: {} }}", self.period.get_string(), self.work_order_number)
     }
 }
