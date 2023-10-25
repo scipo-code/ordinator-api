@@ -5,21 +5,34 @@ pub mod display;
 
 use std::collections::HashMap;
 use actix::prelude::*; 
+use actix::Message;
+use priority_queue::PriorityQueue;
+use std::hash::Hash;
+use tracing::{info, event};
 
 use crate::agents::scheduler_agent::scheduler_message::{SetAgentAddrMessage, SchedulerMessages, InputMessage};
 use crate::models::scheduling_environment::WorkOrders;
 use crate::models::order_period::OrderPeriod;
 use crate::models::period::Period;
 use crate::api::websocket_agent::WebSocketAgent;
+use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
+
 
 pub struct SchedulerAgent {
     platform: String,
-    manual_resources : HashMap<(String, Period), f64>,
-    backlog: WorkOrders,
-    scheduled_work_orders: HashMap<i32, OrderPeriod>,
-    periods: Vec<Period>,
+    scheduler_agent_algorithm: SchedulerAgentAlgorithm,
     ws_agent_addr: Option<Addr<WebSocketAgent>>,
 }
+
+pub struct SchedulerAgentAlgorithm {
+    manual_resources_capacity : HashMap<(String, Period), f64>,
+    manual_resources_loading: HashMap<(String, Period), f64>,
+    backlog: WorkOrders,
+    priority_queues: PriorityQueues<u32, u32>,
+    scheduled_work_orders: HashMap<u32, OrderPeriod>,
+    periods: Vec<Period>,
+}
+
 
 impl SchedulerAgent {
     pub fn set_ws_agent_addr(&mut self, ws_agent_addr: Addr<WebSocketAgent>) {
@@ -33,7 +46,12 @@ impl Actor for SchedulerAgent {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Context<Self>) {
-        println!("SchedulerAgent is alive");
+        self.populate_priority_queues();
+        for _ in 0..self.scheduler_agent_algorithm.priority_queues.normal.len() {
+            let work_order = self.scheduler_agent_algorithm.priority_queues.normal.pop();
+            info!("SchedulerAgent is populated: {}", work_order.unwrap().0 );
+        }
+        ctx.notify(ScheduleIteration {})
     }
 
     fn stopped(&mut self, ctx: &mut Context<Self>) {
@@ -41,20 +59,33 @@ impl Actor for SchedulerAgent {
     }
 }
 
-impl Handler<SchedulerMessages> for SchedulerAgent {
+#[derive(Message)]
+#[rtype(result = "()")]
+struct ScheduleIteration {}
+
+
+/// I think that the priotity queue should be a struct that is a member of the scheduler agent.
+impl Handler<ScheduleIteration> for SchedulerAgent {
     type Result = ();
 
+    fn handle(&mut self, msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
+        event!(tracing::Level::INFO , "A round of scheduling has been triggered");
+        self.schedule_work_orders_by_type(QueueType::Normal);
+        self.ws_agent_addr().do_send(SchedulerMessages::WorkPlanner);
+        ctx.notify(ScheduleIteration {})
+    }
+}
+
+
+impl Handler<SchedulerMessages> for SchedulerAgent {
+    type Result = ();
     fn handle(&mut self, msg: SchedulerMessages, ctx: &mut Self::Context) -> Self::Result {
         match msg {
             SchedulerMessages::Input(msg) => {
                 println!("SchedulerAgentReceived a FrontEnd message");
                 let input_message: InputMessage = msg.into();
-                println!("{}", input_message);
-
-                println!("{:?}", self.manual_resources);
+               
                 self.update_scheduler_state(input_message);
-                println!("{:?}", self.manual_resources);
-                println!("{}", self);
 
                 // TODO - modify state of scheduler agent
             }
@@ -88,26 +119,82 @@ impl SchedulerAgent {
 impl SchedulerAgent {
     pub fn new(
         platform: String, 
-        manual_resources: HashMap<(String, Period), f64>, 
-        backlog: WorkOrders, 
-        scheduled_work_orders: HashMap<i32, OrderPeriod>, 
-        periods: Vec<Period>,
+        scheduler_agent_algorithm: SchedulerAgentAlgorithm,
         ws_agent_addr: Option<Addr<WebSocketAgent>>) 
             -> Self {
   
         Self {
             platform,
-            manual_resources,
-            backlog,
-            scheduled_work_orders,
-            periods,
+            scheduler_agent_algorithm,
             ws_agent_addr,
         }
     }
 }
 
+impl SchedulerAgentAlgorithm {
+    pub fn new(
+        manual_resources_capacity: HashMap<(String, Period), f64>, 
+        manual_resources_loading: HashMap<(String, Period), f64>, 
+        backlog: WorkOrders, 
+        priority_queues: PriorityQueues<u32, u32>,
+        scheduled_work_orders: HashMap<u32, OrderPeriod>, 
+        periods: Vec<Period>,
+    ) -> Self {
+        SchedulerAgentAlgorithm {
+            manual_resources_capacity,
+            manual_resources_loading,
+            backlog,
+            priority_queues,
+            scheduled_work_orders,
+            periods            
+        }
+    }
+}
+
+
 impl SchedulerAgent {
     pub fn update_scheduler_state(&mut self, input_message: InputMessage) {
-        self.manual_resources = input_message.get_manual_resources();
+        self.scheduler_agent_algorithm.manual_resources_capacity = input_message.get_manual_resources();
+    }
+
+
+}
+
+
+
+impl SchedulerAgent {
+
+    fn populate_priority_queues(&mut self) -> () {
+        for (key, work_order) in self.scheduler_agent_algorithm.backlog.inner.iter() {
+            if work_order.unloading_point.present {
+                self.scheduler_agent_algorithm.priority_queues.unloading.push(*key, work_order.order_weight);
+            } else if work_order.revision.shutdown || work_order.vendor {
+                self.scheduler_agent_algorithm.priority_queues.shutdown_vendor.push(*key, work_order.order_weight);
+            } else {
+                self.scheduler_agent_algorithm.priority_queues.normal.push(*key, work_order.order_weight);
+            }
+        }
+    }
+
+
+}
+
+
+pub struct PriorityQueues<T, P> 
+    where T: Hash + Eq,
+          P: Ord
+{ 
+    unloading: PriorityQueue<T, P>,
+    shutdown_vendor: PriorityQueue<T, P>,
+    normal: PriorityQueue<T, P>,
+}
+
+impl PriorityQueues<u32, u32> {
+    pub fn new() -> Self{
+        Self {
+            unloading: PriorityQueue::<u32, u32>::new(),
+            shutdown_vendor: PriorityQueue::<u32, u32>::new(),
+            normal: PriorityQueue::<u32, u32>::new(),
+        }
     }
 }

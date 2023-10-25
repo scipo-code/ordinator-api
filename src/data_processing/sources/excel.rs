@@ -20,6 +20,7 @@ use crate::models::work_order::order_type::{WDFPriority, WGNPriority, WPMPriorit
 use crate::models::work_order::priority::Priority;
 use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::worker_environment::WorkerEnvironment;
+use crate::models::work_order::optimized_work_order::OptimizedWorkOrder;
 
 extern crate regex;
 
@@ -144,6 +145,7 @@ fn create_new_work_order(row: &[DataType], header_to_index: &HashMap<String, usi
             Some(DataType::String(s)) => s.parse::<u32>().unwrap_or(0),
             _ => 0
         },
+        optimized_work_order: OptimizedWorkOrder::empty(),
         fixed: false,
         order_weight: 0, // TODO: Implement calculate_weight method.
         priority: priority.clone(),

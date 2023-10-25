@@ -27,9 +27,23 @@ impl Period {
 }
 
 impl Period {
-    pub fn get_period(&self) -> String {
+    pub fn get_string(&self) -> String {
         self.period_string.clone()
     }
+
+    pub fn get_start_date(&self) -> DateTime<Utc> {
+        self.start_date
+    }
+
+    pub fn get_end_date(&self) -> DateTime<Utc> {
+        self.end_date
+    }
+
+    pub fn get_id(&self) -> u32 {
+        self.id
+    }
+
+
 }
 
 impl Display for Period {
