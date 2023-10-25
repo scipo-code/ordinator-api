@@ -1,4 +1,3 @@
-pub mod scheduler_agent;
 pub mod scheduler_message;
 pub mod scheduler_algorithm;
 pub mod display;
@@ -9,6 +8,7 @@ use actix::Message;
 use priority_queue::PriorityQueue;
 use std::hash::Hash;
 use tracing::{info, event};
+use tokio::time::{sleep, Duration};
 
 use crate::agents::scheduler_agent::scheduler_message::{SetAgentAddrMessage, SchedulerMessages, InputMessage};
 use crate::models::scheduling_environment::WorkOrders;
@@ -16,7 +16,6 @@ use crate::models::order_period::OrderPeriod;
 use crate::models::period::Period;
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
-
 
 pub struct SchedulerAgent {
     platform: String,
@@ -66,13 +65,21 @@ struct ScheduleIteration {}
 
 /// I think that the priotity queue should be a struct that is a member of the scheduler agent.
 impl Handler<ScheduleIteration> for SchedulerAgent {
-    type Result = ();
+    type Result = ResponseActFuture<Self, ()>;
 
     fn handle(&mut self, msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         event!(tracing::Level::INFO , "A round of scheduling has been triggered");
         self.schedule_work_orders_by_type(QueueType::Normal);
-        self.ws_agent_addr().do_send(SchedulerMessages::WorkPlanner);
-        ctx.notify(ScheduleIteration {})
+        // TODO self.ws_agent_addr.do_send(SchedulerMessages::WorkPlanner);
+
+        let actor_addr = ctx.address().clone();
+
+        let fut = async move {
+            // Sleep for one second
+            sleep(Duration::from_secs(1)).await;
+            actor_addr.do_send(ScheduleIteration {});
+        };
+        Box::pin(actix::fut::wrap_future::<_, Self>(fut))
     }
 }
 

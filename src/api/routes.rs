@@ -3,13 +3,10 @@ use actix_web_actors::ws;
 use actix::prelude::*;
 use std::sync::Arc;
 use std::thread;
-use tracing::{Level, info, event, instrument};
-
+use tracing::{Level, event};
 
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::agents::scheduler_agent::SchedulerAgent;
-
-
 
 #[get("/ws")]
 async fn ws_index(
@@ -24,7 +21,6 @@ async fn ws_index(
     let res = ws::start(WebSocketAgent::new(data.get_ref().clone()), &req, stream);
     res
 }
-
 
 #[get("/hello/{name}")]
 async fn greet(name: web::Path<String>) -> impl Responder {

@@ -42,8 +42,6 @@ impl Period {
     pub fn get_id(&self) -> u32 {
         self.id
     }
-
-
 }
 
 impl Display for Period {

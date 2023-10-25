@@ -1,26 +1,26 @@
 {
-    "WDF_priority_map": {
+    "wdf_priority_map": {
       "1": 10000,
       "2": 100,
       "3": 10,
       "4": 1
     },
 
-    "WGN_priority_map": {
+    "wgn_priority_map": {
       "1": 10000,
       "2": 100,
       "3": 10,
       "4": 1
     },
 
-    "WPM_priority_map": {
+    "wpm_priority_map": {
       "A": 10000,
       "B": 100,
       "C": 10,
       "D": 1
     },
 
-    "VIS_priority_map": {
+    "vis_priority_map": {
       "V": 100,
       "I": 10,
       "S": 10

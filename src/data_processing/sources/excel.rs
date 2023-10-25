@@ -605,3 +605,30 @@ fn get_data_from_headers<'a>(
     }
     None
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_date() {
+        let date = parse_date("2021-01-01");
+        assert_eq!(date, NaiveDate::from_ymd_opt(2021, 1, 1).unwrap());
+    }
+    // fn parse_date(s: &str) -> NaiveDate {
+    //     let formats = ["%Y%m%d", "%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y"];
+    
+    //     for format in &formats {
+    //         match NaiveDate::parse_from_str(s, format) {
+    //             Ok(naive_date) => return naive_date,
+    //             Err(_) => continue,
+    //         }
+    //     }
+    
+    //     println!("Could not parse date from string: {}", s);
+    //     NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()
+    // }
+
+
+}

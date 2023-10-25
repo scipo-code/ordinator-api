@@ -3,7 +3,6 @@ use crate::models::scheduling_environment::WorkOrders;
 use crate::agents::scheduler_agent::SchedulerAgent;
 use crate::models::period::Period;
 use crate::models::work_order;
-
 use priority_queue::PriorityQueue;
 
 pub enum QueueType {
@@ -44,7 +43,7 @@ impl SchedulerAgent {
                 };
                 wos
             };
-                // if self.scheduler_agent_algorithm.backlog.inner.get(&work_order_key).unwrap().unloading_point.present {
+            // if self.scheduler_agent_algorithm.backlog.inner.get(&work_order_key).unwrap().unloading_point.present {
             for work_order_key in work_orders_to_schedule {
                 let inf_wo_key = self.schedule_work_order(work_order_key, &period, &queue_type);
                 inf_wos.inner.insert(inf_wo_key, self.scheduler_agent_algorithm.backlog.inner.remove(&inf_wo_key).unwrap());
@@ -83,3 +82,6 @@ impl SchedulerAgent {
         }
     }
 }
+
+
+

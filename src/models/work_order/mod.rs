@@ -64,10 +64,10 @@ impl WorkOrder {
 
 #[derive(Serialize, Deserialize)]
 struct WeightParam {
-    WDF_priority_map: std::collections::HashMap<String, u32>,
-    WGN_priority_map: std::collections::HashMap<String, u32>,
-    WPM_priority_map: std::collections::HashMap<String, u32>,
-    VIS_priority_map: std::collections::HashMap<String, u32>,
+    wdf_priority_map: std::collections::HashMap<String, u32>,
+    wgn_priority_map: std::collections::HashMap<String, u32>,
+    wpm_priority_map: std::collections::HashMap<String, u32>,
+    vis_priority_map: std::collections::HashMap<String, u32>,
     order_type_weights: std::collections::HashMap<String, u32>,
     status_weights: std::collections::HashMap<String, u32>,
 }
@@ -99,23 +99,23 @@ impl WorkOrder {
         self.order_weight = 0;
 
         match &self.order_type {
-            WorkOrderType::WDF(WDFPriority) => match WDFPriority {
-                WDFPriority::One => self.order_weight += parameters.WDF_priority_map["1"] * parameters.order_type_weights["WDF"],
-                WDFPriority::Two => self.order_weight += parameters.WDF_priority_map["2"] * parameters.order_type_weights["WDF"],
-                WDFPriority::Three => self.order_weight += parameters.WDF_priority_map["3"] * parameters.order_type_weights["WDF"],
-                WDFPriority::Four => self.order_weight += parameters.WDF_priority_map["4"] * parameters.order_type_weights["WDF"],
+            WorkOrderType::WDF(wdf_priority) => match wdf_priority {
+                WDFPriority::One => self.order_weight += parameters.wdf_priority_map["1"] * parameters.order_type_weights["WDF"],
+                WDFPriority::Two => self.order_weight += parameters.wdf_priority_map["2"] * parameters.order_type_weights["WDF"],
+                WDFPriority::Three => self.order_weight += parameters.wdf_priority_map["3"] * parameters.order_type_weights["WDF"],
+                WDFPriority::Four => self.order_weight += parameters.wdf_priority_map["4"] * parameters.order_type_weights["WDF"],
             },
-            WorkOrderType::WGN(WGNPriority) => match WGNPriority {
-                WGNPriority::One => self.order_weight += parameters.WGN_priority_map["1"] * parameters.order_type_weights["WGN"],
-                WGNPriority::Two => self.order_weight += parameters.WGN_priority_map["2"] * parameters.order_type_weights["WGN"],
-                WGNPriority::Three => self.order_weight += parameters.WGN_priority_map["3"] * parameters.order_type_weights["WGN"],
-                WGNPriority::Four => self.order_weight += parameters.WGN_priority_map["4"] * parameters.order_type_weights["WGN"]
+            WorkOrderType::WGN(wgn_priority) => match wgn_priority {
+                WGNPriority::One => self.order_weight += parameters.wgn_priority_map["1"] * parameters.order_type_weights["WGN"],
+                WGNPriority::Two => self.order_weight += parameters.wgn_priority_map["2"] * parameters.order_type_weights["WGN"],
+                WGNPriority::Three => self.order_weight += parameters.wgn_priority_map["3"] * parameters.order_type_weights["WGN"],
+                WGNPriority::Four => self.order_weight += parameters.wgn_priority_map["4"] * parameters.order_type_weights["WGN"]
             },	                
-            WorkOrderType::WPM(WPMPriority) => match WPMPriority {
-                WPMPriority::A => self.order_weight +=parameters.WPM_priority_map["A"] * parameters.order_type_weights["WPM"],
-                WPMPriority::B => self.order_weight +=parameters.WPM_priority_map["B"] * parameters.order_type_weights["WPM"],
-                WPMPriority::C => self.order_weight +=parameters.WPM_priority_map["C"] * parameters.order_type_weights["WPM"],
-                WPMPriority::D => self.order_weight +=parameters.WPM_priority_map["D"] * parameters.order_type_weights["WPM"]
+            WorkOrderType::WPM(wpm_priority) => match wpm_priority {
+                WPMPriority::A => self.order_weight += parameters.wpm_priority_map["A"] * parameters.order_type_weights["WPM"],
+                WPMPriority::B => self.order_weight += parameters.wpm_priority_map["B"] * parameters.order_type_weights["WPM"],
+                WPMPriority::C => self.order_weight += parameters.wpm_priority_map["C"] * parameters.order_type_weights["WPM"],
+                WPMPriority::D => self.order_weight += parameters.wpm_priority_map["D"] * parameters.order_type_weights["WPM"]
             },
             WorkOrderType::Other => self.order_weight += parameters.order_type_weights["Other"],
         }  

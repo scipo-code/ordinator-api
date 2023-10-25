@@ -2,7 +2,6 @@ mod agents;
 mod models;
 mod data_processing;
 mod api;
-mod messages;
 
 use actix::prelude::*;
 use std::path::Path;
@@ -20,7 +19,6 @@ use crate::api::routes::ws_index;
 use crate::agents::scheduler_agent::SchedulerAgent;
 use crate::agents::scheduler_agent::PriorityQueues;
 use crate::agents::scheduler_agent::SchedulerAgentAlgorithm;
-use crate::models::scheduling_environment::WorkOrders;
 
 #[instrument]
 #[actix_web::main]

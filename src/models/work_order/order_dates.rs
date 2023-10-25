@@ -8,7 +8,6 @@ pub struct OrderDates {
     pub latest_allowed_finish_date: DateTime<Utc>,
     pub basic_start_date: DateTime<Utc>,
     pub basic_finish_date: DateTime<Utc>,
-
     #[serde(serialize_with = "serialize_duration", deserialize_with = "deserialize_duration")]
     pub duration: Duration, // Assuming `Day` is another struct or type you've defined
     pub basic_start_scheduled: Option<DateTime<Utc>>,

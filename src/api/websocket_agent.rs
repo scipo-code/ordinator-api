@@ -74,3 +74,53 @@ impl WebSocketAgent {
         }
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use chrono::{DateTime, Utc};
+    use super::*;
+    use std::collections::HashMap;
+    use crate::agents::scheduler_agent::SchedulerAgentAlgorithm;
+    use crate::agents::scheduler_agent::SchedulerAgent;
+    use crate::agents::scheduler_agent::PriorityQueues;
+    use crate::models::scheduling_environment::WorkOrders;
+    use crate::models::order_period::OrderPeriod;
+    use crate::models::period::Period;
+
+
+    #[actix_rt::test]
+    async fn test_websocket_agent() {
+        
+        
+        let start_date_str = "2023-10-23T12:00:00Z";
+        let start_date: DateTime<Utc> = start_date_str.parse().expect("test of start day string failed");
+        
+        let end_date: DateTime<Utc> = start_date + chrono::Duration::days(14);
+        
+        let periods = vec![Period::new(1, start_date, end_date)];
+        
+        let mut scheduled_work_orders = HashMap::new();
+        scheduled_work_orders.insert(2020202020, OrderPeriod::new(Period::new(1, start_date, end_date), 2020202020));
+
+        let scheduler_agent_addr = SchedulerAgent::new(
+            "test".to_string(), 
+            SchedulerAgentAlgorithm::new(
+                HashMap::new(), 
+                HashMap::new(), 
+                WorkOrders::new(), 
+                PriorityQueues::new(), 
+                scheduled_work_orders,
+                periods),
+            None
+        ).start();
+
+
+        
+        let ws_agent = WebSocketAgent::new(Arc::new(scheduler_agent_addr.clone()));
+        // let mut ws_agent_addr = ws_agent.start();
+        
+        
+        
+    }
+}
