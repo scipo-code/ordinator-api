@@ -28,7 +28,6 @@ use crate::models::work_order::priority::Priority;
 use crate::models::work_order::optimized_work_order::OptimizedWorkOrder;
 use crate::models::work_order::{order_type::{WDFPriority, WGNPriority, WPMPriority}, status_codes::MaterialStatus};
 
-
 #[derive(Serialize, Deserialize)]
 #[derive(Clone)]
 pub struct WorkOrder {
@@ -147,6 +146,5 @@ impl WorkOrder {
         }
 
         self.work_load = work_load;
-
     }
 }
