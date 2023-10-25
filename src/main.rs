@@ -18,6 +18,8 @@ use crate::models::scheduling_environment::SchedulingEnvironment;
 use crate::data_processing::sources::excel::load_data_file;
 use crate::api::routes::ws_index;
 use crate::agents::scheduler_agent::SchedulerAgent;
+use crate::agents::scheduler_agent::PriorityQueues;
+use crate::agents::scheduler_agent::SchedulerAgentAlgorithm;
 use crate::models::scheduling_environment::WorkOrders;
 
 #[instrument]
@@ -35,16 +37,25 @@ async fn main() -> std::io::Result<()> {
 
     let cloned_work_orders = scheduling_environment.work_orders.clone();
 
-    let scheduler_agent: Arc<Addr<SchedulerAgent>> = Arc::new(SchedulerAgent::new(
-        String::from("Dan F"),
+    let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        HashMap::new(),
         HashMap::new(),
         cloned_work_orders,
+        PriorityQueues::new(),
         HashMap::new(),
         Vec::new(),
-        None,
-        ).start());
+    );
 
-    // scheduler_agent.send(SchedulerMessages::ExecuteIteration).await.unwrap();
+    let scheduler_agent = SchedulerAgent::new(
+        String::from("Dan F"),
+        scheduler_agent_algorithm,  
+        None);
+
+    println!("{}", scheduler_agent);
+
+    let scheduler_agent_addr: Arc<Addr<SchedulerAgent>> = Arc::new(scheduler_agent.start());
+
+    // scheduler_agent_addr.send(SchedulerMessages::ExecuteIteration).await.unwrap();
     
     info!("Server running at http://127.0.0.1:8001/");
     HttpServer::new(move || {
@@ -53,7 +64,7 @@ async fn main() -> std::io::Result<()> {
         event!(Level::INFO, ?current_thread_id, "starting app");
 
         App::new()
-            .app_data(web::Data::new(scheduler_agent.clone()))
+            .app_data(web::Data::new(scheduler_agent_addr.clone()))
             .service(ws_index)
     })
     .bind(("127.0.0.1", 8001))?
