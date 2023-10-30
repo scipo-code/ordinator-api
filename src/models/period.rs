@@ -1,9 +1,11 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, Datelike};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 
+
 #[derive(Serialize, Deserialize)]
 #[derive(Clone)]
+#[derive(Debug)]
 pub enum PeriodNone {
     Period(Period),
     None,
@@ -14,15 +16,26 @@ pub enum PeriodNone {
 #[derive(Clone)]
 pub struct Period {
     id: u32,
-    period_string: String,
+    pub period_string: String,
     start_date: DateTime<Utc>,
     end_date: DateTime<Utc>,
 }
 
 impl Period {
     pub fn new(id: u32, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Period {
-        let period_string = "{(year(start_date)}-W{week(start_date)}-{week(end_date)-1 == 0 ? 52 : week(end_date)-1}";
-        Period { id: id, period_string: period_string.to_string(), start_date: start_date, end_date: end_date}
+        dbg!(start_date);
+        dbg!(start_date.iso_week());
+        dbg!(start_date.iso_week().week());
+
+        dbg!(end_date);
+        dbg!(end_date.iso_week());
+        dbg!(end_date.iso_week().week());
+
+        let period_string = format!("{}-W{}-{}",
+            start_date.year(),
+            start_date.iso_week().week(),
+            if end_date.iso_week().week() == 1 { 52 } else { end_date.iso_week().week() });
+        Period { id: id, period_string: period_string, start_date: start_date, end_date: end_date}
     }
 }
 
@@ -46,13 +59,6 @@ impl Period {
 
 impl Display for Period {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, 
-            "Period: {}, \n
-            Start Date: {}, \n
-            End Date: {}", 
-            self.period_string, 
-            self.start_date, 
-            self.end_date)
-
+        write!(f, "Period: {}", self.period_string)
     }
 }

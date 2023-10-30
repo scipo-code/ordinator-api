@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 #[derive(Clone)]
+#[derive(Debug)]
 pub struct OrderText {
     pub order_system_status: String,
     pub order_user_status: String,

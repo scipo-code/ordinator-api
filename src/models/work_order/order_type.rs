@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 #[derive(Clone)]
+#[derive(Debug)]
 pub enum WorkOrderType {
     WDF(WDFPriority),
     WGN(WGNPriority),
@@ -11,6 +12,7 @@ pub enum WorkOrderType {
 }
 #[derive(Clone)]
 #[derive(Serialize, Deserialize)]
+#[derive(Debug)]
 pub enum WDFPriority {
     One,
     Two,
@@ -19,6 +21,7 @@ pub enum WDFPriority {
 }
 #[derive(Clone)]
 #[derive(Serialize, Deserialize)]
+#[derive(Debug)]
 pub enum WGNPriority {
     One,
     Two,
@@ -27,6 +30,7 @@ pub enum WGNPriority {
 }
 #[derive(Clone)]
 #[derive(Serialize, Deserialize)]
+#[derive(Debug)]
 pub enum WPMPriority {
     A,
     B,

@@ -10,7 +10,6 @@ pub mod display;
 pub mod priority;
 pub mod optimized_work_order;
 
-
 use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -30,6 +29,7 @@ use crate::models::work_order::{order_type::{WDFPriority, WGNPriority, WPMPriori
 
 #[derive(Serialize, Deserialize)]
 #[derive(Clone)]
+#[derive(Debug)]
 pub struct WorkOrder {
     pub order_number: u32,
     pub optimized_work_order: OptimizedWorkOrder,

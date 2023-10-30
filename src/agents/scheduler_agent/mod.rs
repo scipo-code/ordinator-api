@@ -46,10 +46,14 @@ impl Actor for SchedulerAgent {
 
     fn started(&mut self, ctx: &mut Context<Self>) {
         self.populate_priority_queues();
-        for _ in 0..self.scheduler_agent_algorithm.priority_queues.normal.len() {
-            let work_order = self.scheduler_agent_algorithm.priority_queues.normal.pop();
-            info!("SchedulerAgent is populated: {}", work_order.unwrap().0 );
-        }
+        // for _ in 0..self.scheduler_agent_algorithm.priority_queues.normal.len() {
+        //     let work_order = self.scheduler_agent_algorithm.priority_queues.normal.pop();
+        //     info!("SchedulerAgent normal queue is populated with: {}", work_order.unwrap().0 );
+        // }
+        // for _ in 0..self.scheduler_agent_algorithm.priority_queues.unloading.len() {
+        //     let work_order = self.scheduler_agent_algorithm.priority_queues.unloading.pop(); // pop here removes the element from the queue
+        //     info!("SchedulerAgent unloading queue is populated with: {}", work_order.unwrap().0 );
+        // }
         ctx.notify(ScheduleIteration {})
     }
 
@@ -70,8 +74,15 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
     fn handle(&mut self, msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         event!(tracing::Level::INFO , "A round of scheduling has been triggered");
         self.schedule_work_orders_by_type(QueueType::Normal);
+        self.schedule_work_orders_by_type(QueueType::Unloading);
+
         // TODO self.ws_agent_addr.do_send(SchedulerMessages::WorkPlanner);
 
+        let display_manual_resources = display::DisplayableManualResource(self.scheduler_agent_algorithm.manual_resources_capacity.clone());
+        let display_scheduled_work_orders = display::DisplayableScheduledWorkOrders(self.scheduler_agent_algorithm.scheduled_work_orders.clone());
+
+        println!("manual resources {}", display_manual_resources);
+        println!("Scheduled work orders {}", display_scheduled_work_orders);
         let actor_addr = ctx.address().clone();
 
         let fut = async move {
@@ -174,10 +185,13 @@ impl SchedulerAgent {
     fn populate_priority_queues(&mut self) -> () {
         for (key, work_order) in self.scheduler_agent_algorithm.backlog.inner.iter() {
             if work_order.unloading_point.present {
+                event!(tracing::Level::INFO , "Work order {} with unloading point has been added to the unloading queue", key);
                 self.scheduler_agent_algorithm.priority_queues.unloading.push(*key, work_order.order_weight);
             } else if work_order.revision.shutdown || work_order.vendor {
+                event!(tracing::Level::INFO , "Work order {} with shutdown has been added to the unloading queue", key);
                 self.scheduler_agent_algorithm.priority_queues.shutdown_vendor.push(*key, work_order.order_weight);
             } else {
+                event!(tracing::Level::INFO , "Work order {} with normal has been added to the unloading queue", key);
                 self.scheduler_agent_algorithm.priority_queues.normal.push(*key, work_order.order_weight);
             }
         }

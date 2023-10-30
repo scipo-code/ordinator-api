@@ -3,6 +3,7 @@ use regex::Regex;
 
 #[derive(Clone)]
 #[derive(Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct StatusCodes {
     pub material_status: MaterialStatus,
     pub pcnf: bool,
@@ -16,6 +17,7 @@ pub struct StatusCodes {
 #[derive(Clone)]
 #[derive(Serialize, Deserialize)]
 #[derive(PartialEq)]
+#[derive(Debug)]
 pub enum MaterialStatus {
     Smat,
     Nmat,

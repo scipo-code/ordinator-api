@@ -5,6 +5,7 @@ use crate::models::period::Period;
 
 #[derive(Serialize, Deserialize)]
 #[derive(Clone)]
+#[derive(Debug)]
 pub struct OptimizedWorkOrder {
     period: Option<Period>,
     start_date: Option<DateTime<Utc>>,

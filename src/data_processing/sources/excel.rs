@@ -1,3 +1,4 @@
+use actix_web_actors::ws::start;
 use calamine::{open_workbook, Xlsx, Reader, DataType, Error};
 use regex::Regex;
 use core::fmt;
@@ -7,7 +8,7 @@ use std::path::Path;
 use crate::models::period::Period;
 use crate::models::period::PeriodNone;
 
-use chrono::{DateTime, Utc, NaiveDate, Duration, TimeZone, naive, NaiveTime, Datelike, Weekday};
+use chrono::{DateTime, Utc, NaiveDate, Duration, TimeZone, naive, NaiveTime, Datelike, Weekday, Timelike};
 use crate::models::scheduling_environment::{SchedulingEnvironment, WorkOrders};
 use crate::models::work_order::WorkOrder;
 use crate::models::work_order::revision::Revision;
@@ -38,7 +39,7 @@ impl fmt::Display for ExcelLoadError {
 /// This function will load data from excel. It is crucial that the approach is modular and scalable
 /// so that it will always be possible to add new data sources and data transformers in the future.
 /// 
-pub fn load_data_file(file_path: &Path) -> Result<SchedulingEnvironment, calamine::Error> {
+pub fn load_data_file(file_path: &Path, number_of_periods: u32) -> Result<SchedulingEnvironment, calamine::Error> {
     let mut workbook: Xlsx<_> = open_workbook(file_path)?;
     println!("Successfully loaded file.");
 
@@ -50,7 +51,10 @@ pub fn load_data_file(file_path: &Path) -> Result<SchedulingEnvironment, calamin
 
     populate_work_orders(&mut work_orders, sheet).expect("could not populate the work orders");
 
-    let scheduling_environment = SchedulingEnvironment::new(work_orders, worker_environment);
+    let periods: Vec<Period> = create_periods(number_of_periods).expect(&format!("Could not create periods in {} at line {}", file!(), line!()));
+
+
+    let scheduling_environment = SchedulingEnvironment::new(work_orders, worker_environment, periods);
 
     Ok(scheduling_environment)
 }
@@ -198,7 +202,6 @@ fn create_new_work_order(row: &[DataType], header_to_index: &HashMap<String, usi
                     },
                     _ => Ok(WorkOrderType::Other),
                 }
-                
             },
             None => {
                 println!("Order_Type is None");
@@ -215,7 +218,6 @@ fn create_new_work_order(row: &[DataType], header_to_index: &HashMap<String, usi
         order_text: extract_order_text(row, &header_to_index).expect("Failed to extract OrderText"),
         vendor: false 
     })
-
 }
 
 fn create_new_operation(row: &[DataType], header_to_index: &HashMap<String, usize>) -> Result<Operation, Error> {
@@ -284,7 +286,7 @@ fn create_new_operation(row: &[DataType], header_to_index: &HashMap<String, usiz
                     Some(DataType::String(s)) => {
                         parse_date(&s)
                     }
-                    _ => return Err(Error::Msg("Could not parse revision as string"))
+                    _ => return Err(Error::Msg("Could not parse Earliest_Start_Date as string"))
 
                 };
 
@@ -298,7 +300,7 @@ fn create_new_operation(row: &[DataType], header_to_index: &HashMap<String, usiz
                             }
                         }
                     }
-                    _ => return Err(Error::Msg("Could not parse revision as string"))
+                    _ => return Err(Error::Msg("Could not parse earliest_start_time_data as string"))
 
                 };
 
@@ -310,7 +312,7 @@ fn create_new_operation(row: &[DataType], header_to_index: &HashMap<String, usiz
                     Some(DataType::String(s)) => {
                         parse_date(&s)
                     }
-                    _ => return Err(Error::Msg("Could not parse revision as string"))
+                    _ => return Err(Error::Msg("Could not earliest_finish_date_data revision as string"))
                 };
 
                 let time = match earliest_finish_time_data.cloned() {
@@ -324,7 +326,7 @@ fn create_new_operation(row: &[DataType], header_to_index: &HashMap<String, usiz
                             }
                         }
                     }
-                    _ => return Err(Error::Msg("Could not parse revision as string"))
+                    _ => return Err(Error::Msg("Could not parse earliest_finish_time_data"))
                 };
                 Utc.from_utc_datetime(&naive::NaiveDateTime::new(date, time))
             },
@@ -631,4 +633,60 @@ mod tests {
     // }
 
 
+}
+
+
+fn create_periods(number_of_periods: u32) -> Result<Vec<Period>, Error> {
+    let mut periods: Vec<Period> = Vec::<Period>::new();
+    let mut start_date = Utc::now();
+
+    // Get the ISO week number
+    let week_number = start_date.iso_week().week();
+    // Determine target week number: If current is even, target is the previous odd
+    let target_week = if week_number % 2 == 0 {
+        week_number  - 1
+    } else {
+        week_number
+    };
+
+    // Compute the offset in days to reach Monday of the target week
+    let days_to_offset = (start_date.weekday().num_days_from_monday() as i64) + 
+                         (7 * (week_number - target_week) as i64);
+
+    dbg!(days_to_offset);
+
+    dbg!(start_date);
+
+    start_date = start_date - Duration::days(days_to_offset);
+
+    start_date = start_date.with_hour(0)
+        .and_then(|d| d.with_minute(0))
+        .and_then(|d| d.with_second(0))
+        .and_then(|d| d.with_nanosecond(0))
+        .unwrap();
+
+    dbg!(start_date);
+
+    let mut end_date = start_date + Duration::weeks(2);
+    dbg!(end_date);
+    
+    end_date = end_date - Duration::days(1);
+    
+    end_date = end_date.with_hour(23)
+    .and_then(|d| d.with_minute(59))
+    .and_then(|d| d.with_second(59))
+    .and_then(|d| d.with_nanosecond(0))
+    .unwrap();
+
+    dbg!(end_date);
+
+    for i in 0..number_of_periods {
+        dbg!(start_date);
+        dbg!(end_date);
+        periods.push(Period::new(i, start_date, end_date));
+        start_date = start_date + Duration::weeks(2);
+        end_date = end_date + Duration::weeks(2);
+
+    }
+    Ok(periods)
 }
