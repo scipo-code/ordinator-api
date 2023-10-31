@@ -81,8 +81,8 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
         let display_manual_resources = display::DisplayableManualResource(self.scheduler_agent_algorithm.manual_resources_capacity.clone());
         let display_scheduled_work_orders = display::DisplayableScheduledWorkOrders(self.scheduler_agent_algorithm.scheduled_work_orders.clone());
 
-        println!("manual resources {}", display_manual_resources);
-        println!("Scheduled work orders {}", display_scheduled_work_orders);
+        // println!("manual resources {}", display_manual_resources);
+        // println!("Scheduled work orders {}", display_scheduled_work_orders);
         let actor_addr = ctx.address().clone();
 
         let fut = async move {
@@ -172,26 +172,24 @@ impl SchedulerAgentAlgorithm {
 
 impl SchedulerAgent {
     pub fn update_scheduler_state(&mut self, input_message: InputMessage) {
+        dbg!(self.scheduler_agent_algorithm.manual_resources_capacity.clone());
         self.scheduler_agent_algorithm.manual_resources_capacity = input_message.get_manual_resources();
+        dbg!(self.scheduler_agent_algorithm.manual_resources_capacity.clone());
     }
-
-
 }
-
-
 
 impl SchedulerAgent {
 
     fn populate_priority_queues(&mut self) -> () {
         for (key, work_order) in self.scheduler_agent_algorithm.backlog.inner.iter() {
             if work_order.unloading_point.present {
-                event!(tracing::Level::INFO , "Work order {} with unloading point has been added to the unloading queue", key);
+                event!(tracing::Level::INFO , "Work order {} has been added to the unloading queue", key);
                 self.scheduler_agent_algorithm.priority_queues.unloading.push(*key, work_order.order_weight);
             } else if work_order.revision.shutdown || work_order.vendor {
-                event!(tracing::Level::INFO , "Work order {} with shutdown has been added to the unloading queue", key);
+                event!(tracing::Level::INFO , "Work order {} has been added to the shutdown/vendor queue", key);
                 self.scheduler_agent_algorithm.priority_queues.shutdown_vendor.push(*key, work_order.order_weight);
             } else {
-                event!(tracing::Level::INFO , "Work order {} with normal has been added to the unloading queue", key);
+                event!(tracing::Level::INFO , "Work order {} has been added to the normal queue", key);
                 self.scheduler_agent_algorithm.priority_queues.normal.push(*key, work_order.order_weight);
             }
         }
