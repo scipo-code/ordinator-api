@@ -7,7 +7,7 @@ use tracing::{Level, event};
 use crate::api::FrontendMessages;
 use crate::agents::scheduler_agent::SchedulerAgent;
 use crate::agents::scheduler_agent::scheduler_message::SetAgentAddrMessage;
-
+use crate::agents::scheduler_agent::SchedulingOverviewData;
 pub struct WebSocketAgent {
     scheduler_agent_addr: Arc<Addr<SchedulerAgent>>,
 }
@@ -17,6 +17,7 @@ impl Actor for WebSocketAgent {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         event!(Level::INFO, "WebSocketAgent is alive");
+        // panic!("WebSocketAgent is alive");
         let addr = ctx.address();
         self.scheduler_agent_addr.do_send(SetAgentAddrMessage { addr });
     }
@@ -24,6 +25,7 @@ impl Actor for WebSocketAgent {
 
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
+        
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
             Ok(ws::Message::Text(text)) => {
@@ -31,6 +33,8 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                 match msg_type {
                     Ok(FrontendMessages::Scheduler(scheduler_input)) => {
                         self.scheduler_agent_addr.do_send(scheduler_input);
+                        let addr = ctx.address();
+                        self.scheduler_agent_addr.do_send(SetAgentAddrMessage { addr });
                         // handle_scheduler_messages(scheduler_input);
                         ctx.text(text)
                         // Send message to the scheduler agent struct
@@ -74,6 +78,33 @@ impl WebSocketAgent {
         }
     }
 }
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct SchedulerFrontendMessage {
+    pub frontend_message_type: String,
+    pub scheduling_overview_data: Vec<SchedulingOverviewData>,
+}
+
+/// The Scheduler Output should contain all that is needed to make
+impl Message for SchedulerFrontendMessage {
+    type Result = ();
+}
+
+impl Handler<SchedulerFrontendMessage> for WebSocketAgent {
+    type Result = ();
+
+    fn handle(&mut self, msg: SchedulerFrontendMessage, ctx: &mut Self::Context) -> Self::Result {
+            // Serialize the message
+            let serialized_message = serde_json::to_string(&msg).unwrap();
+    
+            // Send the serialized message to the frontend
+            ctx.text(serialized_message);
+        
+    }
+}
+
+
+
 
 
 #[cfg(test)]

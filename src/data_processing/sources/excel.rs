@@ -126,7 +126,6 @@ fn populate_work_orders<'a>(work_orders: &'a mut WorkOrders, sheet: &'a calamine
 /// operation reading on each row! Yes that is the approach that I want to take.
 fn create_new_work_order(row: &[DataType], header_to_index: &HashMap<String, usize>) -> Result<WorkOrder, Error> {
     
-
     let priority = match row.get(*header_to_index.get("Priority").ok_or("Priority header not found")?).cloned() {
         Some(DataType::Int(n)) => Priority::IntValue(n as i32),
         Some(DataType::String(s)) => {
@@ -653,9 +652,9 @@ fn create_periods(number_of_periods: u32) -> Result<Vec<Period>, Error> {
     let days_to_offset = (start_date.weekday().num_days_from_monday() as i64) + 
                          (7 * (week_number - target_week) as i64);
 
-    dbg!(days_to_offset);
+    // dbg!(days_to_offset);
 
-    dbg!(start_date);
+    // dbg!(start_date);
 
     start_date = start_date - Duration::days(days_to_offset);
 
@@ -665,10 +664,10 @@ fn create_periods(number_of_periods: u32) -> Result<Vec<Period>, Error> {
         .and_then(|d| d.with_nanosecond(0))
         .unwrap();
 
-    dbg!(start_date);
+    // dbg!(start_date);
 
     let mut end_date = start_date + Duration::weeks(2);
-    dbg!(end_date);
+    // dbg!(end_date);
     
     end_date = end_date - Duration::days(1);
     
@@ -678,7 +677,7 @@ fn create_periods(number_of_periods: u32) -> Result<Vec<Period>, Error> {
     .and_then(|d| d.with_nanosecond(0))
     .unwrap();
 
-    dbg!(end_date);
+    // dbg!(end_date);
 
     for i in 0..number_of_periods {
         dbg!(start_date);

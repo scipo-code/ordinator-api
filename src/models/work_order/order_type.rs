@@ -10,6 +10,7 @@ pub enum WorkOrderType {
     WPM(WPMPriority),
     Other,
 }
+
 #[derive(Clone)]
 #[derive(Serialize, Deserialize)]
 #[derive(Debug)]

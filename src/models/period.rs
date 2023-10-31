@@ -23,13 +23,13 @@ pub struct Period {
 
 impl Period {
     pub fn new(id: u32, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Period {
-        dbg!(start_date);
-        dbg!(start_date.iso_week());
-        dbg!(start_date.iso_week().week());
+        // dbg!(start_date);
+        // dbg!(start_date.iso_week());
+        // dbg!(start_date.iso_week().week());
 
-        dbg!(end_date);
-        dbg!(end_date.iso_week());
-        dbg!(end_date.iso_week().week());
+        // dbg!(end_date);
+        // dbg!(end_date.iso_week());
+        // dbg!(end_date.iso_week().week());
 
         let period_string = format!("{}-W{}-{}",
             start_date.year(),

@@ -101,11 +101,11 @@ impl SchedulerAgent {
 
                     if *resource_needed > *resource_capacity - *resource_loading {
                         if work_center == "MTN-ELEC" {
-                            dbg!(period.get_string());
-                            dbg!(*resource_capacity);
-                            dbg!(*resource_loading);
-                            dbg!(*resource_capacity - *resource_loading);
-                            dbg!(resource_needed);
+                            // dbg!(period.get_string());
+                            // dbg!(*resource_capacity);
+                            // dbg!(*resource_loading);
+                            // dbg!(*resource_capacity - *resource_loading);
+                            // dbg!(resource_needed);
                         }
                         // println!("Work order {} at line {}", work_order, line!());
                         if *resource_needed <= *resource_capacity - *resource_loading {panic!("This should happen")};
