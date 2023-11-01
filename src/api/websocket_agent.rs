@@ -103,10 +103,6 @@ impl Handler<SchedulerFrontendMessage> for WebSocketAgent {
     }
 }
 
-
-
-
-
 #[cfg(test)]
 mod tests {
     use chrono::{DateTime, Utc};
