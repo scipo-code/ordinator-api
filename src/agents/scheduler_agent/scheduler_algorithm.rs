@@ -165,8 +165,7 @@ impl SchedulerAgent {
                 None
             }
             QueueType::ShutdownVendor => {None}
-
+  
         }
     }
-
-
+}
