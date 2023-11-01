@@ -48,7 +48,7 @@ pub struct WorkPlannerMessage {
 #[derive(Serialize, Deserialize)]
 pub struct ManualResource {
     resource: String,
-    period: Period,
+    period: String,
     capacity: f64
 }
 
@@ -102,7 +102,8 @@ impl From<RawInputMessage> for InputMessage {
     fn from(raw: RawInputMessage) -> Self {
         let mut manual_resources_map: HashMap<(String, Period), f64> = HashMap::new();
         for res in raw.manual_resources {
-            manual_resources_map.insert((res.resource, res.period), res.capacity);   
+            let period = Period::new_from_string(&res.period).expect(format!("could not parse period. File: {}, line: {}", file!(), line!()).as_str() );
+            manual_resources_map.insert((res.resource, period), res.capacity);   
         }
         println!("{:?}", manual_resources_map);
     
