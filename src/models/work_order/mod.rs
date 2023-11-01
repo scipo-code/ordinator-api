@@ -10,7 +10,6 @@ pub mod display;
 pub mod priority;
 pub mod optimized_work_order;
 
-
 use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -30,6 +29,7 @@ use crate::models::work_order::{order_type::{WDFPriority, WGNPriority, WPMPriori
 
 #[derive(Serialize, Deserialize)]
 #[derive(Clone)]
+#[derive(Debug)]
 pub struct WorkOrder {
     pub order_number: u32,
     pub optimized_work_order: OptimizedWorkOrder,
@@ -64,10 +64,10 @@ impl WorkOrder {
 
 #[derive(Serialize, Deserialize)]
 struct WeightParam {
-    WDF_priority_map: std::collections::HashMap<String, u32>,
-    WGN_priority_map: std::collections::HashMap<String, u32>,
-    WPM_priority_map: std::collections::HashMap<String, u32>,
-    VIS_priority_map: std::collections::HashMap<String, u32>,
+    wdf_priority_map: std::collections::HashMap<String, u32>,
+    wgn_priority_map: std::collections::HashMap<String, u32>,
+    wpm_priority_map: std::collections::HashMap<String, u32>,
+    vis_priority_map: std::collections::HashMap<String, u32>,
     order_type_weights: std::collections::HashMap<String, u32>,
     status_weights: std::collections::HashMap<String, u32>,
 }
@@ -85,37 +85,37 @@ impl WeightParam {
 impl WorkOrder {
 
     pub fn initialize(&mut self) {
-        dbg!("Initializing Work Orders");
+        // dbg!("Initializing Work Orders");
         self.initialize_weight();
         self.initialize_work_load();
         // TODO : Other fields
     }
 
     pub fn initialize_weight(&mut self) {
-        dbg!("Initializing Work Orders");
+        // dbg!("Initializing Work Orders");
 
         let parameters: WeightParam = WeightParam::read_config().unwrap();
 
         self.order_weight = 0;
 
         match &self.order_type {
-            WorkOrderType::WDF(WDFPriority) => match WDFPriority {
-                WDFPriority::One => self.order_weight += parameters.WDF_priority_map["1"] * parameters.order_type_weights["WDF"],
-                WDFPriority::Two => self.order_weight += parameters.WDF_priority_map["2"] * parameters.order_type_weights["WDF"],
-                WDFPriority::Three => self.order_weight += parameters.WDF_priority_map["3"] * parameters.order_type_weights["WDF"],
-                WDFPriority::Four => self.order_weight += parameters.WDF_priority_map["4"] * parameters.order_type_weights["WDF"],
+            WorkOrderType::WDF(wdf_priority) => match wdf_priority {
+                WDFPriority::One => self.order_weight += parameters.wdf_priority_map["1"] * parameters.order_type_weights["WDF"],
+                WDFPriority::Two => self.order_weight += parameters.wdf_priority_map["2"] * parameters.order_type_weights["WDF"],
+                WDFPriority::Three => self.order_weight += parameters.wdf_priority_map["3"] * parameters.order_type_weights["WDF"],
+                WDFPriority::Four => self.order_weight += parameters.wdf_priority_map["4"] * parameters.order_type_weights["WDF"],
             },
-            WorkOrderType::WGN(WGNPriority) => match WGNPriority {
-                WGNPriority::One => self.order_weight += parameters.WGN_priority_map["1"] * parameters.order_type_weights["WGN"],
-                WGNPriority::Two => self.order_weight += parameters.WGN_priority_map["2"] * parameters.order_type_weights["WGN"],
-                WGNPriority::Three => self.order_weight += parameters.WGN_priority_map["3"] * parameters.order_type_weights["WGN"],
-                WGNPriority::Four => self.order_weight += parameters.WGN_priority_map["4"] * parameters.order_type_weights["WGN"]
+            WorkOrderType::WGN(wgn_priority) => match wgn_priority {
+                WGNPriority::One => self.order_weight += parameters.wgn_priority_map["1"] * parameters.order_type_weights["WGN"],
+                WGNPriority::Two => self.order_weight += parameters.wgn_priority_map["2"] * parameters.order_type_weights["WGN"],
+                WGNPriority::Three => self.order_weight += parameters.wgn_priority_map["3"] * parameters.order_type_weights["WGN"],
+                WGNPriority::Four => self.order_weight += parameters.wgn_priority_map["4"] * parameters.order_type_weights["WGN"]
             },	                
-            WorkOrderType::WPM(WPMPriority) => match WPMPriority {
-                WPMPriority::A => self.order_weight +=parameters.WPM_priority_map["A"] * parameters.order_type_weights["WPM"],
-                WPMPriority::B => self.order_weight +=parameters.WPM_priority_map["B"] * parameters.order_type_weights["WPM"],
-                WPMPriority::C => self.order_weight +=parameters.WPM_priority_map["C"] * parameters.order_type_weights["WPM"],
-                WPMPriority::D => self.order_weight +=parameters.WPM_priority_map["D"] * parameters.order_type_weights["WPM"]
+            WorkOrderType::WPM(wpm_priority) => match wpm_priority {
+                WPMPriority::A => self.order_weight += parameters.wpm_priority_map["A"] * parameters.order_type_weights["WPM"],
+                WPMPriority::B => self.order_weight += parameters.wpm_priority_map["B"] * parameters.order_type_weights["WPM"],
+                WPMPriority::C => self.order_weight += parameters.wpm_priority_map["C"] * parameters.order_type_weights["WPM"],
+                WPMPriority::D => self.order_weight += parameters.wpm_priority_map["D"] * parameters.order_type_weights["WPM"]
             },
             WorkOrderType::Other => self.order_weight += parameters.order_type_weights["Other"],
         }  
@@ -137,7 +137,7 @@ impl WorkOrder {
     }  
 
     pub fn initialize_work_load(&mut self) {
-        dbg!("Initializing Work Orders");
+        // dbg!("Initializing Work Orders");
 
         let mut work_load: HashMap<String, f64> = HashMap::new();
 

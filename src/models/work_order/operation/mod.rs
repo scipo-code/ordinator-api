@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 #[derive(Clone)]
+#[derive(Debug)]
 pub struct Operation {
     pub activity: u32,
     pub number: u32,
