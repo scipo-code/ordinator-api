@@ -2,7 +2,6 @@ mod agents;
 mod models;
 mod data_processing;
 mod api;
-mod messages;
 
 use actix::prelude::*;
 use std::path::Path;
@@ -16,21 +15,31 @@ use tracing::{Level, info, event, instrument};
 
 use crate::models::scheduling_environment::SchedulingEnvironment;
 use crate::data_processing::sources::excel::load_data_file;
-use crate::api::routes::ws_index;
+use crate::data_processing::sources::excel_joins::read_csv_files;
 use crate::agents::scheduler_agent::SchedulerAgent;
 use crate::agents::scheduler_agent::PriorityQueues;
 use crate::agents::scheduler_agent::SchedulerAgentAlgorithm;
-use crate::models::scheduling_environment::WorkOrders;
+use crate::api::routes::ws_index;
+
+
 
 #[instrument]
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let args: Vec<String> = env::args().collect();
+    if args[1] == "create-excel-data" {
+        read_csv_files();
+        return Ok(());
+    }
+    
 
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO) // set the max level for logging
         .init();
 
-    let mut scheduling_environment = initialize_scheduling_environment().unwrap();
+    let number_of_periods = 8;
+
+    let mut scheduling_environment = initialize_scheduling_environment(number_of_periods).unwrap();
     scheduling_environment.work_orders.initialize_work_orders();
 
     println!("{}", scheduling_environment.work_orders);
@@ -43,7 +52,7 @@ async fn main() -> std::io::Result<()> {
         cloned_work_orders,
         PriorityQueues::new(),
         HashMap::new(),
-        Vec::new(),
+        scheduling_environment.period.clone(),
     );
 
     let scheduler_agent = SchedulerAgent::new(
@@ -72,11 +81,11 @@ async fn main() -> std::io::Result<()> {
     .await
 }
 
-fn initialize_scheduling_environment() -> Option<SchedulingEnvironment> {
+fn initialize_scheduling_environment(number_of_periods: u32) -> Option<SchedulingEnvironment> {
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
         let file_path = Path::new(&args[1]);
-        let scheduling_environment = load_data_file(file_path).expect("Could not load data file.");
+        let scheduling_environment = load_data_file(file_path, number_of_periods).expect("Could not load data file.");
         println!("{}", scheduling_environment);
         return Some(scheduling_environment);
     } 

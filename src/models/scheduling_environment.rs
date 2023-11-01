@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use std::fmt;
 
+
 use crate::models::work_order::WorkOrder;
 use crate::models::worker_environment::WorkerEnvironment;
+use crate::models::period::Period;
 
 #[derive(Clone)]
 pub struct WorkOrders {
@@ -34,18 +36,18 @@ impl WorkOrders {
 pub struct SchedulingEnvironment {
     pub work_orders: WorkOrders,
     worker_environment: WorkerEnvironment,
-    // time_and_period
+    pub period: Vec<Period>,
     // material
 }
 
 impl SchedulingEnvironment {    
-    pub fn new(work_orders: WorkOrders, worker_environment: WorkerEnvironment) -> Self {
+    pub fn new(work_orders: WorkOrders, worker_environment: WorkerEnvironment, period: Vec<Period>) -> Self {
         SchedulingEnvironment {
             work_orders,
             worker_environment,
+            period,
         }
     }
-
 }
 
 impl WorkOrders {
