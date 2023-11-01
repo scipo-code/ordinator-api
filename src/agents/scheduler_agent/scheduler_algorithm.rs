@@ -32,6 +32,7 @@ impl SchedulerAgent {
                 };
                 
                 let mut work_orders_to_schedule = Vec::new();
+
                 while !current_queue.is_empty() {
                     let (work_order_key, _weight) = match current_queue.pop() {
                         Some(work_order) => work_order,
@@ -164,9 +165,8 @@ impl SchedulerAgent {
                 None
             }
             QueueType::ShutdownVendor => {None}
+
         }
     }
-}
-
 
 

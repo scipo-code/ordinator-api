@@ -10,6 +10,7 @@ use std::hash::Hash;
 use tracing::{event};
 use tokio::time::{sleep, Duration};
 
+
 use crate::models::work_order::priority::Priority;
 use crate::models::work_order::order_type::WorkOrderType;
 use crate::agents::scheduler_agent::scheduler_message::{SetAgentAddrMessage, SchedulerMessages, InputMessage};
@@ -58,6 +59,7 @@ impl Actor for SchedulerAgent {
         //     let work_order = self.scheduler_agent_algorithm.priority_queues.unloading.pop(); // pop here removes the element from the queue
         //     info!("SchedulerAgent unloading queue is populated with: {}", work_order.unwrap().0 );
         // }
+
         ctx.notify(ScheduleIteration {})
     }
 
@@ -73,6 +75,7 @@ struct ScheduleIteration {}
 
 /// I think that the priotity queue should be a struct that is a member of the scheduler agent.
 impl Handler<ScheduleIteration> for SchedulerAgent {
+
     type Result = ResponseActFuture<Self, ()>;
 
     fn handle(&mut self, msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
@@ -104,6 +107,7 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
 struct MessageToFrontend {}
 
 impl Message for MessageToFrontend {
+
     type Result = ();
 }
 
@@ -124,8 +128,6 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
        
     }
 }
-
-
 
 impl Handler<SchedulerMessages> for SchedulerAgent {
     type Result = ();
@@ -210,6 +212,7 @@ impl SchedulerAgent {
     }
 }
 
+
 impl SchedulerAgent {
 
     fn populate_priority_queues(&mut self) -> () {
@@ -222,6 +225,7 @@ impl SchedulerAgent {
                 self.scheduler_agent_algorithm.priority_queues.shutdown_vendor.push(*key, work_order.order_weight);
             } else {
                 event!(tracing::Level::INFO , "Work order {} has been added to the normal queue", key);
+
                 self.scheduler_agent_algorithm.priority_queues.normal.push(*key, work_order.order_weight);
             }
         }
@@ -334,5 +338,6 @@ impl SchedulerAgent {
             }
         }
         scheduling_overview_data
+
     }
 }

@@ -22,6 +22,7 @@ use crate::agents::scheduler_agent::SchedulerAgentAlgorithm;
 use crate::api::routes::ws_index;
 
 
+
 #[instrument]
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -44,10 +45,6 @@ async fn main() -> std::io::Result<()> {
     println!("{}", scheduling_environment.work_orders);
 
     let cloned_work_orders = scheduling_environment.work_orders.clone();
-
-    // based on the number of periods and the number of work center we can create a HashMap of
-    // manual resources capacity and 
-
 
     let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
         HashMap::new(),
