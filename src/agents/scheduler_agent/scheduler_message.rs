@@ -19,14 +19,14 @@ pub enum SchedulerMessages {
 pub struct InputMessage {
     name: String,
     platform: String,
-    schedule_work_order: Vec<OrderPeriod>,
-    unschedule_work_order: HashSet<u32>,
-    manual_resources: HashMap<(String, Period), f64>,
+    schedule_work_order: Vec<OrderPeriod>, // For each work order only one of these can be true
+    unschedule_work_order: HashSet<u32>, // For each work order each of these can be true
+    manual_resources: HashMap<(String, String), f64>,
     period_lock: HashMap<String, bool>
 }
 
 impl InputMessage {
-    pub fn get_manual_resources(&self) -> HashMap<(String, Period), f64> {
+    pub fn get_manual_resources(&self) -> HashMap<(String, String), f64> {
         self.manual_resources.clone()
     }
 }
@@ -62,7 +62,7 @@ pub struct RawInputMessage {
     period_lock: HashMap<String, bool>
 }
 
-struct SchedulerResources<'a>(&'a HashMap<(String, Period), f64>);
+struct SchedulerResources<'a>(&'a HashMap<(String, String), f64>);
 
 impl Display for SchedulerResources<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -100,10 +100,9 @@ impl Display for InputMessage {
 
 impl From<RawInputMessage> for InputMessage {
     fn from(raw: RawInputMessage) -> Self {
-        let mut manual_resources_map: HashMap<(String, Period), f64> = HashMap::new();
+        let mut manual_resources_map: HashMap<(String, String), f64> = HashMap::new();
         for res in raw.manual_resources {
-            let period = Period::new_from_string(&res.period).expect(format!("could not parse period. File: {}, line: {}", file!(), line!()).as_str() );
-            manual_resources_map.insert((res.resource, period), res.capacity);   
+            manual_resources_map.insert((res.resource, res.period), res.capacity);   
         }
         println!("{:?}", manual_resources_map);
     
