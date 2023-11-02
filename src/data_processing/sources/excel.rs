@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::models::period::Period;
-use crate::models::period::PeriodNone;
 
 use chrono::{DateTime, Utc, NaiveDate, Duration, TimeZone, naive, NaiveTime, Datelike, Weekday, Timelike};
 use crate::models::scheduling_environment::{SchedulingEnvironment, WorkOrders};
@@ -21,7 +20,7 @@ use crate::models::work_order::order_type::{WDFPriority, WGNPriority, WPMPriorit
 use crate::models::work_order::priority::Priority;
 use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::worker_environment::WorkerEnvironment;
-use crate::models::work_order::optimized_work_order::OptimizedWorkOrder;
+// use crate::models::work_order::optimized_work_order::OptimizedWorkOrder;
 
 extern crate regex;
 
@@ -148,7 +147,7 @@ fn create_new_work_order(row: &[DataType], header_to_index: &HashMap<String, usi
             Some(DataType::String(s)) => s.parse::<u32>().unwrap_or(0),
             _ => 0
         },
-        optimized_work_order: OptimizedWorkOrder::empty(),
+        // optimized_work_order: OptimizedWorkOrder::empty(),
         fixed: false,
         order_weight: 0, // TODO: Implement calculate_weight method.
         priority: priority.clone(),
@@ -461,13 +460,13 @@ fn extract_unloading_point(row: &[DataType], header_to_index: &HashMap<String, u
         Ok(UnloadingPoint {
             string: string,
             present,
-            period: PeriodNone::Period(Period::new(0, start_date, end_date))
+            period: Some(Period::new(0, start_date, end_date))
         })     
     } else {
         Ok(UnloadingPoint {
             string: string,
             present,
-            period: PeriodNone::None
+            period: None
         })  
     }
 }

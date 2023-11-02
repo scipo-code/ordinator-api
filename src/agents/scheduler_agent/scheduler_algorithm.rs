@@ -1,14 +1,14 @@
-use crate::models::order_period::OrderPeriod;
-use crate::models::scheduling_environment::WorkOrders;
+use core::panic;
+
 use crate::agents::scheduler_agent::SchedulerAgent;
-use crate::models::period::{Period, PeriodNone};
+use crate::models::period::Period;
 
 use tracing::{event};
 
 #[derive(PartialEq)]
 pub enum QueueType {
     Normal,
-    Unloading,
+    UnloadingAndManual,
     ShutdownVendor,
     // ... other queue types ...
 }
@@ -26,9 +26,8 @@ impl SchedulerAgent {
 
                 let current_queue = match queue_type {
                     QueueType::Normal => &mut self.scheduler_agent_algorithm.priority_queues.normal,
-                    QueueType::Unloading => &mut self.scheduler_agent_algorithm.priority_queues.unloading,
+                    QueueType::UnloadingAndManual => &mut self.scheduler_agent_algorithm.priority_queues.unloading,
                     QueueType::ShutdownVendor => &mut self.scheduler_agent_algorithm.priority_queues.shutdown_vendor,
-                    // ... other queue types ...
                 };
                 
                 let mut work_orders_to_schedule = Vec::new();
@@ -43,9 +42,6 @@ impl SchedulerAgent {
                 work_orders_to_schedule
             };
 
-            // There is a problem here. We remove all the work orders, but we only push them back
-            // if they are not scheduled. 
-
             for work_order_key in work_orders_to_schedule {
                 let inf_wo_key = self.schedule_work_order(work_order_key, &period, &queue_type);
                 match inf_wo_key {
@@ -55,9 +51,8 @@ impl SchedulerAgent {
                             Some(work_order) => {
                                 let current_queue = match queue_type {
                                     QueueType::Normal => &mut self.scheduler_agent_algorithm.priority_queues.normal,
-                                    QueueType::Unloading => &mut self.scheduler_agent_algorithm.priority_queues.unloading,
+                                    QueueType::UnloadingAndManual => &mut self.scheduler_agent_algorithm.priority_queues.unloading,
                                     QueueType::ShutdownVendor => &mut self.scheduler_agent_algorithm.priority_queues.shutdown_vendor,
-                                    // ... other queue types ...
                                 };
                                 current_queue.push(inf_wo_key, work_order.order_weight);
                             }
@@ -90,69 +85,80 @@ impl SchedulerAgent {
     /// Okay, now we know that the problem is with the part of the code that constrains capacity
     /// 
     /// I think that the reason may be that I clone the capacity some where
+    /// 
+    /// We need to update the scheduler state based on the values given by the scheduled work orders
+    /// from the frontend. What is the best way of doing this? We could reuse the unloading point
+    /// queue to handle the scheduled work orders. 
     pub fn schedule_work_order(&mut self, work_order_key: u32, period: &Period, queue_type: &QueueType) -> Option<u32> {
         match queue_type {
             QueueType::Normal => {
 
                 let work_order = self.scheduler_agent_algorithm.backlog.inner.get(&work_order_key).unwrap();
 
+                // The if statements found in here are each constraints that has to be upheld.
                 for (work_center, resource_needed) in work_order.work_load.iter() {
-                    let resource_capacity: &mut f64 = self.scheduler_agent_algorithm.manual_resources_capacity.entry((work_center.to_string(), period.clone())).or_insert(0.0);
-                    let resource_loading: &mut f64 = self.scheduler_agent_algorithm.manual_resources_loading.entry((work_center.to_string(), period.clone())).or_insert(0.0);
+
+                    let resource_capacity: &mut f64 = self.scheduler_agent_algorithm.manual_resources_capacity.entry((work_center.to_string(), period.clone().period_string)).or_insert(0.0);                             
+                    let resource_loading: &mut f64 = self.scheduler_agent_algorithm.manual_resources_loading.entry((work_center.to_string(), period.clone().period_string)).or_insert(0.0);
 
                     if *resource_needed > *resource_capacity - *resource_loading {
-                        if work_center == "MTN-ELEC" {
-                            // dbg!(period.get_string());
-                            // dbg!(*resource_capacity);
-                            // dbg!(*resource_loading);
-                            // dbg!(*resource_capacity - *resource_loading);
-                            // dbg!(resource_needed);
-                        }
-                        // println!("Work order {} at line {}", work_order, line!());
-                        if *resource_needed <= *resource_capacity - *resource_loading {panic!("This should happen")};
                         return Some(work_order_key);
                     }
                     if period.get_end_date() < work_order.order_dates.earliest_allowed_start_date {
                         return Some(work_order_key);
                     }
-                }
-                panic!("This should happen");
-                event!(tracing::Level::INFO , "Work order {} from the normal has been scheduled", work_order_key);
-                self.scheduler_agent_algorithm.scheduled_work_orders.insert(work_order_key, OrderPeriod::new(period.clone(), work_order_key));
 
+                    if self.scheduler_agent_algorithm.optimized_work_orders.inner.get(&work_order_key).unwrap().excluded_periods.contains(period) {
+                        return Some(work_order_key);
+                    }
+                }
+
+                self.scheduler_agent_algorithm.optimized_work_orders.inner.get_mut(&work_order_key).unwrap().update_scheduled_period(Some(period.clone()));
+                event!(tracing::Level::INFO , "Work order {} from the normal has been scheduled", work_order_key);
                 for (work_center_period, loading) in self.scheduler_agent_algorithm.manual_resources_loading.iter_mut() {
-                    if work_center_period.1 == *period {
-                        *loading += work_order.work_load.get(&work_center_period.0).unwrap();
+                    if work_center_period.1 == *period.period_string {
+                        *loading += work_order.work_load.get(&work_center_period.0).unwrap_or(&0.0);
                     }
                 }
                 None
             }
-            QueueType::Unloading => {
+
+            QueueType::UnloadingAndManual => {
+                match self.is_scheduled(work_order_key) {
+                    Some(work_order_key) => self.unschedule_work_order(work_order_key),
+                    None => (),
+                }
+
                 let work_order = self.scheduler_agent_algorithm.backlog.inner.get(&work_order_key).unwrap();
 
                 for (work_center, resource_needed) in work_order.work_load.iter() {
-                    let resource_capacity: &mut f64 = self.scheduler_agent_algorithm.manual_resources_capacity.entry((work_center.to_string(), period.clone())).or_insert(0.0);
-                    let resource_loading: &mut f64 = self.scheduler_agent_algorithm.manual_resources_loading.entry((work_center.to_string(), period.clone())).or_insert(0.0);
-                    
-                    match work_order.unloading_point.period.clone() {
-                        PeriodNone::Period(unloading_period) => {
-                
-                            if period.period_string != unloading_period.period_string {
-                                return Some(work_order_key);
+                    let resource_capacity: &mut f64 = self.scheduler_agent_algorithm.manual_resources_capacity.entry((work_center.to_string(), period.clone().period_string)).or_insert(0.0);
+                    let resource_loading: &mut f64 = self.scheduler_agent_algorithm.manual_resources_loading.entry((work_center.to_string(), period.clone().period_string)).or_insert(0.0);
+                    // TODO Put unloading point in here
+                    match self.scheduler_agent_algorithm.optimized_work_orders.inner.get(&work_order_key) {
+                        Some(optimized_work_order) => {
+                            match optimized_work_order.locked_period.clone() {
+                                Some(locked_period) => {
+                                    if period.period_string != locked_period.period_string {
+                                        return Some(work_order_key);
+                                    }
+                                }
+                                None => panic!("The locked period should not be None"),
                             }
                         }
-                        PeriodNone::None =>  {
-                            panic!{"The unloading point period is None and this should not happen."}
-                        }
+                        None => panic!("The optimized work order should not be None"),
                     }
                 }
                  
-                event!(tracing::Level::INFO , "Work order {} has been scheduled with unloading point has been scheduled", work_order_key);
+                event!(tracing::Level::INFO , "Work order {} has been scheduled with unloading point", work_order_key);
 
-                self.scheduler_agent_algorithm.scheduled_work_orders.insert(work_order_key, OrderPeriod::new(period.clone(), work_order_key));
+                self.scheduler_agent_algorithm.optimized_work_orders.inner.get_mut(&work_order_key).unwrap().scheduled_period = Some(period.clone());
+                
+                
+                // OrderPeriod::new(period.clone(), work_order_key));
 
                 for (work_center_period, loading) in self.scheduler_agent_algorithm.manual_resources_loading.iter_mut() {
-                    if work_center_period.1 == *period {
+                    if work_center_period.1 == *period.period_string {
                         let work_load_for_work_center = work_order.work_load.get(&work_center_period.0);
                         match work_load_for_work_center {
                             Some(work_load_for_work_center) => {
@@ -165,7 +171,47 @@ impl SchedulerAgent {
                 None
             }
             QueueType::ShutdownVendor => {None}
-  
         }
     }
 }
+
+
+// This becomes more simple right? if the key exists you simply change the period. Or else you 
+// create a new entry. It should not be needed to create a new entry as we already have, be 
+// definition received it from the front end. No that is only if we are in the manual queue. 
+
+// There are more problems here. We now have to make sure that the work order is unscheduled 
+// correctly. And then updated correctly.
+impl SchedulerAgent {
+    
+    fn is_scheduled(&self, work_order_key: u32) -> Option<u32> {
+        match self.scheduler_agent_algorithm.optimized_work_orders.inner.get(&work_order_key) {
+            Some(optimized_work_order) => {
+                match optimized_work_order.scheduled_period {
+                    Some(_) => return Some(work_order_key),
+                    None => return None,
+                }
+            }
+            None => return None,
+        }
+    }
+
+    fn unschedule_work_order(&mut self, work_order_key: u32) {
+        let work_order = self.scheduler_agent_algorithm.backlog.inner.get(&work_order_key).unwrap();
+        let period = self.scheduler_agent_algorithm.optimized_work_orders.inner.get(&work_order_key).as_ref().unwrap().scheduled_period.as_ref().unwrap(); 
+
+        for (work_center_period, loading) in self.scheduler_agent_algorithm.manual_resources_loading.iter_mut() {
+            if work_center_period.1 == period.period_string {
+                let work_load_for_work_center = work_order.work_load.get(&work_center_period.0);
+                match work_load_for_work_center {
+                    Some(work_load_for_work_center) => {
+                        *loading -= work_load_for_work_center;
+                    }
+                    None => (),
+                }
+            }
+        }
+        self.scheduler_agent_algorithm.optimized_work_orders.inner.get_mut(&work_order_key).unwrap().update_scheduled_period(None);
+    }
+}
+
