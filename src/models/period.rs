@@ -3,14 +3,6 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 
 
-#[derive(Serialize, Deserialize)]
-#[derive(Clone)]
-#[derive(Debug)]
-pub enum PeriodNone {
-    Period(Period),
-    None,
-}
-
 #[derive(Serialize, Deserialize, Eq, PartialEq, Hash)]
 #[derive(Debug)]
 #[derive(Clone)]

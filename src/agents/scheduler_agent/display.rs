@@ -22,14 +22,14 @@ impl Display for SchedulerAgent {
             self.platform, 
             self.scheduler_agent_algorithm.manual_resources_capacity, 
             self.scheduler_agent_algorithm.backlog.inner.len(), 
-            self.scheduler_agent_algorithm.scheduled_work_orders, 
+            self.scheduler_agent_algorithm.optimized_work_orders.inner.keys().collect::<Vec<_>>(), 
             self.scheduler_agent_algorithm.periods, 
             self.ws_agent_addr)
     }
 }
 
 
-pub struct DisplayableManualResource(pub HashMap<(String, Period), f64, RandomState>);
+pub struct DisplayableManualResource(pub HashMap<(String, String), f64, RandomState>);
 
 impl fmt::Display for DisplayableManualResource {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

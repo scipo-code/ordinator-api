@@ -8,7 +8,6 @@ pub mod revision;
 pub mod order_type;
 pub mod display;
 pub mod priority;
-pub mod optimized_work_order;
 
 use std::collections::HashMap;
 use chrono::{DateTime, Utc};
@@ -24,7 +23,7 @@ use crate::models::work_order::unloading_point::UnloadingPoint;
 use crate::models::work_order::revision::Revision;
 use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::work_order::priority::Priority;
-use crate::models::work_order::optimized_work_order::OptimizedWorkOrder;
+// use crate::models::work_order::optimized_work_order::OptimizedWorkOrder;
 use crate::models::work_order::{order_type::{WDFPriority, WGNPriority, WPMPriority}, status_codes::MaterialStatus};
 
 #[derive(Serialize, Deserialize)]
@@ -32,7 +31,7 @@ use crate::models::work_order::{order_type::{WDFPriority, WGNPriority, WPMPriori
 #[derive(Debug)]
 pub struct WorkOrder {
     pub order_number: u32,
-    pub optimized_work_order: OptimizedWorkOrder,
+    // pub optimized_work_order: OptimizedWorkOrder,
     pub fixed: bool,
     pub order_weight: u32,
     pub priority: Priority,

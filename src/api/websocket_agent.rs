@@ -8,6 +8,7 @@ use crate::api::FrontendMessages;
 use crate::agents::scheduler_agent::SchedulerAgent;
 use crate::agents::scheduler_agent::scheduler_message::SetAgentAddrMessage;
 use crate::agents::scheduler_agent::SchedulingOverviewData;
+
 pub struct WebSocketAgent {
     scheduler_agent_addr: Arc<Addr<SchedulerAgent>>,
 }
@@ -108,13 +109,14 @@ mod tests {
     use chrono::{DateTime, Utc};
     use super::*;
     use std::collections::HashMap;
+    use crate::agents::scheduler_agent::OptimizedWorkOrders;
     use crate::agents::scheduler_agent::SchedulerAgentAlgorithm;
     use crate::agents::scheduler_agent::SchedulerAgent;
     use crate::agents::scheduler_agent::PriorityQueues;
+    use crate::agents::scheduler_agent::OptimizedWorkOrder;
     use crate::models::scheduling_environment::WorkOrders;
-    use crate::models::order_period::OrderPeriod;
-    use crate::models::period::Period;
 
+    use crate::models::period::Period;
 
     #[actix_rt::test]
     async fn test_websocket_agent() {
@@ -127,8 +129,7 @@ mod tests {
         
         let periods = vec![Period::new(1, start_date, end_date)];
         
-        let mut scheduled_work_orders = HashMap::new();
-        scheduled_work_orders.insert(2020202020, OrderPeriod::new(Period::new(1, start_date, end_date), 2020202020));
+        let optimized_work_orders: OptimizedWorkOrders = OptimizedWorkOrders::new(HashMap::new());
 
         let scheduler_agent_addr = SchedulerAgent::new(
             "test".to_string(), 
@@ -137,7 +138,7 @@ mod tests {
                 HashMap::new(), 
                 WorkOrders::new(), 
                 PriorityQueues::new(), 
-                scheduled_work_orders,
+                optimized_work_orders,
                 periods),
             None
         ).start();
