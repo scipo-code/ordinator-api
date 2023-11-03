@@ -13,9 +13,8 @@ use tokio::time::{sleep, Duration};
 
 use crate::models::work_order::priority::Priority;
 use crate::models::work_order::order_type::WorkOrderType;
-use crate::agents::scheduler_agent::scheduler_message::{SetAgentAddrMessage, SchedulerMessages, InputMessage};
+use crate::agents::scheduler_agent::scheduler_message::{SetAgentAddrMessage, SchedulerRequests, InputSchedulerMessage};
 use crate::models::scheduling_environment::WorkOrders;
-use crate::models::order_period::OrderPeriod;
 use crate::models::period::Period;
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
@@ -39,9 +38,10 @@ pub struct SchedulerAgentAlgorithm {
 
 pub struct OptimizedWorkOrder {
     scheduled_period: Option<Period>,
-    locked_period: Option<Period>,
-    excluded_periods: HashSet<Period>,
+    locked_in_period: Option<Period>,
+    excluded_from_periods: HashSet<Period>,
 }
+
 
 pub struct OptimizedWorkOrders {
     inner: HashMap<u32, OptimizedWorkOrder>,
@@ -131,21 +131,21 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
     }
 }
 
-impl Handler<SchedulerMessages> for SchedulerAgent {
+impl Handler<SchedulerRequests> for SchedulerAgent {
     type Result = ();
-    fn handle(&mut self, msg: SchedulerMessages, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: SchedulerRequests, ctx: &mut Self::Context) -> Self::Result {
         match msg {
-            SchedulerMessages::Input(msg) => {
+            SchedulerRequests::Input(msg) => {
                 println!("SchedulerAgentReceived a FrontEnd message");
-                let input_message: InputMessage = msg.into();
+                let input_message: InputSchedulerMessage = msg.into();
                
                 self.update_scheduler_state(input_message);
 
             }
-            SchedulerMessages::WorkPlanner(msg) => {
+            SchedulerRequests::WorkPlanner(msg) => {
                println!("SchedulerAgentReceived a WorkPlannerMessage message");
             },
-            SchedulerMessages::ExecuteIteration => {
+            SchedulerRequests::ExecuteIteration => {
                 // TODO - execute one optimization iteration of the scheduler agent
                 self.execute_iteration(ctx);
             }
@@ -165,7 +165,7 @@ impl SchedulerAgent {
     pub fn execute_iteration(&mut self, ctx: &mut <SchedulerAgent as Actor>::Context) {
 
         println!("I am running a single iteration");  
-        ctx.notify(SchedulerMessages::ExecuteIteration)
+        ctx.notify(SchedulerRequests::ExecuteIteration)
     }
 }
 
@@ -213,19 +213,29 @@ impl SchedulerAgentAlgorithm {
 /// scheduled_work_orders are the once that are scheduled. But there is also the question of the 
 /// scheduled field in the central data structure. I should find out where that comes from and
 impl SchedulerAgent {
-    pub fn update_scheduler_state(&mut self, input_message: InputMessage) {
+    pub fn update_scheduler_state(&mut self, input_message: InputSchedulerMessage) {
         self.scheduler_agent_algorithm.manual_resources_capacity = input_message.get_manual_resources();
 
 
-        // self.scheduler_agent_algorithm.optimized_work_orders.locked_period = match input_message. {
-        //     Some(locked_period) => Some(Period::new(locked_period.clone())),
-        //     None => None,
-        // };
-        // for order_period in input_message.schedule_work_order {
-        //     self.scheduler_agent_algorithm.scheduled_work_orders.insert(order_period.work_order_number, order_period);
-        // }
+        for work_order_period_mapping in input_message.work_order_period_mappings {
+            let work_order_number: u32 = work_order_period_mapping.work_order_number;
+            let optimized_work_orders = &self.scheduler_agent_algorithm.optimized_work_orders.inner;
 
+            let locked_in_period = work_order_period_mapping.period_status.locked_in_period;
+            let excluded_from_periods =  work_order_period_mapping.period_status.excluded_from_periods;
+            
+            let scheduled_period = optimized_work_orders.get(&work_order_number)
+                .map(|ow| ow.scheduled_period.clone())
+                .unwrap_or(locked_in_period.clone());
 
+            let optimized_work_order = OptimizedWorkOrder {
+                    scheduled_period,
+                    locked_in_period: locked_in_period.clone(),
+                    excluded_from_periods,
+            };
+            
+            self.scheduler_agent_algorithm.optimized_work_orders.inner.insert(work_order_number, optimized_work_order);
+        }
     }
 }
 
@@ -364,21 +374,21 @@ impl SchedulerAgent {
 impl OptimizedWorkOrder {
     pub fn new(
         scheduled_period: Option<Period>, 
-        locked_period: Option<Period>, 
-        excluded_periods: HashSet<Period>) -> Self {
+        locked_in_period: Option<Period>, 
+        excluded_from_periods: HashSet<Period>) -> Self {
         
         Self {
             scheduled_period,
-            locked_period,
-            excluded_periods,
+            locked_in_period,
+            excluded_from_periods,
         }
     }
 
     pub fn with_new_schedule(&mut self, scheduled_period: Option<Period>) -> Self {
         Self {
             scheduled_period: scheduled_period,
-            locked_period: self.locked_period.clone(),
-            excluded_periods: self.excluded_periods.clone(),
+            locked_in_period: self.locked_in_period.clone(),
+            excluded_from_periods: self.excluded_from_periods.clone(),
         }
     }
 

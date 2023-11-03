@@ -39,7 +39,7 @@ async fn main() -> std::io::Result<()> {
         .with_max_level(tracing::Level::INFO) // set the max level for logging
         .init();
 
-    let number_of_periods = 8;
+    let number_of_periods = 52;
 
     let mut scheduling_environment = initialize_scheduling_environment(number_of_periods).unwrap();
     scheduling_environment.work_orders.initialize_work_orders();
