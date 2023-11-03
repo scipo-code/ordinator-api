@@ -1,7 +1,7 @@
 pub mod routes;
 pub mod websocket_agent;
 
-use crate::agents::scheduler_agent::scheduler_message::SchedulerMessages;
+use crate::agents::scheduler_agent::scheduler_message::SchedulerRequests;
 
 use serde::{Deserialize};
 
@@ -9,7 +9,7 @@ use serde::{Deserialize};
 #[serde(tag = "message_type")]
 
 enum FrontendMessages {
-    Scheduler(SchedulerMessages),
+    Scheduler(SchedulerRequests),
     WorkPlanner,
     Worker,
     Activity,
