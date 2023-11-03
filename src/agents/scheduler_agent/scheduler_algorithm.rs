@@ -1,9 +1,10 @@
+use std::collections::HashSet;
 use core::panic;
+use tracing::{event};
 
+use crate::agents::scheduler_agent::OptimizedWorkOrder;
 use crate::agents::scheduler_agent::SchedulerAgent;
 use crate::models::period::Period;
-
-use tracing::{event};
 
 #[derive(PartialEq)]
 pub enum QueueType {
@@ -108,12 +109,23 @@ impl SchedulerAgent {
                         return Some(work_order_key);
                     }
 
-                    if self.scheduler_agent_algorithm.optimized_work_orders.inner.get(&work_order_key).unwrap().excluded_periods.contains(period) {
-                        return Some(work_order_key);
+                    if let Some(optimized_work_order) = self.scheduler_agent_algorithm.optimized_work_orders.inner.get(&work_order_key) {
+                        if optimized_work_order.excluded_from_periods.contains(&period) {
+                            return Some(work_order_key);
+                        } 
                     }
                 }
 
-                self.scheduler_agent_algorithm.optimized_work_orders.inner.get_mut(&work_order_key).unwrap().update_scheduled_period(Some(period.clone()));
+
+
+                match self.scheduler_agent_algorithm.optimized_work_orders.inner.get_mut(&work_order_key) {
+                    Some(optimized_work_order) => {
+                        optimized_work_order.update_scheduled_period(Some(period.clone()));
+                    },
+                    None => {
+                        self.scheduler_agent_algorithm.optimized_work_orders.inner.insert(work_order_key, OptimizedWorkOrder::new(Some(period.clone()), None, HashSet::new()));
+                    }
+                }
                 event!(tracing::Level::INFO , "Work order {} from the normal has been scheduled", work_order_key);
                 for (work_center_period, loading) in self.scheduler_agent_algorithm.manual_resources_loading.iter_mut() {
                     if work_center_period.1 == *period.period_string {
@@ -134,10 +146,10 @@ impl SchedulerAgent {
                 for (work_center, resource_needed) in work_order.work_load.iter() {
                     let resource_capacity: &mut f64 = self.scheduler_agent_algorithm.manual_resources_capacity.entry((work_center.to_string(), period.clone().period_string)).or_insert(0.0);
                     let resource_loading: &mut f64 = self.scheduler_agent_algorithm.manual_resources_loading.entry((work_center.to_string(), period.clone().period_string)).or_insert(0.0);
-                    // TODO Put unloading point in here
                     match self.scheduler_agent_algorithm.optimized_work_orders.inner.get(&work_order_key) {
                         Some(optimized_work_order) => {
-                            match optimized_work_order.locked_period.clone() {
+                            match optimized_work_order.locked_in_period.clone() {
+
                                 Some(locked_period) => {
                                     if period.period_string != locked_period.period_string {
                                         return Some(work_order_key);
