@@ -1,12 +1,10 @@
 use std::collections::HashSet;
 use core::panic;
-
+use tracing::{event};
 
 use crate::agents::scheduler_agent::OptimizedWorkOrder;
 use crate::agents::scheduler_agent::SchedulerAgent;
 use crate::models::period::Period;
-
-use tracing::{event};
 
 #[derive(PartialEq)]
 pub enum QueueType {
@@ -128,7 +126,6 @@ impl SchedulerAgent {
                         self.scheduler_agent_algorithm.optimized_work_orders.inner.insert(work_order_key, OptimizedWorkOrder::new(Some(period.clone()), None, HashSet::new()));
                     }
                 }
-
                 event!(tracing::Level::INFO , "Work order {} from the normal has been scheduled", work_order_key);
                 for (work_center_period, loading) in self.scheduler_agent_algorithm.manual_resources_loading.iter_mut() {
                     if work_center_period.1 == *period.period_string {
@@ -152,6 +149,7 @@ impl SchedulerAgent {
                     match self.scheduler_agent_algorithm.optimized_work_orders.inner.get(&work_order_key) {
                         Some(optimized_work_order) => {
                             match optimized_work_order.locked_in_period.clone() {
+
                                 Some(locked_period) => {
                                     if period.period_string != locked_period.period_string {
                                         return Some(work_order_key);

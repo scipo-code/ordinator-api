@@ -42,7 +42,6 @@ pub struct OptimizedWorkOrder {
     excluded_from_periods: HashSet<Period>,
 }
 
-
 pub struct OptimizedWorkOrders {
     inner: HashMap<u32, OptimizedWorkOrder>,
 }
@@ -236,6 +235,7 @@ impl SchedulerAgent {
             
             self.scheduler_agent_algorithm.optimized_work_orders.inner.insert(work_order_number, optimized_work_order);
         }
+
     }
 }
 
@@ -381,6 +381,7 @@ impl OptimizedWorkOrder {
             scheduled_period,
             locked_in_period,
             excluded_from_periods,
+
         }
     }
 
@@ -389,6 +390,7 @@ impl OptimizedWorkOrder {
             scheduled_period: scheduled_period,
             locked_in_period: self.locked_in_period.clone(),
             excluded_from_periods: self.excluded_from_periods.clone(),
+
         }
     }
 
