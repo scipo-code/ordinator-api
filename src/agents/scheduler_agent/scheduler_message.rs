@@ -124,9 +124,6 @@ impl From<FrontendInputSchedulerMessage> for InputSchedulerMessage {
             manual_resources_map.insert((res.resource, res.period.period_string), res.capacity);   
         }
         println!("{:?}", manual_resources_map);
-    
-
-
         InputSchedulerMessage {
             name: raw.name,
             platform: raw.platform,
