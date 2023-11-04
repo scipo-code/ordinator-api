@@ -33,6 +33,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                 let msg_type: Result<FrontendMessages, serde_json::Error> = serde_json::from_str(&text);
                 match msg_type {
                     Ok(FrontendMessages::Scheduler(scheduler_input)) => {
+                        dbg!(&scheduler_input);
                         self.scheduler_agent_addr.do_send(scheduler_input);
                         let addr = ctx.address();
                         self.scheduler_agent_addr.do_send(SetAgentAddrMessage { addr });

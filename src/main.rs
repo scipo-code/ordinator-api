@@ -23,8 +23,6 @@ use crate::agents::scheduler_agent::PriorityQueues;
 use crate::agents::scheduler_agent::SchedulerAgentAlgorithm;
 use crate::api::routes::ws_index;
 
-
-
 #[instrument]
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

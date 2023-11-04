@@ -1,5 +1,5 @@
 use actix::prelude::*;
-use serde::{Serialize, Deserialize};
+use serde::{Serialize, Deserialize, Deserializer, de::Error};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display};
 
@@ -7,6 +7,7 @@ use crate::models::period::Period;
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "scheduler_message_type")]
+#[derive(Debug)]
 pub enum SchedulerRequests {
     Input(FrontendInputSchedulerMessage),
     WorkPlanner(WorkPlannerMessage),
@@ -43,13 +44,21 @@ pub struct WorkPlannerMessage {
 }
 
 #[derive(Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct ManualResource {
     resource: String,
-    period: String,
+    period: TimePeriod,
     capacity: f64
 }
 
 #[derive(Serialize, Deserialize)]
+#[derive(Debug)]
+struct TimePeriod {
+    period_string: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct FrontendInputSchedulerMessage {
     name: String,
     platform: String,
@@ -59,14 +68,18 @@ pub struct FrontendInputSchedulerMessage {
 }
 
 #[derive(Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct WorkOrderPeriodMapping {
     pub work_order_number: u32,
     pub period_status: WorkOrderStatusInPeriod,
 }
 
 #[derive(Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct WorkOrderStatusInPeriod {
+    #[serde(deserialize_with = "deserialize_period_option")]
     pub locked_in_period: Option<Period>,
+    #[serde(deserialize_with = "deserialize_period_set")]
     pub excluded_from_periods: HashSet<Period>,
 }
 
@@ -108,10 +121,9 @@ impl From<FrontendInputSchedulerMessage> for InputSchedulerMessage {
     fn from(raw: FrontendInputSchedulerMessage) -> Self {
         let mut manual_resources_map: HashMap<(String, String), f64> = HashMap::new();
         for res in raw.manual_resources {
-            manual_resources_map.insert((res.resource, res.period), res.capacity);   
+            manual_resources_map.insert((res.resource, res.period.period_string), res.capacity);   
         }
         println!("{:?}", manual_resources_map);
-    
         InputSchedulerMessage {
             name: raw.name,
             platform: raw.platform,
@@ -137,4 +149,30 @@ impl Display for FrontendInputSchedulerMessage {
             self.period_lock
         )
     } 
+}
+
+fn deserialize_period_option<'de, D>(deserializer: D) -> Result<Option<Period>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let option = Option::<TimePeriod>::deserialize(deserializer)?;
+    match option {
+        Some(time_period_map) => Period::new_from_string(&time_period_map.period_string)
+            .map(Some)
+            .map_err(Error::custom),
+        None => Ok(None),
+    }
+}
+
+fn deserialize_period_set<'de, D>(deserializer: D) -> Result<HashSet<Period>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let vec = Vec::<TimePeriod>::deserialize(deserializer)?;
+    let mut set = HashSet::new();
+    for time_period_map in vec {
+        let period = Period::new_from_string(&time_period_map.period_string).map_err(Error::custom)?;
+        set.insert(period);
+    }
+    Ok(set)
 }

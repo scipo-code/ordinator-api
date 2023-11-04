@@ -66,30 +66,6 @@ impl SchedulerAgent {
         }
     }
 
-    /// Okay now we will just recieve period strings from the frontend. What does that mean for the 
-    /// backend? It mean that the periods should be initialized in the backend.
-    /// 
-    /// I will initialize all periods once in the backend and I will recieve the period strings from
-    /// the frontend. Where does the work order key come from? What is the problem here? The problem
-    /// is that we pass a work order key to the backlog for an entry that does not exist. This means
-    /// one of two things. The backlog is initialized wrong, the queues are not disjoint, 
-    /// 
-    /// The problem is that the backlog shrinks even though nothing is scheduled
-    /// 
-    /// I should be testing this. I should test
-    /// 
-    /// Why will this not schedule? I do not understand it 
-    /// 
-    /// What is going wrong here? I do not understand it. We should make sure to get the
-    /// 
-    /// Find out why we do not reach the scheduling part of the code.
-    /// Okay, now we know that the problem is with the part of the code that constrains capacity
-    /// 
-    /// I think that the reason may be that I clone the capacity some where
-    /// 
-    /// We need to update the scheduler state based on the values given by the scheduled work orders
-    /// from the frontend. What is the best way of doing this? We could reuse the unloading point
-    /// queue to handle the scheduled work orders. 
     pub fn schedule_work_order(&mut self, work_order_key: u32, period: &Period, queue_type: &QueueType) -> Option<u32> {
         match queue_type {
             QueueType::Normal => {
@@ -116,8 +92,6 @@ impl SchedulerAgent {
                     }
                 }
 
-
-
                 match self.scheduler_agent_algorithm.optimized_work_orders.inner.get_mut(&work_order_key) {
                     Some(optimized_work_order) => {
                         optimized_work_order.update_scheduled_period(Some(period.clone()));
@@ -126,6 +100,7 @@ impl SchedulerAgent {
                         self.scheduler_agent_algorithm.optimized_work_orders.inner.insert(work_order_key, OptimizedWorkOrder::new(Some(period.clone()), None, HashSet::new()));
                     }
                 }
+              
                 event!(tracing::Level::INFO , "Work order {} from the normal has been scheduled", work_order_key);
                 for (work_center_period, loading) in self.scheduler_agent_algorithm.manual_resources_loading.iter_mut() {
                     if work_center_period.1 == *period.period_string {
@@ -149,7 +124,6 @@ impl SchedulerAgent {
                     match self.scheduler_agent_algorithm.optimized_work_orders.inner.get(&work_order_key) {
                         Some(optimized_work_order) => {
                             match optimized_work_order.locked_in_period.clone() {
-
                                 Some(locked_period) => {
                                     if period.period_string != locked_period.period_string {
                                         return Some(work_order_key);
