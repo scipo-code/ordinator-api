@@ -7,7 +7,6 @@ use serde::{Deserialize};
 
 #[derive(Deserialize)]
 #[serde(tag = "message_type")]
-
 enum FrontendMessages {
     Scheduler(SchedulerRequests),
     WorkPlanner,
