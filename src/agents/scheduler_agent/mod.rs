@@ -42,7 +42,6 @@ pub struct OptimizedWorkOrder {
     excluded_from_periods: HashSet<Period>,
 }
 
-
 pub struct OptimizedWorkOrders {
     inner: HashMap<u32, OptimizedWorkOrder>,
 }
@@ -80,7 +79,6 @@ impl Actor for SchedulerAgent {
 #[rtype(result = "()")]
 struct ScheduleIteration {}
 
-/// I think that the priotity queue should be a struct that is a member of the scheduler agent.
 impl Handler<ScheduleIteration> for SchedulerAgent {
 
     type Result = ResponseActFuture<Self, ()>;
@@ -138,15 +136,13 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
             SchedulerRequests::Input(msg) => {
                 println!("SchedulerAgentReceived a FrontEnd message");
                 let input_message: InputSchedulerMessage = msg.into();
-               
-                self.update_scheduler_state(input_message);
 
+                self.update_scheduler_state(input_message);
             }
             SchedulerRequests::WorkPlanner(msg) => {
                println!("SchedulerAgentReceived a WorkPlannerMessage message");
             },
             SchedulerRequests::ExecuteIteration => {
-                // TODO - execute one optimization iteration of the scheduler agent
                 self.execute_iteration(ctx);
             }
         }	
@@ -163,7 +159,6 @@ impl Handler<SetAgentAddrMessage<WebSocketAgent>> for SchedulerAgent {
 
 impl SchedulerAgent {
     pub fn execute_iteration(&mut self, ctx: &mut <SchedulerAgent as Actor>::Context) {
-
         println!("I am running a single iteration");  
         ctx.notify(SchedulerRequests::ExecuteIteration)
     }
@@ -233,7 +228,6 @@ impl SchedulerAgent {
                     locked_in_period: locked_in_period.clone(),
                     excluded_from_periods,
             };
-            
             self.scheduler_agent_algorithm.optimized_work_orders.inner.insert(work_order_number, optimized_work_order);
         }
     }
