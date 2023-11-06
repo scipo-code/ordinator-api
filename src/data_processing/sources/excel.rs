@@ -125,6 +125,10 @@ fn populate_work_orders<'a>(work_orders: &'a mut WorkOrders, sheet: &'a calamine
 /// operation reading on each row! Yes that is the approach that I want to take.
 fn create_new_work_order(row: &[DataType], header_to_index: &HashMap<String, usize>) -> Result<WorkOrder, Error> {
     
+    let work_order_type_possible_headers = ["Work Order", "Work_Order"];
+    
+    let work_order_type_data = get_data_from_headers(&row, &header_to_index, &work_order_type_possible_headers);
+
     let priority = match row.get(*header_to_index.get("Priority").ok_or("Priority header not found")?).cloned() {
         Some(DataType::Int(n)) => Priority::IntValue(n as i32),
         Some(DataType::String(s)) => {
@@ -157,7 +161,7 @@ fn create_new_work_order(row: &[DataType], header_to_index: &HashMap<String, usi
         start_start: Vec::<bool>::new(), 
         finish_start: Vec::<bool>::new(),
         postpone: Vec::<DateTime<Utc>>::new(),
-        order_type: match row.get(*header_to_index.get("Order_Type").ok_or("Order_Type header not found")?).cloned() {
+        order_type: match work_order_type_data.cloned() {
             Some(DataType::String(work_order_type)) => {
                 match work_order_type.as_str() {
                     "WDF" => match &priority {
@@ -334,23 +338,34 @@ fn create_new_operation(row: &[DataType], header_to_index: &HashMap<String, usiz
 /// This function will extract the status codes from the row and return them as a StatusCodes struct.
 fn extract_status_codes(row: &[DataType], header_to_index: &HashMap<String, usize>) -> Result<StatusCodes, Error> {
 
-    let system_status = match row.get(*header_to_index.get("System_Status").ok_or("System_Status header not found")?).cloned() {
+    let system_status_possible_headers = ["System_Status", "System Status", "Order System Status"];
+    let user_status_possible_headers = ["User_Status", "User Status", "Order User Status"];
+    let op_status_possible_headers = ["Opr_User_Status", "Op User Status"];
+
+    let system_status_data = get_data_from_headers(&row, &header_to_index, &system_status_possible_headers);
+    let user_status_data = get_data_from_headers(&row, &header_to_index, &user_status_possible_headers);
+    let op_status_data = get_data_from_headers(&row, &header_to_index, &op_status_possible_headers);
+
+    dbg!(system_status_data);
+
+    let system_status = match system_status_data.cloned() {
         Some(DataType::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse system status as string")),
     };
 
-    let user_status = match row.get(*header_to_index.get("User_Status").ok_or("User_Status header not found")?).cloned() {
+    let user_status = match user_status_data.cloned() {
         Some(DataType::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse user status as string")),
     };
 
-    let opr_user_status = match row.get(*header_to_index.get("Opr_User_Status").ok_or("Opr_User_Status header not found")?).cloned() {
+    let opr_user_status = match op_status_data.cloned() {
         Some(DataType::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse opr user status as string")),
     };
 
     let opr_system_status = match row.get(*header_to_index.get("Opr_System_Status").ok_or("Opr_System_Status header not found")?).cloned() {
         Some(DataType::String(s)) => s,
+        None => "Not present".to_string(),
         _ => return Err(Error::Msg("Could not parse opr system status as string")),
     };
 
@@ -596,6 +611,11 @@ fn get_data_from_headers<'a>(
     header_to_index: &HashMap<String, usize>, 
     headers: &[&str]
 ) -> Option<&'a DataType> {
+
+    dbg!(row);
+    dbg!(headers);
+    dbg!(header_to_index);
+
     for &header in headers {
         if let Some(&index) = header_to_index.get(header) {
             if let Some(data) = row.get(index) {
