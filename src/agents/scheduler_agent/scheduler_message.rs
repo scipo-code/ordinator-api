@@ -1,32 +1,30 @@
 use actix::prelude::*;
-use serde::{Serialize, Deserialize};
+use serde::{Serialize, Deserialize, Deserializer, de::Error};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display};
 
-use crate::models::order_period::OrderPeriod;
 use crate::models::period::Period;
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "scheduler_message_type")]
-pub enum SchedulerMessages {
-    Input(RawInputMessage),
+#[derive(Debug)]
+pub enum SchedulerRequests {
+    Input(FrontendInputSchedulerMessage),
     WorkPlanner(WorkPlannerMessage),
     ExecuteIteration,
 }
 
 #[derive(Serialize, Deserialize)]
-#[derive(Debug)]
-pub struct InputMessage {
-    name: String,
-    platform: String,
-    schedule_work_order: Vec<OrderPeriod>,
-    unschedule_work_order: HashSet<u32>,
-    manual_resources: HashMap<(String, Period), f64>,
-    period_lock: HashMap<String, bool>
+pub struct InputSchedulerMessage {
+    pub name: String,
+    pub platform: String,
+    pub work_order_period_mappings: Vec<WorkOrderPeriodMapping>, // For each work order only one of these can be true
+    pub manual_resources: HashMap<(String, String), f64>,
+    pub period_lock: HashMap<String, bool>
 }
 
-impl InputMessage {
-    pub fn get_manual_resources(&self) -> HashMap<(String, Period), f64> {
+impl InputSchedulerMessage {
+    pub fn get_manual_resources(&self) -> HashMap<(String, String), f64> {
         self.manual_resources.clone()
     }
 }
@@ -46,23 +44,46 @@ pub struct WorkPlannerMessage {
 }
 
 #[derive(Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct ManualResource {
     resource: String,
-    period: String,
+    period: TimePeriod,
     capacity: f64
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct RawInputMessage {
+#[derive(Debug)]
+struct TimePeriod {
+    period_string: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[derive(Debug)]
+pub struct FrontendInputSchedulerMessage {
     name: String,
     platform: String,
-    schedule_work_order: Vec<OrderPeriod>,
-    unschedule_work_order: HashSet<u32>,
+    work_order_period_mappings: Vec<WorkOrderPeriodMapping>,
     manual_resources: Vec<ManualResource>,
     period_lock: HashMap<String, bool>
 }
 
-struct SchedulerResources<'a>(&'a HashMap<(String, Period), f64>);
+#[derive(Serialize, Deserialize)]
+#[derive(Debug)]
+pub struct WorkOrderPeriodMapping {
+    pub work_order_number: u32,
+    pub period_status: WorkOrderStatusInPeriod,
+}
+
+#[derive(Serialize, Deserialize)]
+#[derive(Debug)]
+pub struct WorkOrderStatusInPeriod {
+    #[serde(deserialize_with = "deserialize_period_option")]
+    pub locked_in_period: Option<Period>,
+    #[serde(deserialize_with = "deserialize_period_set")]
+    pub excluded_from_periods: HashSet<Period>,
+}
+
+struct SchedulerResources<'a>(&'a HashMap<(String, String), f64>);
 
 impl Display for SchedulerResources<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -74,65 +95,85 @@ impl Display for SchedulerResources<'_> {
     }
 }
 
-impl Message for SchedulerMessages {
+impl Message for SchedulerRequests {
     type Result = ();
 }
 
-impl Display for InputMessage {
+impl Display for InputSchedulerMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let manual_resources_pretty = SchedulerResources(&self.manual_resources);
         write!(f, 
             "Name: {}, 
             \nPlatform: {}, 
             \nSchedule Work Order: {}, 
-            \nUnschedule Work Order: {:?}, 
             \nManual Resource: {},
             \nPeriod Lock: {:?}", 
             self.name, 
             self.platform, 
-            self.schedule_work_order.len(), 
-            self.unschedule_work_order, 
+            self.work_order_period_mappings.len(), 
             manual_resources_pretty,
             self.period_lock
         )
     } 
 }
 
-impl From<RawInputMessage> for InputMessage {
-    fn from(raw: RawInputMessage) -> Self {
-        let mut manual_resources_map: HashMap<(String, Period), f64> = HashMap::new();
+impl From<FrontendInputSchedulerMessage> for InputSchedulerMessage {
+    fn from(raw: FrontendInputSchedulerMessage) -> Self {
+        let mut manual_resources_map: HashMap<(String, String), f64> = HashMap::new();
         for res in raw.manual_resources {
-            let period = Period::new_from_string(&res.period).expect(format!("could not parse period. File: {}, line: {}", file!(), line!()).as_str() );
-            manual_resources_map.insert((res.resource, period), res.capacity);   
+            manual_resources_map.insert((res.resource, res.period.period_string), res.capacity);   
         }
         println!("{:?}", manual_resources_map);
-    
-        InputMessage {
+
+        InputSchedulerMessage {
             name: raw.name,
             platform: raw.platform,
-            schedule_work_order: raw.schedule_work_order,
-            unschedule_work_order: raw.unschedule_work_order,
+            work_order_period_mappings: raw.work_order_period_mappings,
             manual_resources: manual_resources_map,
             period_lock: raw.period_lock
         }
     }
 }
 
-impl Display for RawInputMessage {
+impl Display for FrontendInputSchedulerMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, 
             "Name: {}, 
             \nPlatform: {}, 
-            \nSchedule Work Order: {}, 
-            \nUnschedule Work Order: {:?}, 
-            \nnManual Resource: {},
+            \nWorkorder period mappings: {}, 
+            \nManual Resource: {},
             \nPeriod Lock: {:?}", 
             self.name, 
             self.platform, 
-            self.schedule_work_order.len(), 
-            self.unschedule_work_order, 
+            self.work_order_period_mappings.len(), 
             self.manual_resources.len(),
             self.period_lock
         )
     } 
+}
+
+fn deserialize_period_option<'de, D>(deserializer: D) -> Result<Option<Period>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let option = Option::<TimePeriod>::deserialize(deserializer)?;
+    match option {
+        Some(time_period_map) => Period::new_from_string(&time_period_map.period_string)
+            .map(Some)
+            .map_err(Error::custom),
+        None => Ok(None),
+    }
+}
+
+fn deserialize_period_set<'de, D>(deserializer: D) -> Result<HashSet<Period>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let vec = Vec::<TimePeriod>::deserialize(deserializer)?;
+    let mut set = HashSet::new();
+    for time_period_map in vec {
+        let period = Period::new_from_string(&time_period_map.period_string).map_err(Error::custom)?;
+        set.insert(period);
+    }
+    Ok(set)
 }

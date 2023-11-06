@@ -8,7 +8,6 @@ use std::path::Path;
 use std::io::{BufReader, BufWriter, BufRead, Write};
 use std::fs::File;
 
-
 pub fn read_csv_files() {
 
     let input_iw39_path = Path::new("data/data_model_input/IW39.csv");

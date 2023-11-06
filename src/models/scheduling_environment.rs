@@ -32,7 +32,6 @@ impl WorkOrders {
     }
 }
 
-
 pub struct SchedulingEnvironment {
     pub work_orders: WorkOrders,
     worker_environment: WorkerEnvironment,

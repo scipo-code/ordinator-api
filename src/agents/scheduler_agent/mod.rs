@@ -3,6 +3,7 @@ pub mod scheduler_algorithm;
 pub mod display;
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use actix::prelude::*; 
 use actix::Message;
 use priority_queue::PriorityQueue;
@@ -10,12 +11,10 @@ use std::hash::Hash;
 use tracing::{event};
 use tokio::time::{sleep, Duration};
 
-
 use crate::models::work_order::priority::Priority;
 use crate::models::work_order::order_type::WorkOrderType;
-use crate::agents::scheduler_agent::scheduler_message::{SetAgentAddrMessage, SchedulerMessages, InputMessage};
+use crate::agents::scheduler_agent::scheduler_message::{SetAgentAddrMessage, SchedulerRequests, InputSchedulerMessage};
 use crate::models::scheduling_environment::WorkOrders;
-use crate::models::order_period::OrderPeriod;
 use crate::models::period::Period;
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
@@ -29,14 +28,31 @@ pub struct SchedulerAgent {
 }
 
 pub struct SchedulerAgentAlgorithm {
-    manual_resources_capacity : HashMap<(String, Period), f64>,
-    manual_resources_loading: HashMap<(String, Period), f64>,
+    manual_resources_capacity : HashMap<(String, String), f64>,
+    manual_resources_loading: HashMap<(String, String), f64>,
     backlog: WorkOrders,
     priority_queues: PriorityQueues<u32, u32>,
-    scheduled_work_orders: HashMap<u32, OrderPeriod>,
+    optimized_work_orders: OptimizedWorkOrders,
     periods: Vec<Period>,
 }
 
+pub struct OptimizedWorkOrder {
+    scheduled_period: Option<Period>,
+    locked_in_period: Option<Period>,
+    excluded_from_periods: HashSet<Period>,
+}
+
+pub struct OptimizedWorkOrders {
+    inner: HashMap<u32, OptimizedWorkOrder>,
+}
+
+impl OptimizedWorkOrders {
+    pub fn new(inner: HashMap<u32, OptimizedWorkOrder>) -> Self {
+        Self {
+            inner: inner,
+        }
+    }
+}
 
 impl SchedulerAgent {
     pub fn set_ws_agent_addr(&mut self, ws_agent_addr: Addr<WebSocketAgent>) {
@@ -51,15 +67,6 @@ impl Actor for SchedulerAgent {
 
     fn started(&mut self, ctx: &mut Context<Self>) {
         self.populate_priority_queues();
-        // for _ in 0..self.scheduler_agent_algorithm.priority_queues.normal.len() {
-        //     let work_order = self.scheduler_agent_algorithm.priority_queues.normal.pop();
-        //     info!("SchedulerAgent normal queue is populated with: {}", work_order.unwrap().0 );
-        // }
-        // for _ in 0..self.scheduler_agent_algorithm.priority_queues.unloading.len() {
-        //     let work_order = self.scheduler_agent_algorithm.priority_queues.unloading.pop(); // pop here removes the element from the queue
-        //     info!("SchedulerAgent unloading queue is populated with: {}", work_order.unwrap().0 );
-        // }
-
         ctx.notify(ScheduleIteration {})
     }
 
@@ -72,8 +79,6 @@ impl Actor for SchedulerAgent {
 #[rtype(result = "()")]
 struct ScheduleIteration {}
 
-
-/// I think that the priotity queue should be a struct that is a member of the scheduler agent.
 impl Handler<ScheduleIteration> for SchedulerAgent {
 
     type Result = ResponseActFuture<Self, ()>;
@@ -81,10 +86,10 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
     fn handle(&mut self, msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         event!(tracing::Level::INFO , "A round of scheduling has been triggered");
         self.schedule_work_orders_by_type(QueueType::Normal);
-        self.schedule_work_orders_by_type(QueueType::Unloading);
+        self.schedule_work_orders_by_type(QueueType::UnloadingAndManual);
 
-        let display_manual_resources = display::DisplayableManualResource(self.scheduler_agent_algorithm.manual_resources_capacity.clone());
-        let display_scheduled_work_orders = display::DisplayableScheduledWorkOrders(self.scheduler_agent_algorithm.scheduled_work_orders.clone());
+        // let display_manual_resources = display::DisplayableManualResource(self.scheduler_agent_algorithm.manual_resources_capacity.clone());
+        // let display_scheduled_work_orders = display::DisplayableScheduledWorkOrders(self.scheduler_agent_algorithm.optimized_work_orders.scheduled_work_orders.clone());
 
         // println!("manual resources {}", display_manual_resources);
         // println!("Scheduled work orders {}", display_scheduled_work_orders);
@@ -92,13 +97,10 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
 
         let fut = async move {
             sleep(Duration::from_secs(1)).await;
-            
-
             actor_addr.do_send(ScheduleIteration {});
         };
 
         ctx.notify(MessageToFrontend {});
-
 
         Box::pin(actix::fut::wrap_future::<_, Self>(fut))
     }
@@ -107,7 +109,6 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
 struct MessageToFrontend {}
 
 impl Message for MessageToFrontend {
-
     type Result = ();
 }
 
@@ -125,27 +126,23 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
             Some(ws_agent) => {ws_agent.do_send(scheduler_frontend_message)}
             None => {println!("The websocket agent address is not set")}
         }
-       
     }
 }
 
-impl Handler<SchedulerMessages> for SchedulerAgent {
+impl Handler<SchedulerRequests> for SchedulerAgent {
     type Result = ();
-    fn handle(&mut self, msg: SchedulerMessages, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: SchedulerRequests, ctx: &mut Self::Context) -> Self::Result {
         match msg {
-            SchedulerMessages::Input(msg) => {
+            SchedulerRequests::Input(msg) => {
                 println!("SchedulerAgentReceived a FrontEnd message");
-                let input_message: InputMessage = msg.into();
-               
-                self.update_scheduler_state(input_message);
+                let input_message: InputSchedulerMessage = msg.into();
 
-                // TODO - modify state of scheduler agent
+                self.update_scheduler_state(input_message);
             }
-            SchedulerMessages::WorkPlanner(msg) => {
+            SchedulerRequests::WorkPlanner(msg) => {
                println!("SchedulerAgentReceived a WorkPlannerMessage message");
             },
-            SchedulerMessages::ExecuteIteration => {
-                // TODO - execute one optimization iteration of the scheduler agent
+            SchedulerRequests::ExecuteIteration => {
                 self.execute_iteration(ctx);
             }
         }	
@@ -162,9 +159,8 @@ impl Handler<SetAgentAddrMessage<WebSocketAgent>> for SchedulerAgent {
 
 impl SchedulerAgent {
     pub fn execute_iteration(&mut self, ctx: &mut <SchedulerAgent as Actor>::Context) {
-
         println!("I am running a single iteration");  
-        ctx.notify(SchedulerMessages::ExecuteIteration)
+        ctx.notify(SchedulerRequests::ExecuteIteration)
     }
 }
 
@@ -185,11 +181,11 @@ impl SchedulerAgent {
 
 impl SchedulerAgentAlgorithm {
     pub fn new(
-        manual_resources_capacity: HashMap<(String, Period), f64>, 
-        manual_resources_loading: HashMap<(String, Period), f64>, 
+        manual_resources_capacity: HashMap<(String, String), f64>, 
+        manual_resources_loading: HashMap<(String, String), f64>, 
         backlog: WorkOrders, 
         priority_queues: PriorityQueues<u32, u32>,
-        scheduled_work_orders: HashMap<u32, OrderPeriod>, 
+        optimized_work_orders: OptimizedWorkOrders,
         periods: Vec<Period>,
     ) -> Self {
         SchedulerAgentAlgorithm {
@@ -197,24 +193,47 @@ impl SchedulerAgentAlgorithm {
             manual_resources_loading,
             backlog,
             priority_queues,
-            scheduled_work_orders,
+            optimized_work_orders,
             periods            
         }
     }
 }
 
-
+/// This implementation will update the current state of the scheduler agent.
+/// 
+/// I have an issue with how the scheduled work orders should be handled. I think that there are 
+/// multiple approaches to solving this problem. The queue idea is good but then I would have to 
+/// update the other queues if the work order is present in one of those queues. I could also just 
+/// bypass the whole thing. Hmm... I have misunderstood something here. Should I make the solution 
+/// scheduled_work_orders are the once that are scheduled. But there is also the question of the 
+/// scheduled field in the central data structure. I should find out where that comes from and
 impl SchedulerAgent {
-    pub fn update_scheduler_state(&mut self, input_message: InputMessage) {
-        dbg!(self.scheduler_agent_algorithm.manual_resources_capacity.clone());
+    pub fn update_scheduler_state(&mut self, input_message: InputSchedulerMessage) {
         self.scheduler_agent_algorithm.manual_resources_capacity = input_message.get_manual_resources();
-        dbg!(self.scheduler_agent_algorithm.manual_resources_capacity.clone());
+
+
+        for work_order_period_mapping in input_message.work_order_period_mappings {
+            let work_order_number: u32 = work_order_period_mapping.work_order_number;
+            let optimized_work_orders = &self.scheduler_agent_algorithm.optimized_work_orders.inner;
+
+            let locked_in_period = work_order_period_mapping.period_status.locked_in_period;
+            let excluded_from_periods =  work_order_period_mapping.period_status.excluded_from_periods;
+            
+            let scheduled_period = optimized_work_orders.get(&work_order_number)
+                .map(|ow| ow.scheduled_period.clone())
+                .unwrap_or(locked_in_period.clone());
+
+            let optimized_work_order = OptimizedWorkOrder {
+                    scheduled_period,
+                    locked_in_period: locked_in_period.clone(),
+                    excluded_from_periods,
+            };
+            self.scheduler_agent_algorithm.optimized_work_orders.inner.insert(work_order_number, optimized_work_order);
+        }
     }
 }
 
-
 impl SchedulerAgent {
-
     fn populate_priority_queues(&mut self) -> () {
         for (key, work_order) in self.scheduler_agent_algorithm.backlog.inner.iter() {
             if work_order.unloading_point.present {
@@ -225,15 +244,11 @@ impl SchedulerAgent {
                 self.scheduler_agent_algorithm.priority_queues.shutdown_vendor.push(*key, work_order.order_weight);
             } else {
                 event!(tracing::Level::INFO , "Work order {} has been added to the normal queue", key);
-
                 self.scheduler_agent_algorithm.priority_queues.normal.push(*key, work_order.order_weight);
             }
         }
     }
-
-
 }
-
 
 pub struct PriorityQueues<T, P> 
     where T: Hash + Eq,
@@ -242,6 +257,7 @@ pub struct PriorityQueues<T, P>
     unloading: PriorityQueue<T, P>,
     shutdown_vendor: PriorityQueue<T, P>,
     normal: PriorityQueue<T, P>,
+    manual_schedule: PriorityQueue<T, P>,
 }
 
 impl PriorityQueues<u32, u32> {
@@ -250,6 +266,7 @@ impl PriorityQueues<u32, u32> {
             unloading: PriorityQueue::<u32, u32>::new(),
             shutdown_vendor: PriorityQueue::<u32, u32>::new(),
             normal: PriorityQueue::<u32, u32>::new(),
+            manual_schedule: PriorityQueue::<u32, u32>::new(),
         }
     }
 }
@@ -282,16 +299,22 @@ pub struct SchedulingOverviewData {
     priority: String,
 }
 
-
-
+// Now the problem is that the many work orders may not even get a status, in this approach.
+// This is an issue. Now when we get the work_order_number the entry could be non-existent. 
+// 
 impl SchedulerAgent {
     fn extract_state_to_scheduler_overview(&self) -> Vec<SchedulingOverviewData> {
         let mut scheduling_overview_data: Vec<SchedulingOverviewData> = Vec::new();
         for (work_order_number, work_order) in self.scheduler_agent_algorithm.backlog.inner.iter() {
             for (operation_number, operation) in work_order.operations.clone() {
                 let scheduling_overview_data_item = SchedulingOverviewData {
-                    scheduled_period: match self.scheduler_agent_algorithm.scheduled_work_orders.get(work_order_number) {
-                        Some(order_period) => order_period.period.period_string.clone(),
+                    scheduled_period: match self.scheduler_agent_algorithm.optimized_work_orders.inner.get(work_order_number) {
+                        Some(order_period) => {
+                            match order_period.scheduled_period.as_ref() { 
+                                Some(scheduled_period) => scheduled_period.period_string.clone(),
+                                None => "not scheduled".to_string(),
+                            }
+                        },
                         None => "not scheduled".to_string(),
                     },
                     scheduled_start: work_order.order_dates.basic_start_date.to_string(),
@@ -338,6 +361,33 @@ impl SchedulerAgent {
             }
         }
         scheduling_overview_data
-
     }
+}
+
+
+impl OptimizedWorkOrder {
+    pub fn new(
+        scheduled_period: Option<Period>, 
+        locked_in_period: Option<Period>, 
+        excluded_from_periods: HashSet<Period>) -> Self {
+        
+        Self {
+            scheduled_period,
+            locked_in_period,
+            excluded_from_periods,
+        }
+    }
+
+    pub fn with_new_schedule(&mut self, scheduled_period: Option<Period>) -> Self {
+        Self {
+            scheduled_period: scheduled_period,
+            locked_in_period: self.locked_in_period.clone(),
+            excluded_from_periods: self.excluded_from_periods.clone(),
+        }
+    }
+
+    pub fn update_scheduled_period(&mut self, period: Option<Period>) {
+        self.scheduled_period = period;
+    }
+
 }
