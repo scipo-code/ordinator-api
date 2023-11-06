@@ -5,6 +5,9 @@ use tracing::{event};
 use crate::agents::scheduler_agent::OptimizedWorkOrder;
 use crate::agents::scheduler_agent::SchedulerAgent;
 use crate::models::period::Period;
+use crate::agents::scheduler_agent::OptimizedWorkOrder;
+use crate::agents::scheduler_agent::SchedulerAgent;
+use crate::models::period::Period;
 
 #[derive(PartialEq)]
 pub enum QueueType {
