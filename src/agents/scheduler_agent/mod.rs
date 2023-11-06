@@ -136,6 +136,7 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
             SchedulerRequests::Input(msg) => {
                 println!("SchedulerAgentReceived a FrontEnd message");
                 let input_message: InputSchedulerMessage = msg.into();
+
                 self.update_scheduler_state(input_message);
             }
             SchedulerRequests::WorkPlanner(msg) => {
