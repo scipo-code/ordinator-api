@@ -138,14 +138,14 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
                 let input_message: InputSchedulerMessage = msg.into();
 
                 self.update_scheduler_state(input_message);
-            }
+            }   
             SchedulerRequests::WorkPlanner(msg) => {
                println!("SchedulerAgentReceived a WorkPlannerMessage message");
             },
             SchedulerRequests::ExecuteIteration => {
                 self.execute_iteration(ctx);
             }
-        }	
+        }
     }
 }
 
