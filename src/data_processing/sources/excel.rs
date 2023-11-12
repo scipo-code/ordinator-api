@@ -1,15 +1,17 @@
 use actix_web_actors::ws::start;
 use calamine::{open_workbook, Xlsx, Reader, DataType, Error};
 use regex::Regex;
+use serde::de;
+use tracing::event;
 use core::fmt;
 use std::collections::HashMap;
 use std::path::Path;
 
 use crate::models::period::Period;
 
-use chrono::{DateTime, Utc, NaiveDate, Duration, TimeZone, naive, NaiveTime, Datelike, Weekday, Timelike};
+use chrono::{DateTime, Utc, NaiveDate, Duration, TimeZone, naive, NaiveTime, Datelike, Weekday, Timelike, NaiveDateTime};
 use crate::models::scheduling_environment::{SchedulingEnvironment, WorkOrders};
-use crate::models::work_order::WorkOrder;
+use crate::models::work_order::{WorkOrder, unloading_point};
 use crate::models::work_order::revision::Revision;
 use crate::models::work_order::unloading_point::UnloadingPoint;
 use crate::models::work_order::functional_location::FunctionalLocation;
@@ -226,15 +228,21 @@ fn create_new_operation(row: &[DataType], header_to_index: &HashMap<String, usiz
     
     let default_future_date = Utc.with_ymd_and_hms(2026, 1, 1, 7, 0, 0).unwrap();
 
-    let work_possible_headers = ["Work_Remaining", "Work_Planned"];
-    let earliest_start_time_headers = ["Latest_Start_Time", "Earliest_Start_Time"];
-    let earliest_finish_date_headers = ["Earliest_Finish_Date", "Earliest_End_Date"];
-    let earliest_finish_time_headers = ["Earliest_Finish_Time", "Latest_Finish_Time"];
+    let work_possible_headers = ["Remaining Work", "Work_Remaining", "Work_Planned"];
+    let earliest_start_date_headers = ["Earliest_Start_Date", "Earliest start date"];
+    let earliest_start_time_headers = ["Earliest start time", "Earliest_Start_Time"];
+    let earliest_finish_date_headers = ["Earliest_Finish_Date", "Earliest_End_Date", "Earliest finish date", "Earliest end date"];
+    let earliest_finish_time_headers = ["Earliest_Finish_Time", "Latest_Finish_Time", "Earliest finish time"];
+    let work_center_headers = ["Work_Center", "Work Center", "Work center"];
+    let actual_work_headers = ["Work_Actual", "Work Actual", "Actual work", "Work Actual (Hrs)"];
 
-    let work_remaining_data = get_data_from_headers(&row, &header_to_index, &work_possible_headers);
+    let earliest_start_date_data = get_data_from_headers(&row, &header_to_index, &earliest_start_date_headers);
     let earliest_start_time_data = get_data_from_headers(&row, &header_to_index, &earliest_start_time_headers);
     let earliest_finish_date_data = get_data_from_headers(&row, &header_to_index, &earliest_finish_date_headers);
     let earliest_finish_time_data = get_data_from_headers(&row, &header_to_index, &earliest_finish_time_headers);
+    let work_center_data = get_data_from_headers(&row, &header_to_index, &work_center_headers);
+    let work_remaining_data = get_data_from_headers(&row, &header_to_index, &work_possible_headers);
+    let actual_work_data = get_data_from_headers(&row, &header_to_index, &actual_work_headers);
 
     Ok(Operation {
         activity: match row.get(*header_to_index.get("Activity").ok_or("Activity header not found")?).cloned() {
@@ -249,7 +257,7 @@ fn create_new_operation(row: &[DataType], header_to_index: &HashMap<String, usiz
             Some(DataType::String(s)) => s.parse::<u32>().unwrap_or(0),
             _ => 0
         },
-        work_center: match row.get(*header_to_index.get("Work_Center").ok_or("Work Center header not found")?).cloned() {
+        work_center: match work_center_data.cloned() {
             Some(DataType::String(s)) => s,
             _ => return Err(Error::Msg("Could not parse work center as string")),
         },
@@ -258,9 +266,9 @@ fn create_new_operation(row: &[DataType], header_to_index: &HashMap<String, usiz
             Some(DataType::Int(n)) => n as f64,
             Some(DataType::Float(n)) => n as f64,
             Some(DataType::String(s)) => s.parse::<f64>().unwrap_or(0.0),
-            _ => 0.0
+            _ => 100000.0
         },
-        work_performed: match row.get(*header_to_index.get("Work_Actual").ok_or("Work Actual header not found")?).cloned() {
+        work_performed: match actual_work_data.cloned() {
             Some(DataType::Int(n)) => n as f64,
             Some(DataType::Float(n)) => n as f64,
             Some(DataType::String(s)) => s.parse::<f64>().unwrap_or(0.0),
@@ -284,12 +292,17 @@ fn create_new_operation(row: &[DataType], header_to_index: &HashMap<String, usiz
         target_finish: default_future_date,
         earliest_start_datetime: 
             {
-                let date = match row.get(*header_to_index.get("Earliest_Start_Date").ok_or("Earliest Start Date header not found")?).cloned() {
+                let date = match earliest_start_date_data.cloned() {
+                    
                     Some(DataType::String(s)) => {
                         parse_date(&s)
                     }
+                    Some(DataType::DateTime(s)) => {
+                        let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
+                        let date = start.checked_add_signed(Duration::days(s as i64 - 2));
+                        date.unwrap()
+                    }
                     _ => return Err(Error::Msg("Could not parse Earliest_Start_Date as string"))
-
                 };
 
                 let time = match earliest_start_time_data.cloned() {
@@ -302,8 +315,16 @@ fn create_new_operation(row: &[DataType], header_to_index: &HashMap<String, usiz
                             }
                         }
                     }
-                    _ => return Err(Error::Msg("Could not parse earliest_start_time_data as string"))
+                    Some(DataType::DateTime(s)) => {
+                        let time = excel_time_to_hh_mm_ss(s);
+                        time
+                    }
 
+                    other => {
+                        event!(tracing::Level::ERROR, "Could not parse earliest_start_time_data as string");
+                        dbg!(other);
+                        return Err(Error::Msg("Could not parse earliest_start_time_data as string"))
+                    }
                 };
 
                 Utc.from_utc_datetime(&naive::NaiveDateTime::new(date, time))
@@ -314,7 +335,18 @@ fn create_new_operation(row: &[DataType], header_to_index: &HashMap<String, usiz
                     Some(DataType::String(s)) => {
                         parse_date(&s)
                     }
-                    _ => return Err(Error::Msg("Could not earliest_finish_date_data revision as string"))
+                    Some(DataType::DateTime(s)) => {
+                        let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
+                        let date = start.checked_add_signed(Duration::days(s as i64 - 2));
+                        date.unwrap()
+                    }
+                    
+                    other => {
+                        dbg!(other);
+                        
+                        event!(tracing::Level::INFO, "Could not earliest_finish_date_data as string");
+                        NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()
+                    }
                 };
 
                 let time = match earliest_finish_time_data.cloned() {
@@ -328,7 +360,13 @@ fn create_new_operation(row: &[DataType], header_to_index: &HashMap<String, usiz
                             }
                         }
                     }
-                    _ => return Err(Error::Msg("Could not parse earliest_finish_time_data"))
+                    Some(DataType::DateTime(s)) => {
+                        let time = excel_time_to_hh_mm_ss(s);
+                        time
+                    }
+                    _ => {
+                        return Err(Error::Msg("Could not parse earliest_finish_time_data"))
+                    }
                 };
                 Utc.from_utc_datetime(&naive::NaiveDateTime::new(date, time))
             },
@@ -346,8 +384,6 @@ fn extract_status_codes(row: &[DataType], header_to_index: &HashMap<String, usiz
     let user_status_data = get_data_from_headers(&row, &header_to_index, &user_status_possible_headers);
     let op_status_data = get_data_from_headers(&row, &header_to_index, &op_status_possible_headers);
 
-    dbg!(system_status_data);
-
     let system_status = match system_status_data.cloned() {
         Some(DataType::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse system status as string")),
@@ -363,10 +399,15 @@ fn extract_status_codes(row: &[DataType], header_to_index: &HashMap<String, usiz
         _ => return Err(Error::Msg("Could not parse opr user status as string")),
     };
 
-    let opr_system_status = match row.get(*header_to_index.get("Opr_System_Status").ok_or("Opr_System_Status header not found")?).cloned() {
-        Some(DataType::String(s)) => s,
-        None => "Not present".to_string(),
-        _ => return Err(Error::Msg("Could not parse opr system status as string")),
+    let opr_system_status = match header_to_index.get("Opr_System_Status") {
+        Some(index) => {
+            match row.get(*index).cloned() {
+                Some(DataType::String(s)) => s,
+                None => "Not present".to_string(),
+                _ => return Err(Error::Msg("Opr_System_Status value is not a string")),
+            }
+        },
+        None => "Column not present".to_string(), // Handle the case where the column is absent
     };
 
     // concatenate the status codes into a single string
@@ -393,43 +434,97 @@ fn extract_status_codes(row: &[DataType], header_to_index: &HashMap<String, usiz
 
 fn extract_order_dates(row: &[DataType], header_to_index: &HashMap<String, usize>) -> Result<OrderDates, Error> {
 
-    let earliest_allowed_start_date = match row.get(*header_to_index.get("Earliest_Start_Date").ok_or("Earliest_Start_Date header not found")?).cloned() {
+    let earliest_allowed_start_date_possible_headers = ["Earliest Allowed Start Date", "Earliest_Start_Date", "Earliest start date"];
+    let latest_allowed_finish_date_possible_headers = ["Latest_Allowed_Finish_Date", "Latest Allowed Finish Date"];
+    let basic_start_possible_headers = ["Basic_Start_Date", "Basic Start Date"];
+    let basic_finish_possible_headers = ["Basic_Finish_Date", "Basic Finish Date"];
+
+
+    // let earliest_start_time_possible_headers = ["Earliest_Start_Time", "Earliest start time"];
+
+    let earliest_allowed_start_date_data = get_data_from_headers(&row, &header_to_index, &earliest_allowed_start_date_possible_headers);
+    let latest_allowed_finish_date_data = get_data_from_headers(&row, &header_to_index, &latest_allowed_finish_date_possible_headers);
+    let basic_start_data = get_data_from_headers(&row, &header_to_index, &basic_start_possible_headers);
+    let basic_finish_data = get_data_from_headers(&row, &header_to_index, &basic_finish_possible_headers);
+
+    let earliest_allowed_start_date = match earliest_allowed_start_date_data.cloned() {
+        Some(DataType::DateTimeIso(s)) => {
+            match s.parse::<DateTime<Utc>>() {
+                Ok(date_time) => {
+                    // Now that we have a `DateTime<Utc>`, we can get a `NaiveDate`
+                    Ok(date_time.naive_utc().date())
+                },
+                Err(e) => {
+                    // Handle the error, maybe return it or log it
+                    event!(tracing::Level::ERROR, "Could not parse earliest_start_date_data as date");
+
+                    let error_message = "Could not parse earliest_start_date_data as date";
+                    Err(Error::Msg(error_message))
+                }
+            }.unwrap()
+        }
+        Some(DataType::DateTime(s)) => {
+            let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
+            let date = start.checked_add_signed(Duration::days(s as i64 - 2));
+            date.unwrap()
+        }
         Some(DataType::String(s)) => {
             parse_date(&s)
         }
-        _ => return Err(Error::Msg("Could not parse revision as string"))
-
+        Some(DataType::Float(s)) => {
+            parse_date(&s.to_string())
+        }
+        Some(DataType::Int(s)) => {
+            parse_date(&s.to_string())
+        }
+        Some(DataType::Empty) => {
+            panic!("Earliest start date is empty");
+        }
+        error => {
+            dbg!(error);
+            event!(tracing::Level::ERROR, "Could not parse earliest_start_date");
+            let error_message = "Could not parse earliest_start_date_data as anything";
+            return Err(Error::Msg(error_message));
+        }
     };
     
-    let latest_allowed_finish_date = match row.get(*header_to_index.get("Latest_Allowed_Finish_Date").ok_or("Latest_Allowed_Finish_Date header not found")?).cloned() {
+    let latest_allowed_finish_date = match latest_allowed_finish_date_data.cloned() {
         Some(DataType::String(s)) => {
             parse_date(&s)
         }
-        _ => return Err(Error::Msg("Could not parse revision as string"))
-
-    };
-
-    let basic_start_date = match row.get(*header_to_index.get("Basic_Start_Date").ok_or("Basic_Start_Date header not found")?).cloned() {
-        Some(DataType::String(s)) => {
-            parse_date(&s)
+        Some(DataType::DateTime(s)) => {
+            let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
+            let date = start.checked_add_signed(Duration::days(s as i64 - 2));
+            date.unwrap()
         }
-        _ => return Err(Error::Msg("Could not parse revision as string"))
-
+        _ => return Err(Error::Msg("Could not parse latest_allowed_finish_date_data as string"))
     };
 
-    let basic_finish_date = match row.get(*header_to_index.get("Basic_Finish_Date").ok_or("Basic_Finish_Date header not found")?).cloned() {
+    let basic_start_date: Result<NaiveDate, Error> = match basic_start_data.cloned() {
         Some(DataType::String(s)) => {
-            parse_date(&s)
+            Ok(parse_date(&s))
         }
-        _ => return Err(Error::Msg("Could not parse revision as string"))
+        Some(_) => Err(Error::Msg("Could not parse basic_start_data as string")),
+        None => Err(Error::Msg("Basic start date is None"))
     };
+
+    let basic_finish_date = match basic_finish_data.cloned() {
+        Some(DataType::String(s)) => {
+            Ok(parse_date(&s))
+        }
+        Some(_) => Err(Error::Msg("Could not parse basic finish as string")),
+        None => Err(Error::Msg("Basic finish date is None"))
+    };
+
+    let basic_start_date_additional = basic_start_date.unwrap_or(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()).and_hms_opt(7, 0, 0).unwrap();
+    let basic_finish_date_additional = basic_finish_date.unwrap_or(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()).and_hms_opt(7, 0, 0).unwrap();
 
     Ok(OrderDates {
         earliest_allowed_start_date: DateTime::<Utc>::from_naive_utc_and_offset(earliest_allowed_start_date.and_hms_opt(7, 0, 0).unwrap(), Utc),
         latest_allowed_finish_date: DateTime::<Utc>::from_naive_utc_and_offset(latest_allowed_finish_date.and_hms_opt(7, 0, 0).unwrap(), Utc),
-        basic_start_date: DateTime::<Utc>::from_naive_utc_and_offset(basic_start_date.and_hms_opt(7, 0, 0).unwrap(), Utc),
-        basic_finish_date: DateTime::<Utc>::from_naive_utc_and_offset(basic_finish_date.and_hms_opt(7, 0, 0).unwrap(), Utc),
-        duration: basic_finish_date.signed_duration_since(basic_start_date),
+        basic_start_date: DateTime::<Utc>::from_naive_utc_and_offset(basic_start_date_additional.clone(), Utc),
+        basic_finish_date: DateTime::<Utc>::from_naive_utc_and_offset(basic_finish_date_additional.clone(), Utc),
+        duration: basic_finish_date_additional.signed_duration_since(basic_start_date_additional.into()),
         basic_start_scheduled: None,
         basic_finish_scheduled: None,
         material_expected_date: None,
@@ -437,6 +532,8 @@ fn extract_order_dates(row: &[DataType], header_to_index: &HashMap<String, usize
 }
 
 fn extract_revision(row: &[DataType], header_to_index: &HashMap<String, usize>) -> Result<Revision, Error> {
+
+
 
     let string = match row.get(*header_to_index.get("Revision").ok_or("Revision header not found")?).cloned() {
         Some(DataType::String(s)) => s,
@@ -456,7 +553,11 @@ fn extract_revision(row: &[DataType], header_to_index: &HashMap<String, usize>) 
 
 fn extract_unloading_point(row: &[DataType], header_to_index: &HashMap<String, usize>) -> Result<UnloadingPoint, Error> {
     
-    let string = match row.get(*header_to_index.get("Unloading_Point").ok_or("Unloading_Point header not found")?).cloned() {
+    let unloading_point_possible_headers = ["Unloading_Point", "Unloading Point"];
+
+    let unloading_point_data = get_data_from_headers(&row, &header_to_index, &unloading_point_possible_headers);
+
+    let string = match unloading_point_data.cloned() {
         Some(DataType::String(s)) => s,
         Some(DataType::Int(n)) => n.to_string(),
         Some(DataType::Float(n)) => n.to_string(),
@@ -535,7 +636,13 @@ fn _extract_weeks(input_string: &str) -> (u32, u32, bool) {
 }
 
 fn extract_functional_location(row: &[DataType], header_to_index: &HashMap<String, usize>) -> Result<FunctionalLocation, Error> {
-    let string = row.get(*header_to_index.get("Functional_Location").ok_or("Functional_Location header not found")?).cloned();
+    
+    let functional_location_possible_headers = ["functional_location", "Functional Location"];
+
+    let functional_location_data = get_data_from_headers(&row, &header_to_index, &functional_location_possible_headers);
+
+
+    let string = functional_location_data.cloned();
     
     Ok(FunctionalLocation {
         string: string.unwrap().to_string(),
@@ -543,40 +650,65 @@ fn extract_functional_location(row: &[DataType], header_to_index: &HashMap<Strin
 }
 
 fn extract_order_text(row: &[DataType], header_to_index: &HashMap<String, usize>) -> Result<OrderText, Error> {
-    let notes_1 = match row.get(header_to_index.get("Notes_1").unwrap_or(&usize::MAX).clone()) {
+    
+    let notes_1_possible_headers = ["Notes_1", "notes_1", "Notes 1"];
+    let notes_2_possible_headers = ["Notes_2", "Notes 2", "Notes_2"];
+    let description_1_possible_headers = ["Object Description", "Description_1", "Description 1", "Description_1"];
+    let description_2_possible_headers = ["Order Description", "Description_2", "Description 2", "Description_2"];
+    let operation_description_possible_headers = ["Short_Text", "Operation Description", "Operation_Description", "Operation Description"];
+    let system_status_possible_headers = ["System_Status", "System Status", "Order System Status"];
+    let user_status_possible_headers = ["User_Status", "User Status", "Order User Status"];
+
+
+
+    let notes_1_data = get_data_from_headers(&row, &header_to_index, &notes_1_possible_headers);
+    let notes_2_data = get_data_from_headers(&row, &header_to_index, &notes_2_possible_headers);
+    let description_1_data = get_data_from_headers(&row, &header_to_index, &description_1_possible_headers);
+    let description_2_data = get_data_from_headers(&row, &header_to_index, &description_2_possible_headers);
+    let operation_description_data = get_data_from_headers(&row, &header_to_index, &operation_description_possible_headers);
+    let system_status_data = get_data_from_headers(&row, &header_to_index, &system_status_possible_headers);
+    let user_status_data = get_data_from_headers(&row, &header_to_index, &user_status_possible_headers);
+
+
+    
+    let notes_1 = match notes_1_data.cloned() {
         Some(DataType::String(s)) => s.to_string(),
         None => "Notes 1 is not part of the inputed data".to_string(),
         _ => return Err(Error::Msg("Could not parse notes_1 as string")),
     };
     
-    let notes_2 = match row.get(header_to_index.get("Notes_2").unwrap_or(&usize::MAX).clone()) {
+    let notes_2 = match notes_2_data {
         Some(DataType::String(s)) => s.parse::<u32>().unwrap_or(8) ,
         Some(DataType::Int(n)) => *n as u32,
         None => 5,
         _ => return Err(Error::Msg("Could not parse notes_2 as an integer")),
     };
         
-    let object_description = match row.get(*header_to_index.get("Description_2").ok_or("object_description header not found")?).cloned() {
+    let object_description = match description_2_data.cloned() {
         Some(DataType::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse object_description as string")),
     };
     
-    let order_description = match row.get(*header_to_index.get("Description_1").ok_or("order_description header not found")?).cloned() {
+    let order_description = match description_1_data.cloned() {
         Some(DataType::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse order_description as string")),
     };
     
-    let operation_description = match row.get(*header_to_index.get("Short_Text").ok_or("operation_description header not found")?).cloned() {
+    let operation_description = match operation_description_data.cloned() {
+       
         Some(DataType::String(s)) => s,
-        _ => return Err(Error::Msg("Could not parse operation_description as string")),
+        _ => {
+            event!(tracing::Level::INFO, "operation_description is not a string");
+            "operation_description_not_present".to_string()
+            }
     };
 
-    let order_system_status = match row.get(*header_to_index.get("System_Status").ok_or("order_system_status header not found")?).cloned() {
+    let order_system_status = match system_status_data.cloned() {
         Some(DataType::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse order_system_status as string")),
     };
 
-    let order_user_status = match row.get(*header_to_index.get("User_Status").ok_or("order_user_status header not found")?).cloned() {
+    let order_user_status = match user_status_data.cloned() {
         Some(DataType::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse order_user_status as string")),
     };
@@ -611,10 +743,6 @@ fn get_data_from_headers<'a>(
     header_to_index: &HashMap<String, usize>, 
     headers: &[&str]
 ) -> Option<&'a DataType> {
-
-    dbg!(row);
-    dbg!(headers);
-    dbg!(header_to_index);
 
     for &header in headers {
         if let Some(&index) = header_to_index.get(header) {
@@ -707,4 +835,13 @@ fn create_periods(number_of_periods: u32) -> Result<Vec<Period>, Error> {
 
     }
     Ok(periods)
+}
+
+fn excel_time_to_hh_mm_ss(serial_time: f64) -> NaiveTime {
+    let total_seconds: u32 = (serial_time * 24.0 * 3600.0).round() as u32;
+    let hours: u32  = total_seconds / 3600;
+    let minutes: u32  = (total_seconds % 3600) / 60;
+    let seconds: u32  = total_seconds % 60;
+
+    NaiveTime::from_hms_opt(hours, minutes, seconds).expect("Could not convert excel time to NaiveTime")
 }

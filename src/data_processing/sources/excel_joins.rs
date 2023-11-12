@@ -29,7 +29,6 @@ pub fn read_csv_files() {
     join_csv_files(work_order, activities, time_postings);
 }
 
-
 fn join_csv_files(jobs: Vec<Job>, activities: Vec<Activity>, time_postings: Vec<TimePosting>) {
     let activities_by_order: HashMap<String, Vec<Activity>> = 
     activities.iter().fold(HashMap::new(), |mut acc, activity| {
@@ -51,7 +50,7 @@ fn join_csv_files(jobs: Vec<Job>, activities: Vec<Activity>, time_postings: Vec<
     });
 
 
-    let mut workbook = export_to_excel();
+    let workbook = export_to_excel();
 
     let header_set = get_header_set();
 
