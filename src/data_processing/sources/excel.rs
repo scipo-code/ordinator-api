@@ -320,10 +320,9 @@ fn create_new_operation(row: &[DataType], header_to_index: &HashMap<String, usiz
                         time
                     }
 
-                    other => {
-                        event!(tracing::Level::ERROR, "Could not parse earliest_start_time_data as string");
-                        dbg!(other);
-                        return Err(Error::Msg("Could not parse earliest_start_time_data as string"))
+                    _ => {
+                        event!(tracing::Level::WARN, "Could not parse earliest_start_time is not present");
+                        NaiveTime::from_hms_opt(7, 0, 0).unwrap()
                     }
                 };
 
@@ -644,9 +643,24 @@ fn extract_functional_location(row: &[DataType], header_to_index: &HashMap<Strin
 
     let string = functional_location_data.cloned();
     
-    Ok(FunctionalLocation {
-        string: string.unwrap().to_string(),
-    })
+    match string {
+        Some(s) => {
+            match s {
+                DataType::String(s) => {
+                    return Ok(FunctionalLocation {
+                        string: s,
+                    })
+                },
+                _ => return Err(Error::Msg("Could not parse functional location as string")),
+            }
+
+        },
+        None => {
+            return Ok(FunctionalLocation {
+                string: "None".to_string(),
+            })
+        },
+    }
 }
 
 fn extract_order_text(row: &[DataType], header_to_index: &HashMap<String, usize>) -> Result<OrderText, Error> {
