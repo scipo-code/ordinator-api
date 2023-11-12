@@ -20,6 +20,7 @@ use crate::api::websocket_agent::WebSocketAgent;
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
 use crate::models::work_order::status_codes::MaterialStatus;
 use crate::api::websocket_agent::SchedulerFrontendMessage;
+use crate::api::websocket_agent::SchedulerFrontendLoadingMessage;
 
 pub struct SchedulerAgent {
     platform: String,
@@ -122,8 +123,21 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
             frontend_message_type: "frontend_scheduler_overview".to_string(),
             scheduling_overview_data: scheduling_overview_data,
         };
+
+        let nested_loadings = transform_hashmap_to_nested_hashmap(self.scheduler_agent_algorithm.manual_resources_capacity.clone());
+
+        dbg!(nested_loadings.clone());
+
+        let scheduler_frontend_loading_message = SchedulerFrontendLoadingMessage {
+            frontend_message_type: "frontend_scheduler_loading".to_string(),
+            manual_resources_loading: nested_loadings,
+        };
+        
         match self.ws_agent_addr.as_ref() {
-            Some(ws_agent) => {ws_agent.do_send(scheduler_frontend_message)}
+            Some(ws_agent) => {
+                ws_agent.do_send(scheduler_frontend_message);
+                ws_agent.do_send(scheduler_frontend_loading_message);
+            }
             None => {println!("The websocket agent address is not set")}
         }
     }
@@ -389,5 +403,17 @@ impl OptimizedWorkOrder {
     pub fn update_scheduled_period(&mut self, period: Option<Period>) {
         self.scheduled_period = period;
     }
+}
 
+/// This function should be reformulated? I think that we should make sure to create in such a way
+/// that. We need an inner hashmap for each of the different 
+fn transform_hashmap_to_nested_hashmap(hash_map: HashMap<(String, String), f64>) -> HashMap<String, HashMap<String, f64>> {
+    let mut nested_hash_map: HashMap<String, HashMap<String, f64>> = HashMap::new();
+    
+    for ((work_center, period), value) in hash_map {
+        nested_hash_map.entry(work_center)
+            .or_insert_with(HashMap::new)
+            .insert(period, value);
+    }
+    nested_hash_map
 }

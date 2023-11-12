@@ -244,7 +244,6 @@ fn create_new_operation(row: &[DataType], header_to_index: &HashMap<String, usiz
     let work_remaining_data = get_data_from_headers(&row, &header_to_index, &work_possible_headers);
     let actual_work_data = get_data_from_headers(&row, &header_to_index, &actual_work_headers);
 
-
     Ok(Operation {
         activity: match row.get(*header_to_index.get("Activity").ok_or("Activity header not found")?).cloned() {
             Some(DataType::Int(n)) => n as u32,

@@ -81,6 +81,7 @@ impl SchedulerAgent {
                     if *resource_needed > *resource_capacity - *resource_loading {
                         return Some(work_order_key);
                     }
+                    
                     if period.get_end_date() < work_order.order_dates.earliest_allowed_start_date {
                         return Some(work_order_key);
                     }
