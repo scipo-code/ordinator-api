@@ -5,9 +5,6 @@ use tracing::{event};
 use crate::agents::scheduler_agent::OptimizedWorkOrder;
 use crate::agents::scheduler_agent::SchedulerAgent;
 use crate::models::period::Period;
-use crate::agents::scheduler_agent::OptimizedWorkOrder;
-use crate::agents::scheduler_agent::SchedulerAgent;
-use crate::models::period::Period;
 
 #[derive(PartialEq)]
 pub enum QueueType {
@@ -74,16 +71,17 @@ impl SchedulerAgent {
             QueueType::Normal => {
 
                 let work_order = self.scheduler_agent_algorithm.backlog.inner.get(&work_order_key).unwrap();
-
+                
                 // The if statements found in here are each constraints that has to be upheld.
                 for (work_center, resource_needed) in work_order.work_load.iter() {
 
                     let resource_capacity: &mut f64 = self.scheduler_agent_algorithm.manual_resources_capacity.entry((work_center.to_string(), period.clone().period_string)).or_insert(0.0);                             
                     let resource_loading: &mut f64 = self.scheduler_agent_algorithm.manual_resources_loading.entry((work_center.to_string(), period.clone().period_string)).or_insert(0.0);
-
+                    
                     if *resource_needed > *resource_capacity - *resource_loading {
                         return Some(work_order_key);
                     }
+                    
                     if period.get_end_date() < work_order.order_dates.earliest_allowed_start_date {
                         return Some(work_order_key);
                     }

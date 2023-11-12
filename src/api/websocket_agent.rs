@@ -1,6 +1,7 @@
 use actix::prelude::*;
 use actix_web_actors::ws;
 use actix_web::Result;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{Level, event};
 
@@ -26,7 +27,6 @@ impl Actor for WebSocketAgent {
 
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-        
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
             Ok(ws::Message::Text(text)) => {
@@ -98,12 +98,35 @@ impl Handler<SchedulerFrontendMessage> for WebSocketAgent {
     fn handle(&mut self, msg: SchedulerFrontendMessage, ctx: &mut Self::Context) -> Self::Result {
             // Serialize the message
             let serialized_message = serde_json::to_string(&msg).unwrap();
-    
             // Send the serialized message to the frontend
             ctx.text(serialized_message);
         
     }
 }
+
+#[derive(serde::Serialize)]
+pub struct SchedulerFrontendLoadingMessage {
+    pub frontend_message_type: String,
+    pub manual_resources_loading: HashMap<String, HashMap<String, f64>>,
+}
+
+
+
+impl Message for SchedulerFrontendLoadingMessage {
+    type Result = ();
+}
+
+impl Handler<SchedulerFrontendLoadingMessage> for WebSocketAgent {
+    type Result = ();
+
+    fn handle(&mut self, msg: SchedulerFrontendLoadingMessage, ctx: &mut Self::Context) -> Self::Result {
+        // Serialize the message
+        let serialized_message = serde_json::to_string(&msg).unwrap();
+        // Send the serialized message to the frontend
+        ctx.text(serialized_message);
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -114,7 +137,6 @@ mod tests {
     use crate::agents::scheduler_agent::SchedulerAgentAlgorithm;
     use crate::agents::scheduler_agent::SchedulerAgent;
     use crate::agents::scheduler_agent::PriorityQueues;
-    use crate::agents::scheduler_agent::OptimizedWorkOrder;
     use crate::models::scheduling_environment::WorkOrders;
 
     use crate::models::period::Period;
