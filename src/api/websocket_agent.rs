@@ -19,7 +19,6 @@ impl Actor for WebSocketAgent {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         event!(Level::INFO, "WebSocketAgent is alive");
-        // panic!("WebSocketAgent is alive");
         let addr = ctx.address();
         self.scheduler_agent_addr.do_send(SetAgentAddrMessage { addr });
     }

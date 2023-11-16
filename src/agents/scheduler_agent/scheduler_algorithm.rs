@@ -169,8 +169,10 @@ impl SchedulerAgent {
 
 // There are more problems here. We now have to make sure that the work order is unscheduled 
 // correctly. And then updated correctly.
+
+/// Okay here we have a super chance to apply testing. That will be a crucial step towards making
+/// this system scale. Now this stop, you cannot keep not testing you code. 
 impl SchedulerAgent {
-    
     fn is_scheduled(&self, work_order_key: u32) -> Option<u32> {
         match self.scheduler_agent_algorithm.optimized_work_orders.inner.get(&work_order_key) {
             Some(optimized_work_order) => {
@@ -202,3 +204,34 @@ impl SchedulerAgent {
     }
 }
 
+
+/// Test scheduler scheduling logic
+/// Make your own trait that you can use
+/// 
+
+#[cfg(test)]
+mod tests {
+
+    use actix::Addr;
+
+    use crate::agents::scheduler_agent::SchedulerAgentAlgorithm;
+
+    use super::*;
+    
+    // #[test]
+    // fn test_scheduler_scheduling_logic() {
+
+    //     let mock_web_socket = Addr::new();
+
+    //     let scheduler_agent = SchedulerAgent::new(
+    //         "Test Platform".to_string(),
+    //         SchedulerAgentAlgorithm::new(),
+    //         mock_web_socket
+
+    // );
+
+    // }
+
+
+
+}
