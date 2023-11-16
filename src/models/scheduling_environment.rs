@@ -25,7 +25,6 @@ impl WorkOrders {
 
 impl WorkOrders {
     pub fn initialize_work_orders(&mut self) {
-        dbg!("Initializing Work Orders");
         for (_, work_order) in self.inner.iter_mut() {
             work_order.initialize();
         }
