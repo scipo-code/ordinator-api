@@ -34,6 +34,8 @@ async fn main() -> () {
         .build()
         .await.expect("could not start application");
 
+
+
 }
 
 fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {

@@ -1,4 +1,5 @@
-use std::thread;
+use core::panic;
+use std::{thread, sync::Arc};
 
 use actix::Addr;
 use actix_web::{HttpServer, App};
@@ -27,19 +28,21 @@ impl ApplicationBuilder {
         info!("Server running at http://127.0.0.1:8001/");
         HttpServer::new(move || {
             let current_thread_id = thread::current().id();
-            event!(Level::INFO, ?current_thread_id, "starting app");
             
+            event!(Level::INFO, ?current_thread_id, "initializing application");
             let mut app = App::new();
-
+            
             if let Some(scheduler_agent_addr) = &self.scheduler_agent_addr {
-                app = app.app_data(Data::new(scheduler_agent_addr.clone()));
+                app = app.app_data(Data::new(Arc::new(scheduler_agent_addr.clone())))
             }
-
+            
+            event!(Level::INFO, "about to register routes");
             app.service(ws_index)
         })
         .bind(("127.0.0.1", 8001))?
         .run()
         .await
-    }
 
+
+    }
 }

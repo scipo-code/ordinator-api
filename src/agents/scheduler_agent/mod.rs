@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use actix::prelude::*; 
 use actix::Message;
 use priority_queue::PriorityQueue;
+use tracing::Level;
 use std::hash::Hash;
 use tracing::{event};
 use tokio::time::{sleep, Duration};
@@ -146,15 +147,17 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
     fn handle(&mut self, msg: SchedulerRequests, ctx: &mut Self::Context) -> Self::Result {
         match msg {
             SchedulerRequests::Input(msg) => {
-                println!("SchedulerAgentReceived a FrontEnd message");
                 let input_message: InputSchedulerMessage = msg.into();
+                event!(
+                    target: "SchedulerRequest::Input",
+                    tracing::Level::INFO,
+                    message = %input_message,
+                    "received a message from the frontend"
+                );                
                 self.update_scheduler_state(input_message);
             }   
             SchedulerRequests::WorkPlanner(msg) => {
                println!("SchedulerAgentReceived a WorkPlannerMessage message");
-            },
-            SchedulerRequests::ExecuteIteration => {
-                self.execute_iteration(ctx);
             }
         }
     }
@@ -165,13 +168,6 @@ impl Handler<SetAgentAddrMessage<WebSocketAgent>> for SchedulerAgent {
 
     fn handle(&mut self, msg: SetAgentAddrMessage<WebSocketAgent>, ctx: &mut Self::Context) -> Self::Result {
         self.set_ws_agent_addr(msg.addr);
-    }
-}
-
-impl SchedulerAgent {
-    pub fn execute_iteration(&mut self, ctx: &mut <SchedulerAgent as Actor>::Context) {
-        println!("I am running a single iteration");  
-        ctx.notify(SchedulerRequests::ExecuteIteration)
     }
 }
 
@@ -218,6 +214,15 @@ impl SchedulerAgentAlgorithm {
 /// bypass the whole thing. Hmm... I have misunderstood something here. Should I make the solution 
 /// scheduled_work_orders are the once that are scheduled. But there is also the question of the 
 /// scheduled field in the central data structure. I should find out where that comes from and
+/// 
+/// So here we update the state of the application, but what about the queues? I after the work 
+/// order has been scheduled in the front end we need to update the queues. As well so that the 
+/// work order is scheduled through the process. We should add the work order to the unloading point
+/// queue but what will happen when the work order is unscheduled again at a later point? This is 
+/// much more difficult to reason about. I think that the best approach is 
+/// 
+/// All of this should be handled in the update scheduler state function. There can be no other way
+/// Remember that if this becomes complex we should refactor the code. 
 impl SchedulerAgent {
     pub fn update_scheduler_state(&mut self, input_message: InputSchedulerMessage) {
         self.scheduler_agent_algorithm.manual_resources_capacity = input_message.get_manual_resources();
@@ -233,20 +238,35 @@ impl SchedulerAgent {
                 .map(|ow| ow.scheduled_period.clone())
                 .unwrap_or(locked_in_period.clone());
 
+            match locked_in_period.clone() {
+                Some(period) => {
+                    event!(target: "frontend input message debugging", Level::INFO, "Locked period: {}", period.period_string.clone());
+                }
+                None => {
+                    event!(target: "frontend input message debugging", Level::INFO, "Locked period: None");
+                }
+            }
+
             let optimized_work_order = OptimizedWorkOrder {
                     scheduled_period,
                     locked_in_period: locked_in_period.clone(),
                     excluded_from_periods,
             };
+
+            
             self.scheduler_agent_algorithm.optimized_work_orders.inner.insert(work_order_number, optimized_work_order);
+            self.update_priority_queues();
         }
     }
+
+
+
 }
 
 impl SchedulerAgent {
     fn populate_priority_queues(&mut self) -> () {
         for (key, work_order) in self.scheduler_agent_algorithm.backlog.inner.iter() {
-            if work_order.unloading_point.present {
+            if work_order.unloading_point.present  {
                 event!(tracing::Level::INFO , "Work order {} has been added to the unloading queue", key);
                 self.scheduler_agent_algorithm.priority_queues.unloading.push(*key, work_order.order_weight);
             } else if work_order.revision.shutdown || work_order.vendor {
@@ -255,6 +275,33 @@ impl SchedulerAgent {
             } else {
                 event!(tracing::Level::INFO , "Work order {} has been added to the normal queue", key);
                 self.scheduler_agent_algorithm.priority_queues.normal.push(*key, work_order.order_weight);
+            }
+        }
+    }
+
+    /// So the idea here is that we look through all the optimized_work_orders and then we schedule
+    /// them according to the queue type. There are two cases that should be covered. 
+    /// 
+    /// Inclusion
+    ///     Here we have to move a work order to the unloading point queue. If the work order is 
+    ///     already scheduled we have the logic in place to handle this. 
+    ///    
+    /// 
+    /// Exclusion
+    ///     We need to force this invariant on the data type. 
+    /// 
+    /// I am doing the wrong thing here. We only care about the 
+    /// 
+    /// The exclusion is simply a variation of the materials, EASD. In the code we should create
+    /// something to handle this issue. Exclusion is already handled in the code.
+    fn update_priority_queues(&mut self) -> () {
+        for (key, work_order) in &self.scheduler_agent_algorithm.optimized_work_orders.inner {
+            let work_order_weight = self.scheduler_agent_algorithm.backlog.inner.get(&key).unwrap().order_weight;
+            match &work_order.locked_in_period {
+                Some(work_order) => {
+                    self.scheduler_agent_algorithm.priority_queues.unloading.push(*key, work_order_weight);
+                }
+                None => {}
             }
         }
     }
