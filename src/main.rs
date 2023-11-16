@@ -10,11 +10,8 @@ use tracing_subscriber::fmt::{self, format::FmtSpan};
 use tracing_subscriber::prelude::*;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 
-
-
 use crate::data_processing::create_excel_data;
 use crate::init::application_builder::ApplicationBuilder;
-
 
 #[instrument]
 #[actix_web::main]
@@ -33,7 +30,6 @@ async fn main() -> () {
         // put other agents here
         .build()
         .await.expect("could not start application");
-
 }
 
 fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {

@@ -11,7 +11,6 @@ use crate::models::period::Period;
 pub enum SchedulerRequests {
     Input(FrontendInputSchedulerMessage),
     WorkPlanner(WorkPlannerMessage),
-    ExecuteIteration,
 }
 
 #[derive(Serialize, Deserialize)]
