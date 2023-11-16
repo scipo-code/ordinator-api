@@ -154,6 +154,7 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
                     message = %input_message,
                     "received a message from the frontend"
                 );                
+
                 self.update_scheduler_state(input_message);
             }   
             SchedulerRequests::WorkPlanner(msg) => {

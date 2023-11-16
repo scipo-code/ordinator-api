@@ -1,6 +1,5 @@
 use core::panic;
 use std::{thread, sync::Arc};
-
 use actix::Addr;
 use actix_web::{HttpServer, App};
 use tracing::{info, Subscriber, event, Level};
@@ -28,7 +27,6 @@ impl ApplicationBuilder {
         info!("Server running at http://127.0.0.1:8001/");
         HttpServer::new(move || {
             let current_thread_id = thread::current().id();
-            
             event!(Level::INFO, ?current_thread_id, "initializing application");
             let mut app = App::new();
             
@@ -42,7 +40,5 @@ impl ApplicationBuilder {
         .bind(("127.0.0.1", 8001))?
         .run()
         .await
-
-
     }
 }
