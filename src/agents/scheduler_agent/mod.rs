@@ -124,10 +124,8 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
             scheduling_overview_data: scheduling_overview_data,
         };
 
-        let nested_loadings = transform_hashmap_to_nested_hashmap(self.scheduler_agent_algorithm.manual_resources_capacity.clone());
-
-        dbg!(nested_loadings.clone());
-
+        let nested_loadings = transform_hashmap_to_nested_hashmap(self.scheduler_agent_algorithm.manual_resources_loading.clone());
+        
         let scheduler_frontend_loading_message = SchedulerFrontendLoadingMessage {
             frontend_message_type: "frontend_scheduler_loading".to_string(),
             manual_resources_loading: nested_loadings,
@@ -150,7 +148,6 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
             SchedulerRequests::Input(msg) => {
                 println!("SchedulerAgentReceived a FrontEnd message");
                 let input_message: InputSchedulerMessage = msg.into();
-
                 self.update_scheduler_state(input_message);
             }   
             SchedulerRequests::WorkPlanner(msg) => {
@@ -224,7 +221,6 @@ impl SchedulerAgentAlgorithm {
 impl SchedulerAgent {
     pub fn update_scheduler_state(&mut self, input_message: InputSchedulerMessage) {
         self.scheduler_agent_algorithm.manual_resources_capacity = input_message.get_manual_resources();
-
 
         for work_order_period_mapping in input_message.work_order_period_mappings {
             let work_order_number: u32 = work_order_period_mapping.work_order_number;
@@ -378,7 +374,6 @@ impl SchedulerAgent {
     }
 }
 
-
 impl OptimizedWorkOrder {
     pub fn new(
         scheduled_period: Option<Period>, 
@@ -416,4 +411,18 @@ fn transform_hashmap_to_nested_hashmap(hash_map: HashMap<(String, String), f64>)
             .insert(period, value);
     }
     nested_hash_map
+}
+
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_scheduler_agent_initialization() {
+
+    }
+
+
 }

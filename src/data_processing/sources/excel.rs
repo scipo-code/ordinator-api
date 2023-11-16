@@ -145,7 +145,6 @@ fn create_new_work_order(row: &[DataType], header_to_index: &HashMap<String, usi
         _ => Priority::StringValue(String::new())
     };
 
-    println!("priority: {:?}", priority);
     Ok(WorkOrder {
         order_number: match row.get(*header_to_index.get("Order").ok_or("Order header not found")?).cloned() {
             Some(DataType::Int(n)) => n as u32,
@@ -208,7 +207,6 @@ fn create_new_work_order(row: &[DataType], header_to_index: &HashMap<String, usi
                 }
             },
             None => {
-                println!("Order_Type is None");
                 Ok(WorkOrderType::Other)
             }
             _ => return Err(Error::Msg("Could not parse revision as string"))
@@ -841,8 +839,6 @@ fn create_periods(number_of_periods: u32) -> Result<Vec<Period>, Error> {
     // dbg!(end_date);
 
     for i in 0..number_of_periods {
-        dbg!(start_date);
-        dbg!(end_date);
         periods.push(Period::new(i, start_date, end_date));
         start_date = start_date + Duration::weeks(2);
         end_date = end_date + Duration::weeks(2);
