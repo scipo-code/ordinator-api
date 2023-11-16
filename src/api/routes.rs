@@ -16,7 +16,7 @@ async fn ws_index(
 ) -> Result<HttpResponse> {
 
     let current_thread_id = thread::current().id();
-    event!(Level::INFO, ?current_thread_id, "starting app");
+    event!(Level::INFO, ?current_thread_id, "Setting up ws_index route handler");
 
     let res = ws::start(WebSocketAgent::new(data.get_ref().clone()), &req, stream);
     res

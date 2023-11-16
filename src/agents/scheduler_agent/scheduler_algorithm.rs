@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use core::panic;
+use tracing::Level;
 use tracing::{event};
 
 use crate::agents::scheduler_agent::OptimizedWorkOrder;
@@ -126,6 +127,8 @@ impl SchedulerAgent {
                         Some(optimized_work_order) => {
                             match optimized_work_order.locked_in_period.clone() {
                                 Some(locked_period) => {
+                                    event!(target: "frontend input message debugging", Level::INFO, "Locked period: {}", locked_period.period_string.clone());
+                         
                                     if period.period_string != locked_period.period_string {
                                         return Some(work_order_key);
                                     }
@@ -141,18 +144,9 @@ impl SchedulerAgent {
 
                 self.scheduler_agent_algorithm.optimized_work_orders.inner.get_mut(&work_order_key).unwrap().scheduled_period = Some(period.clone());
                 
-                
-                // OrderPeriod::new(period.clone(), work_order_key));
-
                 for (work_center_period, loading) in self.scheduler_agent_algorithm.manual_resources_loading.iter_mut() {
                     if work_center_period.1 == *period.period_string {
-                        let work_load_for_work_center = work_order.work_load.get(&work_center_period.0);
-                        match work_load_for_work_center {
-                            Some(work_load_for_work_center) => {
-                                *loading += work_load_for_work_center;
-                            }
-                            None => (),
-                        }
+                        *loading += work_order.work_load.get(&work_center_period.0).unwrap_or(&0.0);
                     }
                 }
                 None
@@ -161,7 +155,6 @@ impl SchedulerAgent {
         }
     }
 }
-
 
 // This becomes more simple right? if the key exists you simply change the period. Or else you 
 // create a new entry. It should not be needed to create a new entry as we already have, be 
