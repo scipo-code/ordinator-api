@@ -1,8 +1,7 @@
-use core::panic;
 use std::{thread, sync::Arc};
 use actix::Addr;
 use actix_web::{HttpServer, App};
-use tracing::{info, Subscriber, event, Level};
+use tracing::{info, event, Level};
 use actix_web::web::Data;
 
 use crate::{agents::scheduler_agent::SchedulerAgent, api::routes::ws_index};
