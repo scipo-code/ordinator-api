@@ -1,12 +1,10 @@
-use csv::{Reader, ReaderBuilder, WriterBuilder};
+use csv::ReaderBuilder;
 use serde::Deserialize;
 use std::error::Error;
 use std::collections::{HashSet, HashMap};
-use xlsxwriter::{Workbook, Worksheet, Format};
+use xlsxwriter::Workbook;
 use std::time::SystemTime;
 use std::path::Path;
-use std::io::{BufReader, BufWriter, BufRead, Write};
-use std::fs::File;
 
 pub fn read_csv_files() {
 
@@ -32,19 +30,19 @@ pub fn read_csv_files() {
 fn join_csv_files(jobs: Vec<Job>, activities: Vec<Activity>, time_postings: Vec<TimePosting>) {
     let activities_by_order: HashMap<String, Vec<Activity>> = 
     activities.iter().fold(HashMap::new(), |mut acc, activity| {
-        acc.entry(activity.Order.clone().unwrap()).or_insert_with(Vec::new).push(activity.clone());
+        acc.entry(activity.order.clone().unwrap()).or_insert_with(Vec::new).push(activity.clone());
         acc
     });
 
     let time_postings_by_activity: HashMap<String, TimePosting> =
     time_postings.into_iter().fold(HashMap::new(), |mut acc, time_posting| {
         // If the activity is already in the map, replace only if the new time_posting date is more recent.
-        if let Some(existing) = acc.get(&time_posting.Activity.clone().unwrap()) {
-            if existing.Time_Posting_Date < time_posting.Time_Posting_Date {
-                acc.insert(time_posting.Activity.clone().unwrap(), time_posting);
+        if let Some(existing) = acc.get(&time_posting.activity.clone().unwrap()) {
+            if existing.time_posting_date < time_posting.time_posting_date {
+                acc.insert(time_posting.activity.clone().unwrap(), time_posting);
             }
         } else {
-            acc.insert(time_posting.Activity.clone().unwrap(), time_posting);
+            acc.insert(time_posting.activity.clone().unwrap(), time_posting);
         }
         acc
     });
@@ -66,14 +64,14 @@ fn join_csv_files(jobs: Vec<Job>, activities: Vec<Activity>, time_postings: Vec<
 
     } else {
         for job in &jobs {
-            if let Some(related_activities) = activities_by_order.get(&job.Order.clone().unwrap()) {
+            if let Some(related_activities) = activities_by_order.get(&job.order.clone().unwrap()) {
                 for activity in related_activities {
-                    if let Some(time_posting) = time_postings_by_activity.get(&activity.Activity.clone().unwrap()) {
+                    if let Some(time_posting) = time_postings_by_activity.get(&activity.activity.clone().unwrap()) {
                         
 
                         // Remaining_Duration	Short_Text	Actual_Start_Date	Basic_Start_Date	Description_3	Description_1	Revision	Order	Created_On_Year	Ealiest_Finish_Date	Unloading_Point	Median_Time_Posting_Date	Extraction_Date	Long_Txt_Key	Priority_Original	Latest_Start_Time	Long_Text_Flag	Priority_Days	Actual_Finish_Date	Scheduled_Start_Date	Work_Center_Main	Notification_No	Description_2	User_Status_All	Material	Latest_Start_Date	Activity_Type	Activity	Opr_User_Status	System_Status	Priority_Original_Finish_Days	System_Condition_Desc	Priority	Changed_On_Date	Scheduled_Finish_Date	Time_Posting_Date	Order_Type	Original_Latest_Allowed_Finish_Date	Basic_Finish_Date	System_Condition	Plant_Section	%Maint_Plan_Key	Work_Center	Work_Actual	Distinct_Opr	Work_Forecast	Opr_System_Status	Original_Start_Date	VIS	Created_On	Remaining_Work	Latest_Finish_Date	Actual_Start_Time	Priority_Type	Maintenance_Plant	Actual_State_Date	Priority_Original_Start_Days	Equipment	Work_Planned	Latest_Finish_Time	Earliest_Start_Date	Functional_Location	Leading_Order	Actual_Release_Date	Description_4	Latest_Allowed_Finish_Date	Suporior_Order	User_Status	Actual_Finish_Time	Maintenance_Plan	Location	Number	Maintenance_Item	Personnel_ID	Material_Number	Created_On_Date	Earliest_End_Date	Priority_Desc
 
-                        workbook.get_worksheet("scheduler_data").unwrap().unwrap().write_string(row, 0, &time_posting.Functional_Location.clone().unwrap_or("".to_string()), None).unwrap();
+                        workbook.get_worksheet("scheduler_data").unwrap().unwrap().write_string(row, 0, &time_posting.functional_location.clone().unwrap_or("".to_string()), None).unwrap();
 
 
 
@@ -129,112 +127,116 @@ fn read_csv<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<Vec<T>, Box<dyn
 }
 
 // Struct for TimePosting CSV
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct TimePosting {
-    Order: Option<String>,
-    Activity: Option<String>,
-    Functional_Location: Option<String>,
-    Work_Actual: Option<String>,
-    Created_On: Option<String>,
-    Time_Posting_Date: Option<String>,
-    Work_Center: Option<String>,
-    Work_Planned: Option<String>,
-    Extraction_Date: Option<String>,
-    Personnel_ID: Option<String>,
-    Actual_Finish_Date: Option<String>,
-    Actual_State_Date: Option<String>,
-    Actual_Finish_Time: Option<String>,
-    Actual_Start_Time: Option<String>,
-    Remaining_Duration: Option<String>,
-    Remaining_Work: Option<String>,
-    Distinct_Opr: Option<String>,
-    Median_Time_Posting_Date: Option<String>,
+    order: Option<String>,
+    activity: Option<String>,
+    functional_location: Option<String>,
+    work_actual: Option<String>,
+    created_on: Option<String>,
+    time_posting_date: Option<String>,
+    work_center: Option<String>,
+    work_planned: Option<String>,
+    extraction_date: Option<String>,
+    personnel_id: Option<String>,
+    actual_finish_date: Option<String>,
+    actual_state_date: Option<String>,
+    actual_finish_time: Option<String>,
+    actual_start_time: Option<String>,
+    remaining_duration: Option<String>,
+    remaining_work: Option<String>,
+    distinct_opr: Option<String>,
+    median_time_posting_date: Option<String>,
 }
 
+
 // Struct for Activities CSV
+#[allow(dead_code)]
 #[derive(Debug, Deserialize, Clone)]
 struct Activity {
-    Order: Option<String>,
-    Activity: Option<String>,
-    Work_Center: Option<String>,
-    Short_Text: Option<String>,
-    Opr_User_Status: Option<String>,
-    Opr_System_Status: Option<String>,
-    Material: Option<String>,
-    Functional_Location: Option<String>,
-    System_Condition: Option<String>,
-    Work_Planned: Option<String>,
-    Work_Actual: Option<String>,
-    Activity_Type: Option<String>,
-    Actual_Finish_Date: Option<String>,
-    Actual_Finish_Time: Option<String>,
-    Actual_Start_Date: Option<String>,
-    Actual_Start_Time: Option<String>,
-    Earliest_End_Date: Option<String>,
-    Ealiest_Finish_Date: Option<String>,
-    Equipment: Option<String>,
-    Work_Forecast: Option<String>,
-    Latest_Finish_Date: Option<String>,
-    Latest_Finish_Time: Option<String>,
-    Latest_Start_Date: Option<String>,
-    Latest_Start_Time: Option<String>,
-    Location: Option<String>,
-    Long_Text_Flag: Option<String>,
-    Number: Option<String>,
-    Long_Txt_Key: Option<String>,
-    Unloading_Point: Option<String>,
+    order: Option<String>,
+    activity: Option<String>,
+    work_center: Option<String>,
+    short_text: Option<String>,
+    opr_user_status: Option<String>,
+    opr_system_status: Option<String>,
+    material: Option<String>,
+    functional_location: Option<String>,
+    system_condition: Option<String>,
+    work_planned: Option<String>,
+    work_actual: Option<String>,
+    activity_type: Option<String>,
+    actual_finish_date: Option<String>,
+    actual_finish_time: Option<String>,
+    actual_start_date: Option<String>,
+    actual_start_time: Option<String>,
+    earliest_end_date: Option<String>,
+    ealiest_finish_date: Option<String>,
+    equipment: Option<String>,
+    work_forecast: Option<String>,
+    latest_finish_date: Option<String>,
+    latest_finish_time: Option<String>,
+    latest_start_date: Option<String>,
+    latest_start_time: Option<String>,
+    location: Option<String>,
+    long_text_flag: Option<String>,
+    number: Option<String>,
+    long_txt_key: Option<String>,
+    unloading_point: Option<String>,
 }
 
 // Struct for Jobs CSV
+#[allow(dead_code)]
 #[derive(Debug, Deserialize, Clone)]
 struct Job {
-    Priority: Option<String>,
-    System_Status: Option<String>,
-    Order_Type: Option<String>,
-    Priority_Original: Option<String>,
-    Work_Center_Main: Option<String>,
-    Order: Option<String>,
-    Notification_No: Option<String>,
-    Basic_Start_Date: Option<String>,
-    Latest_Allowed_Finish_Date: Option<String>,
-    Description_1: Option<String>,
-    Functional_Location: Option<String>,
-    Description_2: Option<String>,
-    User_Status: Option<String>,
-    Original_Latest_Allowed_Finish_Date: Option<String>,
-    Revision: Option<String>,
-    System_Condition: Option<String>,
-    Maintenance_Plan: Option<String>,
-    VIS: Option<String>,
-    Material_Number: Option<String>,
-    Priority_Type: Option<String>,
-    Actual_Release_Date: Option<String>,
-    Actual_Finish_Date: Option<String>,
-    Description_3: Option<String>,
-    User_Status_All: Option<String>,
-    Changed_On_Date: Option<String>,
-    Plant_Section: Option<String>,
-    Description_4: Option<String>,
-    Equipment: Option<String>,
-    Created_On_Date: Option<String>,
-    Created_On_Year: Option<String>,
-    Basic_Finish_Date: Option<String>,
-    Scheduled_Finish_Date: Option<String>,
-    Scheduled_Start_Date: Option<String>,
-    Actual_Start_Date: Option<String>,
-    Leading_Order: Option<String>,
-    Suporior_Order: Option<String>,
-    Priority_Desc: Option<String>,
-    Maintenance_Item: Option<String>,
-    Original_Start_Date: Option<String>,
-    Earliest_Start_Date: Option<String>,
-    Maintenance_Plant: Option<String>,
-    Maint_Plan_Key: Option<String>,
-    Priority_Original_Finish_Days: Option<String>,
-    Priority_Original_Start_Days: Option<String>,
-    Extraction_Date: Option<String>,
-    System_Condition_Desc: Option<String>,
-    Priority_Days: Option<String>,
+    priority: Option<String>,
+    system_status: Option<String>,
+    order_type: Option<String>,
+    priority_original: Option<String>,
+    work_center_main: Option<String>,
+    order: Option<String>,
+    notification_no: Option<String>,
+    basic_start_date: Option<String>,
+    latest_allowed_finish_date: Option<String>,
+    description_1: Option<String>,
+    functional_location: Option<String>,
+    description_2: Option<String>,
+    user_status: Option<String>,
+    original_latest_allowed_finish_date: Option<String>,
+    revision: Option<String>,
+    system_condition: Option<String>,
+    maintenance_plan: Option<String>,
+    vis: Option<String>,
+    material_number: Option<String>,
+    priority_type: Option<String>,
+    actual_release_date: Option<String>,
+    actual_finish_date: Option<String>,
+    description_3: Option<String>,
+    user_status_all: Option<String>,
+    changed_on_date: Option<String>,
+    plant_section: Option<String>,
+    description_4: Option<String>,
+    equipment: Option<String>,
+    created_on_date: Option<String>,
+    created_on_year: Option<String>,
+    basic_finish_date: Option<String>,
+    scheduled_finish_date: Option<String>,
+    scheduled_start_date: Option<String>,
+    actual_start_date: Option<String>,
+    leading_order: Option<String>,
+    suporior_order: Option<String>,
+    priority_desc: Option<String>,
+    maintenance_item: Option<String>,
+    original_start_date: Option<String>,
+    earliest_start_date: Option<String>,
+    maintenance_plant: Option<String>,
+    maint_plan_key: Option<String>,
+    priority_original_finish_days: Option<String>,
+    priority_original_start_days: Option<String>,
+    extraction_date: Option<String>,
+    system_condition_desc: Option<String>,
+    priority_days: Option<String>,
 }
 
 fn get_header_set() -> HashSet<&'static str>{

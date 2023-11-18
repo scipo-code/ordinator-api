@@ -7,12 +7,12 @@ use crate::agents::scheduler_agent::OptimizedWorkOrder;
 use crate::agents::scheduler_agent::SchedulerAgent;
 use crate::models::period::Period;
 
+#[allow(dead_code)]
 #[derive(PartialEq)]
 pub enum QueueType {
     Normal,
     UnloadingAndManual,
     ShutdownVendor,
-    // ... other queue types ...
 }
 
 /// This implementation of the SchedulerAgent will do the following. It should take a messgage
@@ -120,25 +120,23 @@ impl SchedulerAgent {
 
                 let work_order = self.scheduler_agent_algorithm.backlog.inner.get(&work_order_key).unwrap();
 
-                for (work_center, resource_needed) in work_order.work_load.iter() {
-                    let resource_capacity: &mut f64 = self.scheduler_agent_algorithm.manual_resources_capacity.entry((work_center.to_string(), period.clone().period_string)).or_insert(0.0);
-                    let resource_loading: &mut f64 = self.scheduler_agent_algorithm.manual_resources_loading.entry((work_center.to_string(), period.clone().period_string)).or_insert(0.0);
-                    match self.scheduler_agent_algorithm.optimized_work_orders.inner.get(&work_order_key) {
-                        Some(optimized_work_order) => {
-                            match optimized_work_order.locked_in_period.clone() {
-                                Some(locked_period) => {
-                                    event!(target: "frontend input message debugging", Level::INFO, "Locked period: {}", locked_period.period_string.clone());
-                         
-                                    if period.period_string != locked_period.period_string {
-                                        return Some(work_order_key);
-                                    }
+                // ! The error is here
+                match self.scheduler_agent_algorithm.optimized_work_orders.inner.get(&work_order_key) {
+                    Some(optimized_work_order) => {
+                        match optimized_work_order.locked_in_period.clone() {
+                            Some(locked_period) => {
+                                event!(target: "frontend input message debugging", Level::INFO, "Locked period: {} on work order {}", locked_period.period_string.clone(), &work_order_key);
+                        
+                                if period.period_string != locked_period.period_string {
+                                    return Some(work_order_key);
                                 }
-                                None => panic!("The locked period should not be None"),
                             }
+                            None => panic!("The locked period should not be None"),
                         }
-                        None => panic!("The optimized work order should not be None"),
                     }
+                    None => panic!("The optimized work order should not be None"),
                 }
+                
                  
                 event!(tracing::Level::INFO , "Work order {} has been scheduled with unloading point", work_order_key);
 

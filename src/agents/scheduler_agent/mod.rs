@@ -72,7 +72,7 @@ impl Actor for SchedulerAgent {
         ctx.notify(ScheduleIteration {})
     }
 
-    fn stopped(&mut self, ctx: &mut Context<Self>) {
+    fn stopped(&mut self, _ctx: &mut Context<Self>) {
         println!("SchedulerAgent is stopped");
     }
 }
@@ -85,7 +85,7 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
 
     type Result = ResponseActFuture<Self, ()>;
 
-    fn handle(&mut self, msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         event!(tracing::Level::INFO , "A round of scheduling has been triggered");
         self.schedule_work_orders_by_type(QueueType::Normal);
         self.schedule_work_orders_by_type(QueueType::UnloadingAndManual);
@@ -117,7 +117,7 @@ impl Message for MessageToFrontend {
 impl Handler<MessageToFrontend> for SchedulerAgent {
     type Result = ();
 
-    fn handle(&mut self, msg: MessageToFrontend, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, _msg: MessageToFrontend, _ctx: &mut Self::Context) -> Self::Result {
         let scheduling_overview_data = self.extract_state_to_scheduler_overview().clone();
 
         let scheduler_frontend_message = SchedulerFrontendMessage {
@@ -144,7 +144,7 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
 
 impl Handler<SchedulerRequests> for SchedulerAgent {
     type Result = ();
-    fn handle(&mut self, msg: SchedulerRequests, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: SchedulerRequests, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
             SchedulerRequests::Input(msg) => {
                 let input_message: InputSchedulerMessage = msg.into();
@@ -158,7 +158,7 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
                 self.update_scheduler_state(input_message);
             }   
             SchedulerRequests::WorkPlanner(msg) => {
-               println!("SchedulerAgentReceived a WorkPlannerMessage message");
+               println!("SchedulerAgentReceived a WorkPlannerMessage message: {:?}", msg);
             }
         }
     }
@@ -167,7 +167,7 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
 impl Handler<SetAgentAddrMessage<WebSocketAgent>> for SchedulerAgent {
     type Result = ();
 
-    fn handle(&mut self, msg: SetAgentAddrMessage<WebSocketAgent>, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: SetAgentAddrMessage<WebSocketAgent>, _ctx: &mut Self::Context) -> Self::Result {
         self.set_ws_agent_addr(msg.addr);
     }
 }
@@ -259,9 +259,6 @@ impl SchedulerAgent {
             self.update_priority_queues();
         }
     }
-
-
-
 }
 
 impl SchedulerAgent {
@@ -299,7 +296,7 @@ impl SchedulerAgent {
         for (key, work_order) in &self.scheduler_agent_algorithm.optimized_work_orders.inner {
             let work_order_weight = self.scheduler_agent_algorithm.backlog.inner.get(&key).unwrap().order_weight;
             match &work_order.locked_in_period {
-                Some(work_order) => {
+                Some(_work_order) => {
                     self.scheduler_agent_algorithm.priority_queues.unloading.push(*key, work_order_weight);
                 }
                 None => {}
@@ -315,7 +312,6 @@ pub struct PriorityQueues<T, P>
     unloading: PriorityQueue<T, P>,
     shutdown_vendor: PriorityQueue<T, P>,
     normal: PriorityQueue<T, P>,
-    manual_schedule: PriorityQueue<T, P>,
 }
 
 impl PriorityQueues<u32, u32> {
@@ -324,7 +320,6 @@ impl PriorityQueues<u32, u32> {
             unloading: PriorityQueue::<u32, u32>::new(),
             shutdown_vendor: PriorityQueue::<u32, u32>::new(),
             normal: PriorityQueue::<u32, u32>::new(),
-            manual_schedule: PriorityQueue::<u32, u32>::new(),
         }
     }
 }
@@ -405,9 +400,9 @@ impl SchedulerAgent {
                     earliest_allowed_starting_date: work_order.order_dates.earliest_allowed_start_date.to_string(),
                     latest_allowed_finish_date: work_order.order_dates.latest_allowed_finish_date.to_string(),
                     order_type: match work_order.order_type.clone() {
-                        WorkOrderType::WDF(wdf_priority) => "WDF".to_string(),
-                        WorkOrderType::WGN(wgn_priority) => "WGN".to_string(),
-                        WorkOrderType::WPM(wpm_priority) => "WPM".to_string(),
+                        WorkOrderType::WDF(_wdf_priority) => "WDF".to_string(),
+                        WorkOrderType::WGN(_wgn_priority) => "WGN".to_string(),
+                        WorkOrderType::WPM(_wpm_priority) => "WPM".to_string(),
                         WorkOrderType::Other => "Missing Work Order Type".to_string(),
                     },
                     priority: match work_order.priority.clone() {
@@ -434,7 +429,7 @@ impl OptimizedWorkOrder {
             excluded_from_periods,
         }
     }
-
+    #[allow(dead_code)]
     pub fn with_new_schedule(&mut self, scheduled_period: Option<Period>) -> Self {
         Self {
             scheduled_period: scheduled_period,
