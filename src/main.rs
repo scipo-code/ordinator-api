@@ -5,10 +5,9 @@ mod api;
 mod init;
 
 use tracing::instrument;
-use tracing::{event, Level, span, Id, Subscriber, Event};
-use tracing_subscriber::fmt::{self, format::FmtSpan};
+use tracing::{event, Level};
+use tracing_subscriber::fmt::{self};
 use tracing_subscriber::prelude::*;
-use tracing_appender::rolling::{RollingFileAppender, Rotation};
 
 use crate::data_processing::create_excel_data;
 use crate::init::application_builder::ApplicationBuilder;

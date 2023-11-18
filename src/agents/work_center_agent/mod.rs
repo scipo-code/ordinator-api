@@ -2,6 +2,7 @@ use actix::prelude::*;
 
 use crate::models::period::Period;
 
+#[allow(dead_code)]
 pub struct WorkCenterAgent {
     work_trait: String,
     capacities: Vec<f32>,

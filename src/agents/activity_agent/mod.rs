@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 
 use crate::models::period::Period;
 
+#[allow(dead_code)]
 pub struct ActivityAgent {
     order: u32,
     activity: u32,

@@ -1,7 +1,5 @@
-use actix_web_actors::ws::start;
 use calamine::{open_workbook, Xlsx, Reader, DataType, Error};
 use regex::Regex;
-use serde::de;
 use tracing::event;
 use core::fmt;
 use std::collections::HashMap;
@@ -9,9 +7,9 @@ use std::path::Path;
 
 use crate::models::period::Period;
 
-use chrono::{DateTime, Utc, NaiveDate, Duration, TimeZone, naive, NaiveTime, Datelike, Weekday, Timelike, NaiveDateTime};
+use chrono::{DateTime, Utc, NaiveDate, Duration, TimeZone, naive, NaiveTime, Datelike, Weekday, Timelike};
 use crate::models::scheduling_environment::{SchedulingEnvironment, WorkOrders};
-use crate::models::work_order::{WorkOrder, unloading_point};
+use crate::models::work_order::WorkOrder;
 use crate::models::work_order::revision::Revision;
 use crate::models::work_order::unloading_point::UnloadingPoint;
 use crate::models::work_order::functional_location::FunctionalLocation;
@@ -451,7 +449,7 @@ fn extract_order_dates(row: &[DataType], header_to_index: &HashMap<String, usize
                     // Now that we have a `DateTime<Utc>`, we can get a `NaiveDate`
                     Ok(date_time.naive_utc().date())
                 },
-                Err(e) => {
+                Err(_e) => {
                     // Handle the error, maybe return it or log it
                     event!(tracing::Level::ERROR, "Could not parse earliest_start_date_data as date");
 

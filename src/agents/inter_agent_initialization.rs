@@ -23,6 +23,3 @@ impl ActorRegistry {
         reg.get(name).cloned()
     }
 }
-
-
-
