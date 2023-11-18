@@ -3,11 +3,7 @@ use std::fmt::Display;
 use std::collections::HashMap;
 use std::collections::hash_map::RandomState;
 
-
 use crate::agents::scheduler_agent::SchedulerAgent;
-use crate::models::period::Period;
-use crate::models::order_period::OrderPeriod;
-
 
 impl Display for SchedulerAgent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -28,7 +24,6 @@ impl Display for SchedulerAgent {
     }
 }
 
-
 pub struct DisplayableManualResource(pub HashMap<(String, String), f64, RandomState>);
 
 impl fmt::Display for DisplayableManualResource {
@@ -40,13 +35,3 @@ impl fmt::Display for DisplayableManualResource {
     }
 }
 
-pub struct DisplayableScheduledWorkOrders(pub HashMap<u32, OrderPeriod, RandomState>);
-
-impl fmt::Display for DisplayableScheduledWorkOrders {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for (key, order_period) in self.0.iter() {
-            writeln!(f, "Key: {}, Order Period: {}", key, order_period.period.period_string)?;
-        }
-        Ok(())
-    }
-}

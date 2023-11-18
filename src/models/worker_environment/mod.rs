@@ -4,12 +4,14 @@ pub mod worker;
 
 use std::collections::HashMap;
 use crate::models::worker_environment::crew::Crew;
+#[allow(dead_code)]
 pub struct WorkerEnvironment {
     pub crew: Crew,
     work_centers: HashMap<String, f64>,
 }
 
 impl WorkerEnvironment {
+    #[allow(dead_code)]
     pub fn based_on_crew(crew: Crew) -> Self {
         let mut work_centers = HashMap::<String, f64>::new();
         for (id, worker) in crew.get_workers() {

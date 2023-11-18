@@ -21,7 +21,6 @@ struct AssignedWork {
     time: AssignedTime,
 }
 
-
 pub struct Worker {
     name: String,
     id: i32,

@@ -109,8 +109,6 @@ pub struct SchedulerFrontendLoadingMessage {
     pub manual_resources_loading: HashMap<String, HashMap<String, f64>>,
 }
 
-
-
 impl Message for SchedulerFrontendLoadingMessage {
     type Result = ();
 }
@@ -165,12 +163,7 @@ mod tests {
             None
         ).start();
 
-
-        
         let ws_agent = WebSocketAgent::new(Arc::new(scheduler_agent_addr.clone()));
         // let mut ws_agent_addr = ws_agent.start();
-        
-        
-        
     }
 }
