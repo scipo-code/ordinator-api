@@ -4,6 +4,8 @@ use actix_web::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{Level, event};
+use serde::Deserialize;
+use serde::Serialize;
 
 use crate::api::FrontendMessages;
 use crate::agents::scheduler_agent::SchedulerAgent;
@@ -36,9 +38,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                         self.scheduler_agent_addr.do_send(scheduler_input);
                         let addr = ctx.address();
                         self.scheduler_agent_addr.do_send(SetAgentAddrMessage { addr });
-                        // handle_scheduler_messages(scheduler_input);
                         ctx.text(text)
-                        // Send message to the scheduler agent struct
                     },
                     Ok(FrontendMessages::WorkPlanner) => {
                         println!("WorkPlannerAgent received WorkPlannerMessage");
@@ -80,7 +80,7 @@ impl WebSocketAgent {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SchedulerFrontendMessage {
     pub frontend_message_type: String,
     pub scheduling_overview_data: Vec<SchedulingOverviewData>,

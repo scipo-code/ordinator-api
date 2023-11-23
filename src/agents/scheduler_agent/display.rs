@@ -2,6 +2,8 @@ use std::fmt;
 use std::fmt::Display;
 use std::collections::HashMap;
 use std::collections::hash_map::RandomState;
+use tracing::{event};
+
 
 use crate::agents::scheduler_agent::SchedulerAgent;
 
@@ -35,3 +37,27 @@ impl fmt::Display for DisplayableManualResource {
     }
 }
 
+impl SchedulerAgent {
+    pub fn log_optimized_work_orders(&self) {
+        for (work_order_number, optimized) in &self.scheduler_agent_algorithm.optimized_work_orders.inner {
+            
+            match &optimized.locked_in_period {
+                Some(period) => {
+                    event!(tracing::Level::TRACE, work_order_number = %work_order_number, period = period.period_string)
+                }
+                None => event!(tracing::Level::TRACE, work_order_number = %work_order_number,  period = "no locked period")
+            }
+
+            match &optimized.scheduled_period {
+                Some(period) => {
+                    event!(tracing::Level::TRACE, work_order_number = %work_order_number, period = %period.period_string)
+                }
+                None => event!(tracing::Level::TRACE, work_order_number = %work_order_number,  period = "None")
+            }
+
+            for period in &optimized.excluded_from_periods {
+                event!(tracing::Level::TRACE, work_order_number = %work_order_number, period = %period)
+            }
+        }
+    }
+}
