@@ -6,7 +6,7 @@ use crate::models::work_order::WorkOrder;
 use crate::models::worker_environment::WorkerEnvironment;
 use crate::models::period::Period;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WorkOrders {
     pub inner: HashMap<u32, WorkOrder>
 }

@@ -3,11 +3,11 @@ use actix::prelude::*;
 
 use crate::agents::scheduler_agent::SchedulerAgent;
 use crate::models::scheduling_environment::SchedulingEnvironment;
-use crate::agents::scheduler_agent::OptimizedWorkOrders;
-use crate::agents::scheduler_agent::PriorityQueues;
-use crate::agents::scheduler_agent::SchedulerAgentAlgorithm;
+use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrders;
+use crate::agents::scheduler_agent::scheduler_algorithm::PriorityQueues;
+use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
 use crate::models::scheduling_environment::WorkOrders;
-use crate::agents::scheduler_agent::OptimizedWorkOrder;
+use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
 
 
 /// This is a very powerful function. I will explore it further.
@@ -20,6 +20,7 @@ pub fn build_scheduler_agent(scheduling_environment: SchedulingEnvironment) -> A
     let optimized_work_orders: OptimizedWorkOrders = create_optimized_work_orders(&cloned_work_orders);
     
     let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        0.0,
         HashMap::new(),
         HashMap::new(),
         cloned_work_orders,
@@ -27,13 +28,11 @@ pub fn build_scheduler_agent(scheduling_environment: SchedulingEnvironment) -> A
         optimized_work_orders,
         scheduling_environment.period.clone(),
     );
-
     let scheduler_agent = SchedulerAgent::new(
         String::from("Dan F"),
         scheduler_agent_algorithm,  
         None
     );
-    
     scheduler_agent.start()
 }
 
