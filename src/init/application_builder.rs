@@ -36,7 +36,7 @@ impl ApplicationBuilder {
             event!(Level::INFO, "about to register routes");
             app.service(ws_index)
         })
-        .bind(("127.0.0.1", 8001))?
+        .bind(("0.0.0.0", 8001))?
         .run()
         .await
     }

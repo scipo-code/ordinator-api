@@ -1,19 +1,11 @@
 use std::collections::HashSet;
 use core::panic;
-use tracing::Level;
 use tracing::{event};
 
-use crate::agents::scheduler_agent::OptimizedWorkOrder;
+use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
+use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
 use crate::agents::scheduler_agent::SchedulerAgent;
 use crate::models::period::Period;
-
-#[allow(dead_code)]
-#[derive(PartialEq)]
-pub enum QueueType {
-    Normal,
-    UnloadingAndManual,
-    ShutdownVendor,
-}
 
 /// This implementation of the SchedulerAgent will do the following. It should take a messgage
 /// and then return a scheduler 
@@ -66,7 +58,11 @@ impl SchedulerAgent {
             }
         }
     }
-
+    
+    #[tracing::instrument(fields(
+        manual_resources_capacity = self.scheduler_agent_algorithm.manual_resources_capacity.len(),
+        manual_resources_loading = self.scheduler_agent_algorithm.manual_resources_loading.len(),
+        optimized_work_orders = self.scheduler_agent_algorithm.optimized_work_orders.inner.len(),))]
     pub fn schedule_work_order(&mut self, work_order_key: u32, period: &Period, queue_type: &QueueType) -> Option<u32> {
         match queue_type {
             QueueType::Normal => {
@@ -125,7 +121,7 @@ impl SchedulerAgent {
                     Some(optimized_work_order) => {
                         match optimized_work_order.locked_in_period.clone() {
                             Some(locked_period) => {
-                                event!(target: "frontend input message debugging", Level::INFO, "Locked period: {} on work order {}", locked_period.period_string.clone(), &work_order_key);
+                                // event!(target: "frontend input message debugging", Level::INFO, "Period loop: {} Locked period: {} on work order {}", &period, locked_period.period_string.clone(), &work_order_key);
                         
                                 if period.period_string != locked_period.period_string {
                                     return Some(work_order_key);
@@ -137,8 +133,7 @@ impl SchedulerAgent {
                     None => panic!("The optimized work order should not be None"),
                 }
                 
-                 
-                event!(tracing::Level::INFO , "Work order {} has been scheduled with unloading point", work_order_key);
+                event!(tracing::Level::INFO , "Work order {} has been scheduled with unloading point or manual", work_order_key);
 
                 self.scheduler_agent_algorithm.optimized_work_orders.inner.get_mut(&work_order_key).unwrap().scheduled_period = Some(period.clone());
                 
@@ -205,7 +200,7 @@ mod tests {
 
     use actix::Addr;
 
-    use crate::agents::scheduler_agent::SchedulerAgentAlgorithm;
+    use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
 
     use super::*;
     

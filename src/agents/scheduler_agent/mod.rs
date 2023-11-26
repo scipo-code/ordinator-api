@@ -4,56 +4,32 @@ pub mod display;
 
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 use actix::prelude::*; 
-use actix::Message;
+
+
+
 use priority_queue::PriorityQueue;
 use tracing::Level;
-use std::hash::Hash;
-use tracing::{event};
-use tokio::time::{sleep, Duration};
+use tracing::{event, span};
 
 use crate::models::work_order::priority::Priority;
 use crate::models::work_order::order_type::WorkOrderType;
-use crate::agents::scheduler_agent::scheduler_message::{SetAgentAddrMessage, SchedulerRequests, InputSchedulerMessage};
+use crate::agents::scheduler_agent::scheduler_message::{InputSchedulerMessage, ScheduleIteration};
 use crate::models::scheduling_environment::WorkOrders;
 use crate::models::period::Period;
 use crate::api::websocket_agent::WebSocketAgent;
-use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
+use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
+use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
+use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrders;
 use crate::models::work_order::status_codes::MaterialStatus;
-use crate::api::websocket_agent::SchedulerFrontendMessage;
-use crate::api::websocket_agent::SchedulerFrontendLoadingMessage;
 
+
+#[derive(Debug)]
 pub struct SchedulerAgent {
     platform: String,
     scheduler_agent_algorithm: SchedulerAgentAlgorithm,
     ws_agent_addr: Option<Addr<WebSocketAgent>>,
-}
-
-pub struct SchedulerAgentAlgorithm {
-    manual_resources_capacity : HashMap<(String, String), f64>,
-    manual_resources_loading: HashMap<(String, String), f64>,
-    backlog: WorkOrders,
-    priority_queues: PriorityQueues<u32, u32>,
-    optimized_work_orders: OptimizedWorkOrders,
-    periods: Vec<Period>,
-}
-
-pub struct OptimizedWorkOrder {
-    scheduled_period: Option<Period>,
-    locked_in_period: Option<Period>,
-    excluded_from_periods: HashSet<Period>,
-}
-
-pub struct OptimizedWorkOrders {
-    inner: HashMap<u32, OptimizedWorkOrder>,
-}
-
-impl OptimizedWorkOrders {
-    pub fn new(inner: HashMap<u32, OptimizedWorkOrder>) -> Self {
-        Self {
-            inner: inner,
-        }
-    }
 }
 
 impl SchedulerAgent {
@@ -68,7 +44,7 @@ impl Actor for SchedulerAgent {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Context<Self>) {
-        self.populate_priority_queues();
+        self.scheduler_agent_algorithm.populate_priority_queues();
         ctx.notify(ScheduleIteration {})
     }
 
@@ -77,100 +53,6 @@ impl Actor for SchedulerAgent {
     }
 }
 
-#[derive(Message)]
-#[rtype(result = "()")]
-struct ScheduleIteration {}
-
-impl Handler<ScheduleIteration> for SchedulerAgent {
-
-    type Result = ResponseActFuture<Self, ()>;
-
-    fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
-        event!(tracing::Level::INFO , "A round of scheduling has been triggered");
-        self.schedule_work_orders_by_type(QueueType::Normal);
-        self.schedule_work_orders_by_type(QueueType::UnloadingAndManual);
-
-        // let display_manual_resources = display::DisplayableManualResource(self.scheduler_agent_algorithm.manual_resources_capacity.clone());
-        // let display_scheduled_work_orders = display::DisplayableScheduledWorkOrders(self.scheduler_agent_algorithm.optimized_work_orders.scheduled_work_orders.clone());
-
-        // println!("manual resources {}", display_manual_resources);
-        // println!("Scheduled work orders {}", display_scheduled_work_orders);
-        let actor_addr = ctx.address().clone();
-
-        let fut = async move {
-            sleep(Duration::from_secs(1)).await;
-            actor_addr.do_send(ScheduleIteration {});
-        };
-
-        ctx.notify(MessageToFrontend {});
-
-        Box::pin(actix::fut::wrap_future::<_, Self>(fut))
-    }
-}
-
-struct MessageToFrontend {}
-
-impl Message for MessageToFrontend {
-    type Result = ();
-}
-
-impl Handler<MessageToFrontend> for SchedulerAgent {
-    type Result = ();
-
-    fn handle(&mut self, _msg: MessageToFrontend, _ctx: &mut Self::Context) -> Self::Result {
-        let scheduling_overview_data = self.extract_state_to_scheduler_overview().clone();
-
-        let scheduler_frontend_message = SchedulerFrontendMessage {
-            frontend_message_type: "frontend_scheduler_overview".to_string(),
-            scheduling_overview_data: scheduling_overview_data,
-        };
-
-        let nested_loadings = transform_hashmap_to_nested_hashmap(self.scheduler_agent_algorithm.manual_resources_loading.clone());
-        
-        let scheduler_frontend_loading_message = SchedulerFrontendLoadingMessage {
-            frontend_message_type: "frontend_scheduler_loading".to_string(),
-            manual_resources_loading: nested_loadings,
-        };
-        
-        match self.ws_agent_addr.as_ref() {
-            Some(ws_agent) => {
-                ws_agent.do_send(scheduler_frontend_message);
-                ws_agent.do_send(scheduler_frontend_loading_message);
-            }
-            None => {println!("The websocket agent address is not set")}
-        }
-    }
-}
-
-impl Handler<SchedulerRequests> for SchedulerAgent {
-    type Result = ();
-    fn handle(&mut self, msg: SchedulerRequests, _ctx: &mut Self::Context) -> Self::Result {
-        match msg {
-            SchedulerRequests::Input(msg) => {
-                let input_message: InputSchedulerMessage = msg.into();
-                event!(
-                    target: "SchedulerRequest::Input",
-                    tracing::Level::INFO,
-                    message = %input_message,
-                    "received a message from the frontend"
-                );                
-
-                self.update_scheduler_state(input_message);
-            }   
-            SchedulerRequests::WorkPlanner(msg) => {
-               println!("SchedulerAgentReceived a WorkPlannerMessage message: {:?}", msg);
-            }
-        }
-    }
-}
-
-impl Handler<SetAgentAddrMessage<WebSocketAgent>> for SchedulerAgent {
-    type Result = ();
-
-    fn handle(&mut self, msg: SetAgentAddrMessage<WebSocketAgent>, _ctx: &mut Self::Context) -> Self::Result {
-        self.set_ws_agent_addr(msg.addr);
-    }
-}
 
 impl SchedulerAgent {
     pub fn new(
@@ -187,25 +69,6 @@ impl SchedulerAgent {
     }
 }
 
-impl SchedulerAgentAlgorithm {
-    pub fn new(
-        manual_resources_capacity: HashMap<(String, String), f64>, 
-        manual_resources_loading: HashMap<(String, String), f64>, 
-        backlog: WorkOrders, 
-        priority_queues: PriorityQueues<u32, u32>,
-        optimized_work_orders: OptimizedWorkOrders,
-        periods: Vec<Period>,
-    ) -> Self {
-        SchedulerAgentAlgorithm {
-            manual_resources_capacity,
-            manual_resources_loading,
-            backlog,
-            priority_queues,
-            optimized_work_orders,
-            periods            
-        }
-    }
-}
 
 /// This implementation will update the current state of the scheduler agent.
 /// 
@@ -224,107 +87,8 @@ impl SchedulerAgentAlgorithm {
 /// 
 /// All of this should be handled in the update scheduler state function. There can be no other way
 /// Remember that if this becomes complex we should refactor the code. 
-impl SchedulerAgent {
-    pub fn update_scheduler_state(&mut self, input_message: InputSchedulerMessage) {
-        self.scheduler_agent_algorithm.manual_resources_capacity = input_message.get_manual_resources();
 
-        for work_order_period_mapping in input_message.work_order_period_mappings {
-            let work_order_number: u32 = work_order_period_mapping.work_order_number;
-            let optimized_work_orders = &self.scheduler_agent_algorithm.optimized_work_orders.inner;
-
-            let locked_in_period = work_order_period_mapping.period_status.locked_in_period;
-            let excluded_from_periods =  work_order_period_mapping.period_status.excluded_from_periods;
-            
-            let scheduled_period = optimized_work_orders.get(&work_order_number)
-                .map(|ow| ow.scheduled_period.clone())
-                .unwrap_or(locked_in_period.clone());
-
-            match locked_in_period.clone() {
-                Some(period) => {
-                    event!(target: "frontend input message debugging", Level::INFO, "Locked period: {}", period.period_string.clone());
-                }
-                None => {
-                    event!(target: "frontend input message debugging", Level::INFO, "Locked period: None");
-                }
-            }
-
-            let optimized_work_order = OptimizedWorkOrder {
-                    scheduled_period,
-                    locked_in_period: locked_in_period.clone(),
-                    excluded_from_periods,
-            };
-
-            
-            self.scheduler_agent_algorithm.optimized_work_orders.inner.insert(work_order_number, optimized_work_order);
-            self.update_priority_queues();
-        }
-    }
-}
-
-impl SchedulerAgent {
-    fn populate_priority_queues(&mut self) -> () {
-        for (key, work_order) in self.scheduler_agent_algorithm.backlog.inner.iter() {
-            if work_order.unloading_point.present  {
-                event!(tracing::Level::INFO , "Work order {} has been added to the unloading queue", key);
-                self.scheduler_agent_algorithm.priority_queues.unloading.push(*key, work_order.order_weight);
-            } else if work_order.revision.shutdown || work_order.vendor {
-                event!(tracing::Level::INFO , "Work order {} has been added to the shutdown/vendor queue", key);
-                self.scheduler_agent_algorithm.priority_queues.shutdown_vendor.push(*key, work_order.order_weight);
-            } else {
-                event!(tracing::Level::INFO , "Work order {} has been added to the normal queue", key);
-                self.scheduler_agent_algorithm.priority_queues.normal.push(*key, work_order.order_weight);
-            }
-        }
-    }
-
-    /// So the idea here is that we look through all the optimized_work_orders and then we schedule
-    /// them according to the queue type. There are two cases that should be covered. 
-    /// 
-    /// Inclusion
-    ///     Here we have to move a work order to the unloading point queue. If the work order is 
-    ///     already scheduled we have the logic in place to handle this. 
-    ///    
-    /// 
-    /// Exclusion
-    ///     We need to force this invariant on the data type. 
-    /// 
-    /// I am doing the wrong thing here. We only care about the 
-    /// 
-    /// The exclusion is simply a variation of the materials, EASD. In the code we should create
-    /// something to handle this issue. Exclusion is already handled in the code.
-    fn update_priority_queues(&mut self) -> () {
-        for (key, work_order) in &self.scheduler_agent_algorithm.optimized_work_orders.inner {
-            let work_order_weight = self.scheduler_agent_algorithm.backlog.inner.get(&key).unwrap().order_weight;
-            match &work_order.locked_in_period {
-                Some(_work_order) => {
-                    self.scheduler_agent_algorithm.priority_queues.unloading.push(*key, work_order_weight);
-                }
-                None => {}
-            }
-        }
-    }
-}
-
-pub struct PriorityQueues<T, P> 
-    where T: Hash + Eq,
-          P: Ord
-{ 
-    unloading: PriorityQueue<T, P>,
-    shutdown_vendor: PriorityQueue<T, P>,
-    normal: PriorityQueue<T, P>,
-}
-
-impl PriorityQueues<u32, u32> {
-    pub fn new() -> Self{
-        Self {
-            unloading: PriorityQueue::<u32, u32>::new(),
-            shutdown_vendor: PriorityQueue::<u32, u32>::new(),
-            normal: PriorityQueue::<u32, u32>::new(),
-        }
-    }
-}
-
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct SchedulingOverviewData {
     scheduled_period: String,
@@ -358,12 +122,12 @@ pub struct SchedulingOverviewData {
 impl SchedulerAgent {
     fn extract_state_to_scheduler_overview(&self) -> Vec<SchedulingOverviewData> {
         let mut scheduling_overview_data: Vec<SchedulingOverviewData> = Vec::new();
-        for (work_order_number, work_order) in self.scheduler_agent_algorithm.backlog.inner.iter() {
+        for (work_order_number, work_order) in self.scheduler_agent_algorithm.get_backlog().inner.iter() {
             for (operation_number, operation) in work_order.operations.clone() {
                 let scheduling_overview_data_item = SchedulingOverviewData {
-                    scheduled_period: match self.scheduler_agent_algorithm.optimized_work_orders.inner.get(work_order_number) {
+                    scheduled_period: match self.scheduler_agent_algorithm.get_optimized_work_order(work_order_number) {
                         Some(order_period) => {
-                            match order_period.scheduled_period.as_ref() { 
+                            match order_period.get_scheduled_period().as_ref() { 
                                 Some(scheduled_period) => scheduled_period.period_string.clone(),
                                 None => "not scheduled".to_string(),
                             }
@@ -417,31 +181,12 @@ impl SchedulerAgent {
     }
 }
 
-impl OptimizedWorkOrder {
-    pub fn new(
-        scheduled_period: Option<Period>, 
-        locked_in_period: Option<Period>, 
-        excluded_from_periods: HashSet<Period>) -> Self {
-        
-        Self {
-            scheduled_period,
-            locked_in_period,
-            excluded_from_periods,
-        }
-    }
-    #[allow(dead_code)]
-    pub fn with_new_schedule(&mut self, scheduled_period: Option<Period>) -> Self {
-        Self {
-            scheduled_period: scheduled_period,
-            locked_in_period: self.locked_in_period.clone(),
-            excluded_from_periods: self.excluded_from_periods.clone(),
-        }
-    }
 
-    pub fn update_scheduled_period(&mut self, period: Option<Period>) {
-        self.scheduled_period = period;
-    }
-}
+
+/// This is a good point. We should make the type as narrow as possible. This means that we should
+/// implement everything that is algorithm specific in the SchedulerAgentAlgorithm. This is a 
+/// crucial insight.
+
 
 /// This function should be reformulated? I think that we should make sure to create in such a way
 /// that. We need an inner hashmap for each of the different 
@@ -455,6 +200,7 @@ fn transform_hashmap_to_nested_hashmap(hash_map: HashMap<(String, String), f64>)
     }
     nested_hash_map
 }
+
 
 
 #[cfg(test)]
