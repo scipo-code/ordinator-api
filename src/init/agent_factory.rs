@@ -27,6 +27,7 @@ pub fn build_scheduler_agent(scheduling_environment: SchedulingEnvironment) -> A
         PriorityQueues::new(),
         optimized_work_orders,
         scheduling_environment.period.clone(),
+        true,
     );
     let scheduler_agent = SchedulerAgent::new(
         String::from("Dan F"),

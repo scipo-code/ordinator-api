@@ -19,3 +19,4 @@ pub struct Operation {
     pub earliest_start_datetime: DateTime<Utc>,
     pub earliest_finish_datetime: DateTime<Utc>,
 }
+

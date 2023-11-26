@@ -130,16 +130,16 @@ fn create_new_work_order(row: &[DataType], header_to_index: &HashMap<String, usi
     let work_order_type_data = get_data_from_headers(&row, &header_to_index, &work_order_type_possible_headers);
 
     let priority = match row.get(*header_to_index.get("Priority").ok_or("Priority header not found")?).cloned() {
-        Some(DataType::Int(n)) => Priority::IntValue(n as i32),
+        Some(DataType::Int(n)) => Priority::IntValue(n as u32),
         Some(DataType::String(s)) => {
 
-            match s.parse::<i32>() {
+            match s.parse::<u32>() {
                 Ok(num) => Priority::IntValue(num), // If successful, use the integer value
                 Err(_) => Priority::StringValue(s), // If not, fall back to using the string
             }
 
         }
-        Some(DataType::Float(n)) => Priority::IntValue(n as i32),
+        Some(DataType::Float(n)) => Priority::IntValue(n as u32),
         _ => Priority::StringValue(String::new())
     };
 

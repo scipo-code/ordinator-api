@@ -53,6 +53,48 @@ pub struct WorkOrder {
 }
 
 impl WorkOrder {
+    #[cfg(test)]
+    pub fn new(
+        order_number: u32, 
+        fixed: bool, 
+        order_weight: u32, 
+        priority: Priority, 
+        order_work: f64, 
+        operations: HashMap<u32, Operation>, 
+        work_load: HashMap<String, f64>, 
+        start_start: Vec<bool>, 
+        finish_start: Vec<bool>, 
+        postpone: Vec<DateTime<Utc>>, 
+        order_type: WorkOrderType, 
+        status_codes: StatusCodes, 
+        order_dates: OrderDates,
+        revision: Revision,
+        unloading_point: UnloadingPoint,
+        functional_location: FunctionalLocation,
+        order_text: OrderText,
+        vendor: bool) -> Self {
+        WorkOrder {
+            order_number,
+            fixed,
+            order_weight,
+            priority,
+            order_work,
+            operations,
+            work_load,
+            start_start,
+            finish_start,
+            postpone,
+            order_type,
+            status_codes,
+            order_dates,
+            revision,
+            unloading_point,
+            functional_location,
+            order_text,
+            vendor,
+        }
+    }
+
     pub fn get_work_order_number(&self) -> u32 {
         self.order_number
     }

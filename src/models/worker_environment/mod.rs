@@ -14,7 +14,7 @@ impl WorkerEnvironment {
     #[allow(dead_code)]
     pub fn based_on_crew(crew: Crew) -> Self {
         let mut work_centers = HashMap::<String, f64>::new();
-        for (id, worker) in crew.get_workers() {
+        for (_, worker) in crew.get_workers() {
             let worker_trait = worker.get_trait().clone();
             *work_centers.entry(worker_trait).or_insert(0.0) += worker.get_capacity();
         }

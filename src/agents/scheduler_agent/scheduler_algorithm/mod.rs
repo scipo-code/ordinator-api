@@ -20,6 +20,7 @@ pub struct SchedulerAgentAlgorithm {
     priority_queues: PriorityQueues<u32, u32>,
     optimized_work_orders: OptimizedWorkOrders,
     periods: Vec<Period>,
+    changed: bool,
 }
 
 impl SchedulerAgentAlgorithm {
@@ -30,10 +31,18 @@ impl SchedulerAgentAlgorithm {
     pub fn get_optimized_work_order(&self, work_order_number: &u32) -> Option<&OptimizedWorkOrder> {
         self.optimized_work_orders.inner.get(work_order_number)
     }
+
+    pub fn changed(&self) -> bool {
+        self.changed
+    }
+
+    pub fn set_changed(&mut self, changed: bool) {
+        self.changed = changed;
+    }
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct OptimizedWorkOrders {
     inner: HashMap<u32, OptimizedWorkOrder>,
 }
@@ -51,11 +60,11 @@ impl Hash for OptimizedWorkOrders {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct OptimizedWorkOrder {
-    scheduled_period: Option<Period>,
-    locked_in_period: Option<Period>,
-    excluded_from_periods: HashSet<Period>,
+    pub scheduled_period: Option<Period>,
+    pub locked_in_period: Option<Period>,
+    pub excluded_from_periods: HashSet<Period>,
 }
 
 impl Hash for OptimizedWorkOrder {
@@ -316,6 +325,7 @@ impl SchedulerAgentAlgorithm {
         priority_queues: PriorityQueues<u32, u32>,
         optimized_work_orders: OptimizedWorkOrders,
         periods: Vec<Period>,
+        changed: bool,
     ) -> Self {
         SchedulerAgentAlgorithm {
             objective_value,
@@ -324,12 +334,13 @@ impl SchedulerAgentAlgorithm {
             backlog,
             priority_queues,
             optimized_work_orders,
-            periods            
+            periods,      
+            changed
         }
     }
 
-    pub fn get_optimized_work_orders(&self) -> &OptimizedWorkOrders {
-        &self.optimized_work_orders
+    pub fn get_optimized_work_orders(&self) -> &HashMap<u32, OptimizedWorkOrder> {
+        &self.optimized_work_orders.inner
     }
 
     pub fn get_manual_resources_loading(&self) -> &HashMap<(String, String), f64> {
@@ -342,4 +353,10 @@ pub enum QueueType {
     Normal,
     UnloadingAndManual,
     ShutdownVendor,
+}
+
+
+#[cfg(test)]
+mod tests {
+
 }

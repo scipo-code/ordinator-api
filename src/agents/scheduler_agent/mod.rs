@@ -3,25 +3,13 @@ pub mod scheduler_algorithm;
 pub mod display;
 
 use std::collections::HashMap;
-use std::collections::HashSet;
-use std::hash::{Hash, Hasher};
 use actix::prelude::*; 
-
-
-
-use priority_queue::PriorityQueue;
-use tracing::Level;
-use tracing::{event, span};
 
 use crate::models::work_order::priority::Priority;
 use crate::models::work_order::order_type::WorkOrderType;
 use crate::agents::scheduler_agent::scheduler_message::{InputSchedulerMessage, ScheduleIteration};
-use crate::models::scheduling_environment::WorkOrders;
-use crate::models::period::Period;
 use crate::api::websocket_agent::WebSocketAgent;
-use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
 use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
-use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrders;
 use crate::models::work_order::status_codes::MaterialStatus;
 
 
@@ -206,12 +194,7 @@ fn transform_hashmap_to_nested_hashmap(hash_map: HashMap<(String, String), f64>)
 #[cfg(test)]
 mod tests {
 
-    use super::*;
 
-    #[test]
-    fn test_scheduler_agent_initialization() {
-
-    }
 
 
 }

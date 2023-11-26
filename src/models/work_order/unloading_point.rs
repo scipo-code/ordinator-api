@@ -10,3 +10,14 @@ pub struct UnloadingPoint {
     pub period: Option<Period>,
 }
 
+impl UnloadingPoint {
+
+    #[cfg(test)]
+    pub fn new_default() -> Self {
+        UnloadingPoint {
+            string: String::from(""),
+            present: false,
+            period: None,
+        }
+    }
+}

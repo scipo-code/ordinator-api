@@ -47,43 +47,43 @@ pub struct SetAgentAddrMessage<T: actix::Actor> {
 #[derive(Serialize, Deserialize)]
 #[derive(Debug)]
 pub struct WorkPlannerMessage {
-    cannot_schedule: Vec<u32>,
+    pub cannot_schedule: Vec<u32>,
     under_loaded_work_centers: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize)]
 #[derive(Debug)]
 pub struct ManualResource {
-    resource: String,
-    period: TimePeriod,
-    capacity: f64
+    pub resource: String,
+    pub period: TimePeriod,
+    pub capacity: f64
 }
 
 #[derive(Serialize, Deserialize)]
 #[derive(Debug)]
-struct TimePeriod {
-    period_string: String,
+pub struct TimePeriod {
+    pub period_string: String,
 }
 
 #[derive(Serialize, Deserialize)]
 #[derive(Debug)]
 pub struct FrontendInputSchedulerMessage {
-    name: String,
-    platform: String,
-    work_order_period_mappings: Vec<WorkOrderPeriodMapping>,
-    manual_resources: Vec<ManualResource>,
-    period_lock: HashMap<String, bool>
+    pub name: String,
+    pub platform: String,
+    pub work_order_period_mappings: Vec<WorkOrderPeriodMapping>,
+    pub manual_resources: Vec<ManualResource>,
+    pub period_lock: HashMap<String, bool>
 }
 
 #[derive(Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WorkOrderPeriodMapping {
     pub work_order_number: u32,
     pub period_status: WorkOrderStatusInPeriod,
 }
 
 #[derive(Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WorkOrderStatusInPeriod {
     #[serde(deserialize_with = "deserialize_period_option")]
     pub locked_in_period: Option<Period>,
@@ -170,19 +170,8 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         // event!(tracing::Level::INFO , "schedule_iteration_message");
         
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-
-        fn calculate_hash<T: Hash>(t: &T) -> u64 {
-            let mut hasher = DefaultHasher::new();
-            t.hash(&mut hasher);
-            hasher.finish()
-        }
-        
-        let optimized_work_orders_hash_old = calculate_hash(&self.scheduler_agent_algorithm.get_optimized_work_orders());
-
-        self.schedule_work_orders_by_type(QueueType::Normal);
-        self.schedule_work_orders_by_type(QueueType::UnloadingAndManual);
+        self.scheduler_agent_algorithm.schedule_work_orders_by_type(QueueType::Normal);
+        self.scheduler_agent_algorithm.schedule_work_orders_by_type(QueueType::UnloadingAndManual);
 
         let actor_addr = ctx.address().clone();
 
@@ -191,10 +180,10 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
             actor_addr.do_send(ScheduleIteration {});
         };
 
-        let optimized_work_orders_hash_new = calculate_hash(&self.scheduler_agent_algorithm.get_optimized_work_orders());
-        if optimized_work_orders_hash_new != optimized_work_orders_hash_old {
-            event!(Level::TRACE, optimized_work_orders_hash_old = %&optimized_work_orders_hash_old, optimized_work_orders_hash_new = %&optimized_work_orders_hash_new);
+        if self.scheduler_agent_algorithm.changed() {
+            event!(Level::TRACE, message = "change occured in optimized work orders");
             ctx.notify(MessageToFrontend {});
+            self.scheduler_agent_algorithm.set_changed(false);
         }
 
         Box::pin(actix::fut::wrap_future::<_, Self>(fut))
@@ -296,4 +285,79 @@ where
         set.insert(period);
     }
     Ok(set)
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    use chrono::{Utc, TimeZone};
+    
+    use crate::{agents::scheduler_agent::scheduler_algorithm::{SchedulerAgentAlgorithm, PriorityQueues, OptimizedWorkOrders}, models::{scheduling_environment::WorkOrders, work_order::{priority::Priority, order_type::{WorkOrderType, WDFPriority}, status_codes::StatusCodes, order_dates::OrderDates, revision::Revision, unloading_point::UnloadingPoint, functional_location::FunctionalLocation, order_text::OrderText}}};
+    use crate::models::work_order::WorkOrder;
+
+    #[test]
+    fn test_update_scheduler_state() {
+
+        let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 7, 0, 0).unwrap();
+        let end_date = start_date + chrono::Duration::days(13);
+
+        let work_order_period_mappings = vec![WorkOrderPeriodMapping {
+            work_order_number: 2200002020,
+            period_status: WorkOrderStatusInPeriod {
+                locked_in_period: Some(Period::new(1, start_date, end_date)),
+                excluded_from_periods: HashSet::new(),
+            }
+        }];
+
+        let mut work_orders = WorkOrders::new();
+
+        let work_order = WorkOrder::new(
+            2200002020,
+            false,
+            1000,
+            Priority::new_int(1),
+            100.0,
+            HashMap::new(),
+            HashMap::new(),
+            vec![],
+            vec![],
+            vec![],
+            WorkOrderType::WDF(WDFPriority::new(1)),
+            StatusCodes::new_default(),
+            OrderDates::new_default(),
+            Revision::new_default(),
+            UnloadingPoint::new_default(),
+            FunctionalLocation::new_default(),
+            OrderText::new_default(),
+            false,
+        );
+
+        work_orders.insert(work_order);
+
+
+        let input_message = InputSchedulerMessage {
+            name: "test".to_string(),
+            platform: "test".to_string(),
+            work_order_period_mappings: work_order_period_mappings,
+            manual_resources: HashMap::new(),
+            period_lock: HashMap::new()
+        };
+        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+            0.0,
+            HashMap::new(), 
+            HashMap::new(), 
+            work_orders, 
+            PriorityQueues::new(), 
+            OptimizedWorkOrders::new(HashMap::new()),
+            vec![],
+            true
+        );     
+
+        scheduler_agent_algorithm.update_scheduler_state(input_message); 
+
+        assert_eq!(scheduler_agent_algorithm.get_optimized_work_orders().get(&2200002020).as_ref().unwrap().locked_in_period.as_ref().unwrap().get_string(), "2023-W47-48");
+    }
+
 }
