@@ -2,6 +2,8 @@ use std::fmt;
 use std::fmt::Display;
 use std::collections::HashMap;
 use std::collections::hash_map::RandomState;
+use tracing::{event};
+
 
 use crate::agents::scheduler_agent::SchedulerAgent;
 
@@ -10,16 +12,10 @@ impl Display for SchedulerAgent {
         write!(f, 
             "SchedulerAgent: \n
             Platform: {}, \n
-            Manual Resources: {:?}, \n
-            Backlog: {:?}, \n
-            Scheduled Work Orders: {:?}, \n
-            Periods: {:?}, \n
+            SchedulerAgentAlgorithm: {:?}, \n
             WebSocketAgent Addr: {:?}", 
             self.platform, 
-            self.scheduler_agent_algorithm.manual_resources_capacity, 
-            self.scheduler_agent_algorithm.backlog.inner.len(), 
-            self.scheduler_agent_algorithm.optimized_work_orders.inner.keys().collect::<Vec<_>>(), 
-            self.scheduler_agent_algorithm.periods, 
+            self.scheduler_agent_algorithm,
             self.ws_agent_addr)
     }
 }

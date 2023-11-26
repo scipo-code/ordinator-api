@@ -1,0 +1,51 @@
+version: '3'
+
+services:
+  rust-backend:
+    image: ordinator-image
+    ports:
+      - "8001:8001"
+    command: ["ordinator", "/usr/src/ordinator/test_data/export_test.XLSX"]
+    depends_on:
+      - elasticsearch
+    volumes:
+      - log_volume:/usr/src/ordinator/logs
+    environment:
+      - CONFIG_PATH=/usr/src/ordinator/parameters/work_order_weight_parameters.json
+      - LOG_DIR=/usr/src/ordinator/logs
+  elasticsearch:
+    image: elasticsearch:8.11.1
+    # environment:
+      # - discovery.type=single-node
+    volumes:
+      - ./elk_config/elasticsearch_config:/usr/share/elasticsearch/config
+      - esdata:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+
+  logstash:
+    image: logstash:8.11.1
+    volumes:
+      - log_volume:/usr/share/logstash/logs/
+      - ./elk_config/logstash_config:/usr/share/logstash/config
+    ports:
+      - "5000:5000"
+    depends_on:
+      - elasticsearch
+    environment:
+      - LOG_FILE_PATH=/usr/share/logstash/logs/
+      - LOG_CONF_PATH=/usr/share/logstash/config/logstash.conf
+    # command: >
+    #    bash -c "mkdir -p /usr/share/logstash/logs &&
+    #            chown logstash:logstash /usr/share/logstash/logs &&
+    #            chmod 755 /usr/share/logstash/logs"
+  kibana:
+    image: kibana:8.11.1
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+
+volumes:
+  esdata:
+  log_volume:
