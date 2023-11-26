@@ -130,17 +130,16 @@ mod tests {
     use chrono::{DateTime, Utc};
     use super::*;
     use std::collections::HashMap;
-    use crate::agents::scheduler_agent::OptimizedWorkOrders;
-    use crate::agents::scheduler_agent::SchedulerAgentAlgorithm;
+    use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrders;
+    use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
     use crate::agents::scheduler_agent::SchedulerAgent;
-    use crate::agents::scheduler_agent::PriorityQueues;
+    use crate::agents::scheduler_agent::scheduler_algorithm::PriorityQueues;
     use crate::models::scheduling_environment::WorkOrders;
 
     use crate::models::period::Period;
 
     #[actix_rt::test]
     async fn test_websocket_agent() {
-        
         
         let start_date_str = "2023-10-23T12:00:00Z";
         let start_date: DateTime<Utc> = start_date_str.parse().expect("test of start day string failed");
@@ -154,6 +153,7 @@ mod tests {
         let scheduler_agent_addr = SchedulerAgent::new(
             "test".to_string(), 
             SchedulerAgentAlgorithm::new(
+                0.0,
                 HashMap::new(), 
                 HashMap::new(), 
                 WorkOrders::new(), 

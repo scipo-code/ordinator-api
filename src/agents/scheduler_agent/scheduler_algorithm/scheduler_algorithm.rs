@@ -1,20 +1,11 @@
 use std::collections::HashSet;
 use core::panic;
-use tracing::Level;
 use tracing::{event};
 
-use crate::agents::scheduler_agent::OptimizedWorkOrder;
+use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
+use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
 use crate::agents::scheduler_agent::SchedulerAgent;
 use crate::models::period::Period;
-
-#[allow(dead_code)]
-#[derive(PartialEq)]
-#[derive(Debug)]
-pub enum QueueType {
-    Normal,
-    UnloadingAndManual,
-    ShutdownVendor,
-}
 
 /// This implementation of the SchedulerAgent will do the following. It should take a messgage
 /// and then return a scheduler 
@@ -209,7 +200,7 @@ mod tests {
 
     use actix::Addr;
 
-    use crate::agents::scheduler_agent::SchedulerAgentAlgorithm;
+    use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
 
     use super::*;
     

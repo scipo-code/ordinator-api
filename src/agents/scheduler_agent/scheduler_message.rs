@@ -7,15 +7,12 @@ use tokio::time::{sleep, Duration};
 use tracing::{Level, event, span};
 
 use crate::agents::scheduler_agent::SchedulerAgent;
-use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
 use crate::agents::scheduler_agent::transform_hashmap_to_nested_hashmap;
+use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
 use crate::api::websocket_agent::SchedulerFrontendMessage;
 use crate::api::websocket_agent::SchedulerFrontendLoadingMessage;
 use crate::api::websocket_agent::WebSocketAgent;
-
 use crate::models::period::Period;
-
-
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "scheduler_message_type")]
@@ -168,7 +165,6 @@ impl Display for FrontendInputSchedulerMessage {
 pub struct ScheduleIteration {}
 
 impl Handler<ScheduleIteration> for SchedulerAgent {
-
     type Result = ResponseActFuture<Self, ()>;
 
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
@@ -183,7 +179,7 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
             hasher.finish()
         }
         
-        let optimized_work_orders_hash_old = calculate_hash(&self.scheduler_agent_algorithm.optimized_work_orders);
+        let optimized_work_orders_hash_old = calculate_hash(&self.scheduler_agent_algorithm.get_optimized_work_orders());
 
         self.schedule_work_orders_by_type(QueueType::Normal);
         self.schedule_work_orders_by_type(QueueType::UnloadingAndManual);
@@ -195,7 +191,7 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
             actor_addr.do_send(ScheduleIteration {});
         };
 
-        let optimized_work_orders_hash_new = calculate_hash(&self.scheduler_agent_algorithm.optimized_work_orders);
+        let optimized_work_orders_hash_new = calculate_hash(&self.scheduler_agent_algorithm.get_optimized_work_orders());
         if optimized_work_orders_hash_new != optimized_work_orders_hash_old {
             event!(Level::TRACE, optimized_work_orders_hash_old = %&optimized_work_orders_hash_old, optimized_work_orders_hash_new = %&optimized_work_orders_hash_new);
             ctx.notify(MessageToFrontend {});
@@ -225,7 +221,7 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
             scheduling_overview_data: scheduling_overview_data,
         };
         event!(tracing::Level::TRACE, "scheduler_frontend_message: {:?}", scheduler_frontend_message);
-        let nested_loadings = transform_hashmap_to_nested_hashmap(self.scheduler_agent_algorithm.manual_resources_loading.clone());
+        let nested_loadings = transform_hashmap_to_nested_hashmap(self.scheduler_agent_algorithm.get_manual_resources_loading().clone());
         
         let scheduler_frontend_loading_message = SchedulerFrontendLoadingMessage {
             frontend_message_type: "frontend_scheduler_loading".to_string(),
@@ -257,9 +253,9 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
                     message = %input_message,
                     "received a message from the frontend"
                 );                
-                self.log_optimized_work_orders();
-                self.update_scheduler_state(input_message);
-                self.log_optimized_work_orders();
+                self.scheduler_agent_algorithm.log_optimized_work_orders();
+                self.scheduler_agent_algorithm.update_scheduler_state(input_message);
+                self.scheduler_agent_algorithm.log_optimized_work_orders();
             }   
             SchedulerRequests::WorkPlanner(msg) => {
                println!("SchedulerAgentReceived a WorkPlannerMessage message: {:?}", msg);
