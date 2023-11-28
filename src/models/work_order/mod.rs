@@ -8,6 +8,7 @@ pub mod revision;
 pub mod order_type;
 pub mod display;
 pub mod priority;
+pub mod system_condition;
 
 use std::env;
 use std::collections::HashMap;
@@ -24,6 +25,7 @@ use crate::models::work_order::unloading_point::UnloadingPoint;
 use crate::models::work_order::revision::Revision;
 use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::work_order::priority::Priority;
+use crate::models::work_order::system_condition::SystemCondition;
 // use crate::models::work_order::optimized_work_order::OptimizedWorkOrder;
 use crate::models::work_order::{order_type::{WDFPriority, WGNPriority, WPMPriority}, status_codes::MaterialStatus};
 
@@ -43,6 +45,7 @@ pub struct WorkOrder {
     pub finish_start: Vec<bool>,
     pub postpone: Vec<DateTime<Utc>>,
     pub order_type: WorkOrderType,
+    pub system_condition: SystemCondition,
     pub status_codes: StatusCodes,  
     pub order_dates: OrderDates,
     pub revision: Revision,
@@ -66,6 +69,7 @@ impl WorkOrder {
         finish_start: Vec<bool>, 
         postpone: Vec<DateTime<Utc>>, 
         order_type: WorkOrderType, 
+        system_condition: SystemCondition,
         status_codes: StatusCodes, 
         order_dates: OrderDates,
         revision: Revision,
@@ -85,6 +89,7 @@ impl WorkOrder {
             finish_start,
             postpone,
             order_type,
+            system_condition,
             status_codes,
             order_dates,
             revision,

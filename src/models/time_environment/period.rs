@@ -29,6 +29,7 @@ impl Period {
             if end_date.iso_week().week() == 1 { 52 } else { end_date.iso_week().week() });
         Period { id: id, period_string: period_string, start_date: start_date, end_date: end_date}
     }
+
     pub fn new_from_string(period_string: &str) -> Result<Period, &'static str> {
         // Parse the string
         let parts: Vec<&str> = period_string.split("-").collect();
@@ -65,10 +66,11 @@ impl Period {
             end_date: end_date.unwrap(),
         })
     }
+
+    
 }
 
 impl Period {
-    #[cfg(test)]
     pub fn get_string(&self) -> String {
         self.period_string.clone()
     }
@@ -85,3 +87,21 @@ impl Display for Period {
 }
 
  
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use chrono::Utc;
+
+
+    impl Period {
+        pub fn new_test() -> Self {
+            Period::new(
+                0, 
+                Utc.with_ymd_and_hms(2021, 1, 1, 0, 0, 0).unwrap(), 
+                Utc.with_ymd_and_hms(2021, 1, 14, 23, 59, 59).unwrap() 
+            )
+        }
+    }
+
+}

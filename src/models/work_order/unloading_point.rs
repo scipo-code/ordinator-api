@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::models::period::Period;
+use crate::models::time_environment::period::Period;
 
 #[derive(Clone)]
 #[derive(Serialize, Deserialize)]

@@ -134,9 +134,9 @@ mod tests {
     use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
     use crate::agents::scheduler_agent::SchedulerAgent;
     use crate::agents::scheduler_agent::scheduler_algorithm::PriorityQueues;
-    use crate::models::scheduling_environment::WorkOrders;
+    use crate::models::WorkOrders;
 
-    use crate::models::period::Period;
+    use crate::models::time_environment::period::Period;
 
     #[actix_rt::test]
     async fn test_websocket_agent() {

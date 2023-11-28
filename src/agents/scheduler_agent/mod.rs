@@ -16,6 +16,7 @@ use crate::models::work_order::status_codes::MaterialStatus;
 #[derive(Debug)]
 pub struct SchedulerAgent {
     platform: String,
+    
     scheduler_agent_algorithm: SchedulerAgentAlgorithm,
     ws_agent_addr: Option<Addr<WebSocketAgent>>,
 }
@@ -194,7 +195,10 @@ fn transform_hashmap_to_nested_hashmap(hash_map: HashMap<(String, String), f64>)
 #[cfg(test)]
 mod tests {
 
-
+    #[test]
+    fn test_scheduler_agent_initialization() {
+        
+    }
 
 
 }

@@ -2,7 +2,7 @@ use std::env;
 use std::path::Path;
 
 use crate::data_processing::sources::excel::load_data_file;
-use crate::models::scheduling_environment::SchedulingEnvironment;
+use crate::models::SchedulingEnvironment;
 
 pub fn create_scheduling_environment(number_of_periods: u32) -> SchedulingEnvironment {
     let mut scheduling_environment = initialize_scheduling_environment(number_of_periods).unwrap();

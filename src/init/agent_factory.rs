@@ -2,11 +2,11 @@ use std::collections::{HashMap, HashSet};
 use actix::prelude::*;
 
 use crate::agents::scheduler_agent::SchedulerAgent;
-use crate::models::scheduling_environment::SchedulingEnvironment;
+use crate::models::SchedulingEnvironment;
 use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrders;
 use crate::agents::scheduler_agent::scheduler_algorithm::PriorityQueues;
 use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
-use crate::models::scheduling_environment::WorkOrders;
+use crate::models::WorkOrders;
 use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
 
 
