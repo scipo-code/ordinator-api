@@ -6,6 +6,13 @@ pub struct Revision {
 }
 #[allow(dead_code)]
 impl Revision {
+    pub fn new_default() -> Self {
+        Revision {
+            string: String::from(""),
+            shutdown: false,
+        }
+    }
+
     pub fn new(string: String) -> Self {
         Revision {
             string: string.clone(),
@@ -13,7 +20,7 @@ impl Revision {
         }
     }
 
-    pub fn with_shutdown(string: String, shutdown: bool) -> Self {
+    pub fn new_with_shutdown(string: String, shutdown: bool) -> Self {
         Revision {
             string,
             shutdown,

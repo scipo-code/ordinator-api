@@ -13,7 +13,7 @@ enum FrontendMessages {
     Worker,
     Activity,
     WorkCenter,
-    WorkOrder
+    WorkOrder,
 }
 
 trait WebSocketAgentTrait {

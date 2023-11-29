@@ -1,6 +1,6 @@
 use actix::prelude::*;
 
-use crate::models::period::Period;
+use crate::models::time_environment::period::Period;
 
 #[allow(dead_code)]
 pub struct WorkCenterAgent {

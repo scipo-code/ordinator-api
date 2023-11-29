@@ -6,3 +6,12 @@ use serde::{Deserialize, Serialize};
 pub struct FunctionalLocation {
     pub string: String
 }
+
+impl FunctionalLocation {
+    #[cfg(test)]
+    pub fn new_default() -> Self {
+        FunctionalLocation {
+            string: "testing-stub-for-functional-location".to_string()
+        }
+    }
+}

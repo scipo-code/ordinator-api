@@ -2,10 +2,10 @@ use std::fmt;
 use std::fmt::Display;
 use std::collections::HashMap;
 use std::collections::hash_map::RandomState;
-use tracing::{event};
-
 
 use crate::agents::scheduler_agent::SchedulerAgent;
+
+use super::scheduler_message::{SchedulerRequests, ManualResource, WorkOrderPeriodMapping};
 
 impl Display for SchedulerAgent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -31,3 +31,36 @@ impl fmt::Display for DisplayableManualResource {
     }
 }
 
+impl fmt::Display for SchedulerRequests {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), std::fmt::Error> {
+        match self {
+            SchedulerRequests::Input(input) => {
+                write!(f, "name: {}", input.name)?;
+
+                for work_order_period_mapping in input.work_order_period_mappings.iter() {
+                    write!(f, "work_order_period_mapping: {}\n", work_order_period_mapping)?;
+                }
+                for manual_resource in input.manual_resources.iter() {
+                    write!(f, "manual_resource: {}\n", manual_resource)?;
+                }
+                Ok(())
+            }
+            SchedulerRequests::WorkPlanner(work_planner) => {
+                write!(f, "work_planner: {:?}", work_planner.cannot_schedule)?;
+                Ok(())
+            }
+        }
+    }
+}
+
+impl fmt::Display for WorkOrderPeriodMapping {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "work_order: {}, period: {:?}", self.work_order_number, self.period_status)
+    }
+}
+
+impl fmt::Display for ManualResource {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "resource: {}, period: {}, capacity: {}", self.resource, self.period.period_string, self.capacity)
+    }
+}
