@@ -50,3 +50,19 @@ impl MaterialStatus {
         // If no patterns match, return the Unknown variant
     }
 }
+
+impl StatusCodes {
+
+    #[cfg(test)]
+    pub fn new_default() -> Self {
+        StatusCodes {
+            material_status: MaterialStatus::Unknown,
+            pcnf: false,
+            awsc: false,
+            well: false,
+            sch: false,
+            sece: false,
+            unloading_point: false,
+        }
+    }
+}

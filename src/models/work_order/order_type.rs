@@ -38,3 +38,17 @@ pub enum WPMPriority {
     C,
     D,
 }
+
+
+impl WDFPriority {
+    #[cfg(test)]
+    pub fn new(priority: u32) -> Self {
+        match priority {
+            1 => Self::One,
+            2 => Self::Two,
+            3 => Self::Three,
+            4 => Self::Four,
+            _ => Self::Four,
+        }
+    }
+}

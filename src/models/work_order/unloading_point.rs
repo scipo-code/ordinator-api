@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::models::period::Period;
+use crate::models::time_environment::period::Period;
 
 #[derive(Clone)]
 #[derive(Serialize, Deserialize)]
@@ -10,3 +10,14 @@ pub struct UnloadingPoint {
     pub period: Option<Period>,
 }
 
+impl UnloadingPoint {
+
+    #[cfg(test)]
+    pub fn new_default() -> Self {
+        UnloadingPoint {
+            string: String::from(""),
+            present: false,
+            period: None,
+        }
+    }
+}

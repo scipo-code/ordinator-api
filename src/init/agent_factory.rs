@@ -2,11 +2,11 @@ use std::collections::{HashMap, HashSet};
 use actix::prelude::*;
 
 use crate::agents::scheduler_agent::SchedulerAgent;
-use crate::models::scheduling_environment::SchedulingEnvironment;
+use crate::models::SchedulingEnvironment;
 use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrders;
 use crate::agents::scheduler_agent::scheduler_algorithm::PriorityQueues;
 use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
-use crate::models::scheduling_environment::WorkOrders;
+use crate::models::WorkOrders;
 use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
 
 
@@ -27,6 +27,7 @@ pub fn build_scheduler_agent(scheduling_environment: SchedulingEnvironment) -> A
         PriorityQueues::new(),
         optimized_work_orders,
         scheduling_environment.period.clone(),
+        true,
     );
     let scheduler_agent = SchedulerAgent::new(
         String::from("Dan F"),

@@ -1,7 +1,17 @@
 # Stage 1: Build the application
 FROM rust:latest as builder
 WORKDIR /usr/src/ordinator
-COPY . .
+
+COPY Cargo.toml Cargo.lock ./
+
+RUN mkdir src && echo "fn main() {}" > src/main.rs
+
+RUN cargo build --release
+
+RUN rm -f src/main.rs
+
+COPY src/ ./src/
+
 RUN cargo install --path .
 
 EXPOSE 8001

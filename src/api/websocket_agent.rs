@@ -34,7 +34,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                 let msg_type: Result<FrontendMessages, serde_json::Error> = serde_json::from_str(&text);
                 match msg_type {
                     Ok(FrontendMessages::Scheduler(scheduler_input)) => {
-                        event!(Level::INFO, scheduler_front_end_message = ?scheduler_input, "SchedulerAgent received SchedulerMessage");
+                        event!(Level::INFO, scheduler_front_end_message = %scheduler_input, "SchedulerAgent received SchedulerMessage");
                         self.scheduler_agent_addr.do_send(scheduler_input);
                         let addr = ctx.address();
                         self.scheduler_agent_addr.do_send(SetAgentAddrMessage { addr });
@@ -96,10 +96,10 @@ impl Handler<SchedulerFrontendMessage> for WebSocketAgent {
 
     fn handle(&mut self, msg: SchedulerFrontendMessage, ctx: &mut Self::Context) -> Self::Result {
             // Serialize the message
+            event!(Level::INFO, scheduler_front_end_message.websocket = ?msg, "Scheduler Table data sent to frontend");
             let serialized_message = serde_json::to_string(&msg).unwrap();
             // Send the serialized message to the frontend
             ctx.text(serialized_message);
-        
     }
 }
 
@@ -134,9 +134,9 @@ mod tests {
     use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
     use crate::agents::scheduler_agent::SchedulerAgent;
     use crate::agents::scheduler_agent::scheduler_algorithm::PriorityQueues;
-    use crate::models::scheduling_environment::WorkOrders;
+    use crate::models::WorkOrders;
 
-    use crate::models::period::Period;
+    use crate::models::time_environment::period::Period;
 
     #[actix_rt::test]
     async fn test_websocket_agent() {
@@ -159,11 +159,14 @@ mod tests {
                 WorkOrders::new(), 
                 PriorityQueues::new(), 
                 optimized_work_orders,
-                periods),
+                periods,
+                true,
+            ),
             None
         ).start();
 
-        let ws_agent = WebSocketAgent::new(Arc::new(scheduler_agent_addr.clone()));
+        let _ws_agent = WebSocketAgent::new(Arc::new(scheduler_agent_addr.clone()));
+        
         // let mut ws_agent_addr = ws_agent.start();
     }
 }
