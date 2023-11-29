@@ -111,7 +111,6 @@ impl WorkOrderStatusInPeriod {
         let end_date = start_date + chrono::Duration::days(13);
         let period = Period::new(1, start_date, end_date);
 
-
         WorkOrderStatusInPeriod {
             locked_in_period: Some(period),
             excluded_from_periods: HashSet::new(),
@@ -141,12 +140,12 @@ impl Display for InputSchedulerMessage {
         write!(f, 
             "Name: {}, 
             \nPlatform: {}, 
-            \nSchedule Work Order: {}, 
+            \nSchedule Work Order: {:?}, 
             \nManual Resource: {},
             \nPeriod Lock: {:?}", 
             self.name, 
             self.platform, 
-            self.work_order_period_mappings.len(), 
+            self.work_order_period_mappings, 
             manual_resources_pretty,
             self.period_lock
         )
@@ -274,7 +273,14 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
                 self.scheduler_agent_algorithm.log_optimized_work_orders();
                 self.scheduler_agent_algorithm.update_scheduler_algorithm_state(input_message);
                 self.scheduler_agent_algorithm.log_optimized_work_orders();
-            }   
+
+
+                if self.scheduler_agent_algorithm.get_optimized_work_order(&2100023393).is_some() {
+                    event!(tracing::Level::INFO, "2100023393 is in the optimized work orders");
+                } else {
+                    event!(tracing::Level::INFO, "2100023393 is not in the optimized work orders");
+                }
+            }
             SchedulerRequests::WorkPlanner(msg) => {
                println!("SchedulerAgentReceived a WorkPlannerMessage message: {:?}", msg);
             }
@@ -390,6 +396,77 @@ mod tests {
         assert_eq!(scheduler_agent_algorithm.get_optimized_work_orders().get(&2200002020).as_ref().unwrap().locked_in_period.as_ref().unwrap().get_string(), "2023-W47-48");
     }
 
+    #[test]
+    fn test_input_scheduler_message_from() {
+
+        let work_order_period_mapping = WorkOrderPeriodMapping { work_order_number: 2100023841, period_status: WorkOrderStatusInPeriod { locked_in_period: Some(Period::new_from_string("2023-W49-50").unwrap() ), excluded_from_periods: HashSet::new() }};
+        // let input_scheduler_message: = work_order_period_mapping.into();
+
+        let frontend_input_scheduler_message = FrontendInputSchedulerMessage {
+            name: "test".to_string(),
+            platform: "test".to_string(),
+            work_order_period_mappings: vec![work_order_period_mapping],
+            manual_resources: vec![],
+            period_lock: HashMap::new()
+        };
+
+        let input_scheduler_message: InputSchedulerMessage = frontend_input_scheduler_message.into();
+
+        assert_eq!(input_scheduler_message.work_order_period_mappings[0].work_order_number, 2100023841);
+        assert_eq!(input_scheduler_message.work_order_period_mappings[0].period_status.locked_in_period, Some(Period::new_from_string("2023-W49-50").unwrap()));
+    
+       
+
+        let mut work_load = HashMap::new();
+
+        work_load.insert("VEN_MECH".to_string(), 16.0);
+
+        let work_order = WorkOrder::new(
+            2100023841,
+            false,
+            1000,
+            Priority::new_int(1),
+            100.0,
+            HashMap::new(),
+            work_load,
+            vec![],
+            vec![],
+            vec![],
+            WorkOrderType::WDF(WDFPriority::new(1)),
+            crate::models::work_order::system_condition::SystemCondition::Unknown,
+            StatusCodes::new_default(),
+            OrderDates::new_default(),
+            Revision::new_default(),
+            UnloadingPoint::new_default(),
+            FunctionalLocation::new_default(),
+            OrderText::new_default(),
+            false,
+        );
+
+        let mut work_orders = WorkOrders::new();
+
+        work_orders.inner.insert(2100023841, work_order);
+
+        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+            0.0,
+            HashMap::new(), 
+            HashMap::new(), 
+            work_orders, 
+            PriorityQueues::new(), 
+            OptimizedWorkOrders::new(HashMap::new()),
+            vec![],
+            true
+        );
+
+        scheduler_agent_algorithm.update_scheduler_algorithm_state(input_scheduler_message);
+
+        // 
+        assert_eq!(scheduler_agent_algorithm.get_optimized_work_order(&2100023841).unwrap().locked_in_period, Some(Period::new_from_string("2023-W49-50").unwrap()));
+        assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("VEN_MECH".to_string(), "2023-W49-50".to_string()), 16.0);
+        
+    }
+
+
 
 
     impl InputSchedulerMessage {
@@ -405,11 +482,9 @@ mod tests {
             let end_date = start_date + chrono::Duration::days(13);
             let period = Period::new(1, start_date, end_date);
     
-
             manual_resources.insert(("MTN_MECH".to_string(), period.period_string.clone()), 300.0);
             manual_resources.insert(("MTN_ELEC".to_string(), period.period_string.clone()), 300.0);
             manual_resources.insert(("PRODTECH".to_string(), period.period_string.clone()), 300.0);
-    
 
             Self {
                 name: "test".to_string(),

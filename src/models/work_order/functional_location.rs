@@ -11,7 +11,7 @@ impl FunctionalLocation {
     #[cfg(test)]
     pub fn new_default() -> Self {
         FunctionalLocation {
-            string: "Testing stub for functional location".to_string()
+            string: "testing-stub-for-functional-location".to_string()
         }
     }
 }

@@ -129,24 +129,20 @@ impl SchedulerAgentAlgorithm {
 
 
     pub fn schedule_forced_work_order(&mut self, work_order_key: u32) {
-        dbg!(self.optimized_work_orders.clone());
         match self.is_scheduled(work_order_key) {
             Some(work_order_key) => self.unschedule_work_order(work_order_key),
             None => (),
         }
-        dbg!(self.optimized_work_orders.clone());
         
         let period = self.optimized_work_orders.get_locked_in_period(work_order_key);
         
         self.initialize_loading_used_in_work_order(work_order_key, period.clone());
-        dbg!(self.optimized_work_orders.clone());
         
         let work_order = self.backlog.inner.get(&work_order_key).unwrap();
         // self.optimized_work_orders.
         event!(tracing::Level::INFO , "Work order {} has been scheduled with unloading point or manual", work_order_key);
         
         self.optimized_work_orders.set_scheduled_period(work_order_key, period.clone());
-        dbg!(self.optimized_work_orders.clone());
         self.changed = true;
 
         // Is this really the place where we should update the loadings? I am not sure about it. 
@@ -187,9 +183,7 @@ impl SchedulerAgentAlgorithm {
         let work_order = self.backlog.inner.get(&work_order_key).unwrap();
         let period = self.optimized_work_orders.inner.get(&work_order_key).as_ref().unwrap().scheduled_period.as_ref().unwrap(); 
 
-        dbg!(period.clone());
 
-        dbg!(self.get_manual_resources_loadings());
         for (work_center_period, loading) in self.manual_resources_loading.iter_mut() {
             if work_center_period.1 == period.period_string {
                 let work_load_for_work_center = work_order.work_load.get(&work_center_period.0);
@@ -201,7 +195,6 @@ impl SchedulerAgentAlgorithm {
                 }
             }
         }
-        dbg!(self.get_manual_resources_loadings());
         self.optimized_work_orders.inner.get_mut(&work_order_key).unwrap().update_scheduled_period(None);
     }
 
@@ -513,7 +506,6 @@ mod tests {
         assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("MTN_ELEC".to_string(), period_new.period_string.clone()), 40.0);
         assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("PRODTECH".to_string(), period_new.period_string.clone()), 60.0);
 
-        dbg!(scheduler_agent_algorithm.get_manual_resources_loadings());
         assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("MTN_MECH".to_string(), period.period_string.clone()), 0.0);
         assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("MTN_ELEC".to_string(), period.period_string.clone()), 0.0);
         assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("PRODTECH".to_string(), period.period_string.clone()), 0.0);
