@@ -31,7 +31,6 @@ impl fmt::Display for DisplayableManualResource {
     }
 }
 
-
 impl fmt::Display for SchedulerRequests {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), std::fmt::Error> {
         match self {
@@ -53,7 +52,6 @@ impl fmt::Display for SchedulerRequests {
         }
     }
 }
-
 
 impl fmt::Display for WorkOrderPeriodMapping {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

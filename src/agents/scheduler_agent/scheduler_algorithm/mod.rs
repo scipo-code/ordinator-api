@@ -233,9 +233,9 @@ impl SchedulerAgentAlgorithm {
             let locked_in_period = work_order_period_mapping.period_status.locked_in_period;
             let excluded_from_periods =  work_order_period_mapping.period_status.excluded_from_periods;
             
-            let scheduled_period = optimized_work_orders.get(&work_order_number)
+            let scheduled_period: Option<Period> = optimized_work_orders.get(&work_order_number)
                 .map(|ow| ow.scheduled_period.clone())
-                .unwrap_or(locked_in_period.clone());
+                .unwrap_or(None);
 
             match locked_in_period.clone() {
                 Some(period) => {
@@ -270,7 +270,7 @@ impl SchedulerAgentAlgorithm {
                 },
                 excluded_periods = %excluded_periods
             );
-        
+            dbg!(optimized_work_order.clone());
             self.optimized_work_orders.inner.insert(work_order_number, optimized_work_order);
 
 
@@ -419,7 +419,6 @@ mod tests {
     #[test]
     fn test_update_scheduler_algorithm_state() {
 
-        
         let mut work_orders = WorkOrders::new();
 
         let work_order = WorkOrder::new(
@@ -472,11 +471,11 @@ mod tests {
         assert_eq!(scheduler_agent_algorithm.manual_resources_capacity.get(&("MTN_MECH".to_string(), period.period_string.clone())), Some(&150.0));
         assert_eq!(scheduler_agent_algorithm.optimized_work_orders.inner.get(&2200002020), None);
         
-        
         scheduler_agent_algorithm.update_scheduler_algorithm_state(input_message);
         
         assert_eq!(scheduler_agent_algorithm.manual_resources_capacity.get(&("MTN_MECH".to_string(), period.period_string.clone())), Some(&300.0));
-        assert_eq!(scheduler_agent_algorithm.optimized_work_orders.inner.get(&2200002020).unwrap().scheduled_period, Some(period.clone()));
+        assert_eq!(scheduler_agent_algorithm.optimized_work_orders.inner.get(&2200002020).unwrap().scheduled_period, None);
+        assert_eq!(scheduler_agent_algorithm.optimized_work_orders.inner.get(&2200002020).unwrap().locked_in_period, Some(period.clone()));
 
 
     }

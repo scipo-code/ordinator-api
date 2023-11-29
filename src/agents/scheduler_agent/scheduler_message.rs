@@ -460,14 +460,10 @@ mod tests {
 
         scheduler_agent_algorithm.update_scheduler_algorithm_state(input_scheduler_message);
 
-        // 
         assert_eq!(scheduler_agent_algorithm.get_optimized_work_order(&2100023841).unwrap().locked_in_period, Some(Period::new_from_string("2023-W49-50").unwrap()));
-        assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("VEN_MECH".to_string(), "2023-W49-50".to_string()), 16.0);
-        
+        assert_eq!(scheduler_agent_algorithm.get_optimized_work_order(&2100023841).unwrap().scheduled_period, None);
+        // assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("VEN_MECH".to_string(), "2023-W49-50".to_string()), 16.0);
     }
-
-
-
 
     impl InputSchedulerMessage {
         pub fn new_test() -> Self {

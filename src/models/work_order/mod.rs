@@ -191,9 +191,76 @@ impl WorkOrder {
         let mut work_load: HashMap<String, f64> = HashMap::new();
 
         for (_, operation) in self.operations.iter() {
-            work_load.insert(operation.work_center.clone(), operation.work_remaining);
+            *work_load.entry(operation.work_center.clone()).or_insert(0.0) += operation.work_remaining;
         }
 
         self.work_load = work_load;
     }
+
+}
+
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use super::{WorkOrder, operation::Operation, priority::Priority, order_type::{WorkOrderType, WDFPriority}, order_dates::OrderDates, revision::Revision, unloading_point::UnloadingPoint, functional_location::FunctionalLocation, order_text::OrderText, status_codes::StatusCodes};
+
+
+
+    #[test]
+    fn test_initialize_work_load() {
+
+
+        let mut work_order = WorkOrder::new_test();
+
+        work_order.initialize_work_load();
+
+        assert_eq!(*work_order.work_load.get(&"PRODTECH".to_string()).unwrap(), 50.0);
+        assert_eq!(*work_order.work_load.get(&"MTN_MECH".to_string()).unwrap(), 50.0);
+
+
+    }
+
+    impl WorkOrder {
+        pub fn new_test() -> Self {
+       
+
+            let mut operations = HashMap::new();
+
+            let operation_0010 = Operation::new_test(10, "PRODTECH".to_string(), 10.0);
+            let operation_0020 = Operation::new_test(20, "MTN_MECH".to_string(), 20.0);
+            let operation_0030 = Operation::new_test(30, "MTN_MECH".to_string(), 30.0);
+            let operation_0040 = Operation::new_test(40, "PRODTECH".to_string(), 40.0);
+
+            operations.insert(10, operation_0010);
+            operations.insert(20, operation_0020);
+            operations.insert(30, operation_0030);
+            operations.insert(40, operation_0040);
+
+            let work_order = WorkOrder::new(
+                2100023841,
+                false,
+                1000,
+                Priority::new_int(1),
+                100.0,
+                operations,
+                HashMap::new(),
+                vec![],
+                vec![],
+                vec![],
+                WorkOrderType::WDF(WDFPriority::new(1)),
+                crate::models::work_order::system_condition::SystemCondition::Unknown,
+                StatusCodes::new_default(),
+                OrderDates::new_default(),
+                Revision::new_default(),
+                UnloadingPoint::new_default(),
+                FunctionalLocation::new_default(),
+                OrderText::new_default(),
+                false,
+            );
+            work_order
+        }
+    }
+
 }

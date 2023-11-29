@@ -36,7 +36,6 @@ impl Period {
         if parts.len() != 3 {
             return Err("Invalid period string format");
         }
-        dbg!(parts.clone());
         // Parse year and weeks
         let year = parts[0].parse::<i32>().map_err(|_| "Invalid year")?;
         let start_week = parts[1][1..2].parse::<u32>().map_err(|_| "Invalid start week")?;
@@ -92,7 +91,6 @@ mod tests {
 
     use super::*;
     use chrono::Utc;
-
 
     impl Period {
         pub fn new_test() -> Self {

@@ -25,7 +25,6 @@ impl SchedulerAgent {
     pub fn set_ws_agent_addr(&mut self, ws_agent_addr: Addr<WebSocketAgent>) {
         self.ws_agent_addr = Some(ws_agent_addr);
     }
-
     // TODO: Here the other Agents Addr messages will also be handled.
 }
 
@@ -190,8 +189,6 @@ fn transform_hashmap_to_nested_hashmap(hash_map: HashMap<(String, String), f64>)
     nested_hash_map
 }
 
-
-
 #[cfg(test)]
 mod tests {
 
@@ -199,6 +196,4 @@ mod tests {
     fn test_scheduler_agent_initialization() {
         
     }
-
-
 }
