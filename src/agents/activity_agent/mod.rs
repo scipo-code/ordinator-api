@@ -1,7 +1,7 @@
 use actix::prelude::*;
 use chrono::{DateTime, Utc};
 
-use crate::models::period::Period;
+use crate::models::time_environment::period::Period;
 
 #[allow(dead_code)]
 pub struct ActivityAgent {
@@ -12,7 +12,6 @@ pub struct ActivityAgent {
     period: Period,
     assigned: Vec<u32>,
 }
-
 
 impl Actor for ActivityAgent {
     type Context = Context<Self>;

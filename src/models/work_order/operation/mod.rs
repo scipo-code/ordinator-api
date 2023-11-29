@@ -19,3 +19,38 @@ pub struct Operation {
     pub earliest_start_datetime: DateTime<Utc>,
     pub earliest_finish_datetime: DateTime<Utc>,
 }
+
+
+
+
+#[cfg(test)]
+mod tests {
+    use chrono::Utc;
+
+    use super::Operation;
+
+
+    impl Operation {
+        pub fn new_test(activity: u32, work_center: String, work_remaining: f64) -> Self {
+
+            Operation {
+                activity,
+                number: 1,
+                work_center: work_center,  
+                preparation_time: 1.0,
+                work_remaining: work_remaining,
+                work_performed: 0.0,
+                work_adjusted: 0.0,
+                operating_time: 6.0,
+                duration: 6,
+                possible_start: Utc::now(),
+                target_finish: Utc::now(),
+                earliest_start_datetime: Utc::now(),
+                earliest_finish_datetime: Utc::now(),
+            }
+            
+        }
+        
+    }
+
+}

@@ -1,14 +1,15 @@
 use calamine::{open_workbook, Xlsx, Reader, DataType, Error};
 use regex::Regex;
-use tracing::event;
+use tracing::{event, warn};
 use core::fmt;
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::models::period::Period;
+use crate::models::time_environment::period::Period;
+use crate::models::work_order::system_condition::SystemCondition;
 
 use chrono::{DateTime, Utc, NaiveDate, Duration, TimeZone, naive, NaiveTime, Datelike, Weekday, Timelike};
-use crate::models::scheduling_environment::{SchedulingEnvironment, WorkOrders};
+use crate::models::{SchedulingEnvironment, WorkOrders};
 use crate::models::work_order::WorkOrder;
 use crate::models::work_order::revision::Revision;
 use crate::models::work_order::unloading_point::UnloadingPoint;
@@ -130,16 +131,16 @@ fn create_new_work_order(row: &[DataType], header_to_index: &HashMap<String, usi
     let work_order_type_data = get_data_from_headers(&row, &header_to_index, &work_order_type_possible_headers);
 
     let priority = match row.get(*header_to_index.get("Priority").ok_or("Priority header not found")?).cloned() {
-        Some(DataType::Int(n)) => Priority::IntValue(n as i32),
+        Some(DataType::Int(n)) => Priority::IntValue(n as u32),
         Some(DataType::String(s)) => {
 
-            match s.parse::<i32>() {
+            match s.parse::<u32>() {
                 Ok(num) => Priority::IntValue(num), // If successful, use the integer value
                 Err(_) => Priority::StringValue(s), // If not, fall back to using the string
             }
 
         }
-        Some(DataType::Float(n)) => Priority::IntValue(n as i32),
+        Some(DataType::Float(n)) => Priority::IntValue(n as u32),
         _ => Priority::StringValue(String::new())
     };
 
@@ -210,6 +211,7 @@ fn create_new_work_order(row: &[DataType], header_to_index: &HashMap<String, usi
             _ => return Err(Error::Msg("Could not parse revision as string"))
 
         }.expect("Could not parse order type"),
+        system_condition: SystemCondition::new(),
         status_codes: extract_status_codes(row, &header_to_index).expect("Failed to extract StatusCodes"), 
         order_dates: extract_order_dates(row, &header_to_index).expect("Failed to extract OrderDates"), 
         revision: extract_revision(row, &header_to_index).expect("Failed to extract Revision"), 
@@ -687,11 +689,15 @@ fn extract_order_text(row: &[DataType], header_to_index: &HashMap<String, usize>
         _ => return Err(Error::Msg("Could not parse notes_1 as string")),
     };
     
+
     let notes_2 = match notes_2_data {
         Some(DataType::String(s)) => s.parse::<u32>().unwrap_or(8) ,
         Some(DataType::Int(n)) => *n as u32,
         None => 5,
-        _ => return Err(Error::Msg("Could not parse notes_2 as an integer")),
+        _ => {
+            warn!("Could not parse notes_2 as an integer {}", line!() );
+            return Err(Error::Msg("Could not parse notes_2 as an integer {}"))
+        },
     };
         
     let object_description = match description_2_data.cloned() {

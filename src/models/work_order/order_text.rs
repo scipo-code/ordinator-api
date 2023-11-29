@@ -12,3 +12,19 @@ pub struct OrderText {
     pub notes_1: String,
     pub notes_2: u32,
 }
+
+impl OrderText {
+    #[cfg(test)]
+    pub fn new_default() -> Self {
+        OrderText {
+            order_system_status: String::from(""),
+            order_user_status: String::from(""),
+            order_description: String::from(""),
+            operation_description: String::from(""),
+            object_description: String::from(""),
+            notes_1: String::from(""),
+            notes_2: 0,
+        }
+    }
+
+}

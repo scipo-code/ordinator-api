@@ -1,4 +1,4 @@
-use chrono::{DateTime, TimeZone, Utc, Datelike};
+use chrono::{DateTime, TimeZone, Utc, Datelike, NaiveDate};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 
@@ -29,34 +29,44 @@ impl Period {
             if end_date.iso_week().week() == 1 { 52 } else { end_date.iso_week().week() });
         Period { id: id, period_string: period_string, start_date: start_date, end_date: end_date}
     }
+
     pub fn new_from_string(period_string: &str) -> Result<Period, &'static str> {
         // Parse the string
         let parts: Vec<&str> = period_string.split("-").collect();
         if parts.len() != 3 {
             return Err("Invalid period string format");
         }
-        dbg!(parts.clone());
         // Parse year and weeks
         let year = parts[0].parse::<i32>().map_err(|_| "Invalid year")?;
         let start_week = parts[1][1..2].parse::<u32>().map_err(|_| "Invalid start week")?;
         let end_week = parts[2].parse::<u32>().map_err(|_| "Invalid end week")?;
 
         // Convert week number to a DateTime<Utc>
-        let start_date = Utc.isoywd(year, start_week, chrono::Weekday::Mon).and_hms(0, 0, 0);
+
+        let local = NaiveDate::from_isoywd_opt(year, start_week , chrono::Weekday::Mon).unwrap();
+        let local_datetime = local.and_hms_opt(0, 0, 0).unwrap();
+        let start_date = Utc.from_local_datetime(&local_datetime);
+
         let end_date = if end_week == 52 {
-            Utc.isoywd(year, end_week, chrono::Weekday::Sun).and_hms(23, 59, 59)
+            let local = NaiveDate::from_isoywd_opt(year, end_week , chrono::Weekday::Mon).unwrap();
+            let local_datetime = local.and_hms_opt(23, 59, 59).unwrap();
+            Utc.from_local_datetime(&local_datetime)
         } else {
-            Utc.isoywd(year, end_week + 1, chrono::Weekday::Mon).and_hms(0, 0, 0) - chrono::Duration::seconds(1)
+            let local = NaiveDate::from_isoywd_opt(year, end_week + 1, chrono::Weekday::Mon).unwrap();
+            let local_datetime = local.and_hms_opt(0, 0, 0).unwrap();
+            Utc.from_local_datetime(&(local_datetime - chrono::Duration::seconds(1)))
         };
 
         // Create Period
         Ok(Period {
             id: 0, // Assuming default value for id, modify as needed
             period_string: period_string.to_string(),
-            start_date: start_date,
-            end_date: end_date,
+            start_date: start_date.unwrap(),
+            end_date: end_date.unwrap(),
         })
     }
+
+    
 }
 
 impl Period {
@@ -64,16 +74,8 @@ impl Period {
         self.period_string.clone()
     }
 
-    pub fn get_start_date(&self) -> DateTime<Utc> {
-        self.start_date
-    }
-
     pub fn get_end_date(&self) -> DateTime<Utc> {
         self.end_date
-    }
-
-    pub fn get_id(&self) -> u32 {
-        self.id
     }
 }
 
@@ -84,3 +86,20 @@ impl Display for Period {
 }
 
  
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use chrono::Utc;
+
+    impl Period {
+        pub fn new_test() -> Self {
+            Period::new(
+                0, 
+                Utc.with_ymd_and_hms(2021, 1, 1, 0, 0, 0).unwrap(), 
+                Utc.with_ymd_and_hms(2021, 1, 14, 23, 59, 59).unwrap() 
+            )
+        }
+    }
+
+}
