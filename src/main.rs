@@ -4,16 +4,30 @@ mod data_processing;
 mod api;
 mod init;
 
+#[macro_use]
+extern crate lazy_static;
+use lazy_static::lazy_static;
 use tracing::instrument;
-use crate::init::logging::setup_logging;
 use tracing::{event, Level};
+use jlrs::prelude::*;
 
+use crate::init::logging::setup_logging;
 use crate::init::application_builder::ApplicationBuilder;
 
 #[instrument]
 #[actix_web::main]
 async fn main() -> () {
     let _guard = setup_logging();
+
+    let julia = unsafe {
+        RuntimeBuilder::new()
+            .async_runtime::<Tokio>()
+            .start_async::<3>()
+            .unwrap()
+    };
+    lazy_static! {
+        pub static ref JULIA: Mutex<Julia> = Mutex::new(unsafe { Julia::init().unwrap() });
+    }
 
     event!(Level::INFO, "starting application");
     let scheduling_environment = init::model_initializers::create_scheduling_environment(10);

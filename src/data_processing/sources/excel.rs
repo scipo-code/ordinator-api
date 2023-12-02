@@ -5,7 +5,7 @@ use core::fmt;
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::models::time_environment::period::Period;
+use crate::models::time_environment::period::{Period};
 use crate::models::work_order::system_condition::SystemCondition;
 
 use chrono::{DateTime, Utc, NaiveDate, Duration, TimeZone, naive, NaiveTime, Datelike, Weekday, Timelike};
@@ -517,8 +517,10 @@ fn extract_order_dates(row: &[DataType], header_to_index: &HashMap<String, usize
     let basic_finish_date_additional = basic_finish_date.unwrap_or(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()).and_hms_opt(7, 0, 0).unwrap();
 
     Ok(OrderDates {
-        earliest_allowed_start_date: DateTime::<Utc>::from_naive_utc_and_offset(earliest_allowed_start_date.and_hms_opt(7, 0, 0).unwrap(), Utc),
-        latest_allowed_finish_date: DateTime::<Utc>::from_naive_utc_and_offset(latest_allowed_finish_date.and_hms_opt(7, 0, 0).unwrap(), Utc),
+        earliest_allowed_start_date: DateTime::<Utc>::from_naive_utc_and_offset(earliest_allowed_start_date.clone().and_hms_opt(7, 0, 0).unwrap(), Utc),
+        latest_allowed_finish_date: DateTime::<Utc>::from_naive_utc_and_offset(latest_allowed_finish_date.clone().and_hms_opt(7, 0, 0).unwrap(), Utc),
+        earliest_allowed_start_period: get_odd_week_period(DateTime::<Utc>::from_naive_utc_and_offset(earliest_allowed_start_date.and_hms_opt(7, 0, 0).unwrap(), Utc)),
+        latest_allowed_finish_period: get_odd_week_period(DateTime::<Utc>::from_naive_utc_and_offset(latest_allowed_finish_date.and_hms_opt(7, 0, 0).unwrap(), Utc)),
         basic_start_date: DateTime::<Utc>::from_naive_utc_and_offset(basic_start_date_additional.clone(), Utc),
         basic_finish_date: DateTime::<Utc>::from_naive_utc_and_offset(basic_finish_date_additional.clone(), Utc),
         duration: basic_finish_date_additional.signed_duration_since(basic_start_date_additional.into()),
@@ -771,33 +773,6 @@ fn get_data_from_headers<'a>(
 }
 
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_date() {
-        let date = parse_date("2021-01-01");
-        assert_eq!(date, NaiveDate::from_ymd_opt(2021, 1, 1).unwrap());
-    }
-    // fn parse_date(s: &str) -> NaiveDate {
-    //     let formats = ["%Y%m%d", "%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y"];
-    
-    //     for format in &formats {
-    //         match NaiveDate::parse_from_str(s, format) {
-    //             Ok(naive_date) => return naive_date,
-    //             Err(_) => continue,
-    //         }
-    //     }
-    
-    //     println!("Could not parse date from string: {}", s);
-    //     NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()
-    // }
-
-
-}
-
-
 fn create_periods(number_of_periods: u32) -> Result<Vec<Period>, Error> {
     let mut periods: Vec<Period> = Vec::<Period>::new();
     let mut start_date = Utc::now();
@@ -858,4 +833,68 @@ fn excel_time_to_hh_mm_ss(serial_time: f64) -> NaiveTime {
     let seconds: u32  = total_seconds % 60;
 
     NaiveTime::from_hms_opt(hours, minutes, seconds).expect("Could not convert excel time to NaiveTime")
+}
+
+
+fn get_odd_week_period(date: DateTime<Utc>) -> Period {
+    let iso_week = date.iso_week();
+    let year = iso_week.year();
+    let week = iso_week.week();
+
+    // Determine the start and end weeks for the period
+    let start_week = if week % 2 == 0 { week - 1 } else { week };
+    let mut end_week = start_week + 1;
+    
+    if end_week > 52 {end_week = 1;}
+
+    let period_string: String;
+    if start_week < 10 && end_week < 10 {
+        period_string = format!("{}-W0{}-0{}", year, start_week, end_week);
+    } else if start_week < 10 && end_week >= 10 {
+        period_string = format!("{}-W0{}-{}", year, start_week, end_week);
+    } else if start_week >= 10 && end_week < 10 {
+        period_string = format!("{}-W{}-0{}", year, start_week, end_week);
+    } else {
+        period_string = format!("{}-W{}-{}", year, start_week, end_week);
+    }
+
+    Period::new_from_string(period_string.as_str()).expect("Could not create period from string")
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::{Utc, TimeZone};
+    use super::*;
+
+    #[test]
+    fn test_get_odd_week_period() {
+        let period_string = get_odd_week_period(Utc.with_ymd_and_hms(2021, 1, 1, 0, 0, 0).unwrap());
+        let period = Period::new_from_string("2020-W53-01").expect("Could not create period from string");        
+        assert_eq!(period_string, period);
+        
+        let period_string = get_odd_week_period(Utc.with_ymd_and_hms(2021, 1, 4, 0, 0, 0).unwrap());
+        let period = Period::new_from_string("2021-W01-02").expect("Could not create period from string");
+        assert_eq!(period_string, period);
+    }
+
+
+    #[test]
+    fn test_parse_date() {
+        let date = parse_date("2021-01-01");
+        assert_eq!(date, NaiveDate::from_ymd_opt(2021, 1, 1).unwrap());
+    }
+
+    #[test]
+    fn test_load_data_file() {
+
+        let file_path = Path::new("test_data/export.XLSX");
+        let number_of_periods = 26;
+        
+        let scheduling_environment = load_data_file(file_path, number_of_periods);
+        
+        assert_eq!(scheduling_environment.unwrap().period.len(), number_of_periods as usize);
+        
+        let scheduling_environment = load_data_file(file_path, number_of_periods);
+        assert_eq!(scheduling_environment.unwrap().work_orders.inner.len(), 1227);	
+    }
 }

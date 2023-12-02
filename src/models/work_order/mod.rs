@@ -55,6 +55,7 @@ pub struct WorkOrder {
     pub vendor: bool,
 }
 
+
 impl WorkOrder {
     #[cfg(test)]
     pub fn new(
@@ -252,7 +253,7 @@ mod tests {
                 WorkOrderType::WDF(WDFPriority::new(1)),
                 crate::models::work_order::system_condition::SystemCondition::Unknown,
                 StatusCodes::new_default(),
-                OrderDates::new_default(),
+                OrderDates::new_test(),
                 Revision::new_default(),
                 UnloadingPoint::new_default(),
                 FunctionalLocation::new_default(),

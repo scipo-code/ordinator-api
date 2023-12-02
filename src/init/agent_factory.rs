@@ -32,9 +32,16 @@ pub fn build_scheduler_agent(scheduling_environment: SchedulingEnvironment) -> A
     let scheduler_agent = SchedulerAgent::new(
         String::from("Dan F"),
         scheduler_agent_algorithm,  
+        None,
         None
     );
     scheduler_agent.start()
+}
+
+/// Later on the the SchedulingEnvironment should be converted to Mutex<SchedulingEnvironment> as it
+/// will be used by multiple agents. 
+pub fn build_work_planner_agent(scheduling_environment: SchedulingEnvironment) {
+    
 }
 
 

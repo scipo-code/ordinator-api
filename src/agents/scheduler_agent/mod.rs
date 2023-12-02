@@ -12,13 +12,15 @@ use crate::api::websocket_agent::WebSocketAgent;
 use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
 use crate::models::work_order::status_codes::MaterialStatus;
 
+use crate::agents::work_planner_agent::WorkPlannerAgent;
+
 
 #[derive(Debug)]
 pub struct SchedulerAgent {
     platform: String,
-    
     scheduler_agent_algorithm: SchedulerAgentAlgorithm,
     ws_agent_addr: Option<Addr<WebSocketAgent>>,
+    work_planner_agent_addr: Option<Addr<WorkPlannerAgent>>,
 }
 
 impl SchedulerAgent {
@@ -46,13 +48,15 @@ impl SchedulerAgent {
     pub fn new(
         platform: String, 
         scheduler_agent_algorithm: SchedulerAgentAlgorithm,
-        ws_agent_addr: Option<Addr<WebSocketAgent>>) 
-            -> Self {
+        ws_agent_addr: Option<Addr<WebSocketAgent>>,
+        work_planner_agent_addr: Option<Addr<WorkPlannerAgent>>
+    ) -> Self {
   
         Self {
             platform,
             scheduler_agent_algorithm,
             ws_agent_addr,
+            work_planner_agent_addr
         }
     }
 }

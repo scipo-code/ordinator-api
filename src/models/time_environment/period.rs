@@ -15,13 +15,7 @@ pub struct Period {
 
 impl Period {
     pub fn new(id: u32, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Period {
-        // dbg!(start_date);
-        // dbg!(start_date.iso_week());
-        // dbg!(start_date.iso_week().week());
 
-        // dbg!(end_date);
-        // dbg!(end_date.iso_week());
-        // dbg!(end_date.iso_week().week());
 
         let period_string = format!("{}-W{}-{}",
             start_date.year(),
@@ -36,10 +30,12 @@ impl Period {
         if parts.len() != 3 {
             return Err("Invalid period string format");
         }
+
         // Parse year and weeks
         let year = parts[0].parse::<i32>().map_err(|_| "Invalid year")?;
-        let start_week = parts[1][1..2].parse::<u32>().map_err(|_| "Invalid start week")?;
-        let end_week = parts[2].parse::<u32>().map_err(|_| "Invalid end week")?;
+
+        let start_week = parts[1][1..3].parse::<u32>().map_err(|_| "Invalid start week")?;
+        let mut end_week = parts[2].parse::<u32>().map_err(|_| "Invalid end week")?;
 
         // Convert week number to a DateTime<Utc>
 
@@ -52,6 +48,7 @@ impl Period {
             let local_datetime = local.and_hms_opt(23, 59, 59).unwrap();
             Utc.from_local_datetime(&local_datetime)
         } else {
+            if end_week > 52 { end_week = 1}
             let local = NaiveDate::from_isoywd_opt(year, end_week + 1, chrono::Weekday::Mon).unwrap();
             let local_datetime = local.and_hms_opt(0, 0, 0).unwrap();
             Utc.from_local_datetime(&(local_datetime - chrono::Duration::seconds(1)))
@@ -70,6 +67,7 @@ impl Period {
 }
 
 impl Period {
+    #[cfg(test)]    
     pub fn get_string(&self) -> String {
         self.period_string.clone()
     }
@@ -91,6 +89,26 @@ mod tests {
 
     use super::*;
     use chrono::Utc;
+
+
+    #[test]
+    fn test_new_from_string() {
+        let period = Period::new_from_string("2021-W01-02");
+
+        assert_eq!(period.unwrap().period_string, "2021-W01-02".to_string());
+
+
+    }
+
+    #[test]
+    fn test_parse() {
+        match "01".parse::<u32>() {
+            Ok(n) => assert_eq!(n, 1),
+            Err(_) => assert!(false)
+        }
+    }
+
+
 
     impl Period {
         pub fn new_test() -> Self {

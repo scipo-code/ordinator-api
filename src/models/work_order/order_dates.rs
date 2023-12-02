@@ -1,12 +1,16 @@
 use chrono::{DateTime, Utc, Duration};
 use serde::{Deserialize, Serialize};
 
+use crate::models::time_environment::period::Period;
+
 #[derive(Serialize, Deserialize)]
 #[derive(Clone)]
 #[derive(Debug)]
 pub struct OrderDates {
     pub earliest_allowed_start_date: DateTime<Utc>,
     pub latest_allowed_finish_date: DateTime<Utc>,
+    pub earliest_allowed_start_period: Period,
+    pub latest_allowed_finish_period: Period,
     pub basic_start_date: DateTime<Utc>,
     pub basic_finish_date: DateTime<Utc>,
     #[serde(serialize_with = "serialize_duration", deserialize_with = "deserialize_duration")]
@@ -18,10 +22,13 @@ pub struct OrderDates {
 
 impl OrderDates {
     #[cfg(test)]
-    pub fn new_default() -> Self {
+    pub fn new_test() -> Self {
+
         Self {
             earliest_allowed_start_date: Utc::now(),
             latest_allowed_finish_date: Utc::now(),
+            earliest_allowed_start_period: Period::new_test(),
+            latest_allowed_finish_period: Period::new_test(),
             basic_start_date: Utc::now(),
             basic_finish_date: Utc::now(),
             duration: Duration::seconds(0),

@@ -22,7 +22,6 @@ impl SchedulerAgentAlgorithm {
 
                 let current_queue = match queue_type {
                     QueueType::Normal => &mut self.priority_queues.normal,
-                    QueueType::UnloadingAndManual => &mut self.priority_queues.unloading,
                 };
                 
                 let mut work_orders_to_schedule = Vec::new();
@@ -46,7 +45,6 @@ impl SchedulerAgentAlgorithm {
                             Some(work_order) => {
                                 let current_queue = match queue_type {
                                     QueueType::Normal => &mut self.priority_queues.normal,
-                                    QueueType::UnloadingAndManual => &mut self.priority_queues.unloading,
                                 };
                                 current_queue.push(inf_wo_key, work_order.order_weight);
                             }
@@ -153,6 +151,37 @@ impl SchedulerAgentAlgorithm {
             }
         }
     }
+
+
+    pub fn calculate_objective(&mut self) {        
+        let mut objective = 0;
+        for (work_order_key, optimized_work_order) in &self.optimized_work_orders.inner {
+            let period_difference = calculate_period_difference(
+                optimized_work_order.scheduled_period.as_ref().unwrap().clone(), 
+                self.backlog.inner.get(&work_order_key).unwrap().order_dates.latest_allowed_finish_period.clone()
+            );
+
+            dbg!(period_difference.clone());
+            let objective_contribution = if period_difference > 0 {
+                period_difference * self.backlog.inner.get(&work_order_key).unwrap().order_weight as i64
+            } else {
+                0
+            };
+            objective += objective_contribution;
+        }
+        self.objective_value = objective as f64;
+    }
+}
+
+fn calculate_period_difference(period_1: Period, period_2: Period) -> i64 {
+    let period_1_date = period_1.get_end_date();
+    let period_2_date = period_2.get_end_date();
+
+    let duration = period_1_date.signed_duration_since(period_2_date);
+
+    let days = duration.num_days();
+
+    days/7
 }
 
 // This becomes more simple right? if the key exists you simply change the period. Or else you 
@@ -208,6 +237,7 @@ impl SchedulerAgentAlgorithm {
 }
 
 impl SchedulerAgentAlgorithm {
+    #[cfg(test)]
     pub fn set_optimized_work_order(&mut self, work_order_key: u32, optimized_work_order: OptimizedWorkOrder) {
         self.optimized_work_orders.inner.insert(work_order_key, optimized_work_order);
     }
@@ -216,8 +246,6 @@ impl SchedulerAgentAlgorithm {
 
 /// Test scheduler scheduling logic
 /// Make your own trait that you can use
-/// 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -250,7 +278,7 @@ mod tests {
             WorkOrderType::WDF(WDFPriority::new(1)),
             SystemCondition::new(),
             StatusCodes::new_default(),
-            OrderDates::new_default(),
+            OrderDates::new_test(),
             Revision::new_default(),
             UnloadingPoint::new_default(),
             FunctionalLocation::new_default(),
@@ -305,7 +333,7 @@ mod tests {
             WorkOrderType::WDF(WDFPriority::new(1)),
             SystemCondition::new(),
             StatusCodes::new_default(),
-            OrderDates::new_default(),
+            OrderDates::new_test(),
             Revision::new_default(),
             UnloadingPoint::new_default(),
             FunctionalLocation::new_default(),
@@ -355,7 +383,7 @@ mod tests {
             WorkOrderType::WDF(WDFPriority::new(1)),
             SystemCondition::new(),
             StatusCodes::new_default(),
-            OrderDates::new_default(),
+            OrderDates::new_test(),
             Revision::new_default(),
             UnloadingPoint::new_default(),
             FunctionalLocation::new_default(),
@@ -436,7 +464,7 @@ mod tests {
             WorkOrderType::WDF(WDFPriority::new(1)),
             SystemCondition::new(),
             StatusCodes::new_default(),
-            OrderDates::new_default(),
+            OrderDates::new_test(),
             Revision::new_default(),
             UnloadingPoint::new_default(),
             FunctionalLocation::new_default(),
@@ -518,5 +546,17 @@ mod tests {
         assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("MTN_MECH".to_string(), period_new.period_string.clone()), 0.0);
         assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("MTN_ELEC".to_string(), period_new.period_string.clone()), 0.0);
         assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("PRODTECH".to_string(), period_new.period_string.clone()), 0.0);
+    }
+
+    #[test]
+    fn test_calculate_period_difference() {
+        
+        let period_1 = Period::new_from_string("2023-W47-48");
+        let period_2 = Period::new_from_string("2023-W49-50");
+        
+        let difference = calculate_period_difference(period_1.unwrap(), period_2.unwrap());
+
+        assert_eq!(difference, -2);
+        
     }
 }

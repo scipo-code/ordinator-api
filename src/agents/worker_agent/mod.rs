@@ -1,5 +1,9 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use actix::prelude::*;
+
+use crate::models::work_order::operation::Operation;
 
 #[allow(dead_code)]
 pub struct WorkerAgent {
@@ -8,6 +12,7 @@ pub struct WorkerAgent {
     capacity: f32,
     availability: Vec<Availability>,
     assigned: Vec<AssignedWork>,
+    backup_activities: HashMap<u32, Operation>,
 }
 
 #[allow(dead_code)]
