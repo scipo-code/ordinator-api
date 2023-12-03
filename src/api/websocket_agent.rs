@@ -162,9 +162,9 @@ mod tests {
                 periods,
                 true,
             ),
-            None,
-            None
-        ).start();
+            None,       
+            None        
+        ).start();       
 
         let _ws_agent = WebSocketAgent::new(Arc::new(scheduler_agent_addr.clone()));
         

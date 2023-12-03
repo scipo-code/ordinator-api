@@ -506,7 +506,7 @@ mod tests {
         assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("MTN_MECH".to_string(), period.period_string.clone()), 20.0);
         assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("MTN_ELEC".to_string(), period.period_string.clone()), 40.0);
         assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("PRODTECH".to_string(), period.period_string.clone()), 60.0);
-
+        
         scheduler_agent_algorithm.unschedule_work_order(2200002020);
         assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("MTN_MECH".to_string(), period.period_string.clone()), 0.0);
         assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("MTN_ELEC".to_string(), period.period_string.clone()), 0.0);
