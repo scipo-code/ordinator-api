@@ -162,6 +162,7 @@ mod tests {
                 periods,
                 true,
             ),
+            None,
             None
         ).start();
 
