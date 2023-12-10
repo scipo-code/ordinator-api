@@ -24,5 +24,7 @@ jobs:
       run: cargo install cargo-audit
     - name: Audit 
       run: cargo audit
+    - name: Tarpaulin Install
+      run: cargo install cargo-tarpaulin
     - name: tarpaulin coverage
       run: cargo tarpaulin --out Xml
