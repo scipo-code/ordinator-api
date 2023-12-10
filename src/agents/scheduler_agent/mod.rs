@@ -127,7 +127,6 @@ impl SchedulerAgent {
                     },
                     scheduled_start: work_order.order_dates.basic_start_date.to_string(),
                     unloading_point: work_order.unloading_point.clone().string,
-
                     material_date: match work_order.status_codes.material_status {
                         MaterialStatus::Smat => "SMAT".to_string(),
                         MaterialStatus::Nmat => "NMAT".to_string(),
@@ -136,7 +135,6 @@ impl SchedulerAgent {
                         MaterialStatus::Pmat => "PMAT".to_string(),
                         MaterialStatus::Unknown => "Implement control tower".to_string(),
                     },
-
                     work_order_number: *work_order_number,
                     activity: operation_number.clone().to_string(),
                     work_center: operation.work_center.clone(),
@@ -152,6 +150,14 @@ impl SchedulerAgent {
                     revision: work_order.revision.clone().string,
                     earliest_start_datetime: operation.earliest_start_datetime.to_string(),
                     earliest_finish_datetime: operation.earliest_finish_datetime.to_string(),
+                    earliest_allowed_starting_date: work_order
+                        .order_dates
+                        .earliest_allowed_start_date
+                        .to_string(),
+                    latest_allowed_finish_date: work_order
+                        .order_dates
+                        .latest_allowed_finish_date
+                        .to_string(),
                     earliest_allowed_starting_date: work_order
                         .order_dates
                         .earliest_allowed_start_date

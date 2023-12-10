@@ -1,8 +1,11 @@
 use calamine::{open_workbook, DataType, Error, Reader, Xlsx};
+use calamine::{open_workbook, DataType, Error, Reader, Xlsx};
 use core::fmt;
+use regex::Regex;
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
+use tracing::{event, warn};
 use tracing::{event, warn};
 
 use crate::models::time_environment::period::Period;
@@ -12,13 +15,23 @@ use crate::models::work_order::functional_location::FunctionalLocation;
 use crate::models::work_order::order_dates::OrderDates;
 use crate::models::work_order::order_text::OrderText;
 use crate::models::work_order::order_type::WorkOrderType;
+use crate::models::work_order::order_text::OrderText;
+use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::work_order::order_type::{WDFPriority, WGNPriority, WPMPriority};
 use crate::models::work_order::priority::Priority;
 use crate::models::work_order::revision::Revision;
 use crate::models::work_order::status_codes::{MaterialStatus, StatusCodes};
 use crate::models::work_order::unloading_point::UnloadingPoint;
 use crate::models::work_order::WorkOrder;
+use crate::models::work_order::revision::Revision;
+use crate::models::work_order::status_codes::{MaterialStatus, StatusCodes};
+use crate::models::work_order::unloading_point::UnloadingPoint;
+use crate::models::work_order::WorkOrder;
 use crate::models::worker_environment::WorkerEnvironment;
+use crate::models::{SchedulingEnvironment, WorkOrders};
+use chrono::{
+    naive, DateTime, Datelike, Duration, NaiveDate, NaiveTime, TimeZone, Timelike, Utc, Weekday,
+};
 use crate::models::{SchedulingEnvironment, WorkOrders};
 use chrono::{
     naive, DateTime, Datelike, Duration, NaiveDate, NaiveTime, TimeZone, Timelike, Utc, Weekday,
@@ -45,9 +58,18 @@ pub fn load_data_file(
     file_path: &Path,
     number_of_periods: u32,
 ) -> Result<SchedulingEnvironment, calamine::Error> {
+///
+pub fn load_data_file(
+    file_path: &Path,
+    number_of_periods: u32,
+) -> Result<SchedulingEnvironment, calamine::Error> {
     let mut workbook: Xlsx<_> = open_workbook(file_path)?;
     println!("Successfully loaded file.");
 
+    let sheet: &calamine::Range<DataType> = &workbook
+        .worksheet_range_at(0)
+        .ok_or(calamine::Error::Msg("Cannot find work order sheet"))?
+        .expect("Could not load work order sheet.");
     let sheet: &calamine::Range<DataType> = &workbook
         .worksheet_range_at(0)
         .ok_or(calamine::Error::Msg("Cannot find work order sheet"))?
@@ -66,6 +88,8 @@ pub fn load_data_file(
         )
     });
 
+    let scheduling_environment =
+        SchedulingEnvironment::new(work_orders, worker_environment, periods);
     let scheduling_environment =
         SchedulingEnvironment::new(work_orders, worker_environment, periods);
 
@@ -89,7 +113,26 @@ fn populate_work_orders<'a>(
             }
         })
         .collect();
+fn populate_work_orders<'a>(
+    work_orders: &'a mut WorkOrders,
+    sheet: &'a calamine::Range<DataType>,
+) -> Result<&'a mut WorkOrders, calamine::Error> {
+    let headers: Vec<String> = sheet
+        .rows()
+        .next()
+        .ok_or(calamine::Error::Msg("Sheet is empty"))?
+        .iter()
+        .filter_map(|cell| {
+            if let DataType::String(s) = cell {
+                Some(s.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
 
+    let header_to_index: HashMap<String, usize> = headers
+        .iter()
     let header_to_index: HashMap<String, usize> = headers
         .iter()
         .enumerate()
@@ -102,7 +145,12 @@ fn populate_work_orders<'a>(
             if index < row.len() {
                 let value = &row[index];
 
+
                 match value {
+                    DataType::String(s) => match s.parse::<u32>() {
+                        Ok(n) => work_order_number = n,
+                        Err(e) => {
+                            println!("Could not parse work order number as string: {}", e)
                     DataType::String(s) => match s.parse::<u32>() {
                         Ok(n) => work_order_number = n,
                         Err(e) => {
@@ -111,6 +159,10 @@ fn populate_work_orders<'a>(
                     },
                     DataType::Int(s) => work_order_number = *s as u32,
                     DataType::Float(s) => work_order_number = *s as u32,
+
+                    _ => {
+                        todo!("Handle other cases of DataType");
+                    }
 
                     _ => {
                         todo!("Handle other cases of DataType");
@@ -128,7 +180,20 @@ fn populate_work_orders<'a>(
 
         let operation: Operation =
             create_new_operation(row, &header_to_index).expect("Could not create a new operation");
+            work_orders.insert(
+                create_new_work_order(row, &header_to_index)
+                    .expect("Could not insert new work order"),
+            );
+        }
 
+        let operation: Operation =
+            create_new_operation(row, &header_to_index).expect("Could not create a new operation");
+
+        work_orders
+            .inner
+            .get_mut(&work_order_number)
+            .expect("Work order not yet created")
+            .insert_operation(operation);
         work_orders
             .inner
             .get_mut(&work_order_number)
@@ -143,12 +208,21 @@ fn populate_work_orders<'a>(
 /// instance that can then be used to populate the work_orders HashMap.
 ///
 /// The operations field is a little more complex as we could have multiple different rows that
+///
+/// The operations field is a little more complex as we could have multiple different rows that
 /// write to the same work order. This means that we need to check if the work order already exists
+///
 ///
 /// The problem is to find the right approach that makes the function work for both work
 ///
 /// Maybe we should just initialize the operations as empty here and then simply always run the
+///
+/// Maybe we should just initialize the operations as empty here and then simply always run the
 /// operation reading on each row! Yes that is the approach that I want to take.
+fn create_new_work_order(
+    row: &[DataType],
+    header_to_index: &HashMap<String, usize>,
+) -> Result<WorkOrder, Error> {
 fn create_new_work_order(
     row: &[DataType],
     header_to_index: &HashMap<String, usize>,
@@ -166,6 +240,14 @@ fn create_new_work_order(
         )
         .cloned()
     {
+    let priority = match row
+        .get(
+            *header_to_index
+                .get("Priority")
+                .ok_or("Priority header not found")?,
+        )
+        .cloned()
+    {
         Some(DataType::Int(n)) => Priority::IntValue(n as u32),
         Some(DataType::String(s)) => {
             match s.parse::<u32>() {
@@ -174,6 +256,7 @@ fn create_new_work_order(
             }
         }
         Some(DataType::Float(n)) => Priority::IntValue(n as u32),
+        _ => Priority::StringValue(String::new()),
         _ => Priority::StringValue(String::new()),
     };
 
@@ -186,9 +269,18 @@ fn create_new_work_order(
             )
             .cloned()
         {
+        order_number: match row
+            .get(
+                *header_to_index
+                    .get("Order")
+                    .ok_or("Order header not found")?,
+            )
+            .cloned()
+        {
             Some(DataType::Int(n)) => n as u32,
             Some(DataType::Float(n)) => n as u32,
             Some(DataType::String(s)) => s.parse::<u32>().unwrap_or(0),
+            _ => 0,
             _ => 0,
         },
         // optimized_work_order: OptimizedWorkOrder::empty(),
@@ -198,6 +290,7 @@ fn create_new_work_order(
         order_work: 0.0,
         operations: HashMap::<u32, Operation>::new(),
         work_load: HashMap::<String, f64>::new(),
+        start_start: Vec::<bool>::new(),
         start_start: Vec::<bool>::new(),
         finish_start: Vec::<bool>::new(),
         postpone: Vec::<DateTime<Utc>>::new(),
@@ -242,6 +335,10 @@ fn create_new_work_order(
             _ => return Err(Error::Msg("Could not parse revision as string")),
         }
         .expect("Could not parse order type"),
+            None => Ok(WorkOrderType::Other),
+            _ => return Err(Error::Msg("Could not parse revision as string")),
+        }
+        .expect("Could not parse order type"),
         system_condition: SystemCondition::new(),
         status_codes: extract_status_codes(row, header_to_index)
             .expect("Failed to extract StatusCodes"),
@@ -257,6 +354,10 @@ fn create_new_work_order(
     })
 }
 
+fn create_new_operation(
+    row: &[DataType],
+    header_to_index: &HashMap<String, usize>,
+) -> Result<Operation, Error> {
 fn create_new_operation(
     row: &[DataType],
     header_to_index: &HashMap<String, usize>,
@@ -277,7 +378,24 @@ fn create_new_operation(
         "Latest_Finish_Time",
         "Earliest finish time",
     ];
+    let earliest_finish_date_headers = [
+        "Earliest_Finish_Date",
+        "Earliest_End_Date",
+        "Earliest finish date",
+        "Earliest end date",
+    ];
+    let earliest_finish_time_headers = [
+        "Earliest_Finish_Time",
+        "Latest_Finish_Time",
+        "Earliest finish time",
+    ];
     let work_center_headers = ["Work_Center", "Work Center", "Work center"];
+    let actual_work_headers = [
+        "Work_Actual",
+        "Work Actual",
+        "Actual work",
+        "Work Actual (Hrs)",
+    ];
     let actual_work_headers = [
         "Work_Actual",
         "Work Actual",
@@ -306,11 +424,28 @@ fn create_new_operation(
             )
             .cloned()
         {
+        activity: match row
+            .get(
+                *header_to_index
+                    .get("Activity")
+                    .ok_or("Activity header not found")?,
+            )
+            .cloned()
+        {
             Some(DataType::Int(n)) => n as u32,
             Some(DataType::Float(n)) => n as u32,
             Some(DataType::String(s)) => s.parse::<u32>().unwrap_or(0),
             _ => 0,
+            _ => 0,
         },
+        number: match row
+            .get(
+                *header_to_index
+                    .get("Number")
+                    .ok_or("Number header not found")?,
+            )
+            .cloned()
+        {
         number: match row
             .get(
                 *header_to_index

@@ -43,6 +43,10 @@ impl SchedulerAgentAlgorithm {
     pub fn get_objective_value(&self) -> f64 {
         self.objective_value
     }
+
+    pub fn get_objective_value(&self) -> f64 {
+        self.objective_value
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -85,6 +89,15 @@ impl Hash for OptimizedWorkOrder {
 impl OptimizedWorkOrders {
     pub fn new(inner: HashMap<u32, OptimizedWorkOrder>) -> Self {
         Self { inner }
+    }
+
+    #[cfg(test)]
+    pub fn insert_optimized_work_order(
+        &mut self,
+        work_order_number: u32,
+        optimized_work_order: OptimizedWorkOrder,
+    ) {
+        self.inner.insert(work_order_number, optimized_work_order);
     }
 
     #[cfg(test)]
@@ -518,6 +531,7 @@ mod tests {
             WorkOrderType::Wdf(WDFPriority::new(1)),
             SystemCondition::new(),
             StatusCodes::new_default(),
+            OrderDates::new_test(),
             OrderDates::new_test(),
             Revision::new_default(),
             UnloadingPoint::new_default(),

@@ -1,10 +1,10 @@
 use actix::prelude::*;
-use actix::Message;
+use chrono::{TimeZone, Utc};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display};
 use tokio::time::{sleep, Duration};
-use tracing::{event, info, span, Level};
+use tracing::{event, span, Level};
 
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
 use crate::agents::scheduler_agent::transform_hashmap_to_nested_hashmap;
@@ -98,8 +98,6 @@ pub struct WorkOrderStatusInPeriod {
 impl WorkOrderStatusInPeriod {
     #[cfg(test)]
     pub fn new_test() -> Self {
-        use chrono::{TimeZone, Utc};
-
         let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 7, 0, 0).unwrap();
         let end_date = start_date + chrono::Duration::days(13);
         let period = Period::new(1, start_date, end_date);
@@ -195,26 +193,10 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
 
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         // event!(tracing::Level::INFO , "schedule_iteration_message");
-        dbg!("test");
-        let previous_objective = self.scheduler_agent_algorithm.get_objective_value();
-        dbg!("test");
-        self.scheduler_agent_algorithm.schedule_forced_work_orders();
-        dbg!("test");
 
         self.scheduler_agent_algorithm
             .schedule_normal_work_orders(QueueType::Normal);
-        dbg!("test");
-
-        self.scheduler_agent_algorithm.calculate_objective();
-        dbg!("test");
-
-        let current_objective_value = self.scheduler_agent_algorithm.get_objective_value();
-
-        if current_objective_value < previous_objective {
-            info!(target: "SchedulerAgent", "The objective value has improved from {} to {}", previous_objective, current_objective_value);
-            info!(scheduler_agent_objective = current_objective_value);
-        }
-
+        self.scheduler_agent_algorithm.schedule_forced_work_orders();
         // self.scheduler_agent_algorithm.schedule_work_orders_by_type(QueueType::UnloadingAndManual);
 
         let actor_addr = ctx.address().clone();
@@ -262,7 +244,7 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
         event!(
             tracing::Level::TRACE,
             "scheduler_frontend_message: {:?}",
-            scheduler_frontend_message.scheduling_overview_data.len()
+            scheduler_frontend_message
         );
         let nested_loadings = transform_hashmap_to_nested_hashmap(
             self.scheduler_agent_algorithm
@@ -383,6 +365,24 @@ mod tests {
     use crate::{
         agents::scheduler_agent::scheduler_algorithm::{
             OptimizedWorkOrder, OptimizedWorkOrders, PriorityQueues, SchedulerAgentAlgorithm,
+        },
+        models::{
+            work_order::{
+                functional_location::FunctionalLocation,
+                order_dates::OrderDates,
+                order_text::OrderText,
+                order_type::{WDFPriority, WorkOrderType},
+                priority::Priority,
+                revision::Revision,
+                status_codes::StatusCodes,
+                unloading_point::UnloadingPoint,
+            },
+            WorkOrders,
+        },
+    };
+    use crate::{
+        agents::scheduler_agent::scheduler_algorithm::{
+            OptimizedWorkOrders, PriorityQueues, SchedulerAgentAlgorithm,
         },
         models::{
             work_order::{
@@ -580,6 +580,62 @@ mod tests {
             vec![],
             vec![],
             WorkOrderType::Wdf(WDFPriority::new(1)),
+            crate::models::work_order::system_condition::SystemCondition::Unknown,
+            StatusCodes::new_default(),
+            OrderDates::new_test(),
+            Revision::new_default(),
+            UnloadingPoint::new_default(),
+            FunctionalLocation::new_default(),
+            OrderText::new_default(),
+            false,
+        );
+
+        work_order.order_dates.latest_allowed_finish_period =
+            Period::new_from_string("2023-W47-48").unwrap();
+
+        let mut work_orders = WorkOrders::new();
+
+        work_orders.inner.insert(2100023841, work_order);
+
+        let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
+
+        let optimized_work_order = OptimizedWorkOrder::new(
+            Some(Period::new_from_string("2023-W49-50").unwrap()),
+            Some(Period::new_from_string("2023-W49-50").unwrap()),
+            HashSet::new(),
+        );
+
+        optimized_work_orders.insert_optimized_work_order(2100023841, optimized_work_order);
+
+        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+            0.0,
+            HashMap::new(),
+            HashMap::new(),
+            work_orders,
+            PriorityQueues::new(),
+            optimized_work_orders,
+            vec![],
+            true,
+        );
+
+        scheduler_agent_algorithm.calculate_objective();
+        assert_eq!(scheduler_agent_algorithm.get_objective_value(), 2000.0);
+    }
+
+    #[test]
+    fn test_calculate_objective_value() {
+        let mut work_order = WorkOrder::new(
+            2100023841,
+            false,
+            1000,
+            Priority::new_int(1),
+            100.0,
+            HashMap::new(),
+            HashMap::new(),
+            vec![],
+            vec![],
+            vec![],
+            WorkOrderType::WDF(WDFPriority::new(1)),
             crate::models::work_order::system_condition::SystemCondition::Unknown,
             StatusCodes::new_default(),
             OrderDates::new_test(),
