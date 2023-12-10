@@ -39,8 +39,11 @@ impl SchedulerAgentAlgorithm {
     pub fn set_changed(&mut self, changed: bool) {
         self.changed = changed;
     }
-}
 
+    pub fn get_objective_value(&self) -> f64 {
+        self.objective_value
+    }
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct OptimizedWorkOrders {
@@ -87,6 +90,11 @@ impl OptimizedWorkOrders {
         }
     }
 
+    #[cfg(test)]
+    pub fn insert_optimized_work_order(&mut self, work_order_number: u32, optimized_work_order: OptimizedWorkOrder) {
+        self.inner.insert(work_order_number, optimized_work_order);
+    }
+
     pub fn set_scheduled_period(&mut self, work_order_number: u32, period: Period) {
         let optimized_work_order = match self.inner.get_mut(&work_order_number) {
             Some(optimized_work_order) => optimized_work_order,
@@ -106,7 +114,7 @@ impl OptimizedWorkOrders {
         }
     }
 
-    pub fn set_locked_in_period(&mut self, work_order_number: u32, period: Period) {
+    #[cfg(test)] pub fn set_locked_in_period(&mut self, work_order_number: u32, period: Period) {
         let optimized_work_order = match self.inner.get_mut(&work_order_number) {
             Some(optimized_work_order) => optimized_work_order,
             None => panic!("Work order number {} not found in optimized work orders", work_order_number)
@@ -379,7 +387,6 @@ impl SchedulerAgentAlgorithm {
         &self.optimized_work_orders.inner
     }
 
-
     pub fn get_manual_resources_loadings(&self) -> &HashMap<(String, String), f64> {
         &self.manual_resources_loading
     }
@@ -402,9 +409,7 @@ impl SchedulerAgentAlgorithm {
 #[derive(Debug, PartialEq)]
 pub enum QueueType {
     Normal,
-    UnloadingAndManual,
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -415,7 +420,6 @@ mod tests {
 
     use crate::{agents::scheduler_agent::scheduler_algorithm::{SchedulerAgentAlgorithm, PriorityQueues, OptimizedWorkOrders}, models::{WorkOrders, work_order::{WorkOrder, priority::Priority, order_type::{WorkOrderType, WDFPriority}, status_codes::StatusCodes, order_dates::OrderDates, revision::Revision, unloading_point::UnloadingPoint, functional_location::FunctionalLocation, order_text::OrderText, system_condition::SystemCondition}}};
     
-
     #[test]
     fn test_update_scheduler_algorithm_state() {
 
@@ -435,7 +439,7 @@ mod tests {
             WorkOrderType::WDF(WDFPriority::new(1)),
             SystemCondition::new(),
             StatusCodes::new_default(),
-            OrderDates::new_default(),
+            OrderDates::new_test(),
             Revision::new_default(),
             UnloadingPoint::new_default(),
             FunctionalLocation::new_default(),
@@ -476,7 +480,5 @@ mod tests {
         assert_eq!(scheduler_agent_algorithm.manual_resources_capacity.get(&("MTN_MECH".to_string(), period.period_string.clone())), Some(&300.0));
         assert_eq!(scheduler_agent_algorithm.optimized_work_orders.inner.get(&2200002020).unwrap().scheduled_period, None);
         assert_eq!(scheduler_agent_algorithm.optimized_work_orders.inner.get(&2200002020).unwrap().locked_in_period, Some(period.clone()));
-
-
     }
 }
