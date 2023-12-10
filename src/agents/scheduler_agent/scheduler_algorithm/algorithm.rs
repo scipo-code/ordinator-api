@@ -15,18 +15,14 @@ use super::SchedulerAgentAlgorithm;
 /// Okay, so the problem is that we never get through to the actual scheduling part for the
 /// normal queue.
 impl SchedulerAgentAlgorithm {
-    pub fn schedule_normal_work_orders(&mut self, queue_type: QueueType) -> () {
+    pub fn schedule_normal_work_orders(&mut self, queue_type: QueueType) {
         let periods = self.periods.clone();
         for period in periods {
             let work_orders_to_schedule: Vec<_> = {
-                dbg!(period.clone());
-                let current_queue = match queue_type {
-                    QueueType::Normal => &mut self.priority_queues.normal,
-                };
                 let mut work_orders_to_schedule = Vec::new();
 
-                while !current_queue.is_empty() {
-                    let (work_order_key, _weight) = match current_queue.pop() {
+                while !self.priority_queues.normal.is_empty() {
+                    let (work_order_key, _weight) = match self.priority_queues.normal.pop() {
                         Some(work_order) => work_order,
                         None => panic!(
                             "The scheduler priority queue is empty and this should not happen."
@@ -40,20 +36,13 @@ impl SchedulerAgentAlgorithm {
             for work_order_key in work_orders_to_schedule {
                 let inf_wo_key =
                     self.schedule_normal_work_order(work_order_key, &period, &queue_type);
-                match inf_wo_key {
-                    Some(inf_wo_key) => {
-                        let work_order = self.backlog.inner.get(&inf_wo_key);
-                        match work_order {
-                            Some(work_order) => {
-                                let current_queue = match queue_type {
-                                    QueueType::Normal => &mut self.priority_queues.normal,
-                                };
-                                current_queue.push(inf_wo_key, work_order.order_weight);
-                            }
-                            None => (),
-                        }
+                if let Some(wo_key) = inf_wo_key {
+                    let work_order = self.backlog.inner.get(&wo_key);
+                    if let Some(work_order) = work_order {
+                        self.priority_queues
+                            .normal
+                            .push(wo_key, work_order.order_weight);
                     }
-                    None => (),
                 }
             }
         }
@@ -243,13 +232,15 @@ fn calculate_period_difference(period_1: Period, period_2: Period) -> i64 {
 /// forced into the schedule. There is no reason to loop over every period to fix the problem.
 impl SchedulerAgentAlgorithm {
     fn is_scheduled(&self, work_order_key: u32) -> Option<u32> {
-        match self.optimized_work_orders.inner.get(&work_order_key) {
-            Some(optimized_work_order) => match optimized_work_order.scheduled_period {
-                Some(_) => Some(work_order_key),
-                None => None,
-            },
-            None => None,
-        }
+        self.optimized_work_orders
+            .inner
+            .get(&work_order_key)
+            .and_then(|optimized_work_order| {
+                optimized_work_order
+                    .scheduled_period
+                    .as_ref()
+                    .map(|_| work_order_key)
+            })
     }
 
     fn unschedule_work_order(&mut self, work_order_key: u32) {
@@ -267,14 +258,12 @@ impl SchedulerAgentAlgorithm {
         for (work_center_period, loading) in self.manual_resources_loading.iter_mut() {
             if work_center_period.1 == period.period_string {
                 let work_load_for_work_center = work_order.work_load.get(&work_center_period.0);
-                match work_load_for_work_center {
-                    Some(work_load_for_work_center) => {
-                        *loading -= work_load_for_work_center;
-                    }
-                    None => (),
+                if let Some(work_load_for_work_center) = work_load_for_work_center {
+                    *loading -= work_load_for_work_center;
                 }
             }
         }
+
         self.optimized_work_orders
             .inner
             .get_mut(&work_order_key)
@@ -282,7 +271,7 @@ impl SchedulerAgentAlgorithm {
             .update_scheduled_period(None);
     }
 
-    fn update_loadings(&mut self, period: &Period, work_order: &WorkOrder) -> () {
+    fn update_loadings(&mut self, period: &Period, work_order: &WorkOrder) {
         for (work_center_period, loading) in self.manual_resources_loading.iter_mut() {
             if work_center_period.1 == *period.period_string {
                 *loading += work_order
@@ -357,7 +346,7 @@ mod tests {
             vec![],
             vec![],
             vec![],
-            WorkOrderType::WDF(WDFPriority::new(1)),
+            WorkOrderType::Wdf(WDFPriority::new(1)),
             SystemCondition::new(),
             StatusCodes::new_default(),
             OrderDates::new_test(),
@@ -422,7 +411,7 @@ mod tests {
             vec![],
             vec![],
             vec![],
-            WorkOrderType::WDF(WDFPriority::new(1)),
+            WorkOrderType::Wdf(WDFPriority::new(1)),
             SystemCondition::new(),
             StatusCodes::new_default(),
             OrderDates::new_test(),
@@ -481,7 +470,7 @@ mod tests {
             vec![],
             vec![],
             vec![],
-            WorkOrderType::WDF(WDFPriority::new(1)),
+            WorkOrderType::Wdf(WDFPriority::new(1)),
             SystemCondition::new(),
             StatusCodes::new_default(),
             OrderDates::new_test(),
@@ -590,7 +579,7 @@ mod tests {
             vec![],
             vec![],
             vec![],
-            WorkOrderType::WDF(WDFPriority::new(1)),
+            WorkOrderType::Wdf(WDFPriority::new(1)),
             SystemCondition::new(),
             StatusCodes::new_default(),
             OrderDates::new_test(),

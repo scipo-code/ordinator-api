@@ -58,11 +58,13 @@ pub fn load_data_file(
 
     populate_work_orders(&mut work_orders, sheet).expect("could not populate the work orders");
 
-    let periods: Vec<Period> = create_periods(number_of_periods).expect(&format!(
-        "Could not create periods in {} at line {}",
-        file!(),
-        line!()
-    ));
+    let periods: Vec<Period> = create_periods(number_of_periods).unwrap_or_else(|_| {
+        panic!(
+            "Could not create periods in {} at line {}",
+            file!(),
+            line!()
+        )
+    });
 
     let scheduling_environment =
         SchedulingEnvironment::new(work_orders, worker_environment, periods);
@@ -154,7 +156,7 @@ fn create_new_work_order(
     let work_order_type_possible_headers = ["Work Order", "Work_Order"];
 
     let work_order_type_data =
-        get_data_from_headers(&row, &header_to_index, &work_order_type_possible_headers);
+        get_data_from_headers(row, header_to_index, &work_order_type_possible_headers);
 
     let priority = match row
         .get(
@@ -205,10 +207,10 @@ fn create_new_work_order(
                     Priority::IntValue(value) => {
                         dbg!(value);
                         match value {
-                            1 => Ok(WorkOrderType::WDF(WDFPriority::One)),
-                            2 => Ok(WorkOrderType::WDF(WDFPriority::Two)),
-                            3 => Ok(WorkOrderType::WDF(WDFPriority::Three)),
-                            4 => Ok(WorkOrderType::WDF(WDFPriority::Four)),
+                            1 => Ok(WorkOrderType::Wdf(WDFPriority::One)),
+                            2 => Ok(WorkOrderType::Wdf(WDFPriority::Two)),
+                            3 => Ok(WorkOrderType::Wdf(WDFPriority::Three)),
+                            4 => Ok(WorkOrderType::Wdf(WDFPriority::Four)),
                             _ => Ok(WorkOrderType::Other),
                         }
                     }
@@ -216,20 +218,20 @@ fn create_new_work_order(
                 },
                 "WGN" => match &priority {
                     Priority::IntValue(value) => match value {
-                        1 => Ok(WorkOrderType::WGN(WGNPriority::One)),
-                        2 => Ok(WorkOrderType::WGN(WGNPriority::Two)),
-                        3 => Ok(WorkOrderType::WGN(WGNPriority::Three)),
-                        4 => Ok(WorkOrderType::WGN(WGNPriority::Four)),
+                        1 => Ok(WorkOrderType::Wgn(WGNPriority::One)),
+                        2 => Ok(WorkOrderType::Wgn(WGNPriority::Two)),
+                        3 => Ok(WorkOrderType::Wgn(WGNPriority::Three)),
+                        4 => Ok(WorkOrderType::Wgn(WGNPriority::Four)),
                         _ => Ok(WorkOrderType::Other),
                     },
                     _ => Err(ExcelLoadError("Could not parse WGN priority as int".into())),
                 },
                 "WPM" => match &priority {
                     Priority::StringValue(value) => match value.as_str() {
-                        "A" => Ok(WorkOrderType::WPM(WPMPriority::A)),
-                        "B" => Ok(WorkOrderType::WPM(WPMPriority::B)),
-                        "C" => Ok(WorkOrderType::WPM(WPMPriority::C)),
-                        "D" => Ok(WorkOrderType::WPM(WPMPriority::D)),
+                        "A" => Ok(WorkOrderType::Wpm(WPMPriority::A)),
+                        "B" => Ok(WorkOrderType::Wpm(WPMPriority::B)),
+                        "C" => Ok(WorkOrderType::Wpm(WPMPriority::C)),
+                        "D" => Ok(WorkOrderType::Wpm(WPMPriority::D)),
                         _ => Ok(WorkOrderType::Other),
                     },
                     _ => Err(ExcelLoadError("Could not parse WPM priority as int".into())),
@@ -241,16 +243,16 @@ fn create_new_work_order(
         }
         .expect("Could not parse order type"),
         system_condition: SystemCondition::new(),
-        status_codes: extract_status_codes(row, &header_to_index)
+        status_codes: extract_status_codes(row, header_to_index)
             .expect("Failed to extract StatusCodes"),
-        order_dates: extract_order_dates(row, &header_to_index)
+        order_dates: extract_order_dates(row, header_to_index)
             .expect("Failed to extract OrderDates"),
-        revision: extract_revision(row, &header_to_index).expect("Failed to extract Revision"),
-        unloading_point: extract_unloading_point(row, &header_to_index)
+        revision: extract_revision(row, header_to_index).expect("Failed to extract Revision"),
+        unloading_point: extract_unloading_point(row, header_to_index)
             .expect("Failed to extract UnloadingPoint"),
-        functional_location: extract_functional_location(row, &header_to_index)
+        functional_location: extract_functional_location(row, header_to_index)
             .expect("Failed to extract FunctionalLocation"),
-        order_text: extract_order_text(row, &header_to_index).expect("Failed to extract OrderText"),
+        order_text: extract_order_text(row, header_to_index).expect("Failed to extract OrderText"),
         vendor: false,
     })
 }
@@ -284,16 +286,16 @@ fn create_new_operation(
     ];
 
     let earliest_start_date_data =
-        get_data_from_headers(&row, &header_to_index, &earliest_start_date_headers);
+        get_data_from_headers(row, header_to_index, &earliest_start_date_headers);
     let earliest_start_time_data =
-        get_data_from_headers(&row, &header_to_index, &earliest_start_time_headers);
+        get_data_from_headers(row, header_to_index, &earliest_start_time_headers);
     let earliest_finish_date_data =
-        get_data_from_headers(&row, &header_to_index, &earliest_finish_date_headers);
+        get_data_from_headers(row, header_to_index, &earliest_finish_date_headers);
     let earliest_finish_time_data =
-        get_data_from_headers(&row, &header_to_index, &earliest_finish_time_headers);
-    let work_center_data = get_data_from_headers(&row, &header_to_index, &work_center_headers);
-    let work_remaining_data = get_data_from_headers(&row, &header_to_index, &work_possible_headers);
-    let actual_work_data = get_data_from_headers(&row, &header_to_index, &actual_work_headers);
+        get_data_from_headers(row, header_to_index, &earliest_finish_time_headers);
+    let work_center_data = get_data_from_headers(row, header_to_index, &work_center_headers);
+    let work_remaining_data = get_data_from_headers(row, header_to_index, &work_possible_headers);
+    let actual_work_data = get_data_from_headers(row, header_to_index, &actual_work_headers);
 
     Ok(Operation {
         activity: match row
@@ -329,13 +331,13 @@ fn create_new_operation(
         preparation_time: 0.0,
         work_remaining: match work_remaining_data.cloned() {
             Some(DataType::Int(n)) => n as f64,
-            Some(DataType::Float(n)) => n as f64,
+            Some(DataType::Float(n)) => n,
             Some(DataType::String(s)) => s.parse::<f64>().unwrap_or(0.0),
             _ => 100000.0,
         },
         work_performed: match actual_work_data.cloned() {
             Some(DataType::Int(n)) => n as f64,
-            Some(DataType::Float(n)) => n as f64,
+            Some(DataType::Float(n)) => n,
             Some(DataType::String(s)) => s.parse::<f64>().unwrap_or(0.0),
             _ => 0.0,
         },
@@ -379,11 +381,7 @@ fn create_new_operation(
                         NaiveTime::from_hms_opt(7, 0, 0).unwrap()
                     }
                 },
-                Some(DataType::DateTime(s)) => {
-                    let time = excel_time_to_hh_mm_ss(s);
-                    time
-                }
-
+                Some(DataType::DateTime(s)) => excel_time_to_hh_mm_ss(s),
                 _ => {
                     event!(
                         tracing::Level::WARN,
@@ -427,10 +425,7 @@ fn create_new_operation(
                         NaiveTime::from_hms_opt(7, 0, 0).unwrap()
                     }
                 },
-                Some(DataType::DateTime(s)) => {
-                    let time = excel_time_to_hh_mm_ss(s);
-                    time
-                }
+                Some(DataType::DateTime(s)) => excel_time_to_hh_mm_ss(s),
                 _ => return Err(Error::Msg("Could not parse earliest_finish_time_data")),
             };
             Utc.from_utc_datetime(&naive::NaiveDateTime::new(date, time))
@@ -448,10 +443,10 @@ fn extract_status_codes(
     let op_status_possible_headers = ["Opr_User_Status", "Op User Status"];
 
     let system_status_data =
-        get_data_from_headers(&row, &header_to_index, &system_status_possible_headers);
+        get_data_from_headers(row, header_to_index, &system_status_possible_headers);
     let user_status_data =
-        get_data_from_headers(&row, &header_to_index, &user_status_possible_headers);
-    let op_status_data = get_data_from_headers(&row, &header_to_index, &op_status_possible_headers);
+        get_data_from_headers(row, header_to_index, &user_status_possible_headers);
+    let op_status_data = get_data_from_headers(row, header_to_index, &op_status_possible_headers);
 
     let system_status = match system_status_data.cloned() {
         Some(DataType::String(s)) => s,
@@ -520,19 +515,19 @@ fn extract_order_dates(
     // let earliest_start_time_possible_headers = ["Earliest_Start_Time", "Earliest start time"];
 
     let earliest_allowed_start_date_data = get_data_from_headers(
-        &row,
-        &header_to_index,
+        row,
+        header_to_index,
         &earliest_allowed_start_date_possible_headers,
     );
     let latest_allowed_finish_date_data = get_data_from_headers(
-        &row,
-        &header_to_index,
+        row,
+        header_to_index,
         &latest_allowed_finish_date_possible_headers,
     );
     let basic_start_data =
-        get_data_from_headers(&row, &header_to_index, &basic_start_possible_headers);
+        get_data_from_headers(row, header_to_index, &basic_start_possible_headers);
     let basic_finish_data =
-        get_data_from_headers(&row, &header_to_index, &basic_finish_possible_headers);
+        get_data_from_headers(row, header_to_index, &basic_finish_possible_headers);
 
     let earliest_allowed_start_date = match earliest_allowed_start_date_data.cloned() {
         Some(DataType::DateTimeIso(s)) => {
@@ -636,15 +631,14 @@ fn extract_order_dates(
             ),
         ),
         basic_start_date: DateTime::<Utc>::from_naive_utc_and_offset(
-            basic_start_date_additional.clone(),
+            basic_start_date_additional,
             Utc,
         ),
         basic_finish_date: DateTime::<Utc>::from_naive_utc_and_offset(
-            basic_finish_date_additional.clone(),
+            basic_finish_date_additional,
             Utc,
         ),
-        duration: basic_finish_date_additional
-            .signed_duration_since(basic_start_date_additional.into()),
+        duration: basic_finish_date_additional.signed_duration_since(basic_start_date_additional),
         basic_start_scheduled: None,
         basic_finish_scheduled: None,
         material_expected_date: None,
@@ -682,7 +676,7 @@ fn extract_unloading_point(
     let unloading_point_possible_headers = ["Unloading_Point", "Unloading Point"];
 
     let unloading_point_data =
-        get_data_from_headers(&row, &header_to_index, &unloading_point_possible_headers);
+        get_data_from_headers(row, header_to_index, &unloading_point_possible_headers);
 
     let string = match unloading_point_data.cloned() {
         Some(DataType::String(s)) => s,
@@ -701,13 +695,13 @@ fn extract_unloading_point(
 
     if present {
         Ok(UnloadingPoint {
-            string: string,
+            string,
             present,
             period: Some(Period::new(0, start_date, end_date)),
         })
     } else {
         Ok(UnloadingPoint {
-            string: string,
+            string,
             present,
             period: None,
         })
@@ -775,24 +769,19 @@ fn extract_functional_location(
 ) -> Result<FunctionalLocation, Error> {
     let functional_location_possible_headers = ["functional_location", "Functional Location"];
 
-    let functional_location_data = get_data_from_headers(
-        &row,
-        &header_to_index,
-        &functional_location_possible_headers,
-    );
+    let functional_location_data =
+        get_data_from_headers(row, header_to_index, &functional_location_possible_headers);
 
     let string = functional_location_data.cloned();
 
     match string {
         Some(s) => match s {
-            DataType::String(s) => return Ok(FunctionalLocation { string: s }),
-            _ => return Err(Error::Msg("Could not parse functional location as string")),
+            DataType::String(s) => Ok(FunctionalLocation { string: s }),
+            _ => Err(Error::Msg("Could not parse functional location as string")),
         },
-        None => {
-            return Ok(FunctionalLocation {
-                string: "None".to_string(),
-            })
-        }
+        None => Ok(FunctionalLocation {
+            string: "None".to_string(),
+        }),
     }
 }
 
@@ -823,21 +812,21 @@ fn extract_order_text(
     let system_status_possible_headers = ["System_Status", "System Status", "Order System Status"];
     let user_status_possible_headers = ["User_Status", "User Status", "Order User Status"];
 
-    let notes_1_data = get_data_from_headers(&row, &header_to_index, &notes_1_possible_headers);
-    let notes_2_data = get_data_from_headers(&row, &header_to_index, &notes_2_possible_headers);
+    let notes_1_data = get_data_from_headers(row, header_to_index, &notes_1_possible_headers);
+    let notes_2_data = get_data_from_headers(row, header_to_index, &notes_2_possible_headers);
     let description_1_data =
-        get_data_from_headers(&row, &header_to_index, &description_1_possible_headers);
+        get_data_from_headers(row, header_to_index, &description_1_possible_headers);
     let description_2_data =
-        get_data_from_headers(&row, &header_to_index, &description_2_possible_headers);
+        get_data_from_headers(row, header_to_index, &description_2_possible_headers);
     let operation_description_data = get_data_from_headers(
-        &row,
-        &header_to_index,
+        row,
+        header_to_index,
         &operation_description_possible_headers,
     );
     let system_status_data =
-        get_data_from_headers(&row, &header_to_index, &system_status_possible_headers);
+        get_data_from_headers(row, header_to_index, &system_status_possible_headers);
     let user_status_data =
-        get_data_from_headers(&row, &header_to_index, &user_status_possible_headers);
+        get_data_from_headers(row, header_to_index, &user_status_possible_headers);
 
     let notes_1 = match notes_1_data.cloned() {
         Some(DataType::String(s)) => s.to_string(),
@@ -947,7 +936,7 @@ fn create_periods(number_of_periods: u32) -> Result<Vec<Period>, Error> {
 
     // dbg!(start_date);
 
-    start_date = start_date - Duration::days(days_to_offset);
+    start_date -= Duration::days(days_to_offset);
 
     start_date = start_date
         .with_hour(0)
@@ -961,7 +950,7 @@ fn create_periods(number_of_periods: u32) -> Result<Vec<Period>, Error> {
     let mut end_date = start_date + Duration::weeks(2);
     // dbg!(end_date);
 
-    end_date = end_date - Duration::days(1);
+    end_date -= Duration::days(1);
 
     end_date = end_date
         .with_hour(23)

@@ -14,6 +14,7 @@ use crate::models::work_order::status_codes::MaterialStatus;
 
 use crate::agents::work_planner_agent::WorkPlannerAgent;
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct SchedulerAgent {
     platform: String,
@@ -136,7 +137,7 @@ impl SchedulerAgent {
                         MaterialStatus::Unknown => "Implement control tower".to_string(),
                     },
 
-                    work_order_number: work_order_number.clone(),
+                    work_order_number: *work_order_number,
                     activity: operation_number.clone().to_string(),
                     work_center: operation.work_center.clone(),
                     work_remaining: operation.work_remaining.to_string(),
@@ -160,9 +161,9 @@ impl SchedulerAgent {
                         .latest_allowed_finish_date
                         .to_string(),
                     order_type: match work_order.order_type.clone() {
-                        WorkOrderType::WDF(_wdf_priority) => "WDF".to_string(),
-                        WorkOrderType::WGN(_wgn_priority) => "WGN".to_string(),
-                        WorkOrderType::WPM(_wpm_priority) => "WPM".to_string(),
+                        WorkOrderType::Wdf(_wdf_priority) => "WDF".to_string(),
+                        WorkOrderType::Wgn(_wgn_priority) => "WGN".to_string(),
+                        WorkOrderType::Wpm(_wpm_priority) => "WPM".to_string(),
                         WorkOrderType::Other => "Missing Work Order Type".to_string(),
                     },
                     priority: match work_order.priority.clone() {
@@ -191,7 +192,7 @@ fn transform_hashmap_to_nested_hashmap(
     for ((work_center, period), value) in hash_map {
         nested_hash_map
             .entry(work_center)
-            .or_insert_with(HashMap::new)
+            .or_default()
             .insert(period, value);
     }
     nested_hash_map

@@ -36,9 +36,9 @@ mod tests {
             Operation {
                 activity,
                 number: 1,
-                work_center: work_center,  
+                work_center,  
                 preparation_time: 1.0,
-                work_remaining: work_remaining,
+                work_remaining,
                 work_performed: 0.0,
                 work_adjusted: 0.0,
                 operating_time: 6.0,
