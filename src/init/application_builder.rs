@@ -25,21 +25,16 @@ impl ApplicationBuilder {
     
     pub async fn build(self) -> Result<(), std::io::Error>{
         info!("Server running at http://127.0.0.1:8001/");
-        dbg!("with_scheduler_agent");
         HttpServer::new(move || {
-            dbg!("with_scheduler_agent");
-            dbg!();
             let current_thread_id = thread::current().id();
             event!(Level::INFO, ?current_thread_id, "initializing application");
             let mut app = App::new();
             
-            dbg!();
             if let Some(scheduler_agent_addr) = &self.scheduler_agent_addr {
                 app = app.app_data(Data::new(Arc::new(scheduler_agent_addr.clone())))
             }
             
             event!(Level::INFO, "about to register routes");
-            dbg!();
             app.service(ws_index)
         })
         .bind(("0.0.0.0", 8001))?

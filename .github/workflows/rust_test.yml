@@ -19,3 +19,15 @@ jobs:
         override: true
     - name: Run tests
       run: cargo test --verbose
+    - name: Run clippy
+      run: cargo clippy --verbose
+    - name: Install cargo-audit
+      run: cargo install cargo-audit
+    - name: Audit 
+      run: cargo audit
+    - name: Install cargo-deny
+      run: cargo install cargo-deny
+    - name: Deny
+      run: cargo deny check
+    - name: tarpaulin coverage
+      run: cargo tarpaulin --out Xml

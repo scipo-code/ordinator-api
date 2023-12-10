@@ -40,9 +40,9 @@ pub fn build_scheduler_agent(scheduling_environment: SchedulingEnvironment) -> A
 
 /// Later on the the SchedulingEnvironment should be converted to Mutex<SchedulingEnvironment> as it
 /// will be used by multiple agents. 
-pub fn build_work_planner_agent(scheduling_environment: SchedulingEnvironment) {
+// pub fn build_work_planner_agent(_scheduling_environment: SchedulingEnvironment) {
     
-}
+// }
 
 
 fn create_optimized_work_orders(work_orders: &WorkOrders) -> OptimizedWorkOrders {

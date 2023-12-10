@@ -1,5 +1,6 @@
 use actix::prelude::*;
 use serde::{Serialize, Deserialize, Deserializer, de::Error};
+use core::panic;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display};
 use actix::Message;
@@ -198,12 +199,17 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
 
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         // event!(tracing::Level::INFO , "schedule_iteration_message");
+        dbg!("test");
         let previous_objective = self.scheduler_agent_algorithm.get_objective_value();
+        dbg!("test");
         self.scheduler_agent_algorithm.schedule_forced_work_orders();
+        dbg!("test");
         
         self.scheduler_agent_algorithm.schedule_normal_work_orders(QueueType::Normal);
-
+        dbg!("test");
+        
         self.scheduler_agent_algorithm.calculate_objective();
+        dbg!("test");
 
         let current_objective_value = self.scheduler_agent_algorithm.get_objective_value();
 
@@ -244,7 +250,6 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
     fn handle(&mut self, _msg: MessageToFrontend, _ctx: &mut Self::Context) -> Self::Result {
         let span = span!(tracing::Level::TRACE, "preparing scheduler message for the frontend", self.platform);
         let _enter = span.enter();
-
         let scheduling_overview_data = self.extract_state_to_scheduler_overview().clone();
 
         let scheduler_frontend_message = SchedulerFrontendMessage {
