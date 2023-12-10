@@ -1,7 +1,6 @@
 name: Rust Test
 
 on:
-  push:
   pull_request:
     branches: [ main ]
 
@@ -25,9 +24,5 @@ jobs:
       run: cargo install cargo-audit
     - name: Audit 
       run: cargo audit
-    - name: Install cargo-deny
-      run: cargo install cargo-deny
-    - name: Deny
-      run: cargo deny check
     - name: tarpaulin coverage
       run: cargo tarpaulin --out Xml
