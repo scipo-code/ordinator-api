@@ -519,7 +519,6 @@ mod tests {
             SystemCondition::new(),
             StatusCodes::new_default(),
             OrderDates::new_test(),
-            OrderDates::new_test(),
             Revision::new_default(),
             UnloadingPoint::new_default(),
             FunctionalLocation::new_default(),

@@ -380,24 +380,6 @@ mod tests {
             WorkOrders,
         },
     };
-    use crate::{
-        agents::scheduler_agent::scheduler_algorithm::{
-            OptimizedWorkOrders, PriorityQueues, SchedulerAgentAlgorithm,
-        },
-        models::{
-            work_order::{
-                functional_location::FunctionalLocation,
-                order_dates::OrderDates,
-                order_text::OrderText,
-                order_type::{WDFPriority, WorkOrderType},
-                priority::Priority,
-                revision::Revision,
-                status_codes::StatusCodes,
-                unloading_point::UnloadingPoint,
-            },
-            WorkOrders,
-        },
-    };
 
     #[test]
     fn test_update_scheduler_state() {
@@ -580,62 +562,6 @@ mod tests {
             vec![],
             vec![],
             WorkOrderType::Wdf(WDFPriority::new(1)),
-            crate::models::work_order::system_condition::SystemCondition::Unknown,
-            StatusCodes::new_default(),
-            OrderDates::new_test(),
-            Revision::new_default(),
-            UnloadingPoint::new_default(),
-            FunctionalLocation::new_default(),
-            OrderText::new_default(),
-            false,
-        );
-
-        work_order.order_dates.latest_allowed_finish_period =
-            Period::new_from_string("2023-W47-48").unwrap();
-
-        let mut work_orders = WorkOrders::new();
-
-        work_orders.inner.insert(2100023841, work_order);
-
-        let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
-
-        let optimized_work_order = OptimizedWorkOrder::new(
-            Some(Period::new_from_string("2023-W49-50").unwrap()),
-            Some(Period::new_from_string("2023-W49-50").unwrap()),
-            HashSet::new(),
-        );
-
-        optimized_work_orders.insert_optimized_work_order(2100023841, optimized_work_order);
-
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
-            0.0,
-            HashMap::new(),
-            HashMap::new(),
-            work_orders,
-            PriorityQueues::new(),
-            optimized_work_orders,
-            vec![],
-            true,
-        );
-
-        scheduler_agent_algorithm.calculate_objective();
-        assert_eq!(scheduler_agent_algorithm.get_objective_value(), 2000.0);
-    }
-
-    #[test]
-    fn test_calculate_objective_value() {
-        let mut work_order = WorkOrder::new(
-            2100023841,
-            false,
-            1000,
-            Priority::new_int(1),
-            100.0,
-            HashMap::new(),
-            HashMap::new(),
-            vec![],
-            vec![],
-            vec![],
-            WorkOrderType::WDF(WDFPriority::new(1)),
             crate::models::work_order::system_condition::SystemCondition::Unknown,
             StatusCodes::new_default(),
             OrderDates::new_test(),

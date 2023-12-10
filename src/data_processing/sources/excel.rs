@@ -51,11 +51,6 @@ pub fn load_data_file(
         .worksheet_range_at(0)
         .ok_or(calamine::Error::Msg("Cannot find work order sheet"))?
         .expect("Could not load work order sheet.");
-    let sheet: &calamine::Range<DataType> = &workbook
-        .worksheet_range_at(0)
-        .ok_or(calamine::Error::Msg("Cannot find work order sheet"))?
-        .expect("Could not load work order sheet.");
-
     let mut work_orders: WorkOrders = WorkOrders::new();
     let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
 
@@ -71,9 +66,6 @@ pub fn load_data_file(
 
     let scheduling_environment =
         SchedulingEnvironment::new(work_orders, worker_environment, periods);
-    let scheduling_environment =
-        SchedulingEnvironment::new(work_orders, worker_environment, periods);
-
     Ok(scheduling_environment)
 }
 
@@ -140,9 +132,8 @@ fn populate_work_orders<'a>(
             .get_mut(&work_order_number)
             .expect("Work order not yet created")
             .insert_operation(operation);
-
-        Ok(work_orders)
     }
+    Ok(work_orders)
 }
 /// The fact that I want to extend this means that we should initialize the work order with a default value.
 /// This means that the WorkOrder type should receive a new method, that will create a new
@@ -186,7 +177,6 @@ fn create_new_work_order(
         }
         Some(DataType::Float(n)) => Priority::IntValue(n as u32),
         _ => Priority::StringValue(String::new()),
-        _ => Priority::StringValue(String::new()),
     };
 
     Ok(WorkOrder {
@@ -201,7 +191,6 @@ fn create_new_work_order(
             Some(DataType::Int(n)) => n as u32,
             Some(DataType::Float(n)) => n as u32,
             Some(DataType::String(s)) => s.parse::<u32>().unwrap_or(0),
-            _ => 0,
             _ => 0,
         },
         // optimized_work_order: OptimizedWorkOrder::empty(),
@@ -290,17 +279,6 @@ fn create_new_operation(
         "Latest_Finish_Time",
         "Earliest finish time",
     ];
-    let earliest_finish_date_headers = [
-        "Earliest_Finish_Date",
-        "Earliest_End_Date",
-        "Earliest finish date",
-        "Earliest end date",
-    ];
-    let earliest_finish_time_headers = [
-        "Earliest_Finish_Time",
-        "Latest_Finish_Time",
-        "Earliest finish time",
-    ];
     let work_center_headers = ["Work_Center", "Work Center", "Work center"];
     let actual_work_headers = [
         "Work_Actual",
@@ -333,7 +311,6 @@ fn create_new_operation(
             Some(DataType::Int(n)) => n as u32,
             Some(DataType::Float(n)) => n as u32,
             Some(DataType::String(s)) => s.parse::<u32>().unwrap_or(0),
-            _ => 0,
             _ => 0,
         },
         number: match row

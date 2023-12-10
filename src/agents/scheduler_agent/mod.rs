@@ -158,14 +158,6 @@ impl SchedulerAgent {
                         .order_dates
                         .latest_allowed_finish_date
                         .to_string(),
-                    earliest_allowed_starting_date: work_order
-                        .order_dates
-                        .earliest_allowed_start_date
-                        .to_string(),
-                    latest_allowed_finish_date: work_order
-                        .order_dates
-                        .latest_allowed_finish_date
-                        .to_string(),
                     order_type: match work_order.order_type.clone() {
                         WorkOrderType::Wdf(_wdf_priority) => "WDF".to_string(),
                         WorkOrderType::Wgn(_wgn_priority) => "WGN".to_string(),
