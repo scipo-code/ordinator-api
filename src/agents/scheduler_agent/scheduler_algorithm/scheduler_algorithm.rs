@@ -103,14 +103,18 @@ impl SchedulerAgentAlgorithm {
                 .manual_resources_loading
                 .entry((work_center.to_string(), period.clone().period_string))
                 .or_insert(0.0);
-
+            dbg!(resource_needed);
             if *resource_needed > *resource_capacity - *resource_loading {
                 return Some(work_order_key);
             }
+            dbg!(resource_needed);
 
+            dbg!(period.get_end_date());
+            dbg!(work_order.order_dates.earliest_allowed_start_date);
             if period.get_end_date() < work_order.order_dates.earliest_allowed_start_date {
                 return Some(work_order_key);
             }
+            dbg!(resource_needed);
 
             if let Some(optimized_work_order) =
                 self.optimized_work_orders.inner.get(&work_order_key)
@@ -119,6 +123,7 @@ impl SchedulerAgentAlgorithm {
                     return Some(work_order_key);
                 }
             }
+            dbg!(resource_needed);
         }
 
         match self.optimized_work_orders.inner.get_mut(&work_order_key) {
