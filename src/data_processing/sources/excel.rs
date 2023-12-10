@@ -1,11 +1,8 @@
 use calamine::{open_workbook, DataType, Error, Reader, Xlsx};
-use calamine::{open_workbook, DataType, Error, Reader, Xlsx};
 use core::fmt;
-use regex::Regex;
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
-use tracing::{event, warn};
 use tracing::{event, warn};
 
 use crate::models::time_environment::period::Period;
@@ -15,14 +12,8 @@ use crate::models::work_order::functional_location::FunctionalLocation;
 use crate::models::work_order::order_dates::OrderDates;
 use crate::models::work_order::order_text::OrderText;
 use crate::models::work_order::order_type::WorkOrderType;
-use crate::models::work_order::order_text::OrderText;
-use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::work_order::order_type::{WDFPriority, WGNPriority, WPMPriority};
 use crate::models::work_order::priority::Priority;
-use crate::models::work_order::revision::Revision;
-use crate::models::work_order::status_codes::{MaterialStatus, StatusCodes};
-use crate::models::work_order::unloading_point::UnloadingPoint;
-use crate::models::work_order::WorkOrder;
 use crate::models::work_order::revision::Revision;
 use crate::models::work_order::status_codes::{MaterialStatus, StatusCodes};
 use crate::models::work_order::unloading_point::UnloadingPoint;
@@ -32,11 +23,6 @@ use crate::models::{SchedulingEnvironment, WorkOrders};
 use chrono::{
     naive, DateTime, Datelike, Duration, NaiveDate, NaiveTime, TimeZone, Timelike, Utc, Weekday,
 };
-use crate::models::{SchedulingEnvironment, WorkOrders};
-use chrono::{
-    naive, DateTime, Datelike, Duration, NaiveDate, NaiveTime, TimeZone, Timelike, Utc, Weekday,
-};
-// use crate::models::work_order::optimized_work_order::OptimizedWorkOrder;
 
 extern crate regex;
 
@@ -53,11 +39,6 @@ impl fmt::Display for ExcelLoadError {
 
 /// This function will load data from excel. It is crucial that the approach is modular and scalable
 /// so that it will always be possible to add new data sources and data transformers in the future.
-///
-pub fn load_data_file(
-    file_path: &Path,
-    number_of_periods: u32,
-) -> Result<SchedulingEnvironment, calamine::Error> {
 ///
 pub fn load_data_file(
     file_path: &Path,
@@ -113,26 +94,7 @@ fn populate_work_orders<'a>(
             }
         })
         .collect();
-fn populate_work_orders<'a>(
-    work_orders: &'a mut WorkOrders,
-    sheet: &'a calamine::Range<DataType>,
-) -> Result<&'a mut WorkOrders, calamine::Error> {
-    let headers: Vec<String> = sheet
-        .rows()
-        .next()
-        .ok_or(calamine::Error::Msg("Sheet is empty"))?
-        .iter()
-        .filter_map(|cell| {
-            if let DataType::String(s) = cell {
-                Some(s.clone())
-            } else {
-                None
-            }
-        })
-        .collect();
 
-    let header_to_index: HashMap<String, usize> = headers
-        .iter()
     let header_to_index: HashMap<String, usize> = headers
         .iter()
         .enumerate()
@@ -144,13 +106,7 @@ fn populate_work_orders<'a>(
         if let Some(&index) = header_to_index.get("Order") {
             if index < row.len() {
                 let value = &row[index];
-
-
                 match value {
-                    DataType::String(s) => match s.parse::<u32>() {
-                        Ok(n) => work_order_number = n,
-                        Err(e) => {
-                            println!("Could not parse work order number as string: {}", e)
                     DataType::String(s) => match s.parse::<u32>() {
                         Ok(n) => work_order_number = n,
                         Err(e) => {
@@ -159,11 +115,6 @@ fn populate_work_orders<'a>(
                     },
                     DataType::Int(s) => work_order_number = *s as u32,
                     DataType::Float(s) => work_order_number = *s as u32,
-
-                    _ => {
-                        todo!("Handle other cases of DataType");
-                    }
-
                     _ => {
                         todo!("Handle other cases of DataType");
                     }
@@ -180,29 +131,19 @@ fn populate_work_orders<'a>(
 
         let operation: Operation =
             create_new_operation(row, &header_to_index).expect("Could not create a new operation");
-            work_orders.insert(
-                create_new_work_order(row, &header_to_index)
-                    .expect("Could not insert new work order"),
-            );
-        }
-
-        let operation: Operation =
-            create_new_operation(row, &header_to_index).expect("Could not create a new operation");
+        work_orders.insert(
+            create_new_work_order(row, &header_to_index).expect("Could not insert new work order"),
+        );
 
         work_orders
             .inner
             .get_mut(&work_order_number)
             .expect("Work order not yet created")
             .insert_operation(operation);
-        work_orders
-            .inner
-            .get_mut(&work_order_number)
-            .expect("Work order not yet created")
-            .insert_operation(operation);
+
+        Ok(work_orders)
     }
-    Ok(work_orders)
 }
-
 /// The fact that I want to extend this means that we should initialize the work order with a default value.
 /// This means that the WorkOrder type should receive a new method, that will create a new
 /// instance that can then be used to populate the work_orders HashMap.
@@ -223,23 +164,11 @@ fn create_new_work_order(
     row: &[DataType],
     header_to_index: &HashMap<String, usize>,
 ) -> Result<WorkOrder, Error> {
-fn create_new_work_order(
-    row: &[DataType],
-    header_to_index: &HashMap<String, usize>,
-) -> Result<WorkOrder, Error> {
     let work_order_type_possible_headers = ["Work Order", "Work_Order"];
 
     let work_order_type_data =
         get_data_from_headers(row, header_to_index, &work_order_type_possible_headers);
 
-    let priority = match row
-        .get(
-            *header_to_index
-                .get("Priority")
-                .ok_or("Priority header not found")?,
-        )
-        .cloned()
-    {
     let priority = match row
         .get(
             *header_to_index
@@ -269,14 +198,6 @@ fn create_new_work_order(
             )
             .cloned()
         {
-        order_number: match row
-            .get(
-                *header_to_index
-                    .get("Order")
-                    .ok_or("Order header not found")?,
-            )
-            .cloned()
-        {
             Some(DataType::Int(n)) => n as u32,
             Some(DataType::Float(n)) => n as u32,
             Some(DataType::String(s)) => s.parse::<u32>().unwrap_or(0),
@@ -290,7 +211,6 @@ fn create_new_work_order(
         order_work: 0.0,
         operations: HashMap::<u32, Operation>::new(),
         work_load: HashMap::<String, f64>::new(),
-        start_start: Vec::<bool>::new(),
         start_start: Vec::<bool>::new(),
         finish_start: Vec::<bool>::new(),
         postpone: Vec::<DateTime<Utc>>::new(),
@@ -335,10 +255,6 @@ fn create_new_work_order(
             _ => return Err(Error::Msg("Could not parse revision as string")),
         }
         .expect("Could not parse order type"),
-            None => Ok(WorkOrderType::Other),
-            _ => return Err(Error::Msg("Could not parse revision as string")),
-        }
-        .expect("Could not parse order type"),
         system_condition: SystemCondition::new(),
         status_codes: extract_status_codes(row, header_to_index)
             .expect("Failed to extract StatusCodes"),
@@ -354,10 +270,6 @@ fn create_new_work_order(
     })
 }
 
-fn create_new_operation(
-    row: &[DataType],
-    header_to_index: &HashMap<String, usize>,
-) -> Result<Operation, Error> {
 fn create_new_operation(
     row: &[DataType],
     header_to_index: &HashMap<String, usize>,
@@ -396,12 +308,6 @@ fn create_new_operation(
         "Actual work",
         "Work Actual (Hrs)",
     ];
-    let actual_work_headers = [
-        "Work_Actual",
-        "Work Actual",
-        "Actual work",
-        "Work Actual (Hrs)",
-    ];
 
     let earliest_start_date_data =
         get_data_from_headers(row, header_to_index, &earliest_start_date_headers);
@@ -424,28 +330,12 @@ fn create_new_operation(
             )
             .cloned()
         {
-        activity: match row
-            .get(
-                *header_to_index
-                    .get("Activity")
-                    .ok_or("Activity header not found")?,
-            )
-            .cloned()
-        {
             Some(DataType::Int(n)) => n as u32,
             Some(DataType::Float(n)) => n as u32,
             Some(DataType::String(s)) => s.parse::<u32>().unwrap_or(0),
             _ => 0,
             _ => 0,
         },
-        number: match row
-            .get(
-                *header_to_index
-                    .get("Number")
-                    .ok_or("Number header not found")?,
-            )
-            .cloned()
-        {
         number: match row
             .get(
                 *header_to_index
@@ -872,11 +762,8 @@ fn _week_to_date(week_number: u32, start_of_week: bool) -> DateTime<Utc> {
     };
 
     let start_date = new_year_date.unwrap() + offset + Duration::weeks(week_number as i64 - 1);
-
     let time = NaiveTime::from_hms_opt(0, 0, 0);
-
     let naive_datetime = start_date.and_time(time.unwrap());
-
     let start_datetime = Utc.from_utc_datetime(&naive_datetime);
     if start_of_week {
         start_datetime
