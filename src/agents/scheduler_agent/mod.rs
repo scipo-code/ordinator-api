@@ -1,24 +1,25 @@
-pub mod scheduler_message;
-pub mod scheduler_algorithm;
 pub mod display;
+pub mod scheduler_algorithm;
+pub mod scheduler_message;
 
+use actix::prelude::*;
 use std::collections::HashMap;
-use actix::prelude::*; 
 
-use crate::models::work_order::priority::Priority;
-use crate::models::work_order::order_type::WorkOrderType;
+use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
 use crate::agents::scheduler_agent::scheduler_message::{InputSchedulerMessage, ScheduleIteration};
 use crate::api::websocket_agent::WebSocketAgent;
-use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
+use crate::models::work_order::order_type::WorkOrderType;
+use crate::models::work_order::priority::Priority;
 use crate::models::work_order::status_codes::MaterialStatus;
 
+use crate::agents::work_planner_agent::WorkPlannerAgent;
 
 #[derive(Debug)]
 pub struct SchedulerAgent {
     platform: String,
-    
     scheduler_agent_algorithm: SchedulerAgentAlgorithm,
     ws_agent_addr: Option<Addr<WebSocketAgent>>,
+    work_planner_agent_addr: Option<Addr<WorkPlannerAgent>>,
 }
 
 impl SchedulerAgent {
@@ -41,43 +42,41 @@ impl Actor for SchedulerAgent {
     }
 }
 
-
 impl SchedulerAgent {
     pub fn new(
-        platform: String, 
+        platform: String,
         scheduler_agent_algorithm: SchedulerAgentAlgorithm,
-        ws_agent_addr: Option<Addr<WebSocketAgent>>) 
-            -> Self {
-  
+        ws_agent_addr: Option<Addr<WebSocketAgent>>,
+        work_planner_agent_addr: Option<Addr<WorkPlannerAgent>>,
+    ) -> Self {
         Self {
             platform,
             scheduler_agent_algorithm,
             ws_agent_addr,
+            work_planner_agent_addr,
         }
     }
 }
 
-
 /// This implementation will update the current state of the scheduler agent.
-/// 
-/// I have an issue with how the scheduled work orders should be handled. I think that there are 
-/// multiple approaches to solving this problem. The queue idea is good but then I would have to 
-/// update the other queues if the work order is present in one of those queues. I could also just 
-/// bypass the whole thing. Hmm... I have misunderstood something here. Should I make the solution 
-/// scheduled_work_orders are the once that are scheduled. But there is also the question of the 
+///
+/// I have an issue with how the scheduled work orders should be handled. I think that there are
+/// multiple approaches to solving this problem. The queue idea is good but then I would have to
+/// update the other queues if the work order is present in one of those queues. I could also just
+/// bypass the whole thing. Hmm... I have misunderstood something here. Should I make the solution
+/// scheduled_work_orders are the once that are scheduled. But there is also the question of the
 /// scheduled field in the central data structure. I should find out where that comes from and
-/// 
-/// So here we update the state of the application, but what about the queues? I after the work 
-/// order has been scheduled in the front end we need to update the queues. As well so that the 
+///
+/// So here we update the state of the application, but what about the queues? I after the work
+/// order has been scheduled in the front end we need to update the queues. As well so that the
 /// work order is scheduled through the process. We should add the work order to the unloading point
-/// queue but what will happen when the work order is unscheduled again at a later point? This is 
-/// much more difficult to reason about. I think that the best approach is 
-/// 
+/// queue but what will happen when the work order is unscheduled again at a later point? This is
+/// much more difficult to reason about. I think that the best approach is
+///
 /// All of this should be handled in the update scheduler state function. There can be no other way
-/// Remember that if this becomes complex we should refactor the code. 
+/// Remember that if this becomes complex we should refactor the code.
 
-#[derive(Clone, Debug)]
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct SchedulingOverviewData {
     scheduled_period: String,
     scheduled_start: String,
@@ -105,25 +104,28 @@ pub struct SchedulingOverviewData {
 }
 
 // Now the problem is that the many work orders may not even get a status, in this approach.
-// This is an issue. Now when we get the work_order_number the entry could be non-existent. 
-// 
+// This is an issue. Now when we get the work_order_number the entry could be non-existent.
+//
 impl SchedulerAgent {
     fn extract_state_to_scheduler_overview(&self) -> Vec<SchedulingOverviewData> {
         let mut scheduling_overview_data: Vec<SchedulingOverviewData> = Vec::new();
-        for (work_order_number, work_order) in self.scheduler_agent_algorithm.get_backlog().inner.iter() {
+        for (work_order_number, work_order) in
+            self.scheduler_agent_algorithm.get_backlog().inner.iter()
+        {
             for (operation_number, operation) in work_order.operations.clone() {
                 let scheduling_overview_data_item = SchedulingOverviewData {
-                    scheduled_period: match self.scheduler_agent_algorithm.get_optimized_work_order(work_order_number) {
-                        Some(order_period) => {
-                            match order_period.get_scheduled_period().as_ref() { 
-                                Some(scheduled_period) => scheduled_period.period_string.clone(),
-                                None => "not scheduled".to_string(),
-                            }
+                    scheduled_period: match self
+                        .scheduler_agent_algorithm
+                        .get_optimized_work_order(work_order_number)
+                    {
+                        Some(order_period) => match order_period.get_scheduled_period().as_ref() {
+                            Some(scheduled_period) => scheduled_period.period_string.clone(),
+                            None => "not scheduled".to_string(),
                         },
                         None => "not scheduled".to_string(),
                     },
                     scheduled_start: work_order.order_dates.basic_start_date.to_string(),
-                    unloading_point: work_order.unloading_point.clone().string, 
+                    unloading_point: work_order.unloading_point.clone().string,
 
                     material_date: match work_order.status_codes.material_status {
                         MaterialStatus::Smat => "SMAT".to_string(),
@@ -133,7 +135,7 @@ impl SchedulerAgent {
                         MaterialStatus::Pmat => "PMAT".to_string(),
                         MaterialStatus::Unknown => "Implement control tower".to_string(),
                     },
-                    
+
                     work_order_number: work_order_number.clone(),
                     activity: operation_number.clone().to_string(),
                     work_center: operation.work_center.clone(),
@@ -149,8 +151,14 @@ impl SchedulerAgent {
                     revision: work_order.revision.clone().string,
                     earliest_start_datetime: operation.earliest_start_datetime.to_string(),
                     earliest_finish_datetime: operation.earliest_finish_datetime.to_string(),
-                    earliest_allowed_starting_date: work_order.order_dates.earliest_allowed_start_date.to_string(),
-                    latest_allowed_finish_date: work_order.order_dates.latest_allowed_finish_date.to_string(),
+                    earliest_allowed_starting_date: work_order
+                        .order_dates
+                        .earliest_allowed_start_date
+                        .to_string(),
+                    latest_allowed_finish_date: work_order
+                        .order_dates
+                        .latest_allowed_finish_date
+                        .to_string(),
                     order_type: match work_order.order_type.clone() {
                         WorkOrderType::WDF(_wdf_priority) => "WDF".to_string(),
                         WorkOrderType::WGN(_wgn_priority) => "WGN".to_string(),
@@ -169,20 +177,20 @@ impl SchedulerAgent {
     }
 }
 
-
-
 /// This is a good point. We should make the type as narrow as possible. This means that we should
-/// implement everything that is algorithm specific in the SchedulerAgentAlgorithm. This is a 
+/// implement everything that is algorithm specific in the SchedulerAgentAlgorithm. This is a
 /// crucial insight.
 
-
 /// This function should be reformulated? I think that we should make sure to create in such a way
-/// that. We need an inner hashmap for each of the different 
-fn transform_hashmap_to_nested_hashmap(hash_map: HashMap<(String, String), f64>) -> HashMap<String, HashMap<String, f64>> {
+/// that. We need an inner hashmap for each of the different
+fn transform_hashmap_to_nested_hashmap(
+    hash_map: HashMap<(String, String), f64>,
+) -> HashMap<String, HashMap<String, f64>> {
     let mut nested_hash_map: HashMap<String, HashMap<String, f64>> = HashMap::new();
-    
+
     for ((work_center, period), value) in hash_map {
-        nested_hash_map.entry(work_center)
+        nested_hash_map
+            .entry(work_center)
             .or_insert_with(HashMap::new)
             .insert(period, value);
     }
@@ -193,7 +201,5 @@ fn transform_hashmap_to_nested_hashmap(hash_map: HashMap<(String, String), f64>)
 mod tests {
 
     #[test]
-    fn test_scheduler_agent_initialization() {
-        
-    }
+    fn test_scheduler_agent_initialization() {}
 }

@@ -18,6 +18,7 @@ impl ApplicationBuilder {
     }
 
     pub fn with_scheduler_agent(mut self, addr: Addr<SchedulerAgent>) -> Self {
+        dbg!("with_scheduler_agent");
         self.scheduler_agent_addr = Some(addr);
         self
     }

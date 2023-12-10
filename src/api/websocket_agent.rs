@@ -96,7 +96,7 @@ impl Handler<SchedulerFrontendMessage> for WebSocketAgent {
 
     fn handle(&mut self, msg: SchedulerFrontendMessage, ctx: &mut Self::Context) -> Self::Result {
             // Serialize the message
-            event!(Level::INFO, scheduler_front_end_message.websocket = ?msg, "Scheduler Table data sent to frontend");
+            event!(Level::INFO, scheduler_front_end_message.websocket = ?msg.scheduling_overview_data.len(), "Scheduler Table data sent to frontend");
             let serialized_message = serde_json::to_string(&msg).unwrap();
             // Send the serialized message to the frontend
             ctx.text(serialized_message);
@@ -162,8 +162,9 @@ mod tests {
                 periods,
                 true,
             ),
-            None
-        ).start();
+            None,       
+            None        
+        ).start();       
 
         let _ws_agent = WebSocketAgent::new(Arc::new(scheduler_agent_addr.clone()));
         
