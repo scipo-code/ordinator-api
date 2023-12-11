@@ -1,0 +1,22 @@
+version: '3'
+
+services:
+  rust-backend:
+    build: 
+      context: .  # Assuming your Dockerfile is in the current directory
+      dockerfile: Dockerfile.dev  # Development-specific Dockerfile
+    image: ordinator-image-dev
+    ports:
+      - "8001:8001"
+    volumes:
+      - .:/usr/src/ordinator  # Mount local source for development
+      - log_volume:/usr/src/ordinator/logs  # Keep log volume if you want logs persisted
+    environment:
+      - CONFIG_PATH=/usr/src/ordinator/parameters/work_order_weight_parameters.json
+      - CRITERION_PATH=/usr/src/ordinator/benches/benchmark_test.rs
+      - LOG_DIR=/usr/src/ordinator/logs
+    depends_on:
+      - elasticsearch
+    command: ["cargo", "watch", "--poll", "-w", "src/", "-x", "run -- test_data/export_test.XLSX"]
+volumes:
+  log_volume:  # Define the log volume

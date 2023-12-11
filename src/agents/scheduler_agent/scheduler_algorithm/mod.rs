@@ -5,9 +5,9 @@ use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 
 use priority_queue::PriorityQueue;
-use tracing::{event, span, Level};
+use tracing::{debug, event, span, Level};
 
-use crate::agents::scheduler_agent::InputSchedulerMessage;
+use crate::agents::scheduler_agent::scheduler_message::InputSchedulerMessage;
 use crate::models::time_environment::period::Period;
 use crate::models::WorkOrders;
 
@@ -30,6 +30,21 @@ impl SchedulerAgentAlgorithm {
 
     pub fn get_optimized_work_order(&self, work_order_number: &u32) -> Option<&OptimizedWorkOrder> {
         self.optimized_work_orders.inner.get(work_order_number)
+    }
+
+    pub fn get_manual_resources_capacity(&self, work_center: String, period: String) -> f64 {
+        *self
+            .manual_resources_capacity
+            .get(&(work_center, period))
+            .unwrap_or(&0.0)
+    }
+
+    pub fn get_periods(&self) -> &Vec<Period> {
+        &self.periods
+    }
+
+    pub fn get_priority_queues(&self) -> &PriorityQueues<u32, u32> {
+        &self.priority_queues
     }
 
     pub fn changed(&self) -> bool {
@@ -271,10 +286,10 @@ impl SchedulerAgentAlgorithm {
 
             match locked_in_period.clone() {
                 Some(period) => {
-                    event!(target: "frontend input message debugging", Level::DEBUG, "Locked period: {}", period.period_string.clone());
+                    debug!(target: "frontend input message debugging", "Locked period: {}", period.period_string.clone());
                 }
                 None => {
-                    event!(target: "frontend input message debugging", Level::DEBUG, "Locked period: None");
+                    debug!(target: "frontend input message debugging", "Locked period: None");
                 }
             }
 
@@ -392,7 +407,7 @@ impl SchedulerAgentAlgorithm {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PriorityQueues<T, P>
 where
     T: Hash + Eq,
@@ -442,6 +457,10 @@ impl SchedulerAgentAlgorithm {
 
     pub fn get_manual_resources_loadings(&self) -> &HashMap<(String, String), f64> {
         &self.manual_resources_loading
+    }
+
+    pub fn get_manual_resources_capacities(&self) -> &HashMap<(String, String), f64> {
+        &self.manual_resources_capacity
     }
 
     pub fn get_or_initialize_manual_resources_loading(

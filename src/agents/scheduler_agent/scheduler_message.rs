@@ -4,15 +4,16 @@ use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display};
 use tokio::time::{sleep, Duration};
-use tracing::{event, span, Level};
+use tracing::{debug, event, info, span, Level};
 
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
-use crate::agents::scheduler_agent::transform_hashmap_to_nested_hashmap;
-use crate::agents::scheduler_agent::SchedulerAgent;
+use crate::agents::scheduler_agent::{self, SchedulerAgent};
 use crate::api::websocket_agent::SchedulerFrontendLoadingMessage;
 use crate::api::websocket_agent::SchedulerFrontendMessage;
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::time_environment::period::Period;
+
+use super::scheduler_algorithm::SchedulerAgentAlgorithm;
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "scheduler_message_type")]
@@ -199,6 +200,13 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
         self.scheduler_agent_algorithm.schedule_forced_work_orders();
         // self.scheduler_agent_algorithm.schedule_work_orders_by_type(QueueType::UnloadingAndManual);
 
+        self.scheduler_agent_algorithm.calculate_objective();
+
+        debug!(
+            "Objective value: {}",
+            self.scheduler_agent_algorithm.get_objective_value()
+        );
+
         let actor_addr = ctx.address().clone();
 
         let fut = async move {
@@ -246,7 +254,7 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
             "scheduler_frontend_message: {:?}",
             scheduler_frontend_message
         );
-        let nested_loadings = transform_hashmap_to_nested_hashmap(
+        let nested_loadings = scheduler_agent::transform_hashmap_to_nested_hashmap(
             self.scheduler_agent_algorithm
                 .get_manual_resources_loadings()
                 .clone(),
@@ -263,10 +271,7 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
                 ws_agent.do_send(scheduler_frontend_loading_message);
             }
             None => {
-                event!(
-                    tracing::Level::INFO,
-                    "No WebSocketAgentAddr set yet, so no message sent to frontend"
-                )
+                info!("No WebSocketAgentAddr set yet, so no message sent to frontend")
             }
         }
     }
@@ -295,19 +300,13 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
                     .get_optimized_work_order(&2100023393)
                     .is_some()
                 {
-                    event!(
-                        tracing::Level::INFO,
-                        "2100023393 is in the optimized work orders"
-                    );
+                    info!("2100023393 is in the optimized work orders");
                 } else {
-                    event!(
-                        tracing::Level::INFO,
-                        "2100023393 is not in the optimized work orders"
-                    );
+                    info!("2100023393 is not in the optimized work orders");
                 }
             }
             SchedulerRequests::WorkPlanner(msg) => {
-                println!(
+                info!(
                     "SchedulerAgentReceived a WorkPlannerMessage message: {:?}",
                     msg
                 );
@@ -356,9 +355,8 @@ where
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
-
     use chrono::{TimeZone, Utc};
 
     use crate::models::work_order::WorkOrder;
@@ -636,6 +634,47 @@ mod tests {
                 manual_resources,
                 period_lock: HashMap::new(),
             }
+        }
+    }
+
+    pub struct TestRequest {}
+
+    impl Message for TestRequest {
+        type Result = Option<TestResponse>;
+    }
+
+    pub struct TestResponse {
+        pub objective_value: f64,
+        pub manual_resources_capacity: HashMap<(String, String), f64>,
+        pub manual_resources_loading: HashMap<(String, String), f64>,
+        pub priority_queues: PriorityQueues<u32, u32>,
+        pub optimized_work_orders: OptimizedWorkOrders,
+        pub periods: Vec<Period>,
+    }
+
+    impl Handler<TestRequest> for SchedulerAgent {
+        type Result = Option<TestResponse>; // Or relevant part of the state
+
+        fn handle(&mut self, _msg: TestRequest, _: &mut Context<Self>) -> Self::Result {
+            // Return the state or part of it
+            Some(TestResponse {
+                objective_value: self.scheduler_agent_algorithm.get_objective_value(),
+                manual_resources_capacity: self
+                    .scheduler_agent_algorithm
+                    .get_manual_resources_capacities()
+                    .clone(),
+                manual_resources_loading: self
+                    .scheduler_agent_algorithm
+                    .get_manual_resources_loadings()
+                    .clone(),
+                priority_queues: self.scheduler_agent_algorithm.get_priority_queues().clone(),
+                optimized_work_orders: OptimizedWorkOrders::new(
+                    self.scheduler_agent_algorithm
+                        .get_optimized_work_orders()
+                        .clone(),
+                ),
+                periods: self.scheduler_agent_algorithm.get_periods().clone(),
+            })
         }
     }
 }

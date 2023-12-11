@@ -1,8 +1,8 @@
 mod agents;
-mod models;
-mod data_processing;
 mod api;
+mod data_processing;
 mod init;
+mod models;
 
 // #[macro_use]
 // extern crate lazy_static;
@@ -11,8 +11,8 @@ mod init;
 use tracing::instrument;
 use tracing::{event, Level};
 
-use crate::init::logging::setup_logging;
 use crate::init::application_builder::ApplicationBuilder;
+use crate::init::logging::setup_logging;
 
 #[instrument]
 #[actix_web::main]
@@ -38,6 +38,9 @@ async fn main() -> () {
         .with_scheduler_agent(scheduler_agent_addr)
         // put other agents here
         .build()
-        .await.expect("could not start application");
+        .await
+        .expect("could not start application");
 }
 
+#[cfg(test)]
+mod tests {}

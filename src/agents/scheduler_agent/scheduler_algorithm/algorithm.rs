@@ -92,7 +92,9 @@ impl SchedulerAgentAlgorithm {
                 .manual_resources_loading
                 .entry((work_center.to_string(), period.clone().period_string))
                 .or_insert(0.0);
+
             dbg!(resource_needed);
+
             if *resource_needed > *resource_capacity - *resource_loading {
                 return Some(work_order_key);
             }
@@ -194,8 +196,8 @@ impl SchedulerAgentAlgorithm {
                     .latest_allowed_finish_period
                     .clone(),
             );
-
-            dbg!(period_difference);
+            // dbg!("this is the period difference");
+            // dbg!(period_difference);
             let objective_contribution = if period_difference > 0 {
                 period_difference
                     * self.backlog.inner.get(work_order_key).unwrap().order_weight as i64

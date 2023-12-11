@@ -1037,7 +1037,7 @@ mod tests {
         let scheduling_environment = load_data_file(file_path, number_of_periods);
 
         assert_eq!(
-            scheduling_environment.unwrap().period.len(),
+            scheduling_environment.unwrap().periods.len(),
             number_of_periods as usize
         );
 

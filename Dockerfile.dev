@@ -1,0 +1,34 @@
+# Stage 1: Development Environment Setup
+FROM rust:latest as development
+
+# Install cargo-watch for live reloading
+RUN cargo install cargo-watch
+
+# Set the working directory in the container
+WORKDIR /usr/src/ordinator
+
+# Copy the Cargo manifest files
+# These lines are useful for caching dependencies - they ensure that Docker only
+# re-downloads dependencies if these files change.
+COPY Cargo.toml Cargo.lock ./
+
+# This step is to cache dependencies - it builds an empty project, which
+# causes Cargo to download and compile all dependencies and cache them.
+RUN mkdir src && \
+    echo "fn main() {}" > src/main.rs && \
+    cargo build --release && \
+    rm -rf src
+
+# Copy the source code into the container
+COPY src/ ./src/
+
+# Expose the port the app runs on
+EXPOSE 8001
+COPY test_data/export_test.XLSX /usr/src/ordinator/test_data/export_test.XLSX
+COPY parameters/work_order_weight_parameters.json /usr/src/ordinator/parameters/work_order_weight_parameters.json
+COPY parameters/work_order_weight_parameters.json /usr/src/ordinator/parameters/work_order_weight_parameters.json
+
+# The command to run when the container starts
+# Here, cargo-watch is used to watch for changes in the source code and recompile and restart the app
+CMD ["cargo", "watch", "--poll", "-w", "src/" "-x", "run -- test_data/export.XLSX"]
+
