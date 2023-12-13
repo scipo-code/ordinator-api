@@ -56,7 +56,6 @@ pub struct WorkOrder {
     pub vendor: bool,
 }
 
-
 impl WorkOrder {
     #[cfg(test)]
     pub fn new(

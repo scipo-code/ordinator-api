@@ -1,13 +1,11 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
-#[derive(Clone)]
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Operation {
     pub activity: u32,
     pub number: u32,
-    pub work_center: String,  
+    pub work_center: String,
     pub preparation_time: f64,
     pub work_remaining: f64,
     pub work_performed: f64,
@@ -20,8 +18,37 @@ pub struct Operation {
     pub earliest_finish_datetime: DateTime<Utc>,
 }
 
-
-
+impl Operation {
+    pub fn new(
+        activity: u32,
+        number: u32,
+        work_center: String,
+        preparation_time: f64,
+        work_remaining: f64,
+        operating_time: f64,
+        duration: u32,
+        possible_start: DateTime<Utc>,
+        target_finish: DateTime<Utc>,
+        earliest_start_datetime: DateTime<Utc>,
+        earliest_finish_datetime: DateTime<Utc>,
+    ) -> Self {
+        Operation {
+            activity,
+            number,
+            work_center,
+            preparation_time,
+            work_remaining,
+            work_performed: 0.0,
+            work_adjusted: 0.0,
+            operating_time,
+            duration,
+            possible_start,
+            target_finish,
+            earliest_start_datetime,
+            earliest_finish_datetime,
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -29,14 +56,12 @@ mod tests {
 
     use super::Operation;
 
-
     impl Operation {
         pub fn new_test(activity: u32, work_center: String, work_remaining: f64) -> Self {
-
             Operation {
                 activity,
                 number: 1,
-                work_center,  
+                work_center,
                 preparation_time: 1.0,
                 work_remaining,
                 work_performed: 0.0,
@@ -48,9 +73,6 @@ mod tests {
                 earliest_start_datetime: Utc::now(),
                 earliest_finish_datetime: Utc::now(),
             }
-            
         }
-        
     }
-
 }

@@ -16,7 +16,7 @@ COPY Cargo.toml Cargo.lock ./
 # causes Cargo to download and compile all dependencies and cache them.
 RUN mkdir src && \
     echo "fn main() {}" > src/main.rs && \
-    cargo build --release && \
+    cargo build && \
     rm -rf src
 
 # Copy the source code into the container

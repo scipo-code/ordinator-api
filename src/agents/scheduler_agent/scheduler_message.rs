@@ -1,10 +1,9 @@
 use actix::prelude::*;
-use chrono::{TimeZone, Utc};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display};
 use tokio::time::{sleep, Duration};
-use tracing::{debug, event, info, span, Level};
+use tracing::{debug, info, span, trace};
 
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
 use crate::agents::scheduler_agent::{self, SchedulerAgent};
@@ -12,8 +11,6 @@ use crate::api::websocket_agent::SchedulerFrontendLoadingMessage;
 use crate::api::websocket_agent::SchedulerFrontendMessage;
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::time_environment::period::Period;
-
-use super::scheduler_algorithm::SchedulerAgentAlgorithm;
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "scheduler_message_type")]
@@ -78,36 +75,12 @@ pub struct WorkOrderPeriodMapping {
     pub period_status: WorkOrderStatusInPeriod,
 }
 
-impl WorkOrderPeriodMapping {
-    #[cfg(test)]
-    pub fn new_test() -> Self {
-        WorkOrderPeriodMapping {
-            work_order_number: 2200002020,
-            period_status: WorkOrderStatusInPeriod::new_test(),
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct WorkOrderStatusInPeriod {
     #[serde(deserialize_with = "deserialize_period_option")]
     pub locked_in_period: Option<Period>,
     #[serde(deserialize_with = "deserialize_period_set")]
     pub excluded_from_periods: HashSet<Period>,
-}
-
-impl WorkOrderStatusInPeriod {
-    #[cfg(test)]
-    pub fn new_test() -> Self {
-        let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 7, 0, 0).unwrap();
-        let end_date = start_date + chrono::Duration::days(13);
-        let period = Period::new(1, start_date, end_date);
-
-        WorkOrderStatusInPeriod {
-            locked_in_period: Some(period),
-            excluded_from_periods: HashSet::new(),
-        }
-    }
 }
 
 struct SchedulerResources<'a>(&'a HashMap<(String, String), f64>);
@@ -194,6 +167,9 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
 
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         // event!(tracing::Level::INFO , "schedule_iteration_message");
+        let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
+        self.scheduler_agent_algorithm
+            .unschedule_random_work_orders(5, rng);
 
         self.scheduler_agent_algorithm
             .schedule_normal_work_orders(QueueType::Normal);
@@ -215,10 +191,7 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
         };
 
         if self.scheduler_agent_algorithm.changed() {
-            event!(
-                Level::TRACE,
-                message = "change occured in optimized work orders"
-            );
+            trace!(message = "change occured in optimized work orders");
             ctx.notify(MessageToFrontend {});
             self.scheduler_agent_algorithm.set_changed(false);
         }
@@ -235,7 +208,7 @@ impl Message for MessageToFrontend {
 
 impl Handler<MessageToFrontend> for SchedulerAgent {
     type Result = ();
-    // event!(tracing::Level::TRACE, )
+
     fn handle(&mut self, _msg: MessageToFrontend, _ctx: &mut Self::Context) -> Self::Result {
         let span = span!(
             tracing::Level::TRACE,
@@ -245,15 +218,18 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
         let _enter = span.enter();
         let scheduling_overview_data = self.extract_state_to_scheduler_overview().clone();
 
+        dbg!(scheduling_overview_data.clone().len());
+
         let scheduler_frontend_message = SchedulerFrontendMessage {
             frontend_message_type: "frontend_scheduler_overview".to_string(),
             scheduling_overview_data,
         };
-        event!(
-            tracing::Level::TRACE,
+
+        trace!(
             "scheduler_frontend_message: {:?}",
             scheduler_frontend_message
         );
+
         let nested_loadings = scheduler_agent::transform_hashmap_to_nested_hashmap(
             self.scheduler_agent_algorithm
                 .get_manual_resources_loadings()
@@ -284,9 +260,8 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
         match msg {
             SchedulerRequests::Input(msg) => {
                 let input_message: InputSchedulerMessage = msg.into();
-                event!(
+                info!(
                     target: "SchedulerRequest::Input",
-                    tracing::Level::INFO,
                     message = %input_message,
                     "received a message from the frontend"
                 );
@@ -675,6 +650,28 @@ pub mod tests {
                 ),
                 periods: self.scheduler_agent_algorithm.get_periods().clone(),
             })
+        }
+    }
+
+    impl WorkOrderPeriodMapping {
+        pub fn new_test() -> Self {
+            WorkOrderPeriodMapping {
+                work_order_number: 2200002020,
+                period_status: WorkOrderStatusInPeriod::new_test(),
+            }
+        }
+    }
+
+    impl WorkOrderStatusInPeriod {
+        pub fn new_test() -> Self {
+            let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 7, 0, 0).unwrap();
+            let end_date = start_date + chrono::Duration::days(13);
+            let period = Period::new(1, start_date, end_date);
+
+            WorkOrderStatusInPeriod {
+                locked_in_period: Some(period),
+                excluded_from_periods: HashSet::new(),
+            }
         }
     }
 }

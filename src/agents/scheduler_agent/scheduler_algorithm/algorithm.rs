@@ -1,4 +1,5 @@
 use core::panic;
+use rand::prelude::SliceRandom;
 use std::collections::HashSet;
 use tracing::event;
 
@@ -146,7 +147,7 @@ impl SchedulerAgentAlgorithm {
 
     pub fn schedule_forced_work_order(&mut self, work_order_key: u32) {
         if let Some(work_order_key) = self.is_scheduled(work_order_key) {
-            self.unschedule_work_order(work_order_key);
+            self.unschedule_work_order(&work_order_key);
         }
 
         let period = self
@@ -179,22 +180,63 @@ impl SchedulerAgentAlgorithm {
         }
     }
 
+    /// Does it matter that we clone the work orders. I think that it does not matter here as the
+    /// code should be able to work as long as the optimized work orders are updated correctly and
+    /// not clone anywhere. After sampling the work orders based on the keys I should take care to
+    ///
+    pub fn unschedule_random_work_orders(
+        &mut self,
+        number_of_work_orders: usize,
+        rng: &mut impl rand::Rng,
+    ) {
+        let mut work_order_keys: Vec<_> =
+            self.get_optimized_work_orders().keys().cloned().collect();
+
+        work_order_keys.sort();
+        dbg!(work_order_keys.clone());
+        let sampled_work_order_keys = work_order_keys.choose_multiple(rng, number_of_work_orders);
+
+        for work_order_key in sampled_work_order_keys {
+            self.unschedule_work_order(work_order_key);
+        }
+
+        self.changed = true;
+    }
+
+    /// Here we calculate the objective value. If the work order is has been unscheduled then we
+    /// do not have a Period in the scheduled_period. If we do not have a period in the
+    ///
+    /// So what should be done if a work order in not scheduled? I think that the best approach will
+    /// be to "schedule" it outside of the initialized periods. That will make a lot of sense. I
+    /// think that it will be the best approach. Actually every work order should be scheduled like
+    /// this to make the system consistent. And make the objective value meaningful.
     pub fn calculate_objective(&mut self) {
         let mut objective = 0;
         for (work_order_key, optimized_work_order) in &self.optimized_work_orders.inner {
+            let optimized_period = match &optimized_work_order.scheduled_period {
+                Some(optimized_period) => optimized_period.clone(),
+                None => {
+                    if let Some(last_period) = self.periods.last() {
+                        last_period.add_one_period()
+                    } else {
+                        panic!("There are no periods in the system")
+                    }
+                }
+            }
+            .clone();
+
+            let work_order_latest_allowed_finish_period = self
+                .backlog
+                .inner
+                .get(work_order_key)
+                .unwrap()
+                .order_dates
+                .latest_allowed_finish_period
+                .clone();
+
             let period_difference = calculate_period_difference(
-                optimized_work_order
-                    .scheduled_period
-                    .as_ref()
-                    .unwrap()
-                    .clone(),
-                self.backlog
-                    .inner
-                    .get(work_order_key)
-                    .unwrap()
-                    .order_dates
-                    .latest_allowed_finish_period
-                    .clone(),
+                optimized_period,
+                work_order_latest_allowed_finish_period,
             );
             // dbg!("this is the period difference");
             // dbg!(period_difference);
@@ -245,17 +287,26 @@ impl SchedulerAgentAlgorithm {
             })
     }
 
-    fn unschedule_work_order(&mut self, work_order_key: u32) {
-        let work_order = self.backlog.inner.get(&work_order_key).unwrap();
-        let period = self
-            .optimized_work_orders
-            .inner
-            .get(&work_order_key)
-            .as_ref()
-            .unwrap()
-            .scheduled_period
-            .as_ref()
-            .unwrap();
+    /// Here we unschedule the work order that means that we should take care to. What is the error
+    /// here. What did I actually just implement? We are moving fast at the moment. I can feel that
+    /// I get overwhelmed by the amount of work that it will take. I think that we should continue
+    /// moving forward and meditate if needed. There is an error here and instead of testing for it
+    /// am brute forcing my way through it. I should not do that I should test the code and make a
+    /// test that fails.
+    fn unschedule_work_order(&mut self, work_order_key: &u32) {
+        let work_order = self.backlog.inner.get(work_order_key).unwrap();
+        let period = match &self.optimized_work_orders.inner.get(work_order_key) {
+            Some(optimized_work_order) => optimized_work_order.scheduled_period.clone(),
+            None => {
+                if let Some(last_period) = self.periods.last() {
+                    dbg!(last_period);
+                    Some(last_period.add_one_period())
+                } else {
+                    panic!("There are no periods in the system")
+                }
+            }
+        }
+        .unwrap();
 
         for (work_center_period, loading) in self.manual_resources_loading.iter_mut() {
             if work_center_period.1 == period.period_string {
@@ -265,12 +316,13 @@ impl SchedulerAgentAlgorithm {
                 }
             }
         }
+        let prospective_period = self.periods.last().unwrap().add_one_period();
 
         self.optimized_work_orders
             .inner
-            .get_mut(&work_order_key)
+            .get_mut(work_order_key)
             .unwrap()
-            .update_scheduled_period(None);
+            .update_scheduled_period(Some(prospective_period));
     }
 
     fn update_loadings(&mut self, period: &Period, work_order: &WorkOrder) {
@@ -305,6 +357,7 @@ mod tests {
     use super::*;
 
     use chrono::{TimeZone, Utc};
+    use rand::{rngs::StdRng, SeedableRng};
     use std::collections::HashMap;
 
     use crate::{
@@ -625,6 +678,11 @@ mod tests {
         manual_resource_loadings
             .insert(("PRODTECH".to_string(), period.period_string.clone()), 0.0);
 
+        let periods: Vec<Period> = vec![
+            Period::new_from_string("2023-W47-48").unwrap(),
+            Period::new_from_string("2023-W49-50").unwrap(),
+        ];
+
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
             manual_resource_capacity,
@@ -632,7 +690,7 @@ mod tests {
             work_orders.clone(),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
-            vec![],
+            periods,
             true,
         );
 
@@ -665,7 +723,7 @@ mod tests {
             60.0
         );
 
-        scheduler_agent_algorithm.unschedule_work_order(2200002020);
+        scheduler_agent_algorithm.unschedule_work_order(&2200002020);
         assert_eq!(
             scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
                 "MTN_MECH".to_string(),
@@ -771,7 +829,7 @@ mod tests {
             0.0
         );
 
-        scheduler_agent_algorithm.unschedule_work_order(2200002020);
+        scheduler_agent_algorithm.unschedule_work_order(&2200002020);
         assert_eq!(
             scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
                 "MTN_MECH".to_string(),
@@ -818,6 +876,187 @@ mod tests {
     }
 
     #[test]
+    fn test_unschedule_random_work_orders() {
+        let mut work_orders = WorkOrders::new();
+        let mut work_load_1 = HashMap::new();
+        let mut work_load_2 = HashMap::new();
+        let mut work_load_3 = HashMap::new();
+
+        work_load_1.insert("MTN_MECH".to_string(), 10.0);
+        work_load_1.insert("MTN_ELEC".to_string(), 10.0);
+        work_load_1.insert("PRODTECH".to_string(), 10.0);
+
+        work_load_2.insert("MTN_MECH".to_string(), 20.0);
+        work_load_2.insert("MTN_ELEC".to_string(), 20.0);
+        work_load_2.insert("PRODTECH".to_string(), 20.0);
+
+        work_load_3.insert("MTN_MECH".to_string(), 30.0);
+        work_load_3.insert("MTN_ELEC".to_string(), 30.0);
+        work_load_3.insert("PRODTECH".to_string(), 30.0);
+
+        let work_order_1 = WorkOrder::new(
+            2200000001,
+            false,
+            1000,
+            Priority::new_int(1),
+            100.0,
+            HashMap::new(),
+            work_load_1,
+            vec![],
+            vec![],
+            vec![],
+            WorkOrderType::Wdf(WDFPriority::new(1)),
+            SystemCondition::new(),
+            StatusCodes::new_default(),
+            OrderDates::new_test(),
+            Revision::new_default(),
+            UnloadingPoint::new_default(),
+            FunctionalLocation::new_default(),
+            OrderText::new_default(),
+            false,
+        );
+
+        let work_order_2 = WorkOrder::new(
+            2200000002,
+            false,
+            1000,
+            Priority::new_int(1),
+            100.0,
+            HashMap::new(),
+            work_load_2,
+            vec![],
+            vec![],
+            vec![],
+            WorkOrderType::Wdf(WDFPriority::new(1)),
+            SystemCondition::new(),
+            StatusCodes::new_default(),
+            OrderDates::new_test(),
+            Revision::new_default(),
+            UnloadingPoint::new_default(),
+            FunctionalLocation::new_default(),
+            OrderText::new_default(),
+            false,
+        );
+
+        let work_order_3 = WorkOrder::new(
+            2200000003,
+            false,
+            1000,
+            Priority::new_int(1),
+            100.0,
+            HashMap::new(),
+            work_load_3,
+            vec![],
+            vec![],
+            vec![],
+            WorkOrderType::Wdf(WDFPriority::new(1)),
+            SystemCondition::new(),
+            StatusCodes::new_default(),
+            OrderDates::new_test(),
+            Revision::new_default(),
+            UnloadingPoint::new_default(),
+            FunctionalLocation::new_default(),
+            OrderText::new_default(),
+            false,
+        );
+
+        work_orders.insert(work_order_1);
+        work_orders.insert(work_order_2);
+        work_orders.insert(work_order_3);
+
+        let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
+
+        let optimized_work_order_1 = OptimizedWorkOrder::new(
+            Some(Period::new_from_string("2023-W47-48").unwrap()),
+            None,
+            HashSet::new(),
+        );
+
+        let optimized_work_order_2 = OptimizedWorkOrder::new(
+            Some(Period::new_from_string("2023-W47-48").unwrap()),
+            None,
+            HashSet::new(),
+        );
+
+        let optimized_work_order_3 = OptimizedWorkOrder::new(
+            Some(Period::new_from_string("2023-W49-50").unwrap()),
+            None,
+            HashSet::new(),
+        );
+
+        optimized_work_orders
+            .inner
+            .insert(2200000001, optimized_work_order_1);
+        optimized_work_orders
+            .inner
+            .insert(2200000002, optimized_work_order_2);
+        optimized_work_orders
+            .inner
+            .insert(2200000003, optimized_work_order_3);
+
+        let periods: Vec<Period> = vec![
+            Period::new_from_string("2023-W47-48").unwrap(),
+            Period::new_from_string("2023-W49-50").unwrap(),
+        ];
+
+        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+            0.0,
+            HashMap::new(),
+            HashMap::new(),
+            work_orders,
+            PriorityQueues::new(),
+            optimized_work_orders,
+            periods,
+            true,
+        );
+
+        let seed: [u8; 32] = [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+            25, 26, 27, 28, 29, 30, 31, 32,
+        ];
+
+        let mut rng = StdRng::from_seed(seed);
+
+        scheduler_agent_algorithm.unschedule_random_work_orders(2, &mut rng);
+
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .optimized_work_orders
+                .inner
+                .get(&2200000001)
+                .unwrap()
+                .scheduled_period
+                .as_ref()
+                .unwrap(),
+            Period::new_from_string("2023-W47-48").unwrap()
+        );
+
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .optimized_work_orders
+                .inner
+                .get(&2200000002)
+                .unwrap()
+                .scheduled_period
+                .as_ref()
+                .unwrap(),
+            Period::new_from_string("2023-W51-52").unwrap()
+        );
+
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .optimized_work_orders
+                .inner
+                .get(&2200000003)
+                .unwrap()
+                .scheduled_period
+                .as_ref()
+                .unwrap(),
+            Period::new_from_string("2023-W51-52").unwrap()
+        );
+    }
+
+    #[test]
     fn test_calculate_period_difference() {
         let period_1 = Period::new_from_string("2023-W47-48");
         let period_2 = Period::new_from_string("2023-W49-50");
@@ -825,5 +1064,22 @@ mod tests {
         let difference = calculate_period_difference(period_1.unwrap(), period_2.unwrap());
 
         assert_eq!(difference, -2);
+    }
+
+    #[test]
+    fn test_choose_multiple() {
+        for _ in 0..19 {
+            let seed: [u8; 32] = [
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+                24, 25, 26, 27, 28, 29, 30, 31, 32,
+            ];
+
+            let mut rng = StdRng::from_seed(seed);
+
+            assert_eq!(
+                [1, 2, 3].choose_multiple(&mut rng, 2).collect::<Vec<_>>(),
+                [&3, &2]
+            );
+        }
     }
 }

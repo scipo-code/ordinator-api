@@ -32,21 +32,6 @@ impl SchedulerAgentAlgorithm {
         self.optimized_work_orders.inner.get(work_order_number)
     }
 
-    pub fn get_manual_resources_capacity(&self, work_center: String, period: String) -> f64 {
-        *self
-            .manual_resources_capacity
-            .get(&(work_center, period))
-            .unwrap_or(&0.0)
-    }
-
-    pub fn get_periods(&self) -> &Vec<Period> {
-        &self.periods
-    }
-
-    pub fn get_priority_queues(&self) -> &PriorityQueues<u32, u32> {
-        &self.priority_queues
-    }
-
     pub fn changed(&self) -> bool {
         self.changed
     }
@@ -174,6 +159,8 @@ impl OptimizedWorkOrder {
         self.scheduled_period.clone()
     }
 
+    /// This is a huge no-no! I think that this will lets us violate the invariant that we have
+    /// created between scheduled work and the loadings. We should test for this
     pub fn update_scheduled_period(&mut self, period: Option<Period>) {
         self.scheduled_period = period;
     }
@@ -304,8 +291,7 @@ impl SchedulerAgentAlgorithm {
                 excluded_periods += &(period.to_string() + " ");
             }
 
-            event!(tracing::Level::DEBUG,
-                work_order_number = %work_order_number,
+            debug!(work_order_number = %work_order_number,
                 info = "Work order updated",
                 suggested_period = match &optimized_work_order.scheduled_period {
                     Some(period) => period.period_string.clone(),
@@ -331,17 +317,12 @@ impl SchedulerAgentAlgorithm {
     pub fn populate_priority_queues(&mut self) {
         for (key, work_order) in self.backlog.inner.iter() {
             if work_order.unloading_point.present {
-                event!(
-                    tracing::Level::DEBUG,
-                    "Work order {} has been added to the unloading queue",
-                    key
-                );
+                debug!("Work order {} has been added to the unloading queue", key);
                 self.priority_queues
                     .unloading
                     .push(*key, work_order.order_weight);
             } else if work_order.revision.shutdown || work_order.vendor {
-                event!(
-                    tracing::Level::DEBUG,
+                debug!(
                     "Work order {} has been added to the shutdown/vendor queue",
                     key
                 );
@@ -349,11 +330,7 @@ impl SchedulerAgentAlgorithm {
                     .shutdown_vendor
                     .push(*key, work_order.order_weight);
             } else {
-                event!(
-                    tracing::Level::DEBUG,
-                    "Work order {} has been added to the normal queue",
-                    key
-                );
+                debug!("Work order {} has been added to the normal queue", key);
                 self.priority_queues
                     .normal
                     .push(*key, work_order.order_weight);
@@ -459,6 +436,7 @@ impl SchedulerAgentAlgorithm {
         &self.manual_resources_loading
     }
 
+    #[cfg(test)]
     pub fn get_manual_resources_capacities(&self) -> &HashMap<(String, String), f64> {
         &self.manual_resources_capacity
     }
@@ -619,5 +597,20 @@ mod tests {
                 .locked_in_period,
             Some(period.clone())
         );
+    }
+
+    #[test]
+    fn test_invariant_of_scheduled_period() {
+        todo!()
+    }
+
+    impl SchedulerAgentAlgorithm {
+        pub fn get_periods(&self) -> &Vec<Period> {
+            &self.periods
+        }
+
+        pub fn get_priority_queues(&self) -> &PriorityQueues<u32, u32> {
+            &self.priority_queues
+        }
     }
 }

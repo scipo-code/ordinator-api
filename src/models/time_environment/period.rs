@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, NaiveDate, TimeZone, Utc};
+use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc, Weekday};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 
@@ -38,7 +38,7 @@ impl Period {
         }
 
         // Parse year and weeks
-        let year = parts[0].parse::<i32>().map_err(|_| "Invalid year")?;
+        let mut year = parts[0].parse::<i32>().map_err(|_| "Invalid year")?;
 
         let start_week = parts[1][1..3]
             .parse::<u32>()
@@ -51,18 +51,23 @@ impl Period {
         let local_datetime = local.and_hms_opt(0, 0, 0).unwrap();
         let start_date = Utc.from_local_datetime(&local_datetime);
 
-        let end_date = if end_week == 52 {
-            let local = NaiveDate::from_isoywd_opt(year, end_week, chrono::Weekday::Mon).unwrap();
-            let local_datetime = local.and_hms_opt(23, 59, 59).unwrap();
-            Utc.from_local_datetime(&local_datetime)
+        let end_date = if end_week == 52
+            || (end_week == 53 && NaiveDate::from_isoywd_opt(year, 53, Weekday::Mon).is_some())
+        {
+            // Last moment of week 52 or 53
+            let local = NaiveDate::from_isoywd_opt(year, end_week, Weekday::Sun).unwrap();
+            let local_datetime = local.and_hms_opt(23, 59, 59);
+            Utc.from_local_datetime(&local_datetime.unwrap()).unwrap()
         } else {
+            // Handle rollover to the next year
             if end_week > 52 {
-                end_week = 1
+                end_week = 1;
+                year += 1;
             }
-            let local =
-                NaiveDate::from_isoywd_opt(year, end_week + 1, chrono::Weekday::Mon).unwrap();
-            let local_datetime = local.and_hms_opt(0, 0, 0).unwrap();
-            Utc.from_local_datetime(&(local_datetime - chrono::Duration::seconds(1)))
+            // Moment just before the start of the next week
+            let local = NaiveDate::from_isoywd_opt(year, end_week + 1, Weekday::Mon).unwrap();
+            let local_datetime = local.and_hms_opt(0, 0, 0);
+            Utc.from_local_datetime(&local_datetime.unwrap()).unwrap() - Duration::seconds(1)
         };
 
         // Create Period
@@ -70,7 +75,7 @@ impl Period {
             id: 0, // Assuming default value for id, modify as needed
             period_string: period_string.to_string(),
             start_date: start_date.unwrap(),
-            end_date: end_date.unwrap(),
+            end_date,
         })
     }
 }
@@ -83,6 +88,12 @@ impl Period {
 
     pub fn get_end_date(&self) -> DateTime<Utc> {
         self.end_date
+    }
+
+    pub fn add_one_period(&self) -> Period {
+        let start_date = self.end_date + chrono::Duration::seconds(1);
+        let end_date = start_date + chrono::Duration::weeks(2) - chrono::Duration::seconds(1);
+        Period::new(self.id, start_date, end_date)
     }
 }
 
@@ -99,10 +110,59 @@ mod tests {
     use chrono::Utc;
 
     #[test]
-    fn test_new_from_string() {
+    fn test_new_from_string_0() {
         let period = Period::new_from_string("2021-W01-02");
 
         assert_eq!(period.unwrap().period_string, "2021-W01-02".to_string());
+    }
+
+    #[test]
+    fn test_new_from_string_1() {
+        let period = Period::new_from_string("2023-W49-50");
+
+        assert_eq!(
+            period.clone().unwrap().period_string,
+            "2023-W49-50".to_string()
+        );
+        assert_eq!(
+            period.clone().unwrap().start_date,
+            Utc.with_ymd_and_hms(2023, 12, 4, 0, 0, 0).unwrap()
+        );
+        assert_eq!(
+            period.unwrap().end_date,
+            Utc.with_ymd_and_hms(2023, 12, 17, 23, 59, 59).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_new_from_string_2() {
+        let period = Period::new_from_string("2023-W51-52");
+
+        assert_eq!(
+            period.clone().unwrap().period_string,
+            "2023-W51-52".to_string()
+        );
+        assert_eq!(
+            period.clone().unwrap().start_date,
+            Utc.with_ymd_and_hms(2023, 12, 18, 0, 0, 0).unwrap()
+        );
+        assert_eq!(
+            period.unwrap().end_date,
+            Utc.with_ymd_and_hms(2023, 12, 31, 23, 59, 59).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_from_isoywd_opt() {
+        let year = 2023;
+        let week = 52;
+
+        let date = NaiveDate::from_isoywd_opt(year, week, chrono::Weekday::Mon);
+
+        assert_eq!(date.unwrap().year(), year);
+        assert_eq!(date.unwrap().iso_week().week(), week);
+
+        assert_eq!(date.unwrap().day(), 25);
     }
 
     #[test]

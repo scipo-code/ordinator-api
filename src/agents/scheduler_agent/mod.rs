@@ -198,7 +198,6 @@ fn transform_hashmap_to_nested_hashmap(
 
 #[cfg(test)]
 mod tests {
-
     use chrono::{TimeZone, Utc};
 
     use super::scheduler_message::tests::TestRequest;
@@ -209,6 +208,7 @@ mod tests {
         scheduler_message::{FrontendInputSchedulerMessage, SchedulerRequests},
         *,
     };
+    use crate::models::work_order::operation::Operation;
     use crate::models::work_order::order_type::WDFPriority;
     use crate::models::{work_order::*, WorkOrders};
     use crate::{
@@ -292,7 +292,7 @@ mod tests {
         manual_resource_loadings
             .insert(("PRODTECH".to_string(), period.period_string.clone()), 0.0);
 
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
             manual_resource_capacity,
             manual_resource_loadings,
@@ -333,7 +333,7 @@ mod tests {
             platform: "None".to_string(),
         };
 
-        let mut scheduler_agent =
+        let scheduler_agent =
             SchedulerAgent::new("test".to_string(), scheduler_agent_algorithm, None, None);
 
         let live_scheduler_agent = scheduler_agent.start();
@@ -370,5 +370,100 @@ mod tests {
                 .unwrap(),
             150.0
         );
+    }
+
+    #[test]
+    fn test_extract_state_to_scheduler_overview() {
+        let mut operations: HashMap<u32, Operation> = HashMap::new();
+
+        let operation_1 = Operation::new(
+            10,
+            1,
+            "MTN_MECH".to_string(),
+            1.0,
+            1.0,
+            1.0,
+            1,
+            Utc.with_ymd_and_hms(2022, 1, 1, 7, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 9, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 7, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 9, 0, 0).unwrap(),
+        );
+
+        let operation_2 = Operation::new(
+            20,
+            1,
+            "MTN_MECH".to_string(),
+            1.0,
+            1.0,
+            1.0,
+            1,
+            Utc.with_ymd_and_hms(2022, 1, 1, 7, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 9, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 7, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 9, 0, 0).unwrap(),
+        );
+
+        let operation_3 = Operation::new(
+            30,
+            1,
+            "MTN_MECH".to_string(),
+            1.0,
+            1.0,
+            1.0,
+            1,
+            Utc.with_ymd_and_hms(2022, 1, 1, 7, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 9, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 7, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 9, 0, 0).unwrap(),
+        );
+
+        operations.insert(10, operation_1);
+        operations.insert(20, operation_2);
+        operations.insert(30, operation_3);
+
+        let work_order_1 = WorkOrder::new(
+            2200002020,
+            false,
+            1000,
+            Priority::new_int(1),
+            100.0,
+            operations,
+            HashMap::new(),
+            vec![],
+            vec![],
+            vec![],
+            WorkOrderType::Wdf(WDFPriority::new(1)),
+            SystemCondition::new(),
+            StatusCodes::new_default(),
+            OrderDates::new_test(),
+            Revision::new_default(),
+            UnloadingPoint::new_default(),
+            FunctionalLocation::new_default(),
+            OrderText::new_default(),
+            false,
+        );
+
+        let mut work_orders = WorkOrders::new();
+
+        work_orders.insert(work_order_1);
+
+        let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+            0.0,
+            HashMap::new(),
+            HashMap::new(),
+            work_orders,
+            PriorityQueues::new(),
+            OptimizedWorkOrders::new(HashMap::new()),
+            vec![],
+            true,
+        );
+
+        let scheduler_agent =
+            SchedulerAgent::new("test".to_string(), scheduler_agent_algorithm, None, None);
+
+        let scheduler_overview = scheduler_agent.extract_state_to_scheduler_overview();
+
+        assert_eq!(scheduler_overview.len(), 3);
     }
 }

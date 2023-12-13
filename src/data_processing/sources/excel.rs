@@ -123,9 +123,6 @@ fn populate_work_orders<'a>(
 
         let operation: Operation =
             create_new_operation(row, &header_to_index).expect("Could not create a new operation");
-        work_orders.insert(
-            create_new_work_order(row, &header_to_index).expect("Could not insert new work order"),
-        );
 
         work_orders
             .inner
@@ -1042,9 +1039,25 @@ mod tests {
         );
 
         let scheduling_environment = load_data_file(file_path, number_of_periods);
-        assert_eq!(
-            scheduling_environment.unwrap().work_orders.inner.len(),
-            1227
-        );
+
+        let number_of_work_orders = scheduling_environment
+            .as_ref()
+            .unwrap()
+            .work_orders
+            .inner
+            .len();
+        let number_of_operations = scheduling_environment
+            .as_ref()
+            .unwrap()
+            .work_orders
+            .inner
+            .get(&2100024139)
+            .unwrap()
+            .operations
+            .len();
+
+        assert_eq!(number_of_work_orders, 1227);
+
+        assert_eq!(number_of_operations, 12);
     }
 }

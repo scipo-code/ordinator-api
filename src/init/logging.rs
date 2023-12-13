@@ -1,7 +1,12 @@
+use actix::Message;
 use std::env;
 use tracing::{event, Level};
 use tracing_subscriber::fmt::{self};
 use tracing_subscriber::prelude::*;
+
+trait AgentLogger {
+    fn log_message_received(&self, message: dyn Message<Result = ()>);
+}
 
 pub fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
     let log_dir = env::var("LOG_DIR").unwrap_or("./logs".to_string());
