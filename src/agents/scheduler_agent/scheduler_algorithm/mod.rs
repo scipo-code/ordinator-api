@@ -82,6 +82,16 @@ impl Hash for OptimizedWorkOrder {
     }
 }
 
+impl Default for OptimizedWorkOrder {
+    fn default() -> Self {
+        Self {
+            scheduled_period: None,
+            locked_in_period: None,
+            excluded_from_periods: HashSet::new(),
+        }
+    }
+}
+
 impl OptimizedWorkOrders {
     pub fn new(inner: HashMap<u32, OptimizedWorkOrder>) -> Self {
         Self { inner }

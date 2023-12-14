@@ -292,11 +292,26 @@ impl SchedulerAgentAlgorithm {
     /// I get overwhelmed by the amount of work that it will take. I think that we should continue
     /// moving forward and meditate if needed. There is an error here and instead of testing for it
     /// am brute forcing my way through it. I should not do that I should test the code and make a
-    /// test that fails.
+    /// test that fails. Unschedule work order basically means that we should move the work order
+    /// to the first period that is outside of the initialized periods. What is the best appraoch
+    /// for doing this? The problem is that we have changed the API for the unschedule work order
+    /// and also the whole meaning of what it means to be scheduld. Should I be allowed to
+    /// unschedule a work order that is not scheduled? If so the logic should be that we set the
+    /// scheduled period to the prospective period. That actually means that we have changed the
+    /// problem setup. But it is the way that it should be.
     fn unschedule_work_order(&mut self, work_order_key: &u32) {
         let work_order = self.backlog.inner.get(work_order_key).unwrap();
         let period = match &self.optimized_work_orders.inner.get(work_order_key) {
-            Some(optimized_work_order) => optimized_work_order.scheduled_period.clone(),
+            Some(optimized_work_order) => match &optimized_work_order.scheduled_period {
+                Some(period) => Some(period.clone()),
+                None => {
+                    if let Some(last_period) = self.periods.last() {
+                        Some(last_period.add_one_period())
+                    } else {
+                        panic!("There are no periods in the system")
+                    }
+                }
+            },
             None => {
                 if let Some(last_period) = self.periods.last() {
                     dbg!(last_period);
@@ -308,6 +323,14 @@ impl SchedulerAgentAlgorithm {
         }
         .unwrap();
 
+        // The period is used to make sure that we update the loading correctly. The loading that
+        // should be updated is the is the one found in the period that the work order was scheduled
+        // in and not the period that the work order is moving to. This is a crucial difference.
+
+        // One of the assumptions of the unschedule work order is that the the work order is
+        // actually scheduled. This is not the case here as I am implementing logic to handle cases
+        // where the work order is not scheduled.
+        // What does it mean when we call the unwrap here?
         for (work_center_period, loading) in self.manual_resources_loading.iter_mut() {
             if work_center_period.1 == period.period_string {
                 let work_load_for_work_center = work_order.work_load.get(&work_center_period.0);
@@ -318,11 +341,19 @@ impl SchedulerAgentAlgorithm {
         }
         let prospective_period = self.periods.last().unwrap().add_one_period();
 
-        self.optimized_work_orders
-            .inner
-            .get_mut(work_order_key)
-            .unwrap()
-            .update_scheduled_period(Some(prospective_period));
+        match self.optimized_work_orders.inner.get_mut(work_order_key) {
+            Some(optimized_work_order) => {
+                optimized_work_order.update_scheduled_period(Some(prospective_period));
+                self.changed = true;
+            }
+            None => {
+                self.optimized_work_orders.inner.insert(
+                    *work_order_key,
+                    OptimizedWorkOrder::new(Some(prospective_period), None, HashSet::new()),
+                );
+                self.changed = true;
+            }
+        }
     }
 
     fn update_loadings(&mut self, period: &Period, work_order: &WorkOrder) {
@@ -1081,5 +1112,38 @@ mod tests {
                 [&3, &2]
             );
         }
+    }
+
+    #[test]
+    fn test_unschedule_work_order_none_in_scheduled_period() {
+        let work_order = WorkOrder::default();
+
+        let mut work_orders = WorkOrders::new();
+
+        work_orders.insert(work_order);
+
+        let optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
+
+        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+            0.0,
+            HashMap::new(),
+            HashMap::new(),
+            work_orders,
+            PriorityQueues::new(),
+            optimized_work_orders,
+            vec![Period::new_from_string("2023-W47-48").unwrap()],
+            true,
+        );
+
+        scheduler_agent_algorithm.unschedule_work_order(&2100000001);
+        assert_eq!(
+            scheduler_agent_algorithm
+                .optimized_work_orders
+                .inner
+                .get(&2100000001)
+                .unwrap()
+                .scheduled_period,
+            Some(Period::new_from_string("2023-W49-50").unwrap())
+        );
     }
 }

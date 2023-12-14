@@ -251,6 +251,7 @@ mod tests {
         priority::Priority,
         revision::Revision,
         status_codes::StatusCodes,
+        system_condition::SystemCondition,
         unloading_point::UnloadingPoint,
         WorkOrder,
     };
@@ -298,6 +299,44 @@ mod tests {
                 vec![],
                 WorkOrderType::Wdf(WDFPriority::new(1)),
                 crate::models::work_order::system_condition::SystemCondition::Unknown,
+                StatusCodes::new_default(),
+                OrderDates::new_test(),
+                Revision::new_default(),
+                UnloadingPoint::new_default(),
+                FunctionalLocation::new_default(),
+                OrderText::new_default(),
+                false,
+            )
+        }
+    }
+
+    impl Default for WorkOrder {
+        fn default() -> Self {
+            let mut operations = HashMap::new();
+
+            let operation_0010 = Operation::new_test(10, "PRODTECH".to_string(), 10.0);
+            let operation_0020 = Operation::new_test(20, "MTN_MECH".to_string(), 20.0);
+            let operation_0030 = Operation::new_test(30, "MTN_MECH".to_string(), 30.0);
+            let operation_0040 = Operation::new_test(40, "PRODTECH".to_string(), 40.0);
+
+            operations.insert(10, operation_0010);
+            operations.insert(20, operation_0020);
+            operations.insert(30, operation_0030);
+            operations.insert(40, operation_0040);
+
+            WorkOrder::new(
+                2100000001,
+                false,
+                1000,
+                Priority::new_int(1),
+                100.0,
+                operations,
+                HashMap::new(),
+                vec![],
+                vec![],
+                vec![],
+                WorkOrderType::Wdf(WDFPriority::new(1)),
+                SystemCondition::Unknown,
                 StatusCodes::new_default(),
                 OrderDates::new_test(),
                 Revision::new_default(),

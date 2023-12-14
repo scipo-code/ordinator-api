@@ -14,6 +14,7 @@ use crate::models::work_order::status_codes::MaterialStatus;
 
 use crate::agents::work_planner_agent::WorkPlannerAgent;
 
+/// This is the primary struct for the scheduler agent.
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct SchedulerAgent {

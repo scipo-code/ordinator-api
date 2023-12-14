@@ -191,7 +191,11 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
         };
 
         if self.scheduler_agent_algorithm.changed() {
-            trace!(message = "change occured in optimized work orders");
+            trace!(
+                agent = "scheduler_agent",
+                name = self.platform.clone(),
+                message = "change occured in optimized work orders"
+            );
             ctx.notify(MessageToFrontend {});
             self.scheduler_agent_algorithm.set_changed(false);
         }

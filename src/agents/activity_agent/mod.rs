@@ -13,6 +13,9 @@ pub struct ActivityAgent {
     assigned: Vec<u32>,
 }
 
+/// ekljdlksafjsdalkfjsad
+/// sdlkfjsdlkfj
+///
 impl Actor for ActivityAgent {
     type Context = Context<Self>;
 }
