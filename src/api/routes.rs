@@ -1,24 +1,32 @@
+use actix::prelude::*;
 use actix_web::{get, web, HttpRequest, HttpResponse, Responder, Result};
 use actix_web_actors::ws;
-use actix::prelude::*;
 use std::sync::Arc;
 use std::thread;
-use tracing::{Level, event};
+use tracing::info;
 
-use crate::api::websocket_agent::WebSocketAgent;
 use crate::agents::scheduler_agent::SchedulerAgent;
+use crate::api::websocket_agent::WebSocketAgent;
+use crate::models::SchedulingEnvironment;
 
 #[get("/ws")]
 async fn ws_index(
-    data: web::Data<Arc<Addr<SchedulerAgent>>>, 
-    req: HttpRequest, 
-    stream: web::Payload
+    sche_actor_addr: web::Data<Arc<Addr<SchedulerAgent>>>,
+    sche_env_addr: web::Data<Arc<Addr<SchedulingEnvironment>>>,
+    req: HttpRequest,
+    stream: web::Payload,
 ) -> Result<HttpResponse> {
-
     let current_thread_id = thread::current().id();
-    event!(Level::INFO, ?current_thread_id, "Setting up ws_index route handler");
+    info!(?current_thread_id, "Setting up ws_index route handler");
 
-    let res = ws::start(WebSocketAgent::new(data.get_ref().clone()), &req, stream);
+    let res = ws::start(
+        WebSocketAgent::new(
+            sche_actor_addr.get_ref().clone(),
+            sche_env_addr.get_ref().clone(),
+        ),
+        &req,
+        stream,
+    );
     res
 }
 

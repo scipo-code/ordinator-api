@@ -348,22 +348,6 @@ impl SchedulerAgentAlgorithm {
         }
     }
 
-    /// So the idea here is that we look through all the optimized_work_orders and then we schedule
-    /// them according to the queue type. There are two cases that should be covered.
-    ///
-    /// Inclusion
-    ///     Here we have to move a work order to the unloading point queue. If the work order is
-    ///     already scheduled we have the logic in place to handle this.
-    ///    
-    ///
-    /// Exclusion
-    ///     We need to force this invariant on the data type.
-    ///
-    /// I am doing the wrong thing here. We only care about the
-    ///
-    /// The exclusion is simply a variation of the materials, EASD. In the code we should create
-    /// something to handle this issue. Exclusion is already handled in the code.
-    ///
     fn update_priority_queues(&mut self) {
         for (key, work_order) in &self.optimized_work_orders.inner {
             let work_order_weight = self.backlog.inner.get(key).unwrap().order_weight;
@@ -471,6 +455,10 @@ impl SchedulerAgentAlgorithm {
     pub fn set_manual_resources_loading(&mut self, resource: String, period: String, loading: f64) {
         self.manual_resources_loading
             .insert((resource, period), loading);
+    }
+
+    pub fn get_periods(&self) -> &Vec<Period> {
+        &self.periods
     }
 }
 
@@ -615,10 +603,6 @@ mod tests {
     }
 
     impl SchedulerAgentAlgorithm {
-        pub fn get_periods(&self) -> &Vec<Period> {
-            &self.periods
-        }
-
         pub fn get_priority_queues(&self) -> &PriorityQueues<u32, u32> {
             &self.priority_queues
         }

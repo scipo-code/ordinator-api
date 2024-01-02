@@ -2,23 +2,25 @@ pub mod display;
 pub mod scheduler_algorithm;
 pub mod scheduler_message;
 
-use actix::prelude::*;
-use std::collections::HashMap;
-
 use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
 use crate::agents::scheduler_agent::scheduler_message::ScheduleIteration;
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::work_order::priority::Priority;
 use crate::models::work_order::status_codes::MaterialStatus;
+use crate::models::SchedulingEnvironment;
+use actix::prelude::*;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use crate::agents::work_planner_agent::WorkPlannerAgent;
 
 /// This is the primary struct for the scheduler agent.
 #[allow(dead_code)]
-#[derive(Debug)]
 pub struct SchedulerAgent {
     platform: String,
+    scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     scheduler_agent_algorithm: SchedulerAgentAlgorithm,
     ws_agent_addr: Option<Addr<WebSocketAgent>>,
     work_planner_agent_addr: Option<Addr<WorkPlannerAgent>>,
@@ -47,12 +49,14 @@ impl Actor for SchedulerAgent {
 impl SchedulerAgent {
     pub fn new(
         platform: String,
+        scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         scheduler_agent_algorithm: SchedulerAgentAlgorithm,
         ws_agent_addr: Option<Addr<WebSocketAgent>>,
         work_planner_agent_addr: Option<Addr<WorkPlannerAgent>>,
     ) -> Self {
         Self {
             platform,
+            scheduling_environment,
             scheduler_agent_algorithm,
             ws_agent_addr,
             work_planner_agent_addr,
@@ -334,8 +338,13 @@ mod tests {
             platform: "None".to_string(),
         };
 
-        let scheduler_agent =
-            SchedulerAgent::new("test".to_string(), scheduler_agent_algorithm, None, None);
+        let scheduler_agent = SchedulerAgent::new(
+            "test".to_string(),
+            Arc::new(Mutex::new(SchedulingEnvironment::default())),
+            scheduler_agent_algorithm,
+            None,
+            None,
+        );
 
         let live_scheduler_agent = scheduler_agent.start();
 
@@ -460,8 +469,13 @@ mod tests {
             true,
         );
 
-        let scheduler_agent =
-            SchedulerAgent::new("test".to_string(), scheduler_agent_algorithm, None, None);
+        let scheduler_agent = SchedulerAgent::new(
+            "test".to_string(),
+            Arc::new(Mutex::new(SchedulingEnvironment::default())),
+            scheduler_agent_algorithm,
+            None,
+            None,
+        );
 
         let scheduler_overview = scheduler_agent.extract_state_to_scheduler_overview();
 

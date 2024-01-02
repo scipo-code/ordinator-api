@@ -4,12 +4,15 @@ mod data_processing;
 mod init;
 mod models;
 
+use std::sync::{Arc, Mutex};
+
 // #[macro_use]
 // extern crate lazy_static;
 // use lazy_static::lazy_static;
 // use jlrs::prelude::*;
-use tracing::instrument;
+use actix::Actor;
 use tracing::{event, Level};
+use tracing::{info, instrument};
 
 use crate::init::application_builder::ApplicationBuilder;
 use crate::init::logging::setup_logging;
@@ -19,21 +22,13 @@ use crate::init::logging::setup_logging;
 async fn main() -> () {
     let _guard = setup_logging();
 
-    // let julia = unsafe {
-    //     RuntimeBuilder::new()
-    //         .async_runtime::<Tokio>()
-    //         .start_async::<3>()
-    //         .unwrap()
-    // };
-    // lazy_static! {
-    //     pub static ref JULIA: Mutex<Julia> = Mutex::new(unsafe { Julia::init().unwrap() });
-    // }
-
-    event!(Level::INFO, "starting application");
-    let scheduling_environment = init::model_initializers::create_scheduling_environment(10);
-
+    info!("starting application");
+    let scheduling_environment = Arc::new(Mutex::new(
+        init::model_initializers::create_scheduling_environment(10),
+    ));
     let scheduler_agent_addr = init::agent_factory::build_scheduler_agent(scheduling_environment);
 
+    let scheduling_environment_addr = scheduling_environment;
     ApplicationBuilder::new()
         .with_scheduler_agent(scheduler_agent_addr)
         // put other agents here

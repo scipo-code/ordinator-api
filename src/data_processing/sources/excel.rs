@@ -65,7 +65,7 @@ pub fn load_data_file(
     });
 
     let scheduling_environment =
-        SchedulingEnvironment::new(work_orders, worker_environment, periods);
+        SchedulingEnvironment::new(work_orders, worker_environment, periods, None);
     Ok(scheduling_environment)
 }
 

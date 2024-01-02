@@ -5,7 +5,6 @@ use crate::data_processing::sources;
 use crate::models::SchedulingEnvironment;
 
 pub fn create_scheduling_environment(number_of_periods: u32) -> SchedulingEnvironment {
-    dbg!("sljdf");
     let mut scheduling_environment =
         initialize_scheduling_environment(number_of_periods).expect("No data file was provided.");
     scheduling_environment.work_orders.initialize_work_orders();

@@ -2,12 +2,66 @@ pub mod time_environment;
 pub mod work_order;
 pub mod worker_environment;
 
+use actix::prelude::*;
 use std::collections::HashMap;
 use std::fmt;
 
+use crate::api::websocket_agent::{TimeEnvironmentMessage, WebSocketAgent};
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::WorkOrder;
 use crate::models::worker_environment::WorkerEnvironment;
+
+pub struct SchedulingEnvironment {
+    pub work_orders: WorkOrders,
+    worker_environment: WorkerEnvironment,
+    pub periods: Vec<Period>,
+    web_socket_agent_addr_option: Option<Addr<WebSocketAgent>>,
+    // material
+}
+
+impl SchedulingEnvironment {
+    pub fn new(
+        work_orders: WorkOrders,
+        worker_environment: WorkerEnvironment,
+        periods: Vec<Period>,
+        web_socket_agent_addr: Option<Addr<WebSocketAgent>>,
+    ) -> Self {
+        SchedulingEnvironment {
+            work_orders,
+            worker_environment,
+            periods,
+            web_socket_agent_addr_option: web_socket_agent_addr,
+        }
+    }
+
+    pub fn set_periods(&mut self, periods: Vec<Period>) {
+        self.periods = periods;
+        let message = TimeEnvironmentMessage {
+            frontend_message_type: String::from("time_environment"),
+            time: chrono::Utc::now(),
+            periods: self.periods.clone(),
+        };
+        match &self.web_socket_agent_addr_option {
+            Some(ws_addr) => ws_addr.do_send(message),
+            None => panic!("SchedulingEnvironment does not have a WebSocketAgent Address"),
+        }
+    }
+}
+
+impl Default for SchedulingEnvironment {
+    fn default() -> Self {
+        SchedulingEnvironment {
+            work_orders: WorkOrders::new(),
+            worker_environment: WorkerEnvironment::new(),
+            periods: vec![Period::new(
+                0,
+                chrono::Utc::now(),
+                chrono::Utc::now() + chrono::Duration::days(14) - chrono::Duration::seconds(1),
+            )],
+            web_socket_agent_addr_option: None,
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct WorkOrders {
@@ -31,27 +85,6 @@ impl WorkOrders {
     pub fn initialize_work_orders(&mut self) {
         for (_, work_order) in self.inner.iter_mut() {
             work_order.initialize();
-        }
-    }
-}
-
-pub struct SchedulingEnvironment {
-    pub work_orders: WorkOrders,
-    worker_environment: WorkerEnvironment,
-    pub periods: Vec<Period>,
-    // material
-}
-
-impl SchedulingEnvironment {
-    pub fn new(
-        work_orders: WorkOrders,
-        worker_environment: WorkerEnvironment,
-        periods: Vec<Period>,
-    ) -> Self {
-        SchedulingEnvironment {
-            work_orders,
-            worker_environment,
-            periods,
         }
     }
 }

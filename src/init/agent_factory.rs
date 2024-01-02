@@ -1,5 +1,7 @@
 use actix::prelude::*;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
 use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrders;
@@ -9,11 +11,8 @@ use crate::agents::scheduler_agent::SchedulerAgent;
 use crate::models::SchedulingEnvironment;
 use crate::models::WorkOrders;
 
-/// This is a very powerful function. I will explore it further.
-//create_agent(type: AgentType, config: Config) -> Box<dyn Agent>
-
 pub fn build_scheduler_agent(
-    scheduling_environment: SchedulingEnvironment,
+    scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
 ) -> Addr<SchedulerAgent> {
     let cloned_work_orders = scheduling_environment.work_orders.clone();
 
@@ -30,16 +29,15 @@ pub fn build_scheduler_agent(
         scheduling_environment.periods.clone(),
         true,
     );
-    let scheduler_agent =
-        SchedulerAgent::new(String::from("Dan F"), scheduler_agent_algorithm, None, None);
+    let scheduler_agent = SchedulerAgent::new(
+        String::from("Dan F"),
+        Arc::new(Mutex::new(scheduling_environment)),
+        scheduler_agent_algorithm,
+        None,
+        None,
+    );
     scheduler_agent.start()
 }
-
-/// Later on the the SchedulingEnvironment should be converted to Mutex<SchedulingEnvironment> as it
-/// will be used by multiple agents.
-// pub fn build_work_planner_agent(_scheduling_environment: SchedulingEnvironment) {
-
-// }
 
 fn create_optimized_work_orders(work_orders: &WorkOrders) -> OptimizedWorkOrders {
     let mut optimized_work_orders: HashMap<u32, OptimizedWorkOrder> = HashMap::new();

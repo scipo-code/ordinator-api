@@ -173,6 +173,7 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
 
         self.scheduler_agent_algorithm
             .schedule_normal_work_orders(QueueType::Normal);
+
         self.scheduler_agent_algorithm.schedule_forced_work_orders();
         // self.scheduler_agent_algorithm.schedule_work_orders_by_type(QueueType::UnloadingAndManual);
 
@@ -249,6 +250,10 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
             Some(ws_agent) => {
                 ws_agent.do_send(scheduler_frontend_message);
                 ws_agent.do_send(scheduler_frontend_loading_message);
+                self.scheduling_environment
+                    .lock()
+                    .unwrap()
+                    .set_periods(self.scheduler_agent_algorithm.get_periods().clone());
             }
             None => {
                 info!("No WebSocketAgentAddr set yet, so no message sent to frontend")
@@ -656,6 +661,9 @@ pub mod tests {
             })
         }
     }
+
+    #[test]
+    fn test_handler_message_to_frontend() {}
 
     impl WorkOrderPeriodMapping {
         pub fn new_test() -> Self {
