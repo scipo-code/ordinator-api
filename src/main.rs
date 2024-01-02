@@ -6,12 +6,6 @@ mod models;
 
 use std::sync::{Arc, Mutex};
 
-// #[macro_use]
-// extern crate lazy_static;
-// use lazy_static::lazy_static;
-// use jlrs::prelude::*;
-use actix::Actor;
-use tracing::{event, Level};
 use tracing::{info, instrument};
 
 use crate::init::application_builder::ApplicationBuilder;
@@ -28,7 +22,6 @@ async fn main() -> () {
     ));
     let scheduler_agent_addr = init::agent_factory::build_scheduler_agent(scheduling_environment);
 
-    let scheduling_environment_addr = scheduling_environment;
     ApplicationBuilder::new()
         .with_scheduler_agent(scheduler_agent_addr)
         // put other agents here

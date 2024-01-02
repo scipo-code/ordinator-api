@@ -7,8 +7,6 @@ use tracing::{debug, info, span, trace};
 
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
 use crate::agents::scheduler_agent::{self, SchedulerAgent};
-use crate::api::websocket_agent::SchedulerFrontendLoadingMessage;
-use crate::api::websocket_agent::SchedulerFrontendMessage;
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::time_environment::period::Period;
 
@@ -205,9 +203,46 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
     }
 }
 
+enum SchedulerFrontendMessage {
+    Overview(OverviewMessage),
+    Loading(LoadingMessage),
+    Period(PeriodMessage),
+}
+
 struct MessageToFrontend {}
 
 impl Message for MessageToFrontend {
+    type Result = ();
+}
+
+#[derive(serde::Serialize)]
+pub struct LoadingMessage {
+    pub frontend_message_type: String,
+    pub manual_resources_loading: HashMap<String, HashMap<String, f64>>,
+}
+
+impl Message for LoadingMessage {
+    type Result = ();
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct OverviewMessage {
+    pub frontend_message_type: String,
+    pub scheduling_overview_data: Vec<scheduler_agent::SchedulingOverviewData>,
+}
+
+/// The Scheduler Output should contain all that is needed to make
+impl Message for OverviewMessage {
+    type Result = ();
+}
+
+#[derive(Serialize, Debug)]
+pub struct PeriodMessage {
+    pub frontend_message_type: String,
+    pub periods: Vec<Period>,
+}
+
+impl Message for PeriodMessage {
     type Result = ();
 }
 
@@ -223,14 +258,13 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
         let _enter = span.enter();
         let scheduling_overview_data = self.extract_state_to_scheduler_overview().clone();
 
-        dbg!(scheduling_overview_data.clone().len());
-
-        let scheduler_frontend_message = SchedulerFrontendMessage {
+        let scheduler_frontend_message = OverviewMessage {
             frontend_message_type: "frontend_scheduler_overview".to_string(),
             scheduling_overview_data,
         };
 
         trace!(
+            scheduler_message = "scheduler overview message",
             "scheduler_frontend_message: {:?}",
             scheduler_frontend_message
         );
@@ -241,19 +275,30 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
                 .clone(),
         );
 
-        let scheduler_frontend_loading_message = SchedulerFrontendLoadingMessage {
+        let scheduler_frontend_loading_message = LoadingMessage {
             frontend_message_type: "frontend_scheduler_loading".to_string(),
             manual_resources_loading: nested_loadings,
         };
 
+        self.scheduling_environment
+            .lock()
+            .unwrap()
+            .set_periods(self.scheduler_agent_algorithm.get_periods().clone());
+
+        let scheduler_period_message = PeriodMessage {
+            frontend_message_type: "frontend_scheduler_periods".to_string(),
+            periods: self.scheduling_environment.lock().unwrap().clone_periods(),
+        };
+
+        // So we update the SchedulingEnvironment with the periods. I is okay that the scheduler
+        // agent itself has the periods and tells the websocket agent to send out the periods state
+        // as long to the scheduler_agent sends the periods directly from the SchedulingEnvironment
+        // and not from his own state or algorithm.
         match self.ws_agent_addr.as_ref() {
             Some(ws_agent) => {
                 ws_agent.do_send(scheduler_frontend_message);
                 ws_agent.do_send(scheduler_frontend_loading_message);
-                self.scheduling_environment
-                    .lock()
-                    .unwrap()
-                    .set_periods(self.scheduler_agent_algorithm.get_periods().clone());
+                ws_agent.do_send(scheduler_period_message);
             }
             None => {
                 info!("No WebSocketAgentAddr set yet, so no message sent to frontend")

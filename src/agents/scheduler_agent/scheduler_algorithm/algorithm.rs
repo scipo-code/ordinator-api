@@ -94,8 +94,6 @@ impl SchedulerAgentAlgorithm {
                 .entry((work_center.to_string(), period.clone().period_string))
                 .or_insert(0.0);
 
-            dbg!(resource_needed);
-
             if *resource_needed > *resource_capacity - *resource_loading {
                 return Some(work_order_key);
             }

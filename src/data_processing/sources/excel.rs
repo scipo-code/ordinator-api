@@ -1034,7 +1034,7 @@ mod tests {
         let scheduling_environment = load_data_file(file_path, number_of_periods);
 
         assert_eq!(
-            scheduling_environment.unwrap().periods.len(),
+            scheduling_environment.unwrap().clone_periods().len(),
             number_of_periods as usize
         );
 
@@ -1043,13 +1043,13 @@ mod tests {
         let number_of_work_orders = scheduling_environment
             .as_ref()
             .unwrap()
-            .work_orders
+            .get_work_orders()
             .inner
             .len();
         let number_of_operations = scheduling_environment
             .as_ref()
             .unwrap()
-            .work_orders
+            .get_work_orders()
             .inner
             .get(&2100024139)
             .unwrap()

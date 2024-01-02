@@ -5,6 +5,7 @@ pub mod worker_environment;
 use actix::prelude::*;
 use std::collections::HashMap;
 use std::fmt;
+use tracing::info;
 
 use crate::api::websocket_agent::{TimeEnvironmentMessage, WebSocketAgent};
 use crate::models::time_environment::period::Period;
@@ -12,9 +13,9 @@ use crate::models::work_order::WorkOrder;
 use crate::models::worker_environment::WorkerEnvironment;
 
 pub struct SchedulingEnvironment {
-    pub work_orders: WorkOrders,
+    work_orders: WorkOrders,
     worker_environment: WorkerEnvironment,
-    pub periods: Vec<Period>,
+    periods: Vec<Period>,
     web_socket_agent_addr_option: Option<Addr<WebSocketAgent>>,
     // material
 }
@@ -43,7 +44,25 @@ impl SchedulingEnvironment {
         };
         match &self.web_socket_agent_addr_option {
             Some(ws_addr) => ws_addr.do_send(message),
-            None => panic!("SchedulingEnvironment does not have a WebSocketAgent Address"),
+            None => info!("No WebSocketAgent address has been provided yet."),
+        }
+    }
+
+    pub fn clone_periods(&self) -> Vec<Period> {
+        self.periods.clone()
+    }
+
+    pub fn clone_work_orders(&self) -> WorkOrders {
+        self.work_orders.clone()
+    }
+
+    pub fn get_work_orders(&self) -> &WorkOrders {
+        &self.work_orders
+    }
+
+    pub fn initialize_work_orders(&mut self) {
+        for (_, work_order) in self.work_orders.inner.iter_mut() {
+            work_order.initialize();
         }
     }
 }
@@ -78,14 +97,6 @@ impl WorkOrders {
     pub fn insert(&mut self, work_order: WorkOrder) {
         self.inner
             .insert(work_order.get_work_order_number(), work_order);
-    }
-}
-
-impl WorkOrders {
-    pub fn initialize_work_orders(&mut self) {
-        for (_, work_order) in self.inner.iter_mut() {
-            work_order.initialize();
-        }
     }
 }
 

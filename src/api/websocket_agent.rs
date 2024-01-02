@@ -1,26 +1,20 @@
 use actix::prelude::*;
 use actix_web::Result;
 use actix_web_actors::ws;
-use chrono::DateTime;
-use chrono::Utc;
-use serde::Deserialize;
 use serde::Serialize;
-use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::Mutex;
 use tracing::info;
-use tracing::{event, Level};
 
+use crate::agents::scheduler_agent::scheduler_message::LoadingMessage;
+use crate::agents::scheduler_agent::scheduler_message::OverviewMessage;
+use crate::agents::scheduler_agent::scheduler_message::PeriodMessage;
 use crate::agents::scheduler_agent::scheduler_message::SetAgentAddrMessage;
 use crate::agents::scheduler_agent::SchedulerAgent;
-use crate::agents::scheduler_agent::SchedulingOverviewData;
 use crate::api::FrontendMessages;
 use crate::models::time_environment::period::Period;
-use crate::models::SchedulingEnvironment;
 
 pub struct WebSocketAgent {
     scheduler_agent_addr: Arc<Addr<SchedulerAgent>>,
-    scheduling_environment_addr: Arc<Addr<SchedulingEnvironment>>,
 }
 
 impl Actor for WebSocketAgent {
@@ -29,8 +23,6 @@ impl Actor for WebSocketAgent {
     fn started(&mut self, ctx: &mut Self::Context) {
         info!("WebSocketAgent is alive");
         let addr = ctx.address();
-        self.scheduling_environment_addr
-            .do_send(SetAgentAddrMessage { addr: addr.clone() });
         self.scheduler_agent_addr
             .do_send(SetAgentAddrMessage { addr });
     }
@@ -45,7 +37,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                     serde_json::from_str(&text);
                 match msg_type {
                     Ok(FrontendMessages::Scheduler(scheduler_input)) => {
-                        event!(Level::INFO, scheduler_front_end_message = %scheduler_input, "SchedulerAgent received SchedulerMessage");
+                        info!(scheduler_front_end_message = %scheduler_input, "SchedulerAgent received SchedulerMessage");
                         self.scheduler_agent_addr.do_send(scheduler_input);
                         let addr = ctx.address();
                         self.scheduler_agent_addr
@@ -84,21 +76,11 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
 }
 
 impl WebSocketAgent {
-    pub fn new(
-        scheduler_agent_addr: Arc<Addr<SchedulerAgent>>,
-        scheduling_environment_addr: Arc<Addr<SchedulingEnvironment>>,
-    ) -> Self {
+    pub fn new(scheduler_agent_addr: Arc<Addr<SchedulerAgent>>) -> Self {
         WebSocketAgent {
             scheduler_agent_addr,
-            scheduling_environment_addr,
         }
     }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct SchedulerFrontendMessage {
-    pub frontend_message_type: String,
-    pub scheduling_overview_data: Vec<SchedulingOverviewData>,
 }
 
 #[derive(Serialize, Debug)]
@@ -109,11 +91,6 @@ pub struct TimeEnvironmentMessage {
 }
 
 impl Message for TimeEnvironmentMessage {
-    type Result = ();
-}
-
-/// The Scheduler Output should contain all that is needed to make
-impl Message for SchedulerFrontendMessage {
     type Result = ();
 }
 
@@ -141,10 +118,10 @@ impl Handler<TimeEnvironmentMessage> for WebSocketAgent {
 /// I would like it that the SchedulingEnvironment is not an Actor. But is accessed concurrently by
 /// the Actors themselves. The question is whether it is possible to handle the state change in a
 /// good way for the Actors? Does it go against the Actor model? I am not sure. I think it is
-impl Handler<SchedulerFrontendMessage> for WebSocketAgent {
+impl Handler<OverviewMessage> for WebSocketAgent {
     type Result = ();
 
-    fn handle(&mut self, msg: SchedulerFrontendMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: OverviewMessage, ctx: &mut Self::Context) -> Self::Result {
         // Serialize the message
         info!(scheduler_front_end_message.websocket = ?msg.scheduling_overview_data.len(), "Scheduler Table data sent to frontend");
         let serialized_message = serde_json::to_string(&msg).unwrap();
@@ -154,24 +131,21 @@ impl Handler<SchedulerFrontendMessage> for WebSocketAgent {
     }
 }
 
-#[derive(serde::Serialize)]
-pub struct SchedulerFrontendLoadingMessage {
-    pub frontend_message_type: String,
-    pub manual_resources_loading: HashMap<String, HashMap<String, f64>>,
-}
-
-impl Message for SchedulerFrontendLoadingMessage {
-    type Result = ();
-}
-
-impl Handler<SchedulerFrontendLoadingMessage> for WebSocketAgent {
+impl Handler<LoadingMessage> for WebSocketAgent {
     type Result = ();
 
-    fn handle(
-        &mut self,
-        msg: SchedulerFrontendLoadingMessage,
-        ctx: &mut Self::Context,
-    ) -> Self::Result {
+    fn handle(&mut self, msg: LoadingMessage, ctx: &mut Self::Context) -> Self::Result {
+        // Serialize the message
+        let serialized_message = serde_json::to_string(&msg).unwrap();
+        // Send the serialized message to the frontend
+        ctx.text(serialized_message);
+    }
+}
+
+impl Handler<PeriodMessage> for WebSocketAgent {
+    type Result = ();
+
+    fn handle(&mut self, msg: PeriodMessage, ctx: &mut Self::Context) -> Self::Result {
         // Serialize the message
         let serialized_message = serde_json::to_string(&msg).unwrap();
         // Send the serialized message to the frontend
@@ -225,12 +199,7 @@ mod tests {
         )
         .start();
 
-        let scheduling_environment_addr = SchedulingEnvironment::default().start();
-
-        let _ws_agent = WebSocketAgent::new(
-            Arc::new(scheduler_agent_addr.clone()),
-            Arc::new(scheduling_environment_addr.clone()),
-        );
+        let _ws_agent = WebSocketAgent::new(Arc::new(scheduler_agent_addr.clone()));
 
         // let mut ws_agent_addr = ws_agent.start();
     }
