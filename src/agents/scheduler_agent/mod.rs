@@ -5,9 +5,11 @@ pub mod scheduler_message;
 use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
 use crate::agents::scheduler_agent::scheduler_message::ScheduleIteration;
 use crate::api::websocket_agent::WebSocketAgent;
+use crate::models::time_environment::period::Period;
 use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::work_order::priority::Priority;
 use crate::models::work_order::status_codes::MaterialStatus;
+use crate::models::worker_environment::resources::Resources;
 use crate::models::SchedulingEnvironment;
 use actix::prelude::*;
 use std::collections::HashMap;
@@ -125,7 +127,7 @@ impl SchedulerAgent {
                         .get_optimized_work_order(work_order_number)
                     {
                         Some(order_period) => match order_period.get_scheduled_period().as_ref() {
-                            Some(scheduled_period) => scheduled_period.period_string.clone(),
+                            Some(scheduled_period) => scheduled_period.get_period_string().clone(),
                             None => "not scheduled".to_string(),
                         },
                         None => "not scheduled".to_string(),
@@ -142,7 +144,7 @@ impl SchedulerAgent {
                     },
                     work_order_number: *work_order_number,
                     activity: operation_number.clone().to_string(),
-                    work_center: operation.work_center.clone(),
+                    work_center: operation.work_center.variant_name(),
                     work_remaining: operation.work_remaining.to_string(),
                     number: operation.number,
                     notes_1: work_order.order_text.notes_1.clone(),
@@ -188,15 +190,15 @@ impl SchedulerAgent {
 /// This function should be reformulated? I think that we should make sure to create in such a way
 /// that. We need an inner hashmap for each of the different
 fn transform_hashmap_to_nested_hashmap(
-    hash_map: HashMap<(String, String), f64>,
+    manual_resources: HashMap<(Resources, Period), f64>,
 ) -> HashMap<String, HashMap<String, f64>> {
     let mut nested_hash_map: HashMap<String, HashMap<String, f64>> = HashMap::new();
 
-    for ((work_center, period), value) in hash_map {
+    for ((work_center, period), value) in manual_resources {
         nested_hash_map
-            .entry(work_center)
+            .entry(work_center.variant_name())
             .or_default()
-            .insert(period, value);
+            .insert(period.get_period_string(), value);
     }
     nested_hash_map
 }
@@ -215,6 +217,7 @@ mod tests {
     };
     use crate::models::work_order::operation::Operation;
     use crate::models::work_order::order_type::WDFPriority;
+    use crate::models::worker_environment::resources::Resources;
     use crate::models::{work_order::*, WorkOrders};
     use crate::{
         agents::scheduler_agent::scheduler_message::ManualResource,
@@ -238,9 +241,9 @@ mod tests {
         let mut work_orders = WorkOrders::new();
         let mut work_load = HashMap::new();
 
-        work_load.insert("MTN_MECH".to_string(), 20.0);
-        work_load.insert("MTN_ELEC".to_string(), 40.0);
-        work_load.insert("PRODTECH".to_string(), 60.0);
+        work_load.insert(Resources::new_from_string("MTN-MECH".to_string()), 20.0);
+        work_load.insert(Resources::new_from_string("MTN-ELEC".to_string()), 40.0);
+        work_load.insert(Resources::new_from_string("PRODTECH".to_string()), 60.0);
 
         let work_order = WorkOrder::new(
             2200002020,
@@ -274,28 +277,52 @@ mod tests {
             + chrono::Duration::seconds(59);
         let period = Period::new(1, start_date, end_date);
 
-        let mut manual_resource_capacity: HashMap<(String, String), f64> = HashMap::new();
-        let mut manual_resource_loadings: HashMap<(String, String), f64> = HashMap::new();
+        let mut manual_resource_capacity: HashMap<(Resources, Period), f64> = HashMap::new();
+        let mut manual_resource_loadings: HashMap<(Resources, Period), f64> = HashMap::new();
 
         manual_resource_capacity.insert(
-            ("MTN_MECH".to_string(), period.period_string.clone()),
+            (
+                Resources::new_from_string("MTN-MECH".to_string()),
+                Period::new_from_string(&period.get_period_string()).unwrap(),
+            ),
             150.0,
         );
         manual_resource_capacity.insert(
-            ("MTN_ELEC".to_string(), period.period_string.clone()),
+            (
+                Resources::new_from_string("MTN-ELEC".to_string()),
+                Period::new_from_string(&period.get_period_string()).unwrap(),
+            ),
             150.0,
         );
         manual_resource_capacity.insert(
-            ("PRODTECH".to_string(), period.period_string.clone()),
+            (
+                Resources::new_from_string("PRODTECH".to_string()),
+                Period::new_from_string(&period.get_period_string()).unwrap(),
+            ),
             150.0,
         );
 
-        manual_resource_loadings
-            .insert(("MTN_MECH".to_string(), period.period_string.clone()), 0.0);
-        manual_resource_loadings
-            .insert(("MTN_ELEC".to_string(), period.period_string.clone()), 0.0);
-        manual_resource_loadings
-            .insert(("PRODTECH".to_string(), period.period_string.clone()), 0.0);
+        manual_resource_loadings.insert(
+            (
+                Resources::new_from_string("MTN-MECH".to_string()),
+                Period::new_from_string(&period.get_period_string()).unwrap(),
+            ),
+            0.0,
+        );
+        manual_resource_loadings.insert(
+            (
+                Resources::new_from_string("MTN-ELEC".to_string()),
+                Period::new_from_string(&period.get_period_string()).unwrap(),
+            ),
+            0.0,
+        );
+        manual_resource_loadings.insert(
+            (
+                Resources::new_from_string("PRODTECH".to_string()),
+                Period::new_from_string(&period.get_period_string()).unwrap(),
+            ),
+            0.0,
+        );
 
         let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
@@ -313,23 +340,29 @@ mod tests {
             work_order_period_mappings: vec![],
             manual_resources: vec![
                 ManualResource {
-                    resource: "MTN_MECH".to_string(),
+                    resource: Resources::new_from_string("MTN-MECH".to_string()),
                     period: scheduler_message::TimePeriod {
-                        period_string: period.period_string.clone(),
+                        period_string: Period::new_from_string(&period.get_period_string())
+                            .unwrap()
+                            .get_period_string(),
                     },
                     capacity: 150.0,
                 },
                 ManualResource {
-                    resource: "MTN_ELEC".to_string(),
+                    resource: Resources::new_from_string("MTN-ELEC".to_string()),
                     period: scheduler_message::TimePeriod {
-                        period_string: period.period_string.clone(),
+                        period_string: Period::new_from_string(&period.get_period_string())
+                            .unwrap()
+                            .get_period_string(),
                     },
                     capacity: 150.0,
                 },
                 ManualResource {
-                    resource: "PRODTECH".to_string(),
+                    resource: Resources::new_from_string("PRODTECH".to_string()),
                     period: scheduler_message::TimePeriod {
-                        period_string: period.period_string.clone(),
+                        period_string: Period::new_from_string(&period.get_period_string())
+                            .unwrap()
+                            .get_period_string(),
                     },
                     capacity: 150.0,
                 },
@@ -362,21 +395,30 @@ mod tests {
         assert_eq!(
             *test_response
                 .manual_resources_capacity
-                .get(&("MTN_MECH".to_string(), period.period_string.clone()))
+                .get(&(
+                    Resources::new_from_string("MTN-MECH".to_string()),
+                    Period::new_from_string(&period.get_period_string()).unwrap()
+                ))
                 .unwrap(),
             150.0
         );
         assert_eq!(
             *test_response
                 .manual_resources_capacity
-                .get(&("MTN_ELEC".to_string(), period.period_string.clone()))
+                .get(&(
+                    Resources::new_from_string("MTN-ELEC".to_string()),
+                    Period::new_from_string(&period.get_period_string()).unwrap()
+                ))
                 .unwrap(),
             150.0
         );
         assert_eq!(
             *test_response
                 .manual_resources_capacity
-                .get(&("PRODTECH".to_string(), period.period_string.clone()))
+                .get(&(
+                    Resources::new_from_string("PRODTECH".to_string()),
+                    Period::new_from_string(&period.get_period_string()).unwrap()
+                ))
                 .unwrap(),
             150.0
         );
@@ -389,7 +431,7 @@ mod tests {
         let operation_1 = Operation::new(
             10,
             1,
-            "MTN_MECH".to_string(),
+            Resources::new_from_string("MTN-MECH".to_string()),
             1.0,
             1.0,
             1.0,
@@ -403,7 +445,7 @@ mod tests {
         let operation_2 = Operation::new(
             20,
             1,
-            "MTN_MECH".to_string(),
+            Resources::new_from_string("MTN-MECH".to_string()),
             1.0,
             1.0,
             1.0,
@@ -417,7 +459,7 @@ mod tests {
         let operation_3 = Operation::new(
             30,
             1,
-            "MTN_MECH".to_string(),
+            Resources::new_from_string("MTN-MECH".to_string()),
             1.0,
             1.0,
             1.0,

@@ -1,5 +1,6 @@
 pub mod availability;
 pub mod crew;
+pub mod resources;
 pub mod worker;
 
 use crate::models::worker_environment::crew::Crew;

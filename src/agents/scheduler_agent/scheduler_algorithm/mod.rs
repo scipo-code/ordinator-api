@@ -9,13 +9,14 @@ use tracing::{debug, event, span, Level};
 
 use crate::agents::scheduler_agent::scheduler_message::InputSchedulerMessage;
 use crate::models::time_environment::period::Period;
+use crate::models::worker_environment::resources::Resources;
 use crate::models::WorkOrders;
 
 #[derive(Debug)]
 pub struct SchedulerAgentAlgorithm {
     objective_value: f64,
-    manual_resources_capacity: HashMap<(String, String), f64>,
-    manual_resources_loading: HashMap<(String, String), f64>,
+    manual_resources_capacity: HashMap<(Resources, Period), f64>,
+    manual_resources_loading: HashMap<(Resources, Period), f64>,
     backlog: WorkOrders,
     priority_queues: PriorityQueues<u32, u32>,
     optimized_work_orders: OptimizedWorkOrders,
@@ -212,7 +213,7 @@ impl SchedulerAgentAlgorithm {
         for (work_order_number, optimized) in &self.optimized_work_orders.inner {
             match &optimized.locked_in_period {
                 Some(period) => {
-                    event!(tracing::Level::TRACE, work_order_number = %work_order_number, period = period.period_string)
+                    event!(tracing::Level::TRACE, work_order_number = %work_order_number, period = period.get_period_string())
                 }
                 None => {
                     event!(tracing::Level::TRACE, work_order_number = %work_order_number,  period = "no locked period")
@@ -221,7 +222,7 @@ impl SchedulerAgentAlgorithm {
 
             match &optimized.scheduled_period {
                 Some(period) => {
-                    event!(tracing::Level::TRACE, work_order_number = %work_order_number, period = %period.period_string)
+                    event!(tracing::Level::TRACE, work_order_number = %work_order_number, period = %period.get_period_string())
                 }
                 None => {
                     event!(tracing::Level::TRACE, work_order_number = %work_order_number,  period = "None")
@@ -241,7 +242,7 @@ impl SchedulerAgentAlgorithm {
         let _span = span!(Level::INFO, "update_scheduler_algorithm_state");
         self.manual_resources_capacity = input_message.get_manual_resources();
 
-        for work_order_period_mapping in input_message.work_order_period_mappings {
+        for work_order_period_mapping in input_message.get_work_order_period_mappings() {
             let message = match self
                 .optimized_work_orders
                 .inner
@@ -275,8 +276,8 @@ impl SchedulerAgentAlgorithm {
             let work_order_number: u32 = work_order_period_mapping.work_order_number;
             let optimized_work_orders = &self.optimized_work_orders.inner;
 
-            let locked_in_period = work_order_period_mapping.period_status.locked_in_period;
-            let excluded_from_periods = work_order_period_mapping
+            let locked_in_period = &work_order_period_mapping.period_status.locked_in_period;
+            let excluded_from_periods = &work_order_period_mapping
                 .period_status
                 .excluded_from_periods;
 
@@ -287,7 +288,7 @@ impl SchedulerAgentAlgorithm {
 
             match locked_in_period.clone() {
                 Some(period) => {
-                    debug!(target: "frontend input message debugging", "Locked period: {}", period.period_string.clone());
+                    debug!(target: "frontend input message debugging", "Locked period: {}", period.get_period_string().clone());
                 }
                 None => {
                     debug!(target: "frontend input message debugging", "Locked period: None");
@@ -297,7 +298,7 @@ impl SchedulerAgentAlgorithm {
             let optimized_work_order = OptimizedWorkOrder {
                 scheduled_period,
                 locked_in_period: locked_in_period.clone(),
-                excluded_from_periods,
+                excluded_from_periods: excluded_from_periods.clone(),
             };
 
             let mut excluded_periods = "".to_string();
@@ -308,11 +309,11 @@ impl SchedulerAgentAlgorithm {
             debug!(work_order_number = %work_order_number,
                 info = "Work order updated",
                 suggested_period = match &optimized_work_order.scheduled_period {
-                    Some(period) => period.period_string.clone(),
+                    Some(period) => period.get_period_string().clone(),
                     None => "no suggested period".to_string()
                 },
                 locked_in_period = match &optimized_work_order.locked_in_period {
-                    Some(period) => period.period_string.clone(),
+                    Some(period) => period.get_period_string().clone(),
                     None => "no lock on period".to_string()
                 },
                 excluded_periods = %excluded_periods
@@ -376,7 +377,7 @@ impl SchedulerAgentAlgorithm {
         for resource in needed_resources.clone() {
             self.get_or_initialize_manual_resources_loading(
                 resource.clone(),
-                period.period_string.clone(),
+                Period::new_from_string(&period.get_period_string()).unwrap(),
             );
         }
     }
@@ -406,8 +407,8 @@ impl PriorityQueues<u32, u32> {
 impl SchedulerAgentAlgorithm {
     pub fn new(
         objective_value: f64,
-        manual_resources_capacity: HashMap<(String, String), f64>,
-        manual_resources_loading: HashMap<(String, String), f64>,
+        manual_resources_capacity: HashMap<(Resources, Period), f64>,
+        manual_resources_loading: HashMap<(Resources, Period), f64>,
         backlog: WorkOrders,
         priority_queues: PriorityQueues<u32, u32>,
         optimized_work_orders: OptimizedWorkOrders,
@@ -430,19 +431,19 @@ impl SchedulerAgentAlgorithm {
         &self.optimized_work_orders.inner
     }
 
-    pub fn get_manual_resources_loadings(&self) -> &HashMap<(String, String), f64> {
+    pub fn get_manual_resources_loadings(&self) -> &HashMap<(Resources, Period), f64> {
         &self.manual_resources_loading
     }
 
     #[cfg(test)]
-    pub fn get_manual_resources_capacities(&self) -> &HashMap<(String, String), f64> {
+    pub fn get_manual_resources_capacities(&self) -> &HashMap<(Resources, Period), f64> {
         &self.manual_resources_capacity
     }
 
     pub fn get_or_initialize_manual_resources_loading(
         &mut self,
-        resource: String,
-        period: String,
+        resource: Resources,
+        period: Period,
     ) -> f64 {
         match self
             .manual_resources_loading
@@ -456,7 +457,12 @@ impl SchedulerAgentAlgorithm {
         }
     }
 
-    pub fn set_manual_resources_loading(&mut self, resource: String, period: String, loading: f64) {
+    pub fn set_manual_resources_loading(
+        &mut self,
+        resource: Resources,
+        period: Period,
+        loading: f64,
+    ) {
         self.manual_resources_loading
             .insert((resource, period), loading);
     }
@@ -531,18 +537,27 @@ mod tests {
         let end_date = start_date + chrono::Duration::days(13);
         let period = Period::new(1, start_date, end_date);
 
-        let mut manual_resource_capacity: HashMap<(String, String), f64> = HashMap::new();
+        let mut manual_resource_capacity: HashMap<(Resources, Period), f64> = HashMap::new();
 
         manual_resource_capacity.insert(
-            ("MTN_MECH".to_string(), period.period_string.clone()),
+            (
+                Resources::new_from_string("MTN-MECH".to_string()),
+                Period::new_from_string(&period.get_period_string()).unwrap(),
+            ),
             150.0,
         );
         manual_resource_capacity.insert(
-            ("MTN_ELEC".to_string(), period.period_string.clone()),
+            (
+                Resources::new_from_string("MTN-ELEC".to_string()),
+                Period::new_from_string(&period.get_period_string()).unwrap(),
+            ),
             150.0,
         );
         manual_resource_capacity.insert(
-            ("PRODTECH".to_string(), period.period_string.clone()),
+            (
+                Resources::new_from_string("PRODTECH".to_string()),
+                Period::new_from_string(&period.get_period_string()).unwrap(),
+            ),
             150.0,
         );
 
@@ -560,9 +575,10 @@ mod tests {
         let input_message = InputSchedulerMessage::new_test();
 
         assert_eq!(
-            scheduler_agent_algorithm
-                .manual_resources_capacity
-                .get(&("MTN_MECH".to_string(), period.period_string.clone())),
+            scheduler_agent_algorithm.manual_resources_capacity.get(&(
+                Resources::new_from_string("MTN-MECH".to_string()),
+                Period::new_from_string(&period.get_period_string()).unwrap()
+            )),
             Some(&150.0)
         );
         assert_eq!(
@@ -576,9 +592,10 @@ mod tests {
         scheduler_agent_algorithm.update_scheduler_algorithm_state(input_message);
 
         assert_eq!(
-            scheduler_agent_algorithm
-                .manual_resources_capacity
-                .get(&("MTN_MECH".to_string(), period.period_string.clone())),
+            scheduler_agent_algorithm.manual_resources_capacity.get(&(
+                Resources::new_from_string("MTN-MECH".to_string()),
+                Period::new_from_string(&period.get_period_string()).unwrap()
+            )),
             Some(&300.0)
         );
         assert_eq!(

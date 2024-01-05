@@ -6,7 +6,7 @@ use std::ops::Add;
 #[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Debug, Clone)]
 pub struct Period {
     id: u32,
-    pub period_string: String,
+    period_string: String,
     start_date: DateTime<Utc>,
     end_date: DateTime<Utc>,
 }
@@ -88,8 +88,7 @@ impl Period {
 }
 
 impl Period {
-    #[cfg(test)]
-    pub fn get_string(&self) -> String {
+    pub fn get_period_string(&self) -> String {
         self.period_string.clone()
     }
 

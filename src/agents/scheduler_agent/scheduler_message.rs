@@ -8,7 +8,8 @@ use tracing::{debug, error, info, span, trace, warn};
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
 use crate::agents::scheduler_agent::{self, SchedulerAgent};
 use crate::api::websocket_agent::WebSocketAgent;
-use crate::models::time_environment::period::Period;
+use crate::models::time_environment::period::{self, Period};
+use crate::models::worker_environment::resources::Resources;
 
 #[derive(Deserialize)]
 #[serde(tag = "scheduler_message_type")]
@@ -18,18 +19,22 @@ pub enum SchedulerRequests {
     WorkPlanner(WorkPlannerMessage),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
 pub struct InputSchedulerMessage {
-    pub name: String,
-    pub platform: String,
-    pub work_order_period_mappings: Vec<WorkOrderPeriodMapping>, // For each work order only one of these can be true
-    pub manual_resources: HashMap<(String, String), f64>,
-    pub period_lock: HashMap<String, bool>,
+    name: String,
+    platform: String,
+    work_order_period_mappings: Vec<WorkOrderPeriodMapping>, // For each work order only one of these can be true
+    manual_resources: HashMap<(Resources, Period), f64>,
+    period_lock: HashMap<String, bool>,
 }
 
 impl InputSchedulerMessage {
-    pub fn get_manual_resources(&self) -> HashMap<(String, String), f64> {
+    pub fn get_manual_resources(&self) -> HashMap<(Resources, Period), f64> {
         self.manual_resources.clone()
+    }
+
+    pub fn get_work_order_period_mappings(&self) -> &Vec<WorkOrderPeriodMapping> {
+        &self.work_order_period_mappings
     }
 }
 
@@ -48,7 +53,7 @@ pub struct WorkPlannerMessage {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ManualResource {
-    pub resource: String,
+    pub resource: Resources,
     pub period: TimePeriod,
     pub capacity: f64,
 }
@@ -94,7 +99,7 @@ pub struct WorkOrderStatusInPeriod {
     pub excluded_from_periods: HashSet<Period>,
 }
 
-struct SchedulerResources<'a>(&'a HashMap<(String, String), f64>);
+struct SchedulerResources<'a>(&'a HashMap<(Resources, Period), f64>);
 
 impl Display for SchedulerResources<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -102,7 +107,7 @@ impl Display for SchedulerResources<'_> {
         for ((resource, period), capacity) in self.0 {
             writeln!(
                 f,
-                "Resource: {}\nPeriod: {}\nCapacity: {}",
+                "Resource: {:?}\nPeriod: {}\nCapacity: {}",
                 resource, period, capacity
             )?;
         }
@@ -148,11 +153,17 @@ pub struct FrontendUpdatePeriod {
     periods: Vec<u32>,
 }
 
+/// There is something fundamentally wrong here. We should not be using strings as keys and we
+/// should not be hashing Period or Resources. In the algorithm we should be using an array or
+/// arrays, but that is not the goal for this part of the program, here understanding the logic is
+/// more important. That means we should be using Resource and Period as keys
 impl From<FrontendInputSchedulerMessage> for InputSchedulerMessage {
     fn from(raw: FrontendInputSchedulerMessage) -> Self {
-        let mut manual_resources_map: HashMap<(String, String), f64> = HashMap::new();
+        let mut manual_resources_map: HashMap<(Resources, Period), f64> = HashMap::new();
         for res in raw.manual_resources {
-            manual_resources_map.insert((res.resource, res.period.period_string), res.capacity);
+            let period = Period::new_from_string(&res.period.period_string).unwrap();
+
+            manual_resources_map.insert((res.resource, period), res.capacity);
         }
         println!("{:?}", manual_resources_map);
 
@@ -570,7 +581,7 @@ pub mod tests {
                 .locked_in_period
                 .as_ref()
                 .unwrap()
-                .get_string(),
+                .get_period_string(),
             "2023-W47-48"
         );
     }
@@ -610,7 +621,7 @@ pub mod tests {
 
         let mut work_load = HashMap::new();
 
-        work_load.insert("VEN_MECH".to_string(), 16.0);
+        work_load.insert(Resources::new_from_string("VEN-MECH".to_string()), 16.0);
 
         let work_order = WorkOrder::new(
             2100023841,
@@ -737,15 +748,24 @@ pub mod tests {
             let period = Period::new(1, start_date, end_date);
 
             manual_resources.insert(
-                ("MTN_MECH".to_string(), period.period_string.clone()),
+                (
+                    Resources::new_from_string("MTN-MECH".to_string()),
+                    Period::new_from_string(&period.get_period_string()).unwrap(),
+                ),
                 300.0,
             );
             manual_resources.insert(
-                ("MTN_ELEC".to_string(), period.period_string.clone()),
+                (
+                    Resources::new_from_string("MTN-ELEC".to_string()),
+                    Period::new_from_string(&period.get_period_string()).unwrap(),
+                ),
                 300.0,
             );
             manual_resources.insert(
-                ("PRODTECH".to_string(), period.period_string.clone()),
+                (
+                    Resources::new_from_string("PRODTECH".to_string()),
+                    Period::new_from_string(&period.get_period_string()).unwrap(),
+                ),
                 300.0,
             );
 
@@ -767,8 +787,8 @@ pub mod tests {
 
     pub struct TestResponse {
         pub objective_value: f64,
-        pub manual_resources_capacity: HashMap<(String, String), f64>,
-        pub manual_resources_loading: HashMap<(String, String), f64>,
+        pub manual_resources_capacity: HashMap<(Resources, Period), f64>,
+        pub manual_resources_loading: HashMap<(Resources, Period), f64>,
         pub priority_queues: PriorityQueues<u32, u32>,
         pub optimized_work_orders: OptimizedWorkOrders,
         pub periods: Vec<Period>,

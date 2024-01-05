@@ -18,6 +18,7 @@ use crate::models::work_order::revision::Revision;
 use crate::models::work_order::status_codes::{MaterialStatus, StatusCodes};
 use crate::models::work_order::unloading_point::UnloadingPoint;
 use crate::models::work_order::WorkOrder;
+use crate::models::worker_environment::resources::Resources;
 use crate::models::worker_environment::WorkerEnvironment;
 use crate::models::{SchedulingEnvironment, WorkOrders};
 use chrono::{
@@ -196,7 +197,7 @@ fn create_new_work_order(
         priority: priority.clone(),
         order_work: 0.0,
         operations: HashMap::<u32, Operation>::new(),
-        work_load: HashMap::<String, f64>::new(),
+        work_load: HashMap::<Resources, f64>::new(),
         start_start: Vec::<bool>::new(),
         finish_start: Vec::<bool>::new(),
         postpone: Vec::<DateTime<Utc>>::new(),
@@ -324,7 +325,7 @@ fn create_new_operation(
             _ => 0,
         },
         work_center: match work_center_data.cloned() {
-            Some(DataType::String(s)) => s,
+            Some(DataType::String(s)) => Resources::new_from_string(s),
             _ => return Err(Error::Msg("Could not parse work center as string")),
         },
         preparation_time: 0.0,

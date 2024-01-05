@@ -87,11 +87,11 @@ impl SchedulerAgentAlgorithm {
         for (work_center, resource_needed) in work_order.work_load.iter() {
             let resource_capacity: &mut f64 = self
                 .manual_resources_capacity
-                .entry((work_center.to_string(), period.clone().period_string))
+                .entry((work_center.clone(), period.clone()))
                 .or_insert(0.0);
             let resource_loading: &mut f64 = self
                 .manual_resources_loading
-                .entry((work_center.to_string(), period.clone().period_string))
+                .entry((work_center.clone(), period.clone()))
                 .or_insert(0.0);
 
             if *resource_needed > *resource_capacity - *resource_loading {
@@ -135,10 +135,6 @@ impl SchedulerAgentAlgorithm {
             "Work order {} from the normal has been scheduled",
             work_order_key
         );
-        dbg!(self.manual_resources_loading.entry((
-            "MTN_MECH".to_string(),
-            (*period.clone().period_string).to_string()
-        )));
         self.update_loadings(period, &work_order);
         None
     }
@@ -169,7 +165,7 @@ impl SchedulerAgentAlgorithm {
         // Is this really the place where we should update the loadings? I am not sure about it.
         // It is either here or in the update_scheduler_state function. Well thank you for that
         for (work_center_period, loading) in self.manual_resources_loading.iter_mut() {
-            if work_center_period.1 == *period.period_string {
+            if work_center_period.1 == period {
                 *loading += work_order
                     .work_load
                     .get(&work_center_period.0)
@@ -330,7 +326,7 @@ impl SchedulerAgentAlgorithm {
         // where the work order is not scheduled.
         // What does it mean when we call the unwrap here?
         for (work_center_period, loading) in self.manual_resources_loading.iter_mut() {
-            if work_center_period.1 == period.period_string {
+            if work_center_period.1 == period {
                 let work_load_for_work_center = work_order.work_load.get(&work_center_period.0);
                 if let Some(work_load_for_work_center) = work_load_for_work_center {
                     *loading -= work_load_for_work_center;
@@ -356,7 +352,7 @@ impl SchedulerAgentAlgorithm {
 
     fn update_loadings(&mut self, period: &Period, work_order: &WorkOrder) {
         for (work_center_period, loading) in self.manual_resources_loading.iter_mut() {
-            if work_center_period.1 == *period.period_string {
+            if work_center_period.1 == *period {
                 *loading += work_order
                     .work_load
                     .get(&work_center_period.0)
@@ -406,6 +402,7 @@ mod tests {
                 unloading_point::UnloadingPoint,
                 WorkOrder,
             },
+            worker_environment::resources::Resources,
             WorkOrders,
         },
     };
@@ -482,7 +479,7 @@ mod tests {
 
         let mut work_load = HashMap::new();
 
-        work_load.insert("MTN_MECH".to_string(), 100.0);
+        work_load.insert(Resources::new_from_string("MTN-MECH".to_string()), 100.0);
 
         let work_order = WorkOrder::new(
             2200002020,
@@ -539,9 +536,9 @@ mod tests {
 
         let mut work_load = HashMap::new();
 
-        work_load.insert("MTN_MECH".to_string(), 20.0);
-        work_load.insert("MTN_ELEC".to_string(), 40.0);
-        work_load.insert("PRODTECH".to_string(), 60.0);
+        work_load.insert(Resources::new_from_string("MTN-MECH".to_string()), 20.0);
+        work_load.insert(Resources::new_from_string("MTN-ELEC".to_string()), 40.0);
+        work_load.insert(Resources::new_from_string("PRODTECH".to_string()), 60.0);
 
         let work_order = WorkOrder::new(
             2200002020,
@@ -575,28 +572,16 @@ mod tests {
 
         let period = Period::new(1, start_date, end_date);
 
-        let mut manual_resource_capacity: HashMap<(String, String), f64> = HashMap::new();
-        let mut manual_resource_loadings: HashMap<(String, String), f64> = HashMap::new();
+        let mut manual_resource_capacity: HashMap<(Resources, Period), f64> = HashMap::new();
+        let mut manual_resource_loadings: HashMap<(Resources, Period), f64> = HashMap::new();
 
-        manual_resource_capacity.insert(
-            ("MTN_MECH".to_string(), period.period_string.clone()),
-            150.0,
-        );
-        manual_resource_capacity.insert(
-            ("MTN_ELEC".to_string(), period.period_string.clone()),
-            150.0,
-        );
-        manual_resource_capacity.insert(
-            ("PRODTECH".to_string(), period.period_string.clone()),
-            150.0,
-        );
+        manual_resource_capacity.insert((Resources::MtnMech, period.clone()), 150.0);
+        manual_resource_capacity.insert((Resources::MtnElec, period.clone()), 150.0);
+        manual_resource_capacity.insert((Resources::Prodtech, period.clone()), 150.0);
 
-        manual_resource_loadings
-            .insert(("MTN_MECH".to_string(), period.period_string.clone()), 0.0);
-        manual_resource_loadings
-            .insert(("MTN_ELEC".to_string(), period.period_string.clone()), 0.0);
-        manual_resource_loadings
-            .insert(("PRODTECH".to_string(), period.period_string.clone()), 0.0);
+        manual_resource_loadings.insert((Resources::MtnMech, period.clone()), 0.0);
+        manual_resource_loadings.insert((Resources::MtnElec, period.clone()), 0.0);
+        manual_resource_loadings.insert((Resources::Prodtech, period.clone()), 0.0);
 
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
@@ -614,26 +599,26 @@ mod tests {
         assert_eq!(
             scheduler_agent_algorithm
                 .manual_resources_loading
-                .get(&("MTN_MECH".to_string(), period.period_string.clone())),
+                .get(&(Resources::MtnMech, period.clone())),
             Some(20.0).as_ref()
         );
         assert_eq!(
             scheduler_agent_algorithm
                 .manual_resources_loading
-                .get(&("MTN_ELEC".to_string(), period.period_string.clone())),
+                .get(&(Resources::MtnElec, period.clone())),
             Some(40.0).as_ref()
         );
         assert_eq!(
             scheduler_agent_algorithm
                 .manual_resources_loading
-                .get(&("PRODTECH".to_string(), period.period_string.clone())),
+                .get(&(Resources::Prodtech, period.clone())),
             Some(60.0).as_ref()
         );
 
         assert_eq!(
             scheduler_agent_algorithm
                 .manual_resources_loading
-                .get(&("MTN_SCAF".to_string(), period.period_string.clone())),
+                .get(&(Resources::MtnScaf, period.clone())),
             None
         );
     }
@@ -648,9 +633,9 @@ mod tests {
         let mut work_orders = WorkOrders::new();
         let mut work_load = HashMap::new();
 
-        work_load.insert("MTN_MECH".to_string(), 20.0);
-        work_load.insert("MTN_ELEC".to_string(), 40.0);
-        work_load.insert("PRODTECH".to_string(), 60.0);
+        work_load.insert(Resources::MtnMech, 20.0);
+        work_load.insert(Resources::MtnElec, 40.0);
+        work_load.insert(Resources::Prodtech, 60.0);
 
         let work_order = WorkOrder::new(
             2200002020,
@@ -684,28 +669,16 @@ mod tests {
             + chrono::Duration::seconds(59);
         let period = Period::new(1, start_date, end_date);
 
-        let mut manual_resource_capacity: HashMap<(String, String), f64> = HashMap::new();
-        let mut manual_resource_loadings: HashMap<(String, String), f64> = HashMap::new();
+        let mut manual_resource_capacity: HashMap<(Resources, Period), f64> = HashMap::new();
+        let mut manual_resource_loadings: HashMap<(Resources, Period), f64> = HashMap::new();
 
-        manual_resource_capacity.insert(
-            ("MTN_MECH".to_string(), period.period_string.clone()),
-            150.0,
-        );
-        manual_resource_capacity.insert(
-            ("MTN_ELEC".to_string(), period.period_string.clone()),
-            150.0,
-        );
-        manual_resource_capacity.insert(
-            ("PRODTECH".to_string(), period.period_string.clone()),
-            150.0,
-        );
+        manual_resource_capacity.insert((Resources::MtnMech, period.clone()), 150.0);
+        manual_resource_capacity.insert((Resources::MtnElec, period.clone()), 150.0);
+        manual_resource_capacity.insert((Resources::Prodtech, period.clone()), 150.0);
 
-        manual_resource_loadings
-            .insert(("MTN_MECH".to_string(), period.period_string.clone()), 0.0);
-        manual_resource_loadings
-            .insert(("MTN_ELEC".to_string(), period.period_string.clone()), 0.0);
-        manual_resource_loadings
-            .insert(("PRODTECH".to_string(), period.period_string.clone()), 0.0);
+        manual_resource_loadings.insert((Resources::MtnMech, period.clone()), 0.0);
+        manual_resource_loadings.insert((Resources::MtnElec, period.clone()), 0.0);
+        manual_resource_loadings.insert((Resources::Prodtech, period.clone()), 0.0);
 
         let periods: Vec<Period> = vec![
             Period::new_from_string("2023-W47-48").unwrap(),
@@ -730,48 +703,36 @@ mod tests {
         );
 
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "MTN_MECH".to_string(),
-                period.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period.clone()),
             20.0
         );
 
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "MTN_ELEC".to_string(),
-                period.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period.clone()),
             40.0
         );
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "PRODTECH".to_string(),
-                period.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period.clone()),
             60.0
         );
 
         scheduler_agent_algorithm.unschedule_work_order(&2200002020);
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "MTN_MECH".to_string(),
-                period.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period.clone()),
             0.0
         );
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "MTN_ELEC".to_string(),
-                period.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period.clone()),
             0.0
         );
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "PRODTECH".to_string(),
-                period.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period.clone()),
             0.0
         );
 
@@ -782,24 +743,18 @@ mod tests {
 
         scheduler_agent_algorithm.schedule_forced_work_order(2200002020);
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "MTN_MECH".to_string(),
-                period.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period.clone()),
             20.0
         );
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "MTN_ELEC".to_string(),
-                period.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period.clone()),
             40.0
         );
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "PRODTECH".to_string(),
-                period.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period.clone()),
             60.0
         );
 
@@ -816,90 +771,68 @@ mod tests {
 
         assert_eq!(
             scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "MTN_MECH".to_string(),
-                period_new.period_string.clone()
+                Resources::MtnMech.clone(),
+                period_new.clone()
             ),
             20.0
         );
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "MTN_ELEC".to_string(),
-                period_new.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period.clone()),
             40.0
         );
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "PRODTECH".to_string(),
-                period_new.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period.clone()),
             60.0
         );
 
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "MTN_MECH".to_string(),
-                period.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period.clone()),
             0.0
         );
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "MTN_ELEC".to_string(),
-                period.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period.clone()),
             0.0
         );
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "PRODTECH".to_string(),
-                period.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period.clone()),
             0.0
         );
 
         scheduler_agent_algorithm.unschedule_work_order(&2200002020);
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "MTN_MECH".to_string(),
-                period.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period.clone()),
             0.0
         );
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "MTN_ELEC".to_string(),
-                period.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period.clone()),
             0.0
         );
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "PRODTECH".to_string(),
-                period.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period.clone()),
             0.0
         );
 
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "MTN_MECH".to_string(),
-                period_new.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period.clone()),
             0.0
         );
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "MTN_ELEC".to_string(),
-                period_new.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period.clone()),
             0.0
         );
         assert_eq!(
-            scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
-                "PRODTECH".to_string(),
-                period_new.period_string.clone()
-            ),
+            scheduler_agent_algorithm
+                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period.clone()),
             0.0
         );
     }
@@ -911,17 +844,17 @@ mod tests {
         let mut work_load_2 = HashMap::new();
         let mut work_load_3 = HashMap::new();
 
-        work_load_1.insert("MTN_MECH".to_string(), 10.0);
-        work_load_1.insert("MTN_ELEC".to_string(), 10.0);
-        work_load_1.insert("PRODTECH".to_string(), 10.0);
+        work_load_1.insert(Resources::MtnMech, 10.0);
+        work_load_1.insert(Resources::MtnElec, 10.0);
+        work_load_1.insert(Resources::Prodtech, 10.0);
 
-        work_load_2.insert("MTN_MECH".to_string(), 20.0);
-        work_load_2.insert("MTN_ELEC".to_string(), 20.0);
-        work_load_2.insert("PRODTECH".to_string(), 20.0);
+        work_load_2.insert(Resources::MtnMech, 20.0);
+        work_load_2.insert(Resources::MtnElec, 20.0);
+        work_load_2.insert(Resources::Prodtech, 20.0);
 
-        work_load_3.insert("MTN_MECH".to_string(), 30.0);
-        work_load_3.insert("MTN_ELEC".to_string(), 30.0);
-        work_load_3.insert("PRODTECH".to_string(), 30.0);
+        work_load_3.insert(Resources::MtnMech, 30.0);
+        work_load_3.insert(Resources::MtnElec, 30.0);
+        work_load_3.insert(Resources::Prodtech, 30.0);
 
         let work_order_1 = WorkOrder::new(
             2200000001,
