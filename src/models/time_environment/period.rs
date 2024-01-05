@@ -1,6 +1,7 @@
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc, Weekday};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
+use std::ops::Add;
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Debug, Clone)]
 pub struct Period {
@@ -40,9 +41,15 @@ impl Period {
         // Parse year and weeks
         let mut year = parts[0].parse::<i32>().map_err(|_| "Invalid year")?;
 
-        let start_week = parts[1][1..3]
-            .parse::<u32>()
-            .map_err(|_| "Invalid start week")?;
+        let start_week = if parts[1].len() == 2 {
+            parts[1][1..2]
+                .parse::<u32>()
+                .map_err(|_| "Invalid start week")?
+        } else {
+            parts[1][1..3]
+                .parse::<u32>()
+                .map_err(|_| "Invalid start week")?
+        };
         let mut end_week = parts[2].parse::<u32>().map_err(|_| "Invalid end week")?;
 
         // Convert week number to a DateTime<Utc>
@@ -90,10 +97,25 @@ impl Period {
         self.end_date
     }
 
+    pub fn get_id(&self) -> u32 {
+        self.id
+    }
+
     pub fn add_one_period(&self) -> Period {
         let start_date = self.end_date + chrono::Duration::seconds(1);
         let end_date = start_date + chrono::Duration::weeks(2) - chrono::Duration::seconds(1);
         Period::new(self.id, start_date, end_date)
+    }
+}
+
+impl Add<Duration> for Period {
+    type Output = Self;
+
+    fn add(self, rhs: Duration) -> Self::Output {
+        let id = self.id + 1;
+        let start_date = self.start_date + rhs;
+        let end_date = self.end_date + rhs;
+        Period::new(id, start_date, end_date)
     }
 }
 
@@ -149,6 +171,24 @@ mod tests {
         assert_eq!(
             period.unwrap().end_date,
             Utc.with_ymd_and_hms(2023, 12, 31, 23, 59, 59).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_new_from_string_3() {
+        let period = Period::new_from_string("2023-W1-2");
+
+        assert_eq!(
+            period.clone().unwrap().period_string,
+            "2023-W1-2".to_string()
+        );
+        assert_eq!(
+            period.clone().unwrap().start_date,
+            Utc.with_ymd_and_hms(2023, 1, 2, 0, 0, 0).unwrap()
+        );
+        assert_eq!(
+            period.unwrap().end_date,
+            Utc.with_ymd_and_hms(2023, 1, 15, 23, 59, 59).unwrap()
         );
     }
 

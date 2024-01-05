@@ -3,18 +3,18 @@ use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display};
 use tokio::time::{sleep, Duration};
-use tracing::{debug, info, span, trace};
+use tracing::{debug, error, info, span, trace, warn};
 
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
 use crate::agents::scheduler_agent::{self, SchedulerAgent};
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::time_environment::period::Period;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 #[serde(tag = "scheduler_message_type")]
-#[derive(Debug)]
 pub enum SchedulerRequests {
     Input(FrontendInputSchedulerMessage),
+    Period(FrontendUpdatePeriod),
     WorkPlanner(WorkPlannerMessage),
 }
 
@@ -65,6 +65,19 @@ pub struct FrontendInputSchedulerMessage {
     pub work_order_period_mappings: Vec<WorkOrderPeriodMapping>,
     pub manual_resources: Vec<ManualResource>,
     pub period_lock: HashMap<String, bool>,
+}
+
+/// This is a message that is sent from the scheduler frontend to the scheduler agent requesting an
+/// update of the periods that we schedule over. What is it actually that we are getting from the
+/// frontend here? We will only get a single period from the frontend. Or maybe multiple. The
+/// important thing to remember is that we cannot simply set the periods in the scheduler agent
+/// we have to update them. This is crucial. Also, should we use a hashmap or a vector for the
+/// periods? I think that a vector is the better approach for now. A hashmap would make sense if we
+/// were to have overlapping periods or non-continuous periods. Which is not the case for now. This
+/// means that we will skip that part.
+#[derive(Deserialize, Debug)]
+pub struct UpdatePeriod {
+    pub periods: Vec<Period>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -118,6 +131,21 @@ impl Display for InputSchedulerMessage {
             self.period_lock
         )
     }
+}
+
+// The problem with using the period ID is the it is not static and changes every period. There are
+// multiple approaches to be chosen here. One is to use the period ID and the other is to use the
+// I think that using the period ID is the best approch but it will require some changes to the
+// structure of the scheduler agent as we will have to force additional structure on the application
+// Hmm... I feel like this is one of the moments where I know that it is the right thing to do but
+// it also feels like a distraction from the main task at hand. This is a very tricky situation but
+// handling it correctly is crucial for the future of the application. I think that I will go with
+// Hmm... Should I just send all the periods to the backend again? I think that I will do that. I
+//
+#[derive(Deserialize, Debug)]
+#[serde(tag = "scheduler_message_type")]
+pub struct FrontendUpdatePeriod {
+    periods: Vec<u32>,
 }
 
 impl From<FrontendInputSchedulerMessage> for InputSchedulerMessage {
@@ -195,8 +223,13 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
                 name = self.platform.clone(),
                 message = "change occured in optimized work orders"
             );
-            ctx.notify(MessageToFrontend {});
+
+            dbg!();
+            ctx.notify(MessageToFrontend::Overview);
+            ctx.notify(MessageToFrontend::Loading);
+
             self.scheduler_agent_algorithm.set_changed(false);
+            dbg!(self.scheduler_agent_algorithm.changed());
         }
 
         Box::pin(actix::fut::wrap_future::<_, Self>(fut))
@@ -209,13 +242,21 @@ enum SchedulerFrontendMessage {
     Period(PeriodMessage),
 }
 
-struct MessageToFrontend {}
+impl Message for SchedulerFrontendMessage {
+    type Result = ();
+}
+
+enum MessageToFrontend {
+    Overview,
+    Loading,
+    Period,
+}
 
 impl Message for MessageToFrontend {
     type Result = ();
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Debug)]
 pub struct LoadingMessage {
     pub frontend_message_type: String,
     pub manual_resources_loading: HashMap<String, HashMap<String, f64>>,
@@ -249,59 +290,83 @@ impl Message for PeriodMessage {
 impl Handler<MessageToFrontend> for SchedulerAgent {
     type Result = ();
 
-    fn handle(&mut self, _msg: MessageToFrontend, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: MessageToFrontend, _ctx: &mut Self::Context) -> Self::Result {
         let span = span!(
             tracing::Level::TRACE,
             "preparing scheduler message for the frontend",
             self.platform
         );
         let _enter = span.enter();
-        let scheduling_overview_data = self.extract_state_to_scheduler_overview().clone();
 
-        let scheduler_frontend_message = OverviewMessage {
-            frontend_message_type: "frontend_scheduler_overview".to_string(),
-            scheduling_overview_data,
-        };
-
-        trace!(
-            scheduler_message = "scheduler overview message",
-            "scheduler_frontend_message: {:?}",
-            scheduler_frontend_message
-        );
-
-        let nested_loadings = scheduler_agent::transform_hashmap_to_nested_hashmap(
-            self.scheduler_agent_algorithm
-                .get_manual_resources_loadings()
-                .clone(),
-        );
-
-        let scheduler_frontend_loading_message = LoadingMessage {
-            frontend_message_type: "frontend_scheduler_loading".to_string(),
-            manual_resources_loading: nested_loadings,
-        };
-
-        self.scheduling_environment
-            .lock()
-            .unwrap()
-            .set_periods(self.scheduler_agent_algorithm.get_periods().clone());
-
-        let scheduler_period_message = PeriodMessage {
-            frontend_message_type: "frontend_scheduler_periods".to_string(),
-            periods: self.scheduling_environment.lock().unwrap().clone_periods(),
-        };
-
-        // So we update the SchedulingEnvironment with the periods. I is okay that the scheduler
-        // agent itself has the periods and tells the websocket agent to send out the periods state
-        // as long to the scheduler_agent sends the periods directly from the SchedulingEnvironment
-        // and not from his own state or algorithm.
-        match self.ws_agent_addr.as_ref() {
-            Some(ws_agent) => {
-                ws_agent.do_send(scheduler_frontend_message);
-                ws_agent.do_send(scheduler_frontend_loading_message);
-                ws_agent.do_send(scheduler_period_message);
+        match msg {
+            MessageToFrontend::Overview => {
+                let scheduling_overview_data = self.extract_state_to_scheduler_overview().clone();
+                let scheduler_frontend_overview_message = OverviewMessage {
+                    frontend_message_type: "frontend_scheduler_overview".to_string(),
+                    scheduling_overview_data,
+                };
+                trace!(
+                    scheduler_message = "scheduler overview message",
+                    "scheduler_frontend_overview_message: {:?}",
+                    scheduler_frontend_overview_message
+                );
+                match self.ws_agent_addr.as_ref() {
+                    Some(ws_agent) => {
+                        ws_agent.do_send(scheduler_frontend_overview_message);
+                    }
+                    None => {
+                        info!("No WebSocketAgentAddr set yet, so no message sent to frontend")
+                    }
+                }
             }
-            None => {
-                info!("No WebSocketAgentAddr set yet, so no message sent to frontend")
+            MessageToFrontend::Loading => {
+                let nested_loadings = scheduler_agent::transform_hashmap_to_nested_hashmap(
+                    self.scheduler_agent_algorithm
+                        .get_manual_resources_loadings()
+                        .clone(),
+                );
+
+                let scheduler_frontend_loading_message = LoadingMessage {
+                    frontend_message_type: "frontend_scheduler_loading".to_string(),
+                    manual_resources_loading: nested_loadings,
+                };
+                trace!(
+                    scheduler_message = "scheduler loading message",
+                    "scheduler_frontend_loading_message: {:?}",
+                    scheduler_frontend_loading_message
+                );
+                match self.ws_agent_addr.as_ref() {
+                    Some(ws_agent) => {
+                        ws_agent.do_send(scheduler_frontend_loading_message);
+                    }
+                    None => {
+                        info!("No WebSocketAgentAddr set yet, so no message sent to frontend")
+                    }
+                }
+            }
+            MessageToFrontend::Period => {
+                self.scheduling_environment
+                    .lock()
+                    .unwrap()
+                    .set_periods(self.scheduler_agent_algorithm.get_periods().clone());
+
+                let scheduler_frontend_period_message = PeriodMessage {
+                    frontend_message_type: "frontend_scheduler_periods".to_string(),
+                    periods: self.scheduling_environment.lock().unwrap().clone_periods(),
+                };
+                trace!(
+                    scheduler_message = "scheduler period message",
+                    "scheduler_frontend_period_message: {:?}",
+                    scheduler_frontend_period_message
+                );
+                match self.ws_agent_addr.as_ref() {
+                    Some(ws_agent) => {
+                        ws_agent.do_send(scheduler_frontend_period_message);
+                    }
+                    None => {
+                        info!("No WebSocketAgentAddr set yet, so no message sent to frontend")
+                    }
+                }
             }
         }
     }
@@ -310,7 +375,7 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
 impl Handler<SchedulerRequests> for SchedulerAgent {
     type Result = ();
 
-    fn handle(&mut self, msg: SchedulerRequests, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: SchedulerRequests, ctx: &mut Self::Context) -> Self::Result {
         match msg {
             SchedulerRequests::Input(msg) => {
                 let input_message: InputSchedulerMessage = msg.into();
@@ -339,6 +404,34 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
                     "SchedulerAgentReceived a WorkPlannerMessage message: {:?}",
                     msg
                 );
+            }
+            // We should handle the logic of the period update here. Here we have the information
+            // available to update the state based on the period update. We should also send the
+            // Okay what is happening here? Let us go through an example where two messages hit the
+            // scheduler agent at the same time. Both messages clone the same state. No the problem
+            // comes when you clone the state in the first message. Okay the error is that multiple
+            // lock are are lying in queue with the same state. So the first message is handled and
+            // is incrementing the state and then when the second message is handled it is, it is
+            // handled using the old state again, so of course it is not going to work. And have to
+            // be handled in a different way.
+            SchedulerRequests::Period(msg) => {
+                info!("SchedulerAgentReceived a PeriodMessage message: {:?}", msg);
+
+                let mut scheduling_env_lock = self.scheduling_environment.lock().unwrap();
+
+                let periods = scheduling_env_lock.get_mut_periods();
+
+                for period_id in msg.periods.iter() {
+                    if periods.last().unwrap().get_id() + 1 == *period_id {
+                        let new_period =
+                            periods.last().unwrap().clone() + chrono::Duration::weeks(2);
+                        periods.push(new_period);
+                    } else {
+                        error!("periods not handled correctly");
+                    }
+                }
+                self.scheduler_agent_algorithm.set_periods(periods.to_vec());
+                ctx.notify(MessageToFrontend::Period);
             }
         }
     }

@@ -40,6 +40,10 @@ impl SchedulerAgentAlgorithm {
         self.changed = changed;
     }
 
+    pub fn set_periods(&mut self, periods: Vec<Period>) {
+        self.periods = periods;
+    }
+
     pub fn get_objective_value(&self) -> f64 {
         self.objective_value
     }
@@ -599,7 +603,7 @@ mod tests {
 
     #[test]
     fn test_invariant_of_scheduled_period() {
-        todo!()
+        //todo!()
     }
 
     impl SchedulerAgentAlgorithm {

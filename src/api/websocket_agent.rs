@@ -1,6 +1,7 @@
 use actix::prelude::*;
 use actix_web::Result;
 use actix_web_actors::ws;
+use core::panic;
 use serde::Serialize;
 use std::sync::Arc;
 use tracing::info;
@@ -80,28 +81,6 @@ impl WebSocketAgent {
         WebSocketAgent {
             scheduler_agent_addr,
         }
-    }
-}
-
-#[derive(Serialize, Debug)]
-pub struct TimeEnvironmentMessage {
-    pub frontend_message_type: String,
-    pub time: chrono::DateTime<chrono::Utc>,
-    pub periods: Vec<Period>,
-}
-
-impl Message for TimeEnvironmentMessage {
-    type Result = ();
-}
-
-impl Handler<TimeEnvironmentMessage> for WebSocketAgent {
-    type Result = ();
-
-    fn handle(&mut self, msg: TimeEnvironmentMessage, ctx: &mut Self::Context) -> Self::Result {
-        // Serialize the message
-        let serialized_message = serde_json::to_string(&msg).unwrap();
-        // Send the serialized message to the frontend
-        ctx.text(serialized_message);
     }
 }
 

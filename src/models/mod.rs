@@ -7,7 +7,8 @@ use std::collections::HashMap;
 use std::fmt;
 use tracing::info;
 
-use crate::api::websocket_agent::{TimeEnvironmentMessage, WebSocketAgent};
+use crate::agents::scheduler_agent::scheduler_message::{PeriodMessage, UpdatePeriod};
+use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::WorkOrder;
 use crate::models::worker_environment::WorkerEnvironment;
@@ -37,15 +38,28 @@ impl SchedulingEnvironment {
 
     pub fn set_periods(&mut self, periods: Vec<Period>) {
         self.periods = periods;
-        let message = TimeEnvironmentMessage {
-            frontend_message_type: String::from("time_environment"),
-            time: chrono::Utc::now(),
+        let message = PeriodMessage {
+            frontend_message_type: String::from("frontend_scheduler_periods"),
             periods: self.periods.clone(),
         };
         match &self.web_socket_agent_addr_option {
             Some(ws_addr) => ws_addr.do_send(message),
             None => info!("No WebSocketAgent address has been provided yet."),
         }
+    }
+
+    pub fn update_periods(&mut self, update_periods: &mut Vec<Period>) -> Vec<Period> {
+        self.periods.append(update_periods);
+
+        let message = PeriodMessage {
+            frontend_message_type: String::from("frontend_scheduler_periods"),
+            periods: self.periods.clone(),
+        };
+        match &self.web_socket_agent_addr_option {
+            Some(ws_addr) => ws_addr.do_send(message),
+            None => info!("No WebSocketAgent address has been provided yet."),
+        }
+        self.periods.clone()
     }
 
     pub fn clone_periods(&self) -> Vec<Period> {
@@ -64,6 +78,14 @@ impl SchedulingEnvironment {
         for (_, work_order) in self.work_orders.inner.iter_mut() {
             work_order.initialize();
         }
+    }
+
+    pub fn get_mut_periods(&mut self) -> &mut Vec<Period> {
+        &mut self.periods
+    }
+
+    pub fn clone_last_period(&self) -> Period {
+        self.periods.last().unwrap().clone()
     }
 }
 

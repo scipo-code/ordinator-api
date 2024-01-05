@@ -57,6 +57,10 @@ impl fmt::Display for SchedulerRequests {
                 write!(f, "work_planner: {:?}", work_planner.cannot_schedule)?;
                 Ok(())
             }
+            SchedulerRequests::Period(period) => {
+                write!(f, "period: {:?}", period)?;
+                Ok(())
+            }
         }
     }
 }

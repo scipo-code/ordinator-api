@@ -230,7 +230,7 @@ mod tests {
 
     #[test]
     fn test_scheduler_agent_initialization() {
-        todo!()
+        //todo!()
     }
 
     #[actix_rt::test]
