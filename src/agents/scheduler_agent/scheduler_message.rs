@@ -1,25 +1,20 @@
 use actix::prelude::*;
-use serde::{Serialize, Deserialize, Deserializer, de::Error};
-use core::panic;
+use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display};
-use actix::Message;
 use tokio::time::{sleep, Duration};
-use tracing::{Level, event, span, info};
+use tracing::{debug, error, info, span, trace, warn};
 
-use crate::agents::scheduler_agent::SchedulerAgent;
-use crate::agents::scheduler_agent::transform_hashmap_to_nested_hashmap;
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
-use crate::api::websocket_agent::SchedulerFrontendMessage;
-use crate::api::websocket_agent::SchedulerFrontendLoadingMessage;
+use crate::agents::scheduler_agent::{self, SchedulerAgent};
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::time_environment::period::Period;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 #[serde(tag = "scheduler_message_type")]
-#[derive(Debug)]
 pub enum SchedulerRequests {
     Input(FrontendInputSchedulerMessage),
+    Period(FrontendUpdatePeriod),
     WorkPlanner(WorkPlannerMessage),
 }
 
@@ -29,96 +24,74 @@ pub struct InputSchedulerMessage {
     pub platform: String,
     pub work_order_period_mappings: Vec<WorkOrderPeriodMapping>, // For each work order only one of these can be true
     pub manual_resources: HashMap<(String, String), f64>,
-    pub period_lock: HashMap<String, bool>
+    pub period_lock: HashMap<String, bool>,
 }
 
 impl InputSchedulerMessage {
-
     pub fn get_manual_resources(&self) -> HashMap<(String, String), f64> {
         self.manual_resources.clone()
     }
-
-
 }
 
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct SetAgentAddrMessage<T: actix::Actor> {
-    pub addr: Addr<T>
+    pub addr: Addr<T>,
 }
 
 #[allow(dead_code)]
-#[derive(Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct WorkPlannerMessage {
     pub cannot_schedule: Vec<u32>,
     under_loaded_work_centers: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ManualResource {
     pub resource: String,
     pub period: TimePeriod,
-    pub capacity: f64
+    pub capacity: f64,
 }
 
-#[derive(Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TimePeriod {
     pub period_string: String,
 }
 
-#[derive(Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct FrontendInputSchedulerMessage {
     pub name: String,
     pub platform: String,
     pub work_order_period_mappings: Vec<WorkOrderPeriodMapping>,
     pub manual_resources: Vec<ManualResource>,
-    pub period_lock: HashMap<String, bool>
+    pub period_lock: HashMap<String, bool>,
 }
 
-#[derive(Serialize, Deserialize)]
-#[derive(Debug, Clone)]
+/// This is a message that is sent from the scheduler frontend to the scheduler agent requesting an
+/// update of the periods that we schedule over. What is it actually that we are getting from the
+/// frontend here? We will only get a single period from the frontend. Or maybe multiple. The
+/// important thing to remember is that we cannot simply set the periods in the scheduler agent
+/// we have to update them. This is crucial. Also, should we use a hashmap or a vector for the
+/// periods? I think that a vector is the better approach for now. A hashmap would make sense if we
+/// were to have overlapping periods or non-continuous periods. Which is not the case for now. This
+/// means that we will skip that part.
+#[derive(Deserialize, Debug)]
+pub struct UpdatePeriod {
+    pub periods: Vec<Period>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct WorkOrderPeriodMapping {
     pub work_order_number: u32,
     pub period_status: WorkOrderStatusInPeriod,
 }
 
-impl WorkOrderPeriodMapping {
-    #[cfg(test)]
-    pub fn new_test() -> Self {
-        WorkOrderPeriodMapping {
-            work_order_number: 2200002020,
-            period_status: WorkOrderStatusInPeriod::new_test() 
-        }
-    } 
-}
-
-#[derive(Serialize, Deserialize)]
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct WorkOrderStatusInPeriod {
     #[serde(deserialize_with = "deserialize_period_option")]
     pub locked_in_period: Option<Period>,
     #[serde(deserialize_with = "deserialize_period_set")]
     pub excluded_from_periods: HashSet<Period>,
-}
-
-impl WorkOrderStatusInPeriod {
-    #[cfg(test)]
-    pub fn new_test() -> Self {
-        use chrono::{Utc,TimeZone};
-        
-        let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 7, 0, 0).unwrap();
-        let end_date = start_date + chrono::Duration::days(13);
-        let period = Period::new(1, start_date, end_date);
-
-        WorkOrderStatusInPeriod {
-            locked_in_period: Some(period),
-            excluded_from_periods: HashSet::new(),
-        }
-    }
 }
 
 struct SchedulerResources<'a>(&'a HashMap<(String, String), f64>);
@@ -127,7 +100,11 @@ impl Display for SchedulerResources<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "--------------------------")?;
         for ((resource, period), capacity) in self.0 {
-            writeln!(f, "Resource: {}\nPeriod: {}\nCapacity: {}", resource, period, capacity)?;
+            writeln!(
+                f,
+                "Resource: {}\nPeriod: {}\nCapacity: {}",
+                resource, period, capacity
+            )?;
         }
         write!(f, "--------------------------")
     }
@@ -140,26 +117,42 @@ impl Message for SchedulerRequests {
 impl Display for InputSchedulerMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let manual_resources_pretty = SchedulerResources(&self.manual_resources);
-        write!(f, 
+        write!(
+            f,
             "Name: {}, 
             \nPlatform: {}, 
             \nSchedule Work Order: {:?}, 
             \nManual Resource: {},
-            \nPeriod Lock: {:?}", 
-            self.name, 
-            self.platform, 
-            self.work_order_period_mappings, 
+            \nPeriod Lock: {:?}",
+            self.name,
+            self.platform,
+            self.work_order_period_mappings,
             manual_resources_pretty,
             self.period_lock
         )
-    } 
+    }
+}
+
+// The problem with using the period ID is the it is not static and changes every period. There are
+// multiple approaches to be chosen here. One is to use the period ID and the other is to use the
+// I think that using the period ID is the best approch but it will require some changes to the
+// structure of the scheduler agent as we will have to force additional structure on the application
+// Hmm... I feel like this is one of the moments where I know that it is the right thing to do but
+// it also feels like a distraction from the main task at hand. This is a very tricky situation but
+// handling it correctly is crucial for the future of the application. I think that I will go with
+// Hmm... Should I just send all the periods to the backend again? I think that I will do that. I
+//
+#[derive(Deserialize, Debug)]
+#[serde(tag = "scheduler_message_type")]
+pub struct FrontendUpdatePeriod {
+    periods: Vec<u32>,
 }
 
 impl From<FrontendInputSchedulerMessage> for InputSchedulerMessage {
     fn from(raw: FrontendInputSchedulerMessage) -> Self {
         let mut manual_resources_map: HashMap<(String, String), f64> = HashMap::new();
         for res in raw.manual_resources {
-            manual_resources_map.insert((res.resource, res.period.period_string), res.capacity);   
+            manual_resources_map.insert((res.resource, res.period.period_string), res.capacity);
         }
         println!("{:?}", manual_resources_map);
 
@@ -168,26 +161,27 @@ impl From<FrontendInputSchedulerMessage> for InputSchedulerMessage {
             platform: raw.platform,
             work_order_period_mappings: raw.work_order_period_mappings,
             manual_resources: manual_resources_map,
-            period_lock: raw.period_lock
+            period_lock: raw.period_lock,
         }
     }
 }
 
 impl Display for FrontendInputSchedulerMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, 
+        write!(
+            f,
             "Name: {}, 
             \nPlatform: {}, 
             \nWorkorder period mappings: {}, 
             \nManual Resource: {},
-            \nPeriod Lock: {:?}", 
-            self.name, 
-            self.platform, 
-            self.work_order_period_mappings.len(), 
+            \nPeriod Lock: {:?}",
+            self.name,
+            self.platform,
+            self.work_order_period_mappings.len(),
             self.manual_resources.len(),
             self.period_lock
         )
-    } 
+    }
 }
 
 #[derive(Message)]
@@ -199,27 +193,22 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
 
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         // event!(tracing::Level::INFO , "schedule_iteration_message");
-        dbg!("test");
-        let previous_objective = self.scheduler_agent_algorithm.get_objective_value();
-        dbg!("test");
+        let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
+        self.scheduler_agent_algorithm
+            .unschedule_random_work_orders(5, rng);
+
+        self.scheduler_agent_algorithm
+            .schedule_normal_work_orders(QueueType::Normal);
+
         self.scheduler_agent_algorithm.schedule_forced_work_orders();
-        dbg!("test");
-        
-        self.scheduler_agent_algorithm.schedule_normal_work_orders(QueueType::Normal);
-        dbg!("test");
-        
-        self.scheduler_agent_algorithm.calculate_objective();
-        dbg!("test");
-
-        let current_objective_value = self.scheduler_agent_algorithm.get_objective_value();
-
-        if current_objective_value < previous_objective {
-            info!(target: "SchedulerAgent", "The objective value has improved from {} to {}", previous_objective, current_objective_value);
-            info!(scheduler_agent_objective = current_objective_value);
-
-        }
-
         // self.scheduler_agent_algorithm.schedule_work_orders_by_type(QueueType::UnloadingAndManual);
+
+        self.scheduler_agent_algorithm.calculate_objective();
+
+        debug!(
+            "Objective value: {}",
+            self.scheduler_agent_algorithm.get_objective_value()
+        );
 
         let actor_addr = ctx.address().clone();
 
@@ -229,48 +218,155 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
         };
 
         if self.scheduler_agent_algorithm.changed() {
-            event!(Level::TRACE, message = "change occured in optimized work orders");
-            ctx.notify(MessageToFrontend {});
+            trace!(
+                agent = "scheduler_agent",
+                name = self.platform.clone(),
+                message = "change occured in optimized work orders"
+            );
+
+            dbg!();
+            ctx.notify(MessageToFrontend::Overview);
+            ctx.notify(MessageToFrontend::Loading);
+
             self.scheduler_agent_algorithm.set_changed(false);
+            dbg!(self.scheduler_agent_algorithm.changed());
         }
 
         Box::pin(actix::fut::wrap_future::<_, Self>(fut))
     }
 }
 
-struct MessageToFrontend {}
+enum SchedulerFrontendMessage {
+    Overview(OverviewMessage),
+    Loading(LoadingMessage),
+    Period(PeriodMessage),
+}
+
+impl Message for SchedulerFrontendMessage {
+    type Result = ();
+}
+
+enum MessageToFrontend {
+    Overview,
+    Loading,
+    Period,
+}
 
 impl Message for MessageToFrontend {
     type Result = ();
 }
 
+#[derive(serde::Serialize, Debug)]
+pub struct LoadingMessage {
+    pub frontend_message_type: String,
+    pub manual_resources_loading: HashMap<String, HashMap<String, f64>>,
+}
+
+impl Message for LoadingMessage {
+    type Result = ();
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct OverviewMessage {
+    pub frontend_message_type: String,
+    pub scheduling_overview_data: Vec<scheduler_agent::SchedulingOverviewData>,
+}
+
+/// The Scheduler Output should contain all that is needed to make
+impl Message for OverviewMessage {
+    type Result = ();
+}
+
+#[derive(Serialize, Debug)]
+pub struct PeriodMessage {
+    pub frontend_message_type: String,
+    pub periods: Vec<Period>,
+}
+
+impl Message for PeriodMessage {
+    type Result = ();
+}
+
 impl Handler<MessageToFrontend> for SchedulerAgent {
     type Result = ();
-    // event!(tracing::Level::TRACE, )
-    fn handle(&mut self, _msg: MessageToFrontend, _ctx: &mut Self::Context) -> Self::Result {
-        let span = span!(tracing::Level::TRACE, "preparing scheduler message for the frontend", self.platform);
-        let _enter = span.enter();
-        let scheduling_overview_data = self.extract_state_to_scheduler_overview().clone();
 
-        let scheduler_frontend_message = SchedulerFrontendMessage {
-            frontend_message_type: "frontend_scheduler_overview".to_string(),
-            scheduling_overview_data: scheduling_overview_data,
-        };
-        event!(tracing::Level::TRACE, "scheduler_frontend_message: {:?}", scheduler_frontend_message.scheduling_overview_data.len());
-        let nested_loadings = transform_hashmap_to_nested_hashmap(self.scheduler_agent_algorithm.get_manual_resources_loadings().clone());
-        
-        let scheduler_frontend_loading_message = SchedulerFrontendLoadingMessage {
-            frontend_message_type: "frontend_scheduler_loading".to_string(),
-            manual_resources_loading: nested_loadings,
-        };
-        
-        match self.ws_agent_addr.as_ref() {
-            Some(ws_agent) => {
-                ws_agent.do_send(scheduler_frontend_message);
-                ws_agent.do_send(scheduler_frontend_loading_message);
+    fn handle(&mut self, msg: MessageToFrontend, _ctx: &mut Self::Context) -> Self::Result {
+        let span = span!(
+            tracing::Level::TRACE,
+            "preparing scheduler message for the frontend",
+            self.platform
+        );
+        let _enter = span.enter();
+
+        match msg {
+            MessageToFrontend::Overview => {
+                let scheduling_overview_data = self.extract_state_to_scheduler_overview().clone();
+                let scheduler_frontend_overview_message = OverviewMessage {
+                    frontend_message_type: "frontend_scheduler_overview".to_string(),
+                    scheduling_overview_data,
+                };
+                trace!(
+                    scheduler_message = "scheduler overview message",
+                    "scheduler_frontend_overview_message: {:?}",
+                    scheduler_frontend_overview_message
+                );
+                match self.ws_agent_addr.as_ref() {
+                    Some(ws_agent) => {
+                        ws_agent.do_send(scheduler_frontend_overview_message);
+                    }
+                    None => {
+                        info!("No WebSocketAgentAddr set yet, so no message sent to frontend")
+                    }
+                }
             }
-            None => {
-                event!(tracing::Level::INFO, "No WebSocketAgentAddr set yet, so no message sent to frontend")
+            MessageToFrontend::Loading => {
+                let nested_loadings = scheduler_agent::transform_hashmap_to_nested_hashmap(
+                    self.scheduler_agent_algorithm
+                        .get_manual_resources_loadings()
+                        .clone(),
+                );
+
+                let scheduler_frontend_loading_message = LoadingMessage {
+                    frontend_message_type: "frontend_scheduler_loading".to_string(),
+                    manual_resources_loading: nested_loadings,
+                };
+                trace!(
+                    scheduler_message = "scheduler loading message",
+                    "scheduler_frontend_loading_message: {:?}",
+                    scheduler_frontend_loading_message
+                );
+                match self.ws_agent_addr.as_ref() {
+                    Some(ws_agent) => {
+                        ws_agent.do_send(scheduler_frontend_loading_message);
+                    }
+                    None => {
+                        info!("No WebSocketAgentAddr set yet, so no message sent to frontend")
+                    }
+                }
+            }
+            MessageToFrontend::Period => {
+                self.scheduling_environment
+                    .lock()
+                    .unwrap()
+                    .set_periods(self.scheduler_agent_algorithm.get_periods().clone());
+
+                let scheduler_frontend_period_message = PeriodMessage {
+                    frontend_message_type: "frontend_scheduler_periods".to_string(),
+                    periods: self.scheduling_environment.lock().unwrap().clone_periods(),
+                };
+                trace!(
+                    scheduler_message = "scheduler period message",
+                    "scheduler_frontend_period_message: {:?}",
+                    scheduler_frontend_period_message
+                );
+                match self.ws_agent_addr.as_ref() {
+                    Some(ws_agent) => {
+                        ws_agent.do_send(scheduler_frontend_period_message);
+                    }
+                    None => {
+                        info!("No WebSocketAgentAddr set yet, so no message sent to frontend")
+                    }
+                }
             }
         }
     }
@@ -279,29 +375,63 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
 impl Handler<SchedulerRequests> for SchedulerAgent {
     type Result = ();
 
-    fn handle(&mut self, msg: SchedulerRequests, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: SchedulerRequests, ctx: &mut Self::Context) -> Self::Result {
         match msg {
             SchedulerRequests::Input(msg) => {
                 let input_message: InputSchedulerMessage = msg.into();
-                event!(
+                info!(
                     target: "SchedulerRequest::Input",
-                    tracing::Level::INFO,
                     message = %input_message,
                     "received a message from the frontend"
-                );                
+                );
                 self.scheduler_agent_algorithm.log_optimized_work_orders();
-                self.scheduler_agent_algorithm.update_scheduler_algorithm_state(input_message);
+                self.scheduler_agent_algorithm
+                    .update_scheduler_algorithm_state(input_message);
                 self.scheduler_agent_algorithm.log_optimized_work_orders();
 
-
-                if self.scheduler_agent_algorithm.get_optimized_work_order(&2100023393).is_some() {
-                    event!(tracing::Level::INFO, "2100023393 is in the optimized work orders");
+                if self
+                    .scheduler_agent_algorithm
+                    .get_optimized_work_order(&2100023393)
+                    .is_some()
+                {
+                    info!("2100023393 is in the optimized work orders");
                 } else {
-                    event!(tracing::Level::INFO, "2100023393 is not in the optimized work orders");
+                    info!("2100023393 is not in the optimized work orders");
                 }
             }
             SchedulerRequests::WorkPlanner(msg) => {
-               println!("SchedulerAgentReceived a WorkPlannerMessage message: {:?}", msg);
+                info!(
+                    "SchedulerAgentReceived a WorkPlannerMessage message: {:?}",
+                    msg
+                );
+            }
+            // We should handle the logic of the period update here. Here we have the information
+            // available to update the state based on the period update. We should also send the
+            // Okay what is happening here? Let us go through an example where two messages hit the
+            // scheduler agent at the same time. Both messages clone the same state. No the problem
+            // comes when you clone the state in the first message. Okay the error is that multiple
+            // lock are are lying in queue with the same state. So the first message is handled and
+            // is incrementing the state and then when the second message is handled it is, it is
+            // handled using the old state again, so of course it is not going to work. And have to
+            // be handled in a different way.
+            SchedulerRequests::Period(msg) => {
+                info!("SchedulerAgentReceived a PeriodMessage message: {:?}", msg);
+
+                let mut scheduling_env_lock = self.scheduling_environment.lock().unwrap();
+
+                let periods = scheduling_env_lock.get_mut_periods();
+
+                for period_id in msg.periods.iter() {
+                    if periods.last().unwrap().get_id() + 1 == *period_id {
+                        let new_period =
+                            periods.last().unwrap().clone() + chrono::Duration::weeks(2);
+                        periods.push(new_period);
+                    } else {
+                        error!("periods not handled correctly");
+                    }
+                }
+                self.scheduler_agent_algorithm.set_periods(periods.to_vec());
+                ctx.notify(MessageToFrontend::Period);
             }
         }
     }
@@ -310,7 +440,11 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
 impl Handler<SetAgentAddrMessage<WebSocketAgent>> for SchedulerAgent {
     type Result = ();
 
-    fn handle(&mut self, msg: SetAgentAddrMessage<WebSocketAgent>, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(
+        &mut self,
+        msg: SetAgentAddrMessage<WebSocketAgent>,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
         self.set_ws_agent_addr(msg.addr);
     }
 }
@@ -335,25 +469,40 @@ where
     let vec = Vec::<TimePeriod>::deserialize(deserializer)?;
     let mut set = HashSet::new();
     for time_period_map in vec {
-        let period = Period::new_from_string(&time_period_map.period_string).map_err(Error::custom)?;
+        let period =
+            Period::new_from_string(&time_period_map.period_string).map_err(Error::custom)?;
         set.insert(period);
     }
     Ok(set)
 }
 
-
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
-    
-    use chrono::{Utc, TimeZone};
-    
-    use crate::{agents::scheduler_agent::scheduler_algorithm::{SchedulerAgentAlgorithm, PriorityQueues, OptimizedWorkOrders, OptimizedWorkOrder}, models::{WorkOrders, work_order::{priority::Priority, order_type::{WorkOrderType, WDFPriority}, status_codes::StatusCodes, order_dates::OrderDates, revision::Revision, unloading_point::UnloadingPoint, functional_location::FunctionalLocation, order_text::OrderText}}};
+    use chrono::{TimeZone, Utc};
+
     use crate::models::work_order::WorkOrder;
+    use crate::{
+        agents::scheduler_agent::scheduler_algorithm::{
+            OptimizedWorkOrder, OptimizedWorkOrders, PriorityQueues, SchedulerAgentAlgorithm,
+        },
+        models::{
+            work_order::{
+                functional_location::FunctionalLocation,
+                order_dates::OrderDates,
+                order_text::OrderText,
+                order_type::{WDFPriority, WorkOrderType},
+                priority::Priority,
+                revision::Revision,
+                status_codes::StatusCodes,
+                unloading_point::UnloadingPoint,
+            },
+            WorkOrders,
+        },
+    };
 
     #[test]
     fn test_update_scheduler_state() {
-
         let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 7, 0, 0).unwrap();
         let end_date = start_date + chrono::Duration::days(13);
 
@@ -362,7 +511,7 @@ mod tests {
             period_status: WorkOrderStatusInPeriod {
                 locked_in_period: Some(Period::new(1, start_date, end_date)),
                 excluded_from_periods: HashSet::new(),
-            }
+            },
         }];
 
         let mut work_orders = WorkOrders::new();
@@ -378,7 +527,7 @@ mod tests {
             vec![],
             vec![],
             vec![],
-            WorkOrderType::WDF(WDFPriority::new(1)),
+            WorkOrderType::Wdf(WDFPriority::new(1)),
             crate::models::work_order::system_condition::SystemCondition::Unknown,
             StatusCodes::new_default(),
             OrderDates::new_test(),
@@ -394,31 +543,47 @@ mod tests {
         let input_message = InputSchedulerMessage {
             name: "test".to_string(),
             platform: "test".to_string(),
-            work_order_period_mappings: work_order_period_mappings,
+            work_order_period_mappings,
             manual_resources: HashMap::new(),
-            period_lock: HashMap::new()
+            period_lock: HashMap::new(),
         };
 
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            HashMap::new(), 
-            HashMap::new(), 
-            work_orders, 
-            PriorityQueues::new(), 
+            HashMap::new(),
+            HashMap::new(),
+            work_orders,
+            PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             vec![],
-            true
-        );     
+            true,
+        );
 
-        scheduler_agent_algorithm.update_scheduler_algorithm_state(input_message); 
+        scheduler_agent_algorithm.update_scheduler_algorithm_state(input_message);
 
-        assert_eq!(scheduler_agent_algorithm.get_optimized_work_orders().get(&2200002020).as_ref().unwrap().locked_in_period.as_ref().unwrap().get_string(), "2023-W47-48");
+        assert_eq!(
+            scheduler_agent_algorithm
+                .get_optimized_work_orders()
+                .get(&2200002020)
+                .as_ref()
+                .unwrap()
+                .locked_in_period
+                .as_ref()
+                .unwrap()
+                .get_string(),
+            "2023-W47-48"
+        );
     }
 
     #[test]
     fn test_input_scheduler_message_from() {
-
-        let work_order_period_mapping = WorkOrderPeriodMapping { work_order_number: 2100023841, period_status: WorkOrderStatusInPeriod { locked_in_period: Some(Period::new_from_string("2023-W49-50").unwrap() ), excluded_from_periods: HashSet::new() }};
+        let work_order_period_mapping = WorkOrderPeriodMapping {
+            work_order_number: 2100023841,
+            period_status: WorkOrderStatusInPeriod {
+                locked_in_period: Some(Period::new_from_string("2023-W49-50").unwrap()),
+                excluded_from_periods: HashSet::new(),
+            },
+        };
         // let input_scheduler_message: = work_order_period_mapping.into();
 
         let frontend_input_scheduler_message = FrontendInputSchedulerMessage {
@@ -426,14 +591,23 @@ mod tests {
             platform: "test".to_string(),
             work_order_period_mappings: vec![work_order_period_mapping],
             manual_resources: vec![],
-            period_lock: HashMap::new()
+            period_lock: HashMap::new(),
         };
 
-        let input_scheduler_message: InputSchedulerMessage = frontend_input_scheduler_message.into();
+        let input_scheduler_message: InputSchedulerMessage =
+            frontend_input_scheduler_message.into();
 
-        assert_eq!(input_scheduler_message.work_order_period_mappings[0].work_order_number, 2100023841);
-        assert_eq!(input_scheduler_message.work_order_period_mappings[0].period_status.locked_in_period, Some(Period::new_from_string("2023-W49-50").unwrap()));
-    
+        assert_eq!(
+            input_scheduler_message.work_order_period_mappings[0].work_order_number,
+            2100023841
+        );
+        assert_eq!(
+            input_scheduler_message.work_order_period_mappings[0]
+                .period_status
+                .locked_in_period,
+            Some(Period::new_from_string("2023-W49-50").unwrap())
+        );
+
         let mut work_load = HashMap::new();
 
         work_load.insert("VEN_MECH".to_string(), 16.0);
@@ -449,7 +623,7 @@ mod tests {
             vec![],
             vec![],
             vec![],
-            WorkOrderType::WDF(WDFPriority::new(1)),
+            WorkOrderType::Wdf(WDFPriority::new(1)),
             crate::models::work_order::system_condition::SystemCondition::Unknown,
             StatusCodes::new_default(),
             OrderDates::new_test(),
@@ -466,29 +640,36 @@ mod tests {
 
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            HashMap::new(), 
-            HashMap::new(), 
-            work_orders, 
-            PriorityQueues::new(), 
+            HashMap::new(),
+            HashMap::new(),
+            work_orders,
+            PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             vec![],
-            true
+            true,
         );
 
         scheduler_agent_algorithm.update_scheduler_algorithm_state(input_scheduler_message);
 
-        assert_eq!(scheduler_agent_algorithm.get_optimized_work_order(&2100023841).unwrap().locked_in_period, Some(Period::new_from_string("2023-W49-50").unwrap()));
-        assert_eq!(scheduler_agent_algorithm.get_optimized_work_order(&2100023841).unwrap().scheduled_period, None);
+        assert_eq!(
+            scheduler_agent_algorithm
+                .get_optimized_work_order(&2100023841)
+                .unwrap()
+                .locked_in_period,
+            Some(Period::new_from_string("2023-W49-50").unwrap())
+        );
+        assert_eq!(
+            scheduler_agent_algorithm
+                .get_optimized_work_order(&2100023841)
+                .unwrap()
+                .scheduled_period,
+            None
+        );
         // assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("VEN_MECH".to_string(), "2023-W49-50".to_string()), 16.0);
     }
 
-
     #[test]
     fn test_calculate_objective_value() {
-
-
-        
-
         let mut work_order = WorkOrder::new(
             2100023841,
             false,
@@ -500,7 +681,7 @@ mod tests {
             vec![],
             vec![],
             vec![],
-            WorkOrderType::WDF(WDFPriority::new(1)),
+            WorkOrderType::Wdf(WDFPriority::new(1)),
             crate::models::work_order::system_condition::SystemCondition::Unknown,
             StatusCodes::new_default(),
             OrderDates::new_test(),
@@ -511,7 +692,8 @@ mod tests {
             false,
         );
 
-        work_order.order_dates.latest_allowed_finish_period = Period::new_from_string("2023-W47-48").unwrap();
+        work_order.order_dates.latest_allowed_finish_period =
+            Period::new_from_string("2023-W47-48").unwrap();
 
         let mut work_orders = WorkOrders::new();
 
@@ -529,13 +711,13 @@ mod tests {
 
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            HashMap::new(), 
-            HashMap::new(), 
-            work_orders, 
-            PriorityQueues::new(), 
+            HashMap::new(),
+            HashMap::new(),
+            work_orders,
+            PriorityQueues::new(),
             optimized_work_orders,
             vec![],
-            true
+            true,
         );
 
         scheduler_agent_algorithm.calculate_objective();
@@ -544,7 +726,6 @@ mod tests {
 
     impl InputSchedulerMessage {
         pub fn new_test() -> Self {
-
             // I am having so much fun with this
 
             let work_order_period_mapping = WorkOrderPeriodMapping::new_test();
@@ -554,19 +735,93 @@ mod tests {
             let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 7, 0, 0).unwrap();
             let end_date = start_date + chrono::Duration::days(13);
             let period = Period::new(1, start_date, end_date);
-    
-            manual_resources.insert(("MTN_MECH".to_string(), period.period_string.clone()), 300.0);
-            manual_resources.insert(("MTN_ELEC".to_string(), period.period_string.clone()), 300.0);
-            manual_resources.insert(("PRODTECH".to_string(), period.period_string.clone()), 300.0);
+
+            manual_resources.insert(
+                ("MTN_MECH".to_string(), period.period_string.clone()),
+                300.0,
+            );
+            manual_resources.insert(
+                ("MTN_ELEC".to_string(), period.period_string.clone()),
+                300.0,
+            );
+            manual_resources.insert(
+                ("PRODTECH".to_string(), period.period_string.clone()),
+                300.0,
+            );
 
             Self {
                 name: "test".to_string(),
                 platform: "test".to_string(),
                 work_order_period_mappings: vec![work_order_period_mapping],
                 manual_resources,
-                period_lock: HashMap::new()
+                period_lock: HashMap::new(),
+            }
+        }
+    }
+
+    pub struct TestRequest {}
+
+    impl Message for TestRequest {
+        type Result = Option<TestResponse>;
+    }
+
+    pub struct TestResponse {
+        pub objective_value: f64,
+        pub manual_resources_capacity: HashMap<(String, String), f64>,
+        pub manual_resources_loading: HashMap<(String, String), f64>,
+        pub priority_queues: PriorityQueues<u32, u32>,
+        pub optimized_work_orders: OptimizedWorkOrders,
+        pub periods: Vec<Period>,
+    }
+
+    impl Handler<TestRequest> for SchedulerAgent {
+        type Result = Option<TestResponse>; // Or relevant part of the state
+
+        fn handle(&mut self, _msg: TestRequest, _: &mut Context<Self>) -> Self::Result {
+            // Return the state or part of it
+            Some(TestResponse {
+                objective_value: self.scheduler_agent_algorithm.get_objective_value(),
+                manual_resources_capacity: self
+                    .scheduler_agent_algorithm
+                    .get_manual_resources_capacities()
+                    .clone(),
+                manual_resources_loading: self
+                    .scheduler_agent_algorithm
+                    .get_manual_resources_loadings()
+                    .clone(),
+                priority_queues: self.scheduler_agent_algorithm.get_priority_queues().clone(),
+                optimized_work_orders: OptimizedWorkOrders::new(
+                    self.scheduler_agent_algorithm
+                        .get_optimized_work_orders()
+                        .clone(),
+                ),
+                periods: self.scheduler_agent_algorithm.get_periods().clone(),
+            })
+        }
+    }
+
+    #[test]
+    fn test_handler_message_to_frontend() {}
+
+    impl WorkOrderPeriodMapping {
+        pub fn new_test() -> Self {
+            WorkOrderPeriodMapping {
+                work_order_number: 2200002020,
+                period_status: WorkOrderStatusInPeriod::new_test(),
+            }
+        }
+    }
+
+    impl WorkOrderStatusInPeriod {
+        pub fn new_test() -> Self {
+            let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 7, 0, 0).unwrap();
+            let end_date = start_date + chrono::Duration::days(13);
+            let period = Period::new(1, start_date, end_date);
+
+            WorkOrderStatusInPeriod {
+                locked_in_period: Some(period),
+                excluded_from_periods: HashSet::new(),
             }
         }
     }
 }
-
