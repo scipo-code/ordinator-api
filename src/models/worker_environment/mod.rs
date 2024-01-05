@@ -2,8 +2,8 @@ pub mod availability;
 pub mod crew;
 pub mod worker;
 
-use std::collections::HashMap;
 use crate::models::worker_environment::crew::Crew;
+use std::collections::HashMap;
 #[allow(dead_code)]
 pub struct WorkerEnvironment {
     pub crew: Crew,
@@ -14,25 +14,16 @@ impl WorkerEnvironment {
     #[allow(dead_code)]
     pub fn based_on_crew(crew: Crew) -> Self {
         let mut work_centers = HashMap::<String, f64>::new();
-        for (_, worker) in crew.get_workers() {
+        for worker in crew.get_workers().values() {
             let worker_trait = worker.get_trait().clone();
             *work_centers.entry(worker_trait).or_insert(0.0) += worker.get_capacity();
         }
-        WorkerEnvironment {
-            crew,
-            work_centers,
-        }
+        WorkerEnvironment { crew, work_centers }
     }
 
     pub fn based_on_workcenter(crew: Crew, work_centers: HashMap<String, f64>) -> Self {
-        WorkerEnvironment {
-            crew,
-            work_centers,
-        }
+        WorkerEnvironment { crew, work_centers }
     }
-
-
-
 }
 
 impl WorkerEnvironment {

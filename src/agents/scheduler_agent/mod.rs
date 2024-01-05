@@ -2,21 +2,25 @@ pub mod display;
 pub mod scheduler_algorithm;
 pub mod scheduler_message;
 
-use actix::prelude::*;
-use std::collections::HashMap;
-
 use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
-use crate::agents::scheduler_agent::scheduler_message::{InputSchedulerMessage, ScheduleIteration};
+use crate::agents::scheduler_agent::scheduler_message::ScheduleIteration;
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::work_order::priority::Priority;
 use crate::models::work_order::status_codes::MaterialStatus;
+use crate::models::SchedulingEnvironment;
+use actix::prelude::*;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use crate::agents::work_planner_agent::WorkPlannerAgent;
 
-#[derive(Debug)]
+/// This is the primary struct for the scheduler agent.
+#[allow(dead_code)]
 pub struct SchedulerAgent {
     platform: String,
+    scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     scheduler_agent_algorithm: SchedulerAgentAlgorithm,
     ws_agent_addr: Option<Addr<WebSocketAgent>>,
     work_planner_agent_addr: Option<Addr<WorkPlannerAgent>>,
@@ -45,12 +49,14 @@ impl Actor for SchedulerAgent {
 impl SchedulerAgent {
     pub fn new(
         platform: String,
+        scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         scheduler_agent_algorithm: SchedulerAgentAlgorithm,
         ws_agent_addr: Option<Addr<WebSocketAgent>>,
         work_planner_agent_addr: Option<Addr<WorkPlannerAgent>>,
     ) -> Self {
         Self {
             platform,
+            scheduling_environment,
             scheduler_agent_algorithm,
             ws_agent_addr,
             work_planner_agent_addr,
@@ -126,7 +132,6 @@ impl SchedulerAgent {
                     },
                     scheduled_start: work_order.order_dates.basic_start_date.to_string(),
                     unloading_point: work_order.unloading_point.clone().string,
-
                     material_date: match work_order.status_codes.material_status {
                         MaterialStatus::Smat => "SMAT".to_string(),
                         MaterialStatus::Nmat => "NMAT".to_string(),
@@ -135,8 +140,7 @@ impl SchedulerAgent {
                         MaterialStatus::Pmat => "PMAT".to_string(),
                         MaterialStatus::Unknown => "Implement control tower".to_string(),
                     },
-
-                    work_order_number: work_order_number.clone(),
+                    work_order_number: *work_order_number,
                     activity: operation_number.clone().to_string(),
                     work_center: operation.work_center.clone(),
                     work_remaining: operation.work_remaining.to_string(),
@@ -160,9 +164,9 @@ impl SchedulerAgent {
                         .latest_allowed_finish_date
                         .to_string(),
                     order_type: match work_order.order_type.clone() {
-                        WorkOrderType::WDF(_wdf_priority) => "WDF".to_string(),
-                        WorkOrderType::WGN(_wgn_priority) => "WGN".to_string(),
-                        WorkOrderType::WPM(_wpm_priority) => "WPM".to_string(),
+                        WorkOrderType::Wdf(_wdf_priority) => "WDF".to_string(),
+                        WorkOrderType::Wgn(_wgn_priority) => "WGN".to_string(),
+                        WorkOrderType::Wpm(_wpm_priority) => "WPM".to_string(),
                         WorkOrderType::Other => "Missing Work Order Type".to_string(),
                     },
                     priority: match work_order.priority.clone() {
@@ -191,7 +195,7 @@ fn transform_hashmap_to_nested_hashmap(
     for ((work_center, period), value) in hash_map {
         nested_hash_map
             .entry(work_center)
-            .or_insert_with(HashMap::new)
+            .or_default()
             .insert(period, value);
     }
     nested_hash_map
@@ -199,7 +203,282 @@ fn transform_hashmap_to_nested_hashmap(
 
 #[cfg(test)]
 mod tests {
+    use chrono::{TimeZone, Utc};
+
+    use super::scheduler_message::tests::TestRequest;
+    use super::scheduler_message::tests::TestResponse;
+
+    use super::{
+        scheduler_algorithm::{OptimizedWorkOrders, PriorityQueues},
+        scheduler_message::{FrontendInputSchedulerMessage, SchedulerRequests},
+        *,
+    };
+    use crate::models::work_order::operation::Operation;
+    use crate::models::work_order::order_type::WDFPriority;
+    use crate::models::{work_order::*, WorkOrders};
+    use crate::{
+        agents::scheduler_agent::scheduler_message::ManualResource,
+        models::{
+            time_environment::period::Period,
+            work_order::{
+                functional_location::FunctionalLocation, order_dates::OrderDates,
+                order_text::OrderText, revision::Revision, status_codes::StatusCodes,
+                system_condition::SystemCondition, unloading_point::UnloadingPoint,
+            },
+        },
+    };
 
     #[test]
-    fn test_scheduler_agent_initialization() {}
+    fn test_scheduler_agent_initialization() {
+        //todo!()
+    }
+
+    #[actix_rt::test]
+    async fn test_scheduler_agent_handle() {
+        let mut work_orders = WorkOrders::new();
+        let mut work_load = HashMap::new();
+
+        work_load.insert("MTN_MECH".to_string(), 20.0);
+        work_load.insert("MTN_ELEC".to_string(), 40.0);
+        work_load.insert("PRODTECH".to_string(), 60.0);
+
+        let work_order = WorkOrder::new(
+            2200002020,
+            false,
+            1000,
+            Priority::new_int(1),
+            100.0,
+            HashMap::new(),
+            work_load,
+            vec![],
+            vec![],
+            vec![],
+            WorkOrderType::Wdf(WDFPriority::new(1)),
+            SystemCondition::new(),
+            StatusCodes::new_default(),
+            OrderDates::new_test(),
+            Revision::new_default(),
+            UnloadingPoint::new_default(),
+            FunctionalLocation::new_default(),
+            OrderText::new_default(),
+            false,
+        );
+
+        work_orders.insert(work_order.clone());
+
+        let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 0, 0, 0).unwrap();
+        let end_date = start_date
+            + chrono::Duration::days(13)
+            + chrono::Duration::hours(23)
+            + chrono::Duration::minutes(59)
+            + chrono::Duration::seconds(59);
+        let period = Period::new(1, start_date, end_date);
+
+        let mut manual_resource_capacity: HashMap<(String, String), f64> = HashMap::new();
+        let mut manual_resource_loadings: HashMap<(String, String), f64> = HashMap::new();
+
+        manual_resource_capacity.insert(
+            ("MTN_MECH".to_string(), period.period_string.clone()),
+            150.0,
+        );
+        manual_resource_capacity.insert(
+            ("MTN_ELEC".to_string(), period.period_string.clone()),
+            150.0,
+        );
+        manual_resource_capacity.insert(
+            ("PRODTECH".to_string(), period.period_string.clone()),
+            150.0,
+        );
+
+        manual_resource_loadings
+            .insert(("MTN_MECH".to_string(), period.period_string.clone()), 0.0);
+        manual_resource_loadings
+            .insert(("MTN_ELEC".to_string(), period.period_string.clone()), 0.0);
+        manual_resource_loadings
+            .insert(("PRODTECH".to_string(), period.period_string.clone()), 0.0);
+
+        let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+            0.0,
+            manual_resource_capacity,
+            manual_resource_loadings,
+            work_orders.clone(),
+            PriorityQueues::new(),
+            OptimizedWorkOrders::new(HashMap::new()),
+            vec![],
+            true,
+        );
+
+        let frontend_input_scheduler_message = FrontendInputSchedulerMessage {
+            name: "test".to_string(),
+            work_order_period_mappings: vec![],
+            manual_resources: vec![
+                ManualResource {
+                    resource: "MTN_MECH".to_string(),
+                    period: scheduler_message::TimePeriod {
+                        period_string: period.period_string.clone(),
+                    },
+                    capacity: 150.0,
+                },
+                ManualResource {
+                    resource: "MTN_ELEC".to_string(),
+                    period: scheduler_message::TimePeriod {
+                        period_string: period.period_string.clone(),
+                    },
+                    capacity: 150.0,
+                },
+                ManualResource {
+                    resource: "PRODTECH".to_string(),
+                    period: scheduler_message::TimePeriod {
+                        period_string: period.period_string.clone(),
+                    },
+                    capacity: 150.0,
+                },
+            ],
+            period_lock: HashMap::new(),
+            platform: "None".to_string(),
+        };
+
+        let scheduler_agent = SchedulerAgent::new(
+            "test".to_string(),
+            Arc::new(Mutex::new(SchedulingEnvironment::default())),
+            scheduler_agent_algorithm,
+            None,
+            None,
+        );
+
+        let live_scheduler_agent = scheduler_agent.start();
+
+        live_scheduler_agent
+            .send(SchedulerRequests::Input(frontend_input_scheduler_message))
+            .await
+            .unwrap();
+
+        let test_response: TestResponse = live_scheduler_agent
+            .send(TestRequest {})
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            *test_response
+                .manual_resources_capacity
+                .get(&("MTN_MECH".to_string(), period.period_string.clone()))
+                .unwrap(),
+            150.0
+        );
+        assert_eq!(
+            *test_response
+                .manual_resources_capacity
+                .get(&("MTN_ELEC".to_string(), period.period_string.clone()))
+                .unwrap(),
+            150.0
+        );
+        assert_eq!(
+            *test_response
+                .manual_resources_capacity
+                .get(&("PRODTECH".to_string(), period.period_string.clone()))
+                .unwrap(),
+            150.0
+        );
+    }
+
+    #[test]
+    fn test_extract_state_to_scheduler_overview() {
+        let mut operations: HashMap<u32, Operation> = HashMap::new();
+
+        let operation_1 = Operation::new(
+            10,
+            1,
+            "MTN_MECH".to_string(),
+            1.0,
+            1.0,
+            1.0,
+            1,
+            Utc.with_ymd_and_hms(2022, 1, 1, 7, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 9, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 7, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 9, 0, 0).unwrap(),
+        );
+
+        let operation_2 = Operation::new(
+            20,
+            1,
+            "MTN_MECH".to_string(),
+            1.0,
+            1.0,
+            1.0,
+            1,
+            Utc.with_ymd_and_hms(2022, 1, 1, 7, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 9, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 7, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 9, 0, 0).unwrap(),
+        );
+
+        let operation_3 = Operation::new(
+            30,
+            1,
+            "MTN_MECH".to_string(),
+            1.0,
+            1.0,
+            1.0,
+            1,
+            Utc.with_ymd_and_hms(2022, 1, 1, 7, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 9, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 7, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2022, 1, 1, 9, 0, 0).unwrap(),
+        );
+
+        operations.insert(10, operation_1);
+        operations.insert(20, operation_2);
+        operations.insert(30, operation_3);
+
+        let work_order_1 = WorkOrder::new(
+            2200002020,
+            false,
+            1000,
+            Priority::new_int(1),
+            100.0,
+            operations,
+            HashMap::new(),
+            vec![],
+            vec![],
+            vec![],
+            WorkOrderType::Wdf(WDFPriority::new(1)),
+            SystemCondition::new(),
+            StatusCodes::new_default(),
+            OrderDates::new_test(),
+            Revision::new_default(),
+            UnloadingPoint::new_default(),
+            FunctionalLocation::new_default(),
+            OrderText::new_default(),
+            false,
+        );
+
+        let mut work_orders = WorkOrders::new();
+
+        work_orders.insert(work_order_1);
+
+        let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+            0.0,
+            HashMap::new(),
+            HashMap::new(),
+            work_orders,
+            PriorityQueues::new(),
+            OptimizedWorkOrders::new(HashMap::new()),
+            vec![],
+            true,
+        );
+
+        let scheduler_agent = SchedulerAgent::new(
+            "test".to_string(),
+            Arc::new(Mutex::new(SchedulingEnvironment::default())),
+            scheduler_agent_algorithm,
+            None,
+            None,
+        );
+
+        let scheduler_overview = scheduler_agent.extract_state_to_scheduler_overview();
+
+        assert_eq!(scheduler_overview.len(), 3);
+    }
 }

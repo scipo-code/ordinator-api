@@ -1,44 +1,34 @@
 use serde::{Deserialize, Serialize};
 
-
-#[derive(Serialize, Deserialize)]
-#[derive(Clone)]
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum WorkOrderType {
-    WDF(WDFPriority),
-    WGN(WGNPriority),
-    WPM(WPMPriority),
+    Wdf(WDFPriority),
+    Wgn(WGNPriority),
+    Wpm(WPMPriority),
     Other,
 }
 
-#[derive(Clone)]
-#[derive(Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum WDFPriority {
     One,
     Two,
     Three,
     Four,
 }
-#[derive(Clone)]
-#[derive(Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum WGNPriority {
     One,
     Two,
     Three,
     Four,
 }
-#[derive(Clone)]
-#[derive(Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum WPMPriority {
     A,
     B,
     C,
     D,
 }
-
 
 impl WDFPriority {
     #[cfg(test)]
