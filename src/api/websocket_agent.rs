@@ -1,8 +1,6 @@
 use actix::prelude::*;
 use actix_web::Result;
 use actix_web_actors::ws;
-use core::panic;
-use serde::Serialize;
 use std::sync::Arc;
 use tracing::info;
 
@@ -12,7 +10,6 @@ use crate::agents::scheduler_agent::scheduler_message::PeriodMessage;
 use crate::agents::scheduler_agent::scheduler_message::SetAgentAddrMessage;
 use crate::agents::scheduler_agent::SchedulerAgent;
 use crate::api::FrontendMessages;
-use crate::models::time_environment::period::Period;
 
 pub struct WebSocketAgent {
     scheduler_agent_addr: Arc<Addr<SchedulerAgent>>,

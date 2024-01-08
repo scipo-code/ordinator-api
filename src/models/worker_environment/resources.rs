@@ -33,6 +33,8 @@ pub enum Resources {
     MtnTele,
     #[serde(rename = "MTN-TURB")]
     MtnTurb,
+    #[serde(rename = "INP-SITE")]
+    InpSite,
     #[serde(rename = "PRODLABO")]
     Prodlabo,
     #[serde(rename = "PRODTECH")]
@@ -61,10 +63,17 @@ pub enum Resources {
     VenScaf,
     #[serde(rename = "VEN-SUBS")]
     VenSubs,
+    #[serde(rename = "QAQCELEC")]
+    QaqcElec,
+    #[serde(rename = "QAQCMECH")]
+    QaqcMech,
+    #[serde(rename = "QAQCPAIN")]
+    QaqcPain,
 }
 
 impl Resources {
     pub fn new_from_string(resource: String) -> Self {
+        dbg!(resource.clone());
         match resource.as_str() {
             "MEDIC" => Resources::Medic,
             "MTN-CRAN" => Resources::MtnCran,
@@ -81,6 +90,7 @@ impl Resources {
             "MTN-SCAF" => Resources::MtnScaf,
             "MTN-TELE" => Resources::MtnTele,
             "MTN-TURB" => Resources::MtnTurb,
+            "INP-SITE" => Resources::InpSite,
             "PRODLABO" => Resources::Prodlabo,
             "PRODTECH" => Resources::Prodtech,
             "VEN-ACCO" => Resources::VenAcco,
@@ -95,6 +105,9 @@ impl Resources {
             "VEN-ROPE" => Resources::VenRope,
             "VEN-SCAF" => Resources::VenScaf,
             "VEN-SUBS" => Resources::VenSubs,
+            "QAQCELEC" => Resources::QaqcElec,
+            "QAQCMECH" => Resources::QaqcMech,
+            "QAQCPAIN" => Resources::QaqcPain,
             _ => panic!("Invalid resource"),
         }
     }
@@ -116,6 +129,7 @@ impl Resources {
             Resources::MtnScaf => "MTN-SCAF".to_string(),
             Resources::MtnTele => "MTN-TELE".to_string(),
             Resources::MtnTurb => "MTN-TURB".to_string(),
+            Resources::InpSite => "INP-SITE".to_string(),
             Resources::Prodlabo => "PRODLABO".to_string(),
             Resources::Prodtech => "PRODTECH".to_string(),
             Resources::VenAcco => "VEN-ACCO".to_string(),
@@ -130,6 +144,9 @@ impl Resources {
             Resources::VenRope => "VEN-ROPE".to_string(),
             Resources::VenScaf => "VEN-SCAF".to_string(),
             Resources::VenSubs => "VEN-SUBS".to_string(),
+            Resources::QaqcElec => "QAQCELEC".to_string(),
+            Resources::QaqcMech => "QAQCMECH".to_string(),
+            Resources::QaqcPain => "QAQCPAIN".to_string(),
         }
     }
 }

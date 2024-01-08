@@ -7,6 +7,7 @@ use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::WorkOrder;
+use crate::models::worker_environment::resources::Resources;
 
 use super::SchedulerAgentAlgorithm;
 
@@ -147,6 +148,10 @@ impl SchedulerAgentAlgorithm {
         let period = self
             .optimized_work_orders
             .get_locked_in_period(work_order_key);
+        dbg!(period.clone());
+        dbg!(self
+            .get_manual_resources_loadings()
+            .get(&(Resources::MtnMech, period.clone())));
 
         self.initialize_loading_used_in_work_order(work_order_key, period.clone());
 
@@ -381,7 +386,7 @@ impl SchedulerAgentAlgorithm {
 mod tests {
     use super::*;
 
-    use chrono::{TimeZone, Utc};
+    use chrono::{Duration, TimeZone, Utc};
     use rand::{rngs::StdRng, SeedableRng};
     use std::collections::HashMap;
 
@@ -667,23 +672,45 @@ mod tests {
             + chrono::Duration::hours(23)
             + chrono::Duration::minutes(59)
             + chrono::Duration::seconds(59);
-        let period = Period::new(1, start_date, end_date);
+        let period_1 = Period::new(0, start_date, end_date);
+        let period_2 = Period::new(0, start_date, end_date) + Duration::weeks(2);
+        let period_3 = Period::new(0, start_date, end_date) + Duration::weeks(4);
 
+        // Again, this is not completely correct. There is an invariant here that is not being
+        // upheld correctly. What should we do about that?
         let mut manual_resource_capacity: HashMap<(Resources, Period), f64> = HashMap::new();
         let mut manual_resource_loadings: HashMap<(Resources, Period), f64> = HashMap::new();
 
-        manual_resource_capacity.insert((Resources::MtnMech, period.clone()), 150.0);
-        manual_resource_capacity.insert((Resources::MtnElec, period.clone()), 150.0);
-        manual_resource_capacity.insert((Resources::Prodtech, period.clone()), 150.0);
+        manual_resource_capacity.insert((Resources::MtnMech, period_1.clone()), 150.0);
+        manual_resource_capacity.insert((Resources::MtnElec, period_1.clone()), 150.0);
+        manual_resource_capacity.insert((Resources::Prodtech, period_1.clone()), 150.0);
 
-        manual_resource_loadings.insert((Resources::MtnMech, period.clone()), 0.0);
-        manual_resource_loadings.insert((Resources::MtnElec, period.clone()), 0.0);
-        manual_resource_loadings.insert((Resources::Prodtech, period.clone()), 0.0);
+        manual_resource_loadings.insert((Resources::MtnMech, period_1.clone()), 0.0);
+        manual_resource_loadings.insert((Resources::MtnElec, period_1.clone()), 0.0);
+        manual_resource_loadings.insert((Resources::Prodtech, period_1.clone()), 0.0);
 
-        let periods: Vec<Period> = vec![
-            Period::new_from_string("2023-W47-48").unwrap(),
-            Period::new_from_string("2023-W49-50").unwrap(),
-        ];
+        manual_resource_capacity.insert((Resources::MtnMech, period_2.clone()), 150.0);
+        manual_resource_capacity.insert((Resources::MtnElec, period_2.clone()), 150.0);
+        manual_resource_capacity.insert((Resources::Prodtech, period_2.clone()), 150.0);
+
+        manual_resource_loadings.insert((Resources::MtnMech, period_2.clone()), 0.0);
+        manual_resource_loadings.insert((Resources::MtnElec, period_2.clone()), 0.0);
+        manual_resource_loadings.insert((Resources::Prodtech, period_2.clone()), 0.0);
+
+        manual_resource_capacity.insert((Resources::MtnMech, period_3.clone()), 150.0);
+        manual_resource_capacity.insert((Resources::MtnElec, period_3.clone()), 150.0);
+        manual_resource_capacity.insert((Resources::Prodtech, period_3.clone()), 150.0);
+
+        manual_resource_loadings.insert((Resources::MtnMech, period_3.clone()), 0.0);
+        manual_resource_loadings.insert((Resources::MtnElec, period_3.clone()), 0.0);
+        manual_resource_loadings.insert((Resources::Prodtech, period_3.clone()), 0.0);
+
+        dbg!(period_2.clone());
+
+        dbg!(manual_resource_loadings.get(&(Resources::Prodtech, period_1.clone())));
+        dbg!(manual_resource_loadings.get(&(Resources::MtnElec, period_1.clone())));
+
+        let periods: Vec<Period> = vec![period_1.clone(), period_2.clone(), period_3.clone()];
 
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
@@ -698,141 +725,137 @@ mod tests {
 
         scheduler_agent_algorithm.schedule_normal_work_order(
             2200002020,
-            &period,
+            &period_1,
             &QueueType::Normal,
         );
 
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period_1.clone()),
             20.0
         );
 
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period_1.clone()),
             40.0
         );
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period_1.clone()),
             60.0
         );
 
         scheduler_agent_algorithm.unschedule_work_order(&2200002020);
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period_1.clone()),
             0.0
         );
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period_1.clone()),
             0.0
         );
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period_1.clone()),
             0.0
         );
 
         let optimized_work_order =
-            OptimizedWorkOrder::new(None, Some(period.clone()), HashSet::new());
+            OptimizedWorkOrder::new(None, Some(period_1.clone()), HashSet::new());
 
         scheduler_agent_algorithm.set_optimized_work_order(2200002020, optimized_work_order);
 
         scheduler_agent_algorithm.schedule_forced_work_order(2200002020);
+
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period_1.clone()),
             20.0
         );
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period_1.clone()),
             40.0
         );
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period_1.clone()),
             60.0
         );
 
-        let start_date_new = start_date + chrono::Duration::days(14);
-        let end_date_new = start_date_new + chrono::Duration::days(13);
-
-        let period_new = Period::new(1, start_date_new, end_date_new);
-
         scheduler_agent_algorithm
             .optimized_work_orders
-            .set_locked_in_period(2200002020, period_new.clone());
-
+            .set_locked_in_period(2200002020, period_2.clone());
+        dbg!(period_2.clone());
         scheduler_agent_algorithm.schedule_forced_work_order(2200002020);
 
         assert_eq!(
             scheduler_agent_algorithm.get_or_initialize_manual_resources_loading(
                 Resources::MtnMech.clone(),
-                period_new.clone()
+                period_2.clone()
             ),
             20.0
         );
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period_2.clone()),
             40.0
         );
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period_2.clone()),
             60.0
         );
 
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period_1.clone()),
             0.0
         );
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period_1.clone()),
             0.0
         );
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period_1.clone()),
             0.0
         );
 
         scheduler_agent_algorithm.unschedule_work_order(&2200002020);
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period_1.clone()),
             0.0
         );
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period_1.clone()),
             0.0
         );
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period_1.clone()),
             0.0
         );
 
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::MtnMech, period_2.clone()),
             0.0
         );
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::MtnElec, period_2.clone()),
             0.0
         );
         assert_eq!(
             scheduler_agent_algorithm
-                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period.clone()),
+                .get_or_initialize_manual_resources_loading(Resources::Prodtech, period_2.clone()),
             0.0
         );
     }
@@ -1076,5 +1099,14 @@ mod tests {
                 .scheduled_period,
             Some(Period::new_from_string("2023-W49-50").unwrap())
         );
+    }
+
+    #[test]
+    fn test_period_clone_equality() {
+        let period_1 = Period::new_from_string("2023-W47-48").unwrap();
+        let period_2 = Period::new_from_string("2023-W47-48").unwrap();
+
+        assert_eq!(period_1, period_2);
+        assert_eq!(period_1, period_1.clone());
     }
 }

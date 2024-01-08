@@ -3,12 +3,12 @@ use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display};
 use tokio::time::{sleep, Duration};
-use tracing::{debug, error, info, span, trace, warn};
+use tracing::{debug, error, info, span, trace};
 
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
 use crate::agents::scheduler_agent::{self, SchedulerAgent};
 use crate::api::websocket_agent::WebSocketAgent;
-use crate::models::time_environment::period::{self, Period};
+use crate::models::time_environment::period::Period;
 use crate::models::worker_environment::resources::Resources;
 
 #[derive(Deserialize)]

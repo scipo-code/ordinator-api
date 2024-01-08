@@ -161,7 +161,7 @@ impl OptimizedWorkOrder {
             excluded_from_periods,
         }
     }
-    #[allow(dead_code)]
+
     pub fn with_new_schedule(&mut self, scheduled_period: Option<Period>) -> Self {
         Self {
             scheduled_period,
@@ -366,6 +366,7 @@ impl SchedulerAgentAlgorithm {
     }
 
     fn initialize_loading_used_in_work_order(&mut self, work_order_number: u32, period: Period) {
+        dbg!(period.clone());
         let needed_keys = self
             .backlog
             .inner
@@ -375,10 +376,7 @@ impl SchedulerAgentAlgorithm {
             .keys();
         let needed_resources: Vec<_> = needed_keys.cloned().collect();
         for resource in needed_resources.clone() {
-            self.get_or_initialize_manual_resources_loading(
-                resource.clone(),
-                Period::new_from_string(&period.get_period_string()).unwrap(),
-            );
+            self.get_or_initialize_manual_resources_loading(resource.clone(), period.clone());
         }
     }
 }
@@ -445,15 +443,30 @@ impl SchedulerAgentAlgorithm {
         resource: Resources,
         period: Period,
     ) -> f64 {
+        // All periods should be specified at the outset, this means that if a period is none then
+        // the whole period vector should be updated. This is essential for the invariant to hold
+        // across the whole scheduling environment. There is a more fundamental problem here. The
+        // Problem is that either a resource or a period could be missing and hence this means that
+        // there are multiple ways for the code to be wrong.
+
+        // Should you be able to initialize a new resource? I think that this is a bad idea.
+        // This should be given from the backend and not from the frontend. If this is true then it
+        // means that the only way there can be a missing resource is if the period is missing.
+        dbg!(resource.clone());
+        dbg!(period.clone());
+
+        dbg!(self
+            .manual_resources_loading
+            .get(&(resource.clone(), period.clone())));
         match self
             .manual_resources_loading
             .get(&(resource.clone(), period.clone()))
         {
             Some(loading) => *loading,
-            None => {
-                self.set_manual_resources_loading(resource, period, 0.0);
-                0.0
-            }
+            None => panic!(
+                "This should not happen, all resources should be initialized at the outset or
+                though messages from the frontend",
+            ),
         }
     }
 

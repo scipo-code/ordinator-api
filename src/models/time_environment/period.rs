@@ -131,6 +131,26 @@ mod tests {
     use chrono::Utc;
 
     #[test]
+    fn test_period_add_duration() {
+        // Setup initial period
+        let initial_id = 1;
+        let initial_start_date = Utc.with_ymd_and_hms(2023, 1, 1, 0, 0, 0).unwrap();
+        let initial_end_date = Utc.with_ymd_and_hms(2023, 1, 14, 23, 59, 59).unwrap();
+        let period = Period::new(initial_id, initial_start_date, initial_end_date);
+
+        // Define the duration to add (e.g., 1 month)
+        let duration_to_add = Duration::weeks(2); // Adjust as per your Duration type
+
+        // Perform the addition
+        let new_period = period + duration_to_add;
+
+        // Assert that the new period has the expected values
+        assert_eq!(new_period.id, initial_id + 1);
+        assert_eq!(new_period.start_date, initial_start_date + duration_to_add);
+        assert_eq!(new_period.end_date, initial_end_date + duration_to_add);
+    }
+
+    #[test]
     fn test_new_from_string_0() {
         let period = Period::new_from_string("2021-W01-02");
 
