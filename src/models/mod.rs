@@ -84,8 +84,16 @@ impl SchedulingEnvironment {
         &mut self.periods
     }
 
+    pub fn get_periods(&self) -> &Vec<Period> {
+        &self.periods
+    }
+
     pub fn clone_last_period(&self) -> Period {
         self.periods.last().unwrap().clone()
+    }
+
+    pub fn get_worker_environment(&self) -> &WorkerEnvironment {
+        &self.worker_environment
     }
 }
 
@@ -130,7 +138,7 @@ impl WorkOrders {
 
 impl fmt::Display for SchedulingEnvironment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "The Scheduling Environment is currently comprised of \n  work_orders: {},\n  number of worker entries: {}", self.work_orders.inner.len(), self.worker_environment.crew.workers.len())
+        write!(f, "The Scheduling Environment is currently comprised of \n  work_orders: {},\n  number of worker entries: {}", self.work_orders.inner.len(), self.worker_environment.get_crew().workers.len())
     }
 }
 

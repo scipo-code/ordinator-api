@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
+use strum_macros::EnumIter;
 
 /// This enum holds all the resources that are available needed to schedule work order.
-#[derive(Debug, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Serialize, Deserialize, EnumIter)]
 pub enum Resources {
     #[serde(rename = "MEDIC")]
     Medic,

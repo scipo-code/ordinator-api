@@ -3,35 +3,35 @@ pub mod crew;
 pub mod resources;
 pub mod worker;
 
+use std::collections::HashSet;
+
+use strum::IntoEnumIterator;
+
 use crate::models::worker_environment::crew::Crew;
-use std::collections::HashMap;
-#[allow(dead_code)]
+
+use self::resources::Resources;
 pub struct WorkerEnvironment {
-    pub crew: Crew,
-    work_centers: HashMap<String, f64>,
-}
-
-impl WorkerEnvironment {
-    #[allow(dead_code)]
-    pub fn based_on_crew(crew: Crew) -> Self {
-        let mut work_centers = HashMap::<String, f64>::new();
-        for worker in crew.get_workers().values() {
-            let worker_trait = worker.get_trait().clone();
-            *work_centers.entry(worker_trait).or_insert(0.0) += worker.get_capacity();
-        }
-        WorkerEnvironment { crew, work_centers }
-    }
-
-    pub fn based_on_workcenter(crew: Crew, work_centers: HashMap<String, f64>) -> Self {
-        WorkerEnvironment { crew, work_centers }
-    }
+    crew: Crew,
+    work_centers: HashSet<Resources>,
 }
 
 impl WorkerEnvironment {
     pub fn new() -> Self {
+        let mut work_centers = HashSet::new();
+        for resource in Resources::iter() {
+            work_centers.insert(resource);
+        }
         WorkerEnvironment {
             crew: Crew::new(),
-            work_centers: HashMap::<String, f64>::new(),
+            work_centers,
         }
+    }
+
+    pub fn get_crew(&self) -> &Crew {
+        &self.crew
+    }
+
+    pub fn get_work_centers(&self) -> &HashSet<Resources> {
+        &self.work_centers
     }
 }

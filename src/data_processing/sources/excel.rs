@@ -55,8 +55,6 @@ pub fn load_data_file(
     let mut work_orders: WorkOrders = WorkOrders::new();
     let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
 
-    populate_work_orders(&mut work_orders, sheet).expect("could not populate the work orders");
-
     let periods: Vec<Period> = create_periods(number_of_periods).unwrap_or_else(|_| {
         panic!(
             "Could not create periods in {} at line {}",
@@ -65,6 +63,9 @@ pub fn load_data_file(
         )
     });
 
+    populate_work_orders(&mut work_orders, &periods, sheet)
+        .expect("could not populate the work orders");
+
     let scheduling_environment =
         SchedulingEnvironment::new(work_orders, worker_environment, periods, None);
     Ok(scheduling_environment)
@@ -72,6 +73,7 @@ pub fn load_data_file(
 
 fn populate_work_orders<'a>(
     work_orders: &'a mut WorkOrders,
+    periods: &Vec<Period>,
     sheet: &'a calamine::Range<DataType>,
 ) -> Result<&'a mut WorkOrders, calamine::Error> {
     let headers: Vec<String> = sheet
@@ -117,7 +119,7 @@ fn populate_work_orders<'a>(
         // println!("new work order key: {}", work_orders.new_work_order(work_order_number));
         if work_orders.new_work_order(work_order_number) {
             work_orders.insert(
-                create_new_work_order(row, &header_to_index)
+                create_new_work_order(row, &header_to_index, periods)
                     .expect("Could not insert new work order"),
             );
         }
@@ -152,6 +154,7 @@ fn populate_work_orders<'a>(
 fn create_new_work_order(
     row: &[DataType],
     header_to_index: &HashMap<String, usize>,
+    periods: &Vec<Period>,
 ) -> Result<WorkOrder, Error> {
     let work_order_type_possible_headers = ["Work Order", "Work_Order"];
 
@@ -248,7 +251,7 @@ fn create_new_work_order(
         order_dates: extract_order_dates(row, header_to_index)
             .expect("Failed to extract OrderDates"),
         revision: extract_revision(row, header_to_index).expect("Failed to extract Revision"),
-        unloading_point: extract_unloading_point(row, header_to_index)
+        unloading_point: extract_unloading_point(row, header_to_index, periods)
             .expect("Failed to extract UnloadingPoint"),
         functional_location: extract_functional_location(row, header_to_index)
             .expect("Failed to extract FunctionalLocation"),
@@ -672,6 +675,7 @@ fn extract_revision(
 fn extract_unloading_point(
     row: &[DataType],
     header_to_index: &HashMap<String, usize>,
+    periods: &[Period],
 ) -> Result<UnloadingPoint, Error> {
     let unloading_point_possible_headers = ["Unloading_Point", "Unloading Point"];
 
@@ -693,11 +697,28 @@ fn extract_unloading_point(
     let start_date = _week_to_date(start_week, true);
     let end_date = _week_to_date(end_week, false);
 
+    periods.iter().for_each(|period| {
+        dbg!(period.get_start_date());
+    });
+
+    dbg!(start_date);
+    dbg!(row);
     if present {
         Ok(UnloadingPoint {
             string,
             present,
-            period: Some(Period::new(0, start_date, end_date)),
+            period: {
+                Some(
+                    match periods
+                        .iter()
+                        .find(|period| period.get_start_date() == start_date)
+                    {
+                        Some(period) => period.clone(),
+                        None => periods.last().unwrap().clone(),
+                    }
+                    .clone(),
+                )
+            },
         })
     } else {
         Ok(UnloadingPoint {

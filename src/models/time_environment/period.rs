@@ -92,6 +92,10 @@ impl Period {
         self.period_string.clone()
     }
 
+    pub fn get_start_date(&self) -> DateTime<Utc> {
+        self.start_date
+    }
+
     pub fn get_end_date(&self) -> DateTime<Utc> {
         self.end_date
     }

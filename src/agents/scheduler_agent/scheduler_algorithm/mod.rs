@@ -68,7 +68,7 @@ impl Hash for OptimizedWorkOrders {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct OptimizedWorkOrder {
     pub scheduled_period: Option<Period>,
     pub locked_in_period: Option<Period>,
@@ -83,16 +83,6 @@ impl Hash for OptimizedWorkOrder {
         self.locked_in_period.hash(state);
         for period in &self.excluded_from_periods {
             period.hash(state);
-        }
-    }
-}
-
-impl Default for OptimizedWorkOrder {
-    fn default() -> Self {
-        Self {
-            scheduled_period: None,
-            locked_in_period: None,
-            excluded_from_periods: HashSet::new(),
         }
     }
 }
@@ -123,6 +113,13 @@ impl OptimizedWorkOrders {
     }
 
     pub fn get_locked_in_period(&self, work_order_number: u32) -> Period {
+        dbg!(self
+            .inner
+            .get(&work_order_number)
+            .unwrap()
+            .locked_in_period
+            .clone()
+            .unwrap());
         let option_period = match self.inner.get(&work_order_number) {
             Some(optimized_work_order) => optimized_work_order.locked_in_period.clone(),
             None => panic!(
@@ -455,9 +452,7 @@ impl SchedulerAgentAlgorithm {
         dbg!(resource.clone());
         dbg!(period.clone());
 
-        dbg!(self
-            .manual_resources_loading
-            .get(&(resource.clone(), period.clone())));
+        dbg!(self.manual_resources_loading.clone());
         match self
             .manual_resources_loading
             .get(&(resource.clone(), period.clone()))
