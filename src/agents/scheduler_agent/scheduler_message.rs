@@ -11,6 +11,8 @@ use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::worker_environment::resources::Resources;
 
+use super::scheduler_algorithm::SchedulerAgentAlgorithm;
+
 #[derive(Deserialize)]
 #[serde(tag = "scheduler_message_type")]
 pub enum SchedulerRequests {
@@ -24,12 +26,12 @@ pub struct InputSchedulerMessage {
     name: String,
     platform: String,
     work_order_period_mappings: Vec<WorkOrderPeriodMapping>, // For each work order only one of these can be true
-    manual_resources: HashMap<(Resources, Period), f64>,
+    manual_resources: HashMap<(Resources, String), f64>,
     period_lock: HashMap<String, bool>,
 }
 
 impl InputSchedulerMessage {
-    pub fn get_manual_resources(&self) -> HashMap<(Resources, Period), f64> {
+    pub fn get_manual_resources(&self) -> HashMap<(Resources, String), f64> {
         self.manual_resources.clone()
     }
 
@@ -93,13 +95,11 @@ pub struct WorkOrderPeriodMapping {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct WorkOrderStatusInPeriod {
-    #[serde(deserialize_with = "deserialize_period_option")]
-    pub locked_in_period: Option<Period>,
-    #[serde(deserialize_with = "deserialize_period_set")]
-    pub excluded_from_periods: HashSet<Period>,
+    pub locked_in_period: Option<String>,
+    pub excluded_from_period_strings: HashSet<String>,
 }
 
-struct SchedulerResources<'a>(&'a HashMap<(Resources, Period), f64>);
+struct SchedulerResources<'a>(&'a HashMap<(Resources, String), f64>);
 
 impl Display for SchedulerResources<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -157,13 +157,13 @@ pub struct FrontendUpdatePeriod {
 /// should not be hashing Period or Resources. In the algorithm we should be using an array or
 /// arrays, but that is not the goal for this part of the program, here understanding the logic is
 /// more important. That means we should be using Resource and Period as keys
+///
+/// I think that I should just
 impl From<FrontendInputSchedulerMessage> for InputSchedulerMessage {
     fn from(raw: FrontendInputSchedulerMessage) -> Self {
-        let mut manual_resources_map: HashMap<(Resources, Period), f64> = HashMap::new();
+        let mut manual_resources_map: HashMap<(Resources, String), f64> = HashMap::new();
         for res in raw.manual_resources {
-            let period = Period::new_from_string(&res.period.period_string).unwrap();
-
-            manual_resources_map.insert((res.resource, period), res.capacity);
+            manual_resources_map.insert((res.resource, res.period.period_string), res.capacity);
         }
         println!("{:?}", manual_resources_map);
 
@@ -235,26 +235,14 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
                 message = "change occured in optimized work orders"
             );
 
-            dbg!();
             ctx.notify(MessageToFrontend::Overview);
             ctx.notify(MessageToFrontend::Loading);
 
             self.scheduler_agent_algorithm.set_changed(false);
-            dbg!(self.scheduler_agent_algorithm.changed());
         }
 
         Box::pin(actix::fut::wrap_future::<_, Self>(fut))
     }
-}
-
-enum SchedulerFrontendMessage {
-    Overview(OverviewMessage),
-    Loading(LoadingMessage),
-    Period(PeriodMessage),
-}
-
-impl Message for SchedulerFrontendMessage {
-    type Result = ();
 }
 
 enum MessageToFrontend {
@@ -460,28 +448,37 @@ impl Handler<SetAgentAddrMessage<WebSocketAgent>> for SchedulerAgent {
     }
 }
 
-fn deserialize_period_option<'de, D>(deserializer: D) -> Result<Option<Period>, D::Error>
+/// This deserializer is used to deserialize the period
+fn deserialize_period_option<'de, D>(
+    scheduler_agent_algorithm: SchedulerAgentAlgorithm,
+    deserializer: D,
+) -> Result<Option<Period>, D::Error>
 where
     D: Deserializer<'de>,
 {
     let option = Option::<TimePeriod>::deserialize(deserializer)?;
     match option {
-        Some(time_period_map) => Period::new_from_string(&time_period_map.period_string)
-            .map(Some)
-            .map_err(Error::custom),
+        Some(time_period_map) => {
+            Ok(scheduler_agent_algorithm.find_period_by_string(&time_period_map.period_string))
+        }
+
         None => Ok(None),
     }
 }
 
-fn deserialize_period_set<'de, D>(deserializer: D) -> Result<HashSet<Period>, D::Error>
+fn deserialize_period_set<'de, D>(
+    scheduler_agent_algorithm: SchedulerAgentAlgorithm,
+    deserializer: D,
+) -> Result<HashSet<Period>, D::Error>
 where
     D: Deserializer<'de>,
 {
     let vec = Vec::<TimePeriod>::deserialize(deserializer)?;
     let mut set = HashSet::new();
     for time_period_map in vec {
-        let period =
-            Period::new_from_string(&time_period_map.period_string).map_err(Error::custom)?;
+        let period = scheduler_agent_algorithm
+            .find_period_by_string(&time_period_map.period_string)
+            .unwrap();
         set.insert(period);
     }
     Ok(set)
@@ -514,14 +511,13 @@ pub mod tests {
 
     #[test]
     fn test_update_scheduler_state() {
-        let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 7, 0, 0).unwrap();
-        let end_date = start_date + chrono::Duration::days(13);
+        let period_string: String = "2023-W47-48".to_string();
 
         let work_order_period_mappings = vec![WorkOrderPeriodMapping {
             work_order_number: 2200002020,
             period_status: WorkOrderStatusInPeriod {
-                locked_in_period: Some(Period::new(1, start_date, end_date)),
-                excluded_from_periods: HashSet::new(),
+                locked_in_period: Some(period_string),
+                excluded_from_period_strings: HashSet::new(),
             },
         }];
 
@@ -591,8 +587,8 @@ pub mod tests {
         let work_order_period_mapping = WorkOrderPeriodMapping {
             work_order_number: 2100023841,
             period_status: WorkOrderStatusInPeriod {
-                locked_in_period: Some(Period::new_from_string("2023-W49-50").unwrap()),
-                excluded_from_periods: HashSet::new(),
+                locked_in_period: Some("2023-W49-50".to_string()),
+                excluded_from_period_strings: HashSet::new(),
             },
         };
         // let input_scheduler_message: = work_order_period_mapping.into();
@@ -616,12 +612,12 @@ pub mod tests {
             input_scheduler_message.work_order_period_mappings[0]
                 .period_status
                 .locked_in_period,
-            Some(Period::new_from_string("2023-W49-50").unwrap())
+            Some("2023-W49-50".to_string())
         );
 
         let mut work_load = HashMap::new();
 
-        work_load.insert(Resources::new_from_string("VEN-MECH".to_string()), 16.0);
+        work_load.insert(Resources::VenMech, 16.0);
 
         let work_order = WorkOrder::new(
             2100023841,
@@ -750,21 +746,21 @@ pub mod tests {
             manual_resources.insert(
                 (
                     Resources::new_from_string("MTN-MECH".to_string()),
-                    Period::new_from_string(&period.get_period_string()).unwrap(),
+                    period.get_period_string(),
                 ),
                 300.0,
             );
             manual_resources.insert(
                 (
                     Resources::new_from_string("MTN-ELEC".to_string()),
-                    Period::new_from_string(&period.get_period_string()).unwrap(),
+                    period.get_period_string(),
                 ),
                 300.0,
             );
             manual_resources.insert(
                 (
                     Resources::new_from_string("PRODTECH".to_string()),
-                    Period::new_from_string(&period.get_period_string()).unwrap(),
+                    period.get_period_string(),
                 ),
                 300.0,
             );
@@ -834,13 +830,10 @@ pub mod tests {
 
     impl WorkOrderStatusInPeriod {
         pub fn new_test() -> Self {
-            let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 7, 0, 0).unwrap();
-            let end_date = start_date + chrono::Duration::days(13);
-            let period = Period::new(1, start_date, end_date);
-
+            let period_string = "2023-W47-48".to_string();
             WorkOrderStatusInPeriod {
-                locked_in_period: Some(period),
-                excluded_from_periods: HashSet::new(),
+                locked_in_period: Some(period_string),
+                excluded_from_period_strings: HashSet::new(),
             }
         }
     }

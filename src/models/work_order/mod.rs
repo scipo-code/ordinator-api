@@ -137,15 +137,12 @@ impl WeightParam {
 
 impl WorkOrder {
     pub fn initialize(&mut self) {
-        // dbg!("Initializing Work Orders");
         self.initialize_weight();
         self.initialize_work_load();
         // TODO : Other fields
     }
 
     pub fn initialize_weight(&mut self) {
-        // dbg!("Initializing Work Orders");
-
         let parameters: WeightParam = WeightParam::read_config().unwrap();
 
         self.order_weight = 0;
@@ -226,7 +223,6 @@ impl WorkOrder {
     }
 
     pub fn initialize_work_load(&mut self) {
-        // dbg!("Initializing Work Orders");
 
         let mut work_load: HashMap<Resources, f64> = HashMap::new();
 

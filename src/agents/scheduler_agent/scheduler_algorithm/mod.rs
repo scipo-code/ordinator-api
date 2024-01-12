@@ -15,8 +15,8 @@ use crate::models::WorkOrders;
 #[derive(Debug)]
 pub struct SchedulerAgentAlgorithm {
     objective_value: f64,
-    manual_resources_capacity: HashMap<(Resources, Period), f64>,
-    manual_resources_loading: HashMap<(Resources, Period), f64>,
+    resources_capacity: HashMap<(Resources, Period), f64>,
+    resources_loading: HashMap<(Resources, Period), f64>,
     backlog: WorkOrders,
     priority_queues: PriorityQueues<u32, u32>,
     optimized_work_orders: OptimizedWorkOrders,
@@ -47,6 +47,15 @@ impl SchedulerAgentAlgorithm {
 
     pub fn get_objective_value(&self) -> f64 {
         self.objective_value
+    }
+
+    pub fn find_period_by_string(&self, period_string: &str) -> Option<Period> {
+        for period in &self.periods {
+            if period.get_period_string() == period_string {
+                return Some(period.clone());
+            }
+        }
+        None
     }
 }
 
@@ -92,15 +101,6 @@ impl OptimizedWorkOrders {
         Self { inner }
     }
 
-    #[cfg(test)]
-    pub fn insert_optimized_work_order(
-        &mut self,
-        work_order_number: u32,
-        optimized_work_order: OptimizedWorkOrder,
-    ) {
-        self.inner.insert(work_order_number, optimized_work_order);
-    }
-
     pub fn set_scheduled_period(&mut self, work_order_number: u32, period: Period) {
         let optimized_work_order = match self.inner.get_mut(&work_order_number) {
             Some(optimized_work_order) => optimized_work_order,
@@ -113,13 +113,6 @@ impl OptimizedWorkOrders {
     }
 
     pub fn get_locked_in_period(&self, work_order_number: u32) -> Period {
-        dbg!(self
-            .inner
-            .get(&work_order_number)
-            .unwrap()
-            .locked_in_period
-            .clone()
-            .unwrap());
         let option_period = match self.inner.get(&work_order_number) {
             Some(optimized_work_order) => optimized_work_order.locked_in_period.clone(),
             None => panic!(
@@ -131,18 +124,6 @@ impl OptimizedWorkOrders {
             Some(period) => period,
             None => panic!("Work order number {} does not have a locked in period, but it is being called by the optimized_work_orders.schedule_forced_work_order", work_order_number)
         }
-    }
-
-    #[cfg(test)]
-    pub fn set_locked_in_period(&mut self, work_order_number: u32, period: Period) {
-        let optimized_work_order = match self.inner.get_mut(&work_order_number) {
-            Some(optimized_work_order) => optimized_work_order,
-            None => panic!(
-                "Work order number {} not found in optimized work orders",
-                work_order_number
-            ),
-        };
-        optimized_work_order.locked_in_period = Some(period);
     }
 }
 
@@ -159,14 +140,6 @@ impl OptimizedWorkOrder {
         }
     }
 
-    pub fn with_new_schedule(&mut self, scheduled_period: Option<Period>) -> Self {
-        Self {
-            scheduled_period,
-            locked_in_period: self.locked_in_period.clone(),
-            excluded_from_periods: self.excluded_from_periods.clone(),
-        }
-    }
-
     pub fn get_scheduled_period(&self) -> Option<Period> {
         self.scheduled_period.clone()
     }
@@ -175,10 +148,6 @@ impl OptimizedWorkOrder {
     /// created between scheduled work and the loadings. We should test for this
     pub fn update_scheduled_period(&mut self, period: Option<Period>) {
         self.scheduled_period = period;
-    }
-
-    pub fn set_locked_in_period(&mut self, period: Option<Period>) {
-        self.locked_in_period = period;
     }
 }
 
@@ -195,8 +164,8 @@ impl Display for SchedulerAgentAlgorithm {
             optimized_work_orders: {:?}, \n
             periods: {:?}",
             self.objective_value,
-            self.manual_resources_capacity,
-            self.manual_resources_loading,
+            self.resources_capacity,
+            self.resources_loading,
             self.backlog,
             self.priority_queues,
             self.optimized_work_orders,
@@ -237,7 +206,23 @@ impl SchedulerAgentAlgorithm {
     #[tracing::instrument(name = "update_scheduler_algorithm_state", level = "DEBUG", skip(self, input_message), fields(self.objective_value))]
     pub fn update_scheduler_algorithm_state(&mut self, input_message: InputSchedulerMessage) {
         let _span = span!(Level::INFO, "update_scheduler_algorithm_state");
-        self.manual_resources_capacity = input_message.get_manual_resources();
+
+        for maunal_resource_capacity in input_message.get_manual_resources() {
+            // What should happen if the period is not found? This is a fundamental questions. And
+            // the kind of question that I will have to answer for the whole system many times. I
+            // think that if the manual period cannot be found in the self.periods that the code
+            // should fail. Yes I see no way around this. If we get a manual resource that is not
+            // part of the self.periods it means that the periods were not created correctly and
+            // that we should panic the thread.
+
+            // I have multiple Period objects here and they are only similar by equality and not
+            // by the underlying data. Hmm... I do not like this implementation.
+            let period = self.periods.iter().find(|period| period.get_period_string() == maunal_resource_capacity.0.1).expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
+            self.resources_capacity.insert(
+                (maunal_resource_capacity.0 .0, period.clone()),
+                maunal_resource_capacity.1,
+            );
+        }
 
         for work_order_period_mapping in input_message.get_work_order_period_mappings() {
             let message = match self
@@ -258,25 +243,48 @@ impl SchedulerAgentAlgorithm {
                 None => "work_order is not in optimized work orders".to_string(),
             };
 
-            event!(
-                tracing::Level::DEBUG,
+            debug!(
                 "scheduler optimized work order state before update{}",
                 message
             );
 
-            event!(
-                tracing::Level::DEBUG,
-                "The manual resources are: {:?}",
-                work_order_period_mapping
-            );
+            debug!("The manual resources are: {:?}", work_order_period_mapping);
 
             let work_order_number: u32 = work_order_period_mapping.work_order_number;
             let optimized_work_orders = &self.optimized_work_orders.inner;
 
-            let locked_in_period = &work_order_period_mapping.period_status.locked_in_period;
-            let excluded_from_periods = &work_order_period_mapping
+            // What should happen if the Option is None? This is a fundamental question. I think
+            // that the program should be able to... There is a locked in period_string in the
+            // work_order_period_mapping and if this is not to be found in the self.periods then it
+            // means that something has gone wrong with the period initialization and the program
+            // should panic. This is a fundamental invariant that should be upheld. No this is wrong
+            // the Option is on the locked_in_period meaning that there does not have to be a locked
+            // period on the work order. This means that locked_in_period should be an
+            // Option<Period>
+            let locked_in_period: Option<Period> =
+                match &work_order_period_mapping.period_status.locked_in_period {
+                    Some(period_mapping) => self
+                        .get_periods()
+                        .iter()
+                        .find(|period| period.get_period_string() == period_mapping.clone())
+                        .cloned(),
+                    None => None,
+                };
+
+            let mut excluded_from_periods = HashSet::<Period>::new();
+
+            for period_string in &work_order_period_mapping
                 .period_status
-                .excluded_from_periods;
+                .excluded_from_period_strings
+            {
+                let excluded_period = self
+                    .periods
+                    .iter()
+                    .find(|period| period.get_period_string() == period_string.clone())
+                    .cloned();
+
+                excluded_from_periods.insert(excluded_period.unwrap());
+            }
 
             let scheduled_period: Option<Period> = optimized_work_orders
                 .get(&work_order_number)
@@ -315,7 +323,6 @@ impl SchedulerAgentAlgorithm {
                 },
                 excluded_periods = %excluded_periods
             );
-            dbg!(optimized_work_order.clone());
             self.optimized_work_orders
                 .inner
                 .insert(work_order_number, optimized_work_order);
@@ -363,7 +370,6 @@ impl SchedulerAgentAlgorithm {
     }
 
     fn initialize_loading_used_in_work_order(&mut self, work_order_number: u32, period: Period) {
-        dbg!(period.clone());
         let needed_keys = self
             .backlog
             .inner
@@ -412,8 +418,8 @@ impl SchedulerAgentAlgorithm {
     ) -> Self {
         SchedulerAgentAlgorithm {
             objective_value,
-            manual_resources_capacity,
-            manual_resources_loading,
+            resources_capacity: manual_resources_capacity,
+            resources_loading: manual_resources_loading,
             backlog,
             priority_queues,
             optimized_work_orders,
@@ -427,12 +433,12 @@ impl SchedulerAgentAlgorithm {
     }
 
     pub fn get_manual_resources_loadings(&self) -> &HashMap<(Resources, Period), f64> {
-        &self.manual_resources_loading
+        &self.resources_loading
     }
 
     #[cfg(test)]
     pub fn get_manual_resources_capacities(&self) -> &HashMap<(Resources, Period), f64> {
-        &self.manual_resources_capacity
+        &self.resources_capacity
     }
 
     pub fn get_or_initialize_manual_resources_loading(
@@ -449,12 +455,15 @@ impl SchedulerAgentAlgorithm {
         // Should you be able to initialize a new resource? I think that this is a bad idea.
         // This should be given from the backend and not from the frontend. If this is true then it
         // means that the only way there can be a missing resource is if the period is missing.
+
         dbg!(resource.clone());
         dbg!(period.clone());
+        dbg!(self
+            .resources_loading
+            .get(&(resource.clone(), period.clone())));
 
-        dbg!(self.manual_resources_loading.clone());
         match self
-            .manual_resources_loading
+            .resources_loading
             .get(&(resource.clone(), period.clone()))
         {
             Some(loading) => *loading,
@@ -463,16 +472,6 @@ impl SchedulerAgentAlgorithm {
                 though messages from the frontend",
             ),
         }
-    }
-
-    pub fn set_manual_resources_loading(
-        &mut self,
-        resource: Resources,
-        period: Period,
-        loading: f64,
-    ) {
-        self.manual_resources_loading
-            .insert((resource, period), loading);
     }
 
     pub fn get_periods(&self) -> &Vec<Period> {
@@ -583,7 +582,7 @@ mod tests {
         let input_message = InputSchedulerMessage::new_test();
 
         assert_eq!(
-            scheduler_agent_algorithm.manual_resources_capacity.get(&(
+            scheduler_agent_algorithm.resources_capacity.get(&(
                 Resources::new_from_string("MTN-MECH".to_string()),
                 Period::new_from_string(&period.get_period_string()).unwrap()
             )),
@@ -600,7 +599,7 @@ mod tests {
         scheduler_agent_algorithm.update_scheduler_algorithm_state(input_message);
 
         assert_eq!(
-            scheduler_agent_algorithm.manual_resources_capacity.get(&(
+            scheduler_agent_algorithm.resources_capacity.get(&(
                 Resources::new_from_string("MTN-MECH".to_string()),
                 Period::new_from_string(&period.get_period_string()).unwrap()
             )),
@@ -634,6 +633,27 @@ mod tests {
     impl SchedulerAgentAlgorithm {
         pub fn get_priority_queues(&self) -> &PriorityQueues<u32, u32> {
             &self.priority_queues
+        }
+    }
+
+    impl OptimizedWorkOrders {
+        pub fn set_locked_in_period(&mut self, work_order_number: u32, period: Period) {
+            let optimized_work_order = match self.inner.get_mut(&work_order_number) {
+                Some(optimized_work_order) => optimized_work_order,
+                None => panic!(
+                    "Work order number {} not found in optimized work orders",
+                    work_order_number
+                ),
+            };
+            optimized_work_order.locked_in_period = Some(period);
+        }
+
+        pub fn insert_optimized_work_order(
+            &mut self,
+            work_order_number: u32,
+            optimized_work_order: OptimizedWorkOrder,
+        ) {
+            self.inner.insert(work_order_number, optimized_work_order);
         }
     }
 }

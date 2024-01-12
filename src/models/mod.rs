@@ -48,20 +48,6 @@ impl SchedulingEnvironment {
         }
     }
 
-    pub fn update_periods(&mut self, update_periods: &mut Vec<Period>) -> Vec<Period> {
-        self.periods.append(update_periods);
-
-        let message = PeriodMessage {
-            frontend_message_type: String::from("frontend_scheduler_periods"),
-            periods: self.periods.clone(),
-        };
-        match &self.web_socket_agent_addr_option {
-            Some(ws_addr) => ws_addr.do_send(message),
-            None => info!("No WebSocketAgent address has been provided yet."),
-        }
-        self.periods.clone()
-    }
-
     pub fn clone_periods(&self) -> Vec<Period> {
         self.periods.clone()
     }

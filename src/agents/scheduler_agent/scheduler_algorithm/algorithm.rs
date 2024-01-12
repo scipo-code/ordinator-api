@@ -1,13 +1,12 @@
 use core::panic;
 use rand::prelude::SliceRandom;
 use std::collections::HashSet;
-use tracing::event;
+use tracing::info;
 
 use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::WorkOrder;
-use crate::models::worker_environment::resources::Resources;
 
 use super::SchedulerAgentAlgorithm;
 
@@ -73,8 +72,8 @@ impl SchedulerAgentAlgorithm {
     /// are not in the schedule yet. I think, but I am not sure, that the there should be no
     /// rescheduling here.
     #[tracing::instrument(fields(
-        manual_resources_capacity = self.manual_resources_capacity.len(),
-        manual_resources_loading = self.manual_resources_loading.len(),
+        manual_resources_capacity = self.resources_capacity.len(),
+        manual_resources_loading = self.resources_loading.len(),
         optimized_work_orders = self.optimized_work_orders.inner.len(),))]
     pub fn schedule_normal_work_order(
         &mut self,
@@ -87,25 +86,21 @@ impl SchedulerAgentAlgorithm {
         // The if statements found in here are each constraints that has to be upheld.
         for (work_center, resource_needed) in work_order.work_load.iter() {
             let resource_capacity: &mut f64 = self
-                .manual_resources_capacity
+                .resources_capacity
                 .entry((work_center.clone(), period.clone()))
                 .or_insert(0.0);
             let resource_loading: &mut f64 = self
-                .manual_resources_loading
+                .resources_loading
                 .entry((work_center.clone(), period.clone()))
                 .or_insert(0.0);
 
             if *resource_needed > *resource_capacity - *resource_loading {
                 return Some(work_order_key);
             }
-            dbg!(resource_needed);
 
-            dbg!(period.get_end_date());
-            dbg!(work_order.order_dates.earliest_allowed_start_date);
             if period.get_end_date() < work_order.order_dates.earliest_allowed_start_date {
                 return Some(work_order_key);
             }
-            dbg!(resource_needed);
 
             if let Some(optimized_work_order) =
                 self.optimized_work_orders.inner.get(&work_order_key)
@@ -114,7 +109,6 @@ impl SchedulerAgentAlgorithm {
                     return Some(work_order_key);
                 }
             }
-            dbg!(resource_needed);
         }
 
         match self.optimized_work_orders.inner.get_mut(&work_order_key) {
@@ -131,8 +125,7 @@ impl SchedulerAgentAlgorithm {
             }
         }
 
-        event!(
-            tracing::Level::INFO,
+        info!(
             "Work order {} from the normal has been scheduled",
             work_order_key
         );
@@ -148,17 +141,12 @@ impl SchedulerAgentAlgorithm {
         let period = self
             .optimized_work_orders
             .get_locked_in_period(work_order_key);
-        dbg!(period.clone());
-        dbg!(self
-            .get_manual_resources_loadings()
-            .get(&(Resources::MtnMech, period.clone())));
 
         self.initialize_loading_used_in_work_order(work_order_key, period.clone());
 
         let work_order = self.backlog.inner.get(&work_order_key).unwrap();
         // self.optimized_work_orders.
-        event!(
-            tracing::Level::INFO,
+        info!(
             "Work order {} has been scheduled with unloading point or manual",
             work_order_key
         );
@@ -169,7 +157,7 @@ impl SchedulerAgentAlgorithm {
 
         // Is this really the place where we should update the loadings? I am not sure about it.
         // It is either here or in the update_scheduler_state function. Well thank you for that
-        for (work_center_period, loading) in self.manual_resources_loading.iter_mut() {
+        for (work_center_period, loading) in self.resources_loading.iter_mut() {
             if work_center_period.1 == period {
                 *loading += work_order
                     .work_load
@@ -192,7 +180,6 @@ impl SchedulerAgentAlgorithm {
             self.get_optimized_work_orders().keys().cloned().collect();
 
         work_order_keys.sort();
-        dbg!(work_order_keys.clone());
         let sampled_work_order_keys = work_order_keys.choose_multiple(rng, number_of_work_orders);
 
         for work_order_key in sampled_work_order_keys {
@@ -237,8 +224,6 @@ impl SchedulerAgentAlgorithm {
                 optimized_period,
                 work_order_latest_allowed_finish_period,
             );
-            // dbg!("this is the period difference");
-            // dbg!(period_difference);
             let objective_contribution = if period_difference > 0 {
                 period_difference
                     * self.backlog.inner.get(work_order_key).unwrap().order_weight as i64
@@ -313,7 +298,6 @@ impl SchedulerAgentAlgorithm {
             },
             None => {
                 if let Some(last_period) = self.periods.last() {
-                    dbg!(last_period);
                     Some(last_period.add_one_period())
                 } else {
                     panic!("There are no periods in the system")
@@ -330,7 +314,7 @@ impl SchedulerAgentAlgorithm {
         // actually scheduled. This is not the case here as I am implementing logic to handle cases
         // where the work order is not scheduled.
         // What does it mean when we call the unwrap here?
-        for (work_center_period, loading) in self.manual_resources_loading.iter_mut() {
+        for (work_center_period, loading) in self.resources_loading.iter_mut() {
             if work_center_period.1 == period {
                 let work_load_for_work_center = work_order.work_load.get(&work_center_period.0);
                 if let Some(work_load_for_work_center) = work_load_for_work_center {
@@ -356,7 +340,7 @@ impl SchedulerAgentAlgorithm {
     }
 
     fn update_loadings(&mut self, period: &Period, work_order: &WorkOrder) {
-        for (work_center_period, loading) in self.manual_resources_loading.iter_mut() {
+        for (work_center_period, loading) in self.resources_loading.iter_mut() {
             if work_center_period.1 == *period {
                 *loading += work_order
                     .work_load
@@ -603,26 +587,26 @@ mod tests {
 
         assert_eq!(
             scheduler_agent_algorithm
-                .manual_resources_loading
+                .resources_loading
                 .get(&(Resources::MtnMech, period.clone())),
             Some(20.0).as_ref()
         );
         assert_eq!(
             scheduler_agent_algorithm
-                .manual_resources_loading
+                .resources_loading
                 .get(&(Resources::MtnElec, period.clone())),
             Some(40.0).as_ref()
         );
         assert_eq!(
             scheduler_agent_algorithm
-                .manual_resources_loading
+                .resources_loading
                 .get(&(Resources::Prodtech, period.clone())),
             Some(60.0).as_ref()
         );
 
         assert_eq!(
             scheduler_agent_algorithm
-                .manual_resources_loading
+                .resources_loading
                 .get(&(Resources::MtnScaf, period.clone())),
             None
         );
@@ -705,11 +689,6 @@ mod tests {
         manual_resource_loadings.insert((Resources::MtnElec, period_3.clone()), 0.0);
         manual_resource_loadings.insert((Resources::Prodtech, period_3.clone()), 0.0);
 
-        dbg!(period_2.clone());
-
-        dbg!(manual_resource_loadings.get(&(Resources::Prodtech, period_1.clone())));
-        dbg!(manual_resource_loadings.get(&(Resources::MtnElec, period_1.clone())));
-
         let periods: Vec<Period> = vec![period_1.clone(), period_2.clone(), period_3.clone()];
 
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
@@ -789,7 +768,6 @@ mod tests {
         scheduler_agent_algorithm
             .optimized_work_orders
             .set_locked_in_period(2200002020, period_2.clone());
-        dbg!(period_2.clone());
         scheduler_agent_algorithm.schedule_forced_work_order(2200002020);
 
         assert_eq!(

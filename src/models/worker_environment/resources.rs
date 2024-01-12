@@ -74,7 +74,6 @@ pub enum Resources {
 
 impl Resources {
     pub fn new_from_string(resource: String) -> Self {
-        dbg!(resource.clone());
         match resource.as_str() {
             "MEDIC" => Resources::Medic,
             "MTN-CRAN" => Resources::MtnCran,

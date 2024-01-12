@@ -1,7 +1,7 @@
 use actix::prelude::*;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::{Arc, MutexGuard};
 
 use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
 use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrders;
