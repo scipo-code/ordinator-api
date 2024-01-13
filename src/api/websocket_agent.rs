@@ -1,8 +1,6 @@
 use actix::prelude::*;
 use actix_web::Result;
 use actix_web_actors::ws;
-use core::panic;
-use serde::Serialize;
 use std::sync::Arc;
 use tracing::info;
 
@@ -12,7 +10,6 @@ use crate::agents::scheduler_agent::scheduler_message::PeriodMessage;
 use crate::agents::scheduler_agent::scheduler_message::SetAgentAddrMessage;
 use crate::agents::scheduler_agent::SchedulerAgent;
 use crate::api::FrontendMessages;
-use crate::models::time_environment::period::Period;
 
 pub struct WebSocketAgent {
     scheduler_agent_addr: Arc<Addr<SchedulerAgent>>,
@@ -146,6 +143,7 @@ mod tests {
     use std::sync::Mutex;
 
     use crate::models::time_environment::period::Period;
+    use std::fs;
 
     #[actix_rt::test]
     async fn test_websocket_agent() {
@@ -181,5 +179,18 @@ mod tests {
         let _ws_agent = WebSocketAgent::new(Arc::new(scheduler_agent_addr.clone()));
 
         // let mut ws_agent_addr = ws_agent.start();
+    }
+
+    #[test]
+    fn test_scheduler_input() {
+        let json_message =
+            fs::read_to_string("tests/unit_testing/frontend_scheduler.json").unwrap();
+
+        let scheduler_input: FrontendMessages = serde_json::from_str(&json_message).unwrap();
+
+        // How can this deserialization be tested? I am not sure. I know that the message is the
+        // correct one but that it is not deserialized correctly.
+
+        dbg!(scheduler_input);
     }
 }

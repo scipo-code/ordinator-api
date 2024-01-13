@@ -1,11 +1,13 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::models::worker_environment::resources::Resources;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Operation {
     pub activity: u32,
     pub number: u32,
-    pub work_center: String,
+    pub work_center: Resources,
     pub preparation_time: f64,
     pub work_remaining: f64,
     pub work_performed: f64,
@@ -22,7 +24,7 @@ impl Operation {
     pub fn new(
         activity: u32,
         number: u32,
-        work_center: String,
+        work_center: Resources,
         preparation_time: f64,
         work_remaining: f64,
         operating_time: f64,
@@ -54,10 +56,12 @@ impl Operation {
 mod tests {
     use chrono::Utc;
 
+    use crate::models::worker_environment::resources::Resources;
+
     use super::Operation;
 
     impl Operation {
-        pub fn new_test(activity: u32, work_center: String, work_remaining: f64) -> Self {
+        pub fn new_test(activity: u32, work_center: Resources, work_remaining: f64) -> Self {
             Operation {
                 activity,
                 number: 1,

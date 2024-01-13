@@ -99,8 +99,6 @@ fn export_to_excel() -> Workbook  {
 
 fn read_csv<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<Vec<T>, Box<dyn Error>> {
     
-    dbg!("Type of T: {}", std::any::type_name::<T>());
-    
     let mut rdr = ReaderBuilder::new()
         .delimiter(b',')          // Delimiter used in your CSV
         .quote(b'"')              // Quote character used in your CSV

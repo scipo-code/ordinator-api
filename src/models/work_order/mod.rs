@@ -32,6 +32,8 @@ use crate::models::work_order::{
     status_codes::MaterialStatus,
 };
 
+use super::worker_environment::resources::Resources;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrder {
     pub order_number: u32,
@@ -41,7 +43,7 @@ pub struct WorkOrder {
     pub priority: Priority,
     pub order_work: f64,
     pub operations: HashMap<u32, Operation>,
-    pub work_load: HashMap<String, f64>,
+    pub work_load: HashMap<Resources, f64>,
     pub start_start: Vec<bool>,
     pub finish_start: Vec<bool>,
     pub postpone: Vec<DateTime<Utc>>,
@@ -65,7 +67,7 @@ impl WorkOrder {
         priority: Priority,
         order_work: f64,
         operations: HashMap<u32, Operation>,
-        work_load: HashMap<String, f64>,
+        work_load: HashMap<Resources, f64>,
         start_start: Vec<bool>,
         finish_start: Vec<bool>,
         postpone: Vec<DateTime<Utc>>,
@@ -135,15 +137,12 @@ impl WeightParam {
 
 impl WorkOrder {
     pub fn initialize(&mut self) {
-        // dbg!("Initializing Work Orders");
         self.initialize_weight();
         self.initialize_work_load();
         // TODO : Other fields
     }
 
     pub fn initialize_weight(&mut self) {
-        // dbg!("Initializing Work Orders");
-
         let parameters: WeightParam = WeightParam::read_config().unwrap();
 
         self.order_weight = 0;
@@ -224,9 +223,8 @@ impl WorkOrder {
     }
 
     pub fn initialize_work_load(&mut self) {
-        // dbg!("Initializing Work Orders");
 
-        let mut work_load: HashMap<String, f64> = HashMap::new();
+        let mut work_load: HashMap<Resources, f64> = HashMap::new();
 
         for (_, operation) in self.operations.iter() {
             *work_load
@@ -241,6 +239,8 @@ impl WorkOrder {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+
+    use crate::models::worker_environment::resources::Resources;
 
     use super::{
         functional_location::FunctionalLocation,
@@ -263,11 +263,17 @@ mod tests {
         work_order.initialize_work_load();
 
         assert_eq!(
-            *work_order.work_load.get(&"PRODTECH".to_string()).unwrap(),
+            *work_order
+                .work_load
+                .get(&Resources::new_from_string("PRODTECH".to_string()))
+                .unwrap(),
             50.0
         );
         assert_eq!(
-            *work_order.work_load.get(&"MTN_MECH".to_string()).unwrap(),
+            *work_order
+                .work_load
+                .get(&Resources::new_from_string("MTN-MECH".to_string()))
+                .unwrap(),
             50.0
         );
     }
@@ -276,10 +282,14 @@ mod tests {
         pub fn new_test() -> Self {
             let mut operations = HashMap::new();
 
-            let operation_0010 = Operation::new_test(10, "PRODTECH".to_string(), 10.0);
-            let operation_0020 = Operation::new_test(20, "MTN_MECH".to_string(), 20.0);
-            let operation_0030 = Operation::new_test(30, "MTN_MECH".to_string(), 30.0);
-            let operation_0040 = Operation::new_test(40, "PRODTECH".to_string(), 40.0);
+            let operation_0010 =
+                Operation::new_test(10, Resources::new_from_string("PRODTECH".to_string()), 10.0);
+            let operation_0020 =
+                Operation::new_test(20, Resources::new_from_string("MTN-MECH".to_string()), 20.0);
+            let operation_0030 =
+                Operation::new_test(30, Resources::new_from_string("MTN-MECH".to_string()), 30.0);
+            let operation_0040 =
+                Operation::new_test(40, Resources::new_from_string("PRODTECH".to_string()), 40.0);
 
             operations.insert(10, operation_0010);
             operations.insert(20, operation_0020);
@@ -314,10 +324,14 @@ mod tests {
         fn default() -> Self {
             let mut operations = HashMap::new();
 
-            let operation_0010 = Operation::new_test(10, "PRODTECH".to_string(), 10.0);
-            let operation_0020 = Operation::new_test(20, "MTN_MECH".to_string(), 20.0);
-            let operation_0030 = Operation::new_test(30, "MTN_MECH".to_string(), 30.0);
-            let operation_0040 = Operation::new_test(40, "PRODTECH".to_string(), 40.0);
+            let operation_0010 =
+                Operation::new_test(10, Resources::new_from_string("PRODTECH".to_string()), 10.0);
+            let operation_0020 =
+                Operation::new_test(20, Resources::new_from_string("MTN-MECH".to_string()), 20.0);
+            let operation_0030 =
+                Operation::new_test(30, Resources::new_from_string("MTN-MECH".to_string()), 30.0);
+            let operation_0040 =
+                Operation::new_test(40, Resources::new_from_string("PRODTECH".to_string()), 40.0);
 
             operations.insert(10, operation_0010);
             operations.insert(20, operation_0020);

@@ -29,17 +29,7 @@ pub struct Worker {
     name: String,
     id: i32,
     capacity: f64,
-    trait_: String,  // Renamed to trait_ since 'trait' is a reserved keyword in Rust.
-    availabilities: Vec<Availability>,  // Assuming Availability is another struct you've defined.
+    trait_: String, // Renamed to trait_ since 'trait' is a reserved keyword in Rust.
+    availabilities: Vec<Availability>, // Assuming Availability is another struct you've defined.
     assigned_activities: Vec<AssignedWork>,
-}
-
-impl Worker {
-    pub fn get_trait(&self) -> &String {
-        &self.trait_
-    }
-
-    pub fn get_capacity(&self) -> &f64 {
-        &self.capacity
-    }
 }
