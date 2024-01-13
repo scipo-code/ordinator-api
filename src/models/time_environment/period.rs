@@ -1,5 +1,4 @@
-use actix_web_actors::ws::start;
-use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc, Weekday};
+use chrono::{DateTime, Datelike, Duration, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 use std::ops::Add;
@@ -104,7 +103,7 @@ impl Display for Period {
 mod tests {
 
     use super::*;
-    use chrono::Utc;
+    use chrono::{TimeZone, Utc, Weekday};
 
     #[test]
     fn test_period_add_duration_1() {

@@ -48,15 +48,6 @@ impl SchedulerAgentAlgorithm {
     pub fn get_objective_value(&self) -> f64 {
         self.objective_value
     }
-
-    pub fn find_period_by_string(&self, period_string: &str) -> Option<Period> {
-        for period in &self.periods {
-            if period.get_period_string() == period_string {
-                return Some(period.clone());
-            }
-        }
-        None
-    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -266,7 +257,9 @@ impl SchedulerAgentAlgorithm {
                     Some(period_mapping) => self
                         .get_periods()
                         .iter()
-                        .find(|period| period.get_period_string() == period_mapping.clone())
+                        .find(|period| {
+                            period.get_period_string() == period_mapping.get_period_string().clone()
+                        })
                         .cloned(),
                     None => None,
                 };
@@ -275,7 +268,7 @@ impl SchedulerAgentAlgorithm {
 
             for period_string in &work_order_period_mapping
                 .period_status
-                .excluded_from_period_strings
+                .excluded_from_periods
             {
                 let excluded_period = self
                     .periods
@@ -488,7 +481,6 @@ pub enum QueueType {
 mod tests {
     use super::*;
 
-    use chrono::{TimeZone, Utc};
     use std::collections::HashMap;
 
     use crate::{

@@ -56,10 +56,6 @@ impl SchedulingEnvironment {
         self.work_orders.clone()
     }
 
-    pub fn get_work_orders(&self) -> &WorkOrders {
-        &self.work_orders
-    }
-
     pub fn initialize_work_orders(&mut self) {
         for (_, work_order) in self.work_orders.inner.iter_mut() {
             work_order.initialize();
@@ -72,10 +68,6 @@ impl SchedulingEnvironment {
 
     pub fn get_periods(&self) -> &Vec<Period> {
         &self.periods
-    }
-
-    pub fn clone_last_period(&self) -> Period {
-        self.periods.last().unwrap().clone()
     }
 
     pub fn get_worker_environment(&self) -> &WorkerEnvironment {
@@ -139,5 +131,16 @@ impl fmt::Display for WorkOrders {
             write!(f, "{}", work_order)?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    impl SchedulingEnvironment {
+        pub fn get_work_orders(&self) -> &WorkOrders {
+            &self.work_orders
+        }
     }
 }
