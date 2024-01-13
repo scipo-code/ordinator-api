@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::fmt;
 use tracing::info;
 
-use crate::agents::scheduler_agent::scheduler_message::{PeriodMessage, UpdatePeriod};
+use crate::agents::scheduler_agent::scheduler_message::PeriodMessage;
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::WorkOrder;
@@ -48,30 +48,12 @@ impl SchedulingEnvironment {
         }
     }
 
-    pub fn update_periods(&mut self, update_periods: &mut Vec<Period>) -> Vec<Period> {
-        self.periods.append(update_periods);
-
-        let message = PeriodMessage {
-            frontend_message_type: String::from("frontend_scheduler_periods"),
-            periods: self.periods.clone(),
-        };
-        match &self.web_socket_agent_addr_option {
-            Some(ws_addr) => ws_addr.do_send(message),
-            None => info!("No WebSocketAgent address has been provided yet."),
-        }
-        self.periods.clone()
-    }
-
     pub fn clone_periods(&self) -> Vec<Period> {
         self.periods.clone()
     }
 
     pub fn clone_work_orders(&self) -> WorkOrders {
         self.work_orders.clone()
-    }
-
-    pub fn get_work_orders(&self) -> &WorkOrders {
-        &self.work_orders
     }
 
     pub fn initialize_work_orders(&mut self) {
@@ -84,8 +66,12 @@ impl SchedulingEnvironment {
         &mut self.periods
     }
 
-    pub fn clone_last_period(&self) -> Period {
-        self.periods.last().unwrap().clone()
+    pub fn get_periods(&self) -> &Vec<Period> {
+        &self.periods
+    }
+
+    pub fn get_worker_environment(&self) -> &WorkerEnvironment {
+        &self.worker_environment
     }
 }
 
@@ -130,7 +116,7 @@ impl WorkOrders {
 
 impl fmt::Display for SchedulingEnvironment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "The Scheduling Environment is currently comprised of \n  work_orders: {},\n  number of worker entries: {}", self.work_orders.inner.len(), self.worker_environment.crew.workers.len())
+        write!(f, "The Scheduling Environment is currently comprised of \n  work_orders: {},\n  number of worker entries: {}", self.work_orders.inner.len(), self.worker_environment.get_crew().workers.len())
     }
 }
 
@@ -145,5 +131,16 @@ impl fmt::Display for WorkOrders {
             write!(f, "{}", work_order)?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    impl SchedulingEnvironment {
+        pub fn get_work_orders(&self) -> &WorkOrders {
+            &self.work_orders
+        }
     }
 }

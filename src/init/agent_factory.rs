@@ -8,6 +8,8 @@ use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrders;
 use crate::agents::scheduler_agent::scheduler_algorithm::PriorityQueues;
 use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
 use crate::agents::scheduler_agent::SchedulerAgent;
+use crate::models::time_environment::period::Period;
+use crate::models::worker_environment::resources::Resources;
 use crate::models::SchedulingEnvironment;
 use crate::models::WorkOrders;
 
@@ -32,16 +34,39 @@ pub fn build_scheduler_agent(
     // do not need the algorithm to have direct access to the SchedulingEnvironment only that the
     // SchedulingAgent will be able to update the SchedulerAgentAlgorithm when the
     // SchedulingEnvironment changes. This is a much better design.
+
+    // let manual_resource_capacity =
+
+    fn initialize_manual_resources(
+        scheduling_environment: &SchedulingEnvironment,
+    ) -> HashMap<(Resources, Period), f64> {
+        let mut manual_resource_capacity: HashMap<(Resources, Period), f64> = HashMap::new();
+        for resource in scheduling_environment
+            .get_worker_environment()
+            .get_work_centers()
+            .iter()
+        {
+            for period in scheduling_environment.get_periods().iter() {
+                manual_resource_capacity.insert((resource.clone(), period.clone()), 0.0);
+            }
+        }
+        manual_resource_capacity
+    }
+
+    let locked_scheduling_environment = scheduling_environment.lock().unwrap();
+
     let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
         0.0,
-        HashMap::new(),
-        HashMap::new(),
+        initialize_manual_resources(&locked_scheduling_environment),
+        initialize_manual_resources(&locked_scheduling_environment),
         cloned_work_orders,
         PriorityQueues::new(),
         optimized_work_orders,
-        scheduling_environment.lock().unwrap().clone_periods(),
+        locked_scheduling_environment.clone_periods(),
         true,
     );
+
+    drop(locked_scheduling_environment);
 
     let scheduler_agent = SchedulerAgent::new(
         String::from("Dan F"),

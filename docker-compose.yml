@@ -13,7 +13,7 @@ services:
       - LOG_DIR=/usr/src/ordinator/logs
     depends_on:
       - elasticsearch
-    command: ["ordinator", "/usr/src/ordinator/test_data/export_test.XLSX"]
+    command: ["RUST_BACKTRACE=1", "ordinator", "/usr/src/ordinator/test_data/export_test.XLSX"]
   elasticsearch:
     image: elasticsearch:8.11.1
     # environment:
