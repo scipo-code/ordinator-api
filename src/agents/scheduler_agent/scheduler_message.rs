@@ -1,4 +1,5 @@
 use actix::prelude::*;
+use core::panic;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display};
@@ -53,6 +54,15 @@ pub struct WorkPlannerMessage {
     under_loaded_work_centers: Vec<String>,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct FrontendInputSchedulerMessage {
+    pub name: String,
+    pub platform: String,
+    pub work_order_period_mappings: Vec<WorkOrderPeriodMapping>,
+    pub manual_resources: Vec<ManualResource>,
+    pub period_lock: HashMap<String, bool>,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ManualResource {
     pub resource: Resources,
@@ -63,15 +73,6 @@ pub struct ManualResource {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TimePeriod {
     pub period_string: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct FrontendInputSchedulerMessage {
-    pub name: String,
-    pub platform: String,
-    pub work_order_period_mappings: Vec<WorkOrderPeriodMapping>,
-    pub manual_resources: Vec<ManualResource>,
-    pub period_lock: HashMap<String, bool>,
 }
 
 /// This is a message that is sent from the scheduler frontend to the scheduler agent requesting an
@@ -166,7 +167,6 @@ impl From<FrontendInputSchedulerMessage> for InputSchedulerMessage {
             manual_resources_map.insert((res.resource, res.period.period_string), res.capacity);
         }
         println!("{:?}", manual_resources_map);
-
         InputSchedulerMessage {
             name: raw.name,
             platform: raw.platform,
@@ -555,6 +555,8 @@ pub mod tests {
             period_lock: HashMap::new(),
         };
 
+        let periods: Vec<Period> = vec![Period::new_from_string("2023-W47-48").unwrap()];
+
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
             HashMap::new(),
@@ -562,7 +564,7 @@ pub mod tests {
             work_orders,
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
-            vec![],
+            periods,
             true,
         );
 
@@ -645,6 +647,8 @@ pub mod tests {
 
         work_orders.inner.insert(2100023841, work_order);
 
+        let periods: Vec<Period> = vec![Period::new_from_string("2023-W49-50").unwrap()];
+
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
             HashMap::new(),
@@ -652,7 +656,7 @@ pub mod tests {
             work_orders,
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
-            vec![],
+            periods,
             true,
         );
 

@@ -179,4 +179,10 @@ mod tests {
 
         // let mut ws_agent_addr = ws_agent.start();
     }
+
+    #[test]
+    fn test_scheduler_input() {
+
+        // We need to generate a message for the scheduler agent to handle the incoming message.
+    }
 }

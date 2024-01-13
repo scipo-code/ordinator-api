@@ -456,11 +456,11 @@ impl SchedulerAgentAlgorithm {
         // This should be given from the backend and not from the frontend. If this is true then it
         // means that the only way there can be a missing resource is if the period is missing.
 
-        dbg!(resource.clone());
-        dbg!(period.clone());
-        dbg!(self
-            .resources_loading
-            .get(&(resource.clone(), period.clone())));
+        // dbg!(resource.clone());
+        // dbg!(period.clone());
+        // dbg!(self
+        //     .resources_loading
+        //     .get(&(resource.clone(), period.clone())));
 
         match self
             .resources_loading
@@ -540,9 +540,8 @@ mod tests {
 
         work_orders.insert(work_order.clone());
 
-        let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 7, 0, 0).unwrap();
-        let end_date = start_date + chrono::Duration::days(13);
-        let period = Period::new(1, start_date, end_date);
+        let period = Period::new_from_string("2023-W47-48").unwrap();
+        let periods = vec![period.clone()];
 
         let mut manual_resource_capacity: HashMap<(Resources, Period), f64> = HashMap::new();
 
@@ -575,7 +574,7 @@ mod tests {
             work_orders,
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
-            vec![],
+            periods,
             true,
         );
 

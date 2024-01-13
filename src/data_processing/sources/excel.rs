@@ -608,20 +608,26 @@ fn extract_order_dates(
                 .unwrap(),
             Utc,
         ),
-        earliest_allowed_start_period: date_to_period(
+        earliest_allowed_start_period: match date_to_period(
             periods,
             DateTime::<Utc>::from_naive_utc_and_offset(
                 earliest_allowed_start_date.and_hms_opt(7, 0, 0).unwrap(),
                 Utc,
             ),
-        ),
-        latest_allowed_finish_period: date_to_period(
+        ) {
+            Some(period) => period,
+            None => periods.last().unwrap().clone(),
+        },
+        latest_allowed_finish_period: match date_to_period(
             periods,
             DateTime::<Utc>::from_naive_utc_and_offset(
                 latest_allowed_finish_date.and_hms_opt(7, 0, 0).unwrap(),
                 Utc,
             ),
-        ),
+        ) {
+            Some(period) => period,
+            None => periods.last().unwrap().clone(),
+        },
         basic_start_date: DateTime::<Utc>::from_naive_utc_and_offset(
             basic_start_date_additional,
             Utc,
@@ -889,7 +895,7 @@ fn extract_order_text(
 fn date_to_period(periods: &[Period], date: DateTime<Utc>) -> Option<Period> {
     periods
         .iter()
-        .find(|period| period.get_start_date() == date)
+        .find(|period| period.get_start_date() <= date && period.get_end_date() >= date)
         .cloned()
 }
 
@@ -987,6 +993,17 @@ mod tests {
     fn test_parse_date() {
         let date = parse_date("2021-01-01");
         assert_eq!(date, NaiveDate::from_ymd_opt(2021, 1, 1).unwrap());
+    }
+
+    #[test]
+    fn test_date_to_period() {
+        let periods = vec![
+            Period::new_from_string("2023-W1-2").unwrap(),
+            Period::new_from_string("2023-W3-2").unwrap(),
+        ];
+
+        let date: DateTime<Utc> = Utc.with_ymd_and_hms(2023, 1, 10, 7, 0, 0).unwrap();
+        assert_eq!(date_to_period(&periods, date), Some(periods[0].clone()));
     }
 
     #[test]

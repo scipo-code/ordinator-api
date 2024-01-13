@@ -324,6 +324,8 @@ mod tests {
             0.0,
         );
 
+        let periods: Vec<Period> = vec![Period::new_from_string("2023-W47-48").unwrap()];
+
         let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
             manual_resource_capacity,
@@ -331,7 +333,7 @@ mod tests {
             work_orders.clone(),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
-            vec![],
+            periods,
             true,
         );
 
