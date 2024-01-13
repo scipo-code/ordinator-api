@@ -3,7 +3,7 @@ use core::fmt;
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
-use tracing::{event, warn};
+use tracing::{event, info, warn};
 
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::system_condition::SystemCondition;
@@ -18,6 +18,7 @@ use crate::models::work_order::revision::Revision;
 use crate::models::work_order::status_codes::{MaterialStatus, StatusCodes};
 use crate::models::work_order::unloading_point::UnloadingPoint;
 use crate::models::work_order::WorkOrder;
+use crate::models::worker_environment::resources::Resources;
 use crate::models::worker_environment::WorkerEnvironment;
 use crate::models::{SchedulingEnvironment, WorkOrders};
 use chrono::{
@@ -54,8 +55,6 @@ pub fn load_data_file(
     let mut work_orders: WorkOrders = WorkOrders::new();
     let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
 
-    populate_work_orders(&mut work_orders, sheet).expect("could not populate the work orders");
-
     let periods: Vec<Period> = create_periods(number_of_periods).unwrap_or_else(|_| {
         panic!(
             "Could not create periods in {} at line {}",
@@ -64,6 +63,9 @@ pub fn load_data_file(
         )
     });
 
+    populate_work_orders(&mut work_orders, &periods, sheet)
+        .expect("could not populate the work orders");
+
     let scheduling_environment =
         SchedulingEnvironment::new(work_orders, worker_environment, periods, None);
     Ok(scheduling_environment)
@@ -71,6 +73,7 @@ pub fn load_data_file(
 
 fn populate_work_orders<'a>(
     work_orders: &'a mut WorkOrders,
+    periods: &[Period],
     sheet: &'a calamine::Range<DataType>,
 ) -> Result<&'a mut WorkOrders, calamine::Error> {
     let headers: Vec<String> = sheet
@@ -116,7 +119,7 @@ fn populate_work_orders<'a>(
         // println!("new work order key: {}", work_orders.new_work_order(work_order_number));
         if work_orders.new_work_order(work_order_number) {
             work_orders.insert(
-                create_new_work_order(row, &header_to_index)
+                create_new_work_order(row, &header_to_index, periods)
                     .expect("Could not insert new work order"),
             );
         }
@@ -151,6 +154,7 @@ fn populate_work_orders<'a>(
 fn create_new_work_order(
     row: &[DataType],
     header_to_index: &HashMap<String, usize>,
+    periods: &[Period],
 ) -> Result<WorkOrder, Error> {
     let work_order_type_possible_headers = ["Work Order", "Work_Order"];
 
@@ -190,29 +194,25 @@ fn create_new_work_order(
             Some(DataType::String(s)) => s.parse::<u32>().unwrap_or(0),
             _ => 0,
         },
-        // optimized_work_order: OptimizedWorkOrder::empty(),
         fixed: false,
         order_weight: 0, // TODO: Implement calculate_weight method.
         priority: priority.clone(),
         order_work: 0.0,
         operations: HashMap::<u32, Operation>::new(),
-        work_load: HashMap::<String, f64>::new(),
+        work_load: HashMap::<Resources, f64>::new(),
         start_start: Vec::<bool>::new(),
         finish_start: Vec::<bool>::new(),
         postpone: Vec::<DateTime<Utc>>::new(),
         order_type: match work_order_type_data.cloned() {
             Some(DataType::String(work_order_type)) => match work_order_type.as_str() {
                 "WDF" => match &priority {
-                    Priority::IntValue(value) => {
-                        dbg!(value);
-                        match value {
-                            1 => Ok(WorkOrderType::Wdf(WDFPriority::One)),
-                            2 => Ok(WorkOrderType::Wdf(WDFPriority::Two)),
-                            3 => Ok(WorkOrderType::Wdf(WDFPriority::Three)),
-                            4 => Ok(WorkOrderType::Wdf(WDFPriority::Four)),
-                            _ => Ok(WorkOrderType::Other),
-                        }
-                    }
+                    Priority::IntValue(value) => match value {
+                        1 => Ok(WorkOrderType::Wdf(WDFPriority::One)),
+                        2 => Ok(WorkOrderType::Wdf(WDFPriority::Two)),
+                        3 => Ok(WorkOrderType::Wdf(WDFPriority::Three)),
+                        4 => Ok(WorkOrderType::Wdf(WDFPriority::Four)),
+                        _ => Ok(WorkOrderType::Other),
+                    },
                     _ => Err(ExcelLoadError("Could not parse WDF priority as int".into())),
                 },
                 "WGN" => match &priority {
@@ -244,10 +244,10 @@ fn create_new_work_order(
         system_condition: SystemCondition::new(),
         status_codes: extract_status_codes(row, header_to_index)
             .expect("Failed to extract StatusCodes"),
-        order_dates: extract_order_dates(row, header_to_index)
+        order_dates: extract_order_dates(row, header_to_index, periods)
             .expect("Failed to extract OrderDates"),
         revision: extract_revision(row, header_to_index).expect("Failed to extract Revision"),
-        unloading_point: extract_unloading_point(row, header_to_index)
+        unloading_point: extract_unloading_point(row, header_to_index, periods)
             .expect("Failed to extract UnloadingPoint"),
         functional_location: extract_functional_location(row, header_to_index)
             .expect("Failed to extract FunctionalLocation"),
@@ -324,7 +324,7 @@ fn create_new_operation(
             _ => 0,
         },
         work_center: match work_center_data.cloned() {
-            Some(DataType::String(s)) => s,
+            Some(DataType::String(s)) => Resources::new_from_string(s),
             _ => return Err(Error::Msg("Could not parse work center as string")),
         },
         preparation_time: 0.0,
@@ -351,10 +351,7 @@ fn create_new_operation(
                 }
                 _ => 0,
             },
-            None => {
-                // dbg!("Duration is None");
-                0
-            }
+            None => 0,
         },
         possible_start: default_future_date,
         target_finish: default_future_date,
@@ -401,13 +398,8 @@ fn create_new_operation(
                     date.unwrap()
                 }
 
-                other => {
-                    dbg!(other);
-
-                    event!(
-                        tracing::Level::INFO,
-                        "Could not earliest_finish_date_data as string"
-                    );
+                _ => {
+                    info!("Could not earliest_finish_date_data as string");
                     NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()
                 }
             };
@@ -416,7 +408,6 @@ fn create_new_operation(
                 Some(DataType::String(s)) => match NaiveTime::parse_from_str(&s, "%H:%M:%s") {
                     Ok(naive_date) => naive_date,
                     Err(_) => {
-                        dbg!();
                         println!(
                             "Could not parse earliest_finish_time_data from string: {}",
                             s
@@ -500,6 +491,7 @@ fn extract_status_codes(
 fn extract_order_dates(
     row: &[DataType],
     header_to_index: &HashMap<String, usize>,
+    periods: &[Period],
 ) -> Result<OrderDates, Error> {
     let earliest_allowed_start_date_possible_headers = [
         "Earliest Allowed Start Date",
@@ -559,8 +551,7 @@ fn extract_order_dates(
         Some(DataType::Empty) => {
             panic!("Earliest start date is empty");
         }
-        error => {
-            dbg!(error);
+        _ => {
             event!(tracing::Level::ERROR, "Could not parse earliest_start_date");
             let error_message = "Could not parse earliest_start_date_data as anything";
             return Err(Error::Msg(error_message));
@@ -617,18 +608,26 @@ fn extract_order_dates(
                 .unwrap(),
             Utc,
         ),
-        earliest_allowed_start_period: get_odd_week_period(
+        earliest_allowed_start_period: match date_to_period(
+            periods,
             DateTime::<Utc>::from_naive_utc_and_offset(
                 earliest_allowed_start_date.and_hms_opt(7, 0, 0).unwrap(),
                 Utc,
             ),
-        ),
-        latest_allowed_finish_period: get_odd_week_period(
+        ) {
+            Some(period) => period,
+            None => periods.last().unwrap().clone(),
+        },
+        latest_allowed_finish_period: match date_to_period(
+            periods,
             DateTime::<Utc>::from_naive_utc_and_offset(
                 latest_allowed_finish_date.and_hms_opt(7, 0, 0).unwrap(),
                 Utc,
             ),
-        ),
+        ) {
+            Some(period) => period,
+            None => periods.last().unwrap().clone(),
+        },
         basic_start_date: DateTime::<Utc>::from_naive_utc_and_offset(
             basic_start_date_additional,
             Utc,
@@ -671,6 +670,7 @@ fn extract_revision(
 fn extract_unloading_point(
     row: &[DataType],
     header_to_index: &HashMap<String, usize>,
+    periods: &[Period],
 ) -> Result<UnloadingPoint, Error> {
     let unloading_point_possible_headers = ["Unloading_Point", "Unloading Point"];
 
@@ -688,15 +688,25 @@ fn extract_unloading_point(
         _ => return Err(Error::Msg("Could not parse unloading point as string")),
     };
 
-    let (start_week, end_week, present) = _extract_weeks(&string);
+    let (start_week, _end_week, present) = _extract_weeks(&string);
     let start_date = _week_to_date(start_week, true);
-    let end_date = _week_to_date(end_week, false);
 
     if present {
         Ok(UnloadingPoint {
             string,
             present,
-            period: Some(Period::new(0, start_date, end_date)),
+            period: {
+                Some(
+                    match periods
+                        .iter()
+                        .find(|period| period.get_start_date() == start_date)
+                    {
+                        Some(period) => period.clone(),
+                        None => periods.last().unwrap().clone(),
+                    }
+                    .clone(),
+                )
+            },
         })
     } else {
         Ok(UnloadingPoint {
@@ -882,6 +892,13 @@ fn extract_order_text(
     })
 }
 
+fn date_to_period(periods: &[Period], date: DateTime<Utc>) -> Option<Period> {
+    periods
+        .iter()
+        .find(|period| period.get_start_date() <= date && period.get_end_date() >= date)
+        .cloned()
+}
+
 fn parse_date(s: &str) -> NaiveDate {
     let formats = ["%Y%m%d", "%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y"];
 
@@ -928,10 +945,6 @@ fn create_periods(number_of_periods: u32) -> Result<Vec<Period>, Error> {
     let days_to_offset = (start_date.weekday().num_days_from_monday() as i64)
         + (7 * (week_number - target_week) as i64);
 
-    // dbg!(days_to_offset);
-
-    // dbg!(start_date);
-
     start_date -= Duration::days(days_to_offset);
 
     start_date = start_date
@@ -941,10 +954,7 @@ fn create_periods(number_of_periods: u32) -> Result<Vec<Period>, Error> {
         .and_then(|d| d.with_nanosecond(0))
         .unwrap();
 
-    // dbg!(start_date);
-
     let mut end_date = start_date + Duration::weeks(2);
-    // dbg!(end_date);
 
     end_date -= Duration::days(1);
 
@@ -955,12 +965,11 @@ fn create_periods(number_of_periods: u32) -> Result<Vec<Period>, Error> {
         .and_then(|d| d.with_nanosecond(0))
         .unwrap();
 
-    // dbg!(end_date);
-
-    for i in 0..number_of_periods {
-        periods.push(Period::new(i, start_date, end_date));
-        start_date += Duration::weeks(2);
-        end_date += Duration::weeks(2);
+    let mut period = Period::new(0, start_date, end_date);
+    periods.push(period.clone());
+    for _ in 1..number_of_periods {
+        period = period + Duration::weeks(2);
+        periods.push(period.clone());
     }
     Ok(periods)
 }
@@ -975,55 +984,26 @@ fn excel_time_to_hh_mm_ss(serial_time: f64) -> NaiveTime {
         .expect("Could not convert excel time to NaiveTime")
 }
 
-fn get_odd_week_period(date: DateTime<Utc>) -> Period {
-    let iso_week = date.iso_week();
-    let year = iso_week.year();
-    let week = iso_week.week();
-
-    // Determine the start and end weeks for the period
-    let start_week = if week % 2 == 0 { week - 1 } else { week };
-    let mut end_week = start_week + 1;
-
-    if end_week > 52 {
-        end_week = 1;
-    }
-
-    let period_string: String;
-    if start_week < 10 && end_week < 10 {
-        period_string = format!("{}-W0{}-0{}", year, start_week, end_week);
-    } else if start_week < 10 && end_week >= 10 {
-        period_string = format!("{}-W0{}-{}", year, start_week, end_week);
-    } else if start_week >= 10 && end_week < 10 {
-        period_string = format!("{}-W{}-0{}", year, start_week, end_week);
-    } else {
-        period_string = format!("{}-W{}-{}", year, start_week, end_week);
-    }
-
-    Period::new_from_string(period_string.as_str()).expect("Could not create period from string")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use chrono::{TimeZone, Utc};
 
     #[test]
-    fn test_get_odd_week_period() {
-        let period_string = get_odd_week_period(Utc.with_ymd_and_hms(2021, 1, 1, 0, 0, 0).unwrap());
-        let period =
-            Period::new_from_string("2020-W53-01").expect("Could not create period from string");
-        assert_eq!(period_string, period);
-
-        let period_string = get_odd_week_period(Utc.with_ymd_and_hms(2021, 1, 4, 0, 0, 0).unwrap());
-        let period =
-            Period::new_from_string("2021-W01-02").expect("Could not create period from string");
-        assert_eq!(period_string, period);
-    }
-
-    #[test]
     fn test_parse_date() {
         let date = parse_date("2021-01-01");
         assert_eq!(date, NaiveDate::from_ymd_opt(2021, 1, 1).unwrap());
+    }
+
+    #[test]
+    fn test_date_to_period() {
+        let periods = vec![
+            Period::new_from_string("2023-W1-2").unwrap(),
+            Period::new_from_string("2023-W3-2").unwrap(),
+        ];
+
+        let date: DateTime<Utc> = Utc.with_ymd_and_hms(2023, 1, 10, 7, 0, 0).unwrap();
+        assert_eq!(date_to_period(&periods, date), Some(periods[0].clone()));
     }
 
     #[test]
@@ -1057,7 +1037,16 @@ mod tests {
             .len();
 
         assert_eq!(number_of_work_orders, 1227);
-
         assert_eq!(number_of_operations, 12);
+    }
+
+    // The application should always track the real time, this is a compromise that I
+    // think will be a bad idea to make.
+    #[test]
+    fn test_create_periods() {
+        let periods: Vec<Period> = create_periods(52).unwrap();
+
+        assert_eq!(periods[26].get_period_string(), "2025-W1-2");
+        dbg!(periods);
     }
 }

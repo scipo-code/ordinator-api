@@ -79,7 +79,7 @@ impl fmt::Display for ManualResource {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "resource: {}, period: {}, capacity: {}",
+            "resource: {:?}, period: {}, capacity: {}",
             self.resource, self.period.period_string, self.capacity
         )
     }
