@@ -16,8 +16,9 @@ fn initialize_scheduling_environment(number_of_periods: u32) -> Option<Schedulin
 
     if args.len() > 1 {
         let file_path = Path::new(&args[1]);
+        dbg!(file_path);
         let scheduling_environment = sources::excel::load_data_file(file_path, number_of_periods)
-            .expect("Could not load data file.");
+            .unwrap_or_else(|_| panic!("Could not load data file. File path: {:?} ", args));
         println!("{}", scheduling_environment);
         return Some(scheduling_environment);
     }
