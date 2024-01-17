@@ -1000,6 +1000,7 @@ mod tests {
         let periods = vec![
             Period::new_from_string("2023-W1-2").unwrap(),
             Period::new_from_string("2023-W3-4").unwrap(),
+
         ];
 
         let date: DateTime<Utc> = Utc.with_ymd_and_hms(2023, 1, 10, 7, 0, 0).unwrap();
@@ -1049,5 +1050,6 @@ mod tests {
         // Remember to always fix bad things when you spot them in the code.
         // This should be proptest
         assert_eq!(periods[26].get_period_string(), "2025-W1-2");
+
     }
 }
