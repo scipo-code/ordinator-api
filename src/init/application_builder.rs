@@ -2,6 +2,8 @@ use actix::Addr;
 use actix_web::web::Data;
 use actix_web::{App, HttpServer};
 use std::{sync::Arc, thread};
+use tokio::io::{self, AsyncBufReadExt, BufReader};
+use tokio::task::JoinHandle;
 use tracing::{info, trace};
 
 use crate::{agents::scheduler_agent::SchedulerAgent, api::routes::ws_index};
@@ -22,22 +24,30 @@ impl ApplicationBuilder {
         self
     }
 
-    pub async fn build(self) -> Result<(), std::io::Error> {
-        info!("Server running at http://127.0.0.1:8001/");
-        HttpServer::new(move || {
-            let current_thread_id = thread::current().id();
-            trace!(?current_thread_id, "initializing application");
-            let mut app = App::new();
+    pub async fn build(self) -> JoinHandle<()> {
+        dbg!();
+        let scheduler_agent_addr_clone = self.scheduler_agent_addr.clone();
+        let server = tokio::spawn(async move {
+            info!("Server running at http://127.0.0.1:8001/");
+            dbg!();
+            HttpServer::new(move || {
+                let current_thread_id = thread::current().id();
+                trace!(?current_thread_id, "initializing application");
+                let mut app = App::new();
 
-            if let Some(scheduler_agent_addr) = &self.scheduler_agent_addr {
-                app = app.app_data(Data::new(Arc::new(scheduler_agent_addr.clone())))
-            }
+                if let Some(scheduler_agent_addr) = &scheduler_agent_addr_clone {
+                    app = app.app_data(Data::new(Arc::new(scheduler_agent_addr.clone())))
+                }
 
-            trace!("about to register routes");
-            app.service(ws_index)
-        })
-        .bind(("0.0.0.0", 8001))?
-        .run()
-        .await
+                trace!("about to register routes");
+                app.service(ws_index)
+            })
+            .bind(("0.0.0.0", 8001))
+            .expect("Could not bind to port 8001.")
+            .run()
+            .await
+            .expect("Websocket server could not be started.")
+        });
+        server
     }
 }
