@@ -171,7 +171,7 @@ struct WeightParam {
 
 impl WeightParam {
     fn read_config() -> Result<Self, Box<dyn std::error::Error>> {
-        let default_path = "parameters/work_order_weight_parameters.json";
+        let default_path = "scheduling_system/parameters/work_order_weight_parameters.json";
         let config_path = env::var("CONFIG_PATH").unwrap_or_else(|_| default_path.to_string());
         let config_contents = fs::read_to_string(config_path).expect("Could not read config file");
 

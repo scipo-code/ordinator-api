@@ -53,7 +53,8 @@ impl WorkerEnvironment {
                 // }
             }
             None => {
-                let worker_json = fs::read_to_string("parameters/example_crew.json").unwrap();
+                let worker_json =
+                    fs::read_to_string("scheduling_system/parameters/example_crew.json").unwrap();
 
                 let crew: Crew = serde_json::from_str(&worker_json).unwrap();
 
@@ -62,5 +63,3 @@ impl WorkerEnvironment {
         }
     }
 }
-
-
