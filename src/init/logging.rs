@@ -22,6 +22,5 @@ pub fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
     tracing_subscriber::registry().with(subscriber).init();
 
     event!(Level::INFO, "starting loging");
-    event!(Level::ERROR, "starting loging");
     guard
 }
