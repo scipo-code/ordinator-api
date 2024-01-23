@@ -3,12 +3,11 @@ use rand::prelude::SliceRandom;
 use std::collections::HashSet;
 use tracing::info;
 
+use super::SchedulerAgentAlgorithm;
 use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::WorkOrder;
-
-use super::SchedulerAgentAlgorithm;
 
 /// This implementation of the SchedulerAgent will do the following. It should take a messgage
 /// and then return a scheduler
@@ -42,7 +41,7 @@ impl SchedulerAgentAlgorithm {
                     if let Some(work_order) = work_order {
                         self.priority_queues
                             .normal
-                            .push(wo_key, work_order.order_weight);
+                            .push(wo_key, work_order.get_order_weight());
                     }
                 }
             }
@@ -81,10 +80,10 @@ impl SchedulerAgentAlgorithm {
         period: &Period,
         queue_type: &QueueType,
     ) -> Option<u32> {
-        let work_order = self.backlog.inner.get(&work_order_key).unwrap().clone();
+        let mut work_order = self.backlog.inner.get(&work_order_key).unwrap().clone();
 
         // The if statements found in here are each constraints that has to be upheld.
-        for (work_center, resource_needed) in work_order.work_load.iter() {
+        for (work_center, resource_needed) in work_order.get_work_load().clone().iter() {
             let resource_capacity: &mut f64 = self
                 .resources_capacity
                 .entry((work_center.clone(), period.clone()))
@@ -98,7 +97,7 @@ impl SchedulerAgentAlgorithm {
                 return Some(work_order_key);
             }
 
-            if period.get_end_date() < work_order.order_dates.earliest_allowed_start_date {
+            if period.get_end_date() < work_order.get_order_dates().earliest_allowed_start_date {
                 return Some(work_order_key);
             }
 
@@ -160,7 +159,7 @@ impl SchedulerAgentAlgorithm {
         for (work_center_period, loading) in self.resources_loading.iter_mut() {
             if work_center_period.1 == period {
                 *loading += work_order
-                    .work_load
+                    .get_work_load()
                     .get(&work_center_period.0)
                     .unwrap_or(&0.0);
             }
@@ -214,9 +213,9 @@ impl SchedulerAgentAlgorithm {
             let work_order_latest_allowed_finish_period = self
                 .backlog
                 .inner
-                .get(work_order_key)
+                .get_mut(work_order_key)
                 .unwrap()
-                .order_dates
+                .get_order_dates()
                 .latest_allowed_finish_period
                 .clone();
 
@@ -226,7 +225,12 @@ impl SchedulerAgentAlgorithm {
             );
             let objective_contribution = if period_difference > 0 {
                 period_difference
-                    * self.backlog.inner.get(work_order_key).unwrap().order_weight as i64
+                    * self
+                        .backlog
+                        .inner
+                        .get(work_order_key)
+                        .unwrap()
+                        .get_order_weight() as i64
             } else {
                 0
             };
@@ -316,7 +320,8 @@ impl SchedulerAgentAlgorithm {
         // What does it mean when we call the unwrap here?
         for (work_center_period, loading) in self.resources_loading.iter_mut() {
             if work_center_period.1 == period {
-                let work_load_for_work_center = work_order.work_load.get(&work_center_period.0);
+                let work_load_for_work_center =
+                    work_order.get_work_load().get(&work_center_period.0);
                 if let Some(work_load_for_work_center) = work_load_for_work_center {
                     *loading -= work_load_for_work_center;
                 }
@@ -343,7 +348,7 @@ impl SchedulerAgentAlgorithm {
         for (work_center_period, loading) in self.resources_loading.iter_mut() {
             if work_center_period.1 == *period {
                 *loading += work_order
-                    .work_load
+                    .get_work_load()
                     .get(&work_center_period.0)
                     .unwrap_or(&0.0);
             }
