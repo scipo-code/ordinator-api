@@ -29,6 +29,10 @@ impl SchedulerAgentAlgorithm {
         &self.backlog
     }
 
+    pub fn get_mut_backlog(&mut self) -> &mut WorkOrders {
+        &mut self.backlog
+    }
+
     pub fn get_optimized_work_order(&self, work_order_number: &u32) -> Option<&OptimizedWorkOrder> {
         self.optimized_work_orders.inner.get(work_order_number)
     }
@@ -208,11 +212,20 @@ impl SchedulerAgentAlgorithm {
 
             // I have multiple Period objects here and they are only similar by equality and not
             // by the underlying data. Hmm... I do not like this implementation.
+
+            // What should the goal be here? It code should work inside of business
+            let test_manual_resource_capacity = maunal_resource_capacity.clone();
+            dbg!(test_manual_resource_capacity.clone());
+            dbg!(test_manual_resource_capacity.clone().0);
+            dbg!(test_manual_resource_capacity.clone().0 .0);
+
             let period = self.periods.iter().find(|period| period.get_period_string() == maunal_resource_capacity.0.1).expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
             self.resources_capacity.insert(
                 (maunal_resource_capacity.0 .0, period.clone()),
                 maunal_resource_capacity.1,
             );
+
+            dbg!(self.resources_capacity.clone());
         }
 
         for work_order_period_mapping in input_message.get_work_order_period_mappings() {
@@ -328,31 +341,31 @@ impl SchedulerAgentAlgorithm {
 impl SchedulerAgentAlgorithm {
     pub fn populate_priority_queues(&mut self) {
         for (key, work_order) in self.backlog.inner.iter() {
-            if work_order.unloading_point.present {
+            if work_order.get_unloading_point().present {
                 debug!("Work order {} has been added to the unloading queue", key);
                 self.priority_queues
                     .unloading
-                    .push(*key, work_order.order_weight);
-            } else if work_order.revision.shutdown || work_order.vendor {
+                    .push(*key, work_order.get_order_weight());
+            } else if work_order.get_revision().shutdown || work_order.get_vendor() {
                 debug!(
                     "Work order {} has been added to the shutdown/vendor queue",
                     key
                 );
                 self.priority_queues
                     .shutdown_vendor
-                    .push(*key, work_order.order_weight);
+                    .push(*key, work_order.get_order_weight());
             } else {
                 debug!("Work order {} has been added to the normal queue", key);
                 self.priority_queues
                     .normal
-                    .push(*key, work_order.order_weight);
+                    .push(*key, work_order.get_order_weight());
             }
         }
     }
 
     fn update_priority_queues(&mut self) {
         for (key, work_order) in &self.optimized_work_orders.inner {
-            let work_order_weight = self.backlog.inner.get(key).unwrap().order_weight;
+            let work_order_weight = self.backlog.inner.get(key).unwrap().get_order_weight();
             match &work_order.locked_in_period {
                 Some(_work_order) => {
                     self.priority_queues.unloading.push(*key, work_order_weight);
@@ -368,7 +381,7 @@ impl SchedulerAgentAlgorithm {
             .inner
             .get(&work_order_number)
             .unwrap()
-            .work_load
+            .get_work_load()
             .keys();
         let needed_resources: Vec<_> = needed_keys.cloned().collect();
         for resource in needed_resources.clone() {
@@ -429,7 +442,6 @@ impl SchedulerAgentAlgorithm {
         &self.resources_loading
     }
 
-    #[cfg(test)]
     pub fn get_manual_resources_capacities(&self) -> &HashMap<(Resources, Period), f64> {
         &self.resources_capacity
     }

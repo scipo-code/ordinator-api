@@ -39,6 +39,7 @@ pub fn build_scheduler_agent(
 
     fn initialize_manual_resources(
         scheduling_environment: &SchedulingEnvironment,
+        start_value: f64,
     ) -> HashMap<(Resources, Period), f64> {
         let mut manual_resource_capacity: HashMap<(Resources, Period), f64> = HashMap::new();
         for resource in scheduling_environment
@@ -47,7 +48,7 @@ pub fn build_scheduler_agent(
             .iter()
         {
             for period in scheduling_environment.get_periods().iter() {
-                manual_resource_capacity.insert((resource.clone(), period.clone()), 0.0);
+                manual_resource_capacity.insert((resource.clone(), period.clone()), start_value);
             }
         }
         manual_resource_capacity
@@ -57,8 +58,8 @@ pub fn build_scheduler_agent(
 
     let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
         0.0,
-        initialize_manual_resources(&locked_scheduling_environment),
-        initialize_manual_resources(&locked_scheduling_environment),
+        initialize_manual_resources(&locked_scheduling_environment, 168.0),
+        initialize_manual_resources(&locked_scheduling_environment, 0.0),
         cloned_work_orders,
         PriorityQueues::new(),
         optimized_work_orders,
@@ -68,6 +69,9 @@ pub fn build_scheduler_agent(
 
     drop(locked_scheduling_environment);
 
+    // dbg!(scheduler_agent_algorithm
+    //     .get_manual_resources_capacities()
+    //     .get(k));
     let scheduler_agent = SchedulerAgent::new(
         String::from("Dan F"),
         scheduling_environment,
@@ -82,8 +86,8 @@ fn create_optimized_work_orders(work_orders: &WorkOrders) -> OptimizedWorkOrders
     let mut optimized_work_orders: HashMap<u32, OptimizedWorkOrder> = HashMap::new();
 
     for (work_order_number, work_order) in &work_orders.inner {
-        if work_order.unloading_point.present {
-            let period = work_order.unloading_point.period.clone();
+        if work_order.get_unloading_point().present {
+            let period = work_order.get_unloading_point().period.clone();
             optimized_work_orders.insert(
                 *work_order_number,
                 OptimizedWorkOrder::new(period.clone(), period, HashSet::new()),
