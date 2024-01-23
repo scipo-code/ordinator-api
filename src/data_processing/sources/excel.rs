@@ -180,8 +180,8 @@ fn create_new_work_order(
         _ => Priority::StringValue(String::new()),
     };
 
-    Ok(WorkOrder {
-        order_number: match row
+    Ok(WorkOrder::new(
+        match row
             .get(
                 *header_to_index
                     .get("Order")
@@ -194,16 +194,16 @@ fn create_new_work_order(
             Some(DataType::String(s)) => s.parse::<u32>().unwrap_or(0),
             _ => 0,
         },
-        fixed: false,
-        order_weight: 0, // TODO: Implement calculate_weight method.
-        priority: priority.clone(),
-        order_work: 0.0,
-        operations: HashMap::<u32, Operation>::new(),
-        work_load: HashMap::<Resources, f64>::new(),
-        start_start: Vec::<bool>::new(),
-        finish_start: Vec::<bool>::new(),
-        postpone: Vec::<DateTime<Utc>>::new(),
-        order_type: match work_order_type_data.cloned() {
+        false,
+        0, // TODO: Implement calculate_weight method.
+        priority.clone(),
+        0.0,
+        HashMap::<u32, Operation>::new(),
+        HashMap::<Resources, f64>::new(),
+        Vec::<bool>::new(),
+        Vec::<bool>::new(),
+        Vec::<DateTime<Utc>>::new(),
+        match work_order_type_data.cloned() {
             Some(DataType::String(work_order_type)) => match work_order_type.as_str() {
                 "WDF" => match &priority {
                     Priority::IntValue(value) => match value {
@@ -241,19 +241,17 @@ fn create_new_work_order(
             _ => return Err(Error::Msg("Could not parse revision as string")),
         }
         .expect("Could not parse order type"),
-        system_condition: SystemCondition::new(),
-        status_codes: extract_status_codes(row, header_to_index)
-            .expect("Failed to extract StatusCodes"),
-        order_dates: extract_order_dates(row, header_to_index, periods)
-            .expect("Failed to extract OrderDates"),
-        revision: extract_revision(row, header_to_index).expect("Failed to extract Revision"),
-        unloading_point: extract_unloading_point(row, header_to_index, periods)
+        SystemCondition::new(),
+        extract_status_codes(row, header_to_index).expect("Failed to extract StatusCodes"),
+        extract_order_dates(row, header_to_index, periods).expect("Failed to extract OrderDates"),
+        extract_revision(row, header_to_index).expect("Failed to extract Revision"),
+        extract_unloading_point(row, header_to_index, periods)
             .expect("Failed to extract UnloadingPoint"),
-        functional_location: extract_functional_location(row, header_to_index)
+        extract_functional_location(row, header_to_index)
             .expect("Failed to extract FunctionalLocation"),
-        order_text: extract_order_text(row, header_to_index).expect("Failed to extract OrderText"),
-        vendor: false,
-    })
+        extract_order_text(row, header_to_index).expect("Failed to extract OrderText"),
+        false,
+    ))
 }
 
 fn create_new_operation(
@@ -1033,7 +1031,7 @@ mod tests {
             .inner
             .get(&2100024139)
             .unwrap()
-            .operations
+            .get_operations()
             .len();
 
         assert_eq!(number_of_work_orders, 1227);

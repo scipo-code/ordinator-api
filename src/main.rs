@@ -18,8 +18,9 @@ async fn main() -> () {
 
     info!("starting application");
     let scheduling_environment = Arc::new(Mutex::new(
-        init::model_initializers::create_scheduling_environment(52),
+        init::model_initializers::initialize_scheduling_environment(52),
     ));
+
     let scheduler_agent_addr = init::agent_factory::build_scheduler_agent(scheduling_environment);
 
     ApplicationBuilder::new()

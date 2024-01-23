@@ -2,7 +2,6 @@ use actix::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display};
-use std::panic;
 use tokio::time::{sleep, Duration};
 use tracing::{debug, error, info, span, trace};
 
@@ -152,7 +151,6 @@ impl Display for InputSchedulerMessage {
 // it also feels like a distraction from the main task at hand. This is a very tricky situation but
 // handling it correctly is crucial for the future of the application. I think that I will go with
 // Hmm... Should I just send all the periods to the backend again? I think that I will do that. I
-//
 #[derive(Deserialize, Debug)]
 #[serde(tag = "scheduler_message_type")]
 pub struct FrontendUpdatePeriod {
@@ -684,8 +682,9 @@ pub mod tests {
             false,
         );
 
-        work_order.order_dates.latest_allowed_finish_period =
-            Period::new_from_string("2023-W47-48").unwrap();
+        work_order
+            .get_mut_order_dates()
+            .latest_allowed_finish_period = Period::new_from_string("2023-W47-48").unwrap();
 
         let mut work_orders = WorkOrders::new();
 
@@ -728,27 +727,9 @@ pub mod tests {
             let end_date = start_date + chrono::Duration::days(13);
             let period = Period::new(1, start_date, end_date);
 
-            manual_resources.insert(
-                (
-                    Resources::new_from_string("MTN-MECH".to_string()),
-                    period.get_period_string(),
-                ),
-                300.0,
-            );
-            manual_resources.insert(
-                (
-                    Resources::new_from_string("MTN-ELEC".to_string()),
-                    period.get_period_string(),
-                ),
-                300.0,
-            );
-            manual_resources.insert(
-                (
-                    Resources::new_from_string("PRODTECH".to_string()),
-                    period.get_period_string(),
-                ),
-                300.0,
-            );
+            manual_resources.insert((Resources::MtnMech, period.get_period_string()), 300.0);
+            manual_resources.insert((Resources::MtnElec, period.get_period_string()), 300.0);
+            manual_resources.insert((Resources::Prodtech, period.get_period_string()), 300.0);
 
             Self {
                 name: "test".to_string(),

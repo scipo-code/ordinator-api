@@ -36,30 +36,28 @@ use super::worker_environment::resources::Resources;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrder {
-    pub order_number: u32,
-    // pub optimized_work_order: OptimizedWorkOrder,
-    pub fixed: bool,
-    pub order_weight: u32,
-    pub priority: Priority,
-    pub order_work: f64,
-    pub operations: HashMap<u32, Operation>,
-    pub work_load: HashMap<Resources, f64>,
-    pub start_start: Vec<bool>,
-    pub finish_start: Vec<bool>,
-    pub postpone: Vec<DateTime<Utc>>,
-    pub order_type: WorkOrderType,
-    pub system_condition: SystemCondition,
-    pub status_codes: StatusCodes,
-    pub order_dates: OrderDates,
-    pub revision: Revision,
-    pub unloading_point: UnloadingPoint,
-    pub functional_location: FunctionalLocation,
-    pub order_text: OrderText,
-    pub vendor: bool,
+    order_number: u32,
+    fixed: bool,
+    order_weight: u32,
+    priority: Priority,
+    order_work: f64,
+    operations: HashMap<u32, Operation>,
+    work_load: HashMap<Resources, f64>,
+    start_start: Vec<bool>,
+    finish_start: Vec<bool>,
+    postpone: Vec<DateTime<Utc>>,
+    order_type: WorkOrderType,
+    system_condition: SystemCondition,
+    status_codes: StatusCodes,
+    order_dates: OrderDates,
+    revision: Revision,
+    unloading_point: UnloadingPoint,
+    functional_location: FunctionalLocation,
+    order_text: OrderText,
+    vendor: bool,
 }
 
 impl WorkOrder {
-    #[cfg(test)]
     pub fn new(
         order_number: u32,
         fixed: bool,
@@ -110,6 +108,54 @@ impl WorkOrder {
 
     pub fn insert_operation(&mut self, operation: Operation) {
         self.operations.insert(operation.activity, operation);
+    }
+
+    pub fn get_unloading_point(&self) -> &UnloadingPoint {
+        &self.unloading_point
+    }
+
+    pub fn get_operations(&self) -> &HashMap<u32, Operation> {
+        &self.operations
+    }
+
+    pub fn get_order_text(&self) -> &OrderText {
+        &self.order_text
+    }
+
+    pub fn get_order_dates(&self) -> &OrderDates {
+        &self.order_dates
+    }
+
+    pub fn get_status_codes(&self) -> &StatusCodes {
+        &self.status_codes
+    }
+
+    pub fn get_functional_location(&self) -> &FunctionalLocation {
+        &self.functional_location
+    }
+
+    pub fn get_revision(&self) -> &Revision {
+        &self.revision
+    }
+
+    pub fn get_order_type(&self) -> &WorkOrderType {
+        &self.order_type
+    }
+
+    pub fn get_priority(&self) -> &Priority {
+        &self.priority
+    }
+
+    pub fn get_work_load(&self) -> &HashMap<Resources, f64> {
+        &self.work_load
+    }
+
+    pub fn get_order_weight(&self) -> u32 {
+        self.order_weight
+    }
+
+    pub fn get_vendor(&self) -> bool {
+        self.vendor
     }
 }
 
@@ -223,7 +269,6 @@ impl WorkOrder {
     }
 
     pub fn initialize_work_load(&mut self) {
-
         let mut work_load: HashMap<Resources, f64> = HashMap::new();
 
         for (_, operation) in self.operations.iter() {
@@ -318,20 +363,20 @@ mod tests {
                 false,
             )
         }
+
+        pub fn get_mut_order_dates(&mut self) -> &mut OrderDates {
+            &mut self.order_dates
+        }
     }
 
     impl Default for WorkOrder {
         fn default() -> Self {
             let mut operations = HashMap::new();
 
-            let operation_0010 =
-                Operation::new_test(10, Resources::new_from_string("PRODTECH".to_string()), 10.0);
-            let operation_0020 =
-                Operation::new_test(20, Resources::new_from_string("MTN-MECH".to_string()), 20.0);
-            let operation_0030 =
-                Operation::new_test(30, Resources::new_from_string("MTN-MECH".to_string()), 30.0);
-            let operation_0040 =
-                Operation::new_test(40, Resources::new_from_string("PRODTECH".to_string()), 40.0);
+            let operation_0010 = Operation::new_test(10, Resources::Prodtech, 10.0);
+            let operation_0020 = Operation::new_test(20, Resources::MtnMech, 20.0);
+            let operation_0030 = Operation::new_test(30, Resources::MtnMech, 30.0);
+            let operation_0040 = Operation::new_test(40, Resources::Prodtech, 40.0);
 
             operations.insert(10, operation_0010);
             operations.insert(20, operation_0020);
