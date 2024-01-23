@@ -47,7 +47,7 @@ impl SchedulingEnvironment {
             None => info!("No WebSocketAgent address has been provided yet."),
         }
     }
-
+    
     pub fn clone_periods(&self) -> Vec<Period> {
         self.periods.clone()
     }
@@ -72,6 +72,12 @@ impl SchedulingEnvironment {
 
     pub fn get_worker_environment(&self) -> &WorkerEnvironment {
         &self.worker_environment
+    }
+}
+
+impl SchedulingEnvironment {
+    pub fn initialize_worker_environment(&mut self) {
+        self.worker_environment.initialize();
     }
 }
 
@@ -115,8 +121,14 @@ impl WorkOrders {
 }
 
 impl fmt::Display for SchedulingEnvironment {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "The Scheduling Environment is currently comprised of \n  work_orders: {},\n  number of worker entries: {}", self.work_orders.inner.len(), self.worker_environment.get_crew().workers.len())
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {                 
+        write!(f, "The Scheduling Environment is currently comprised of \n  work_orders: {},\n  number of worker entries: {},\n  number of periods: {}", 
+        self.work_orders.inner.len(), 
+        match self.get_worker_environment().get_crew().as_ref() {
+            Some(crew) => crew.get_workers().len(),
+            None => 0,
+    }, self.periods.len())?;
+        Ok(())
     }
 }
 

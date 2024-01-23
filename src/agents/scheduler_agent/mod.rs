@@ -120,7 +120,7 @@ impl SchedulerAgent {
         for (work_order_number, work_order) in
             self.scheduler_agent_algorithm.get_backlog().inner.iter()
         {
-            for (operation_number, operation) in work_order.operations.clone() {
+            for (operation_number, operation) in work_order.get_operations().clone() {
                 let scheduling_overview_data_item = SchedulingOverviewData {
                     scheduled_period: match self
                         .scheduler_agent_algorithm
@@ -132,9 +132,9 @@ impl SchedulerAgent {
                         },
                         None => "not scheduled".to_string(),
                     },
-                    scheduled_start: work_order.order_dates.basic_start_date.to_string(),
-                    unloading_point: work_order.unloading_point.clone().string,
-                    material_date: match work_order.status_codes.material_status {
+                    scheduled_start: work_order.get_order_dates().basic_start_date.to_string(),
+                    unloading_point: work_order.get_unloading_point().clone().string,
+                    material_date: match work_order.get_status_codes().material_status {
                         MaterialStatus::Smat => "SMAT".to_string(),
                         MaterialStatus::Nmat => "NMAT".to_string(),
                         MaterialStatus::Cmat => "CMAT".to_string(),
@@ -147,31 +147,31 @@ impl SchedulerAgent {
                     work_center: operation.work_center.variant_name(),
                     work_remaining: operation.work_remaining.to_string(),
                     number: operation.number,
-                    notes_1: work_order.order_text.notes_1.clone(),
-                    notes_2: work_order.order_text.notes_2.clone().to_string(),
-                    order_description: work_order.order_text.order_description.clone(),
-                    object_description: work_order.order_text.object_description.clone(),
-                    order_user_status: work_order.order_text.order_user_status.clone(),
-                    order_system_status: work_order.order_text.order_system_status.clone(),
-                    functional_location: work_order.functional_location.clone().string,
-                    revision: work_order.revision.clone().string,
+                    notes_1: work_order.get_order_text().notes_1.clone(),
+                    notes_2: work_order.get_order_text().notes_2.clone().to_string(),
+                    order_description: work_order.get_order_text().order_description.clone(),
+                    object_description: work_order.get_order_text().object_description.clone(),
+                    order_user_status: work_order.get_order_text().order_user_status.clone(),
+                    order_system_status: work_order.get_order_text().order_system_status.clone(),
+                    functional_location: work_order.get_functional_location().clone().string,
+                    revision: work_order.get_revision().clone().string,
                     earliest_start_datetime: operation.earliest_start_datetime.to_string(),
                     earliest_finish_datetime: operation.earliest_finish_datetime.to_string(),
                     earliest_allowed_starting_date: work_order
-                        .order_dates
+                        .get_order_dates()
                         .earliest_allowed_start_date
                         .to_string(),
                     latest_allowed_finish_date: work_order
-                        .order_dates
+                        .get_order_dates()
                         .latest_allowed_finish_date
                         .to_string(),
-                    order_type: match work_order.order_type.clone() {
+                    order_type: match work_order.get_order_type().clone() {
                         WorkOrderType::Wdf(_wdf_priority) => "WDF".to_string(),
                         WorkOrderType::Wgn(_wgn_priority) => "WGN".to_string(),
                         WorkOrderType::Wpm(_wpm_priority) => "WPM".to_string(),
                         WorkOrderType::Other => "Missing Work Order Type".to_string(),
                     },
-                    priority: match work_order.priority.clone() {
+                    priority: match work_order.get_priority().clone() {
                         Priority::IntValue(i) => i.to_string(),
                         Priority::StringValue(s) => s.to_string(),
                     },
