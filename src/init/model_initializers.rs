@@ -6,6 +6,7 @@ use crate::models::SchedulingEnvironment;
 
 pub fn initialize_scheduling_environment(number_of_periods: u32) -> SchedulingEnvironment {
     let mut scheduling_environment =
+
         create_scheduling_environment(number_of_periods).expect("No data file was provided.");
     scheduling_environment.initialize_work_orders();
     scheduling_environment.initialize_worker_environment();
