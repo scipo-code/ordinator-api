@@ -396,10 +396,10 @@ mod tests {
                 unloading_point::UnloadingPoint,
                 WorkOrder,
             },
-            worker_environment::resources::Resources,
             WorkOrders,
         },
     };
+    use shared_messages::resources::Resources;
 
     #[test]
     fn test_schedule_work_order() {
