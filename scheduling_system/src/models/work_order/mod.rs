@@ -285,7 +285,7 @@ impl WorkOrder {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::models::worker_environment::resources::Resources;
+    use shared_messages::resources::Resources;
 
     use super::{
         functional_location::FunctionalLocation,

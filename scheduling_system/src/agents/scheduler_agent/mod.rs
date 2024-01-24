@@ -212,24 +212,22 @@ mod tests {
 
     use super::{
         scheduler_algorithm::{OptimizedWorkOrders, PriorityQueues},
-        scheduler_message::{FrontendInputSchedulerMessage, SchedulerRequests},
         *,
     };
+
     use crate::models::work_order::operation::Operation;
     use crate::models::work_order::order_type::WDFPriority;
-    use crate::models::worker_environment::resources::Resources;
-    use crate::models::{work_order::*, WorkOrders};
-    use crate::{
-        agents::scheduler_agent::scheduler_message::ManualResource,
-        models::{
-            time_environment::period::Period,
-            work_order::{
-                functional_location::FunctionalLocation, order_dates::OrderDates,
-                order_text::OrderText, revision::Revision, status_codes::StatusCodes,
-                system_condition::SystemCondition, unloading_point::UnloadingPoint,
-            },
+    use crate::models::{
+        time_environment::period::Period,
+        work_order::{
+            functional_location::FunctionalLocation, order_dates::OrderDates,
+            order_text::OrderText, revision::Revision, status_codes::StatusCodes,
+            system_condition::SystemCondition, unloading_point::UnloadingPoint,
         },
     };
+    use crate::models::{work_order::*, WorkOrders};
+    use shared_messages::resources::Resources;
+    use shared_messages::{FrontendInputSchedulerMessage, ManualResource, SchedulerRequests};
 
     #[test]
     fn test_scheduler_agent_initialization() {
@@ -343,7 +341,7 @@ mod tests {
             manual_resources: vec![
                 ManualResource {
                     resource: Resources::new_from_string("MTN-MECH".to_string()),
-                    period: scheduler_message::TimePeriod {
+                    period: shared_messages::TimePeriod {
                         period_string: Period::new_from_string(&period.get_period_string())
                             .unwrap()
                             .get_period_string(),
@@ -352,7 +350,7 @@ mod tests {
                 },
                 ManualResource {
                     resource: Resources::new_from_string("MTN-ELEC".to_string()),
-                    period: scheduler_message::TimePeriod {
+                    period: shared_messages::TimePeriod {
                         period_string: Period::new_from_string(&period.get_period_string())
                             .unwrap()
                             .get_period_string(),
@@ -361,7 +359,7 @@ mod tests {
                 },
                 ManualResource {
                     resource: Resources::new_from_string("PRODTECH".to_string()),
-                    period: scheduler_message::TimePeriod {
+                    period: shared_messages::TimePeriod {
                         period_string: Period::new_from_string(&period.get_period_string())
                             .unwrap()
                             .get_period_string(),

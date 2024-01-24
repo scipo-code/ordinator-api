@@ -286,7 +286,9 @@ impl SchedulerAgentAlgorithm {
                 let excluded_period = self
                     .periods
                     .iter()
-                    .find(|period| period.get_period_string() == period_string.clone())
+                    .find(|period| {
+                        period.get_period_string() == period_string.period_string.clone()
+                    })
                     .cloned();
 
                 excluded_from_periods.insert(excluded_period.unwrap());
