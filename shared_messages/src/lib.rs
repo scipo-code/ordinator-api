@@ -170,3 +170,29 @@ impl fmt::Display for ManualResource {
         )
     }
 }
+
+impl TimePeriod {
+    pub fn new(period_string: String) -> Self {
+        Self { period_string }
+    }
+}
+
+impl WorkOrderPeriodMapping {
+    pub fn new_test() -> Self {
+        WorkOrderPeriodMapping {
+            work_order_number: 2200002020,
+            period_status: WorkOrderStatusInPeriod::new_test(),
+        }
+    }
+}
+
+impl WorkOrderStatusInPeriod {
+    pub fn new_test() -> Self {
+        let period_string = "2023-W47-48".to_string();
+        WorkOrderStatusInPeriod {
+            locked_in_period: Some(TimePeriod::new(period_string)),
+            excluded_from_periods: HashSet::new(),
+        }
+    }
+}
+
