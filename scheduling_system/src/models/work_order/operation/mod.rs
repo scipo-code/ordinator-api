@@ -55,9 +55,7 @@ impl Operation {
 #[cfg(test)]
 mod tests {
     use chrono::Utc;
-
     use shared_messages::resources::Resources;
-
     use super::Operation;
 
     impl Operation {

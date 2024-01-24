@@ -419,6 +419,7 @@ pub mod tests {
 
     use shared_messages::{TimePeriod, WorkOrderPeriodMapping, WorkOrderStatusInPeriod};
 
+
     #[test]
     fn test_update_scheduler_state() {
         let period_string: String = "2023-W47-48".to_string();
@@ -715,4 +716,5 @@ pub mod tests {
 
     #[test]
     fn test_handler_message_to_frontend() {}
+
 }

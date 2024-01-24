@@ -229,6 +229,7 @@ mod tests {
     use shared_messages::resources::Resources;
     use shared_messages::{FrontendInputSchedulerMessage, ManualResource, SchedulerRequests};
 
+
     #[test]
     fn test_scheduler_agent_initialization() {
         //todo!()
@@ -341,7 +342,9 @@ mod tests {
             manual_resources: vec![
                 ManualResource {
                     resource: Resources::new_from_string("MTN-MECH".to_string()),
+
                     period: shared_messages::TimePeriod {
+
                         period_string: Period::new_from_string(&period.get_period_string())
                             .unwrap()
                             .get_period_string(),
@@ -350,6 +353,7 @@ mod tests {
                 },
                 ManualResource {
                     resource: Resources::new_from_string("MTN-ELEC".to_string()),
+
                     period: shared_messages::TimePeriod {
                         period_string: Period::new_from_string(&period.get_period_string())
                             .unwrap()
