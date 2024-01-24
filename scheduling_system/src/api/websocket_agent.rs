@@ -4,12 +4,13 @@ use actix_web_actors::ws;
 use std::sync::Arc;
 use tracing::info;
 
+use crate::agents::scheduler_agent::scheduler_message::GetWorkerNumberMessage;
 use crate::agents::scheduler_agent::scheduler_message::LoadingMessage;
 use crate::agents::scheduler_agent::scheduler_message::OverviewMessage;
 use crate::agents::scheduler_agent::scheduler_message::PeriodMessage;
 use crate::agents::scheduler_agent::scheduler_message::SetAgentAddrMessage;
 use crate::agents::scheduler_agent::SchedulerAgent;
-use crate::api::FrontendMessages;
+use shared_messages::FrontendMessages;
 
 pub struct WebSocketAgent {
     scheduler_agent_addr: Arc<Addr<SchedulerAgent>>,
@@ -40,27 +41,21 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                         let addr = ctx.address();
                         self.scheduler_agent_addr
                             .do_send(SetAgentAddrMessage { addr });
-                        ctx.text(text)
                     }
                     Ok(FrontendMessages::WorkPlanner) => {
                         println!("WorkPlannerAgent received WorkPlannerMessage");
-                        ctx.text(text)
                     }
                     Ok(FrontendMessages::Worker) => {
                         println!("WorkerAgent received WorkerMessage");
-                        ctx.text(text)
                     }
                     Ok(FrontendMessages::Activity) => {
                         println!("ActivityAgent received ActivityMessage");
-                        ctx.text(text)
                     }
                     Ok(FrontendMessages::WorkCenter) => {
                         println!("WorkCenterAgent received WorkCenterMessage");
-                        ctx.text(text)
                     }
                     Ok(FrontendMessages::WorkOrder) => {
                         println!("WorkOrderAgent received WorkOrderMessage");
-                        ctx.text(text)
                     }
                     Err(e) => {
                         println!("Error: {}", e);
@@ -102,6 +97,17 @@ impl Handler<OverviewMessage> for WebSocketAgent {
         info!(scheduler_front_end_message.websocket = ?msg.scheduling_overview_data.len(), "Scheduler Table data sent to frontend");
         let serialized_message = serde_json::to_string(&msg).unwrap();
 
+        // Send the serialized message to the frontend
+        ctx.text(serialized_message);
+    }
+}
+
+impl Handler<GetWorkerNumberMessage> for WebSocketAgent {
+    type Result = ();
+
+    fn handle(&mut self, msg: GetWorkerNumberMessage, ctx: &mut Self::Context) -> Self::Result {
+        // Serialize the message
+        let serialized_message = serde_json::to_string(&msg).unwrap();
         // Send the serialized message to the frontend
         ctx.text(serialized_message);
     }

@@ -9,9 +9,9 @@ use crate::agents::scheduler_agent::scheduler_algorithm::PriorityQueues;
 use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
 use crate::agents::scheduler_agent::SchedulerAgent;
 use crate::models::time_environment::period::Period;
-use crate::models::worker_environment::resources::Resources;
 use crate::models::SchedulingEnvironment;
 use crate::models::WorkOrders;
+use shared_messages::resources::Resources;
 
 // We should not clone in the work orders here. They should reference the same thing to work
 // properly.

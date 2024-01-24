@@ -32,7 +32,7 @@ use crate::models::work_order::{
     status_codes::MaterialStatus,
 };
 
-use super::worker_environment::resources::Resources;
+use shared_messages::resources::Resources;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrder {

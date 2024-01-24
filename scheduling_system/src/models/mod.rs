@@ -73,6 +73,7 @@ impl SchedulingEnvironment {
     pub fn get_worker_environment(&self) -> &WorkerEnvironment {
         &self.worker_environment
     }
+
 }
 
 impl SchedulingEnvironment {

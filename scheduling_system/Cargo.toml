@@ -12,6 +12,7 @@ debug = 1
 criterion = "0.5"
 
 [dependencies]
+shared_messages = { path = "../shared_messages" }
 chrono = { version = "0.4", features = ["serde"] }
 calamine = "0"
 regex = "1.10"

@@ -9,8 +9,8 @@ use tracing::{debug, event, span, Level};
 
 use crate::agents::scheduler_agent::scheduler_message::InputSchedulerMessage;
 use crate::models::time_environment::period::Period;
-use crate::models::worker_environment::resources::Resources;
 use crate::models::WorkOrders;
+use shared_messages::resources::Resources;
 
 #[derive(Debug)]
 pub struct SchedulerAgentAlgorithm {

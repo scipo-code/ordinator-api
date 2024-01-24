@@ -9,15 +9,9 @@ use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
 use crate::agents::scheduler_agent::{self, SchedulerAgent};
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::time_environment::period::Period;
-use crate::models::worker_environment::resources::Resources;
+use shared_messages::resources::Resources;
 
-#[derive(Deserialize, Debug)]
-#[serde(tag = "scheduler_message_type")]
-pub enum SchedulerRequests {
-    Input(FrontendInputSchedulerMessage),
-    Period(FrontendUpdatePeriod),
-    WorkPlanner(WorkPlannerMessage),
-}
+use shared_messages::{FrontendInputSchedulerMessage, SchedulerRequests, WorkOrderPeriodMapping};
 
 #[derive(Debug)]
 pub struct InputSchedulerMessage {
@@ -38,72 +32,6 @@ impl InputSchedulerMessage {
     }
 }
 
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct SetAgentAddrMessage<T: actix::Actor> {
-    pub addr: Addr<T>,
-}
-
-#[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug)]
-pub struct WorkPlannerMessage {
-    pub cannot_schedule: Vec<u32>,
-    under_loaded_work_centers: Vec<String>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct FrontendInputSchedulerMessage {
-    pub name: String,
-    pub platform: String,
-    pub work_order_period_mappings: Vec<WorkOrderPeriodMapping>,
-    pub manual_resources: Vec<ManualResource>,
-    pub period_lock: HashMap<String, bool>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ManualResource {
-    pub resource: Resources,
-    pub period: TimePeriod,
-    pub capacity: f64,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct TimePeriod {
-    pub period_string: String,
-}
-
-impl TimePeriod {
-    pub fn get_period_string(&self) -> String {
-        self.period_string.clone()
-    }
-}
-
-/// This is a message that is sent from the scheduler frontend to the scheduler agent requesting an
-/// update of the periods that we schedule over. What is it actually that we are getting from the
-/// frontend here? We will only get a single period from the frontend. Or maybe multiple. The
-/// important thing to remember is that we cannot simply set the periods in the scheduler agent
-/// we have to update them. This is crucial. Also, should we use a hashmap or a vector for the
-/// periods? I think that a vector is the better approach for now. A hashmap would make sense if we
-/// were to have overlapping periods or non-continuous periods. Which is not the case for now. This
-/// means that we will skip that part.
-#[derive(Deserialize, Debug)]
-pub struct UpdatePeriod {
-    pub periods: Vec<Period>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct WorkOrderPeriodMapping {
-    pub work_order_number: u32,
-    pub period_status: WorkOrderStatusInPeriod,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct WorkOrderStatusInPeriod {
-    pub locked_in_period: Option<TimePeriod>,
-    #[serde(deserialize_with = "deserialize_period_set")]
-    pub excluded_from_periods: HashSet<String>,
-}
-
 struct SchedulerResources<'a>(&'a HashMap<(Resources, String), f64>);
 
 impl Display for SchedulerResources<'_> {
@@ -118,10 +46,6 @@ impl Display for SchedulerResources<'_> {
         }
         write!(f, "--------------------------")
     }
-}
-
-impl Message for SchedulerRequests {
-    type Result = ();
 }
 
 impl Display for InputSchedulerMessage {
@@ -141,20 +65,6 @@ impl Display for InputSchedulerMessage {
             self.period_lock
         )
     }
-}
-
-// The problem with using the period ID is the it is not static and changes every period. There are
-// multiple approaches to be chosen here. One is to use the period ID and the other is to use the
-// I think that using the period ID is the best approch but it will require some changes to the
-// structure of the scheduler agent as we will have to force additional structure on the application
-// Hmm... I feel like this is one of the moments where I know that it is the right thing to do but
-// it also feels like a distraction from the main task at hand. This is a very tricky situation but
-// handling it correctly is crucial for the future of the application. I think that I will go with
-// Hmm... Should I just send all the periods to the backend again? I think that I will do that. I
-#[derive(Deserialize, Debug)]
-#[serde(tag = "scheduler_message_type")]
-pub struct FrontendUpdatePeriod {
-    periods: Vec<u32>,
 }
 
 /// There is something fundamentally wrong here. We should not be using strings as keys and we
@@ -180,22 +90,17 @@ impl From<FrontendInputSchedulerMessage> for InputSchedulerMessage {
     }
 }
 
-impl Display for FrontendInputSchedulerMessage {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Name: {}, 
-            \nPlatform: {}, 
-            \nWorkorder period mappings: {}, 
-            \nManual Resource: {},
-            \nPeriod Lock: {:?}",
-            self.name,
-            self.platform,
-            self.work_order_period_mappings.len(),
-            self.manual_resources.len(),
-            self.period_lock
-        )
-    }
+/// This is a message that is sent from the scheduler frontend to the scheduler agent requesting an
+/// update of the periods that we schedule over. What is it actually that we are getting from the
+/// frontend here? We will only get a single period from the frontend. Or maybe multiple. The
+/// important thing to remember is that we cannot simply set the periods in the scheduler agent
+/// we have to update them. This is crucial. Also, should we use a hashmap or a vector for the
+/// periods? I think that a vector is the better approach for now. A hashmap would make sense if we
+/// were to have overlapping periods or non-continuous periods. Which is not the case for now. This
+/// means that we will skip that part.
+#[derive(Deserialize, Debug)]
+pub struct UpdatePeriod {
+    pub periods: Vec<Period>,
 }
 
 #[derive(Message)]
@@ -435,8 +340,38 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
                 self.scheduler_agent_algorithm.set_periods(periods.to_vec());
                 ctx.notify(MessageToFrontend::Period);
             }
+            SchedulerRequests::GetWorkerNumber => {
+                let number_of_workers = self
+                    .scheduling_environment
+                    .lock()
+                    .unwrap()
+                    .get_worker_environment()
+                    .get_crew()
+                    .as_ref()
+                    .unwrap()
+                    .get_workers()
+                    .len();
+
+                let message = GetWorkerNumberMessage {
+                    frontend_message_type: "frontend_scheduler_worker_number".to_string(),
+                    number_of_workers,
+                };
+                dbg!(message.clone());
+
+                match self.ws_agent_addr {
+                    Some(ref ws_addr) => ws_addr.do_send(message),
+                    None => panic!("No WebSocketAgentAddr set yet"),
+                }
+            }
         }
     }
+}
+
+#[derive(Message, Serialize, Clone, Debug)]
+#[rtype(result = "()")]
+pub struct GetWorkerNumberMessage {
+    frontend_message_type: String,
+    number_of_workers: usize,
 }
 
 impl Handler<SetAgentAddrMessage<WebSocketAgent>> for SchedulerAgent {
@@ -451,16 +386,10 @@ impl Handler<SetAgentAddrMessage<WebSocketAgent>> for SchedulerAgent {
     }
 }
 
-fn deserialize_period_set<'de, D>(deserializer: D) -> Result<HashSet<String>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let vec = Vec::<TimePeriod>::deserialize(deserializer)?;
-    let mut set = HashSet::new();
-    for time_period_map in vec {
-        set.insert(time_period_map.period_string);
-    }
-    Ok(set)
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct SetAgentAddrMessage<T: actix::Actor> {
+    pub addr: Addr<T>,
 }
 
 #[cfg(test)]

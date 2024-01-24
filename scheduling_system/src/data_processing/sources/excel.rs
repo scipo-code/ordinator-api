@@ -18,12 +18,12 @@ use crate::models::work_order::revision::Revision;
 use crate::models::work_order::status_codes::{MaterialStatus, StatusCodes};
 use crate::models::work_order::unloading_point::UnloadingPoint;
 use crate::models::work_order::WorkOrder;
-use crate::models::worker_environment::resources::Resources;
 use crate::models::worker_environment::WorkerEnvironment;
 use crate::models::{SchedulingEnvironment, WorkOrders};
 use chrono::{
     naive, DateTime, Datelike, Duration, NaiveDate, NaiveTime, TimeZone, Timelike, Utc, Weekday,
 };
+use shared_messages::resources::Resources;
 
 extern crate regex;
 
