@@ -9,6 +9,7 @@ use crate::agents::scheduler_agent::scheduler_message::LoadingMessage;
 use crate::agents::scheduler_agent::scheduler_message::OverviewMessage;
 use crate::agents::scheduler_agent::scheduler_message::PeriodMessage;
 use crate::agents::scheduler_agent::scheduler_message::SetAgentAddrMessage;
+use crate::agents::scheduler_agent::scheduler_message::SuccesMessage;
 use crate::agents::scheduler_agent::SchedulerAgent;
 use shared_messages::FrontendMessages;
 
@@ -37,10 +38,12 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                 match msg_type {
                     Ok(FrontendMessages::Scheduler(scheduler_input)) => {
                         info!(scheduler_front_end_message = %scheduler_input, "SchedulerAgent received SchedulerMessage");
-                        self.scheduler_agent_addr.do_send(scheduler_input);
+                        let response = self.scheduler_agent_addr.send(scheduler_input);
                         let addr = ctx.address();
                         self.scheduler_agent_addr
                             .do_send(SetAgentAddrMessage { addr });
+                        ctx.wait(response);
+                        ctx.text("success");
                     }
                     Ok(FrontendMessages::WorkPlanner) => {
                         println!("WorkPlannerAgent received WorkPlannerMessage");
@@ -117,6 +120,17 @@ impl Handler<LoadingMessage> for WebSocketAgent {
     type Result = ();
 
     fn handle(&mut self, msg: LoadingMessage, ctx: &mut Self::Context) -> Self::Result {
+        // Serialize the message
+        let serialized_message = serde_json::to_string(&msg).unwrap();
+        // Send the serialized message to the frontend
+        ctx.text(serialized_message);
+    }
+}
+
+impl Handler<SuccesMessage> for WebSocketAgent {
+    type Result = ();
+
+    fn handle(&mut self, msg: SuccesMessage, ctx: &mut Self::Context) -> Self::Result {
         // Serialize the message
         let serialized_message = serde_json::to_string(&msg).unwrap();
         // Send the serialized message to the frontend

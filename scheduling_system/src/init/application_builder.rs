@@ -25,11 +25,9 @@ impl ApplicationBuilder {
     }
 
     pub async fn build(self) -> JoinHandle<()> {
-        dbg!();
         let scheduler_agent_addr_clone = self.scheduler_agent_addr.clone();
-        let server = tokio::spawn(async move {
+        tokio::spawn(async move {
             info!("Server running at http://127.0.0.1:8001/");
-            dbg!();
             HttpServer::new(move || {
                 let current_thread_id = thread::current().id();
                 trace!(?current_thread_id, "initializing application");
@@ -47,7 +45,6 @@ impl ApplicationBuilder {
             .run()
             .await
             .expect("Websocket server could not be started.")
-        });
-        server
+        })
     }
 }

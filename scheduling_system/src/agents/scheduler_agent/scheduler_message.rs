@@ -67,12 +67,6 @@ impl Display for InputSchedulerMessage {
     }
 }
 
-/// There is something fundamentally wrong here. We should not be using strings as keys and we
-/// should not be hashing Period or Resources. In the algorithm we should be using an array or
-/// arrays, but that is not the goal for this part of the program, here understanding the logic is
-/// more important. That means we should be using Resource and Period as keys
-///
-/// I think that I should just
 impl From<FrontendInputSchedulerMessage> for InputSchedulerMessage {
     fn from(raw: FrontendInputSchedulerMessage) -> Self {
         let mut manual_resources_map: HashMap<(Resources, String), f64> = HashMap::new();
@@ -90,14 +84,6 @@ impl From<FrontendInputSchedulerMessage> for InputSchedulerMessage {
     }
 }
 
-/// This is a message that is sent from the scheduler frontend to the scheduler agent requesting an
-/// update of the periods that we schedule over. What is it actually that we are getting from the
-/// frontend here? We will only get a single period from the frontend. Or maybe multiple. The
-/// important thing to remember is that we cannot simply set the periods in the scheduler agent
-/// we have to update them. This is crucial. Also, should we use a hashmap or a vector for the
-/// periods? I think that a vector is the better approach for now. A hashmap would make sense if we
-/// were to have overlapping periods or non-continuous periods. Which is not the case for now. This
-/// means that we will skip that part.
 #[derive(Deserialize, Debug)]
 pub struct UpdatePeriod {
     pub periods: Vec<Period>,
@@ -143,8 +129,8 @@ impl Handler<ScheduleIteration> for SchedulerAgent {
                 message = "change occured in optimized work orders"
             );
 
-            ctx.notify(MessageToFrontend::Overview);
-            ctx.notify(MessageToFrontend::Loading);
+            // ctx.notify(MessageToFrontend::Overview);
+            // ctx.notify(MessageToFrontend::Loading);
 
             self.scheduler_agent_algorithm.set_changed(false);
         }
@@ -160,6 +146,13 @@ enum MessageToFrontend {
 }
 
 impl Message for MessageToFrontend {
+    type Result = ();
+}
+
+#[derive(Serialize)]
+pub struct SuccesMessage {}
+
+impl Message for SuccesMessage {
     type Result = ();
 }
 
@@ -208,18 +201,18 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
         match msg {
             MessageToFrontend::Overview => {
                 let scheduling_overview_data = self.extract_state_to_scheduler_overview().clone();
-                let scheduler_frontend_overview_message = OverviewMessage {
+                let overview_message = OverviewMessage {
                     frontend_message_type: "frontend_scheduler_overview".to_string(),
                     scheduling_overview_data,
                 };
                 trace!(
                     scheduler_message = "scheduler overview message",
                     "scheduler_frontend_overview_message: {:?}",
-                    scheduler_frontend_overview_message
+                    overview_message
                 );
                 match self.ws_agent_addr.as_ref() {
                     Some(ws_agent) => {
-                        ws_agent.do_send(scheduler_frontend_overview_message);
+                        ws_agent.do_send(overview_message);
                     }
                     None => {
                         info!("No WebSocketAgentAddr set yet, so no message sent to frontend")
@@ -280,7 +273,7 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
 }
 
 impl Handler<SchedulerRequests> for SchedulerAgent {
-    type Result = ();
+    type Result = shared_messages::Response;
 
     fn handle(&mut self, msg: SchedulerRequests, ctx: &mut Self::Context) -> Self::Result {
         match msg {
@@ -291,10 +284,8 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
                     message = %input_message,
                     "received a message from the frontend"
                 );
-                self.scheduler_agent_algorithm.log_optimized_work_orders();
                 self.scheduler_agent_algorithm
                     .update_scheduler_algorithm_state(input_message);
-                self.scheduler_agent_algorithm.log_optimized_work_orders();
 
                 if self
                     .scheduler_agent_algorithm
@@ -305,12 +296,14 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
                 } else {
                     info!("2100023393 is not in the optimized work orders");
                 }
+                shared_messages::Response::Success
             }
             SchedulerRequests::WorkPlanner(msg) => {
                 info!(
                     "SchedulerAgentReceived a WorkPlannerMessage message: {:?}",
                     msg
                 );
+                shared_messages::Response::Success
             }
             // We should handle the logic of the period update here. Here we have the information
             // available to update the state based on the period update. We should also send the
@@ -321,14 +314,17 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
             // is incrementing the state and then when the second message is handled it is, it is
             // handled using the old state again, so of course it is not going to work. And have to
             // be handled in a different way.
-            SchedulerRequests::Period(msg) => {
-                info!("SchedulerAgentReceived a PeriodMessage message: {:?}", msg);
+            SchedulerRequests::Period(frontend_update_periods) => {
+                info!(
+                    "SchedulerAgentReceived a PeriodMessage message: {:?}",
+                    frontend_update_periods
+                );
 
                 let mut scheduling_env_lock = self.scheduling_environment.lock().unwrap();
 
                 let periods = scheduling_env_lock.get_mut_periods();
 
-                for period_id in msg.periods.iter() {
+                for period_id in frontend_update_periods.periods.iter() {
                     if periods.last().unwrap().get_id() + 1 == *period_id {
                         let new_period =
                             periods.last().unwrap().clone() + chrono::Duration::weeks(2);
@@ -338,7 +334,7 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
                     }
                 }
                 self.scheduler_agent_algorithm.set_periods(periods.to_vec());
-                ctx.notify(MessageToFrontend::Period);
+                shared_messages::Response::Success
             }
             SchedulerRequests::GetWorkerNumber => {
                 let number_of_workers = self
@@ -356,10 +352,12 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
                     frontend_message_type: "frontend_scheduler_worker_number".to_string(),
                     number_of_workers,
                 };
-                dbg!(message.clone());
 
                 match self.ws_agent_addr {
-                    Some(ref ws_addr) => ws_addr.do_send(message),
+                    Some(ref ws_addr) => {
+                        ws_addr.do_send(message);
+                        shared_messages::Response::Success
+                    }
                     None => panic!("No WebSocketAgentAddr set yet"),
                 }
             }
@@ -418,7 +416,6 @@ pub mod tests {
     };
 
     use shared_messages::{TimePeriod, WorkOrderPeriodMapping, WorkOrderStatusInPeriod};
-
 
     #[test]
     fn test_update_scheduler_state() {
@@ -716,5 +713,4 @@ pub mod tests {
 
     #[test]
     fn test_handler_message_to_frontend() {}
-
 }
