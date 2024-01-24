@@ -1,0 +1,26 @@
+{
+  "message_type": "Scheduler",
+  "scheduler_message_type": "Input",
+  "name": "Brian",
+  "platform": "DAN",
+  "work_order_period_mappings": [
+    {
+      "work_order_number": 2100022680,
+      "period_status": {
+        "locked_in_period": {
+          "period_string": "2024-W7-8"
+        },
+        "excluded_from_periods": [
+          {
+            "period_string": "2024-W3-4"
+          },
+          {
+            "period_string": "2024-W5-6"
+          }
+        ]
+      }
+    }
+  ],
+  "manual_resources": [],
+  "period_lock": {}
+}
