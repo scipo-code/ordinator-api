@@ -1,3 +1,4 @@
+use actix::dev::MessageResponse;
 use actix::prelude::*;
 use actix_web::Result;
 use actix_web_actors::ws;
@@ -38,12 +39,15 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                 match msg_type {
                     Ok(FrontendMessages::Scheduler(scheduler_input)) => {
                         info!(scheduler_front_end_message = %scheduler_input, "SchedulerAgent received SchedulerMessage");
-                        let response = self.scheduler_agent_addr.send(scheduler_input);
+                        self.scheduler_agent_addr.do_send(scheduler_input);
+
+                        // What is it that we want here? I think that the main goal is to create
+                        // something that sends a message and then waits for a response from the
+                        // scheduler agent. And this response should then be send back throught
+                        // the websocket.
                         let addr = ctx.address();
                         self.scheduler_agent_addr
                             .do_send(SetAgentAddrMessage { addr });
-                        ctx.wait(response);
-                        ctx.text("success");
                     }
                     Ok(FrontendMessages::WorkPlanner) => {
                         println!("WorkPlannerAgent received WorkPlannerMessage");
@@ -144,6 +148,21 @@ impl Handler<PeriodMessage> for WebSocketAgent {
     fn handle(&mut self, msg: PeriodMessage, ctx: &mut Self::Context) -> Self::Result {
         // Serialize the message
         let serialized_message = serde_json::to_string(&msg).unwrap();
+        // Send the serialized message to the frontend
+        ctx.text(serialized_message);
+    }
+}
+
+impl Handler<shared_messages::Response> for WebSocketAgent {
+    type Result = ();
+
+    fn handle(
+        &mut self,
+        response: shared_messages::Response,
+        ctx: &mut Self::Context,
+    ) -> Self::Result {
+        // Serialize the message
+        let serialized_message = serde_json::to_string(&response.to_string()).unwrap();
         // Send the serialized message to the frontend
         ctx.text(serialized_message);
     }

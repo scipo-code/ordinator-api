@@ -222,7 +222,16 @@ fn transform_hashmap_to_nested_hashmap(
 
 #[cfg(test)]
 mod tests {
+
+    use actix_web::web;
+    use actix_web::App;
+    use actix_web::Error;
+    use actix_web::HttpRequest;
+    use actix_web::HttpResponse;
+    use actix_web::HttpServer;
+    use actix_web_actors::ws;
     use chrono::{TimeZone, Utc};
+    use tests::scheduler_message::SetAgentAddrMessage;
 
     use super::scheduler_message::tests::TestRequest;
     use super::scheduler_message::tests::TestResponse;
@@ -399,11 +408,6 @@ mod tests {
         );
 
         let live_scheduler_agent = scheduler_agent.start();
-
-        live_scheduler_agent
-            .send(SchedulerRequests::Input(frontend_input_scheduler_message))
-            .await
-            .unwrap();
 
         let test_response: TestResponse = live_scheduler_agent
             .send(TestRequest {})

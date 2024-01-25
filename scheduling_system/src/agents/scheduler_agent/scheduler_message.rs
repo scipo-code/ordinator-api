@@ -273,7 +273,7 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
 }
 
 impl Handler<SchedulerRequests> for SchedulerAgent {
-    type Result = shared_messages::Response;
+    type Result = ();
 
     fn handle(&mut self, msg: SchedulerRequests, ctx: &mut Self::Context) -> Self::Result {
         match msg {
@@ -287,23 +287,18 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
                 self.scheduler_agent_algorithm
                     .update_scheduler_algorithm_state(input_message);
 
-                if self
-                    .scheduler_agent_algorithm
-                    .get_optimized_work_order(&2100023393)
-                    .is_some()
-                {
-                    info!("2100023393 is in the optimized work orders");
-                } else {
-                    info!("2100023393 is not in the optimized work orders");
+                match self.ws_agent_addr.as_ref() {
+                    Some(addr) => addr.do_send(shared_messages::Response::Success),
+                    None => {
+                        println!("No WebSocketAgentAddr set yet, so no message sent to frontend")
+                    }
                 }
-                shared_messages::Response::Success
             }
             SchedulerRequests::WorkPlanner(msg) => {
                 info!(
                     "SchedulerAgentReceived a WorkPlannerMessage message: {:?}",
                     msg
                 );
-                shared_messages::Response::Success
             }
             // We should handle the logic of the period update here. Here we have the information
             // available to update the state based on the period update. We should also send the
@@ -334,7 +329,6 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
                     }
                 }
                 self.scheduler_agent_algorithm.set_periods(periods.to_vec());
-                shared_messages::Response::Success
             }
             SchedulerRequests::GetWorkerNumber => {
                 let number_of_workers = self
@@ -356,7 +350,6 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
                 match self.ws_agent_addr {
                     Some(ref ws_addr) => {
                         ws_addr.do_send(message);
-                        shared_messages::Response::Success
                     }
                     None => panic!("No WebSocketAgentAddr set yet"),
                 }

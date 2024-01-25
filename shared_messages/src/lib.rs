@@ -29,13 +29,28 @@ pub enum SchedulerRequests {
 }
 
 impl Message for SchedulerRequests {
-    type Result = Response;
+    type Result = ();
 }
 
 #[derive(Debug)]
 pub enum Response {
     Success,
     Failure,
+}
+
+impl Message for Response {
+    type Result = ();
+}
+
+impl ToString for Response {
+    fn to_string(&self) -> String {
+        match self {
+            Response::Success => "Command was successfully received and integrated".to_string(),
+            Response::Failure => {
+                "Command was failed to be either received or integrated".to_string()
+            }
+        }
+    }
 }
 
 impl<A, M> MessageResponse<A, M> for Response
