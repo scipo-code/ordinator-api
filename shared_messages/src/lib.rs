@@ -14,9 +14,6 @@ pub enum FrontendMessages {
     Scheduler(SchedulerRequests),
     WorkPlanner,
     Worker,
-    Activity,
-    WorkCenter,
-    WorkOrder,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
