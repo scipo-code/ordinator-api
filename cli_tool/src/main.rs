@@ -35,20 +35,17 @@ fn main() {
 
     let json_message: String = fs::read_to_string(path).expect("Unable to read message json file");
 
-    dbg!(json_message.clone());
     let scheduler_request: FrontendMessages =
         serde_json::from_str(&json_message).expect("Unable to deserialize scheduler request");
 
     let scheduler_request_json = serde_json::to_string(&scheduler_request).unwrap();
 
-    dbg!(scheduler_request);
-    dbg!(scheduler_request_json.clone());
     // Send a message to the server
     socket
-        .write_message(Message::Text(scheduler_request_json))
+        .send(Message::Text(scheduler_request_json))
         .expect("Failed to send a message");
 
-    let response_1 = socket.read_message().expect("Failed to read message");
+    let response_1 = socket.read().expect("Failed to read message");
 
     println!("Received: {}", response_1);
     // Close the connection
