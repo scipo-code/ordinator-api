@@ -19,6 +19,7 @@ pub enum FrontendMessages {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "scheduler_message_type")]
 pub enum SchedulerRequests {
+    Status,
     Input(FrontendInputSchedulerMessage),
     Period(FrontendUpdatePeriod),
     WorkPlanner(WorkPlannerMessage),
@@ -31,7 +32,7 @@ impl Message for SchedulerRequests {
 
 #[derive(Debug)]
 pub enum Response {
-    Success,
+    Success(Option<String>),
     Failure,
 }
 
@@ -42,7 +43,10 @@ impl Message for Response {
 impl ToString for Response {
     fn to_string(&self) -> String {
         match self {
-            Response::Success => "Command was successfully received and integrated".to_string(),
+            Response::Success(string) => match string {
+                Some(string) => string.clone(),
+                None => "Command was successfully received and integrated".to_string(),
+            },
             Response::Failure => {
                 "Command was failed to be either received or integrated".to_string()
             }
@@ -151,6 +155,10 @@ impl Display for FrontendInputSchedulerMessage {
 impl fmt::Display for SchedulerRequests {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), std::fmt::Error> {
         match self {
+            SchedulerRequests::Status => {
+                write!(f, "status")?;
+                Ok(())
+            }
             SchedulerRequests::Input(input) => {
                 write!(f, "name: {}", input.name)?;
 

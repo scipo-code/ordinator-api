@@ -277,6 +277,20 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
 
     fn handle(&mut self, msg: SchedulerRequests, ctx: &mut Self::Context) -> Self::Result {
         match msg {
+            SchedulerRequests::Status => {
+                let scheduling_status = self.scheduling_environment.lock().unwrap().to_string();
+
+                match self.ws_agent_addr.as_ref() {
+                    Some(addr) => {
+                        addr.do_send(shared_messages::Response::Success(Some(scheduling_status)))
+                    }
+                    None => {
+                        println!("No WebSocketAgentAddr set yet, so no message sent to frontend")
+                    }
+                }
+
+                info!("SchedulerAgentReceived a Status message");
+            }
             SchedulerRequests::Input(msg) => {
                 let input_message: InputSchedulerMessage = msg.into();
                 info!(
@@ -288,7 +302,7 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
                     .update_scheduler_algorithm_state(input_message);
 
                 match self.ws_agent_addr.as_ref() {
-                    Some(addr) => addr.do_send(shared_messages::Response::Success),
+                    Some(addr) => addr.do_send(shared_messages::Response::Success(None)),
                     None => {
                         println!("No WebSocketAgentAddr set yet, so no message sent to frontend")
                     }

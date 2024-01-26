@@ -123,7 +123,7 @@ impl WorkOrders {
 
 impl fmt::Display for SchedulingEnvironment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {                 
-        write!(f, "The Scheduling Environment is currently comprised of \n  work_orders: {},\n  number of worker entries: {},\n  number of periods: {}", 
+        write!(f, "The Scheduling Environment is currently comprised of \n  number of work orders: {},\n  number of worker entries: {},\n  number of periods: {}", 
         self.work_orders.inner.len(), 
         match self.get_worker_environment().get_crew().as_ref() {
             Some(crew) => crew.get_workers().len(),
