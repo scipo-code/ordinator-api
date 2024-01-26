@@ -1,3 +1,4 @@
+use actix::dev::MessageResponse;
 use actix::prelude::*;
 use actix_web::Result;
 use actix_web_actors::ws;
@@ -9,6 +10,7 @@ use crate::agents::scheduler_agent::scheduler_message::LoadingMessage;
 use crate::agents::scheduler_agent::scheduler_message::OverviewMessage;
 use crate::agents::scheduler_agent::scheduler_message::PeriodMessage;
 use crate::agents::scheduler_agent::scheduler_message::SetAgentAddrMessage;
+use crate::agents::scheduler_agent::scheduler_message::SuccesMessage;
 use crate::agents::scheduler_agent::SchedulerAgent;
 use shared_messages::FrontendMessages;
 
@@ -38,6 +40,11 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                     Ok(FrontendMessages::Scheduler(scheduler_input)) => {
                         info!(scheduler_front_end_message = %scheduler_input, "SchedulerAgent received SchedulerMessage");
                         self.scheduler_agent_addr.do_send(scheduler_input);
+
+                        // What is it that we want here? I think that the main goal is to create
+                        // something that sends a message and then waits for a response from the
+                        // scheduler agent. And this response should then be send back throught
+                        // the websocket.
                         let addr = ctx.address();
                         self.scheduler_agent_addr
                             .do_send(SetAgentAddrMessage { addr });
@@ -124,12 +131,38 @@ impl Handler<LoadingMessage> for WebSocketAgent {
     }
 }
 
+impl Handler<SuccesMessage> for WebSocketAgent {
+    type Result = ();
+
+    fn handle(&mut self, msg: SuccesMessage, ctx: &mut Self::Context) -> Self::Result {
+        // Serialize the message
+        let serialized_message = serde_json::to_string(&msg).unwrap();
+        // Send the serialized message to the frontend
+        ctx.text(serialized_message);
+    }
+}
+
 impl Handler<PeriodMessage> for WebSocketAgent {
     type Result = ();
 
     fn handle(&mut self, msg: PeriodMessage, ctx: &mut Self::Context) -> Self::Result {
         // Serialize the message
         let serialized_message = serde_json::to_string(&msg).unwrap();
+        // Send the serialized message to the frontend
+        ctx.text(serialized_message);
+    }
+}
+
+impl Handler<shared_messages::Response> for WebSocketAgent {
+    type Result = ();
+
+    fn handle(
+        &mut self,
+        response: shared_messages::Response,
+        ctx: &mut Self::Context,
+    ) -> Self::Result {
+        // Serialize the message
+        let serialized_message = serde_json::to_string(&response.to_string()).unwrap();
         // Send the serialized message to the frontend
         ctx.text(serialized_message);
     }
