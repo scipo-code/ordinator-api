@@ -31,7 +31,7 @@ fn main() {
     let (mut socket, _response) =
         connect(server_url).expect("Cannot connect to the scheduling system");
 
-    let path = Path::new("./cli_tool/json_responses/scheduler_requests/input/frontend_input_scheduler_message/frontend_input_scheduler_message.json");
+    let path = Path::new("./imperium/json_responses/scheduler_requests/input/frontend_input_scheduler_message/frontend_input_scheduler_message.json");
 
     let json_message: String = fs::read_to_string(path).expect("Unable to read message json file");
 

@@ -2,29 +2,29 @@ name: Rust Test
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build_and_test:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
-    - name: Run tests
-      run: cargo test --verbose
-    - name: Run clippy
-      run: cargo clippy --verbose
-    - name: Install cargo-audit
-      run: cargo install cargo-audit
-    - name: Audit 
-      run: cargo audit
-    - name: Tarpaulin Install
-      run: cargo install cargo-tarpaulin
-    - name: tarpaulin coverage
-      run: cargo tarpaulin --out Xml
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Run tests
+        run: cargo test --verbose
+      - name: Run clippy
+        run: cargo clippy --verbose
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: Audit
+        run: cargo audit
+      # - name: Tarpaulin Install
+      #   run: cargo install cargo-tarpaulin
+      # - name: tarpaulin coverage
+      #   run: cargo tarpaulin --out Xml
