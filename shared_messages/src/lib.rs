@@ -1,10 +1,10 @@
+use actix::dev::MessageResponse;
 use actix::prelude::*;
 use serde::Deserializer;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::{self, Display};
-
 pub mod resources;
 use crate::resources::Resources;
 
@@ -30,6 +30,40 @@ pub enum SchedulerRequests {
 
 impl Message for SchedulerRequests {
     type Result = ();
+}
+
+#[derive(Debug)]
+pub enum Response {
+    Success,
+    Failure,
+}
+
+impl Message for Response {
+    type Result = ();
+}
+
+impl ToString for Response {
+    fn to_string(&self) -> String {
+        match self {
+            Response::Success => "Command was successfully received and integrated".to_string(),
+            Response::Failure => {
+                "Command was failed to be either received or integrated".to_string()
+            }
+        }
+    }
+}
+
+impl<A, M> MessageResponse<A, M> for Response
+where
+    A: Actor,
+    M: Message<Result = Response>,
+{
+    fn handle(
+        self,
+        ctx: &mut <A as Actor>::Context,
+        msg: std::option::Option<actix::dev::OneshotSender<Response>>,
+    ) {
+    }
 }
 
 #[allow(dead_code)]
@@ -195,4 +229,3 @@ impl WorkOrderStatusInPeriod {
         }
     }
 }
-
