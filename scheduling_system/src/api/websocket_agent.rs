@@ -55,15 +55,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                     Ok(FrontendMessages::Worker) => {
                         println!("WorkerAgent received WorkerMessage");
                     }
-                    Ok(FrontendMessages::Activity) => {
-                        println!("ActivityAgent received ActivityMessage");
-                    }
-                    Ok(FrontendMessages::WorkCenter) => {
-                        println!("WorkCenterAgent received WorkCenterMessage");
-                    }
-                    Ok(FrontendMessages::WorkOrder) => {
-                        println!("WorkOrderAgent received WorkOrderMessage");
-                    }
                     Err(e) => {
                         println!("Error: {}", e);
                     }
