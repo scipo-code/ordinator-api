@@ -2,5 +2,5 @@
 members = [
     "scheduling_system",
     "shared_messages",
-    "cli_tool"
+    "imperium"
 ]
