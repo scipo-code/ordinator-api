@@ -279,6 +279,14 @@ impl Handler<SchedulerRequests> for SchedulerAgent {
         match msg {
             SchedulerRequests::Status => {
                 let scheduling_status = self.scheduling_environment.lock().unwrap().to_string();
+                let strategic_objective = self
+                    .scheduler_agent_algorithm
+                    .get_objective_value()
+                    .to_string();
+                let scheduling_status = format!(
+                    "{}\nWith objectives: \n  strategic objective of: {}",
+                    scheduling_status, strategic_objective
+                );
 
                 match self.ws_agent_addr.as_ref() {
                     Some(addr) => {

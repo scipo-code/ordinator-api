@@ -27,8 +27,35 @@ enum Commands {
     Operational,
 }
 
-#[derive(Subcommand)]
-enum StrategicSubcommands {}
+#[derive(Subcommand, Debug)]
+enum StrategicSubcommands {
+    /// overview of the strategic agent
+    Overview,
+    /// Scheduling commands
+    Scheduling {
+        #[clap(subcommand)]
+        subcommand: Option<SchedulingSubcommands>,
+    },
+    /// Resources commands
+    Resources,
+}
+
+#[derive(Subcommand, Debug)]
+enum SchedulingSubcommands {
+    /// List all work orders in a given period
+    WorkOrders { period: String },
+    /// Schedule a specific work order in a given period
+    Schedule { work_order: String, period: String },
+    /// Unschedule a specific work order with an optional period
+    Unschedule {
+        work_order: String,
+        period: Option<String>,
+    },
+    /// Lock a period from any scheduling changes
+    PeriodLock { period: String },
+    ///
+    Exclude { work_order: String, period: String },
+}
 
 fn main() {
     let cli = Cli::parse();
@@ -41,10 +68,12 @@ fn main() {
         }
         Some(Commands::Strategic { subcommand }) => match subcommand {
             Some(subcommand) => {
+                println!("{:?}", subcommand);
                 todo!()
             }
             None => {
                 todo!()
+                // get_objectives(&mut socket);
             }
         },
         Some(Commands::Tactical {}) => {
@@ -81,4 +110,19 @@ impl Commands {
 
         println!("{}", formatted_response);
     }
+
+    // fn get_objective(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
+    //     // let scheduler_request = SchedulerRequests::Objectives;
+    //     let front_end_message = FrontendMessages::Scheduler(scheduler_request);
+
+    //     let scheduler_request_json = serde_json::to_string(&front_end_message).unwrap();
+    //     socket
+    //         .send(Message::Text(scheduler_request_json))
+    //         .expect("Failed to send a message");
+
+    //     let response: Message = socket.read().expect("Failed to read message");
+    //     let formatted_response = response.to_string().replace("\\n", "\n").replace('\"', "");
+
+    //     println!("{}", formatted_response);
+    // }
 }
