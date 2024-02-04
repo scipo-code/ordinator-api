@@ -5,7 +5,6 @@ use actix_web_actors::ws;
 use std::sync::Arc;
 use tracing::info;
 
-use crate::agents::scheduler_agent::scheduler_message::GetWorkerNumberMessage;
 use crate::agents::scheduler_agent::scheduler_message::LoadingMessage;
 use crate::agents::scheduler_agent::scheduler_message::OverviewMessage;
 use crate::agents::scheduler_agent::scheduler_message::PeriodMessage;
@@ -37,7 +36,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                 let msg_type: Result<FrontendMessages, serde_json::Error> =
                     serde_json::from_str(&text);
                 match msg_type {
-                    Ok(FrontendMessages::Scheduler(scheduler_input)) => {
+                    Ok(FrontendMessages::Strategic(scheduler_input)) => {
                         info!(scheduler_front_end_message = %scheduler_input, "SchedulerAgent received SchedulerMessage");
                         self.scheduler_agent_addr.do_send(scheduler_input);
 
@@ -49,7 +48,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                         self.scheduler_agent_addr
                             .do_send(SetAgentAddrMessage { addr });
                     }
-                    Ok(FrontendMessages::WorkPlanner) => {
+                    Ok(FrontendMessages::Tactical) => {
                         println!("WorkPlannerAgent received WorkPlannerMessage");
                     }
                     Ok(FrontendMessages::Worker) => {
@@ -95,17 +94,6 @@ impl Handler<OverviewMessage> for WebSocketAgent {
         info!(scheduler_front_end_message.websocket = ?msg.scheduling_overview_data.len(), "Scheduler Table data sent to frontend");
         let serialized_message = serde_json::to_string(&msg).unwrap();
 
-        // Send the serialized message to the frontend
-        ctx.text(serialized_message);
-    }
-}
-
-impl Handler<GetWorkerNumberMessage> for WebSocketAgent {
-    type Result = ();
-
-    fn handle(&mut self, msg: GetWorkerNumberMessage, ctx: &mut Self::Context) -> Self::Result {
-        // Serialize the message
-        let serialized_message = serde_json::to_string(&msg).unwrap();
         // Send the serialized message to the frontend
         ctx.text(serialized_message);
     }

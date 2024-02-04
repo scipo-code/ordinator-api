@@ -1,8 +1,6 @@
 {
-  "message_type": "Scheduler",
-  "scheduler_message_type": "Input",
-  "name": "string",
-  "platform": "string",
+  "message_type": "Strategic",
+  "scheduler_message_type": "Scheduling",
   "work_order_period_mappings": [
     {
       "work_order_number": 2100023728,

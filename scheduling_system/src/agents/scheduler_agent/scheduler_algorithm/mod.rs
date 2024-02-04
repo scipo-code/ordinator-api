@@ -7,10 +7,12 @@ use std::hash::{Hash, Hasher};
 use priority_queue::PriorityQueue;
 use tracing::{debug, event, span, Level};
 
-use crate::agents::scheduler_agent::scheduler_message::InputSchedulerMessage;
+use crate::agents::scheduler_agent::scheduler_message::StrategicSchedulingInternal;
 use crate::models::time_environment::period::Period;
 use crate::models::WorkOrders;
 use shared_messages::resources::Resources;
+
+use super::scheduler_message::StrategicResourcesInternal;
 
 #[derive(Debug)]
 pub struct SchedulerAgentAlgorithm {
@@ -198,73 +200,34 @@ impl SchedulerAgentAlgorithm {
 }
 
 impl SchedulerAgentAlgorithm {
-    #[tracing::instrument(name = "update_scheduler_algorithm_state", level = "DEBUG", skip(self, input_message), fields(self.objective_value))]
-    pub fn update_scheduler_algorithm_state(&mut self, input_message: InputSchedulerMessage) {
-        let _span = span!(Level::INFO, "update_scheduler_algorithm_state");
-
-        for maunal_resource_capacity in input_message.get_manual_resources() {
-            // What should happen if the period is not found? This is a fundamental questions. And
-            // the kind of question that I will have to answer for the whole system many times. I
-            // think that if the manual period cannot be found in the self.periods that the code
-            // should fail. Yes I see no way around this. If we get a manual resource that is not
-            // part of the self.periods it means that the periods were not created correctly and
-            // that we should panic the thread.
-
-            // I have multiple Period objects here and they are only similar by equality and not
-            // by the underlying data. Hmm... I do not like this implementation.
-
-            // What should the goal be here? It code should work inside of business
-            let test_manual_resource_capacity = maunal_resource_capacity.clone();
-            dbg!(test_manual_resource_capacity.clone());
-            dbg!(test_manual_resource_capacity.clone().0);
-            dbg!(test_manual_resource_capacity.clone().0 .0);
-
+    pub fn update_resources_state(
+        &mut self,
+        strategic_resouces_internal: StrategicResourcesInternal,
+    ) {
+        for maunal_resource_capacity in strategic_resouces_internal.get_manual_resources() {
             let period = self.periods.iter().find(|period| period.get_period_string() == maunal_resource_capacity.0.1).expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
             self.resources_capacity.insert(
                 (maunal_resource_capacity.0 .0, period.clone()),
                 maunal_resource_capacity.1,
             );
-
-            dbg!(self.resources_capacity.clone());
         }
+    }
 
-        for work_order_period_mapping in input_message.get_work_order_period_mappings() {
-            let message = match self
-                .optimized_work_orders
-                .inner
-                .get(&work_order_period_mapping.work_order_number)
-            {
-                Some(work_order) => {
-                    format!(
-                        "work_order is suggested in {:?} \n 
-                    work_order is scheduled in {:?} \n
-                    work_order is excluded {:?} \n",
-                        work_order.scheduled_period,
-                        work_order.locked_in_period,
-                        work_order.excluded_from_periods
-                    )
-                }
-                None => "work_order is not in optimized work orders".to_string(),
-            };
+    pub fn update_periods_state() {}
 
-            debug!(
-                "scheduler optimized work order state before update{}",
-                message
-            );
+    #[tracing::instrument(name = "update_scheduling_state", level = "DEBUG", skip(self, strategic_scheduling_internal), fields(self.objective_value))]
+    pub fn update_scheduling_state(
+        &mut self,
+        strategic_scheduling_internal: StrategicSchedulingInternal,
+    ) {
+        let _span = span!(Level::INFO, "update_scheduling_state");
 
-            debug!("The manual resources are: {:?}", work_order_period_mapping);
-
+        for work_order_period_mapping in
+            strategic_scheduling_internal.get_work_order_period_mappings()
+        {
             let work_order_number: u32 = work_order_period_mapping.work_order_number;
             let optimized_work_orders = &self.optimized_work_orders.inner;
 
-            // What should happen if the Option is None? This is a fundamental question. I think
-            // that the program should be able to... There is a locked in period_string in the
-            // work_order_period_mapping and if this is not to be found in the self.periods then it
-            // means that something has gone wrong with the period initialization and the program
-            // should panic. This is a fundamental invariant that should be upheld. No this is wrong
-            // the Option is on the locked_in_period meaning that there does not have to be a locked
-            // period on the work order. This means that locked_in_period should be an
-            // Option<Period>
             let locked_in_period: Option<Period> =
                 match &work_order_period_mapping.period_status.locked_in_period {
                     Some(period_mapping) => self
@@ -289,7 +252,6 @@ impl SchedulerAgentAlgorithm {
                     .find(|period| {
                         period.get_period_string() == period_string.period_string.clone()
                     })
-
                     .cloned();
 
                 excluded_from_periods.insert(excluded_period.unwrap());
@@ -585,7 +547,8 @@ mod tests {
             true,
         );
 
-        let input_message = InputSchedulerMessage::new_test();
+        let strategic_scheduling_internal = StrategicSchedulingInternal::new_test();
+        let strategic_resources_internal = StrategicResourcesInternal::new_test();
 
         assert_eq!(
             scheduler_agent_algorithm.resources_capacity.get(&(
@@ -602,7 +565,8 @@ mod tests {
             None
         );
 
-        scheduler_agent_algorithm.update_scheduler_algorithm_state(input_message);
+        scheduler_agent_algorithm.update_scheduling_state(strategic_scheduling_internal);
+        scheduler_agent_algorithm.update_resources_state(strategic_resources_internal);
 
         assert_eq!(
             scheduler_agent_algorithm.resources_capacity.get(&(

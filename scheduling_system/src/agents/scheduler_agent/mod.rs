@@ -33,23 +33,6 @@ impl SchedulerAgent {
     pub fn set_ws_agent_addr(&mut self, ws_agent_addr: Addr<WebSocketAgent>) {
         self.ws_agent_addr = Some(ws_agent_addr);
     }
-
-    pub fn send_message_to_ws<T>(&self, message: T)
-    where
-        T: Message + Send + 'static,
-        T::Result: Send + 'static,
-        WebSocketAgent: Handler<T>,
-    {
-        match self.ws_agent_addr.as_ref() {
-            Some(ws_agent) => {
-                ws_agent.do_send(message);
-            }
-            None => {
-                info!("No WebSocketAgentAddr set yet, so no message sent to frontend")
-            }
-        }
-    }
-    // TODO: Here the other Agents Addr messages will also be handled.
 }
 
 impl Actor for SchedulerAgent {
@@ -231,6 +214,8 @@ mod tests {
     use actix_web::HttpServer;
     use actix_web_actors::ws;
     use chrono::{TimeZone, Utc};
+    use shared_messages::StrategicPeriodsMessage;
+    use shared_messages::StrategicResourcesMessage;
     use tests::scheduler_message::SetAgentAddrMessage;
 
     use super::scheduler_message::tests::TestRequest;
@@ -253,7 +238,7 @@ mod tests {
     };
     use crate::models::{work_order::*, WorkOrders};
     use shared_messages::resources::Resources;
-    use shared_messages::{FrontendInputSchedulerMessage, ManualResource, SchedulerRequests};
+    use shared_messages::{ManualResource, StrategicRequests, StrategicSchedulingMessage};
 
     #[test]
     fn test_scheduler_agent_initialization() {
@@ -361,42 +346,50 @@ mod tests {
             true,
         );
 
-        let frontend_input_scheduler_message = FrontendInputSchedulerMessage {
-            name: "test".to_string(),
+        let strategic_scheduling_message = StrategicSchedulingMessage {
             work_order_period_mappings: vec![],
-            manual_resources: vec![
-                ManualResource {
-                    resource: Resources::new_from_string("MTN-MECH".to_string()),
+        };
 
-                    period: shared_messages::TimePeriod {
-                        period_string: Period::new_from_string(&period.get_period_string())
-                            .unwrap()
-                            .get_period_string(),
-                    },
-                    capacity: 150.0,
-                },
-                ManualResource {
-                    resource: Resources::new_from_string("MTN-ELEC".to_string()),
+        let manual_resource_1 = ManualResource::new(
+            Resources::MtnMech,
+            shared_messages::TimePeriod {
+                period_string: Period::new_from_string(&period.get_period_string())
+                    .unwrap()
+                    .get_period_string(),
+            },
+            150.0,
+        );
 
-                    period: shared_messages::TimePeriod {
-                        period_string: Period::new_from_string(&period.get_period_string())
-                            .unwrap()
-                            .get_period_string(),
-                    },
-                    capacity: 150.0,
-                },
-                ManualResource {
-                    resource: Resources::new_from_string("PRODTECH".to_string()),
-                    period: shared_messages::TimePeriod {
-                        period_string: Period::new_from_string(&period.get_period_string())
-                            .unwrap()
-                            .get_period_string(),
-                    },
-                    capacity: 150.0,
-                },
-            ],
+        let manual_resource_2 = ManualResource::new(
+            Resources::MtnElec,
+            shared_messages::TimePeriod {
+                period_string: Period::new_from_string(&period.get_period_string())
+                    .unwrap()
+                    .get_period_string(),
+            },
+            150.0,
+        );
+
+        let manual_resource_3 = ManualResource::new(
+            Resources::Prodtech,
+            shared_messages::TimePeriod {
+                period_string: Period::new_from_string(&period.get_period_string())
+                    .unwrap()
+                    .get_period_string(),
+            },
+            150.0,
+        );
+
+        let manual_resources = vec![
+            manual_resource_1.clone(),
+            manual_resource_2.clone(),
+            manual_resource_3.clone(),
+        ];
+
+        let strategic_resources_message = StrategicResourcesMessage::new(manual_resources);
+
+        let strategic_periods_message = StrategicPeriodsMessage {
             period_lock: HashMap::new(),
-            platform: "None".to_string(),
         };
 
         let scheduler_agent = SchedulerAgent::new(

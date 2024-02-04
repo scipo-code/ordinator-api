@@ -3,7 +3,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display};
 use tokio::time::{sleep, Duration};
-use tracing::{debug, error, info, span, trace};
+use tracing::{debug, error, info, instrument, span, trace};
 
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
 use crate::agents::scheduler_agent::{self, SchedulerAgent};
@@ -11,24 +11,33 @@ use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::time_environment::period::Period;
 use shared_messages::resources::Resources;
 
-use shared_messages::{FrontendInputSchedulerMessage, SchedulerRequests, WorkOrderPeriodMapping};
+use shared_messages::{
+    StrategicPeriodsMessage, StrategicRequests, StrategicResourcesMessage,
+    StrategicSchedulingMessage, WorkOrderPeriodMapping,
+};
 
 #[derive(Debug)]
-pub struct InputSchedulerMessage {
-    name: String,
-    platform: String,
+pub struct StrategicSchedulingInternal {
     work_order_period_mappings: Vec<WorkOrderPeriodMapping>, // For each work order only one of these can be true
+}
+
+pub struct StrategicResourcesInternal {
     manual_resources: HashMap<(Resources, String), f64>,
+}
+
+pub struct StrategicPeriodsInternal {
     period_lock: HashMap<String, bool>,
 }
 
-impl InputSchedulerMessage {
-    pub fn get_manual_resources(&self) -> HashMap<(Resources, String), f64> {
-        self.manual_resources.clone()
-    }
-
+impl StrategicSchedulingInternal {
     pub fn get_work_order_period_mappings(&self) -> &Vec<WorkOrderPeriodMapping> {
         &self.work_order_period_mappings
+    }
+}
+
+impl StrategicResourcesInternal {
+    pub fn get_manual_resources(&self) -> HashMap<(Resources, String), f64> {
+        self.manual_resources.clone()
     }
 }
 
@@ -48,37 +57,29 @@ impl Display for SchedulerResources<'_> {
     }
 }
 
-impl Display for InputSchedulerMessage {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let manual_resources_pretty = SchedulerResources(&self.manual_resources);
-        write!(
-            f,
-            "Name: {}, 
-            \nPlatform: {}, 
-            \nSchedule Work Order: {:?}, 
-            \nManual Resource: {},
-            \nPeriod Lock: {:?}",
-            self.name,
-            self.platform,
-            self.work_order_period_mappings,
-            manual_resources_pretty,
-            self.period_lock
-        )
+impl From<StrategicSchedulingMessage> for StrategicSchedulingInternal {
+    fn from(raw: StrategicSchedulingMessage) -> Self {
+        StrategicSchedulingInternal {
+            work_order_period_mappings: raw.work_order_period_mappings,
+        }
     }
 }
 
-impl From<FrontendInputSchedulerMessage> for InputSchedulerMessage {
-    fn from(raw: FrontendInputSchedulerMessage) -> Self {
+impl From<StrategicResourcesMessage> for StrategicResourcesInternal {
+    fn from(raw: StrategicResourcesMessage) -> Self {
         let mut manual_resources_map: HashMap<(Resources, String), f64> = HashMap::new();
-        for res in raw.manual_resources {
+        for res in raw.get_manual_resources() {
             manual_resources_map.insert((res.resource, res.period.period_string), res.capacity);
         }
-        println!("{:?}", manual_resources_map);
-        InputSchedulerMessage {
-            name: raw.name,
-            platform: raw.platform,
-            work_order_period_mappings: raw.work_order_period_mappings,
+        StrategicResourcesInternal {
             manual_resources: manual_resources_map,
+        }
+    }
+}
+
+impl From<StrategicPeriodsMessage> for StrategicPeriodsInternal {
+    fn from(raw: StrategicPeriodsMessage) -> Self {
+        StrategicPeriodsInternal {
             period_lock: raw.period_lock,
         }
     }
@@ -187,17 +188,126 @@ impl Message for PeriodMessage {
     type Result = ();
 }
 
+impl Handler<StrategicRequests> for SchedulerAgent {
+    type Result = ();
+
+    fn handle(&mut self, msg: StrategicRequests, ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            StrategicRequests::Status(strategic_status_message) => match strategic_status_message {
+                shared_messages::StrategicStatusMessage::General => {
+                    let scheduling_status = self.scheduling_environment.lock().unwrap().to_string();
+                    let strategic_objective = self
+                        .scheduler_agent_algorithm
+                        .get_objective_value()
+                        .to_string();
+                    let scheduling_status = format!(
+                        "{}\nWith objectives: \n  strategic objective of: {}",
+                        scheduling_status, strategic_objective
+                    );
+                    dbg!();
+                    match self.ws_agent_addr.as_ref() {
+                        Some(addr) => addr
+                            .do_send(shared_messages::Response::Success(Some(scheduling_status))),
+                        None => {
+                            println!(
+                                "No WebSocketAgentAddr set yet, so no message sent to frontend"
+                            )
+                        }
+                    }
+
+                    info!("SchedulerAgentReceived a Status message");
+                }
+                shared_messages::StrategicStatusMessage::Period(period) => {
+                    let work_orders = self.scheduler_agent_algorithm.get_optimized_work_orders();
+
+                    let work_orders_by_period = work_orders
+                        .iter()
+                        .filter_map(|(k, v)| (k, v.get_scheduled_period()));
+
+                    let message = format!(
+                        "Work orders scheduled for period: {} are: {:?}",
+                        period, work_orders_by_period
+                    );
+
+                    match self.ws_agent_addr.as_ref() {
+                        Some(addr) => {
+                            addr.do_send(shared_messages::Response::Success(Some(message)))
+                        }
+                        None => {
+                            println!(
+                                "No WebSocketAgentAddr set yet, so no message sent to frontend"
+                            )
+                        }
+                    }
+                }
+            },
+            StrategicRequests::Scheduling(scheduling_message) => {
+                let strategic_scheduling_internal: StrategicSchedulingInternal =
+                    scheduling_message.into();
+                info!(
+                    target: "SchedulerRequest::Input",
+                    message = ?strategic_scheduling_internal,
+                    "received a message from the frontend"
+                );
+                self.scheduler_agent_algorithm
+                    .update_scheduling_state(strategic_scheduling_internal);
+
+                match self.ws_agent_addr.as_ref() {
+                    Some(addr) => addr.do_send(shared_messages::Response::Success(None)),
+                    None => {
+                        println!("No WebSocketAgentAddr set yet, so no message sent to frontend")
+                    }
+                }
+            }
+            StrategicRequests::Resources(resources_message) => {
+                let manual_resources = self
+                    .scheduler_agent_algorithm
+                    .get_manual_resources_loadings()
+                    .clone();
+                let manual_resources = serde_json::to_string(&manual_resources).unwrap();
+
+                match self.ws_agent_addr.as_ref() {
+                    Some(addr) => {
+                        addr.do_send(shared_messages::Response::Success(Some(manual_resources)))
+                    }
+                    None => {
+                        println!("No WebSocketAgentAddr set yet, so no message sent to frontend")
+                    }
+                }
+            }
+            StrategicRequests::Periods(periods_message) => {
+                info!(
+                    "SchedulerAgentReceived a PeriodMessage message: {:?}",
+                    periods_message
+                );
+
+                let mut scheduling_env_lock = self.scheduling_environment.lock().unwrap();
+
+                let periods = scheduling_env_lock.get_mut_periods();
+
+                for period_id in periods_message.periods.iter() {
+                    if periods.last().unwrap().get_id() + 1 == *period_id {
+                        let new_period =
+                            periods.last().unwrap().clone() + chrono::Duration::weeks(2);
+                        periods.push(new_period);
+                    } else {
+                        error!("periods not handled correctly");
+                    }
+                }
+                self.scheduler_agent_algorithm.set_periods(periods.to_vec());
+            }
+        }
+    }
+}
+
 impl Handler<MessageToFrontend> for SchedulerAgent {
     type Result = ();
 
+    #[instrument(
+        fields(scheduler_message_type = "message_to_frontend"),
+        skip(msg, self, _ctx)
+    )]
     fn handle(&mut self, msg: MessageToFrontend, _ctx: &mut Self::Context) -> Self::Result {
-        let span = span!(
-            tracing::Level::TRACE,
-            "preparing scheduler message for the frontend",
-            self.platform
-        );
-        let _enter = span.enter();
-
         match msg {
             MessageToFrontend::Overview => {
                 let scheduling_overview_data = self.extract_state_to_scheduler_overview().clone();
@@ -270,121 +380,6 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
             }
         }
     }
-}
-
-impl Handler<SchedulerRequests> for SchedulerAgent {
-    type Result = ();
-
-    fn handle(&mut self, msg: SchedulerRequests, ctx: &mut Self::Context) -> Self::Result {
-        match msg {
-            SchedulerRequests::Status => {
-                let scheduling_status = self.scheduling_environment.lock().unwrap().to_string();
-                let strategic_objective = self
-                    .scheduler_agent_algorithm
-                    .get_objective_value()
-                    .to_string();
-                let scheduling_status = format!(
-                    "{}\nWith objectives: \n  strategic objective of: {}",
-                    scheduling_status, strategic_objective
-                );
-
-                match self.ws_agent_addr.as_ref() {
-                    Some(addr) => {
-                        addr.do_send(shared_messages::Response::Success(Some(scheduling_status)))
-                    }
-                    None => {
-                        println!("No WebSocketAgentAddr set yet, so no message sent to frontend")
-                    }
-                }
-
-                info!("SchedulerAgentReceived a Status message");
-            }
-            SchedulerRequests::Input(msg) => {
-                let input_message: InputSchedulerMessage = msg.into();
-                info!(
-                    target: "SchedulerRequest::Input",
-                    message = %input_message,
-                    "received a message from the frontend"
-                );
-                self.scheduler_agent_algorithm
-                    .update_scheduler_algorithm_state(input_message);
-
-                match self.ws_agent_addr.as_ref() {
-                    Some(addr) => addr.do_send(shared_messages::Response::Success(None)),
-                    None => {
-                        println!("No WebSocketAgentAddr set yet, so no message sent to frontend")
-                    }
-                }
-            }
-            SchedulerRequests::WorkPlanner(msg) => {
-                info!(
-                    "SchedulerAgentReceived a WorkPlannerMessage message: {:?}",
-                    msg
-                );
-            }
-            // We should handle the logic of the period update here. Here we have the information
-            // available to update the state based on the period update. We should also send the
-            // Okay what is happening here? Let us go through an example where two messages hit the
-            // scheduler agent at the same time. Both messages clone the same state. No the problem
-            // comes when you clone the state in the first message. Okay the error is that multiple
-            // lock are are lying in queue with the same state. So the first message is handled and
-            // is incrementing the state and then when the second message is handled it is, it is
-            // handled using the old state again, so of course it is not going to work. And have to
-            // be handled in a different way.
-            SchedulerRequests::Period(frontend_update_periods) => {
-                info!(
-                    "SchedulerAgentReceived a PeriodMessage message: {:?}",
-                    frontend_update_periods
-                );
-
-                let mut scheduling_env_lock = self.scheduling_environment.lock().unwrap();
-
-                let periods = scheduling_env_lock.get_mut_periods();
-
-                for period_id in frontend_update_periods.periods.iter() {
-                    if periods.last().unwrap().get_id() + 1 == *period_id {
-                        let new_period =
-                            periods.last().unwrap().clone() + chrono::Duration::weeks(2);
-                        periods.push(new_period);
-                    } else {
-                        error!("periods not handled correctly");
-                    }
-                }
-                self.scheduler_agent_algorithm.set_periods(periods.to_vec());
-            }
-            SchedulerRequests::GetWorkerNumber => {
-                let number_of_workers = self
-                    .scheduling_environment
-                    .lock()
-                    .unwrap()
-                    .get_worker_environment()
-                    .get_crew()
-                    .as_ref()
-                    .unwrap()
-                    .get_workers()
-                    .len();
-
-                let message = GetWorkerNumberMessage {
-                    frontend_message_type: "frontend_scheduler_worker_number".to_string(),
-                    number_of_workers,
-                };
-
-                match self.ws_agent_addr {
-                    Some(ref ws_addr) => {
-                        ws_addr.do_send(message);
-                    }
-                    None => panic!("No WebSocketAgentAddr set yet"),
-                }
-            }
-        }
-    }
-}
-
-#[derive(Message, Serialize, Clone, Debug)]
-#[rtype(result = "()")]
-pub struct GetWorkerNumberMessage {
-    frontend_message_type: String,
-    number_of_workers: usize,
 }
 
 impl Handler<SetAgentAddrMessage<WebSocketAgent>> for SchedulerAgent {
@@ -470,12 +465,8 @@ pub mod tests {
 
         work_orders.insert(work_order);
 
-        let input_message = InputSchedulerMessage {
-            name: "test".to_string(),
-            platform: "test".to_string(),
+        let strategic_scheduling_internal = StrategicSchedulingInternal {
             work_order_period_mappings,
-            manual_resources: HashMap::new(),
-            period_lock: HashMap::new(),
         };
 
         let periods: Vec<Period> = vec![Period::new_from_string("2023-W47-48").unwrap()];
@@ -491,7 +482,7 @@ pub mod tests {
             true,
         );
 
-        scheduler_agent_algorithm.update_scheduler_algorithm_state(input_message);
+        scheduler_agent_algorithm.update_scheduling_state(strategic_scheduling_internal);
 
         assert_eq!(
             scheduler_agent_algorithm
@@ -516,25 +507,20 @@ pub mod tests {
                 excluded_from_periods: HashSet::new(),
             },
         };
-        // let input_scheduler_message: = work_order_period_mapping.into();
 
-        let frontend_input_scheduler_message = FrontendInputSchedulerMessage {
-            name: "test".to_string(),
-            platform: "test".to_string(),
+        let strategic_scheduling_message = StrategicSchedulingMessage {
             work_order_period_mappings: vec![work_order_period_mapping],
-            manual_resources: vec![],
-            period_lock: HashMap::new(),
         };
 
-        let input_scheduler_message: InputSchedulerMessage =
-            frontend_input_scheduler_message.into();
+        let strategic_scheduling_internal: StrategicSchedulingInternal =
+            strategic_scheduling_message.into();
 
         assert_eq!(
-            input_scheduler_message.work_order_period_mappings[0].work_order_number,
+            strategic_scheduling_internal.work_order_period_mappings[0].work_order_number,
             2100023841
         );
         assert_eq!(
-            input_scheduler_message.work_order_period_mappings[0]
+            strategic_scheduling_internal.work_order_period_mappings[0]
                 .period_status
                 .locked_in_period,
             Some(TimePeriod::new("2023-W49-50".to_string()))
@@ -583,7 +569,7 @@ pub mod tests {
             true,
         );
 
-        scheduler_agent_algorithm.update_scheduler_algorithm_state(input_scheduler_message);
+        scheduler_agent_algorithm.update_scheduling_state(strategic_scheduling_internal);
 
         assert_eq!(
             scheduler_agent_algorithm
@@ -659,12 +645,20 @@ pub mod tests {
         assert_eq!(scheduler_agent_algorithm.get_objective_value(), 2000.0);
     }
 
-    impl InputSchedulerMessage {
+    impl StrategicSchedulingInternal {
         pub fn new_test() -> Self {
             // I am having so much fun with this
 
             let work_order_period_mapping = WorkOrderPeriodMapping::new_test();
 
+            Self {
+                work_order_period_mappings: vec![work_order_period_mapping],
+            }
+        }
+    }
+
+    impl StrategicResourcesInternal {
+        pub fn new_test() -> Self {
             let mut manual_resources = HashMap::new();
 
             let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 7, 0, 0).unwrap();
@@ -675,13 +669,7 @@ pub mod tests {
             manual_resources.insert((Resources::MtnElec, period.get_period_string()), 300.0);
             manual_resources.insert((Resources::Prodtech, period.get_period_string()), 300.0);
 
-            Self {
-                name: "test".to_string(),
-                platform: "test".to_string(),
-                work_order_period_mappings: vec![work_order_period_mapping],
-                manual_resources,
-                period_lock: HashMap::new(),
-            }
+            Self { manual_resources }
         }
     }
 

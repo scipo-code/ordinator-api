@@ -1,6 +1,8 @@
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Args, FromArgMatches, Parser, Subcommand, ValueEnum};
 use serde_json;
-use shared_messages::{FrontendMessages, SchedulerRequests};
+use shared_messages::{
+    FrontendMessages, StrategicRequests, StrategicSchedulingMessage, StrategicStatusMessage,
+};
 use std::{fs, net::TcpStream, path::Path};
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;
@@ -30,7 +32,10 @@ enum Commands {
 #[derive(Subcommand, Debug)]
 enum StrategicSubcommands {
     /// overview of the strategic agent
-    Overview,
+    Status {
+        #[clap(subcommand)]
+        subcommand: Option<StatusSubcommands>,
+    },
     /// Scheduling commands
     Scheduling {
         #[clap(subcommand)]
@@ -41,20 +46,25 @@ enum StrategicSubcommands {
 }
 
 #[derive(Subcommand, Debug)]
-enum SchedulingSubcommands {
+enum StatusSubcommands {
     /// List all work orders in a given period
     WorkOrders { period: String },
+}
+
+#[derive(Subcommand, Debug)]
+enum SchedulingSubcommands {
     /// Schedule a specific work order in a given period
-    Schedule { work_order: String, period: String },
-    /// Unschedule a specific work order with an optional period
-    Unschedule {
-        work_order: String,
-        period: Option<String>,
-    },
+    Schedule(ScheduleStruct),
     /// Lock a period from any scheduling changes
     PeriodLock { period: String },
-    ///
+    /// Exclude a work order from a period
     Exclude { work_order: String, period: String },
+}
+
+#[derive(Debug, Args)]
+struct ScheduleStruct {
+    work_order: String,
+    period: String,
 }
 
 fn main() {
@@ -62,28 +72,12 @@ fn main() {
 
     let mut socket = create_websocket_client();
 
-    match &cli.command {
-        Some(Commands::Status) => {
-            Commands::get_status(&mut socket);
-        }
-        Some(Commands::Strategic { subcommand }) => match subcommand {
-            Some(subcommand) => {
-                println!("{:?}", subcommand);
-                todo!()
-            }
-            None => {
-                todo!()
-                // get_objectives(&mut socket);
-            }
-        },
-        Some(Commands::Tactical {}) => {
-            println!("Tactical");
-        }
-        Some(Commands::Operational) => {
-            println!("Operational");
-        }
-        None => {}
-    }
+    handle_command(cli, &mut socket);
+    let response: Message = socket.read().expect("Failed to read message");
+    let formatted_response = response.to_string().replace("\\n", "\n").replace('\"', "");
+
+    println!("{}", formatted_response);
+
     socket.close(None).expect("Failed to close the connection");
 }
 
@@ -97,18 +91,14 @@ fn create_websocket_client() -> WebSocket<MaybeTlsStream<TcpStream>> {
 
 impl Commands {
     fn get_status(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
-        let scheduler_request = SchedulerRequests::Status;
-        let front_end_message = FrontendMessages::Scheduler(scheduler_request);
+        let strategic_status_message = StrategicStatusMessage::General;
+        let scheduler_request = StrategicRequests::Status(strategic_status_message);
+        let front_end_message = FrontendMessages::Strategic(scheduler_request);
 
         let scheduler_request_json = serde_json::to_string(&front_end_message).unwrap();
         socket
             .send(Message::Text(scheduler_request_json))
             .expect("Failed to send a message");
-
-        let response: Message = socket.read().expect("Failed to read message");
-        let formatted_response = response.to_string().replace("\\n", "\n").replace('\"', "");
-
-        println!("{}", formatted_response);
     }
 
     // fn get_objective(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
@@ -125,4 +115,60 @@ impl Commands {
 
     //     println!("{}", formatted_response);
     // }
+}
+
+fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
+    match &cli.command {
+        Some(Commands::Status) => {
+            Commands::get_status(socket);
+        }
+        Some(Commands::Strategic { subcommand }) => match subcommand {
+            Some(subcommand) => match subcommand {
+                StrategicSubcommands::Status { subcommand } => match subcommand {
+                    Some(StatusSubcommands::WorkOrders { period }) => {
+                        let strategic_status_message: StrategicStatusMessage =
+                            StrategicStatusMessage::new_period(period.to_string());
+                        let front_end_message = FrontendMessages::Strategic(
+                            StrategicRequests::Status(strategic_status_message),
+                        );
+
+                        let scheduler_request_json =
+                            serde_json::to_string(&front_end_message).unwrap();
+                        socket.send(Message::Text(scheduler_request_json)).unwrap();
+                    }
+                    None => {
+                        todo!()
+                    }
+                },
+                StrategicSubcommands::Scheduling { subcommand } => match subcommand {
+                    Some(SchedulingSubcommands::Schedule(schedule)) => {
+                        todo!()
+                    }
+                    Some(SchedulingSubcommands::PeriodLock { period }) => {
+                        todo!()
+                    }
+                    Some(SchedulingSubcommands::Exclude { work_order, period }) => {
+                        todo!()
+                    }
+                    None => {
+                        todo!()
+                    }
+                },
+                StrategicSubcommands::Resources => {
+                    todo!()
+                }
+            },
+            None => {
+                todo!()
+                // get_objectives(&mut socket);
+            }
+        },
+        Some(Commands::Tactical {}) => {
+            println!("Tactical");
+        }
+        Some(Commands::Operational) => {
+            println!("Operational");
+        }
+        None => {}
+    }
 }

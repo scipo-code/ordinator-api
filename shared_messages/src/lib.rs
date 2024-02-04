@@ -8,25 +8,32 @@ use std::fmt::{self, Display};
 pub mod resources;
 use crate::resources::Resources;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "message_type")]
 pub enum FrontendMessages {
-    Scheduler(SchedulerRequests),
-    WorkPlanner,
+    Strategic(StrategicRequests),
+    Tactical,
     Worker,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "scheduler_message_type")]
-pub enum SchedulerRequests {
-    Status,
-    Input(FrontendInputSchedulerMessage),
-    Period(FrontendUpdatePeriod),
-    WorkPlanner(WorkPlannerMessage),
-    GetWorkerNumber,
+pub enum StrategicRequests {
+    Status(StrategicStatusMessage),
+    Scheduling(StrategicSchedulingMessage),
+    Resources(StrategicResourcesMessage),
+    Periods(PeriodsMessage),
 }
 
-impl Message for SchedulerRequests {
+// What should I call this message? It should not include the Strategic part as it is already part
+// of the StrategicRequests enum. The frontend part is also wrong as the message is more general.
+// We could choose to call it CLI or API message. Now for the Input, is this a valid name? I think
+// that it is a very bad name for the what I am actually trying to achieve. Scheduling is better
+// but there is still some redundancy in the name. Is the API actually a good name? I think that
+// there must be something that serves the meaning of what I am trying to do better. I think that
+// the name should go. Hmm SchedulingMessage is actually a good name.
+
+impl Message for StrategicRequests {
     type Result = ();
 }
 
@@ -67,27 +74,58 @@ where
     }
 }
 
-#[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug)]
-pub struct WorkPlannerMessage {
-    cannot_schedule: Vec<u32>,
-    under_loaded_work_centers: Vec<String>,
+#[derive(Deserialize, Serialize, Debug)]
+pub enum StrategicStatusMessage {
+    General,
+    Period(String),
+}
+
+impl StrategicStatusMessage {
+    pub fn new_period(period: String) -> Self {
+        Self::Period(period)
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct FrontendInputSchedulerMessage {
-    pub name: String,
-    pub platform: String,
+pub struct StrategicSchedulingMessage {
     pub work_order_period_mappings: Vec<WorkOrderPeriodMapping>,
-    pub manual_resources: Vec<ManualResource>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct StrategicResourcesMessage {
+    manual_resources: Vec<ManualResource>,
+}
+
+impl StrategicResourcesMessage {
+    pub fn new(manual_resources: Vec<ManualResource>) -> Self {
+        Self { manual_resources }
+    }
+
+    pub fn get_manual_resources(&self) -> Vec<ManualResource> {
+        self.manual_resources.clone()
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct StrategicPeriodsMessage {
     pub period_lock: HashMap<String, bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ManualResource {
     pub resource: Resources,
     pub period: TimePeriod,
     pub capacity: f64,
+}
+
+impl ManualResource {
+    pub fn new(resource: Resources, period: TimePeriod, capacity: f64) -> Self {
+        Self {
+            resource,
+            period,
+            capacity,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
@@ -116,7 +154,7 @@ pub struct WorkOrderStatusInPeriod {
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "scheduler_message_type")]
-pub struct FrontendUpdatePeriod {
+pub struct PeriodsMessage {
     pub periods: Vec<u32>,
 }
 
@@ -134,56 +172,44 @@ where
     Ok(set)
 }
 
-impl Display for FrontendInputSchedulerMessage {
+impl Display for StrategicSchedulingMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Name: {}, 
-            \nPlatform: {}, 
-            \nWorkorder period mappings: {}, 
-            \nManual Resource: {},
-            \nPeriod Lock: {:?}",
-            self.name,
-            self.platform,
+            "\nWorkorder period mappings: {}, ",
             self.work_order_period_mappings.len(),
-            self.manual_resources.len(),
-            self.period_lock
         )
     }
 }
 
-impl fmt::Display for SchedulerRequests {
+impl fmt::Display for StrategicRequests {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), std::fmt::Error> {
         match self {
-            SchedulerRequests::Status => {
+            StrategicRequests::Status(strategic_status_message) => {
                 write!(f, "status")?;
                 Ok(())
             }
-            SchedulerRequests::Input(input) => {
-                write!(f, "name: {}", input.name)?;
-
-                for work_order_period_mapping in input.work_order_period_mappings.iter() {
+            StrategicRequests::Scheduling(scheduling_message) => {
+                for work_order_period_mapping in
+                    scheduling_message.work_order_period_mappings.iter()
+                {
                     writeln!(
                         f,
                         "work_order_period_mapping: {}",
                         work_order_period_mapping
                     )?;
                 }
-                for manual_resource in input.manual_resources.iter() {
+
+                Ok(())
+            }
+            StrategicRequests::Resources(resources_message) => {
+                for manual_resource in resources_message.manual_resources.iter() {
                     writeln!(f, "manual_resource: {}", manual_resource)?;
                 }
                 Ok(())
             }
-            SchedulerRequests::WorkPlanner(work_planner) => {
-                write!(f, "work_planner: {:?}", work_planner.cannot_schedule)?;
-                Ok(())
-            }
-            SchedulerRequests::Period(period) => {
-                write!(f, "period: {:?}", period)?;
-                Ok(())
-            }
-            SchedulerRequests::GetWorkerNumber => {
-                write!(f, "get_worker_number")?;
+            StrategicRequests::Periods(period_message) => {
+                write!(f, "period_message: {:?}", period_message)?;
                 Ok(())
             }
         }
