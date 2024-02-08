@@ -1,9 +1,11 @@
-use clap::{Args, FromArgMatches, Parser, Subcommand, ValueEnum};
-use serde_json;
-use shared_messages::{
-    FrontendMessages, StrategicRequests, StrategicSchedulingMessage, StrategicStatusMessage,
+use clap::{Args, Parser, Subcommand};
+use shared_messages::strategic::strategic_scheduling_message::ScheduleSingleWorkOrder;
+use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
+use shared_messages::strategic::{
+    strategic_scheduling_message::StrategicSchedulingMessage, StrategicRequests,
 };
-use std::{fs, net::TcpStream, path::Path};
+use shared_messages::FrontendMessages;
+use std::net::TcpStream;
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;
 
@@ -54,7 +56,7 @@ enum StatusSubcommands {
 #[derive(Subcommand, Debug)]
 enum SchedulingSubcommands {
     /// Schedule a specific work order in a given period
-    Schedule(ScheduleStruct),
+    Schedule(WorkOrderSchedule),
     /// Lock a period from any scheduling changes
     PeriodLock { period: String },
     /// Exclude a work order from a period
@@ -62,8 +64,8 @@ enum SchedulingSubcommands {
 }
 
 #[derive(Debug, Args)]
-struct ScheduleStruct {
-    work_order: String,
+struct WorkOrderSchedule {
+    work_order: u32,
     period: String,
 }
 
@@ -73,7 +75,9 @@ fn main() {
     let mut socket = create_websocket_client();
 
     handle_command(cli, &mut socket);
+
     let response: Message = socket.read().expect("Failed to read message");
+
     let formatted_response = response.to_string().replace("\\n", "\n").replace('\"', "");
 
     println!("{}", formatted_response);
@@ -128,21 +132,49 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
                     Some(StatusSubcommands::WorkOrders { period }) => {
                         let strategic_status_message: StrategicStatusMessage =
                             StrategicStatusMessage::new_period(period.to_string());
+
                         let front_end_message = FrontendMessages::Strategic(
                             StrategicRequests::Status(strategic_status_message),
                         );
 
                         let scheduler_request_json =
                             serde_json::to_string(&front_end_message).unwrap();
+
                         socket.send(Message::Text(scheduler_request_json)).unwrap();
                     }
                     None => {
-                        todo!()
+                        let strategic_status_message: StrategicStatusMessage =
+                            StrategicStatusMessage::General;
+
+                        let front_end_message = FrontendMessages::Strategic(
+                            StrategicRequests::Status(strategic_status_message),
+                        );
+
+                        let scheduler_request_json =
+                            serde_json::to_string(&front_end_message).unwrap();
+
+                        socket.send(Message::Text(scheduler_request_json)).unwrap();
                     }
                 },
                 StrategicSubcommands::Scheduling { subcommand } => match subcommand {
                     Some(SchedulingSubcommands::Schedule(schedule)) => {
-                        todo!()
+                        let schedule_single_work_order = ScheduleSingleWorkOrder::new(
+                            schedule.work_order,
+                            schedule.period.clone(),
+                        );
+
+                        let strategic_scheduling_message: StrategicSchedulingMessage =
+                            StrategicSchedulingMessage::Schedule(schedule_single_work_order);
+
+                        let strategic_request =
+                            StrategicRequests::Scheduling(strategic_scheduling_message);
+
+                        let front_end_message = FrontendMessages::Strategic(strategic_request);
+
+                        let scheduler_request_json =
+                            serde_json::to_string(&front_end_message).unwrap();
+
+                        socket.send(Message::Text(scheduler_request_json)).unwrap();
                     }
                     Some(SchedulingSubcommands::PeriodLock { period }) => {
                         todo!()

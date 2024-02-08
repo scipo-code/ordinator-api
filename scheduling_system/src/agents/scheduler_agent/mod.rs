@@ -15,7 +15,6 @@ use shared_messages::resources::Resources;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
-use tracing::info;
 
 use crate::agents::work_planner_agent::WorkPlannerAgent;
 
@@ -206,17 +205,11 @@ fn transform_hashmap_to_nested_hashmap(
 #[cfg(test)]
 mod tests {
 
-    use actix_web::web;
-    use actix_web::App;
-    use actix_web::Error;
-    use actix_web::HttpRequest;
-    use actix_web::HttpResponse;
-    use actix_web::HttpServer;
-    use actix_web_actors::ws;
     use chrono::{TimeZone, Utc};
-    use shared_messages::StrategicPeriodsMessage;
-    use shared_messages::StrategicResourcesMessage;
-    use tests::scheduler_message::SetAgentAddrMessage;
+    use shared_messages::strategic::strategic_periods_message::StrategicPeriodsMessage;
+    use shared_messages::strategic::strategic_resources_message::StrategicResourcesMessage;
+    use shared_messages::strategic::strategic_scheduling_message::ScheduleSingleWorkOrder;
+    use shared_messages::strategic::TimePeriod;
 
     use super::scheduler_message::tests::TestRequest;
     use super::scheduler_message::tests::TestResponse;
@@ -237,8 +230,8 @@ mod tests {
         },
     };
     use crate::models::{work_order::*, WorkOrders};
-    use shared_messages::resources::Resources;
-    use shared_messages::{ManualResource, StrategicRequests, StrategicSchedulingMessage};
+    use shared_messages::strategic::strategic_resources_message::ManualResource;
+    use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
 
     #[test]
     fn test_scheduler_agent_initialization() {
@@ -346,13 +339,12 @@ mod tests {
             true,
         );
 
-        let strategic_scheduling_message = StrategicSchedulingMessage {
-            work_order_period_mappings: vec![],
-        };
+        let strategic_scheduling_message =
+            StrategicSchedulingMessage::Schedule(ScheduleSingleWorkOrder {});
 
         let manual_resource_1 = ManualResource::new(
             Resources::MtnMech,
-            shared_messages::TimePeriod {
+            TimePeriod {
                 period_string: Period::new_from_string(&period.get_period_string())
                     .unwrap()
                     .get_period_string(),
@@ -362,7 +354,7 @@ mod tests {
 
         let manual_resource_2 = ManualResource::new(
             Resources::MtnElec,
-            shared_messages::TimePeriod {
+            TimePeriod {
                 period_string: Period::new_from_string(&period.get_period_string())
                     .unwrap()
                     .get_period_string(),
@@ -372,7 +364,7 @@ mod tests {
 
         let manual_resource_3 = ManualResource::new(
             Resources::Prodtech,
-            shared_messages::TimePeriod {
+            TimePeriod {
                 period_string: Period::new_from_string(&period.get_period_string())
                     .unwrap()
                     .get_period_string(),

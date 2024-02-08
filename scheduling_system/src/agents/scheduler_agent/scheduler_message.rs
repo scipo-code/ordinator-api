@@ -1,9 +1,11 @@
 use actix::prelude::*;
-use serde::{Deserialize, Deserializer, Serialize};
-use std::collections::{HashMap, HashSet};
+use serde::{Deserialize, Serialize};
+use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
+use shared_messages::strategic::StrategicRequests;
+use std::collections::HashMap;
 use std::fmt::{self, Display};
 use tokio::time::{sleep, Duration};
-use tracing::{debug, error, info, instrument, span, trace};
+use tracing::{debug, error, info, instrument, trace};
 
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
 use crate::agents::scheduler_agent::{self, SchedulerAgent};
@@ -11,14 +13,15 @@ use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::time_environment::period::Period;
 use shared_messages::resources::Resources;
 
-use shared_messages::{
-    StrategicPeriodsMessage, StrategicRequests, StrategicResourcesMessage,
-    StrategicSchedulingMessage, WorkOrderPeriodMapping,
+use shared_messages::strategic::strategic_periods_message::StrategicPeriodsMessage;
+use shared_messages::strategic::strategic_resources_message::StrategicResourcesMessage;
+use shared_messages::strategic::strategic_scheduling_message::{
+    ScheduleSingleWorkOrder, StrategicSchedulingMessage, WorkOrderPeriodMapping,
 };
 
 #[derive(Debug)]
 pub struct StrategicSchedulingInternal {
-    work_order_period_mappings: Vec<WorkOrderPeriodMapping>, // For each work order only one of these can be true
+    schedule_work_orders: Vec<ScheduleSingleWorkOrder>,
 }
 
 pub struct StrategicResourcesInternal {
@@ -30,8 +33,8 @@ pub struct StrategicPeriodsInternal {
 }
 
 impl StrategicSchedulingInternal {
-    pub fn get_work_order_period_mappings(&self) -> &Vec<WorkOrderPeriodMapping> {
-        &self.work_order_period_mappings
+    pub fn get_schedule_work_orders(&self) -> &Vec<ScheduleSingleWorkOrder> {
+        &self.schedule_work_orders
     }
 }
 
@@ -58,17 +61,19 @@ impl Display for SchedulerResources<'_> {
 }
 
 impl From<StrategicSchedulingMessage> for StrategicSchedulingInternal {
-    fn from(raw: StrategicSchedulingMessage) -> Self {
-        StrategicSchedulingInternal {
-            work_order_period_mappings: raw.work_order_period_mappings,
+    fn from(message: StrategicSchedulingMessage) -> Self {
+        match message {
+            StrategicSchedulingMessage::Schedule(message) => StrategicSchedulingInternal {
+                schedule_work_orders: vec![message],
+            },
         }
     }
 }
 
 impl From<StrategicResourcesMessage> for StrategicResourcesInternal {
-    fn from(raw: StrategicResourcesMessage) -> Self {
+    fn from(message: StrategicResourcesMessage) -> Self {
         let mut manual_resources_map: HashMap<(Resources, String), f64> = HashMap::new();
-        for res in raw.get_manual_resources() {
+        for res in message.get_manual_resources() {
             manual_resources_map.insert((res.resource, res.period.period_string), res.capacity);
         }
         StrategicResourcesInternal {
@@ -78,9 +83,9 @@ impl From<StrategicResourcesMessage> for StrategicResourcesInternal {
 }
 
 impl From<StrategicPeriodsMessage> for StrategicPeriodsInternal {
-    fn from(raw: StrategicPeriodsMessage) -> Self {
+    fn from(message: StrategicPeriodsMessage) -> Self {
         StrategicPeriodsInternal {
-            period_lock: raw.period_lock,
+            period_lock: message.period_lock,
         }
     }
 }
@@ -194,7 +199,7 @@ impl Handler<StrategicRequests> for SchedulerAgent {
     fn handle(&mut self, msg: StrategicRequests, ctx: &mut Self::Context) -> Self::Result {
         match msg {
             StrategicRequests::Status(strategic_status_message) => match strategic_status_message {
-                shared_messages::StrategicStatusMessage::General => {
+                StrategicStatusMessage::General => {
                     let scheduling_status = self.scheduling_environment.lock().unwrap().to_string();
                     let strategic_objective = self
                         .scheduler_agent_algorithm
@@ -217,13 +222,22 @@ impl Handler<StrategicRequests> for SchedulerAgent {
 
                     info!("SchedulerAgentReceived a Status message");
                 }
-                shared_messages::StrategicStatusMessage::Period(period) => {
+                StrategicStatusMessage::Period(period) => {
                     let work_orders = self.scheduler_agent_algorithm.get_optimized_work_orders();
 
-                    let work_orders_by_period = work_orders
+                    dbg!(period.clone());
+                    let work_orders_by_period: Vec<u32> = work_orders
                         .iter()
-                        .filter_map(|(k, v)| (k, v.get_scheduled_period()));
+                        .filter(|(_, opt_wo)| match opt_wo.get_scheduled_period() {
+                            Some(scheduled_period) => {
+                                scheduled_period.get_period_string() == period
+                            }
+                            None => false,
+                        })
+                        .map(|(work_order_number, _)| *work_order_number)
+                        .collect();
 
+                    dbg!(work_orders_by_period.clone());
                     let message = format!(
                         "Work orders scheduled for period: {} are: {:?}",
                         period, work_orders_by_period
@@ -402,6 +416,8 @@ pub struct SetAgentAddrMessage<T: actix::Actor> {
 
 #[cfg(test)]
 pub mod tests {
+    use std::collections::HashSet;
+
     use super::*;
     use chrono::{TimeZone, Utc};
 
@@ -425,18 +441,19 @@ pub mod tests {
         },
     };
 
-    use shared_messages::{TimePeriod, WorkOrderPeriodMapping, WorkOrderStatusInPeriod};
+    use crate::agents::scheduler_agent::scheduler_message::WorkOrderPeriodMapping;
+    use shared_messages::strategic::strategic_scheduling_message::{
+        ScheduleSingleWorkOrder, WorkOrderStatusInPeriod,
+    };
+    use shared_messages::strategic::TimePeriod;
 
     #[test]
     fn test_update_scheduler_state() {
         let period_string: String = "2023-W47-48".to_string();
 
-        let work_order_period_mappings = vec![WorkOrderPeriodMapping {
+        let schedule_work_orders = vec![ScheduleSingleWorkOrder {
             work_order_number: 2200002020,
-            period_status: WorkOrderStatusInPeriod {
-                locked_in_period: Some(TimePeriod::new(period_string)),
-                excluded_from_periods: HashSet::new(),
-            },
+            period_string,
         }];
 
         let mut work_orders = WorkOrders::new();
@@ -466,7 +483,7 @@ pub mod tests {
         work_orders.insert(work_order);
 
         let strategic_scheduling_internal = StrategicSchedulingInternal {
-            work_order_period_mappings,
+            schedule_work_orders,
         };
 
         let periods: Vec<Period> = vec![Period::new_from_string("2023-W47-48").unwrap()];
@@ -508,19 +525,23 @@ pub mod tests {
             },
         };
 
-        let strategic_scheduling_message = StrategicSchedulingMessage {
-            work_order_period_mappings: vec![work_order_period_mapping],
+        let schedule_single_work_order = ScheduleSingleWorkOrder {
+            work_order_number: 2100023841,
+            period_string: "2023-W49-50".to_string(),
         };
+
+        let strategic_scheduling_message =
+            StrategicSchedulingMessage::Schedule(schedule_single_work_order);
 
         let strategic_scheduling_internal: StrategicSchedulingInternal =
             strategic_scheduling_message.into();
 
         assert_eq!(
-            strategic_scheduling_internal.work_order_period_mappings[0].work_order_number,
+            strategic_scheduling_internal.schedule_work_orders[0].work_order_number,
             2100023841
         );
         assert_eq!(
-            strategic_scheduling_internal.work_order_period_mappings[0]
+            strategic_scheduling_internal.schedule_work_orders[0]
                 .period_status
                 .locked_in_period,
             Some(TimePeriod::new("2023-W49-50".to_string()))

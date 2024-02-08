@@ -220,32 +220,22 @@ impl SchedulerAgentAlgorithm {
         &mut self,
         strategic_scheduling_internal: StrategicSchedulingInternal,
     ) {
-        let _span = span!(Level::INFO, "update_scheduling_state");
-
-        for work_order_period_mapping in
-            strategic_scheduling_internal.get_work_order_period_mappings()
-        {
-            let work_order_number: u32 = work_order_period_mapping.work_order_number;
+        // All this logic will have to be changed at somepoint.
+        for schedule_work_order in strategic_scheduling_internal.get_schedule_work_orders() {
+            let work_order_number: u32 = schedule_work_order.get_work_order_number();
             let optimized_work_orders = &self.optimized_work_orders.inner;
 
-            let locked_in_period: Option<Period> =
-                match &work_order_period_mapping.period_status.locked_in_period {
-                    Some(period_mapping) => self
-                        .get_periods()
-                        .iter()
-                        .find(|period| {
-                            period.get_period_string() == period_mapping.get_period_string().clone()
-                        })
-                        .cloned(),
-                    None => None,
-                };
+            let locked_in_period: Option<Period> = self
+                .get_periods()
+                .iter()
+                .find(|period| {
+                    period.get_period_string() == schedule_work_order.get_period_string().clone()
+                })
+                .cloned();
 
             let mut excluded_from_periods = HashSet::<Period>::new();
 
-            for period_string in &work_order_period_mapping
-                .period_status
-                .excluded_from_periods
-            {
+            for period_string in &schedule_work_order.period_status.excluded_from_periods {
                 let excluded_period = self
                     .periods
                     .iter()
