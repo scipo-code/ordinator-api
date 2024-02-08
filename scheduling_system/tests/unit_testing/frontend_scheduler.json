@@ -1,26 +1,7 @@
 {
   "message_type": "Strategic",
-  "scheduler_message_type": "Scheduling",
-  "work_order_period_mappings": [
-    {
-      "work_order_number": 2100023728,
-      "period_status": {
-        "locked_in_period": { "period_string": "2024-W3-4" },
-        "excluded_from_periods": []
-      }
-    }
-  ],
-  "manual_resources": [
-    {
-      "resource": "MTN-MECH",
-      "period": { "period_string": "2024-W3-4" },
-      "capacity": 100
-    },
-    {
-      "resource": "MTN-ELEC",
-      "period": { "period_string": "2024-W3-4" },
-      "capacity": 100
-    }
-  ],
-  "period_lock": {}
+  "strategic_message_type": "Scheduling",
+  "scheduling_message_type": "Schedule",
+  "work_order_number": 2100023728,
+  "period_string": "2024-W3-4"
 }

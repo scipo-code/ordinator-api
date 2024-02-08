@@ -5,12 +5,12 @@ use actix::dev::MessageResponse;
 use actix::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::strategic::StrategicRequests;
+use crate::strategic::StrategicRequest;
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "message_type")]
 pub enum FrontendMessages {
-    Strategic(StrategicRequests),
+    Strategic(StrategicRequest),
     Tactical,
     Worker,
 }

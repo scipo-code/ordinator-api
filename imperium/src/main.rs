@@ -1,8 +1,8 @@
 use clap::{Args, Parser, Subcommand};
-use shared_messages::strategic::strategic_scheduling_message::ScheduleSingleWorkOrder;
+use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
 use shared_messages::strategic::{
-    strategic_scheduling_message::StrategicSchedulingMessage, StrategicRequests,
+    strategic_scheduling_message::StrategicSchedulingMessage, StrategicRequest,
 };
 use shared_messages::FrontendMessages;
 use std::net::TcpStream;
@@ -60,7 +60,7 @@ enum SchedulingSubcommands {
     /// Lock a period from any scheduling changes
     PeriodLock { period: String },
     /// Exclude a work order from a period
-    Exclude { work_order: String, period: String },
+    Exclude { work_order: u32, period: String },
 }
 
 #[derive(Debug, Args)]
@@ -96,7 +96,7 @@ fn create_websocket_client() -> WebSocket<MaybeTlsStream<TcpStream>> {
 impl Commands {
     fn get_status(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
         let strategic_status_message = StrategicStatusMessage::General;
-        let scheduler_request = StrategicRequests::Status(strategic_status_message);
+        let scheduler_request = StrategicRequest::Status(strategic_status_message);
         let front_end_message = FrontendMessages::Strategic(scheduler_request);
 
         let scheduler_request_json = serde_json::to_string(&front_end_message).unwrap();
@@ -134,7 +134,7 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
                             StrategicStatusMessage::new_period(period.to_string());
 
                         let front_end_message = FrontendMessages::Strategic(
-                            StrategicRequests::Status(strategic_status_message),
+                            StrategicRequest::Status(strategic_status_message),
                         );
 
                         let scheduler_request_json =
@@ -147,7 +147,7 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
                             StrategicStatusMessage::General;
 
                         let front_end_message = FrontendMessages::Strategic(
-                            StrategicRequests::Status(strategic_status_message),
+                            StrategicRequest::Status(strategic_status_message),
                         );
 
                         let scheduler_request_json =
@@ -158,16 +158,14 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
                 },
                 StrategicSubcommands::Scheduling { subcommand } => match subcommand {
                     Some(SchedulingSubcommands::Schedule(schedule)) => {
-                        let schedule_single_work_order = ScheduleSingleWorkOrder::new(
-                            schedule.work_order,
-                            schedule.period.clone(),
-                        );
+                        let schedule_single_work_order =
+                            SingleWorkOrder::new(schedule.work_order, schedule.period.clone());
 
                         let strategic_scheduling_message: StrategicSchedulingMessage =
                             StrategicSchedulingMessage::Schedule(schedule_single_work_order);
 
                         let strategic_request =
-                            StrategicRequests::Scheduling(strategic_scheduling_message);
+                            StrategicRequest::Scheduling(strategic_scheduling_message);
 
                         let front_end_message = FrontendMessages::Strategic(strategic_request);
 
@@ -180,7 +178,23 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
                         todo!()
                     }
                     Some(SchedulingSubcommands::Exclude { work_order, period }) => {
-                        todo!()
+                        let exclude_single_work_order =
+                            SingleWorkOrder::new(*work_order, period.clone());
+
+                        let strategic_scheduling_message: StrategicSchedulingMessage =
+                            StrategicSchedulingMessage::ExcludeFromPeriod(
+                                exclude_single_work_order,
+                            );
+
+                        let strategic_request =
+                            StrategicRequest::Scheduling(strategic_scheduling_message);
+
+                        let front_end_message = FrontendMessages::Strategic(strategic_request);
+
+                        let scheduler_request_json =
+                            serde_json::to_string(&front_end_message).unwrap();
+
+                        socket.send(Message::Text(scheduler_request_json)).unwrap();
                     }
                     None => {
                         todo!()

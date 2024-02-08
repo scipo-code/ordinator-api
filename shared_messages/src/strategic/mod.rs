@@ -16,15 +16,15 @@ use self::{
 };
 
 #[derive(Deserialize, Serialize, Debug)]
-#[serde(tag = "scheduler_message_type")]
-pub enum StrategicRequests {
+#[serde(tag = "strategic_message_type")]
+pub enum StrategicRequest {
     Status(StrategicStatusMessage),
     Scheduling(StrategicSchedulingMessage),
     Resources(StrategicResourcesMessage),
     Periods(PeriodsMessage),
 }
 
-impl Message for StrategicRequests {
+impl Message for StrategicRequest {
     type Result = ();
 }
 
@@ -38,25 +38,25 @@ impl TimePeriod {
         self.period_string.clone()
     }
 }
-impl fmt::Display for StrategicRequests {
+impl fmt::Display for StrategicRequest {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), std::fmt::Error> {
         match self {
-            StrategicRequests::Status(strategic_status_message) => {
+            StrategicRequest::Status(strategic_status_message) => {
                 write!(f, "status: {}", strategic_status_message)?;
                 Ok(())
             }
-            StrategicRequests::Scheduling(scheduling_message) => {
+            StrategicRequest::Scheduling(scheduling_message) => {
                 write!(f, "scheduling_message: {:?}", scheduling_message)?;
 
                 Ok(())
             }
-            StrategicRequests::Resources(resources_message) => {
+            StrategicRequest::Resources(resources_message) => {
                 for manual_resource in resources_message.get_manual_resources().iter() {
-                    writeln!(f, "manual_resource: {}", manual_resource)?;
+                    writeln!(f, "manual_resource: {:?}", manual_resource)?;
                 }
                 Ok(())
             }
-            StrategicRequests::Periods(period_message) => {
+            StrategicRequest::Periods(period_message) => {
                 write!(f, "period_message: {:?}", period_message)?;
                 Ok(())
             }

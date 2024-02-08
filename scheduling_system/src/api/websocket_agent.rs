@@ -1,4 +1,3 @@
-use actix::dev::MessageResponse;
 use actix::prelude::*;
 use actix_web::Result;
 use actix_web_actors::ws;
@@ -40,10 +39,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                         info!(scheduler_front_end_message = %scheduler_input, "SchedulerAgent received SchedulerMessage");
                         self.scheduler_agent_addr.do_send(scheduler_input);
 
-                        // What is it that we want here? I think that the main goal is to create
-                        // something that sends a message and then waits for a response from the
-                        // scheduler agent. And this response should then be send back throught
-                        // the websocket.
                         let addr = ctx.address();
                         self.scheduler_agent_addr
                             .do_send(SetAgentAddrMessage { addr });
@@ -157,8 +152,10 @@ mod tests {
     use crate::models::SchedulingEnvironment;
     use crate::models::WorkOrders;
     use chrono::{DateTime, Utc};
+    use shared_messages::strategic::StrategicRequest;
     use std::collections::HashMap;
     use std::sync::Mutex;
+    use tracing_subscriber::fmt::format::json;
 
     use crate::models::time_environment::period::Period;
     use std::fs;
@@ -204,7 +201,8 @@ mod tests {
         let json_message =
             fs::read_to_string("tests/unit_testing/frontend_scheduler.json").unwrap();
 
-        let scheduler_input: FrontendMessages = serde_json::from_str(&json_message).unwrap();
+        dbg!(json_message.clone());
+        let scheduler_input: StrategicRequest = serde_json::from_str(&json_message).unwrap();
 
         // How can this deserialization be tested? I am not sure. I know that the message is the
         // correct one but that it is not deserialized correctly.

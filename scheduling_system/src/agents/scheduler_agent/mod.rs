@@ -205,10 +205,12 @@ fn transform_hashmap_to_nested_hashmap(
 #[cfg(test)]
 mod tests {
 
+    use std::hash::Hash;
+
     use chrono::{TimeZone, Utc};
     use shared_messages::strategic::strategic_periods_message::StrategicPeriodsMessage;
     use shared_messages::strategic::strategic_resources_message::StrategicResourcesMessage;
-    use shared_messages::strategic::strategic_scheduling_message::ScheduleSingleWorkOrder;
+    use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
     use shared_messages::strategic::TimePeriod;
 
     use super::scheduler_message::tests::TestRequest;
@@ -243,9 +245,9 @@ mod tests {
         let mut work_orders = WorkOrders::new();
         let mut work_load = HashMap::new();
 
-        work_load.insert(Resources::new_from_string("MTN-MECH".to_string()), 20.0);
-        work_load.insert(Resources::new_from_string("MTN-ELEC".to_string()), 40.0);
-        work_load.insert(Resources::new_from_string("PRODTECH".to_string()), 60.0);
+        work_load.insert(Resources::MtnMech, 20.0);
+        work_load.insert(Resources::MtnElec, 40.0);
+        work_load.insert(Resources::Prodtech, 60.0);
 
         let work_order = WorkOrder::new(
             2200002020,
@@ -284,21 +286,21 @@ mod tests {
 
         manual_resource_capacity.insert(
             (
-                Resources::new_from_string("MTN-MECH".to_string()),
+                Resources::MtnMech,
                 Period::new_from_string(&period.get_period_string()).unwrap(),
             ),
             150.0,
         );
         manual_resource_capacity.insert(
             (
-                Resources::new_from_string("MTN-ELEC".to_string()),
+                Resources::MtnElec,
                 Period::new_from_string(&period.get_period_string()).unwrap(),
             ),
             150.0,
         );
         manual_resource_capacity.insert(
             (
-                Resources::new_from_string("PRODTECH".to_string()),
+                Resources::Prodtech,
                 Period::new_from_string(&period.get_period_string()).unwrap(),
             ),
             150.0,
@@ -306,21 +308,21 @@ mod tests {
 
         manual_resource_loadings.insert(
             (
-                Resources::new_from_string("MTN-MECH".to_string()),
+                Resources::MtnMech,
                 Period::new_from_string(&period.get_period_string()).unwrap(),
             ),
             0.0,
         );
         manual_resource_loadings.insert(
             (
-                Resources::new_from_string("MTN-ELEC".to_string()),
+                Resources::MtnElec,
                 Period::new_from_string(&period.get_period_string()).unwrap(),
             ),
             0.0,
         );
         manual_resource_loadings.insert(
             (
-                Resources::new_from_string("PRODTECH".to_string()),
+                Resources::Prodtech,
                 Period::new_from_string(&period.get_period_string()).unwrap(),
             ),
             0.0,
@@ -339,44 +341,17 @@ mod tests {
             true,
         );
 
+        let schedule_single_work_order =
+            SingleWorkOrder::new(2200002020, "2023-W47-48".to_string());
+
         let strategic_scheduling_message =
-            StrategicSchedulingMessage::Schedule(ScheduleSingleWorkOrder {});
+            StrategicSchedulingMessage::Schedule(schedule_single_work_order);
 
-        let manual_resource_1 = ManualResource::new(
-            Resources::MtnMech,
-            TimePeriod {
-                period_string: Period::new_from_string(&period.get_period_string())
-                    .unwrap()
-                    .get_period_string(),
-            },
-            150.0,
-        );
+        let mut manual_resources = HashMap::new();
 
-        let manual_resource_2 = ManualResource::new(
-            Resources::MtnElec,
-            TimePeriod {
-                period_string: Period::new_from_string(&period.get_period_string())
-                    .unwrap()
-                    .get_period_string(),
-            },
-            150.0,
-        );
-
-        let manual_resource_3 = ManualResource::new(
-            Resources::Prodtech,
-            TimePeriod {
-                period_string: Period::new_from_string(&period.get_period_string())
-                    .unwrap()
-                    .get_period_string(),
-            },
-            150.0,
-        );
-
-        let manual_resources = vec![
-            manual_resource_1.clone(),
-            manual_resource_2.clone(),
-            manual_resource_3.clone(),
-        ];
+        manual_resources.insert((Resources::MtnMech, period.get_period_string()), 150.0);
+        manual_resources.insert((Resources::MtnElec, period.get_period_string()), 150.0);
+        manual_resources.insert((Resources::Prodtech, period.get_period_string()), 150.0);
 
         let strategic_resources_message = StrategicResourcesMessage::new(manual_resources);
 
@@ -404,7 +379,7 @@ mod tests {
             *test_response
                 .manual_resources_capacity
                 .get(&(
-                    Resources::new_from_string("MTN-MECH".to_string()),
+                    Resources::MtnMech,
                     Period::new_from_string(&period.get_period_string()).unwrap()
                 ))
                 .unwrap(),
@@ -414,7 +389,7 @@ mod tests {
             *test_response
                 .manual_resources_capacity
                 .get(&(
-                    Resources::new_from_string("MTN-ELEC".to_string()),
+                    Resources::MtnElec,
                     Period::new_from_string(&period.get_period_string()).unwrap()
                 ))
                 .unwrap(),
@@ -424,7 +399,7 @@ mod tests {
             *test_response
                 .manual_resources_capacity
                 .get(&(
-                    Resources::new_from_string("PRODTECH".to_string()),
+                    Resources::Prodtech,
                     Period::new_from_string(&period.get_period_string()).unwrap()
                 ))
                 .unwrap(),
@@ -439,7 +414,7 @@ mod tests {
         let operation_1 = Operation::new(
             10,
             1,
-            Resources::new_from_string("MTN-MECH".to_string()),
+            Resources::MtnMech,
             1.0,
             1.0,
             1.0,
@@ -453,7 +428,7 @@ mod tests {
         let operation_2 = Operation::new(
             20,
             1,
-            Resources::new_from_string("MTN-MECH".to_string()),
+            Resources::MtnMech,
             1.0,
             1.0,
             1.0,
@@ -467,7 +442,7 @@ mod tests {
         let operation_3 = Operation::new(
             30,
             1,
-            Resources::new_from_string("MTN-MECH".to_string()),
+            Resources::MtnMech,
             1.0,
             1.0,
             1.0,

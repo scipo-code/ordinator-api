@@ -1,33 +1,33 @@
-use std::{
-    collections::HashSet,
-    fmt::{self, Display},
-};
+use std::collections::HashSet;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
 use super::TimePeriod;
 
 #[derive(Deserialize, Serialize, Debug)]
+#[serde(tag = "scheduling_message_type")]
 pub enum StrategicSchedulingMessage {
-    Schedule(ScheduleSingleWorkOrder),
+    Schedule(SingleWorkOrder),
+    ScheduleMultiple(Vec<SingleWorkOrder>),
+    ExcludeFromPeriod(SingleWorkOrder),
 }
 
 impl StrategicSchedulingMessage {
     pub fn new_single_work_order(work_order_number: u32, period_string: String) -> Self {
-        Self::Schedule(ScheduleSingleWorkOrder {
+        Self::Schedule(SingleWorkOrder {
             work_order_number,
             period_string,
         })
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ScheduleSingleWorkOrder {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SingleWorkOrder {
     work_order_number: u32,
     period_string: String,
 }
 
-impl ScheduleSingleWorkOrder {
+impl SingleWorkOrder {
     pub fn new(work_order_number: u32, period_string: String) -> Self {
         Self {
             work_order_number,
@@ -71,31 +71,10 @@ where
     Ok(set)
 }
 
-impl fmt::Display for WorkOrderPeriodMapping {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "work_order: {}, period: {:?}",
-            self.work_order_number, self.period_status
-        )
-    }
-}
-
-impl WorkOrderPeriodMapping {
-    pub fn new_test() -> Self {
-        WorkOrderPeriodMapping {
-            work_order_number: 2200002020,
-            period_status: WorkOrderStatusInPeriod::new_test(),
-        }
-    }
-}
-
-impl WorkOrderStatusInPeriod {
-    pub fn new_test() -> Self {
-        let period_string = "2023-W47-48".to_string();
-        WorkOrderStatusInPeriod {
-            locked_in_period: Some(TimePeriod::new(period_string)),
-            excluded_from_periods: HashSet::new(),
-        }
+impl StrategicSchedulingMessage {
+    pub fn new_schedule_test() -> Self {
+        let schedule_single_work_order =
+            SingleWorkOrder::new(2200002020, "2023-W47-48".to_string());
+        Self::Schedule(schedule_single_work_order)
     }
 }
