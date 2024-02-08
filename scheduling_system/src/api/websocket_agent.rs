@@ -46,7 +46,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                     Ok(FrontendMessages::Tactical) => {
                         println!("WorkPlannerAgent received WorkPlannerMessage");
                     }
-                    Ok(FrontendMessages::Worker) => {
+                    Ok(FrontendMessages::Operational) => {
                         println!("WorkerAgent received WorkerMessage");
                     }
                     Err(e) => {
@@ -155,7 +155,6 @@ mod tests {
     use shared_messages::strategic::StrategicRequest;
     use std::collections::HashMap;
     use std::sync::Mutex;
-    use tracing_subscriber::fmt::format::json;
 
     use crate::models::time_environment::period::Period;
     use std::fs;

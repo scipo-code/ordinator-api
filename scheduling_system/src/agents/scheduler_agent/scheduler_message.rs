@@ -141,7 +141,7 @@ impl Message for PeriodMessage {
 impl Handler<StrategicRequest> for SchedulerAgent {
     type Result = ();
 
-    fn handle(&mut self, msg: StrategicRequest, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: StrategicRequest, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
             StrategicRequest::Status(strategic_status_message) => match strategic_status_message {
                 StrategicStatusMessage::General => {
@@ -363,7 +363,6 @@ pub mod tests {
     use std::collections::HashSet;
 
     use super::*;
-    use chrono::{TimeZone, Utc};
 
     use crate::models::work_order::WorkOrder;
     use crate::{

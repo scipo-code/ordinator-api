@@ -2,7 +2,6 @@ use actix::Addr;
 use actix_web::web::Data;
 use actix_web::{App, HttpServer};
 use std::{sync::Arc, thread};
-use tokio::io::{self, AsyncBufReadExt, BufReader};
 use tokio::task::JoinHandle;
 use tracing::{info, trace};
 

@@ -2,6 +2,7 @@ use core::panic;
 use rand::prelude::SliceRandom;
 use std::collections::HashSet;
 use tracing::info;
+use tracing::instrument;
 
 use super::SchedulerAgentAlgorithm;
 use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
@@ -52,6 +53,7 @@ impl SchedulerAgentAlgorithm {
     /// know the period. What should be done about this. This depends on where we can find the
     /// period. We can find the period in the part of the state that is handled by the
     /// update_scheduler_state function.
+    #[instrument]
     pub fn schedule_forced_work_orders(&mut self) {
         let mut work_order_keys: Vec<u32> = vec![];
         for (work_order_key, opt_work_order) in self.get_optimized_work_orders().iter() {
@@ -70,7 +72,7 @@ impl SchedulerAgentAlgorithm {
     /// initially thought. The schedule_normal_work_orders should simply schedule work orders that
     /// are not in the schedule yet. I think, but I am not sure, that the there should be no
     /// rescheduling here.
-    #[tracing::instrument(fields(
+    #[instrument(fields(
         manual_resources_capacity = self.resources_capacity.len(),
         manual_resources_loading = self.resources_loading.len(),
         optimized_work_orders = self.optimized_work_orders.inner.len(),))]
@@ -80,7 +82,7 @@ impl SchedulerAgentAlgorithm {
         period: &Period,
         queue_type: &QueueType,
     ) -> Option<u32> {
-        let mut work_order = self.backlog.inner.get(&work_order_key).unwrap().clone();
+        let work_order = self.backlog.inner.get(&work_order_key).unwrap().clone();
 
         // The if statements found in here are each constraints that has to be upheld.
         for (work_center, resource_needed) in work_order.get_work_load().clone().iter() {

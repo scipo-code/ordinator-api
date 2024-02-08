@@ -308,6 +308,7 @@ impl SchedulerAgentAlgorithm {
         }
     }
 
+    #[tracing::instrument]
     fn update_priority_queues(&mut self) {
         for (key, work_order) in &self.optimized_work_orders.inner {
             let work_order_weight = self.backlog.inner.get(key).unwrap().get_order_weight();

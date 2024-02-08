@@ -12,7 +12,7 @@ use crate::strategic::StrategicRequest;
 pub enum FrontendMessages {
     Strategic(StrategicRequest),
     Tactical,
-    Worker,
+    Operational,
 }
 
 #[derive(Debug)]

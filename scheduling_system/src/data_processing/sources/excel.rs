@@ -1037,15 +1037,4 @@ mod tests {
         assert_eq!(number_of_work_orders, 1227);
         assert_eq!(number_of_operations, 12);
     }
-
-    // The application should always track the real time, this is a compromise that I
-    // think will be a bad idea to make.
-    #[test]
-    fn test_create_periods() {
-        let periods: Vec<Period> = create_periods(52).unwrap();
-
-        // Remember to always fix bad things when you spot them in the code.
-        // This should be proptest
-        // assert_eq!(periods[26].get_period_string(), "2025-W1-2");
-    }
 }
