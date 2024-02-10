@@ -7,7 +7,7 @@ use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
 use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrders;
 use crate::agents::scheduler_agent::scheduler_algorithm::PriorityQueues;
 use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
-use crate::agents::scheduler_agent::SchedulerAgent;
+use crate::agents::scheduler_agent::StrategicAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::SchedulingEnvironment;
 use crate::models::WorkOrders;
@@ -17,7 +17,7 @@ use shared_messages::resources::Resources;
 // properly.
 pub fn build_scheduler_agent(
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-) -> Addr<SchedulerAgent> {
+) -> Addr<StrategicAgent> {
     let cloned_work_orders = scheduling_environment.lock().unwrap().clone_work_orders();
 
     let optimized_work_orders: OptimizedWorkOrders =
@@ -72,7 +72,7 @@ pub fn build_scheduler_agent(
     // dbg!(scheduler_agent_algorithm
     //     .get_manual_resources_capacities()
     //     .get(k));
-    let scheduler_agent = SchedulerAgent::new(
+    let scheduler_agent = StrategicAgent::new(
         String::from("Dan F"),
         scheduling_environment,
         scheduler_agent_algorithm,

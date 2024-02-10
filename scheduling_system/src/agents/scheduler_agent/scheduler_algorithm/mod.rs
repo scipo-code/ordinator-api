@@ -1,13 +1,15 @@
 mod algorithm;
 
 use std::collections::{HashMap, HashSet};
+use std::error::Error;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 
 use priority_queue::PriorityQueue;
-use shared_messages::strategic::strategic_resources_message::StrategicResourcesMessage;
+use shared_messages::strategic::strategic_resources_message::{self, StrategicResourcesMessage};
 use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
-use tracing::{debug, event, span, Level};
+use shared_messages::Response;
+use tracing::{debug, event, info, span, Level};
 
 use crate::models::time_environment::period::Period;
 use crate::models::WorkOrders;
@@ -116,7 +118,6 @@ impl OptimizedWorkOrders {
     }
 
     pub fn set_locked_in_period(&mut self, work_order_number: u32, period: Period) {
-        dbg!(self.inner.keys());
 
         let optimized_work_order = match self.inner.get_mut(&work_order_number) {
             Some(optimized_work_order) => optimized_work_order,
@@ -192,43 +193,16 @@ impl Display for SchedulerAgentAlgorithm {
 }
 
 impl SchedulerAgentAlgorithm {
-    pub fn log_optimized_work_orders(&self) {
-        for (work_order_number, optimized) in &self.optimized_work_orders.inner {
-            match &optimized.locked_in_period {
-                Some(period) => {
-                    event!(tracing::Level::TRACE, work_order_number = %work_order_number, period = period.get_period_string())
-                }
-                None => {
-                    event!(tracing::Level::TRACE, work_order_number = %work_order_number,  period = "no locked period")
-                }
-            }
-
-            match &optimized.scheduled_period {
-                Some(period) => {
-                    event!(tracing::Level::TRACE, work_order_number = %work_order_number, period = %period.get_period_string())
-                }
-                None => {
-                    event!(tracing::Level::TRACE, work_order_number = %work_order_number,  period = "None")
-                }
-            }
-
-            for period in &optimized.excluded_from_periods {
-                event!(tracing::Level::TRACE, work_order_number = %work_order_number, period = %period)
-            }
-        }
-    }
-}
-
-impl SchedulerAgentAlgorithm {
     pub fn update_resources_state(
         &mut self,
-        strategic_resouces_internal: StrategicResourcesMessage,
-    ) {
-        for (key, capacity) in strategic_resouces_internal.get_manual_resources() {
+        strategic_resources_message: StrategicResourcesMessage,
+    ) -> shared_messages::Response {
+        for (key, capacity) in strategic_resources_message.get_manual_resources() {
             let period = self.periods.iter().find(|period| period.get_period_string() == key.1).expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
             self.resources_capacity
                 .insert((key.0, period.clone()), capacity);
         }
+        shared_messages::Response::Success(Some("Resouce updated correctly".to_string()))
     }
 
     pub fn update_periods_state() {}
@@ -237,49 +211,125 @@ impl SchedulerAgentAlgorithm {
     pub fn update_scheduling_state(
         &mut self,
         strategic_scheduling_message: StrategicSchedulingMessage,
-    ) {
-        match strategic_scheduling_message {
+    ) -> shared_messages::Response {
+        let response: shared_messages::Response = match strategic_scheduling_message {
             StrategicSchedulingMessage::Schedule(schedule_work_order) => {
                 let work_order_number = schedule_work_order.get_work_order_number();
                 let period = self
                     .periods
                     .iter()
-                    .find(|period| period.get_period_string() == schedule_work_order.get_period_string().clone())
-                    .expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
-                self.optimized_work_orders
-                    .set_locked_in_period(work_order_number, period.clone());
-                self.initialize_loading_used_in_work_order(work_order_number, period.clone());
+                    .find(|period| {
+                        period.get_period_string() == schedule_work_order.get_period_string()
+                    })
+                    .cloned();
+                match period {
+                    Some(period) => {
+                        self.optimized_work_orders
+                            .set_locked_in_period(work_order_number, period.clone());
+                        self.initialize_loading_used_in_work_order(
+                            work_order_number,
+                            period.clone(),
+                        );
+                        shared_messages::Response::Success(Some(format!(
+                            "Work order {} has been scheduled for period {}",
+                            work_order_number,
+                            period.get_period_string()
+                        )))
+                    }
+                    None => shared_messages::Response::Failure,
+                }
             }
             StrategicSchedulingMessage::ScheduleMultiple(schedule_work_orders) => {
+                let mut output_string = String::new();
+                let mut period_result = Result::Ok(());
                 for schedule_work_order in schedule_work_orders {
                     let work_order_number = schedule_work_order.get_work_order_number();
                     let period = self
                         .periods
                         .iter()
-                        .find(|period| period.get_period_string() == schedule_work_order.get_period_string().clone())
-                        .expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
-                    self.optimized_work_orders
-                        .set_locked_in_period(work_order_number, period.clone());
-                    self.initialize_loading_used_in_work_order(work_order_number, period.clone());
+                        .find(|period| {
+                            period.get_period_string() == schedule_work_order.get_period_string()
+                        })
+                        .cloned();
+
+                    match period {
+                        Some(period) => {
+                            self.optimized_work_orders
+                                .set_locked_in_period(work_order_number, period.clone());
+                            self.initialize_loading_used_in_work_order(
+                                work_order_number,
+                                period.clone(),
+                            );
+                            output_string += &format!(
+                                "Work order {} has been scheduled for period {}",
+                                work_order_number,
+                                period.clone().get_period_string()
+                            )
+                            .to_string();
+                            period_result = Result::Ok(())
+                        }
+                        None => {
+                            period_result = Result::Err(
+                            "The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.",
+                            );
+                            break;
+                        }
+                    }
+                }
+        
+                match period_result {
+                    Ok(()) => shared_messages::Response::Success(Some(output_string.to_string())),
+                    Err(_) => shared_messages::Response::Failure,
                 }
             }
             StrategicSchedulingMessage::ExcludeFromPeriod(exclude_from_period) => {
                 let work_order_number = exclude_from_period.get_work_order_number();
-                let period = self
-                    .periods
-                    .iter()
-                    .find(|period| period.get_period_string() == exclude_from_period.get_period_string().clone())
-                    .expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
+                let period = self.periods.iter().find(|period| {
+                    period.get_period_string() == exclude_from_period.get_period_string().clone()
+                });
 
-                // let optimized
+                match period {
+                    Some(period) => {
+                        let optimized_work_order = 
+                            self
+                                .optimized_work_orders
+                                .inner
+                                .get_mut(&work_order_number)
+                                .expect("The work order number was not found in the optimized work orders. The work order should have been initialized at the outset.");
+                        
+                        optimized_work_order
+                            .excluded_from_periods
+                            .insert(period.clone());
 
-                let optimized_work_order = self.optimized_work_orders.inner.get_mut(&work_order_number).expect("The work order number was not found in the optimized work orders. This is a problem because the work order should have been initialized at the outset.");
-                optimized_work_order
-                    .excluded_from_periods
-                    .insert(period.clone());
+                        let overwrite = if let Some(locked_in_period) = &optimized_work_order.locked_in_period {
+                            if optimized_work_order.excluded_from_periods.contains(locked_in_period) {
+                                optimized_work_order.scheduled_period = None;
+                                optimized_work_order.locked_in_period = None;
+                                true
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        };
+
+                        if overwrite {
+                            info!("Work order {} has been excluded from period {} and the locked in period has been removed", work_order_number, period.get_period_string());
+                        }
+                            
+
+                        shared_messages::Response::Success(Some(format!(
+                            "Work order {} has been excluded from period {}",
+                            work_order_number,
+                            period.get_period_string()
+                        )))
+                    }
+                    None => shared_messages::Response::Failure,
+                }
             }
         };
         self.update_priority_queues();
+        response
     }
 }
 

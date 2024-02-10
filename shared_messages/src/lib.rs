@@ -1,21 +1,24 @@
 pub mod resources;
+pub mod status;
 pub mod strategic;
 
 use actix::dev::MessageResponse;
 use actix::prelude::*;
 use serde::{Deserialize, Serialize};
+use status::StatusRequest;
 
 use crate::strategic::StrategicRequest;
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "message_type")]
 pub enum FrontendMessages {
+    Status(StatusRequest),
     Strategic(StrategicRequest),
     Tactical,
     Operational,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Response {
     Success(Option<String>),
     Failure,

@@ -1,11 +1,16 @@
 use clap::{Args, Parser, Subcommand};
+use shared_messages::status::StatusRequest;
+use shared_messages::strategic::strategic_resources_message::StrategicResourcesMessage;
 use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
 use shared_messages::strategic::{
     strategic_scheduling_message::StrategicSchedulingMessage, StrategicRequest,
 };
 use shared_messages::FrontendMessages;
+use std::collections::HashMap;
+use std::fs::read_to_string;
 use std::net::TcpStream;
+use strum::IntoEnumIterator;
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;
 
@@ -19,7 +24,10 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Get status of the scheduling system
-    Status,
+    Status {
+        #[clap(subcommand)]
+        status_commands: Option<StatusSchedulingEnvironment>,
+    },
     /// Access the strategic agent
     Strategic {
         #[clap(subcommand)]
@@ -32,11 +40,20 @@ enum Commands {
 }
 
 #[derive(Subcommand, Debug)]
+enum StatusSchedulingEnvironment {
+    /// Get the status of a specific WorkOrder
+    WorkOrder {
+        work_order: u32,
+    },
+    Periods,
+}
+
+#[derive(Subcommand, Debug)]
 enum StrategicSubcommands {
     /// overview of the strategic agent
     Status {
         #[clap(subcommand)]
-        subcommand: Option<StatusSubcommands>,
+        subcommand: Option<StatusStrategic>,
     },
     /// Scheduling commands
     Scheduling {
@@ -44,11 +61,34 @@ enum StrategicSubcommands {
         subcommand: Option<SchedulingSubcommands>,
     },
     /// Resources commands
-    Resources,
+    Resources {
+        #[clap(subcommand)]
+        subcommand: Option<ResourcesSubcommands>,
+    },
 }
 
 #[derive(Subcommand, Debug)]
-enum StatusSubcommands {
+enum ResourcesSubcommands {
+    /// Get the loading of the resources
+    Loading,
+
+    /// Set the capacity of a resource
+    SetCapacity {
+        resource: String,
+        period: String,
+        capacity: u32,
+    },
+
+    SetCapacityPolicy {
+        resource: String,
+        capacity: u32,
+    },
+
+    SetCapacityPolicyDefault,
+}
+
+#[derive(Subcommand, Debug)]
+enum StatusStrategic {
     /// List all work orders in a given period
     WorkOrders { period: String },
 }
@@ -123,13 +163,28 @@ impl Commands {
 
 fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
     match &cli.command {
-        Some(Commands::Status) => {
-            Commands::get_status(socket);
-        }
+        Some(Commands::Status { status_commands }) => match status_commands {
+            Some(StatusSchedulingEnvironment::WorkOrder { work_order }) => {
+                let environment_status_message: StatusRequest =
+                    StatusRequest::GetWorkOrderStatus(*work_order);
+                let front_end_message = FrontendMessages::Status(environment_status_message);
+                let status_request_json = serde_json::to_string(&front_end_message).unwrap();
+
+                socket.send(Message::Text(status_request_json)).unwrap();
+            }
+            Some(StatusSchedulingEnvironment::Periods) => {
+                let environment_status_message = StatusRequest::GetPeriods;
+                let front_end_message = FrontendMessages::Status(environment_status_message);
+                let status_request_json = serde_json::to_string(&front_end_message).unwrap();
+
+                socket.send(Message::Text(status_request_json)).unwrap();
+            }
+            None => Commands::get_status(socket),
+        },
         Some(Commands::Strategic { subcommand }) => match subcommand {
             Some(subcommand) => match subcommand {
                 StrategicSubcommands::Status { subcommand } => match subcommand {
-                    Some(StatusSubcommands::WorkOrders { period }) => {
+                    Some(StatusStrategic::WorkOrders { period }) => {
                         let strategic_status_message: StrategicStatusMessage =
                             StrategicStatusMessage::new_period(period.to_string());
 
@@ -200,9 +255,47 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
                         todo!()
                     }
                 },
-                StrategicSubcommands::Resources => {
-                    todo!()
-                }
+                StrategicSubcommands::Resources { subcommand } => match subcommand {
+                    Some(ResourcesSubcommands::Loading) => {
+                        todo!()
+                    }
+                    Some(ResourcesSubcommands::SetCapacity {
+                        resource,
+                        period,
+                        capacity,
+                    }) => {
+                        todo!()
+                    }
+                    Some(ResourcesSubcommands::SetCapacityPolicy { resource, capacity }) => {
+                        todo!()
+                    }
+                    Some(ResourcesSubcommands::SetCapacityPolicyDefault) => {
+                        // fn generate_manual_resources() {
+                        //     let manual_resources = HashMap::new();
+                        //     let periods = get_periods();
+
+                        //     for resources in shared_messages::resources::Resources::iter() {
+                        //         for period in periods {
+                        //             let period_string = period.get_period_string();
+                        //             manual_resources.insert((resources, period_string), 300.0);
+                        //         }
+                        //     }
+                        // }
+
+                        // let strategic_request =
+                        //     StrategicRequest::Resources(strategic_resources_message);
+
+                        // let front_end_message = FrontendMessages::Strategic(strategic_request);
+
+                        // let scheduler_request_json =
+                        //     serde_json::to_string(&front_end_message).unwrap();
+
+                        // socket.send(Message::Text(scheduler_request_json)).unwrap();
+                    }
+                    None => {
+                        todo!()
+                    }
+                },
             },
             None => {
                 todo!()
@@ -218,3 +311,5 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
         None => {}
     }
 }
+
+fn get_periods() {}

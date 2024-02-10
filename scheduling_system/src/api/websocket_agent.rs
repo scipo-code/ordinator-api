@@ -9,11 +9,11 @@ use crate::agents::scheduler_agent::scheduler_message::OverviewMessage;
 use crate::agents::scheduler_agent::scheduler_message::PeriodMessage;
 use crate::agents::scheduler_agent::scheduler_message::SetAgentAddrMessage;
 use crate::agents::scheduler_agent::scheduler_message::SuccesMessage;
-use crate::agents::scheduler_agent::SchedulerAgent;
+use crate::agents::scheduler_agent::StrategicAgent;
 use shared_messages::FrontendMessages;
 
 pub struct WebSocketAgent {
-    scheduler_agent_addr: Arc<Addr<SchedulerAgent>>,
+    scheduler_agent_addr: Arc<Addr<StrategicAgent>>,
 }
 
 impl Actor for WebSocketAgent {
@@ -35,6 +35,9 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                 let msg_type: Result<FrontendMessages, serde_json::Error> =
                     serde_json::from_str(&text);
                 match msg_type {
+                    Ok(FrontendMessages::Status(status_input)) => {
+                        self.scheduler_agent_addr.do_send(status_input);
+                    }
                     Ok(FrontendMessages::Strategic(scheduler_input)) => {
                         info!(scheduler_front_end_message = %scheduler_input, "SchedulerAgent received SchedulerMessage");
                         self.scheduler_agent_addr.do_send(scheduler_input);
@@ -61,7 +64,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
 }
 
 impl WebSocketAgent {
-    pub fn new(scheduler_agent_addr: Arc<Addr<SchedulerAgent>>) -> Self {
+    pub fn new(scheduler_agent_addr: Arc<Addr<StrategicAgent>>) -> Self {
         WebSocketAgent {
             scheduler_agent_addr,
         }
@@ -148,7 +151,7 @@ mod tests {
     use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrders;
     use crate::agents::scheduler_agent::scheduler_algorithm::PriorityQueues;
     use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
-    use crate::agents::scheduler_agent::SchedulerAgent;
+    use crate::agents::scheduler_agent::StrategicAgent;
     use crate::models::SchedulingEnvironment;
     use crate::models::WorkOrders;
     use chrono::{DateTime, Utc};
@@ -172,7 +175,7 @@ mod tests {
 
         let optimized_work_orders: OptimizedWorkOrders = OptimizedWorkOrders::new(HashMap::new());
 
-        let scheduler_agent_addr = SchedulerAgent::new(
+        let scheduler_agent_addr = StrategicAgent::new(
             "test".to_string(),
             Arc::new(Mutex::new(SchedulingEnvironment::default())),
             SchedulerAgentAlgorithm::new(

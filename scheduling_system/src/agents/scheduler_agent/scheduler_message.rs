@@ -1,5 +1,6 @@
 use actix::prelude::*;
 use serde::{Deserialize, Serialize};
+use shared_messages::status::StatusRequest;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
 use shared_messages::strategic::StrategicRequest;
 use std::collections::HashMap;
@@ -8,7 +9,7 @@ use tokio::time::{sleep, Duration};
 use tracing::{debug, error, info, instrument, trace};
 
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
-use crate::agents::scheduler_agent::{self, SchedulerAgent};
+use crate::agents::scheduler_agent::{self, StrategicAgent};
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::time_environment::period::Period;
 use shared_messages::resources::Resources;
@@ -44,7 +45,7 @@ pub struct UpdatePeriod {
 #[rtype(result = "()")]
 pub struct ScheduleIteration {}
 
-impl Handler<ScheduleIteration> for SchedulerAgent {
+impl Handler<ScheduleIteration> for StrategicAgent {
     type Result = ResponseActFuture<Self, ()>;
 
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
@@ -138,7 +139,7 @@ impl Message for PeriodMessage {
     type Result = ();
 }
 
-impl Handler<StrategicRequest> for SchedulerAgent {
+impl Handler<StrategicRequest> for StrategicAgent {
     type Result = ();
 
     fn handle(&mut self, msg: StrategicRequest, _ctx: &mut Self::Context) -> Self::Result {
@@ -154,7 +155,6 @@ impl Handler<StrategicRequest> for SchedulerAgent {
                         "{}\nWith objectives: \n  strategic objective of: {}",
                         scheduling_status, strategic_objective
                     );
-                    dbg!();
                     match self.ws_agent_addr.as_ref() {
                         Some(addr) => addr
                             .do_send(shared_messages::Response::Success(Some(scheduling_status))),
@@ -206,27 +206,27 @@ impl Handler<StrategicRequest> for SchedulerAgent {
                     message = ?scheduling_message,
                     "received a message from the frontend"
                 );
-                self.scheduler_agent_algorithm
+                let response: shared_messages::Response = self
+                    .scheduler_agent_algorithm
                     .update_scheduling_state(scheduling_message);
 
+                dbg!(self
+                    .scheduler_agent_algorithm
+                    .get_optimized_work_order(&2100023218));
                 match self.ws_agent_addr.as_ref() {
-                    Some(addr) => addr.do_send(shared_messages::Response::Success(None)),
+                    Some(addr) => addr.do_send(response),
                     None => {
                         println!("No WebSocketAgentAddr set yet, so no message sent to frontend")
                     }
                 }
             }
             StrategicRequest::Resources(resources_message) => {
-                let manual_resources = self
+                let response: shared_messages::Response = self
                     .scheduler_agent_algorithm
-                    .get_manual_resources_loadings()
-                    .clone();
-                let manual_resources = serde_json::to_string(&manual_resources).unwrap();
+                    .update_resources_state(resources_message);
 
                 match self.ws_agent_addr.as_ref() {
-                    Some(addr) => {
-                        addr.do_send(shared_messages::Response::Success(Some(manual_resources)))
-                    }
+                    Some(addr) => addr.do_send(response),
                     None => {
                         println!("No WebSocketAgentAddr set yet, so no message sent to frontend")
                     }
@@ -257,7 +257,53 @@ impl Handler<StrategicRequest> for SchedulerAgent {
     }
 }
 
-impl Handler<MessageToFrontend> for SchedulerAgent {
+impl Handler<StatusRequest> for StrategicAgent {
+    type Result = ();
+    fn handle(&mut self, msg: StatusRequest, _ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            StatusRequest::GetWorkOrderStatus(work_order_number) => {
+                let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+
+                let cloned_work_orders = scheduling_environment_guard.clone_work_orders();
+
+                if let Some(work_order_status) = cloned_work_orders.inner.get(&work_order_number) {
+                    let work_order_status = work_order_status.to_string();
+                    match self.ws_agent_addr.as_ref() {
+                        Some(addr) => addr
+                            .do_send(shared_messages::Response::Success(Some(work_order_status))),
+                        None => {
+                            println!(
+                                "No WebSocketAgentAddr set yet, so no message sent to frontend"
+                            )
+                        }
+                    }
+                }
+            }
+            StatusRequest::GetPeriods => {
+                let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+
+                let periods = scheduling_environment_guard.clone_periods();
+
+                let periods_string: String = periods
+                    .iter()
+                    .map(|period| period.get_period_string())
+                    .collect::<Vec<String>>()
+                    .join(",");
+
+                match self.ws_agent_addr.as_ref() {
+                    Some(addr) => {
+                        addr.do_send(shared_messages::Response::Success(Some(periods_string)))
+                    }
+                    None => {
+                        println!("No WebSocketAgentAddr set yet, so no message sent to frontend")
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl Handler<MessageToFrontend> for StrategicAgent {
     type Result = ();
 
     #[instrument(
@@ -339,7 +385,7 @@ impl Handler<MessageToFrontend> for SchedulerAgent {
     }
 }
 
-impl Handler<SetAgentAddrMessage<WebSocketAgent>> for SchedulerAgent {
+impl Handler<SetAgentAddrMessage<WebSocketAgent>> for StrategicAgent {
     type Result = ();
 
     fn handle(
@@ -641,7 +687,7 @@ pub mod tests {
         pub periods: Vec<Period>,
     }
 
-    impl Handler<TestRequest> for SchedulerAgent {
+    impl Handler<TestRequest> for StrategicAgent {
         type Result = Option<TestResponse>; // Or relevant part of the state
 
         fn handle(&mut self, _msg: TestRequest, _: &mut Context<Self>) -> Self::Result {

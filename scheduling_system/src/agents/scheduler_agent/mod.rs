@@ -20,7 +20,7 @@ use crate::agents::work_planner_agent::WorkPlannerAgent;
 
 /// This is the primary struct for the scheduler agent.
 #[allow(dead_code)]
-pub struct SchedulerAgent {
+pub struct StrategicAgent {
     platform: String,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     scheduler_agent_algorithm: SchedulerAgentAlgorithm,
@@ -28,13 +28,13 @@ pub struct SchedulerAgent {
     work_planner_agent_addr: Option<Addr<WorkPlannerAgent>>,
 }
 
-impl SchedulerAgent {
+impl StrategicAgent {
     pub fn set_ws_agent_addr(&mut self, ws_agent_addr: Addr<WebSocketAgent>) {
         self.ws_agent_addr = Some(ws_agent_addr);
     }
 }
 
-impl Actor for SchedulerAgent {
+impl Actor for StrategicAgent {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Context<Self>) {
@@ -47,7 +47,7 @@ impl Actor for SchedulerAgent {
     }
 }
 
-impl SchedulerAgent {
+impl StrategicAgent {
     pub fn new(
         platform: String,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
@@ -113,7 +113,7 @@ pub struct SchedulingOverviewData {
 // Now the problem is that the many work orders may not even get a status, in this approach.
 // This is an issue. Now when we get the work_order_number the entry could be non-existent.
 //
-impl SchedulerAgent {
+impl StrategicAgent {
     fn extract_state_to_scheduler_overview(&self) -> Vec<SchedulingOverviewData> {
         let mut scheduling_overview_data: Vec<SchedulingOverviewData> = Vec::new();
         for (work_order_number, work_order) in
@@ -359,7 +359,7 @@ mod tests {
             period_lock: HashMap::new(),
         };
 
-        let scheduler_agent = SchedulerAgent::new(
+        let scheduler_agent = StrategicAgent::new(
             "test".to_string(),
             Arc::new(Mutex::new(SchedulingEnvironment::default())),
             scheduler_agent_algorithm,
@@ -494,7 +494,7 @@ mod tests {
             true,
         );
 
-        let scheduler_agent = SchedulerAgent::new(
+        let scheduler_agent = StrategicAgent::new(
             "test".to_string(),
             Arc::new(Mutex::new(SchedulingEnvironment::default())),
             scheduler_agent_algorithm,

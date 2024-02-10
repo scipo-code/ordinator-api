@@ -8,7 +8,9 @@ pub struct Availability {
     #[serde(
         deserialize_with = "crate::models::worker_environment::availability::deserialize_datetime"
     )]
+    #[allow(dead_code)]
     start_date: DateTime<Utc>,
+    #[allow(dead_code)]
     #[serde(deserialize_with = "deserialize_datetime")]
     end_date: DateTime<Utc>,
 }
