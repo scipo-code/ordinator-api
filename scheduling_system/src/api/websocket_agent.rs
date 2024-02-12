@@ -10,7 +10,7 @@ use crate::agents::scheduler_agent::scheduler_message::PeriodMessage;
 use crate::agents::scheduler_agent::scheduler_message::SetAgentAddrMessage;
 use crate::agents::scheduler_agent::scheduler_message::SuccesMessage;
 use crate::agents::scheduler_agent::StrategicAgent;
-use shared_messages::FrontendMessages;
+use shared_messages::SystemMessages;
 
 pub struct WebSocketAgent {
     scheduler_agent_addr: Arc<Addr<StrategicAgent>>,
@@ -32,13 +32,13 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
             Ok(ws::Message::Text(text)) => {
-                let msg_type: Result<FrontendMessages, serde_json::Error> =
+                let msg_type: Result<SystemMessages, serde_json::Error> =
                     serde_json::from_str(&text);
                 match msg_type {
-                    Ok(FrontendMessages::Status(status_input)) => {
+                    Ok(SystemMessages::Status(status_input)) => {
                         self.scheduler_agent_addr.do_send(status_input);
                     }
-                    Ok(FrontendMessages::Strategic(scheduler_input)) => {
+                    Ok(SystemMessages::Strategic(scheduler_input)) => {
                         info!(scheduler_front_end_message = %scheduler_input, "SchedulerAgent received SchedulerMessage");
                         self.scheduler_agent_addr.do_send(scheduler_input);
 
@@ -46,10 +46,10 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                         self.scheduler_agent_addr
                             .do_send(SetAgentAddrMessage { addr });
                     }
-                    Ok(FrontendMessages::Tactical) => {
+                    Ok(SystemMessages::Tactical) => {
                         println!("WorkPlannerAgent received WorkPlannerMessage");
                     }
-                    Ok(FrontendMessages::Operational) => {
+                    Ok(SystemMessages::Operational) => {
                         println!("WorkerAgent received WorkerMessage");
                     }
                     Err(e) => {

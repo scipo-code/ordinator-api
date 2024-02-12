@@ -2,7 +2,6 @@ pub mod resources;
 pub mod status;
 pub mod strategic;
 
-use actix::dev::MessageResponse;
 use actix::prelude::*;
 use serde::{Deserialize, Serialize};
 use status::StatusRequest;
@@ -11,7 +10,7 @@ use crate::strategic::StrategicRequest;
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "message_type")]
-pub enum FrontendMessages {
+pub enum SystemMessages {
     Status(StatusRequest),
     Strategic(StrategicRequest),
     Tactical,
@@ -39,18 +38,5 @@ impl ToString for Response {
                 "Command was failed to be either received or integrated".to_string()
             }
         }
-    }
-}
-
-impl<A, M> MessageResponse<A, M> for Response
-where
-    A: Actor,
-    M: Message<Result = Response>,
-{
-    fn handle(
-        self,
-        ctx: &mut <A as Actor>::Context,
-        msg: std::option::Option<actix::dev::OneshotSender<Response>>,
-    ) {
     }
 }

@@ -189,29 +189,26 @@ impl StrategicAgent {
 /// This function should be reformulated? I think that we should make sure to create in such a way
 /// that. We need an inner hashmap for each of the different
 fn transform_hashmap_to_nested_hashmap(
-    manual_resources: HashMap<(Resources, Period), f64>,
-) -> HashMap<String, HashMap<String, f64>> {
-    let mut nested_hash_map: HashMap<String, HashMap<String, f64>> = HashMap::new();
-
-    for ((work_center, period), value) in manual_resources {
-        nested_hash_map
-            .entry(work_center.variant_name())
-            .or_default()
-            .insert(period.get_period_string(), value);
+    resources: HashMap<Resources, HashMap<Period, f64>>,
+) -> HashMap<Resources, HashMap<String, f64>> {
+    let mut resources_hash_map = HashMap::new();
+    for (resource, periods) in resources {
+        let mut periods_hash_map = HashMap::new();
+        for (period, capacity) in periods {
+            periods_hash_map.insert(period.get_period_string(), capacity);
+        }
+        resources_hash_map.insert(resource, periods_hash_map);
     }
-    nested_hash_map
+    resources_hash_map
 }
 
 #[cfg(test)]
 mod tests {
 
-    use std::hash::Hash;
-
     use chrono::{TimeZone, Utc};
     use shared_messages::strategic::strategic_periods_message::StrategicPeriodsMessage;
     use shared_messages::strategic::strategic_resources_message::StrategicResourcesMessage;
     use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
-    use shared_messages::strategic::TimePeriod;
 
     use super::scheduler_message::tests::TestRequest;
     use super::scheduler_message::tests::TestResponse;
@@ -232,7 +229,6 @@ mod tests {
         },
     };
     use crate::models::{work_order::*, WorkOrders};
-    use shared_messages::strategic::strategic_resources_message::ManualResource;
     use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
 
     #[test]
@@ -281,59 +277,28 @@ mod tests {
             + chrono::Duration::seconds(59);
         let period = Period::new(1, start_date, end_date);
 
-        let mut manual_resource_capacity: HashMap<(Resources, Period), f64> = HashMap::new();
-        let mut manual_resource_loadings: HashMap<(Resources, Period), f64> = HashMap::new();
+        let mut resource_capacity: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
+        let mut resource_loadings: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
 
-        manual_resource_capacity.insert(
-            (
-                Resources::MtnMech,
-                Period::new_from_string(&period.get_period_string()).unwrap(),
-            ),
-            150.0,
-        );
-        manual_resource_capacity.insert(
-            (
-                Resources::MtnElec,
-                Period::new_from_string(&period.get_period_string()).unwrap(),
-            ),
-            150.0,
-        );
-        manual_resource_capacity.insert(
-            (
-                Resources::Prodtech,
-                Period::new_from_string(&period.get_period_string()).unwrap(),
-            ),
-            150.0,
-        );
+        let mut period_hash_map_150 = HashMap::new();
+        let mut period_hash_map_0 = HashMap::new();
+        period_hash_map_150.insert(period.clone(), 150.0);
+        period_hash_map_0.insert(period.clone(), 0.0);
 
-        manual_resource_loadings.insert(
-            (
-                Resources::MtnMech,
-                Period::new_from_string(&period.get_period_string()).unwrap(),
-            ),
-            0.0,
-        );
-        manual_resource_loadings.insert(
-            (
-                Resources::MtnElec,
-                Period::new_from_string(&period.get_period_string()).unwrap(),
-            ),
-            0.0,
-        );
-        manual_resource_loadings.insert(
-            (
-                Resources::Prodtech,
-                Period::new_from_string(&period.get_period_string()).unwrap(),
-            ),
-            0.0,
-        );
+        resource_capacity.insert(Resources::MtnMech, period_hash_map_150.clone());
+        resource_capacity.insert(Resources::MtnElec, period_hash_map_150.clone());
+        resource_capacity.insert(Resources::Prodtech, period_hash_map_150.clone());
+
+        resource_loadings.insert(Resources::MtnMech, period_hash_map_0.clone());
+        resource_loadings.insert(Resources::MtnElec, period_hash_map_0.clone());
+        resource_loadings.insert(Resources::Prodtech, period_hash_map_0.clone());
 
         let periods: Vec<Period> = vec![Period::new_from_string("2023-W47-48").unwrap()];
 
         let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            manual_resource_capacity,
-            manual_resource_loadings,
+            resource_capacity,
+            resource_loadings,
             work_orders.clone(),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
@@ -349,11 +314,15 @@ mod tests {
 
         let mut manual_resources = HashMap::new();
 
-        manual_resources.insert((Resources::MtnMech, period.get_period_string()), 150.0);
-        manual_resources.insert((Resources::MtnElec, period.get_period_string()), 150.0);
-        manual_resources.insert((Resources::Prodtech, period.get_period_string()), 150.0);
+        let mut period_hash_map = HashMap::new();
+        period_hash_map.insert(period.get_period_string(), 300.0);
 
-        let strategic_resources_message = StrategicResourcesMessage::new(manual_resources);
+        manual_resources.insert(Resources::MtnMech, period_hash_map.clone());
+        manual_resources.insert(Resources::MtnElec, period_hash_map.clone());
+        manual_resources.insert(Resources::Prodtech, period_hash_map.clone());
+
+        let strategic_resources_message =
+            StrategicResourcesMessage::new_set_resources(manual_resources);
 
         let strategic_periods_message = StrategicPeriodsMessage {
             period_lock: HashMap::new(),

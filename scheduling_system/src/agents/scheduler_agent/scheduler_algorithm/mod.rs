@@ -1,25 +1,23 @@
 mod algorithm;
 
 use std::collections::{HashMap, HashSet};
-use std::error::Error;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 
 use priority_queue::PriorityQueue;
-use shared_messages::strategic::strategic_resources_message::{self, StrategicResourcesMessage};
+use shared_messages::strategic::strategic_resources_message::{StrategicResourcesMessage};
 use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
-use shared_messages::Response;
-use tracing::{debug, event, info, span, Level};
+use tracing::{debug, info};
 
-use crate::models::time_environment::period::Period;
+use crate::models::time_environment::period::{Period};
 use crate::models::WorkOrders;
 use shared_messages::resources::Resources;
 
 #[derive(Debug)]
 pub struct SchedulerAgentAlgorithm {
     objective_value: f64,
-    resources_capacity: HashMap<(Resources, Period), f64>,
-    resources_loading: HashMap<(Resources, Period), f64>,
+    resources_capacity: HashMap<Resources, HashMap<Period, f64>>,
+    resources_loading: HashMap<Resources, HashMap<Period, f64>>,
     backlog: WorkOrders,
     priority_queues: PriorityQueues<u32, u32>,
     optimized_work_orders: OptimizedWorkOrders,
@@ -197,12 +195,30 @@ impl SchedulerAgentAlgorithm {
         &mut self,
         strategic_resources_message: StrategicResourcesMessage,
     ) -> shared_messages::Response {
-        for (key, capacity) in strategic_resources_message.get_manual_resources() {
-            let period = self.periods.iter().find(|period| period.get_period_string() == key.1).expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
-            self.resources_capacity
-                .insert((key.0, period.clone()), capacity);
+
+        match strategic_resources_message {
+            StrategicResourcesMessage::SetResources(manual_resources) => {
+                let mut count = 0;
+                for (resource, periods) in manual_resources {
+                    for (period_string, capacity) in periods {
+                        let period = self.periods.iter().find(|period| period.get_period_string() == period_string).expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
+                        self.resources_capacity
+                            .get_mut(&resource.clone())
+                            .expect("The resource was not found in the self.resources_capacity vector. Somehow a message was sent form the frontend without the resource being initialized correctly.")
+                            .insert(period.clone(), capacity);
+                        count += 1;
+                    }
+                }
+                
+                let response_message = format!("{} resources-period pairs updated correctly", count);
+
+                shared_messages::Response::Success(Some(response_message))
+            }
+            StrategicResourcesMessage::GetLoadings => {
+                // let response = self.get_resources_loadings().to_string();
+                shared_messages::Response::Failure
+            }
         }
-        shared_messages::Response::Success(Some("Resouce updated correctly".to_string()))
     }
 
     pub fn update_periods_state() {}
@@ -410,8 +426,8 @@ impl PriorityQueues<u32, u32> {
 impl SchedulerAgentAlgorithm {
     pub fn new(
         objective_value: f64,
-        manual_resources_capacity: HashMap<(Resources, Period), f64>,
-        manual_resources_loading: HashMap<(Resources, Period), f64>,
+        manual_resources_capacity: HashMap<Resources, HashMap<Period, f64>>,
+        manual_resources_loading: HashMap<Resources, HashMap<Period, f64>>,
         backlog: WorkOrders,
         priority_queues: PriorityQueues<u32, u32>,
         optimized_work_orders: OptimizedWorkOrders,
@@ -434,11 +450,11 @@ impl SchedulerAgentAlgorithm {
         &self.optimized_work_orders.inner
     }
 
-    pub fn get_manual_resources_loadings(&self) -> &HashMap<(Resources, Period), f64> {
+    pub fn get_resources_loadings(&self) -> &HashMap<Resources, HashMap<Period, f64>> {
         &self.resources_loading
     }
 
-    pub fn get_manual_resources_capacities(&self) -> &HashMap<(Resources, Period), f64> {
+    pub fn get_resources_capacities(&self) -> &HashMap<Resources, HashMap<Period, f64>> {
         &self.resources_capacity
     }
 
@@ -449,7 +465,9 @@ impl SchedulerAgentAlgorithm {
     ) -> f64 {
         match self
             .resources_loading
-            .get(&(resource.clone(), period.clone()))
+            .get(&resource.clone())
+            .unwrap()
+            .get(&period.clone())
         {
             Some(loading) => *loading,
             None => {
@@ -533,28 +551,27 @@ mod tests {
         let period = Period::new_from_string("2023-W47-48").unwrap();
         let periods = vec![period.clone()];
 
-        let mut manual_resource_capacity: HashMap<(Resources, Period), f64> = HashMap::new();
+        let mut manual_resource_capacity: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
+
+        let hash_map_periods_150 = HashMap::new();
+
+        hash_map_periods_150.insert(period.clone(), 150.0);
+
 
         manual_resource_capacity.insert(
-            (
-                Resources::new_from_string("MTN-MECH".to_string()),
-                Period::new_from_string(&period.get_period_string()).unwrap(),
-            ),
-            150.0,
+            
+                Resources::MtnMech,
+                hash_map_periods_150.clone()
         );
         manual_resource_capacity.insert(
-            (
-                Resources::new_from_string("MTN-ELEC".to_string()),
-                Period::new_from_string(&period.get_period_string()).unwrap(),
-            ),
-            150.0,
+            
+                Resources::MtnElec,
+                hash_map_periods_150.clone()
         );
         manual_resource_capacity.insert(
-            (
-                Resources::new_from_string("PRODTECH".to_string()),
-                Period::new_from_string(&period.get_period_string()).unwrap(),
-            ),
-            150.0,
+            
+                Resources::Prodtech,
+                hash_map_periods_150.clone()
         );
 
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
@@ -579,10 +596,11 @@ mod tests {
         let strategic_resources_message = StrategicResourcesMessage::new_test();
 
         assert_eq!(
-            scheduler_agent_algorithm.resources_capacity.get(&(
-                Resources::new_from_string("MTN-MECH".to_string()),
-                Period::new_from_string(&period.get_period_string()).unwrap()
-            )),
+            scheduler_agent_algorithm.resources_capacity
+                .get(&Resources::MtnMech)
+                .unwrap()
+                .get(&period)
+            ,
             Some(&150.0)
         );
         assert_eq!(
@@ -601,10 +619,11 @@ mod tests {
         scheduler_agent_algorithm.update_resources_state(strategic_resources_message);
 
         assert_eq!(
-            scheduler_agent_algorithm.resources_capacity.get(&(
-                Resources::new_from_string("MTN-MECH".to_string()),
-                Period::new_from_string(&period.get_period_string()).unwrap()
-            )),
+            scheduler_agent_algorithm.resources_capacity
+                .get(&Resources::MtnMech)
+                .unwrap()
+                .get(&period)
+            ,
             Some(&300.0)
         );
         assert_eq!(

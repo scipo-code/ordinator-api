@@ -85,15 +85,20 @@ impl SchedulerAgentAlgorithm {
         let work_order = self.backlog.inner.get(&work_order_key).unwrap().clone();
 
         // The if statements found in here are each constraints that has to be upheld.
-        for (work_center, resource_needed) in work_order.get_work_load().clone().iter() {
-            let resource_capacity: &mut f64 = self
+        for (resource, resource_needed) in work_order.get_work_load().clone().iter() {
+            let resource_capacity: &f64 = self
                 .resources_capacity
-                .entry((work_center.clone(), period.clone()))
-                .or_insert(0.0);
-            let resource_loading: &mut f64 = self
+                .get(&resource.clone())
+                .unwrap()
+                .get(&period.clone())
+                .unwrap();
+
+            let resource_loading: &f64 = self
                 .resources_loading
-                .entry((work_center.clone(), period.clone()))
-                .or_insert(0.0);
+                .get(&resource.clone())
+                .unwrap()
+                .get(&period.clone())
+                .unwrap();
 
             if *resource_needed > *resource_capacity - *resource_loading {
                 return Some(work_order_key);
@@ -130,7 +135,7 @@ impl SchedulerAgentAlgorithm {
             "Work order {} from the normal has been scheduled",
             work_order_key
         );
-        self.update_loadings(period, &work_order);
+        self.update_loadings(period.clone(), &work_order);
         None
     }
 
@@ -139,11 +144,11 @@ impl SchedulerAgentAlgorithm {
             self.unschedule_work_order(&work_order_key);
         }
 
-        let period = self
+        let period_internal = self
             .optimized_work_orders
             .get_locked_in_period(work_order_key);
 
-        self.initialize_loading_used_in_work_order(work_order_key, period.clone());
+        self.initialize_loading_used_in_work_order(work_order_key, period_internal.clone());
 
         let work_order = self.backlog.inner.get(&work_order_key).unwrap();
         // self.optimized_work_orders.
@@ -153,17 +158,14 @@ impl SchedulerAgentAlgorithm {
         );
 
         self.optimized_work_orders
-            .set_scheduled_period(work_order_key, period.clone());
+            .set_scheduled_period(work_order_key, period_internal.clone());
         self.changed = true;
 
         // Is this really the place where we should update the loadings? I am not sure about it.
         // It is either here or in the update_scheduler_state function. Well thank you for that
-        for (work_center_period, loading) in self.resources_loading.iter_mut() {
-            if work_center_period.1 == period {
-                *loading += work_order
-                    .get_work_load()
-                    .get(&work_center_period.0)
-                    .unwrap_or(&0.0);
+        for (resource, periods) in self.resources_loading.iter_mut() {
+            if let Some(loading) = periods.get_mut(&period_internal) {
+                *loading += work_order.get_work_load().get(&resource).unwrap_or(&0.0);
             }
         }
     }
@@ -291,7 +293,7 @@ impl SchedulerAgentAlgorithm {
     /// problem setup. But it is the way that it should be.
     fn unschedule_work_order(&mut self, work_order_key: &u32) {
         let work_order = self.backlog.inner.get(work_order_key).unwrap();
-        let period = match &self.optimized_work_orders.inner.get(work_order_key) {
+        let period_internal = match &self.optimized_work_orders.inner.get(work_order_key) {
             Some(optimized_work_order) => match &optimized_work_order.scheduled_period {
                 Some(period) => Some(period.clone()),
                 None => {
@@ -320,12 +322,13 @@ impl SchedulerAgentAlgorithm {
         // actually scheduled. This is not the case here as I am implementing logic to handle cases
         // where the work order is not scheduled.
         // What does it mean when we call the unwrap here?
-        for (work_center_period, loading) in self.resources_loading.iter_mut() {
-            if work_center_period.1 == period {
-                let work_load_for_work_center =
-                    work_order.get_work_load().get(&work_center_period.0);
-                if let Some(work_load_for_work_center) = work_load_for_work_center {
-                    *loading -= work_load_for_work_center;
+        for (resource, periods) in self.resources_loading.iter_mut() {
+            for (period, loading) in periods {
+                if *period == period_internal {
+                    let work_load_for_resource = work_order.get_work_load().get(&resource);
+                    if let Some(work_load_for_resource) = work_load_for_resource {
+                        *loading -= work_load_for_resource;
+                    }
                 }
             }
         }
@@ -346,13 +349,12 @@ impl SchedulerAgentAlgorithm {
         }
     }
 
-    fn update_loadings(&mut self, period: &Period, work_order: &WorkOrder) {
-        for (work_center_period, loading) in self.resources_loading.iter_mut() {
-            if work_center_period.1 == *period {
-                *loading += work_order
-                    .get_work_load()
-                    .get(&work_center_period.0)
-                    .unwrap_or(&0.0);
+    fn update_loadings(&mut self, period_input: Period, work_order: &WorkOrder) {
+        for (resource, periods) in self.resources_loading.iter_mut() {
+            for (period, loading) in periods {
+                if *period == period_input {
+                    *loading += work_order.get_work_load().get(&resource).unwrap_or(&0.0);
+                }
             }
         }
     }

@@ -14,12 +14,6 @@ use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::time_environment::period::Period;
 use shared_messages::resources::Resources;
 
-use shared_messages::strategic::strategic_periods_message::StrategicPeriodsMessage;
-use shared_messages::strategic::strategic_resources_message::StrategicResourcesMessage;
-use shared_messages::strategic::strategic_scheduling_message::{
-    SingleWorkOrder, StrategicSchedulingMessage,
-};
-
 struct SchedulerResources<'a>(&'a HashMap<(Resources, String), f64>);
 
 impl Display for SchedulerResources<'_> {
@@ -111,7 +105,7 @@ impl Message for SuccesMessage {
 #[derive(serde::Serialize, Debug)]
 pub struct LoadingMessage {
     pub frontend_message_type: String,
-    pub manual_resources_loading: HashMap<String, HashMap<String, f64>>,
+    pub manual_resources_loading: HashMap<Resources, HashMap<String, f64>>,
 }
 
 impl Message for LoadingMessage {
@@ -335,7 +329,7 @@ impl Handler<MessageToFrontend> for StrategicAgent {
             MessageToFrontend::Loading => {
                 let nested_loadings = scheduler_agent::transform_hashmap_to_nested_hashmap(
                     self.scheduler_agent_algorithm
-                        .get_manual_resources_loadings()
+                        .get_resources_loadings()
                         .clone(),
                 );
 
@@ -430,7 +424,9 @@ pub mod tests {
         },
     };
 
-    use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
+    use shared_messages::strategic::strategic_scheduling_message::{
+        SingleWorkOrder, StrategicSchedulingMessage,
+    };
 
     #[test]
     fn test_update_scheduler_state() {
@@ -564,21 +560,16 @@ pub mod tests {
         let mut capacities = HashMap::new();
         let mut loadings = HashMap::new();
 
-        capacities.insert(
-            (
-                Resources::VenMech,
-                Period::new_from_string("2023-W49-50").unwrap(),
-            ),
-            16.0,
-        );
+        let mut periods_hash_map_0 = HashMap::new();
+        let mut periods_hash_map_16 = HashMap::new();
 
-        loadings.insert(
-            (
-                Resources::VenMech,
-                Period::new_from_string("2023-W49-50").unwrap(),
-            ),
-            0.0,
-        );
+        periods_hash_map_0.insert(Period::new_from_string("2023-W49-50").unwrap(), 0.0);
+
+        periods_hash_map_16.insert(Period::new_from_string("2023-W49-50").unwrap(), 16.0);
+
+        capacities.insert(Resources::VenMech, periods_hash_map_16);
+
+        loadings.insert(Resources::VenMech, periods_hash_map_0);
 
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
@@ -680,8 +671,8 @@ pub mod tests {
 
     pub struct TestResponse {
         pub objective_value: f64,
-        pub manual_resources_capacity: HashMap<(Resources, Period), f64>,
-        pub manual_resources_loading: HashMap<(Resources, Period), f64>,
+        pub manual_resources_capacity: HashMap<Resources, HashMap<Period, f64>>,
+        pub manual_resources_loading: HashMap<Resources, HashMap<Period, f64>>,
         pub priority_queues: PriorityQueues<u32, u32>,
         pub optimized_work_orders: OptimizedWorkOrders,
         pub periods: Vec<Period>,
@@ -696,11 +687,11 @@ pub mod tests {
                 objective_value: self.scheduler_agent_algorithm.get_objective_value(),
                 manual_resources_capacity: self
                     .scheduler_agent_algorithm
-                    .get_manual_resources_capacities()
+                    .get_resources_capacities()
                     .clone(),
                 manual_resources_loading: self
                     .scheduler_agent_algorithm
-                    .get_manual_resources_loadings()
+                    .get_resources_loadings()
                     .clone(),
                 priority_queues: self.scheduler_agent_algorithm.get_priority_queues().clone(),
                 optimized_work_orders: OptimizedWorkOrders::new(

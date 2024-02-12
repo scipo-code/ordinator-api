@@ -1,14 +1,14 @@
 use clap::{Args, Parser, Subcommand};
-use shared_messages::status::StatusRequest;
+use shared_messages::resources::Resources;
+use shared_messages::status::{self, StatusRequest};
 use shared_messages::strategic::strategic_resources_message::StrategicResourcesMessage;
 use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
 use shared_messages::strategic::{
     strategic_scheduling_message::StrategicSchedulingMessage, StrategicRequest,
 };
-use shared_messages::FrontendMessages;
+use shared_messages::{resources, SystemMessages};
 use std::collections::HashMap;
-use std::fs::read_to_string;
 use std::net::TcpStream;
 use strum::IntoEnumIterator;
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
@@ -114,13 +114,19 @@ fn main() {
 
     let mut socket = create_websocket_client();
 
-    handle_command(cli, &mut socket);
+    let message_sent = handle_command(cli, &mut socket);
 
-    let response: Message = socket.read().expect("Failed to read message");
+    match message_sent {
+        Some(_) => {
+            let response: Message = socket.read().expect("Failed to read message");
+            let formatted_response = response.to_string().replace("\\n", "\n").replace('\"', "");
 
-    let formatted_response = response.to_string().replace("\\n", "\n").replace('\"', "");
-
-    println!("{}", formatted_response);
+            println!("{}", formatted_response);
+        }
+        None => {
+            println!("No argument provided, use -h or --help")
+        }
+    }
 
     socket.close(None).expect("Failed to close the connection");
 }
@@ -137,7 +143,7 @@ impl Commands {
     fn get_status(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
         let strategic_status_message = StrategicStatusMessage::General;
         let scheduler_request = StrategicRequest::Status(strategic_status_message);
-        let front_end_message = FrontendMessages::Strategic(scheduler_request);
+        let front_end_message = SystemMessages::Strategic(scheduler_request);
 
         let scheduler_request_json = serde_json::to_string(&front_end_message).unwrap();
         socket
@@ -161,20 +167,20 @@ impl Commands {
     // }
 }
 
-fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
+fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -> Option<String> {
     match &cli.command {
         Some(Commands::Status { status_commands }) => match status_commands {
             Some(StatusSchedulingEnvironment::WorkOrder { work_order }) => {
                 let environment_status_message: StatusRequest =
                     StatusRequest::GetWorkOrderStatus(*work_order);
-                let front_end_message = FrontendMessages::Status(environment_status_message);
+                let front_end_message = SystemMessages::Status(environment_status_message);
                 let status_request_json = serde_json::to_string(&front_end_message).unwrap();
 
                 socket.send(Message::Text(status_request_json)).unwrap();
             }
             Some(StatusSchedulingEnvironment::Periods) => {
                 let environment_status_message = StatusRequest::GetPeriods;
-                let front_end_message = FrontendMessages::Status(environment_status_message);
+                let front_end_message = SystemMessages::Status(environment_status_message);
                 let status_request_json = serde_json::to_string(&front_end_message).unwrap();
 
                 socket.send(Message::Text(status_request_json)).unwrap();
@@ -188,7 +194,7 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
                         let strategic_status_message: StrategicStatusMessage =
                             StrategicStatusMessage::new_period(period.to_string());
 
-                        let front_end_message = FrontendMessages::Strategic(
+                        let front_end_message = SystemMessages::Strategic(
                             StrategicRequest::Status(strategic_status_message),
                         );
 
@@ -201,7 +207,7 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
                         let strategic_status_message: StrategicStatusMessage =
                             StrategicStatusMessage::General;
 
-                        let front_end_message = FrontendMessages::Strategic(
+                        let front_end_message = SystemMessages::Strategic(
                             StrategicRequest::Status(strategic_status_message),
                         );
 
@@ -222,7 +228,7 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
                         let strategic_request =
                             StrategicRequest::Scheduling(strategic_scheduling_message);
 
-                        let front_end_message = FrontendMessages::Strategic(strategic_request);
+                        let front_end_message = SystemMessages::Strategic(strategic_request);
 
                         let scheduler_request_json =
                             serde_json::to_string(&front_end_message).unwrap();
@@ -244,7 +250,7 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
                         let strategic_request =
                             StrategicRequest::Scheduling(strategic_scheduling_message);
 
-                        let front_end_message = FrontendMessages::Strategic(strategic_request);
+                        let front_end_message = SystemMessages::Strategic(strategic_request);
 
                         let scheduler_request_json =
                             serde_json::to_string(&front_end_message).unwrap();
@@ -257,8 +263,19 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
                 },
                 StrategicSubcommands::Resources { subcommand } => match subcommand {
                     Some(ResourcesSubcommands::Loading) => {
-                        todo!()
+                        let strategic_resources_message = StrategicResourcesMessage::GetLoadings;
+
+                        let strategic_request =
+                            StrategicRequest::Resources(strategic_resources_message);
+
+                        let front_end_message = SystemMessages::Strategic(strategic_request);
+
+                        let scheduler_request_json =
+                            serde_json::to_string(&front_end_message).unwrap();
+
+                        socket.send(Message::Text(scheduler_request_json)).unwrap();
                     }
+
                     Some(ResourcesSubcommands::SetCapacity {
                         resource,
                         period,
@@ -270,27 +287,19 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
                         todo!()
                     }
                     Some(ResourcesSubcommands::SetCapacityPolicyDefault) => {
-                        // fn generate_manual_resources() {
-                        //     let manual_resources = HashMap::new();
-                        //     let periods = get_periods();
+                        let resources = generate_manual_resources(socket);
 
-                        //     for resources in shared_messages::resources::Resources::iter() {
-                        //         for period in periods {
-                        //             let period_string = period.get_period_string();
-                        //             manual_resources.insert((resources, period_string), 300.0);
-                        //         }
-                        //     }
-                        // }
+                        let strategic_resources_message =
+                            StrategicResourcesMessage::new_set_resources(resources);
 
-                        // let strategic_request =
-                        //     StrategicRequest::Resources(strategic_resources_message);
+                        let strategic_request =
+                            StrategicRequest::Resources(strategic_resources_message);
 
-                        // let front_end_message = FrontendMessages::Strategic(strategic_request);
+                        let front_end_message = SystemMessages::Strategic(strategic_request);
+                        let scheduler_request_json =
+                            serde_json::to_string(&front_end_message).unwrap();
 
-                        // let scheduler_request_json =
-                        //     serde_json::to_string(&front_end_message).unwrap();
-
-                        // socket.send(Message::Text(scheduler_request_json)).unwrap();
+                        socket.send(Message::Text(scheduler_request_json)).unwrap();
                     }
                     None => {
                         todo!()
@@ -308,8 +317,43 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
         Some(Commands::Operational) => {
             println!("Operational");
         }
-        None => {}
+        None => return None,
     }
+    Some("Message sent".to_string())
 }
 
-fn get_periods() {}
+fn generate_manual_resources(
+    socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
+) -> HashMap<shared_messages::resources::Resources, HashMap<String, f64>> {
+    let periods = get_periods(socket);
+
+    dbg!(periods.clone());
+    let mut resources_hash_map = HashMap::new();
+    for resource in shared_messages::resources::Resources::iter() {
+        let mut periods_hash_map = HashMap::new();
+        for period in periods.clone() {
+            periods_hash_map.insert(period, 300.0);
+        }
+        resources_hash_map.insert(resource, periods_hash_map);
+    }
+    resources_hash_map
+}
+
+fn get_periods(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -> Vec<String> {
+    let status_request = StatusRequest::GetPeriods;
+
+    let front_end_message = SystemMessages::Status(status_request);
+
+    let status_request_json = serde_json::to_string(&front_end_message).unwrap();
+
+    socket.send(Message::Text(status_request_json)).unwrap();
+
+    let response: Message = socket.read().expect("Failed to read message");
+
+    response
+        .to_string()
+        .replace("\"", "")
+        .split(',')
+        .map(|s| s.to_string())
+        .collect::<Vec<String>>()
+}

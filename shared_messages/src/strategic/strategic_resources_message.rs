@@ -7,17 +7,21 @@ use crate::resources::Resources;
 use super::TimePeriod;
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct StrategicResourcesMessage {
-    manual_resources: HashMap<(Resources, String), f64>,
+pub enum StrategicResourcesMessage {
+    SetResources(HashMap<Resources, HashMap<String, f64>>),
+    GetLoadings,
 }
 
 impl StrategicResourcesMessage {
-    pub fn new(manual_resources: HashMap<(Resources, String), f64>) -> Self {
-        Self { manual_resources }
+    pub fn new_set_resources(manual_resources: HashMap<Resources, HashMap<String, f64>>) -> Self {
+        Self::SetResources(manual_resources)
     }
 
-    pub fn get_manual_resources(&self) -> HashMap<(Resources, String), f64> {
-        self.manual_resources.clone()
+    pub fn get_manual_resources(&self) -> Option<HashMap<Resources, HashMap<String, f64>>> {
+        match self {
+            Self::SetResources(manual_resource) => Some(manual_resource.clone()),
+            _ => None,
+        }
     }
 }
 
@@ -44,10 +48,13 @@ impl StrategicResourcesMessage {
 
         let period_string = "2023-W47-48".to_string();
 
-        manual_resources.insert((Resources::MtnMech, period_string.clone()), 300.0);
-        manual_resources.insert((Resources::MtnElec, period_string.clone()), 300.0);
-        manual_resources.insert((Resources::Prodtech, period_string), 300.0);
+        let mut period_hash_map = HashMap::new();
+        period_hash_map.insert(period_string, 300.0);
 
-        Self { manual_resources }
+        manual_resources.insert(Resources::MtnMech, period_hash_map.clone());
+        manual_resources.insert(Resources::MtnElec, period_hash_map.clone());
+        manual_resources.insert(Resources::Prodtech, period_hash_map.clone());
+
+        Self::SetResources(manual_resources)
     }
 }

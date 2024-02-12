@@ -35,23 +35,25 @@ pub fn build_scheduler_agent(
     // SchedulingAgent will be able to update the SchedulerAgentAlgorithm when the
     // SchedulingEnvironment changes. This is a much better design.
 
-    // let manual_resource_capacity =
+    // let resource_capacity =
 
     fn initialize_manual_resources(
         scheduling_environment: &SchedulingEnvironment,
         start_value: f64,
-    ) -> HashMap<(Resources, Period), f64> {
-        let mut manual_resource_capacity: HashMap<(Resources, Period), f64> = HashMap::new();
+    ) -> HashMap<Resources, HashMap<Period, f64>> {
+        let mut resource_capacity: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
         for resource in scheduling_environment
             .get_worker_environment()
             .get_work_centers()
             .iter()
         {
+            let mut periods = HashMap::new();
             for period in scheduling_environment.get_periods().iter() {
-                manual_resource_capacity.insert((resource.clone(), period.clone()), start_value);
+                periods.insert(period.clone(), start_value);
             }
+            resource_capacity.insert(resource.clone(), periods);
         }
-        manual_resource_capacity
+        resource_capacity
     }
 
     let locked_scheduling_environment = scheduling_environment.lock().unwrap();
