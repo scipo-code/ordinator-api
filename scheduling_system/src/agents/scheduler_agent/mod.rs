@@ -347,30 +347,27 @@ mod tests {
         assert_eq!(
             *test_response
                 .manual_resources_capacity
-                .get(&(
-                    Resources::MtnMech,
-                    Period::new_from_string(&period.get_period_string()).unwrap()
-                ))
+                .get(&Resources::MtnMech)
+                .unwrap()
+                .get(&period)
                 .unwrap(),
             150.0
         );
         assert_eq!(
             *test_response
                 .manual_resources_capacity
-                .get(&(
-                    Resources::MtnElec,
-                    Period::new_from_string(&period.get_period_string()).unwrap()
-                ))
+                .get(&Resources::MtnElec)
+                .unwrap()
+                .get(&period)
                 .unwrap(),
             150.0
         );
         assert_eq!(
             *test_response
                 .manual_resources_capacity
-                .get(&(
-                    Resources::Prodtech,
-                    Period::new_from_string(&period.get_period_string()).unwrap()
-                ))
+                .get(&Resources::Prodtech)
+                .unwrap()
+                .get(&period)
                 .unwrap(),
             150.0
         );

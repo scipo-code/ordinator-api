@@ -10,7 +10,6 @@ use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulin
 use tracing::{debug, info};
 
 use crate::models::time_environment::period::{Period};
-use crate::models::WorkOrders;
 use shared_messages::resources::Resources;
 
 #[derive(Debug)]
@@ -18,7 +17,6 @@ pub struct SchedulerAgentAlgorithm {
     objective_value: f64,
     resources_capacity: HashMap<Resources, HashMap<Period, f64>>,
     resources_loading: HashMap<Resources, HashMap<Period, f64>>,
-    backlog: WorkOrders,
     priority_queues: PriorityQueues<u32, u32>,
     optimized_work_orders: OptimizedWorkOrders,
     periods: Vec<Period>,
@@ -26,13 +24,7 @@ pub struct SchedulerAgentAlgorithm {
 }
 
 impl SchedulerAgentAlgorithm {
-    pub fn get_backlog(&self) -> &WorkOrders {
-        &self.backlog
-    }
 
-    pub fn get_mut_backlog(&mut self) -> &mut WorkOrders {
-        &mut self.backlog
-    }
 
     pub fn get_optimized_work_order(&self, work_order_number: &u32) -> Option<&OptimizedWorkOrder> {
         self.optimized_work_orders.inner.get(work_order_number)
@@ -182,7 +174,6 @@ impl Display for SchedulerAgentAlgorithm {
             self.objective_value,
             self.resources_capacity,
             self.resources_loading,
-            self.backlog,
             self.priority_queues,
             self.optimized_work_orders,
             self.periods
@@ -349,6 +340,14 @@ impl SchedulerAgentAlgorithm {
     }
 }
 
+/// Remember that it should under no circumstances be in the algorithm. It should be in the agent
+/// the algothim should be updated by the agent when a message is received. If the backlog is in 
+/// the algorithm it means that we will have to update the backlog in the algorithm on every message
+/// that is received. This is silly as the agent should be the one that is responsible for updating
+/// the algorithm. 
+/// 
+/// This is actually a huge problem that is going to cause a lot of issues. I need to fix this now
+/// 
 impl SchedulerAgentAlgorithm {
     pub fn populate_priority_queues(&mut self) {
         for (key, work_order) in self.backlog.inner.iter() {
@@ -423,12 +422,14 @@ impl PriorityQueues<u32, u32> {
     }
 }
 
+
+// The backlog should not be in the algorithm, it should be in the agent under the 
+// SchedulingEnvironment. I should remove it immediately 
 impl SchedulerAgentAlgorithm {
     pub fn new(
         objective_value: f64,
-        manual_resources_capacity: HashMap<Resources, HashMap<Period, f64>>,
-        manual_resources_loading: HashMap<Resources, HashMap<Period, f64>>,
-        backlog: WorkOrders,
+        resources_capacity: HashMap<Resources, HashMap<Period, f64>>,
+        resources_loading: HashMap<Resources, HashMap<Period, f64>>,
         priority_queues: PriorityQueues<u32, u32>,
         optimized_work_orders: OptimizedWorkOrders,
         periods: Vec<Period>,
@@ -436,9 +437,8 @@ impl SchedulerAgentAlgorithm {
     ) -> Self {
         SchedulerAgentAlgorithm {
             objective_value,
-            resources_capacity: manual_resources_capacity,
-            resources_loading: manual_resources_loading,
-            backlog,
+            resources_capacity,
+            resources_loading,
             priority_queues,
             optimized_work_orders,
             periods,
