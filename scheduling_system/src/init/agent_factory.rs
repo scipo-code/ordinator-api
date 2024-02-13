@@ -62,7 +62,6 @@ pub fn build_scheduler_agent(
         0.0,
         initialize_manual_resources(&locked_scheduling_environment, 168.0),
         initialize_manual_resources(&locked_scheduling_environment, 0.0),
-        cloned_work_orders,
         PriorityQueues::new(),
         optimized_work_orders,
         locked_scheduling_environment.clone_periods(),
@@ -84,6 +83,8 @@ pub fn build_scheduler_agent(
     scheduler_agent.start()
 }
 
+/// This function should be used by the scheduling environment. It should not be used by the
+/// algorithm itself.
 fn create_optimized_work_orders(work_orders: &WorkOrders) -> OptimizedWorkOrders {
     let mut optimized_work_orders: HashMap<u32, OptimizedWorkOrder> = HashMap::new();
 
@@ -92,7 +93,14 @@ fn create_optimized_work_orders(work_orders: &WorkOrders) -> OptimizedWorkOrders
             let period = work_order.get_unloading_point().period.clone();
             optimized_work_orders.insert(
                 *work_order_number,
-                OptimizedWorkOrder::new(period.clone(), period, HashSet::new()),
+                OptimizedWorkOrder::new(
+                    period.clone(),
+                    period,
+                    HashSet::new(),
+                    None,
+                    work_order.get_order_weight(),
+                    work_order.get_work_load().clone(),
+                ),
             );
         }
     }

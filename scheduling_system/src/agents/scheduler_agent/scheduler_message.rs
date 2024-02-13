@@ -434,32 +434,6 @@ pub mod tests {
 
         let schedule_work_order = SingleWorkOrder::new(2200002020, period_string);
 
-        let mut work_orders = WorkOrders::new();
-
-        let work_order = WorkOrder::new(
-            2200002020,
-            false,
-            1000,
-            Priority::new_int(1),
-            100.0,
-            HashMap::new(),
-            HashMap::new(),
-            vec![],
-            vec![],
-            vec![],
-            WorkOrderType::Wdf(WDFPriority::new(1)),
-            crate::models::work_order::system_condition::SystemCondition::Unknown,
-            StatusCodes::new_default(),
-            OrderDates::new_test(),
-            Revision::new_default(),
-            UnloadingPoint::new_default(),
-            FunctionalLocation::new_default(),
-            OrderText::new_default(),
-            false,
-        );
-
-        work_orders.insert(work_order);
-
         let strategic_scheduling_internal =
             StrategicSchedulingMessage::Schedule(schedule_work_order);
 
@@ -469,15 +443,20 @@ pub mod tests {
             0.0,
             HashMap::new(),
             HashMap::new(),
-            work_orders,
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             periods.clone(),
             true,
         );
 
-        let optimized_work_order =
-            OptimizedWorkOrder::new(None, Some(periods[0].clone()), HashSet::new());
+        let optimized_work_order = OptimizedWorkOrder::new(
+            None,
+            Some(periods[0].clone()),
+            HashSet::new(),
+            None,
+            1000,
+            HashMap::new(),
+        );
 
         scheduler_agent_algorithm.set_optimized_work_order(2200002020, optimized_work_order);
 
@@ -489,7 +468,7 @@ pub mod tests {
                 .get(&2200002020)
                 .as_ref()
                 .unwrap()
-                .locked_in_period
+                .get_locked_in_period()
                 .as_ref()
                 .unwrap()
                 .get_period_string(),
@@ -529,32 +508,6 @@ pub mod tests {
 
         work_load.insert(Resources::VenMech, 16.0);
 
-        let work_order = WorkOrder::new(
-            2100023841,
-            false,
-            1000,
-            Priority::new_int(1),
-            100.0,
-            HashMap::new(),
-            work_load,
-            vec![],
-            vec![],
-            vec![],
-            WorkOrderType::Wdf(WDFPriority::new(1)),
-            crate::models::work_order::system_condition::SystemCondition::Unknown,
-            StatusCodes::new_default(),
-            OrderDates::new_test(),
-            Revision::new_default(),
-            UnloadingPoint::new_default(),
-            FunctionalLocation::new_default(),
-            OrderText::new_default(),
-            false,
-        );
-
-        let mut work_orders = WorkOrders::new();
-
-        work_orders.inner.insert(2100023841, work_order);
-
         let periods: Vec<Period> = vec![Period::new_from_string("2023-W49-50").unwrap()];
 
         let mut capacities = HashMap::new();
@@ -575,15 +528,20 @@ pub mod tests {
             0.0,
             capacities,
             loadings,
-            work_orders,
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             periods.clone(),
             true,
         );
 
-        let optimized_work_order =
-            OptimizedWorkOrder::new(None, Some(periods[0].clone()), HashSet::new());
+        let optimized_work_order = OptimizedWorkOrder::new(
+            None,
+            Some(periods[0].clone()),
+            HashSet::new(),
+            None,
+            1000,
+            work_load,
+        );
 
         scheduler_agent_algorithm.set_optimized_work_order(2100023841, optimized_work_order);
 
@@ -593,14 +551,14 @@ pub mod tests {
             scheduler_agent_algorithm
                 .get_optimized_work_order(&2100023841)
                 .unwrap()
-                .locked_in_period,
+                .get_locked_in_period(),
             Some(Period::new_from_string("2023-W49-50").unwrap())
         );
         assert_eq!(
             scheduler_agent_algorithm
                 .get_optimized_work_order(&2100023841)
                 .unwrap()
-                .scheduled_period,
+                .get_scheduled_period(),
             None
         );
         // assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("VEN_MECH".to_string(), "2023-W49-50".to_string()), 16.0);
@@ -608,35 +566,7 @@ pub mod tests {
 
     #[test]
     fn test_calculate_objective_value() {
-        let mut work_order = WorkOrder::new(
-            2100023841,
-            false,
-            1000,
-            Priority::new_int(1),
-            100.0,
-            HashMap::new(),
-            HashMap::new(),
-            vec![],
-            vec![],
-            vec![],
-            WorkOrderType::Wdf(WDFPriority::new(1)),
-            crate::models::work_order::system_condition::SystemCondition::Unknown,
-            StatusCodes::new_default(),
-            OrderDates::new_test(),
-            Revision::new_default(),
-            UnloadingPoint::new_default(),
-            FunctionalLocation::new_default(),
-            OrderText::new_default(),
-            false,
-        );
-
-        work_order
-            .get_mut_order_dates()
-            .latest_allowed_finish_period = Period::new_from_string("2023-W47-48").unwrap();
-
         let mut work_orders = WorkOrders::new();
-
-        work_orders.inner.insert(2100023841, work_order);
 
         let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
 
@@ -644,6 +574,9 @@ pub mod tests {
             Some(Period::new_from_string("2023-W49-50").unwrap()),
             Some(Period::new_from_string("2023-W49-50").unwrap()),
             HashSet::new(),
+            None,
+            1000,
+            HashMap::new(),
         );
 
         optimized_work_orders.insert_optimized_work_order(2100023841, optimized_work_order);
@@ -652,7 +585,6 @@ pub mod tests {
             0.0,
             HashMap::new(),
             HashMap::new(),
-            work_orders,
             PriorityQueues::new(),
             optimized_work_orders,
             vec![],

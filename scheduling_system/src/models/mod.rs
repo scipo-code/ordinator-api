@@ -113,9 +113,7 @@ impl WorkOrders {
         self.inner
             .insert(work_order.get_work_order_number(), work_order);
     }
-}
 
-impl WorkOrders {
     pub fn new_work_order(&self, order_number: u32) -> bool {
         !self.inner.contains_key(&order_number)
     }

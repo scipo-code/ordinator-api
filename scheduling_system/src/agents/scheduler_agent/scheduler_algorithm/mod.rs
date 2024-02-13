@@ -24,8 +24,6 @@ pub struct SchedulerAgentAlgorithm {
 }
 
 impl SchedulerAgentAlgorithm {
-
-
     pub fn get_optimized_work_order(&self, work_order_number: &u32) -> Option<&OptimizedWorkOrder> {
         self.optimized_work_orders.inner.get(work_order_number)
     }
@@ -71,7 +69,7 @@ impl Hash for OptimizedWorkOrder {
 
         self.scheduled_period.hash(state);
         self.locked_in_period.hash(state);
-        for period in &self.excluded_from_periods {
+        for period in &self.excluded_periods {
             period.hash(state);
         }
     }
@@ -130,26 +128,55 @@ impl OptimizedWorkOrders {
 
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct OptimizedWorkOrder {
-    pub scheduled_period: Option<Period>,
-    pub locked_in_period: Option<Period>,
-    pub excluded_from_periods: HashSet<Period>,
+    scheduled_period: Option<Period>,
+    locked_in_period: Option<Period>,
+    excluded_periods: HashSet<Period>,
+    latest_period: Option<Period>,
+    weight: u32,
+    work_load: HashMap<Resources, f64>,
 }
 
 impl OptimizedWorkOrder {
     pub fn new(
         scheduled_period: Option<Period>,
         locked_in_period: Option<Period>,
-        excluded_from_periods: HashSet<Period>,
+        excluded_periods: HashSet<Period>,
+        latest_period: Option<Period>,
+        weight: u32,
+        work_load: HashMap<Resources, f64>,
     ) -> Self {
         Self {
             scheduled_period,
             locked_in_period,
-            excluded_from_periods,
+            excluded_periods,
+            latest_period,
+            weight,
+            work_load,
         }
     }
 
     pub fn get_scheduled_period(&self) -> Option<Period> {
         self.scheduled_period.clone()
+    }
+
+    pub fn get_locked_in_period(&self) -> Option<Period> {
+        self.locked_in_period.clone()
+    }
+
+    pub fn get_excluded_periods(&self) -> &HashSet<Period> {
+        &self.excluded_periods
+    }
+
+    pub fn get_latest_period(&self) -> Option<Period> {
+        self.latest_period.clone()
+    }
+
+    pub fn get_work_load(&self) -> &HashMap<Resources, f64> {
+        &self.work_load
+    }
+
+    pub fn get_weight(&self) -> u32 {
+        self.weight
     }
 
     /// This is a huge no-no! I think that this will lets us violate the invariant that we have
@@ -167,7 +194,6 @@ impl Display for SchedulerAgentAlgorithm {
             objective_value: {}, \n
             manual_resources_capacity: {:?}, \n
             manual_resources_loading: {:?}, \n
-            backlog: {:?}, \n
             priority_queues: {:?}, \n
             optimized_work_orders: {:?}, \n
             periods: {:?}",
@@ -305,11 +331,11 @@ impl SchedulerAgentAlgorithm {
                                 .expect("The work order number was not found in the optimized work orders. The work order should have been initialized at the outset.");
                         
                         optimized_work_order
-                            .excluded_from_periods
+                            .excluded_periods
                             .insert(period.clone());
 
                         let overwrite = if let Some(locked_in_period) = &optimized_work_order.locked_in_period {
-                            if optimized_work_order.excluded_from_periods.contains(locked_in_period) {
+                            if optimized_work_order.excluded_periods.contains(locked_in_period) {
                                 optimized_work_order.scheduled_period = None;
                                 optimized_work_order.locked_in_period = None;
                                 true
@@ -347,36 +373,30 @@ impl SchedulerAgentAlgorithm {
 /// the algorithm. 
 /// 
 /// This is actually a huge problem that is going to cause a lot of issues. I need to fix this now
-/// 
+/// The central question here is which different types there exists for the different types of the
+/// work orders. Unloading point means that it is fixed and shutdown/vendor means that action is 
+/// required before scheduling is meaningful. It does not make sense to have this in the algorithm
+/// itself. This is clearly on the wrong level of abstraction. It should again be handle in the 
+/// agent. The agent communicates the state of the work orders to user. The idea of a priority queue
+/// is a good one, but I think that relying on the period_lock and the period_exclusion is a much
+/// better way of handling it. More general. There could be speedups associated with having multiple
+/// priority queues, but I think that it is a bit too early to start thinking about that. Profiling 
+/// should determine the appropriate course of action at that point.
 impl SchedulerAgentAlgorithm {
     pub fn populate_priority_queues(&mut self) {
-        for (key, work_order) in self.backlog.inner.iter() {
-            if work_order.get_unloading_point().present {
-                debug!("Work order {} has been added to the unloading queue", key);
-                self.priority_queues
-                    .unloading
-                    .push(*key, work_order.get_order_weight());
-            } else if work_order.get_revision().shutdown || work_order.get_vendor() {
-                debug!(
-                    "Work order {} has been added to the shutdown/vendor queue",
-                    key
-                );
-                self.priority_queues
-                    .shutdown_vendor
-                    .push(*key, work_order.get_order_weight());
-            } else {
+        for (key, work_order) in self.optimized_work_orders.inner.iter() {
                 debug!("Work order {} has been added to the normal queue", key);
                 self.priority_queues
                     .normal
-                    .push(*key, work_order.get_order_weight());
-            }
+                    .push(*key, work_order.get_weight());
+            
         }
     }
 
     #[tracing::instrument]
     fn update_priority_queues(&mut self) {
         for (key, work_order) in &self.optimized_work_orders.inner {
-            let work_order_weight = self.backlog.inner.get(key).unwrap().get_order_weight();
+            let work_order_weight = self.optimized_work_orders.inner.get(key).unwrap().get_weight();
             match &work_order.locked_in_period {
                 Some(_work_order) => {
                     self.priority_queues.unloading.push(*key, work_order_weight);
@@ -388,7 +408,7 @@ impl SchedulerAgentAlgorithm {
 
     fn initialize_loading_used_in_work_order(&mut self, work_order_number: u32, period: Period) {
         let needed_keys = self
-            .backlog
+            .optimized_work_orders
             .inner
             .get(&work_order_number)
             .unwrap()
@@ -492,7 +512,7 @@ pub enum QueueType {
 #[cfg(test)]
 mod tests {
     use shared_messages::strategic::{
-        strategic_resources_message, strategic_scheduling_message::SingleWorkOrder,
+        strategic_scheduling_message::SingleWorkOrder,
     };
 
     use super::*;
@@ -553,7 +573,7 @@ mod tests {
 
         let mut manual_resource_capacity: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
 
-        let hash_map_periods_150 = HashMap::new();
+        let mut hash_map_periods_150 = HashMap::new();
 
         hash_map_periods_150.insert(period.clone(), 150.0);
 
@@ -578,7 +598,6 @@ mod tests {
             0.0,
             manual_resource_capacity,
             HashMap::new(),
-            work_orders,
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             periods,
@@ -586,7 +605,14 @@ mod tests {
         );
 
         let optimized_work_order =
-            OptimizedWorkOrder::new(None, Some(period.clone()), HashSet::new());
+            OptimizedWorkOrder::new(
+                None, 
+                Some(period.clone()), 
+                HashSet::new(),
+                None,
+                1000,
+                HashMap::new()
+                );
 
         scheduler_agent_algorithm.set_optimized_work_order(2200002020, optimized_work_order);
 
@@ -611,7 +637,10 @@ mod tests {
             Some(&OptimizedWorkOrder::new(
                 None,
                 Some(period.clone()),
-                HashSet::new()
+                HashSet::new(),
+                None,
+                1000,
+                HashMap::new()
             ))
         );
 

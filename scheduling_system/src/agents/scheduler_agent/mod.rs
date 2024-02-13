@@ -110,20 +110,28 @@ pub struct SchedulingOverviewData {
     priority: String,
 }
 
-// Now the problem is that the many work orders may not even get a status, in this approach.
-// This is an issue. Now when we get the work_order_number the entry could be non-existent.
-//
+/// Now the problem is that the many work orders may not even get a status, in this approach.
+/// This is an issue. Now when we get the work_order_number the entry could be non-existent.
+///
+/// Here it is not the alrithm that should be the one that should be used to generate the overview
+/// I think that here we should use the work orders from the scheduling environment to extract the
+/// scheduling environment correctly. This is a good point.
 impl StrategicAgent {
     fn extract_state_to_scheduler_overview(&self) -> Vec<SchedulingOverviewData> {
         let mut scheduling_overview_data: Vec<SchedulingOverviewData> = Vec::new();
-        for (work_order_number, work_order) in
-            self.scheduler_agent_algorithm.get_backlog().inner.iter()
-        {
+
+        let work_orders = self
+            .scheduling_environment
+            .lock()
+            .unwrap()
+            .clone_work_orders();
+
+        for (work_order_number, work_order) in work_orders.inner {
             for (operation_number, operation) in work_order.get_operations().clone() {
                 let scheduling_overview_data_item = SchedulingOverviewData {
                     scheduled_period: match self
                         .scheduler_agent_algorithm
-                        .get_optimized_work_order(work_order_number)
+                        .get_optimized_work_order(&work_order_number)
                     {
                         Some(order_period) => match order_period.get_scheduled_period().as_ref() {
                             Some(scheduled_period) => scheduled_period.get_period_string().clone(),
@@ -141,7 +149,7 @@ impl StrategicAgent {
                         MaterialStatus::Pmat => "PMAT".to_string(),
                         MaterialStatus::Unknown => "Implement control tower".to_string(),
                     },
-                    work_order_number: *work_order_number,
+                    work_order_number,
                     activity: operation_number.clone().to_string(),
                     work_center: operation.work_center.variant_name(),
                     work_remaining: operation.work_remaining.to_string(),
@@ -299,7 +307,6 @@ mod tests {
             0.0,
             resource_capacity,
             resource_loadings,
-            work_orders.clone(),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             periods,
@@ -453,7 +460,6 @@ mod tests {
             0.0,
             HashMap::new(),
             HashMap::new(),
-            work_orders,
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             vec![],

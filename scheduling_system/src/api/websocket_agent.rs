@@ -153,7 +153,6 @@ mod tests {
     use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
     use crate::agents::scheduler_agent::StrategicAgent;
     use crate::models::SchedulingEnvironment;
-    use crate::models::WorkOrders;
     use chrono::{DateTime, Utc};
     use shared_messages::strategic::StrategicRequest;
     use std::collections::HashMap;
@@ -182,7 +181,6 @@ mod tests {
                 0.0,
                 HashMap::new(),
                 HashMap::new(),
-                WorkOrders::new(),
                 PriorityQueues::new(),
                 optimized_work_orders,
                 periods,
