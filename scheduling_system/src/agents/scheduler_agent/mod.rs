@@ -10,6 +10,7 @@ use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::work_order::priority::Priority;
 use crate::models::work_order::status_codes::MaterialStatus;
 use crate::models::SchedulingEnvironment;
+
 use actix::prelude::*;
 use shared_messages::resources::Resources;
 use std::collections::HashMap;
@@ -218,6 +219,7 @@ mod tests {
     use shared_messages::strategic::strategic_resources_message::StrategicResourcesMessage;
     use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
 
+    use super::scheduler_algorithm::AlgorithmResources;
     use super::scheduler_message::tests::TestRequest;
     use super::scheduler_message::tests::TestResponse;
 
@@ -228,6 +230,7 @@ mod tests {
 
     use crate::models::work_order::operation::Operation;
     use crate::models::work_order::order_type::WDFPriority;
+    use crate::models::worker_environment::WorkerEnvironment;
     use crate::models::{
         time_environment::period::Period,
         work_order::{
@@ -305,8 +308,8 @@ mod tests {
 
         let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            resource_capacity,
-            resource_loadings,
+            AlgorithmResources::new(resource_capacity),
+            AlgorithmResources::new(resource_loadings),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             periods,
@@ -458,17 +461,24 @@ mod tests {
 
         let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            HashMap::new(),
-            HashMap::new(),
+            AlgorithmResources::default(),
+            AlgorithmResources::default(),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             vec![],
             true,
         );
 
+        let scheduling_environment = SchedulingEnvironment::new(
+            work_orders,
+            WorkerEnvironment::new(),
+            Vec::<Period>::new(),
+            None,
+        );
+
         let scheduler_agent = StrategicAgent::new(
             "test".to_string(),
-            Arc::new(Mutex::new(SchedulingEnvironment::default())),
+            Arc::new(Mutex::new(scheduling_environment)),
             scheduler_agent_algorithm,
             None,
             None,

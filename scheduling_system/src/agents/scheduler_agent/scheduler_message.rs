@@ -330,6 +330,7 @@ impl Handler<MessageToFrontend> for StrategicAgent {
                 let nested_loadings = scheduler_agent::transform_hashmap_to_nested_hashmap(
                     self.scheduler_agent_algorithm
                         .get_resources_loadings()
+                        .inner
                         .clone(),
                 );
 
@@ -404,29 +405,14 @@ pub mod tests {
 
     use super::*;
 
-    use crate::models::work_order::WorkOrder;
-    use crate::{
-        agents::scheduler_agent::scheduler_algorithm::{
-            OptimizedWorkOrder, OptimizedWorkOrders, PriorityQueues, SchedulerAgentAlgorithm,
-        },
-        models::{
-            work_order::{
-                functional_location::FunctionalLocation,
-                order_dates::OrderDates,
-                order_text::OrderText,
-                order_type::{WDFPriority, WorkOrderType},
-                priority::Priority,
-                revision::Revision,
-                status_codes::StatusCodes,
-                unloading_point::UnloadingPoint,
-            },
-            WorkOrders,
-        },
+    use crate::agents::scheduler_agent::scheduler_algorithm::{
+        OptimizedWorkOrder, OptimizedWorkOrders, PriorityQueues, SchedulerAgentAlgorithm,
     };
 
     use shared_messages::strategic::strategic_scheduling_message::{
         SingleWorkOrder, StrategicSchedulingMessage,
     };
+    use tests::scheduler_agent::scheduler_algorithm::AlgorithmResources;
 
     #[test]
     fn test_update_scheduler_state() {
@@ -441,8 +427,8 @@ pub mod tests {
 
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            HashMap::new(),
-            HashMap::new(),
+            AlgorithmResources::default(),
+            AlgorithmResources::default(),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             periods.clone(),
@@ -526,8 +512,8 @@ pub mod tests {
 
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            capacities,
-            loadings,
+            AlgorithmResources::new(capacities),
+            AlgorithmResources::new(loadings),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             periods.clone(),
@@ -564,17 +550,16 @@ pub mod tests {
         // assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("VEN_MECH".to_string(), "2023-W49-50".to_string()), 16.0);
     }
 
+    //
     #[test]
     fn test_calculate_objective_value() {
-        let mut work_orders = WorkOrders::new();
-
         let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
 
         let optimized_work_order = OptimizedWorkOrder::new(
             Some(Period::new_from_string("2023-W49-50").unwrap()),
             Some(Period::new_from_string("2023-W49-50").unwrap()),
             HashSet::new(),
-            None,
+            Some(Period::new_from_string("2023-W47-48").unwrap()),
             1000,
             HashMap::new(),
         );
@@ -583,8 +568,8 @@ pub mod tests {
 
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            HashMap::new(),
-            HashMap::new(),
+            AlgorithmResources::default(),
+            AlgorithmResources::default(),
             PriorityQueues::new(),
             optimized_work_orders,
             vec![],
@@ -592,6 +577,8 @@ pub mod tests {
         );
 
         scheduler_agent_algorithm.calculate_objective();
+
+        // This test fails because the objective value in not initialized
         assert_eq!(scheduler_agent_algorithm.get_objective_value(), 2000.0);
     }
 
@@ -620,10 +607,12 @@ pub mod tests {
                 manual_resources_capacity: self
                     .scheduler_agent_algorithm
                     .get_resources_capacities()
+                    .inner
                     .clone(),
                 manual_resources_loading: self
                     .scheduler_agent_algorithm
                     .get_resources_loadings()
+                    .inner
                     .clone(),
                 priority_queues: self.scheduler_agent_algorithm.get_priority_queues().clone(),
                 optimized_work_orders: OptimizedWorkOrders::new(

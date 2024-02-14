@@ -1,7 +1,8 @@
 mod algorithm;
+use std::fmt::Write;
 
 use std::collections::{HashMap, HashSet};
-use std::fmt::Display;
+use std::fmt::{ Display};
 use std::hash::{Hash, Hasher};
 
 use priority_queue::PriorityQueue;
@@ -15,12 +16,66 @@ use shared_messages::resources::Resources;
 #[derive(Debug)]
 pub struct SchedulerAgentAlgorithm {
     objective_value: f64,
-    resources_capacity: HashMap<Resources, HashMap<Period, f64>>,
-    resources_loading: HashMap<Resources, HashMap<Period, f64>>,
+    resources_capacity: AlgorithmResources,
+    resources_loading: AlgorithmResources,
     priority_queues: PriorityQueues<u32, u32>,
     optimized_work_orders: OptimizedWorkOrders,
     periods: Vec<Period>,
     changed: bool,
+}
+
+#[derive(Debug)]
+pub struct AlgorithmResources {
+    pub inner: HashMap<Resources, HashMap<Period, f64>>
+}
+
+impl AlgorithmResources {
+
+
+    pub fn new(resources: HashMap<Resources, HashMap<Period, f64>>) -> Self {
+        Self {
+            inner: resources
+        }
+    }
+}
+
+impl AlgorithmResources {
+    fn to_string(&self, number_of_periods: u32) -> String{
+        let mut string = String::new();
+        let mut periods = self.inner.values()
+            .flat_map(|inner_map| inner_map.keys())
+            .collect::<Vec<_>>();
+        periods.sort();
+        periods.dedup();
+
+        // Find the maximum length of period string representations for formatting
+        let max_period_len = periods.iter()
+            .map(|p| p.to_string().len())
+            .max()
+            .unwrap_or(0);
+
+        // Header
+        write!(string, "{:<20}", "Resource");
+        for (index, period) in periods.iter().enumerate().take(number_of_periods as usize) {
+            write!(string, "{:^width$}", period, width = max_period_len + 2);
+        }
+        writeln!(string);
+
+        // Rows
+        for (resource, inner_map) in self.inner.iter() {
+            write!(string, "{:<20}", resource);
+            for (index, period) in periods.iter().enumerate().take(number_of_periods as usize) {
+                let value = inner_map.get(period).unwrap_or(&0.0);
+                write!(string, "{:^width$.2}", value, width = max_period_len + 2);
+            }
+            writeln!(string);
+        }
+
+        string
+    }
+
+
+
 }
 
 impl SchedulerAgentAlgorithm {
@@ -220,6 +275,7 @@ impl SchedulerAgentAlgorithm {
                     for (period_string, capacity) in periods {
                         let period = self.periods.iter().find(|period| period.get_period_string() == period_string).expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
                         self.resources_capacity
+                            .inner
                             .get_mut(&resource.clone())
                             .expect("The resource was not found in the self.resources_capacity vector. Somehow a message was sent form the frontend without the resource being initialized correctly.")
                             .insert(period.clone(), capacity);
@@ -231,14 +287,22 @@ impl SchedulerAgentAlgorithm {
 
                 shared_messages::Response::Success(Some(response_message))
             }
-            StrategicResourcesMessage::GetLoadings => {
-                // let response = self.get_resources_loadings().to_string();
-                shared_messages::Response::Failure
+            StrategicResourcesMessage::GetLoadings {
+                periods_end,
+                select_resources,
+            
+            } => {
+                dbg!();
+                let loading = self.get_resources_loadings();
+
+                let periods_end: u32 = periods_end.parse().unwrap();
+
+                shared_messages::Response::Success(Some(loading.to_string(periods_end)))
             }
         }
     }
 
-    pub fn update_periods_state() {}
+    pub fn update_periods_state() { todo!() }
 
     #[tracing::instrument(name = "update_scheduling_state", level = "DEBUG", skip(self, strategic_scheduling_message), fields(self.objective_value))]
     pub fn update_scheduling_state(
@@ -448,8 +512,8 @@ impl PriorityQueues<u32, u32> {
 impl SchedulerAgentAlgorithm {
     pub fn new(
         objective_value: f64,
-        resources_capacity: HashMap<Resources, HashMap<Period, f64>>,
-        resources_loading: HashMap<Resources, HashMap<Period, f64>>,
+        resources_capacity: AlgorithmResources,
+        resources_loading: AlgorithmResources,
         priority_queues: PriorityQueues<u32, u32>,
         optimized_work_orders: OptimizedWorkOrders,
         periods: Vec<Period>,
@@ -470,11 +534,11 @@ impl SchedulerAgentAlgorithm {
         &self.optimized_work_orders.inner
     }
 
-    pub fn get_resources_loadings(&self) -> &HashMap<Resources, HashMap<Period, f64>> {
+    pub fn get_resources_loadings(&self) -> &AlgorithmResources {
         &self.resources_loading
     }
 
-    pub fn get_resources_capacities(&self) -> &HashMap<Resources, HashMap<Period, f64>> {
+    pub fn get_resources_capacities(&self) -> &AlgorithmResources {
         &self.resources_capacity
     }
 
@@ -485,6 +549,7 @@ impl SchedulerAgentAlgorithm {
     ) -> f64 {
         match self
             .resources_loading
+            .inner
             .get(&resource.clone())
             .unwrap()
             .get(&period.clone())
@@ -594,10 +659,14 @@ mod tests {
                 hash_map_periods_150.clone()
         );
 
+        let resource_capacity = AlgorithmResources {
+            inner: manual_resource_capacity.clone(),
+        };
+
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            manual_resource_capacity,
-            HashMap::new(),
+            resource_capacity,
+            AlgorithmResources::default(),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             periods,
@@ -622,7 +691,7 @@ mod tests {
         let strategic_resources_message = StrategicResourcesMessage::new_test();
 
         assert_eq!(
-            scheduler_agent_algorithm.resources_capacity
+            scheduler_agent_algorithm.resources_capacity.inner
                 .get(&Resources::MtnMech)
                 .unwrap()
                 .get(&period)
@@ -648,7 +717,7 @@ mod tests {
         scheduler_agent_algorithm.update_resources_state(strategic_resources_message);
 
         assert_eq!(
-            scheduler_agent_algorithm.resources_capacity
+            scheduler_agent_algorithm.resources_capacity.inner
                 .get(&Resources::MtnMech)
                 .unwrap()
                 .get(&period)
@@ -683,6 +752,14 @@ mod tests {
     impl SchedulerAgentAlgorithm {
         pub fn get_priority_queues(&self) -> &PriorityQueues<u32, u32> {
             &self.priority_queues
+        }
+    }
+
+    impl AlgorithmResources {
+        pub fn default() -> Self {
+            Self {
+                inner: HashMap::new()
+            }
         }
     }
 }

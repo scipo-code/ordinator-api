@@ -74,8 +74,8 @@ impl SchedulerAgentAlgorithm {
     /// are not in the schedule yet. I think, but I am not sure, that the there should be no
     /// rescheduling here.
     #[instrument(fields(
-        manual_resources_capacity = self.resources_capacity.len(),
-        manual_resources_loading = self.resources_loading.len(),
+        manual_resources_capacity = self.resources_capacity.inner.len(),
+        manual_resources_loading = self.resources_loading.inner.len(),
         optimized_work_orders = self.optimized_work_orders.inner.len(),))]
     pub fn schedule_normal_work_order(
         &mut self,
@@ -94,6 +94,7 @@ impl SchedulerAgentAlgorithm {
         for (resource, resource_needed) in work_order.get_work_load().clone().iter() {
             let resource_capacity: &f64 = self
                 .resources_capacity
+                .inner
                 .get(&resource.clone())
                 .unwrap()
                 .get(&period.clone())
@@ -101,6 +102,7 @@ impl SchedulerAgentAlgorithm {
 
             let resource_loading: &f64 = self
                 .resources_loading
+                .inner
                 .get(&resource.clone())
                 .unwrap()
                 .get(&period.clone())
@@ -164,7 +166,7 @@ impl SchedulerAgentAlgorithm {
 
         // Is this really the place where we should update the loadings? I am not sure about it.
         // It is either here or in the update_scheduler_state function. Well thank you for that
-        for (resource, periods) in self.resources_loading.iter_mut() {
+        for (resource, periods) in self.resources_loading.inner.iter_mut() {
             if let Some(loading) = periods.get_mut(&period_internal) {
                 *loading += work_order.get_work_load().get(resource).unwrap_or(&0.0);
             }
@@ -263,7 +265,7 @@ fn calculate_period_difference(period_1: Period, period_2: Option<Period>) -> i6
     let duration = period_1_date.signed_duration_since(period_2_date);
 
     let days = duration.num_days();
-
+    dbg!(days);
     days / 7
 }
 
@@ -291,18 +293,9 @@ impl SchedulerAgentAlgorithm {
             })
     }
 
-    /// Here we unschedule the work order that means that we should take care to. What is the error
-    /// here. What did I actually just implement? We are moving fast at the moment. I can feel that
-    /// I get overwhelmed by the amount of work that it will take. I think that we should continue
-    /// moving forward and meditate if needed. There is an error here and instead of testing for it
-    /// am brute forcing my way through it. I should not do that I should test the code and make a
-    /// test that fails. Unschedule work order basically means that we should move the work order
-    /// to the first period that is outside of the initialized periods. What is the best appraoch
-    /// for doing this? The problem is that we have changed the API for the unschedule work order
-    /// and also the whole meaning of what it means to be scheduld. Should I be allowed to
-    /// unschedule a work order that is not scheduled? If so the logic should be that we set the
-    /// scheduled period to the prospective period. That actually means that we have changed the
-    /// problem setup. But it is the way that it should be.
+    /// This function is responsible for unscheduling the work order. It should be called to make
+    /// the work order leave the schedule. It is crucial that the work order is unscheduled
+    /// correctly so that the loading is updated correctly.
     fn unschedule_work_order(&mut self, work_order_key: &u32) {
         let work_order = self
             .optimized_work_orders
@@ -338,7 +331,7 @@ impl SchedulerAgentAlgorithm {
         // actually scheduled. This is not the case here as I am implementing logic to handle cases
         // where the work order is not scheduled.
         // What does it mean when we call the unwrap here?
-        for (resource, periods) in self.resources_loading.iter_mut() {
+        for (resource, periods) in self.resources_loading.inner.iter_mut() {
             for (period, loading) in periods {
                 if *period == period_internal {
                     let work_load_for_resource = work_order.get_work_load().get(&resource);
@@ -365,7 +358,7 @@ impl SchedulerAgentAlgorithm {
     }
 
     fn update_loadings(&mut self, period_input: Period, work_order: &OptimizedWorkOrder) {
-        for (resource, periods) in self.resources_loading.iter_mut() {
+        for (resource, periods) in self.resources_loading.inner.iter_mut() {
             for (period, loading) in periods {
                 if *period == period_input {
                     *loading += work_order.get_work_load().get(&resource).unwrap_or(&0.0);
@@ -400,23 +393,9 @@ mod tests {
 
     use crate::{
         agents::scheduler_agent::scheduler_algorithm::{
-            OptimizedWorkOrders, PriorityQueues, SchedulerAgentAlgorithm,
+            AlgorithmResources, OptimizedWorkOrders, PriorityQueues, SchedulerAgentAlgorithm,
         },
-        models::{
-            work_order::{
-                functional_location::FunctionalLocation,
-                order_dates::OrderDates,
-                order_text::OrderText,
-                order_type::{WDFPriority, WorkOrderType},
-                priority::Priority,
-                revision::Revision,
-                status_codes::StatusCodes,
-                system_condition::SystemCondition,
-                unloading_point::UnloadingPoint,
-                WorkOrder,
-            },
-            WorkOrders,
-        },
+        models::WorkOrders,
     };
     use shared_messages::resources::Resources;
 
@@ -427,38 +406,35 @@ mod tests {
 
         let period = Period::new(1, start_date, end_date);
 
-        let mut work_orders = WorkOrders::new();
+        let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
 
-        let work_order = WorkOrder::new(
-            2200002020,
-            false,
-            1000,
-            Priority::new_int(1),
-            100.0,
-            HashMap::new(),
-            HashMap::new(),
-            vec![],
-            vec![],
-            vec![],
-            WorkOrderType::Wdf(WDFPriority::new(1)),
-            SystemCondition::new(),
-            StatusCodes::new_default(),
-            OrderDates::new_test(),
-            Revision::new_default(),
-            UnloadingPoint::new_default(),
-            FunctionalLocation::new_default(),
-            OrderText::new_default(),
-            false,
-        );
+        let optimized_work_order =
+            OptimizedWorkOrder::new(None, None, HashSet::new(), None, 1000, HashMap::new());
 
-        work_orders.insert(work_order);
+        optimized_work_orders.insert_optimized_work_order(2200002020, optimized_work_order);
 
+        let mut resource_capacity = HashMap::new();
+        let mut resource_loadings = HashMap::new();
+
+        let mut period_hash_map_150 = HashMap::new();
+        let mut period_hash_map_0 = HashMap::new();
+
+        period_hash_map_150.insert(period.clone(), 150.0);
+        period_hash_map_0.insert(period.clone(), 0.0);
+
+        resource_capacity.insert(Resources::MtnMech, period_hash_map_150.clone());
+        resource_capacity.insert(Resources::MtnElec, period_hash_map_150.clone());
+        resource_capacity.insert(Resources::Prodtech, period_hash_map_150.clone());
+
+        resource_loadings.insert(Resources::MtnMech, period_hash_map_0.clone());
+        resource_loadings.insert(Resources::MtnElec, period_hash_map_0.clone());
+        resource_loadings.insert(Resources::Prodtech, period_hash_map_0.clone());
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            HashMap::new(),
-            HashMap::new(),
+            AlgorithmResources::new(resource_capacity),
+            AlgorithmResources::new(resource_loadings),
             PriorityQueues::new(),
-            OptimizedWorkOrders::new(HashMap::new()),
+            optimized_work_orders,
             vec![],
             true,
         );
@@ -487,42 +463,35 @@ mod tests {
 
         let period = Period::new(1, start_date, end_date);
 
-        let mut work_orders = WorkOrders::new();
-
         let mut work_load = HashMap::new();
 
-        work_load.insert(Resources::new_from_string("MTN-MECH".to_string()), 100.0);
+        work_load.insert(Resources::MtnMech, 100.0);
 
-        let work_order = WorkOrder::new(
-            2200002020,
-            false,
-            1000,
-            Priority::new_int(1),
-            100.0,
-            HashMap::new(),
-            work_load,
-            vec![],
-            vec![],
-            vec![],
-            WorkOrderType::Wdf(WDFPriority::new(1)),
-            SystemCondition::new(),
-            StatusCodes::new_default(),
-            OrderDates::new_test(),
-            Revision::new_default(),
-            UnloadingPoint::new_default(),
-            FunctionalLocation::new_default(),
-            OrderText::new_default(),
-            false,
-        );
+        let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
 
-        work_orders.insert(work_order);
+        let optimized_work_order =
+            OptimizedWorkOrder::new(None, None, HashSet::new(), None, 1000, work_load);
+
+        optimized_work_orders
+            .inner
+            .insert(2200002020, optimized_work_order);
+
+        let mut resource_capacity = HashMap::new();
+        let mut resource_loadings = HashMap::new();
+
+        let mut period_hash_map_0 = HashMap::new();
+
+        period_hash_map_0.insert(period.clone(), 0.0);
+
+        resource_capacity.insert(Resources::MtnMech, period_hash_map_0.clone());
+        resource_loadings.insert(Resources::MtnMech, period_hash_map_0.clone());
 
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            HashMap::new(),
-            HashMap::new(),
+            AlgorithmResources::new(resource_capacity),
+            AlgorithmResources::new(resource_loadings),
             PriorityQueues::new(),
-            OptimizedWorkOrders::new(HashMap::new()),
+            optimized_work_orders,
             vec![],
             true,
         );
@@ -536,15 +505,15 @@ mod tests {
             scheduler_agent_algorithm
                 .optimized_work_orders
                 .inner
-                .get(&2200002020),
+                .get(&2200002020)
+                .unwrap()
+                .get_scheduled_period(),
             None
         );
     }
 
     #[test]
     fn test_update_loadings() {
-        let mut work_orders = WorkOrders::new();
-
         let mut work_load = HashMap::new();
 
         work_load.insert(Resources::MtnMech, 20.0);
@@ -575,8 +544,8 @@ mod tests {
 
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            resource_capacity,
-            resource_loadings,
+            AlgorithmResources::new(resource_capacity),
+            AlgorithmResources::new(resource_loadings),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             vec![],
@@ -597,6 +566,7 @@ mod tests {
         assert_eq!(
             scheduler_agent_algorithm
                 .resources_loading
+                .inner
                 .get(&Resources::MtnMech)
                 .unwrap()
                 .get(&period.clone()),
@@ -605,6 +575,7 @@ mod tests {
         assert_eq!(
             scheduler_agent_algorithm
                 .resources_loading
+                .inner
                 .get(&Resources::MtnElec)
                 .unwrap()
                 .get(&period.clone()),
@@ -613,6 +584,7 @@ mod tests {
         assert_eq!(
             scheduler_agent_algorithm
                 .resources_loading
+                .inner
                 .get(&Resources::Prodtech)
                 .unwrap()
                 .get(&period.clone()),
@@ -622,9 +594,8 @@ mod tests {
         assert_eq!(
             scheduler_agent_algorithm
                 .resources_loading
-                .get(&Resources::MtnScaf)
-                .unwrap()
-                .get(&period.clone()),
+                .inner
+                .get(&Resources::MtnScaf),
             None
         );
     }
@@ -636,7 +607,6 @@ mod tests {
     /// sure
     #[test]
     fn test_unschedule_work_order() {
-        let mut work_orders = WorkOrders::new();
         let mut work_load = HashMap::new();
 
         work_load.insert(Resources::MtnMech, 20.0);
@@ -661,12 +631,8 @@ mod tests {
         let mut resource_loadings: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
 
         for resource in resources.iter() {
-            let capacity_map = resource_capacity
-                .entry(resource.clone())
-                .or_insert_with(HashMap::new);
-            let loading_map = resource_loadings
-                .entry(resource.clone())
-                .or_insert_with(HashMap::new);
+            let capacity_map = resource_capacity.entry(resource.clone()).or_default();
+            let loading_map = resource_loadings.entry(resource.clone()).or_default();
 
             for period in periods.iter() {
                 capacity_map.insert(period.clone(), 150.0);
@@ -674,36 +640,27 @@ mod tests {
             }
         }
 
-        // resource_capacity.insert((Resources::MtnMech, period_1.clone()), 150.0);
-        // resource_capacity.insert((Resources::MtnElec, period_1.clone()), 150.0);
-        // resource_capacity.insert((Resources::Prodtech, period_1.clone()), 150.0);
+        let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
 
-        // resource_loadings.insert((Resources::MtnMech, period_1.clone()), 0.0);
-        // resource_loadings.insert((Resources::MtnElec, period_1.clone()), 0.0);
-        // resource_loadings.insert((Resources::Prodtech, period_1.clone()), 0.0);
+        let optimized_work_order = OptimizedWorkOrder::new(
+            None,
+            Some(period_1.clone()),
+            HashSet::new(),
+            None,
+            1000,
+            work_load,
+        );
 
-        // resource_capacity.insert((Resources::MtnMech, period_2.clone()), 150.0);
-        // resource_capacity.insert((Resources::MtnElec, period_2.clone()), 150.0);
-        // resource_capacity.insert((Resources::Prodtech, period_2.clone()), 150.0);
-
-        // resource_loadings.insert((Resources::MtnMech, period_2.clone()), 0.0);
-        // resource_loadings.insert((Resources::MtnElec, period_2.clone()), 0.0);
-        // resource_loadings.insert((Resources::Prodtech, period_2.clone()), 0.0);
-
-        // resource_capacity.insert((Resources::MtnMech, period_3.clone()), 150.0);
-        // resource_capacity.insert((Resources::MtnElec, period_3.clone()), 150.0);
-        // resource_capacity.insert((Resources::Prodtech, period_3.clone()), 150.0);
-
-        // resource_loadings.insert((Resources::MtnMech, period_3.clone()), 0.0);
-        // resource_loadings.insert((Resources::MtnElec, period_3.clone()), 0.0);
-        // resource_loadings.insert((Resources::Prodtech, period_3.clone()), 0.0);
+        optimized_work_orders
+            .inner
+            .insert(2200002020, optimized_work_order);
 
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            resource_capacity,
-            resource_loadings,
+            AlgorithmResources::new(resource_capacity),
+            AlgorithmResources::new(resource_loadings),
             PriorityQueues::new(),
-            OptimizedWorkOrders::new(HashMap::new()),
+            optimized_work_orders,
             periods,
             true,
         );
@@ -747,17 +704,6 @@ mod tests {
                 .get_or_initialize_manual_resources_loading(Resources::Prodtech, period_1.clone()),
             0.0
         );
-
-        let optimized_work_order = OptimizedWorkOrder::new(
-            None,
-            Some(period_1.clone()),
-            HashSet::new(),
-            None,
-            1000,
-            work_load,
-        );
-
-        scheduler_agent_algorithm.set_optimized_work_order(2200002020, optimized_work_order);
 
         scheduler_agent_algorithm.schedule_forced_work_order(2200002020);
 
@@ -915,8 +861,8 @@ mod tests {
 
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            HashMap::new(),
-            HashMap::new(),
+            AlgorithmResources::default(),
+            AlgorithmResources::default(),
             PriorityQueues::new(),
             optimized_work_orders,
             periods,
@@ -998,18 +944,25 @@ mod tests {
 
     #[test]
     fn test_unschedule_work_order_none_in_scheduled_period() {
-        let work_order = WorkOrder::default();
+        let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
 
-        let mut work_orders = WorkOrders::new();
+        let optimized_work_order = OptimizedWorkOrder::new(
+            Period::new_from_string("2023-W47-48").ok(),
+            None,
+            HashSet::new(),
+            None,
+            1000,
+            HashMap::new(),
+        );
 
-        work_orders.insert(work_order);
-
-        let optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
+        optimized_work_orders
+            .inner
+            .insert(2100000001, optimized_work_order);
 
         let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            HashMap::new(),
-            HashMap::new(),
+            AlgorithmResources::default(),
+            AlgorithmResources::default(),
             PriorityQueues::new(),
             optimized_work_orders,
             vec![Period::new_from_string("2023-W47-48").unwrap()],

@@ -148,6 +148,7 @@ impl Handler<shared_messages::Response> for WebSocketAgent {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::agents::scheduler_agent::scheduler_algorithm::AlgorithmResources;
     use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrders;
     use crate::agents::scheduler_agent::scheduler_algorithm::PriorityQueues;
     use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
@@ -179,8 +180,8 @@ mod tests {
             Arc::new(Mutex::new(SchedulingEnvironment::default())),
             SchedulerAgentAlgorithm::new(
                 0.0,
-                HashMap::new(),
-                HashMap::new(),
+                AlgorithmResources::default(),
+                AlgorithmResources::default(),
                 PriorityQueues::new(),
                 optimized_work_orders,
                 periods,

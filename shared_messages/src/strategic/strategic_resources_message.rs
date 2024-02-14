@@ -9,7 +9,10 @@ use super::TimePeriod;
 #[derive(Deserialize, Serialize, Debug)]
 pub enum StrategicResourcesMessage {
     SetResources(HashMap<Resources, HashMap<String, f64>>),
-    GetLoadings,
+    GetLoadings {
+        periods_end: String,
+        select_resources: Option<Vec<Resources>>,
+    },
 }
 
 impl StrategicResourcesMessage {

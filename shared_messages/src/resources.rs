@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
@@ -148,5 +150,11 @@ impl Resources {
             Resources::QaqcMech => "QAQCMECH".to_string(),
             Resources::QaqcPain => "QAQCPAIN".to_string(),
         }
+    }
+}
+
+impl Display for Resources {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.variant_name())
     }
 }

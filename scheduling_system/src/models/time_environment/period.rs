@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 use std::ops::Add;
 
-#[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Debug, Clone)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub struct Period {
     id: u32,
     period_string: String,
@@ -95,7 +95,9 @@ fn is_last_three_days_of_year(date: NaiveDate) -> bool {
 
 impl Display for Period {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Period: {}", self.period_string)
+        let mut print_string = self.period_string.clone();
+
+        write!(f, "{}", print_string)
     }
 }
 

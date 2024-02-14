@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
 use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrders;
 use crate::agents::scheduler_agent::scheduler_algorithm::PriorityQueues;
 use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
+use crate::agents::scheduler_agent::scheduler_algorithm::{AlgorithmResources, OptimizedWorkOrder};
 use crate::agents::scheduler_agent::StrategicAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::SchedulingEnvironment;
@@ -60,8 +60,14 @@ pub fn build_scheduler_agent(
 
     let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
         0.0,
-        initialize_manual_resources(&locked_scheduling_environment, 168.0),
-        initialize_manual_resources(&locked_scheduling_environment, 0.0),
+        AlgorithmResources::new(initialize_manual_resources(
+            &locked_scheduling_environment,
+            168.0,
+        )),
+        AlgorithmResources::new(initialize_manual_resources(
+            &locked_scheduling_environment,
+            0.0,
+        )),
         PriorityQueues::new(),
         optimized_work_orders,
         locked_scheduling_environment.clone_periods(),

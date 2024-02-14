@@ -1,13 +1,13 @@
 use clap::{Args, Parser, Subcommand};
 use shared_messages::resources::Resources;
-use shared_messages::status::{self, StatusRequest};
+use shared_messages::status::StatusRequest;
 use shared_messages::strategic::strategic_resources_message::StrategicResourcesMessage;
 use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
 use shared_messages::strategic::{
     strategic_scheduling_message::StrategicSchedulingMessage, StrategicRequest,
 };
-use shared_messages::{resources, SystemMessages};
+use shared_messages::SystemMessages;
 use std::collections::HashMap;
 use std::net::TcpStream;
 use strum::IntoEnumIterator;
@@ -70,7 +70,10 @@ enum StrategicSubcommands {
 #[derive(Subcommand, Debug)]
 enum ResourcesSubcommands {
     /// Get the loading of the resources
-    Loading,
+    Loading {
+        periods_end: String,
+        select_resources: Option<Vec<String>>,
+    },
 
     /// Set the capacity of a resource
     SetCapacity {
@@ -262,8 +265,25 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                     }
                 },
                 StrategicSubcommands::Resources { subcommand } => match subcommand {
-                    Some(ResourcesSubcommands::Loading) => {
-                        let strategic_resources_message = StrategicResourcesMessage::GetLoadings;
+                    Some(ResourcesSubcommands::Loading {
+                        periods_end,
+                        select_resources,
+                    }) => {
+                        let resources = match select_resources {
+                            Some(select_resources) => {
+                                let mut resources: Vec<Resources> = vec![];
+                                for resource in select_resources {
+                                    resources.push(Resources::new_from_string(resource.clone()));
+                                }
+                                Some(resources)
+                            }
+                            None => None,
+                        };
+
+                        let strategic_resources_message = StrategicResourcesMessage::GetLoadings {
+                            periods_end: periods_end.to_string(),
+                            select_resources: resources,
+                        };
 
                         let strategic_request =
                             StrategicRequest::Resources(strategic_resources_message);
