@@ -75,6 +75,11 @@ enum ResourcesSubcommands {
         select_resources: Option<Vec<String>>,
     },
 
+    Capacity {
+        periods_end: String,
+        select_resources: Option<Vec<String>>,
+    },
+
     /// Set the capacity of a resource
     SetCapacity {
         resource: String,
@@ -284,6 +289,37 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                             periods_end: periods_end.to_string(),
                             select_resources: resources,
                         };
+
+                        let strategic_request =
+                            StrategicRequest::Resources(strategic_resources_message);
+
+                        let front_end_message = SystemMessages::Strategic(strategic_request);
+
+                        let scheduler_request_json =
+                            serde_json::to_string(&front_end_message).unwrap();
+
+                        socket.send(Message::Text(scheduler_request_json)).unwrap();
+                    }
+                    Some(ResourcesSubcommands::Capacity {
+                        periods_end,
+                        select_resources,
+                    }) => {
+                        let resources = match select_resources {
+                            Some(select_resources) => {
+                                let mut resources: Vec<Resources> = vec![];
+                                for resource in select_resources {
+                                    resources.push(Resources::new_from_string(resource.clone()));
+                                }
+                                Some(resources)
+                            }
+                            None => None,
+                        };
+
+                        let strategic_resources_message =
+                            StrategicResourcesMessage::GetCapacities {
+                                periods_end: periods_end.to_string(),
+                                select_resources: resources,
+                            };
 
                         let strategic_request =
                             StrategicRequest::Resources(strategic_resources_message);

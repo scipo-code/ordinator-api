@@ -13,6 +13,10 @@ pub enum StrategicResourcesMessage {
         periods_end: String,
         select_resources: Option<Vec<Resources>>,
     },
+    GetCapacities {
+        periods_end: String,
+        select_resources: Option<Vec<Resources>>,
+    },
 }
 
 impl StrategicResourcesMessage {

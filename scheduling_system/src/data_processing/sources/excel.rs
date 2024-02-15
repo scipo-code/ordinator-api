@@ -606,26 +606,20 @@ fn extract_order_dates(
                 .unwrap(),
             Utc,
         ),
-        earliest_allowed_start_period: match date_to_period(
+        earliest_allowed_start_period: date_to_period(
             periods,
             DateTime::<Utc>::from_naive_utc_and_offset(
                 earliest_allowed_start_date.and_hms_opt(7, 0, 0).unwrap(),
                 Utc,
             ),
-        ) {
-            Some(period) => period,
-            None => periods.last().unwrap().clone(),
-        },
-        latest_allowed_finish_period: match date_to_period(
+        ),
+        latest_allowed_finish_period: date_to_period(
             periods,
             DateTime::<Utc>::from_naive_utc_and_offset(
                 latest_allowed_finish_date.and_hms_opt(7, 0, 0).unwrap(),
                 Utc,
             ),
-        ) {
-            Some(period) => period,
-            None => periods.last().unwrap().clone(),
-        },
+        ),
         basic_start_date: DateTime::<Utc>::from_naive_utc_and_offset(
             basic_start_date_additional,
             Utc,
@@ -890,11 +884,28 @@ fn extract_order_text(
     })
 }
 
-fn date_to_period(periods: &[Period], date: DateTime<Utc>) -> Option<Period> {
-    periods
+fn date_to_period(periods: &[Period], date: DateTime<Utc>) -> Period {
+    dbg!(periods);
+    dbg!(date);
+
+    let period: Option<Period> = periods
         .iter()
         .find(|period| period.get_start_date() <= date && period.get_end_date() >= date)
-        .cloned()
+        .cloned();
+
+    match period {
+        Some(period) => period,
+        None => {
+            let mut first_period = periods.first().unwrap().clone();
+            loop {
+                first_period = first_period - Duration::weeks(2);
+                dbg!(first_period.clone());
+                if first_period.get_start_date() <= date && first_period.get_end_date() >= date {
+                    return first_period.clone();
+                }
+            }
+        }
+    }
 }
 
 fn parse_date(s: &str) -> NaiveDate {
@@ -1001,7 +1012,7 @@ mod tests {
         ];
 
         let date: DateTime<Utc> = Utc.with_ymd_and_hms(2023, 1, 10, 7, 0, 0).unwrap();
-        assert_eq!(date_to_period(&periods, date), Some(periods[0].clone()));
+        assert_eq!(date_to_period(&periods, date), periods[0].clone());
     }
 
     #[test]

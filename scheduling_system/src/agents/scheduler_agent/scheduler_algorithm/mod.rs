@@ -13,7 +13,7 @@ use tracing::{debug, info};
 use crate::models::time_environment::period::{Period};
 use shared_messages::resources::Resources;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SchedulerAgentAlgorithm {
     objective_value: f64,
     resources_capacity: AlgorithmResources,
@@ -24,7 +24,7 @@ pub struct SchedulerAgentAlgorithm {
     changed: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AlgorithmResources {
     pub inner: HashMap<Resources, HashMap<Period, f64>>
 }
@@ -55,22 +55,22 @@ impl AlgorithmResources {
             .unwrap_or(0);
 
         // Header
-        write!(string, "{:<20}", "Resource");
+        write!(string, "{:<12}", "Resource");
         for (index, period) in periods.iter().enumerate().take(number_of_periods as usize) {
-            write!(string, "{:^width$}", period, width = max_period_len + 2);
+            write!(string, "{:>12}", period.get_period_string());
         }
         writeln!(string);
+        
 
         // Rows
         for (resource, inner_map) in self.inner.iter() {
-            write!(string, "{:<20}", resource);
+            write!(string, "{:<12}", resource.variant_name()).unwrap();
             for (index, period) in periods.iter().enumerate().take(number_of_periods as usize) {
                 let value = inner_map.get(period).unwrap_or(&0.0);
-                write!(string, "{:^width$.2}", value, width = max_period_len + 2);
+                write!(string, "{:>12}", value);
             }
             writeln!(string);
         }
-
         string
     }
 
@@ -292,13 +292,20 @@ impl SchedulerAgentAlgorithm {
                 select_resources,
             
             } => {
-                dbg!();
+                
                 let loading = self.get_resources_loadings();
 
                 let periods_end: u32 = periods_end.parse().unwrap();
 
                 shared_messages::Response::Success(Some(loading.to_string(periods_end)))
             }
+            StrategicResourcesMessage::GetCapacities { periods_end, select_resources } => 
+            {         
+                let capacities = self.get_resources_capacities();
+
+                let periods_end: u32 = periods_end.parse().unwrap();
+
+                shared_messages::Response::Success(Some(capacities.to_string(periods_end)))    }
         }
     }
 

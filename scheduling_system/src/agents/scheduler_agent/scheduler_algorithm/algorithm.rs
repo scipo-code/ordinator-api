@@ -9,7 +9,6 @@ use super::SchedulerAgentAlgorithm;
 use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
 use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
 use crate::models::time_environment::period::Period;
-use crate::models::work_order::WorkOrder;
 
 /// This implementation of the SchedulerAgent will do the following. It should take a messgage
 /// and then return a scheduler
@@ -17,7 +16,7 @@ use crate::models::work_order::WorkOrder;
 /// Okay, so the problem is that we never get through to the actual scheduling part for the
 /// normal queue.
 impl SchedulerAgentAlgorithm {
-    pub fn schedule_normal_work_orders(&mut self, queue_type: QueueType) {
+    pub fn schedule_normal_work_orders(&mut self) {
         let periods = self.periods.clone();
         for period in periods {
             let work_orders_to_schedule: Vec<_> = {
@@ -36,8 +35,7 @@ impl SchedulerAgentAlgorithm {
             };
 
             for work_order_key in work_orders_to_schedule {
-                let inf_wo_key =
-                    self.schedule_normal_work_order(work_order_key, &period, &queue_type);
+                let inf_wo_key = self.schedule_normal_work_order(work_order_key, &period);
                 if let Some(wo_key) = inf_wo_key {
                     let work_order = self.optimized_work_orders.inner.get(&wo_key);
                     if let Some(work_order) = work_order {
@@ -81,7 +79,6 @@ impl SchedulerAgentAlgorithm {
         &mut self,
         work_order_key: u32,
         period: &Period,
-        queue_type: &QueueType,
     ) -> Option<u32> {
         let work_order = self
             .optimized_work_orders
@@ -107,7 +104,10 @@ impl SchedulerAgentAlgorithm {
                 .unwrap()
                 .get(&period.clone())
                 .unwrap();
-
+            // dbg!();
+            // dbg!(resource_needed);
+            // dbg!(resource_capacity);
+            // dbg!(resource_loading);
             if *resource_needed > *resource_capacity - *resource_loading {
                 return Some(work_order_key);
             }
@@ -142,7 +142,6 @@ impl SchedulerAgentAlgorithm {
         if let Some(work_order_key) = self.is_scheduled(work_order_key) {
             self.unschedule_work_order(&work_order_key);
         }
-
         let period_internal = self
             .optimized_work_orders
             .get_locked_in_period(work_order_key);
@@ -176,7 +175,6 @@ impl SchedulerAgentAlgorithm {
     /// Does it matter that we clone the work orders. I think that it does not matter here as the
     /// code should be able to work as long as the optimized work orders are updated correctly and
     /// not clone anywhere. After sampling the work orders based on the keys I should take care to
-    ///
     pub fn unschedule_random_work_orders(
         &mut self,
         number_of_work_orders: usize,
@@ -209,13 +207,12 @@ impl SchedulerAgentAlgorithm {
                 Some(optimized_period) => optimized_period.clone(),
                 None => {
                     if let Some(last_period) = self.periods.last() {
-                        last_period.add_one_period()
+                        last_period.clone()
                     } else {
                         panic!("There are no periods in the system")
                     }
                 }
-            }
-            .clone();
+            };
 
             // Here we use the latest_allowed_finish_period to calculate the differenct between the
             // period that the work order is scheduled in and when its latest allowed finish period
@@ -251,6 +248,7 @@ impl SchedulerAgentAlgorithm {
             };
             objective += objective_contribution;
         }
+        dbg!(objective);
         self.objective_value = objective as f64;
     }
 }
@@ -265,7 +263,6 @@ fn calculate_period_difference(period_1: Period, period_2: Option<Period>) -> i6
     let duration = period_1_date.signed_duration_since(period_2_date);
 
     let days = duration.num_days();
-    dbg!(days);
     days / 7
 }
 
@@ -305,24 +302,15 @@ impl SchedulerAgentAlgorithm {
         let period_internal = match &self.optimized_work_orders.inner.get(work_order_key) {
             Some(optimized_work_order) => match &optimized_work_order.scheduled_period {
                 Some(period) => Some(period.clone()),
-                None => {
-                    if let Some(last_period) = self.periods.last() {
-                        Some(last_period.add_one_period())
-                    } else {
-                        panic!("There are no periods in the system")
-                    }
-                }
+                None => self.periods.last().cloned(),
             },
             None => {
-                if let Some(last_period) = self.periods.last() {
-                    Some(last_period.add_one_period())
-                } else {
-                    panic!("There are no periods in the system")
-                }
+                panic!("There are no periods in the system")
             }
         }
         .unwrap();
 
+        // dbg!(period_internal.clone());
         // The period is used to make sure that we update the loading correctly. The loading that
         // should be updated is the is the one found in the period that the work order was scheduled
         // in and not the period that the work order is moving to. This is a crucial difference.
@@ -334,18 +322,18 @@ impl SchedulerAgentAlgorithm {
         for (resource, periods) in self.resources_loading.inner.iter_mut() {
             for (period, loading) in periods {
                 if *period == period_internal {
-                    let work_load_for_resource = work_order.get_work_load().get(&resource);
+                    let work_load_for_resource = work_order.get_work_load().get(resource);
                     if let Some(work_load_for_resource) = work_load_for_resource {
                         *loading -= work_load_for_resource;
                     }
                 }
             }
         }
-        let prospective_period = self.periods.last().unwrap().add_one_period();
+        let prospective_period = self.periods.last().unwrap();
 
         match self.optimized_work_orders.inner.get_mut(work_order_key) {
             Some(optimized_work_order) => {
-                optimized_work_order.update_scheduled_period(Some(prospective_period));
+                optimized_work_order.update_scheduled_period(Some(prospective_period).cloned());
                 self.changed = true;
             }
             None => {
@@ -439,11 +427,7 @@ mod tests {
             true,
         );
 
-        scheduler_agent_algorithm.schedule_normal_work_order(
-            2200002020,
-            &period,
-            &QueueType::Normal,
-        );
+        scheduler_agent_algorithm.schedule_normal_work_order(2200002020, &period);
 
         assert_eq!(
             scheduler_agent_algorithm
@@ -495,11 +479,7 @@ mod tests {
             vec![],
             true,
         );
-        scheduler_agent_algorithm.schedule_normal_work_order(
-            2200002020,
-            &period,
-            &QueueType::Normal,
-        );
+        scheduler_agent_algorithm.schedule_normal_work_order(2200002020, &period);
 
         assert_eq!(
             scheduler_agent_algorithm
@@ -665,11 +645,7 @@ mod tests {
             true,
         );
 
-        scheduler_agent_algorithm.schedule_normal_work_order(
-            2200002020,
-            &period_1,
-            &QueueType::Normal,
-        );
+        scheduler_agent_algorithm.schedule_normal_work_order(2200002020, &period_1);
 
         assert_eq!(
             scheduler_agent_algorithm

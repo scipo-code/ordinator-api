@@ -45,14 +45,15 @@ impl Handler<ScheduleIteration> for StrategicAgent {
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         // event!(tracing::Level::INFO , "schedule_iteration_message");
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
+
+        let cloned_solution = self.scheduler_agent_algorithm.clone();
+
         self.scheduler_agent_algorithm
             .unschedule_random_work_orders(5, rng);
 
-        self.scheduler_agent_algorithm
-            .schedule_normal_work_orders(QueueType::Normal);
+        self.scheduler_agent_algorithm.schedule_normal_work_orders();
 
         self.scheduler_agent_algorithm.schedule_forced_work_orders();
-        // self.scheduler_agent_algorithm.schedule_work_orders_by_type(QueueType::UnloadingAndManual);
 
         self.scheduler_agent_algorithm.calculate_objective();
 
@@ -145,9 +146,23 @@ impl Handler<StrategicRequest> for StrategicAgent {
                         .scheduler_agent_algorithm
                         .get_objective_value()
                         .to_string();
+
+                    let optimized_work_orders =
+                        self.scheduler_agent_algorithm.get_optimized_work_orders();
+
+                    let number_of_strategic_work_orders = optimized_work_orders.len();
+                    let mut scheduled_count = 0;
+                    for (work_order_number, optimized_work_order) in optimized_work_orders {
+                        if optimized_work_order.get_scheduled_period().is_some() {
+                            dbg!(optimized_work_order.get_scheduled_period());
+                            dbg!(optimized_work_order.get_work_load());
+                            scheduled_count += 1;
+                        }
+                    }
+
                     let scheduling_status = format!(
-                        "{}\nWith objectives: \n  strategic objective of: {}",
-                        scheduling_status, strategic_objective
+                        "{}\nWith objectives: \n  strategic objective of: {}\n    {} of {} work orders scheduled",
+                        scheduling_status, strategic_objective, scheduled_count, number_of_strategic_work_orders
                     );
                     match self.ws_agent_addr.as_ref() {
                         Some(addr) => addr
@@ -176,7 +191,6 @@ impl Handler<StrategicRequest> for StrategicAgent {
                         .map(|(work_order_number, _)| *work_order_number)
                         .collect();
 
-                    dbg!(work_orders_by_period.clone());
                     let message = format!(
                         "Work orders scheduled for period: {} are: {:?}",
                         period, work_orders_by_period

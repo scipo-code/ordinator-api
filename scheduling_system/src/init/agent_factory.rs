@@ -19,9 +19,9 @@ pub fn build_scheduler_agent(
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
 ) -> Addr<StrategicAgent> {
     let cloned_work_orders = scheduling_environment.lock().unwrap().clone_work_orders();
-
+    let cloned_periods = scheduling_environment.lock().unwrap().clone_periods();
     let optimized_work_orders: OptimizedWorkOrders =
-        create_optimized_work_orders(&cloned_work_orders);
+        create_optimized_work_orders(&cloned_work_orders, &cloned_periods);
 
     // The periods should really not be where it is here. It should be in the SchedulingEnvironment.
     // What is the problem? The problem is that we would either need to clone the periods or
@@ -58,7 +58,7 @@ pub fn build_scheduler_agent(
 
     let locked_scheduling_environment = scheduling_environment.lock().unwrap();
 
-    let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+    let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
         0.0,
         AlgorithmResources::new(initialize_manual_resources(
             &locked_scheduling_environment,
@@ -76,6 +76,7 @@ pub fn build_scheduler_agent(
 
     drop(locked_scheduling_environment);
 
+    scheduler_agent_algorithm.calculate_objective();
     // dbg!(scheduler_agent_algorithm
     //     .get_manual_resources_capacities()
     //     .get(k));
@@ -91,9 +92,13 @@ pub fn build_scheduler_agent(
 
 /// This function should be used by the scheduling environment. It should not be used by the
 /// algorithm itself.
-fn create_optimized_work_orders(work_orders: &WorkOrders) -> OptimizedWorkOrders {
+fn create_optimized_work_orders(
+    work_orders: &WorkOrders,
+    periods: &Vec<Period>,
+) -> OptimizedWorkOrders {
     let mut optimized_work_orders: HashMap<u32, OptimizedWorkOrder> = HashMap::new();
 
+    let last_period = periods.last();
     for (work_order_number, work_order) in &work_orders.inner {
         if work_order.get_unloading_point().present {
             let period = work_order.get_unloading_point().period.clone();
@@ -104,6 +109,24 @@ fn create_optimized_work_orders(work_orders: &WorkOrders) -> OptimizedWorkOrders
                     period,
                     HashSet::new(),
                     None,
+                    work_order.get_order_weight(),
+                    work_order.get_work_load().clone(),
+                ),
+            );
+        } else {
+            dbg!(&work_order.get_order_dates().latest_allowed_finish_period);
+            optimized_work_orders.insert(
+                *work_order_number,
+                OptimizedWorkOrder::new(
+                    last_period.cloned(),
+                    None,
+                    HashSet::new(),
+                    Some(
+                        work_order
+                            .get_order_dates()
+                            .latest_allowed_finish_period
+                            .clone(),
+                    ),
                     work_order.get_order_weight(),
                     work_order.get_work_load().clone(),
                 ),
