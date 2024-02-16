@@ -100,8 +100,7 @@ fn is_last_three_days_of_year(date: NaiveDate) -> bool {
 
 impl Display for Period {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut print_string = self.period_string.clone();
-
+        let print_string = self.period_string.clone();
         write!(f, "{}", print_string)
     }
 }

@@ -287,7 +287,6 @@ mod tests {
 
     use shared_messages::resources::Resources;
 
-
     use super::{
         functional_location::FunctionalLocation,
         operation::Operation,

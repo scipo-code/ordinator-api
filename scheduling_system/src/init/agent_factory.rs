@@ -62,7 +62,7 @@ pub fn build_scheduler_agent(
         0.0,
         AlgorithmResources::new(initialize_manual_resources(
             &locked_scheduling_environment,
-            168.0,
+            0.0,
         )),
         AlgorithmResources::new(initialize_manual_resources(
             &locked_scheduling_environment,
@@ -94,7 +94,7 @@ pub fn build_scheduler_agent(
 /// algorithm itself.
 fn create_optimized_work_orders(
     work_orders: &WorkOrders,
-    periods: &Vec<Period>,
+    periods: &[Period],
 ) -> OptimizedWorkOrders {
     let mut optimized_work_orders: HashMap<u32, OptimizedWorkOrder> = HashMap::new();
 
@@ -114,7 +114,6 @@ fn create_optimized_work_orders(
                 ),
             );
         } else {
-            dbg!(&work_order.get_order_dates().latest_allowed_finish_period);
             optimized_work_orders.insert(
                 *work_order_number,
                 OptimizedWorkOrder::new(

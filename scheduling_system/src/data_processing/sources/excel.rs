@@ -885,9 +885,6 @@ fn extract_order_text(
 }
 
 fn date_to_period(periods: &[Period], date: DateTime<Utc>) -> Period {
-    dbg!(periods);
-    dbg!(date);
-
     let period: Option<Period> = periods
         .iter()
         .find(|period| period.get_start_date() <= date && period.get_end_date() >= date)
@@ -897,13 +894,18 @@ fn date_to_period(periods: &[Period], date: DateTime<Utc>) -> Period {
         Some(period) => period,
         None => {
             let mut first_period = periods.first().unwrap().clone();
+            let mut counter = 0;
             loop {
+                counter += 1;
                 first_period = first_period - Duration::weeks(2);
-                dbg!(first_period.clone());
                 if first_period.get_start_date() <= date && first_period.get_end_date() >= date {
-                    return first_period.clone();
+                    break;
                 }
+                if counter >= 1000 {
+                    break;
+                };
             }
+            first_period.clone()
         }
     }
 }

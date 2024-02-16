@@ -48,28 +48,23 @@ impl AlgorithmResources {
         periods.sort();
         periods.dedup();
 
-        // Find the maximum length of period string representations for formatting
-        let max_period_len = periods.iter()
-            .map(|p| p.to_string().len())
-            .max()
-            .unwrap_or(0);
 
         // Header
-        write!(string, "{:<12}", "Resource");
-        for (index, period) in periods.iter().enumerate().take(number_of_periods as usize) {
-            write!(string, "{:>12}", period.get_period_string());
+        write!(string, "{:<12}", "Resource").ok();
+        for (_, period) in periods.iter().enumerate().take(number_of_periods as usize) {
+            write!(string, "{:>12}", period.get_period_string()).ok();
         }
-        writeln!(string);
+        writeln!(string).ok();
         
 
         // Rows
         for (resource, inner_map) in self.inner.iter() {
             write!(string, "{:<12}", resource.variant_name()).unwrap();
-            for (index, period) in periods.iter().enumerate().take(number_of_periods as usize) {
+            for (_, period) in periods.iter().enumerate().take(number_of_periods as usize) {
                 let value = inner_map.get(period).unwrap_or(&0.0);
-                write!(string, "{:>12}", value);
+                write!(string, "{:>12}", value).ok();
             }
-            writeln!(string);
+            writeln!(string).ok();
         }
         string
     }
@@ -104,6 +99,7 @@ impl SchedulerAgentAlgorithm {
 pub struct OptimizedWorkOrders {
     inner: HashMap<u32, OptimizedWorkOrder>,
 }
+
 
 impl Hash for OptimizedWorkOrders {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -172,13 +168,7 @@ impl OptimizedWorkOrders {
         optimized_work_order.locked_in_period = Some(period);
     }
 
-    pub fn insert_optimized_work_order(
-        &mut self,
-        work_order_number: u32,
-        optimized_work_order: OptimizedWorkOrder,
-    ) {
-        self.inner.insert(work_order_number, optimized_work_order);
-    }
+
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -236,7 +226,7 @@ impl OptimizedWorkOrder {
 
     /// This is a huge no-no! I think that this will lets us violate the invariant that we have
     /// created between scheduled work and the loadings. We should test for this
-    pub fn update_scheduled_period(&mut self, period: Option<Period>) {
+    pub fn set_scheduled_period(&mut self, period: Option<Period>) {
         self.scheduled_period = period;
     }
 }
@@ -330,10 +320,7 @@ impl SchedulerAgentAlgorithm {
                     Some(period) => {
                         self.optimized_work_orders
                             .set_locked_in_period(work_order_number, period.clone());
-                        self.initialize_loading_used_in_work_order(
-                            work_order_number,
-                            period.clone(),
-                        );
+             
                         shared_messages::Response::Success(Some(format!(
                             "Work order {} has been scheduled for period {}",
                             work_order_number,
@@ -360,10 +347,7 @@ impl SchedulerAgentAlgorithm {
                         Some(period) => {
                             self.optimized_work_orders
                                 .set_locked_in_period(work_order_number, period.clone());
-                            self.initialize_loading_used_in_work_order(
-                                work_order_number,
-                                period.clone(),
-                            );
+
                             output_string += &format!(
                                 "Work order {} has been scheduled for period {}",
                                 work_order_number,
@@ -421,7 +405,6 @@ impl SchedulerAgentAlgorithm {
                             info!("Work order {} has been excluded from period {} and the locked in period has been removed", work_order_number, period.get_period_string());
                         }
                             
-
                         shared_messages::Response::Success(Some(format!(
                             "Work order {} has been excluded from period {}",
                             work_order_number,
@@ -432,7 +415,6 @@ impl SchedulerAgentAlgorithm {
                 }
             }
         };
-        self.update_priority_queues();
         response
     }
 }
@@ -456,40 +438,15 @@ impl SchedulerAgentAlgorithm {
 impl SchedulerAgentAlgorithm {
     pub fn populate_priority_queues(&mut self) {
         for (key, work_order) in self.optimized_work_orders.inner.iter() {
-                debug!("Work order {} has been added to the normal queue", key);
+            debug!("Work order {} has been added to the normal queue", key);
+            if work_order.scheduled_period.is_none() {
                 self.priority_queues
                     .normal
                     .push(*key, work_order.get_weight());
-            
-        }
-    }
-
-    #[tracing::instrument]
-    fn update_priority_queues(&mut self) {
-        for (key, work_order) in &self.optimized_work_orders.inner {
-            let work_order_weight = self.optimized_work_orders.inner.get(key).unwrap().get_weight();
-            match &work_order.locked_in_period {
-                Some(_work_order) => {
-                    self.priority_queues.unloading.push(*key, work_order_weight);
-                }
-                None => {}
             }
         }
     }
 
-    fn initialize_loading_used_in_work_order(&mut self, work_order_number: u32, period: Period) {
-        let needed_keys = self
-            .optimized_work_orders
-            .inner
-            .get(&work_order_number)
-            .unwrap()
-            .get_work_load()
-            .keys();
-        let needed_resources: Vec<_> = needed_keys.cloned().collect();
-        for resource in needed_resources.clone() {
-            self.get_or_initialize_manual_resources_loading(resource.clone(), period.clone());
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -498,9 +455,9 @@ where
     T: Hash + Eq,
     P: Ord,
 {
-    unloading: PriorityQueue<T, P>,
-    shutdown_vendor: PriorityQueue<T, P>,
-    normal: PriorityQueue<T, P>,
+    pub unloading: PriorityQueue<T, P>,
+    pub shutdown_vendor: PriorityQueue<T, P>,
+    pub normal: PriorityQueue<T, P>,
 }
 
 impl PriorityQueues<u32, u32> {
@@ -512,7 +469,6 @@ impl PriorityQueues<u32, u32> {
         }
     }
 }
-
 
 // The backlog should not be in the algorithm, it should be in the agent under the 
 // SchedulingEnvironment. I should remove it immediately 
@@ -549,31 +505,15 @@ impl SchedulerAgentAlgorithm {
         &self.resources_capacity
     }
 
-    pub fn get_or_initialize_manual_resources_loading(
-        &mut self,
-        resource: Resources,
-        period: Period,
-    ) -> f64 {
-        match self
-            .resources_loading
-            .inner
-            .get(&resource.clone())
-            .unwrap()
-            .get(&period.clone())
-        {
-            Some(loading) => *loading,
-            None => {
-                panic!(
-                    "This should not happen, all resources should be initialized at the outset or
-                though messages from the frontend",
-                );
-            }
-        }
-    }
 
     pub fn get_periods(&self) -> &Vec<Period> {
         &self.periods
     }
+
+    pub fn get_priority_queues(&self) -> &PriorityQueues<u32, u32> {
+        &self.priority_queues
+    }
+
 }
 
 #[derive(Debug, PartialEq)]
@@ -756,11 +696,7 @@ mod tests {
         //todo!()
     }
 
-    impl SchedulerAgentAlgorithm {
-        pub fn get_priority_queues(&self) -> &PriorityQueues<u32, u32> {
-            &self.priority_queues
-        }
-    }
+
 
     impl AlgorithmResources {
         pub fn default() -> Self {
@@ -768,5 +704,15 @@ mod tests {
                 inner: HashMap::new()
             }
         }
+    }
+
+    impl OptimizedWorkOrders {
+            pub fn insert_optimized_work_order(
+        &mut self,
+        work_order_number: u32,
+        optimized_work_order: OptimizedWorkOrder,
+    ) {
+        self.inner.insert(work_order_number, optimized_work_order);
+    }
     }
 }

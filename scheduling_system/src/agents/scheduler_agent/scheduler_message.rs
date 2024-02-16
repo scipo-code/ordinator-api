@@ -42,11 +42,10 @@ pub struct ScheduleIteration {}
 impl Handler<ScheduleIteration> for StrategicAgent {
     type Result = ResponseActFuture<Self, ()>;
 
+    #[instrument(skip(self, _msg, ctx))]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         // event!(tracing::Level::INFO , "schedule_iteration_message");
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
-
-        let cloned_solution = self.scheduler_agent_algorithm.clone();
 
         self.scheduler_agent_algorithm
             .unschedule_random_work_orders(5, rng);
@@ -65,22 +64,9 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         let actor_addr = ctx.address().clone();
 
         let fut = async move {
-            sleep(Duration::from_secs(1)).await;
+            sleep(Duration::from_secs(0)).await;
             actor_addr.do_send(ScheduleIteration {});
         };
-
-        if self.scheduler_agent_algorithm.changed() {
-            trace!(
-                agent = "scheduler_agent",
-                name = self.platform.clone(),
-                message = "change occured in optimized work orders"
-            );
-
-            // ctx.notify(MessageToFrontend::Overview);
-            // ctx.notify(MessageToFrontend::Loading);
-
-            self.scheduler_agent_algorithm.set_changed(false);
-        }
 
         Box::pin(actix::fut::wrap_future::<_, Self>(fut))
     }

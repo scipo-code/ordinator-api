@@ -383,7 +383,6 @@ fn generate_manual_resources(
 ) -> HashMap<shared_messages::resources::Resources, HashMap<String, f64>> {
     let periods = get_periods(socket);
 
-    dbg!(periods.clone());
     let mut resources_hash_map = HashMap::new();
     for resource in shared_messages::resources::Resources::iter() {
         let mut periods_hash_map = HashMap::new();
