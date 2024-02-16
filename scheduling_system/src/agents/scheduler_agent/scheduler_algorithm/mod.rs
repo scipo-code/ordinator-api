@@ -8,7 +8,7 @@ use std::hash::{Hash, Hasher};
 use priority_queue::PriorityQueue;
 use shared_messages::strategic::strategic_resources_message::{StrategicResourcesMessage};
 use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
-use tracing::{debug, info};
+use tracing::{debug, info, instrument};
 
 use crate::models::time_environment::period::{Period};
 use shared_messages::resources::Resources;
@@ -130,7 +130,7 @@ impl OptimizedWorkOrders {
     pub fn new(inner: HashMap<u32, OptimizedWorkOrder>) -> Self {
         Self { inner }
     }
-
+    #[instrument(skip(self))]
     pub fn set_scheduled_period(&mut self, work_order_number: u32, period: Period) {
         let optimized_work_order = match self.inner.get_mut(&work_order_number) {
             Some(optimized_work_order) => optimized_work_order,
@@ -141,7 +141,7 @@ impl OptimizedWorkOrders {
         };
         optimized_work_order.scheduled_period = Some(period);
     }
-
+    #[instrument(skip(self))]
     pub fn get_locked_in_period(&self, work_order_number: u32) -> Period {
         let option_period = match self.inner.get(&work_order_number) {
             Some(optimized_work_order) => optimized_work_order.locked_in_period.clone(),
@@ -216,6 +216,7 @@ impl OptimizedWorkOrder {
         self.latest_period.clone()
     }
 
+    #[instrument(skip(self))]
     pub fn get_work_load(&self) -> &HashMap<Resources, f64> {
         &self.work_load
     }

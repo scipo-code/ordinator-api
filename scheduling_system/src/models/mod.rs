@@ -74,12 +74,14 @@ impl SchedulingEnvironment {
         &self.worker_environment
     }
 
-}
-
-impl SchedulingEnvironment {
     pub fn initialize_worker_environment(&mut self) {
         self.worker_environment.initialize();
     }
+}
+
+enum Assets {
+    DanF,
+    Gorm,
 }
 
 impl Default for SchedulingEnvironment {

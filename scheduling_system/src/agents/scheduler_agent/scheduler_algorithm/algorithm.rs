@@ -147,15 +147,17 @@ impl SchedulerAgentAlgorithm {
             .optimized_work_orders
             .inner
             .get(&work_order_key)
-            .unwrap();
+            .unwrap()
+            .clone();
 
         // Is this really the place where we should update the loadings? I am not sure about it.
         // It is either here or in the update_scheduler_state function. Well thank you for that
-        for (resource, periods) in self.resources_loading.inner.iter_mut() {
-            if let Some(loading) = periods.get_mut(&period_internal) {
-                *loading += work_order.get_work_load().get(resource).unwrap_or(&0.0);
-            }
-        }
+        self.update_loadings(period_internal, &work_order);
+        // for (resource, periods) in self.resources_loading.inner.iter_mut() {
+        //     if let Some(loading) = periods.get_mut(&period_internal) {
+        //         *loading += work_order.get_work_load().get(resource).unwrap_or(&0.0);
+        //     }
+        // }
     }
 
     /// Does it matter that we clone the work orders. I think that it does not matter here as the
@@ -275,6 +277,7 @@ fn calculate_period_difference(period_1: Period, period_2: Option<Period>) -> i6
 /// change the implementation so that the work orders that are "manually" scheduled are simply
 /// forced into the schedule. There is no reason to loop over every period to fix the problem.
 impl SchedulerAgentAlgorithm {
+    #[instrument(skip(self))]
     fn is_scheduled(&self, work_order_key: u32) -> Option<u32> {
         self.optimized_work_orders
             .inner
@@ -301,6 +304,7 @@ impl SchedulerAgentAlgorithm {
     /// scheduled period together with its loading. Then now the question is if we should have a
     /// allow the function to unschedule and reschedule if nothing has changed. I think that the
     /// right approach in to to make the check for is_scheduled
+    #[instrument(skip(self))]
     fn unschedule_work_order(&mut self, work_order_key: &u32) {
         let optimized_work_order: &mut OptimizedWorkOrder = self
             .optimized_work_orders
@@ -324,6 +328,7 @@ impl SchedulerAgentAlgorithm {
         }
     }
 
+    #[instrument(skip(self))]
     fn update_loadings(&mut self, period_input: Period, work_order: &OptimizedWorkOrder) {
         for (resource, periods) in self.resources_loading.inner.iter_mut() {
             for (period, loading) in periods {
@@ -358,11 +363,8 @@ mod tests {
     use rand::{rngs::StdRng, SeedableRng};
     use std::collections::HashMap;
 
-    use crate::{
-        agents::scheduler_agent::scheduler_algorithm::{
-            AlgorithmResources, OptimizedWorkOrders, PriorityQueues, SchedulerAgentAlgorithm,
-        },
-        models::WorkOrders,
+    use crate::agents::scheduler_agent::scheduler_algorithm::{
+        AlgorithmResources, OptimizedWorkOrders, PriorityQueues, SchedulerAgentAlgorithm,
     };
     use shared_messages::resources::Resources;
 

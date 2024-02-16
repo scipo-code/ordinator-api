@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use crate::agents::work_planner_agent::WorkPlannerAgent;
+use crate::agents::tactical_agent::TacticalAgent;
 
 /// This is the primary struct for the scheduler agent.
 #[allow(dead_code)]
@@ -26,7 +26,7 @@ pub struct StrategicAgent {
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     scheduler_agent_algorithm: SchedulerAgentAlgorithm,
     ws_agent_addr: Option<Addr<WebSocketAgent>>,
-    work_planner_agent_addr: Option<Addr<WorkPlannerAgent>>,
+    work_planner_agent_addr: Option<Addr<TacticalAgent>>,
 }
 
 impl StrategicAgent {
@@ -54,7 +54,7 @@ impl StrategicAgent {
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         scheduler_agent_algorithm: SchedulerAgentAlgorithm,
         ws_agent_addr: Option<Addr<WebSocketAgent>>,
-        work_planner_agent_addr: Option<Addr<WorkPlannerAgent>>,
+        work_planner_agent_addr: Option<Addr<TacticalAgent>>,
     ) -> Self {
         Self {
             platform,

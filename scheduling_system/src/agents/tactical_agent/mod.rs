@@ -5,22 +5,16 @@ use actix::prelude::*;
 use crate::{api::websocket_agent::WebSocketAgent, models::WorkOrders};
 
 #[allow(dead_code)]
-pub struct WorkPlannerAgent {
+pub struct TacticalAgent {
     id: i32,
     work_orders: WorkOrders,
     addr: Option<Addr<WebSocketAgent>>,
 }
 
-impl Actor for WorkPlannerAgent {
+impl Actor for TacticalAgent {
     type Context = Context<Self>;
-
 
     fn started(&mut self, _ctx: &mut Context<Self>) {
         println!("WorkPlannerAgent is alive and julia is running");
     }
-
-
-
-
-
 }

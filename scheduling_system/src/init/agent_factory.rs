@@ -8,6 +8,7 @@ use crate::agents::scheduler_agent::scheduler_algorithm::PriorityQueues;
 use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
 use crate::agents::scheduler_agent::scheduler_algorithm::{AlgorithmResources, OptimizedWorkOrder};
 use crate::agents::scheduler_agent::StrategicAgent;
+use crate::agents::tactical_agent::TacticalAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::SchedulingEnvironment;
 use crate::models::WorkOrders;
@@ -90,6 +91,18 @@ pub fn build_scheduler_agent(
     scheduler_agent.start()
 }
 
+pub fn build_tactical_agent(
+    scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
+) -> Addr<TacticalAgent> {
+    let tactical_agent = TacticalAgent::new(
+        String::from("Dan F"),
+        scheduling_environment,
+        scheduler_agent_algorithm,
+        None,
+        None,
+    );
+    tactical_agent.start()
+}
 /// This function should be used by the scheduling environment. It should not be used by the
 /// algorithm itself.
 fn create_optimized_work_orders(
