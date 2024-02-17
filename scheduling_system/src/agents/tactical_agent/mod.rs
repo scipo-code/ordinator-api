@@ -1,14 +1,30 @@
 pub mod matheuristic;
 pub mod messages;
+use std::sync::{Arc, Mutex};
+
 use actix::prelude::*;
 
-use crate::{api::websocket_agent::WebSocketAgent, models::WorkOrders};
+use crate::{api::websocket_agent::WebSocketAgent, models::SchedulingEnvironment};
 
 #[allow(dead_code)]
 pub struct TacticalAgent {
     id: i32,
-    work_orders: WorkOrders,
+    work_orders: Arc<Mutex<SchedulingEnvironment>>,
     addr: Option<Addr<WebSocketAgent>>,
+}
+
+impl TacticalAgent {
+    pub fn new(
+        id: i32,
+        work_orders: Arc<Mutex<SchedulingEnvironment>>,
+        addr: Option<Addr<WebSocketAgent>>,
+    ) -> Self {
+        TacticalAgent {
+            id,
+            work_orders,
+            addr,
+        }
+    }
 }
 
 impl Actor for TacticalAgent {

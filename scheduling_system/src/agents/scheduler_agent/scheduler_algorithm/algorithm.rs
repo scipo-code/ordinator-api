@@ -40,7 +40,6 @@ impl SchedulerAgentAlgorithm {
     /// know the period. What should be done about this. This depends on where we can find the
     /// period. We can find the period in the part of the state that is handled by the
     /// update_scheduler_state function.
-    #[instrument]
     pub fn schedule_forced_work_orders(&mut self) {
         let mut work_order_keys: Vec<u32> = vec![];
         for (work_order_key, opt_work_order) in self.get_optimized_work_orders().iter() {
@@ -59,10 +58,7 @@ impl SchedulerAgentAlgorithm {
     /// initially thought. The schedule_normal_work_orders should simply schedule work orders that
     /// are not in the schedule yet. I think, but I am not sure, that the there should be no
     /// rescheduling here.
-    #[instrument(fields(
-        manual_resources_capacity = self.resources_capacity.inner.len(),
-        manual_resources_loading = self.resources_loading.inner.len(),
-        optimized_work_orders = self.optimized_work_orders.inner.len(),))]
+    #[instrument(skip(self, period))]
     pub fn schedule_normal_work_order(
         &mut self,
         work_order_key: u32,
@@ -199,6 +195,7 @@ impl SchedulerAgentAlgorithm {
     /// be to "schedule" it outside of the initialized periods. That will make a lot of sense. I
     /// think that it will be the best approach. Actually every work order should be scheduled like
     /// this to make the system consistent. And make the objective value meaningful.
+    #[instrument(skip(self))]
     pub fn calculate_objective(&mut self) {
         let mut objective = 0;
         for (work_order_key, optimized_work_order) in &self.optimized_work_orders.inner {

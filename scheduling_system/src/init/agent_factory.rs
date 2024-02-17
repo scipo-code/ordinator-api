@@ -94,13 +94,7 @@ pub fn build_scheduler_agent(
 pub fn build_tactical_agent(
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
 ) -> Addr<TacticalAgent> {
-    let tactical_agent = TacticalAgent::new(
-        String::from("Dan F"),
-        scheduling_environment,
-        scheduler_agent_algorithm,
-        None,
-        None,
-    );
+    let tactical_agent = TacticalAgent::new(0, scheduling_environment, None);
     tactical_agent.start()
 }
 /// This function should be used by the scheduling environment. It should not be used by the

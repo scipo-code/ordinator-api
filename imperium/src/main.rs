@@ -407,7 +407,7 @@ fn get_periods(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -> Vec<String>
 
     response
         .to_string()
-        .replace("\"", "")
+        .replace('\"', "")
         .split(',')
         .map(|s| s.to_string())
         .collect::<Vec<String>>()
