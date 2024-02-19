@@ -2,14 +2,13 @@ use actix::Addr;
 use actix_web::web::Data;
 use actix_web::{App, HttpServer};
 use std::{sync::Arc, thread};
-use tokio::io::{self, AsyncBufReadExt, BufReader};
 use tokio::task::JoinHandle;
 use tracing::{info, trace};
 
-use crate::{agents::scheduler_agent::SchedulerAgent, api::routes::ws_index};
+use crate::{agents::scheduler_agent::StrategicAgent, api::routes::ws_index};
 
 pub struct ApplicationBuilder {
-    scheduler_agent_addr: Option<Addr<SchedulerAgent>>,
+    scheduler_agent_addr: Option<Addr<StrategicAgent>>,
 }
 
 impl ApplicationBuilder {
@@ -19,7 +18,7 @@ impl ApplicationBuilder {
         }
     }
 
-    pub fn with_scheduler_agent(mut self, addr: Addr<SchedulerAgent>) -> Self {
+    pub fn with_scheduler_agent(mut self, addr: Addr<StrategicAgent>) -> Self {
         self.scheduler_agent_addr = Some(addr);
         self
     }

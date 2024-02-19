@@ -74,12 +74,14 @@ impl SchedulingEnvironment {
         &self.worker_environment
     }
 
-}
-
-impl SchedulingEnvironment {
     pub fn initialize_worker_environment(&mut self) {
         self.worker_environment.initialize();
     }
+}
+
+enum Assets {
+    DanF,
+    Gorm,
 }
 
 impl Default for SchedulingEnvironment {
@@ -113,9 +115,7 @@ impl WorkOrders {
         self.inner
             .insert(work_order.get_work_order_number(), work_order);
     }
-}
 
-impl WorkOrders {
     pub fn new_work_order(&self, order_number: u32) -> bool {
         !self.inner.contains_key(&order_number)
     }
@@ -123,7 +123,7 @@ impl WorkOrders {
 
 impl fmt::Display for SchedulingEnvironment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {                 
-        write!(f, "The Scheduling Environment is currently comprised of \n  work_orders: {},\n  number of worker entries: {},\n  number of periods: {}", 
+        write!(f, "The Scheduling Environment is currently comprised of \n  number of work orders: {},\n  number of worker entries: {},\n  number of periods: {}", 
         self.work_orders.inner.len(), 
         match self.get_worker_environment().get_crew().as_ref() {
             Some(crew) => crew.get_workers().len(),

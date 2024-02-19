@@ -1,9 +1,7 @@
-use serde::{Deserialize, Serialize};
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone)]
-#[derive(Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct StatusCodes {
     pub material_status: MaterialStatus,
     pub pcnf: bool,
@@ -14,21 +12,17 @@ pub struct StatusCodes {
     pub unloading_point: bool,
 }
 
-#[derive(Clone)]
-#[derive(Serialize, Deserialize)]
-#[derive(PartialEq)]
-#[derive(Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub enum MaterialStatus {
     Smat,
     Nmat,
     Cmat,
     Wmat,
     Pmat,
-    Unknown
+    Unknown,
 }
 
 impl MaterialStatus {
-
     pub fn from_status_code_string(status_codes_string: &str) -> Self {
         // Define individual patterns for clarity and precise matching
         let patterns = vec![
@@ -52,7 +46,6 @@ impl MaterialStatus {
 }
 
 impl StatusCodes {
-
     #[cfg(test)]
     pub fn new_default() -> Self {
         StatusCodes {

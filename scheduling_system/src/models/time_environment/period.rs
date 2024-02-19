@@ -1,18 +1,18 @@
 use chrono::{DateTime, Datelike, Duration, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
-use std::ops::Add;
+use std::ops::{Add, Sub};
 
-#[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Debug, Clone)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub struct Period {
-    id: u32,
+    id: i32,
     period_string: String,
     start_date: DateTime<Utc>,
     end_date: DateTime<Utc>,
 }
 
 impl Period {
-    pub fn new(id: u32, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Period {
+    pub fn new(id: i32, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Period {
         let mut year = start_date.year();
 
         if is_last_three_days_of_year(start_date.naive_utc().date()) {
@@ -51,14 +51,8 @@ impl Period {
         self.end_date
     }
 
-    pub fn get_id(&self) -> u32 {
+    pub fn get_id(&self) -> i32 {
         self.id
-    }
-
-    pub fn add_one_period(&self) -> Period {
-        let start_date = self.end_date + chrono::Duration::seconds(1);
-        let end_date = start_date + chrono::Duration::weeks(2) - chrono::Duration::seconds(1);
-        Period::new(self.id, start_date, end_date)
     }
 }
 
@@ -73,11 +67,22 @@ impl Add<Duration> for Period {
     }
 }
 
+impl Sub<Duration> for Period {
+    type Output = Period;
+
+    fn sub(self, rhs: Duration) -> Self::Output {
+        let id = self.id - 1;
+        let start_date = self.start_date - rhs;
+        let end_date = self.end_date - rhs;
+        Period::new(id, start_date, end_date)
+    }
+}
+
 impl Add<Duration> for &Period {
     type Output = Period;
 
     fn add(self, rhs: Duration) -> Self::Output {
-        let id = self.id + 1;
+        let id = self.id - 1;
         let start_date = self.start_date + rhs;
         let end_date = self.end_date + rhs;
         Period::new(id, start_date, end_date)
@@ -95,7 +100,8 @@ fn is_last_three_days_of_year(date: NaiveDate) -> bool {
 
 impl Display for Period {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Period: {}", self.period_string)
+        let print_string = self.period_string.clone();
+        write!(f, "{}", print_string)
     }
 }
 
