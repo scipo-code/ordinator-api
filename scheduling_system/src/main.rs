@@ -5,7 +5,6 @@ mod init;
 mod models;
 
 use std::sync::{Arc, Mutex};
-use tracing::info;
 
 use crate::init::application_builder::ApplicationBuilder;
 use crate::init::logging;

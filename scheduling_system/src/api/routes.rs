@@ -5,12 +5,12 @@ use std::sync::Arc;
 use std::thread;
 use tracing::info;
 
-use crate::agents::scheduler_agent::SchedulerAgent;
+use crate::agents::scheduler_agent::StrategicAgent;
 use crate::api::websocket_agent::WebSocketAgent;
 
 #[get("/ws")]
 async fn ws_index(
-    sche_actor_addr: web::Data<Arc<Addr<SchedulerAgent>>>,
+    sche_actor_addr: web::Data<Arc<Addr<StrategicAgent>>>,
     req: HttpRequest,
     stream: web::Payload,
 ) -> Result<HttpResponse> {

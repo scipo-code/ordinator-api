@@ -10,49 +10,32 @@ use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::work_order::priority::Priority;
 use crate::models::work_order::status_codes::MaterialStatus;
 use crate::models::SchedulingEnvironment;
+
 use actix::prelude::*;
 use shared_messages::resources::Resources;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
-use tracing::info;
 
-use crate::agents::work_planner_agent::WorkPlannerAgent;
+use crate::agents::tactical_agent::TacticalAgent;
 
 /// This is the primary struct for the scheduler agent.
 #[allow(dead_code)]
-pub struct SchedulerAgent {
+pub struct StrategicAgent {
     platform: String,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     scheduler_agent_algorithm: SchedulerAgentAlgorithm,
     ws_agent_addr: Option<Addr<WebSocketAgent>>,
-    work_planner_agent_addr: Option<Addr<WorkPlannerAgent>>,
+    work_planner_agent_addr: Option<Addr<TacticalAgent>>,
 }
 
-impl SchedulerAgent {
+impl StrategicAgent {
     pub fn set_ws_agent_addr(&mut self, ws_agent_addr: Addr<WebSocketAgent>) {
         self.ws_agent_addr = Some(ws_agent_addr);
     }
-
-    pub fn send_message_to_ws<T>(&self, message: T)
-    where
-        T: Message + Send + 'static,
-        T::Result: Send + 'static,
-        WebSocketAgent: Handler<T>,
-    {
-        match self.ws_agent_addr.as_ref() {
-            Some(ws_agent) => {
-                ws_agent.do_send(message);
-            }
-            None => {
-                info!("No WebSocketAgentAddr set yet, so no message sent to frontend")
-            }
-        }
-    }
-    // TODO: Here the other Agents Addr messages will also be handled.
 }
 
-impl Actor for SchedulerAgent {
+impl Actor for StrategicAgent {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Context<Self>) {
@@ -65,13 +48,13 @@ impl Actor for SchedulerAgent {
     }
 }
 
-impl SchedulerAgent {
+impl StrategicAgent {
     pub fn new(
         platform: String,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         scheduler_agent_algorithm: SchedulerAgentAlgorithm,
         ws_agent_addr: Option<Addr<WebSocketAgent>>,
-        work_planner_agent_addr: Option<Addr<WorkPlannerAgent>>,
+        work_planner_agent_addr: Option<Addr<TacticalAgent>>,
     ) -> Self {
         Self {
             platform,
@@ -128,20 +111,28 @@ pub struct SchedulingOverviewData {
     priority: String,
 }
 
-// Now the problem is that the many work orders may not even get a status, in this approach.
-// This is an issue. Now when we get the work_order_number the entry could be non-existent.
-//
-impl SchedulerAgent {
+/// Now the problem is that the many work orders may not even get a status, in this approach.
+/// This is an issue. Now when we get the work_order_number the entry could be non-existent.
+///
+/// Here it is not the alrithm that should be the one that should be used to generate the overview
+/// I think that here we should use the work orders from the scheduling environment to extract the
+/// scheduling environment correctly. This is a good point.
+impl StrategicAgent {
     fn extract_state_to_scheduler_overview(&self) -> Vec<SchedulingOverviewData> {
         let mut scheduling_overview_data: Vec<SchedulingOverviewData> = Vec::new();
-        for (work_order_number, work_order) in
-            self.scheduler_agent_algorithm.get_backlog().inner.iter()
-        {
+
+        let work_orders = self
+            .scheduling_environment
+            .lock()
+            .unwrap()
+            .clone_work_orders();
+
+        for (work_order_number, work_order) in work_orders.inner {
             for (operation_number, operation) in work_order.get_operations().clone() {
                 let scheduling_overview_data_item = SchedulingOverviewData {
                     scheduled_period: match self
                         .scheduler_agent_algorithm
-                        .get_optimized_work_order(work_order_number)
+                        .get_optimized_work_order(&work_order_number)
                     {
                         Some(order_period) => match order_period.get_scheduled_period().as_ref() {
                             Some(scheduled_period) => scheduled_period.get_period_string().clone(),
@@ -159,7 +150,7 @@ impl SchedulerAgent {
                         MaterialStatus::Pmat => "PMAT".to_string(),
                         MaterialStatus::Unknown => "Implement control tower".to_string(),
                     },
-                    work_order_number: *work_order_number,
+                    work_order_number,
                     activity: operation_number.clone().to_string(),
                     work_center: operation.work_center.variant_name(),
                     work_remaining: operation.work_remaining.to_string(),
@@ -207,32 +198,28 @@ impl SchedulerAgent {
 /// This function should be reformulated? I think that we should make sure to create in such a way
 /// that. We need an inner hashmap for each of the different
 fn transform_hashmap_to_nested_hashmap(
-    manual_resources: HashMap<(Resources, Period), f64>,
-) -> HashMap<String, HashMap<String, f64>> {
-    let mut nested_hash_map: HashMap<String, HashMap<String, f64>> = HashMap::new();
-
-    for ((work_center, period), value) in manual_resources {
-        nested_hash_map
-            .entry(work_center.variant_name())
-            .or_default()
-            .insert(period.get_period_string(), value);
+    resources: HashMap<Resources, HashMap<Period, f64>>,
+) -> HashMap<Resources, HashMap<String, f64>> {
+    let mut resources_hash_map = HashMap::new();
+    for (resource, periods) in resources {
+        let mut periods_hash_map = HashMap::new();
+        for (period, capacity) in periods {
+            periods_hash_map.insert(period.get_period_string(), capacity);
+        }
+        resources_hash_map.insert(resource, periods_hash_map);
     }
-    nested_hash_map
+    resources_hash_map
 }
 
 #[cfg(test)]
 mod tests {
 
-    use actix_web::web;
-    use actix_web::App;
-    use actix_web::Error;
-    use actix_web::HttpRequest;
-    use actix_web::HttpResponse;
-    use actix_web::HttpServer;
-    use actix_web_actors::ws;
     use chrono::{TimeZone, Utc};
-    use tests::scheduler_message::SetAgentAddrMessage;
+    use shared_messages::strategic::strategic_periods_message::StrategicPeriodsMessage;
+    use shared_messages::strategic::strategic_resources_message::StrategicResourcesMessage;
+    use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
 
+    use super::scheduler_algorithm::AlgorithmResources;
     use super::scheduler_message::tests::TestRequest;
     use super::scheduler_message::tests::TestResponse;
 
@@ -243,6 +230,7 @@ mod tests {
 
     use crate::models::work_order::operation::Operation;
     use crate::models::work_order::order_type::WDFPriority;
+    use crate::models::worker_environment::WorkerEnvironment;
     use crate::models::{
         time_environment::period::Period,
         work_order::{
@@ -252,8 +240,7 @@ mod tests {
         },
     };
     use crate::models::{work_order::*, WorkOrders};
-    use shared_messages::resources::Resources;
-    use shared_messages::{FrontendInputSchedulerMessage, ManualResource, SchedulerRequests};
+    use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
 
     #[test]
     fn test_scheduler_agent_initialization() {
@@ -265,9 +252,9 @@ mod tests {
         let mut work_orders = WorkOrders::new();
         let mut work_load = HashMap::new();
 
-        work_load.insert(Resources::new_from_string("MTN-MECH".to_string()), 20.0);
-        work_load.insert(Resources::new_from_string("MTN-ELEC".to_string()), 40.0);
-        work_load.insert(Resources::new_from_string("PRODTECH".to_string()), 60.0);
+        work_load.insert(Resources::MtnMech, 20.0);
+        work_load.insert(Resources::MtnElec, 40.0);
+        work_load.insert(Resources::Prodtech, 60.0);
 
         let work_order = WorkOrder::new(
             2200002020,
@@ -301,105 +288,57 @@ mod tests {
             + chrono::Duration::seconds(59);
         let period = Period::new(1, start_date, end_date);
 
-        let mut manual_resource_capacity: HashMap<(Resources, Period), f64> = HashMap::new();
-        let mut manual_resource_loadings: HashMap<(Resources, Period), f64> = HashMap::new();
+        let mut resource_capacity: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
+        let mut resource_loadings: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
 
-        manual_resource_capacity.insert(
-            (
-                Resources::new_from_string("MTN-MECH".to_string()),
-                Period::new_from_string(&period.get_period_string()).unwrap(),
-            ),
-            150.0,
-        );
-        manual_resource_capacity.insert(
-            (
-                Resources::new_from_string("MTN-ELEC".to_string()),
-                Period::new_from_string(&period.get_period_string()).unwrap(),
-            ),
-            150.0,
-        );
-        manual_resource_capacity.insert(
-            (
-                Resources::new_from_string("PRODTECH".to_string()),
-                Period::new_from_string(&period.get_period_string()).unwrap(),
-            ),
-            150.0,
-        );
+        let mut period_hash_map_150 = HashMap::new();
+        let mut period_hash_map_0 = HashMap::new();
+        period_hash_map_150.insert(period.clone(), 150.0);
+        period_hash_map_0.insert(period.clone(), 0.0);
 
-        manual_resource_loadings.insert(
-            (
-                Resources::new_from_string("MTN-MECH".to_string()),
-                Period::new_from_string(&period.get_period_string()).unwrap(),
-            ),
-            0.0,
-        );
-        manual_resource_loadings.insert(
-            (
-                Resources::new_from_string("MTN-ELEC".to_string()),
-                Period::new_from_string(&period.get_period_string()).unwrap(),
-            ),
-            0.0,
-        );
-        manual_resource_loadings.insert(
-            (
-                Resources::new_from_string("PRODTECH".to_string()),
-                Period::new_from_string(&period.get_period_string()).unwrap(),
-            ),
-            0.0,
-        );
+        resource_capacity.insert(Resources::MtnMech, period_hash_map_150.clone());
+        resource_capacity.insert(Resources::MtnElec, period_hash_map_150.clone());
+        resource_capacity.insert(Resources::Prodtech, period_hash_map_150.clone());
+
+        resource_loadings.insert(Resources::MtnMech, period_hash_map_0.clone());
+        resource_loadings.insert(Resources::MtnElec, period_hash_map_0.clone());
+        resource_loadings.insert(Resources::Prodtech, period_hash_map_0.clone());
 
         let periods: Vec<Period> = vec![Period::new_from_string("2023-W47-48").unwrap()];
 
         let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            manual_resource_capacity,
-            manual_resource_loadings,
-            work_orders.clone(),
+            AlgorithmResources::new(resource_capacity),
+            AlgorithmResources::new(resource_loadings),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             periods,
             true,
         );
 
-        let frontend_input_scheduler_message = FrontendInputSchedulerMessage {
-            name: "test".to_string(),
-            work_order_period_mappings: vec![],
-            manual_resources: vec![
-                ManualResource {
-                    resource: Resources::new_from_string("MTN-MECH".to_string()),
+        let schedule_single_work_order =
+            SingleWorkOrder::new(2200002020, "2023-W47-48".to_string());
 
-                    period: shared_messages::TimePeriod {
-                        period_string: Period::new_from_string(&period.get_period_string())
-                            .unwrap()
-                            .get_period_string(),
-                    },
-                    capacity: 150.0,
-                },
-                ManualResource {
-                    resource: Resources::new_from_string("MTN-ELEC".to_string()),
+        let strategic_scheduling_message =
+            StrategicSchedulingMessage::Schedule(schedule_single_work_order);
 
-                    period: shared_messages::TimePeriod {
-                        period_string: Period::new_from_string(&period.get_period_string())
-                            .unwrap()
-                            .get_period_string(),
-                    },
-                    capacity: 150.0,
-                },
-                ManualResource {
-                    resource: Resources::new_from_string("PRODTECH".to_string()),
-                    period: shared_messages::TimePeriod {
-                        period_string: Period::new_from_string(&period.get_period_string())
-                            .unwrap()
-                            .get_period_string(),
-                    },
-                    capacity: 150.0,
-                },
-            ],
+        let mut manual_resources = HashMap::new();
+
+        let mut period_hash_map = HashMap::new();
+        period_hash_map.insert(period.get_period_string(), 300.0);
+
+        manual_resources.insert(Resources::MtnMech, period_hash_map.clone());
+        manual_resources.insert(Resources::MtnElec, period_hash_map.clone());
+        manual_resources.insert(Resources::Prodtech, period_hash_map.clone());
+
+        let strategic_resources_message =
+            StrategicResourcesMessage::new_set_resources(manual_resources);
+
+        let strategic_periods_message = StrategicPeriodsMessage {
             period_lock: HashMap::new(),
-            platform: "None".to_string(),
         };
 
-        let scheduler_agent = SchedulerAgent::new(
+        let scheduler_agent = StrategicAgent::new(
             "test".to_string(),
             Arc::new(Mutex::new(SchedulingEnvironment::default())),
             scheduler_agent_algorithm,
@@ -418,30 +357,27 @@ mod tests {
         assert_eq!(
             *test_response
                 .manual_resources_capacity
-                .get(&(
-                    Resources::new_from_string("MTN-MECH".to_string()),
-                    Period::new_from_string(&period.get_period_string()).unwrap()
-                ))
+                .get(&Resources::MtnMech)
+                .unwrap()
+                .get(&period)
                 .unwrap(),
             150.0
         );
         assert_eq!(
             *test_response
                 .manual_resources_capacity
-                .get(&(
-                    Resources::new_from_string("MTN-ELEC".to_string()),
-                    Period::new_from_string(&period.get_period_string()).unwrap()
-                ))
+                .get(&Resources::MtnElec)
+                .unwrap()
+                .get(&period)
                 .unwrap(),
             150.0
         );
         assert_eq!(
             *test_response
                 .manual_resources_capacity
-                .get(&(
-                    Resources::new_from_string("PRODTECH".to_string()),
-                    Period::new_from_string(&period.get_period_string()).unwrap()
-                ))
+                .get(&Resources::Prodtech)
+                .unwrap()
+                .get(&period)
                 .unwrap(),
             150.0
         );
@@ -454,7 +390,7 @@ mod tests {
         let operation_1 = Operation::new(
             10,
             1,
-            Resources::new_from_string("MTN-MECH".to_string()),
+            Resources::MtnMech,
             1.0,
             1.0,
             1.0,
@@ -468,7 +404,7 @@ mod tests {
         let operation_2 = Operation::new(
             20,
             1,
-            Resources::new_from_string("MTN-MECH".to_string()),
+            Resources::MtnMech,
             1.0,
             1.0,
             1.0,
@@ -482,7 +418,7 @@ mod tests {
         let operation_3 = Operation::new(
             30,
             1,
-            Resources::new_from_string("MTN-MECH".to_string()),
+            Resources::MtnMech,
             1.0,
             1.0,
             1.0,
@@ -525,18 +461,24 @@ mod tests {
 
         let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
             0.0,
-            HashMap::new(),
-            HashMap::new(),
-            work_orders,
+            AlgorithmResources::default(),
+            AlgorithmResources::default(),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             vec![],
             true,
         );
 
-        let scheduler_agent = SchedulerAgent::new(
+        let scheduling_environment = SchedulingEnvironment::new(
+            work_orders,
+            WorkerEnvironment::new(),
+            Vec::<Period>::new(),
+            None,
+        );
+
+        let scheduler_agent = StrategicAgent::new(
             "test".to_string(),
-            Arc::new(Mutex::new(SchedulingEnvironment::default())),
+            Arc::new(Mutex::new(scheduling_environment)),
             scheduler_agent_algorithm,
             None,
             None,
