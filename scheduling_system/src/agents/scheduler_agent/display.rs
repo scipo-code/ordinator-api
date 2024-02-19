@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
 
-use crate::agents::scheduler_agent::SchedulerAgent;
+use crate::agents::scheduler_agent::StrategicAgent;
 
-impl Display for SchedulerAgent {
+impl Display for StrategicAgent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,

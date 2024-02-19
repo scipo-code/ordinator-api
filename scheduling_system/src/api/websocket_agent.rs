@@ -1,21 +1,19 @@
-use actix::dev::MessageResponse;
 use actix::prelude::*;
 use actix_web::Result;
 use actix_web_actors::ws;
 use std::sync::Arc;
 use tracing::info;
 
-use crate::agents::scheduler_agent::scheduler_message::GetWorkerNumberMessage;
 use crate::agents::scheduler_agent::scheduler_message::LoadingMessage;
 use crate::agents::scheduler_agent::scheduler_message::OverviewMessage;
 use crate::agents::scheduler_agent::scheduler_message::PeriodMessage;
 use crate::agents::scheduler_agent::scheduler_message::SetAgentAddrMessage;
 use crate::agents::scheduler_agent::scheduler_message::SuccesMessage;
-use crate::agents::scheduler_agent::SchedulerAgent;
-use shared_messages::FrontendMessages;
+use crate::agents::scheduler_agent::StrategicAgent;
+use shared_messages::SystemMessages;
 
 pub struct WebSocketAgent {
-    scheduler_agent_addr: Arc<Addr<SchedulerAgent>>,
+    scheduler_agent_addr: Arc<Addr<StrategicAgent>>,
 }
 
 impl Actor for WebSocketAgent {
@@ -34,25 +32,24 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
             Ok(ws::Message::Text(text)) => {
-                let msg_type: Result<FrontendMessages, serde_json::Error> =
+                let msg_type: Result<SystemMessages, serde_json::Error> =
                     serde_json::from_str(&text);
                 match msg_type {
-                    Ok(FrontendMessages::Scheduler(scheduler_input)) => {
+                    Ok(SystemMessages::Status(status_input)) => {
+                        self.scheduler_agent_addr.do_send(status_input);
+                    }
+                    Ok(SystemMessages::Strategic(scheduler_input)) => {
                         info!(scheduler_front_end_message = %scheduler_input, "SchedulerAgent received SchedulerMessage");
                         self.scheduler_agent_addr.do_send(scheduler_input);
 
-                        // What is it that we want here? I think that the main goal is to create
-                        // something that sends a message and then waits for a response from the
-                        // scheduler agent. And this response should then be send back throught
-                        // the websocket.
                         let addr = ctx.address();
                         self.scheduler_agent_addr
                             .do_send(SetAgentAddrMessage { addr });
                     }
-                    Ok(FrontendMessages::WorkPlanner) => {
+                    Ok(SystemMessages::Tactical) => {
                         println!("WorkPlannerAgent received WorkPlannerMessage");
                     }
-                    Ok(FrontendMessages::Worker) => {
+                    Ok(SystemMessages::Operational) => {
                         println!("WorkerAgent received WorkerMessage");
                     }
                     Err(e) => {
@@ -67,7 +64,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
 }
 
 impl WebSocketAgent {
-    pub fn new(scheduler_agent_addr: Arc<Addr<SchedulerAgent>>) -> Self {
+    pub fn new(scheduler_agent_addr: Arc<Addr<StrategicAgent>>) -> Self {
         WebSocketAgent {
             scheduler_agent_addr,
         }
@@ -95,17 +92,6 @@ impl Handler<OverviewMessage> for WebSocketAgent {
         info!(scheduler_front_end_message.websocket = ?msg.scheduling_overview_data.len(), "Scheduler Table data sent to frontend");
         let serialized_message = serde_json::to_string(&msg).unwrap();
 
-        // Send the serialized message to the frontend
-        ctx.text(serialized_message);
-    }
-}
-
-impl Handler<GetWorkerNumberMessage> for WebSocketAgent {
-    type Result = ();
-
-    fn handle(&mut self, msg: GetWorkerNumberMessage, ctx: &mut Self::Context) -> Self::Result {
-        // Serialize the message
-        let serialized_message = serde_json::to_string(&msg).unwrap();
         // Send the serialized message to the frontend
         ctx.text(serialized_message);
     }
@@ -162,13 +148,14 @@ impl Handler<shared_messages::Response> for WebSocketAgent {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::agents::scheduler_agent::scheduler_algorithm::AlgorithmResources;
     use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrders;
     use crate::agents::scheduler_agent::scheduler_algorithm::PriorityQueues;
     use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
-    use crate::agents::scheduler_agent::SchedulerAgent;
+    use crate::agents::scheduler_agent::StrategicAgent;
     use crate::models::SchedulingEnvironment;
-    use crate::models::WorkOrders;
     use chrono::{DateTime, Utc};
+    use shared_messages::strategic::StrategicRequest;
     use std::collections::HashMap;
     use std::sync::Mutex;
 
@@ -188,14 +175,13 @@ mod tests {
 
         let optimized_work_orders: OptimizedWorkOrders = OptimizedWorkOrders::new(HashMap::new());
 
-        let scheduler_agent_addr = SchedulerAgent::new(
+        let scheduler_agent_addr = StrategicAgent::new(
             "test".to_string(),
             Arc::new(Mutex::new(SchedulingEnvironment::default())),
             SchedulerAgentAlgorithm::new(
                 0.0,
-                HashMap::new(),
-                HashMap::new(),
-                WorkOrders::new(),
+                AlgorithmResources::default(),
+                AlgorithmResources::default(),
                 PriorityQueues::new(),
                 optimized_work_orders,
                 periods,
@@ -216,7 +202,8 @@ mod tests {
         let json_message =
             fs::read_to_string("tests/unit_testing/frontend_scheduler.json").unwrap();
 
-        let scheduler_input: FrontendMessages = serde_json::from_str(&json_message).unwrap();
+        dbg!(json_message.clone());
+        let scheduler_input: StrategicRequest = serde_json::from_str(&json_message).unwrap();
 
         // How can this deserialization be tested? I am not sure. I know that the message is the
         // correct one but that it is not deserialized correctly.
