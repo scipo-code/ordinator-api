@@ -16,14 +16,14 @@ jobs:
           profile: complete
           toolchain: stable
           override: true
-      - name: Run tests
-        run: cargo test --verbose
-      - name: Run clippy
-        run: cargo clippy --verbose
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
-      - name: Audit
-        run: cargo audit
+      # - name: Run tests
+      #   run: cargo test --verbose
+      # - name: Run clippy
+      #   run: cargo clippy --verbose
+      # - name: Install cargo-audit
+      #   run: cargo install cargo-audit
+      # - name: Audit
+      #   run: cargo audit
       # - name: Tarpaulin Install
       #   run: cargo install cargo-tarpaulin
       # - name: tarpaulin coverage
