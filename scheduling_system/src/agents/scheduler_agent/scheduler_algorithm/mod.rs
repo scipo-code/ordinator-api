@@ -14,6 +14,7 @@ use crate::models::time_environment::period::{Period};
 use shared_messages::resources::Resources;
 
 #[derive(Debug, Clone)]
+
 pub struct SchedulerAgentAlgorithm {
     objective_value: f64,
     resources_capacity: AlgorithmResources,
@@ -30,8 +31,7 @@ pub struct AlgorithmResources {
 }
 
 impl AlgorithmResources {
-
-
+    
     pub fn new(resources: HashMap<Resources, HashMap<Period, f64>>) -> Self {
         Self {
             inner: resources

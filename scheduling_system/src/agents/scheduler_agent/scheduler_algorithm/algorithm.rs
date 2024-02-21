@@ -244,7 +244,6 @@ impl SchedulerAgentAlgorithm {
             };
             objective += objective_contribution;
         }
-        dbg!(objective);
         self.objective_value = objective as f64;
     }
 }

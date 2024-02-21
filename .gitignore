@@ -2,7 +2,7 @@
 # will have compiled files and executables
 /target/
 /data/
-/logs/
+/logs/*.log.*
 *.folded
 /scheduling_system/data
 /*.svg

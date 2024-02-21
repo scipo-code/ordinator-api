@@ -47,14 +47,24 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         // event!(tracing::Level::INFO , "schedule_iteration_message");
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
 
+        let previous_schedule = self.scheduler_agent_algorithm.clone();
+
         self.scheduler_agent_algorithm
-            .unschedule_random_work_orders(5, rng);
+            .unschedule_random_work_orders(50, rng);
 
         self.scheduler_agent_algorithm.schedule_normal_work_orders();
 
         self.scheduler_agent_algorithm.schedule_forced_work_orders();
 
         self.scheduler_agent_algorithm.calculate_objective();
+
+        if previous_schedule.get_objective_value()
+            < self.scheduler_agent_algorithm.get_objective_value()
+        {
+            self.scheduler_agent_algorithm = previous_schedule;
+        }
+
+        dbg!(&self.scheduler_agent_algorithm.get_objective_value());
 
         debug!(
             "Objective value: {}",

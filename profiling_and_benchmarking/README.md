@@ -19,5 +19,3 @@ use `#[instrument(skip(par))]` on the function definition.
 
 
 ## Benchmarking
-
-
