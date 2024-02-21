@@ -107,6 +107,20 @@ fn create_optimized_work_orders(
 
     let last_period = periods.last();
     for (work_order_number, work_order) in &work_orders.inner {
+        if work_order.is_vendor() {
+            optimized_work_orders.insert(
+                *work_order_number,
+                OptimizedWorkOrder::new(
+                    periods.last().cloned(),
+                    periods.last().cloned(),
+                    HashSet::new(),
+                    None,
+                    work_order.get_order_weight(),
+                    work_order.get_work_load().clone(),
+                ),
+            );
+        }
+
         if work_order.get_unloading_point().present {
             let period = work_order.get_unloading_point().period.clone();
             optimized_work_orders.insert(
@@ -120,24 +134,24 @@ fn create_optimized_work_orders(
                     work_order.get_work_load().clone(),
                 ),
             );
-        } else {
-            optimized_work_orders.insert(
-                *work_order_number,
-                OptimizedWorkOrder::new(
-                    last_period.cloned(),
-                    None,
-                    HashSet::new(),
-                    Some(
-                        work_order
-                            .get_order_dates()
-                            .latest_allowed_finish_period
-                            .clone(),
-                    ),
-                    work_order.get_order_weight(),
-                    work_order.get_work_load().clone(),
-                ),
-            );
+            continue;
         }
+        optimized_work_orders.insert(
+            *work_order_number,
+            OptimizedWorkOrder::new(
+                last_period.cloned(),
+                None,
+                HashSet::new(),
+                Some(
+                    work_order
+                        .get_order_dates()
+                        .latest_allowed_finish_period
+                        .clone(),
+                ),
+                work_order.get_order_weight(),
+                work_order.get_work_load().clone(),
+            ),
+        );
     }
     OptimizedWorkOrders::new(optimized_work_orders)
 }

@@ -1,4 +1,5 @@
 use actix::prelude::*;
+use chrono::format;
 use serde::{Deserialize, Serialize};
 use shared_messages::status::StatusRequest;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
@@ -71,6 +72,8 @@ impl Handler<ScheduleIteration> for StrategicAgent {
             self.scheduler_agent_algorithm.get_objective_value()
         );
 
+        #[cfg(debug_assertions)]
+        //self.scheduler_agent_algorithm.check_strategic_state();
         let actor_addr = ctx.address().clone();
 
         let fut = async move {
@@ -150,8 +153,6 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     let mut scheduled_count = 0;
                     for (work_order_number, optimized_work_order) in optimized_work_orders {
                         if optimized_work_order.get_scheduled_period().is_some() {
-                            dbg!(optimized_work_order.get_scheduled_period());
-                            dbg!(optimized_work_order.get_work_load());
                             scheduled_count += 1;
                         }
                     }
@@ -175,7 +176,6 @@ impl Handler<StrategicRequest> for StrategicAgent {
                 StrategicStatusMessage::Period(period) => {
                     let work_orders = self.scheduler_agent_algorithm.get_optimized_work_orders();
 
-                    dbg!(period.clone());
                     let work_orders_by_period: Vec<u32> = work_orders
                         .iter()
                         .filter(|(_, opt_wo)| match opt_wo.get_scheduled_period() {
@@ -187,10 +187,50 @@ impl Handler<StrategicRequest> for StrategicAgent {
                         .map(|(work_order_number, _)| *work_order_number)
                         .collect();
 
-                    let message = format!(
-                        "Work orders scheduled for period: {} are: {:?}",
-                        period, work_orders_by_period
-                    );
+                    let mut message =
+                        format!("Work orders scheduled for period: {} are: \n", period,);
+
+                    message = format!("                      |AWCS|SECE|TYPE|PRIO|VEN*|",);
+
+                    let work_orders: crate::models::WorkOrders = self
+                        .scheduling_environment
+                        .lock()
+                        .unwrap()
+                        .clone_work_orders();
+
+                    for work_order_number in work_orders_by_period {
+                        message = format!(
+                            "    Work order: {}    |{}|{}|{:?}|{:?}|{}|\n",
+                            work_order_number,
+                            work_orders
+                                .inner
+                                .get(&work_order_number)
+                                .unwrap()
+                                .get_status_codes()
+                                .awsc,
+                            work_orders
+                                .inner
+                                .get(&work_order_number)
+                                .unwrap()
+                                .get_status_codes()
+                                .sece,
+                            work_orders
+                                .inner
+                                .get(&work_order_number)
+                                .unwrap()
+                                .get_order_type(),
+                            work_orders
+                                .inner
+                                .get(&work_order_number)
+                                .unwrap()
+                                .get_priority(),
+                            work_orders
+                                .inner
+                                .get(&work_order_number)
+                                .unwrap()
+                                .is_vendor(),
+                        );
+                    }
 
                     match self.ws_agent_addr.as_ref() {
                         Some(addr) => {
@@ -210,13 +250,11 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     message = ?scheduling_message,
                     "received a message from the frontend"
                 );
+
                 let response: shared_messages::Response = self
                     .scheduler_agent_algorithm
                     .update_scheduling_state(scheduling_message);
 
-                dbg!(self
-                    .scheduler_agent_algorithm
-                    .get_optimized_work_order(&2100023218));
                 match self.ws_agent_addr.as_ref() {
                     Some(addr) => addr.do_send(response),
                     None => {

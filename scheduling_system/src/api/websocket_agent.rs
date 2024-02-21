@@ -202,12 +202,9 @@ mod tests {
         let json_message =
             fs::read_to_string("tests/unit_testing/frontend_scheduler.json").unwrap();
 
-        dbg!(json_message.clone());
         let scheduler_input: StrategicRequest = serde_json::from_str(&json_message).unwrap();
 
         // How can this deserialization be tested? I am not sure. I know that the message is the
         // correct one but that it is not deserialized correctly.
-
-        dbg!(scheduler_input);
     }
 }

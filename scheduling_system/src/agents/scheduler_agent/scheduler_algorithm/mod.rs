@@ -93,6 +93,7 @@ impl SchedulerAgentAlgorithm {
     pub fn get_objective_value(&self) -> f64 {
         self.objective_value
     }
+
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -317,6 +318,10 @@ impl SchedulerAgentAlgorithm {
                         period.get_period_string() == schedule_work_order.get_period_string()
                     })
                     .cloned();
+
+                    dbg!(&schedule_work_order);
+                    dbg!(self.get_optimized_work_order(&schedule_work_order.get_work_order_number()));
+    
                 match period {
                     Some(period) => {
                         self.optimized_work_orders

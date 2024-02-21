@@ -154,7 +154,7 @@ impl WorkOrder {
         self.order_weight
     }
 
-    pub fn get_vendor(&self) -> bool {
+    pub fn is_vendor(&self) -> bool {
         self.vendor
     }
 }
@@ -185,6 +185,7 @@ impl WorkOrder {
     pub fn initialize(&mut self) {
         self.initialize_weight();
         self.initialize_work_load();
+        self.initialize_vendor();
         // TODO : Other fields
     }
 
@@ -278,6 +279,18 @@ impl WorkOrder {
         }
 
         self.work_load = work_load;
+    }
+
+    pub fn initialize_vendor(&mut self) {
+        let work_load = self.work_load.clone();
+        if work_load
+            .iter()
+            .any(|(resource, _)| resource.is_ven_variant())
+        {
+            self.vendor = true;
+        } else {
+            self.vendor = false;
+        }
     }
 }
 

@@ -7,6 +7,7 @@ use tracing::instrument;
 
 use super::SchedulerAgentAlgorithm;
 use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
+use crate::models::time_environment::period;
 use crate::models::time_environment::period::Period;
 
 /// This implementation of the SchedulerAgent will do the following. It should take a messgage
@@ -165,16 +166,17 @@ impl SchedulerAgentAlgorithm {
         number_of_work_orders: usize,
         rng: &mut impl rand::Rng,
     ) {
-        let mut work_order_keys: Vec<_> = self
-            .get_optimized_work_orders()
-            .keys()
-            .cloned()
-            .collect::<Vec<_>>()
-            .clone();
+        let mut optimized_work_orders = self.get_optimized_work_orders();
 
-        work_order_keys.sort();
+        let mut filtered_keys: Vec<_> = optimized_work_orders
+            .iter()
+            .filter(|(&key, &ref value)| value.get_locked_in_period().is_none())
+            .map(|(&key, _)| key)
+            .collect();
 
-        let sampled_work_order_keys = work_order_keys
+        filtered_keys.sort();
+
+        let sampled_work_order_keys = filtered_keys
             .choose_multiple(rng, number_of_work_orders)
             .collect::<Vec<_>>()
             .clone();
@@ -248,16 +250,18 @@ impl SchedulerAgentAlgorithm {
     }
 }
 
-fn calculate_period_difference(period_1: Period, period_2: Option<Period>) -> i64 {
-    let period_1_date = period_1.get_end_date();
-    let period_2_date = match period_2 {
+fn calculate_period_difference(scheduled_period: Period, latest_period: Option<Period>) -> i64 {
+    let scheduled_period_date = scheduled_period.get_end_date();
+    let latest_period_date = match latest_period.clone() {
         Some(period) => period.get_end_date(),
-        None => period_1_date,
+        None => scheduled_period_date,
     };
 
-    let duration = period_1_date.signed_duration_since(period_2_date);
-
+    let duration = scheduled_period_date.signed_duration_since(latest_period_date);
     let days = duration.num_days();
+    dbg!(scheduled_period.clone());
+    dbg!(latest_period.clone());
+    dbg!(days.clone());
     days / 7
 }
 
