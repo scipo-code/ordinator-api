@@ -13,7 +13,7 @@ use std::net::TcpStream;
 use strum::IntoEnumIterator;
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;
-
+use webbrowser;
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -37,6 +37,12 @@ enum Commands {
     Tactical {},
     /// Access the opertional agents
     Operational,
+
+    /// Access the SAP integration (Requires user authorization)
+    SAP {
+        #[clap(subcommand)]
+        subcommand: Option<SAPSubcommands>,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -75,6 +81,7 @@ enum ResourcesSubcommands {
         select_resources: Option<Vec<String>>,
     },
 
+    /// Get the capacity of the resources
     Capacity {
         periods_end: String,
         select_resources: Option<Vec<String>>,
@@ -87,11 +94,9 @@ enum ResourcesSubcommands {
         capacity: u32,
     },
 
-    SetCapacityPolicy {
-        resource: String,
-        capacity: u32,
-    },
-
+    /// Set the capacity policy of a resource (used for operation)
+    SetCapacityPolicy { resource: String, capacity: u32 },
+    /// Set the capacity policy to default (used for testing)
     SetCapacityPolicyDefault,
 }
 
@@ -109,6 +114,21 @@ enum SchedulingSubcommands {
     PeriodLock { period: String },
     /// Exclude a work order from a period
     Exclude { work_order: u32, period: String },
+}
+
+#[derive(Subcommand, Debug)]
+enum SAPSubcommands {
+    /// Extract scheduling relevant data from SAP (requires user authorization)
+    ExtractFromSAP,
+
+    /// Push the 4M+ (strategic) optimized data to SAP (requires user authorization)
+    PushStrategicToSAP,
+
+    /// Push the 5W (tactical) optimized data to SAP (requires user authorization)
+    PushTacticalToSAP,
+
+    /// Access the 2WF (operational) opmized data (requires user authorization)
+    Operational,
 }
 
 #[derive(Debug, Args)]
@@ -154,6 +174,8 @@ impl Commands {
         let front_end_message = SystemMessages::Strategic(scheduler_request);
 
         let scheduler_request_json = serde_json::to_string(&front_end_message).unwrap();
+        println!("{}", scheduler_request_json);
+
         socket
             .send(Message::Text(scheduler_request_json))
             .expect("Failed to send a message");
@@ -184,12 +206,14 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                 let front_end_message = SystemMessages::Status(environment_status_message);
                 let status_request_json = serde_json::to_string(&front_end_message).unwrap();
 
+                println!("{}", status_request_json.clone());
                 socket.send(Message::Text(status_request_json)).unwrap();
             }
             Some(StatusSchedulingEnvironment::Periods) => {
                 let environment_status_message = StatusRequest::GetPeriods;
                 let front_end_message = SystemMessages::Status(environment_status_message);
                 let status_request_json = serde_json::to_string(&front_end_message).unwrap();
+                println!("{}", status_request_json);
 
                 socket.send(Message::Text(status_request_json)).unwrap();
             }
@@ -240,7 +264,7 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
 
                         let scheduler_request_json =
                             serde_json::to_string(&front_end_message).unwrap();
-
+                        println!("{}", scheduler_request_json);
                         socket.send(Message::Text(scheduler_request_json)).unwrap();
                     }
                     Some(SchedulingSubcommands::PeriodLock { period }) => {
@@ -373,6 +397,32 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
         Some(Commands::Operational) => {
             println!("Operational");
         }
+        Some(Commands::SAP { subcommand }) => match subcommand {
+            Some(SAPSubcommands::ExtractFromSAP) => {
+                let url = "https://help.sap.com/docs/SAP_BUSINESSOBJECTS_BUSINESS_INTELLIGENCE_PLATFORM/9029a149a3314dadb8418a2b4ada9bb8/099046a701cb4014b20123ae31320959.html"; // Replace with the actual SAP authorization URL
+
+                // Open the URL in the default web browser
+                if webbrowser::open(url).is_ok() {
+                    // The URL was opened successfully
+                    println!("Opened {} in the default web browser.", url);
+                } else {
+                    // There was an error opening the URL
+                    println!("Failed to open {}.", url);
+                }
+            }
+            Some(SAPSubcommands::PushStrategicToSAP) => {
+                todo!()
+            }
+            Some(SAPSubcommands::PushTacticalToSAP) => {
+                todo!()
+            }
+            Some(SAPSubcommands::Operational) => {
+                todo!()
+            }
+            None => {
+                todo!()
+            }
+        },
         None => return None,
     }
     Some("Message sent".to_string())

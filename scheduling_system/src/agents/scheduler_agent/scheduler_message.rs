@@ -5,6 +5,7 @@ use shared_messages::status::StatusRequest;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
 use shared_messages::strategic::StrategicRequest;
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::fmt::{self, Display};
 use tokio::time::{sleep, Duration};
 use tracing::{debug, error, info, instrument, trace};
@@ -186,11 +187,16 @@ impl Handler<StrategicRequest> for StrategicAgent {
                         })
                         .map(|(work_order_number, _)| *work_order_number)
                         .collect();
+                    let mut message = String::new();
 
-                    let mut message =
-                        format!("Work orders scheduled for period: {} are: \n", period,);
+                    write!(
+                        message,
+                        "Work orders scheduled for period: {} are: \n",
+                        period,
+                    )
+                    .unwrap();
 
-                    message = format!("                      |AWCS|SECE|TYPE|PRIO|VEN*|",);
+                    write!(message, "                      |AWCS|SECE|TYPE|PRIO|VEN*|",);
 
                     let work_orders: crate::models::WorkOrders = self
                         .scheduling_environment
@@ -198,9 +204,12 @@ impl Handler<StrategicRequest> for StrategicAgent {
                         .unwrap()
                         .clone_work_orders();
 
+                    println!("work_orders_by_period: {:?}", work_orders_by_period);
+
                     for work_order_number in work_orders_by_period {
-                        message = format!(
-                            "    Work order: {}    |{}|{}|{:?}|{:?}|{}|\n",
+                        write!(
+                            message,
+                            "    Work order: {}    |{:<5}|{:<5}|{:?}|{:?}|{:<5}|\n",
                             work_order_number,
                             work_orders
                                 .inner
