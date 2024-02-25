@@ -43,9 +43,9 @@ enum Commands {
     Operational,
 
     /// Access the SAP integration (Requires user authorization)
-    SAP {
+    Sap {
         #[clap(subcommand)]
-        subcommand: Option<SAPSubcommands>,
+        subcommand: Option<SapSubcommands>,
     },
 }
 
@@ -128,15 +128,15 @@ enum TacticalSubcommands {
 }
 
 #[derive(Subcommand, Debug)]
-enum SAPSubcommands {
+enum SapSubcommands {
     /// Extract scheduling relevant data from SAP (requires user authorization)
-    ExtractFromSAP,
+    ExtractFromSap,
 
     /// Push the 4M+ (strategic) optimized data to SAP (requires user authorization)
-    PushStrategicToSAP,
+    PushStrategicToSap,
 
     /// Push the 5W (tactical) optimized data to SAP (requires user authorization)
-    PushTacticalToSAP,
+    PushTacticalToSap,
 
     /// Access the 2WF (operational) opmized data (requires user authorization)
     Operational,
@@ -278,7 +278,7 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                         println!("{}", scheduler_request_json);
                         socket.send(Message::Text(scheduler_request_json)).unwrap();
                     }
-                    Some(SchedulingSubcommands::PeriodLock { period }) => {
+                    Some(SchedulingSubcommands::PeriodLock { period: _ }) => {
                         todo!()
                     }
                     Some(SchedulingSubcommands::Exclude { work_order, period }) => {
@@ -368,13 +368,16 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                     }
 
                     Some(ResourcesSubcommands::SetCapacity {
-                        resource,
-                        period,
-                        capacity,
+                        resource: _,
+                        period: _,
+                        capacity: _,
                     }) => {
                         todo!()
                     }
-                    Some(ResourcesSubcommands::SetCapacityPolicy { resource, capacity }) => {
+                    Some(ResourcesSubcommands::SetCapacityPolicy {
+                        resource: _,
+                        capacity: _,
+                    }) => {
                         todo!()
                     }
                     Some(ResourcesSubcommands::SetCapacityPolicyDefault) => {
@@ -420,10 +423,10 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
         Some(Commands::Operational) => {
             println!("Operational");
         }
-        Some(Commands::SAP {
+        Some(Commands::Sap {
             subcommand: sap_commands,
         }) => match sap_commands {
-            Some(SAPSubcommands::ExtractFromSAP) => {
+            Some(SapSubcommands::ExtractFromSap) => {
                 let url = "https://help.sap.com/docs/SAP_BUSINESSOBJECTS_BUSINESS_INTELLIGENCE_PLATFORM/9029a149a3314dadb8418a2b4ada9bb8/099046a701cb4014b20123ae31320959.html"; // Replace with the actual SAP authorization URL
 
                 if webbrowser::open(url).is_ok() {
@@ -433,13 +436,13 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                     println!("Failed to open {}.", url);
                 }
             }
-            Some(SAPSubcommands::PushStrategicToSAP) => {
+            Some(SapSubcommands::PushStrategicToSap) => {
                 todo!()
             }
-            Some(SAPSubcommands::PushTacticalToSAP) => {
+            Some(SapSubcommands::PushTacticalToSap) => {
                 todo!()
             }
-            Some(SAPSubcommands::Operational) => {
+            Some(SapSubcommands::Operational) => {
                 todo!()
             }
             None => {

@@ -273,7 +273,7 @@ impl StrategicAlgorithm {
             }
             StrategicResourcesMessage::GetLoadings {
                 periods_end,
-                select_resources,
+                select_resources: _,
             
             } => {
                 

@@ -5,9 +5,7 @@ pub mod worker_environment;
 use actix::prelude::*;
 use std::collections::HashMap;
 use std::fmt;
-use tracing::info;
 
-use crate::agents::strategic_agent::strategic_message::PeriodMessage;
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::WorkOrder;
@@ -36,17 +34,7 @@ impl SchedulingEnvironment {
         }
     }
 
-    pub fn set_periods(&mut self, periods: Vec<Period>) {
-        self.periods = periods;
-        let message = PeriodMessage {
-            frontend_message_type: String::from("frontend_scheduler_periods"),
-            periods: self.periods.clone(),
-        };
-        match &self.web_socket_agent_addr_option {
-            Some(ws_addr) => ws_addr.do_send(message),
-            None => info!("No WebSocketAgent address has been provided yet."),
-        }
-    }
+
     
     pub fn clone_periods(&self) -> Vec<Period> {
         self.periods.clone()

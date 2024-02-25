@@ -355,7 +355,7 @@ mod tests {
 
     use chrono::{Duration, TimeZone, Utc};
     use rand::{rngs::StdRng, SeedableRng};
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
 
     use crate::agents::strategic_agent::strategic_algorithm::{
         AlgorithmResources, OptimizedWorkOrders, PriorityQueues, StrategicAlgorithm,

@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::fmt::{self, Display};
 use tokio::time::{sleep, Duration};
-use tracing::{debug, error, info, instrument, trace};
+use tracing::{debug, error, info, instrument};
 
 use crate::agents::strategic_agent::{self, StrategicAgent};
 use crate::api::websocket_agent::WebSocketAgent;
@@ -84,23 +84,6 @@ impl Handler<ScheduleIteration> for StrategicAgent {
     }
 }
 
-enum MessageToFrontend {
-    Overview,
-    Loading,
-    Period,
-}
-
-impl Message for MessageToFrontend {
-    type Result = ();
-}
-
-#[derive(Serialize)]
-pub struct SuccesMessage {}
-
-impl Message for SuccesMessage {
-    type Result = ();
-}
-
 #[derive(serde::Serialize, Debug)]
 pub struct LoadingMessage {
     pub frontend_message_type: String,
@@ -150,7 +133,7 @@ impl Handler<StrategicRequest> for StrategicAgent {
 
                     let number_of_strategic_work_orders = optimized_work_orders.len();
                     let mut scheduled_count = 0;
-                    for (work_order_number, optimized_work_order) in optimized_work_orders {
+                    for optimized_work_order in optimized_work_orders.values() {
                         if optimized_work_order.get_scheduled_period().is_some() {
                             scheduled_count += 1;
                         }
@@ -194,7 +177,7 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     )
                     .unwrap();
 
-                    write!(message, "                      |AWCS|SECE|TYPE|PRIO|VEN*|",);
+                    write!(message, "                      |AWCS|SECE|TYPE|PRIO|VEN*|",).unwrap();
 
                     let work_orders: crate::models::WorkOrders = self
                         .scheduling_environment
@@ -236,7 +219,8 @@ impl Handler<StrategicRequest> for StrategicAgent {
                                 .get(&work_order_number)
                                 .unwrap()
                                 .is_vendor(),
-                        );
+                        )
+                        .unwrap();
                     }
 
                     match self.ws_addr.as_ref() {
@@ -345,89 +329,6 @@ impl Handler<StatusRequest> for StrategicAgent {
                     }
                     None => {
                         println!("No WebSocketAgentAddr set yet, so no message sent to frontend")
-                    }
-                }
-            }
-        }
-    }
-}
-
-impl Handler<MessageToFrontend> for StrategicAgent {
-    type Result = ();
-
-    #[instrument(
-        fields(scheduler_message_type = "message_to_frontend"),
-        skip(msg, self, _ctx)
-    )]
-    fn handle(&mut self, msg: MessageToFrontend, _ctx: &mut Self::Context) -> Self::Result {
-        match msg {
-            MessageToFrontend::Overview => {
-                let scheduling_overview_data = self.extract_state_to_scheduler_overview().clone();
-                let overview_message = OverviewMessage {
-                    frontend_message_type: "frontend_scheduler_overview".to_string(),
-                    scheduling_overview_data,
-                };
-                trace!(
-                    scheduler_message = "scheduler overview message",
-                    "scheduler_frontend_overview_message: {:?}",
-                    overview_message
-                );
-                match self.ws_addr.as_ref() {
-                    Some(ws_agent) => {
-                        ws_agent.do_send(overview_message);
-                    }
-                    None => {
-                        info!("No WebSocketAgentAddr set yet, so no message sent to frontend")
-                    }
-                }
-            }
-            MessageToFrontend::Loading => {
-                let nested_loadings = strategic_agent::transform_hashmap_to_nested_hashmap(
-                    self.scheduler_agent_algorithm
-                        .get_resources_loadings()
-                        .inner
-                        .clone(),
-                );
-
-                let scheduler_frontend_loading_message = LoadingMessage {
-                    frontend_message_type: "frontend_scheduler_loading".to_string(),
-                    manual_resources_loading: nested_loadings,
-                };
-                trace!(
-                    scheduler_message = "scheduler loading message",
-                    "scheduler_frontend_loading_message: {:?}",
-                    scheduler_frontend_loading_message
-                );
-                match self.ws_addr.as_ref() {
-                    Some(ws_agent) => {
-                        ws_agent.do_send(scheduler_frontend_loading_message);
-                    }
-                    None => {
-                        info!("No WebSocketAgentAddr set yet, so no message sent to frontend")
-                    }
-                }
-            }
-            MessageToFrontend::Period => {
-                self.scheduling_environment
-                    .lock()
-                    .unwrap()
-                    .set_periods(self.scheduler_agent_algorithm.get_periods().clone());
-
-                let scheduler_frontend_period_message = PeriodMessage {
-                    frontend_message_type: "frontend_scheduler_periods".to_string(),
-                    periods: self.scheduling_environment.lock().unwrap().clone_periods(),
-                };
-                trace!(
-                    scheduler_message = "scheduler period message",
-                    "scheduler_frontend_period_message: {:?}",
-                    scheduler_frontend_period_message
-                );
-                match self.ws_addr.as_ref() {
-                    Some(ws_agent) => {
-                        ws_agent.do_send(scheduler_frontend_period_message);
-                    }
-                    None => {
-                        info!("No WebSocketAgentAddr set yet, so no message sent to frontend")
                     }
                 }
             }

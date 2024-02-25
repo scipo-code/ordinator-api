@@ -8,7 +8,6 @@ use crate::agents::strategic_agent::strategic_message::LoadingMessage;
 use crate::agents::strategic_agent::strategic_message::OverviewMessage;
 use crate::agents::strategic_agent::strategic_message::PeriodMessage;
 use crate::agents::strategic_agent::strategic_message::SetAgentAddrMessage;
-use crate::agents::strategic_agent::strategic_message::SuccesMessage;
 use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::tactical_agent::TacticalAgent;
 use shared_messages::SystemMessages;
@@ -120,17 +119,6 @@ impl Handler<LoadingMessage> for WebSocketAgent {
     }
 }
 
-impl Handler<SuccesMessage> for WebSocketAgent {
-    type Result = ();
-
-    fn handle(&mut self, msg: SuccesMessage, ctx: &mut Self::Context) -> Self::Result {
-        // Serialize the message
-        let serialized_message = serde_json::to_string(&msg).unwrap();
-        // Send the serialized message to the frontend
-        ctx.text(serialized_message);
-    }
-}
-
 impl Handler<PeriodMessage> for WebSocketAgent {
     type Result = ();
 
@@ -204,7 +192,17 @@ mod tests {
         )
         .start();
 
-        let _ws_agent = WebSocketAgent::new(Arc::new(scheduler_agent_addr.clone()));
+        let tactical_agent_addr = TacticalAgent::new(
+            1,
+            Arc::new(Mutex::new(SchedulingEnvironment::default())),
+            None,
+        )
+        .start();
+
+        let _ws_agent = WebSocketAgent::new(
+            Arc::new(scheduler_agent_addr.clone()),
+            Arc::new(tactical_agent_addr),
+        );
 
         // let mut ws_agent_addr = ws_agent.start();
     }
