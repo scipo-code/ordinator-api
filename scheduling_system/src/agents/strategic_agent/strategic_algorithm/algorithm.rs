@@ -1,13 +1,10 @@
 use core::panic;
 use rand::prelude::SliceRandom;
-use std::collections::HashSet;
-use tracing::error;
 use tracing::info;
 use tracing::instrument;
 
-use super::SchedulerAgentAlgorithm;
-use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
-use crate::models::time_environment::period;
+use super::StrategicAlgorithm;
+use crate::agents::strategic_agent::strategic_algorithm::OptimizedWorkOrder;
 use crate::models::time_environment::period::Period;
 
 /// This implementation of the SchedulerAgent will do the following. It should take a messgage
@@ -17,7 +14,7 @@ use crate::models::time_environment::period::Period;
 /// normal queue. Is this done in the correct way? I am not really sure. I think that the priority
 /// queue should be updated in a more understandable way. The whole thing will need refactoring at
 /// some point, but how and in what way that is another story.
-impl SchedulerAgentAlgorithm {
+impl StrategicAlgorithm {
     pub fn schedule_normal_work_orders(&mut self) {
         while !self.priority_queues.normal.is_empty() {
             for period in self.periods.clone() {
@@ -170,7 +167,7 @@ impl SchedulerAgentAlgorithm {
 
         let mut filtered_keys: Vec<_> = optimized_work_orders
             .iter()
-            .filter(|(&key, &ref value)| value.get_locked_in_period().is_none())
+            .filter(|(&key, value)| value.get_locked_in_period().is_none())
             .map(|(&key, _)| key)
             .collect();
 
@@ -259,9 +256,6 @@ fn calculate_period_difference(scheduled_period: Period, latest_period: Option<P
 
     let duration = scheduled_period_date.signed_duration_since(latest_period_date);
     let days = duration.num_days();
-    dbg!(scheduled_period.clone());
-    dbg!(latest_period.clone());
-    dbg!(days.clone());
     days / 7
 }
 
@@ -276,7 +270,7 @@ fn calculate_period_difference(scheduled_period: Period, latest_period: Option<P
 /// this system scale. Now this stop, you cannot keep not testing you code. Okay, so we should
 /// change the implementation so that the work orders that are "manually" scheduled are simply
 /// forced into the schedule. There is no reason to loop over every period to fix the problem.
-impl SchedulerAgentAlgorithm {
+impl StrategicAlgorithm {
     #[instrument(skip(self))]
     fn is_scheduled(&self, work_order_key: u32) -> Option<u32> {
         self.optimized_work_orders
@@ -340,7 +334,7 @@ impl SchedulerAgentAlgorithm {
     }
 }
 
-impl SchedulerAgentAlgorithm {
+impl StrategicAlgorithm {
     #[cfg(test)]
     pub fn set_optimized_work_order(
         &mut self,
@@ -363,8 +357,8 @@ mod tests {
     use rand::{rngs::StdRng, SeedableRng};
     use std::collections::HashMap;
 
-    use crate::agents::scheduler_agent::scheduler_algorithm::{
-        AlgorithmResources, OptimizedWorkOrders, PriorityQueues, SchedulerAgentAlgorithm,
+    use crate::agents::strategic_agent::strategic_algorithm::{
+        AlgorithmResources, OptimizedWorkOrders, PriorityQueues, StrategicAlgorithm,
     };
     use shared_messages::resources::Resources;
 
@@ -398,7 +392,7 @@ mod tests {
         resource_loadings.insert(Resources::MtnMech, period_hash_map_0.clone());
         resource_loadings.insert(Resources::MtnElec, period_hash_map_0.clone());
         resource_loadings.insert(Resources::Prodtech, period_hash_map_0.clone());
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::new(resource_capacity),
             AlgorithmResources::new(resource_loadings),
@@ -451,7 +445,7 @@ mod tests {
         resource_capacity.insert(Resources::MtnMech, period_hash_map_0.clone());
         resource_loadings.insert(Resources::MtnMech, period_hash_map_0.clone());
 
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::new(resource_capacity),
             AlgorithmResources::new(resource_loadings),
@@ -503,7 +497,7 @@ mod tests {
         resource_loadings.insert(Resources::MtnElec, period_hash_map_0.clone());
         resource_loadings.insert(Resources::Prodtech, period_hash_map_0.clone());
 
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::new(resource_capacity),
             AlgorithmResources::new(resource_loadings),
@@ -616,7 +610,7 @@ mod tests {
             .inner
             .insert(2200002020, optimized_work_order);
 
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::new(resource_capacity),
             AlgorithmResources::new(resource_loadings),
@@ -928,7 +922,7 @@ mod tests {
             Period::new_from_string("2023-W49-50").unwrap(),
         ];
 
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::default(),
             AlgorithmResources::default(),
@@ -1022,7 +1016,7 @@ mod tests {
             .inner
             .insert(2100000001, optimized_work_order);
 
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::default(),
             AlgorithmResources::default(),

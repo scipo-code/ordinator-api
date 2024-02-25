@@ -1,9 +1,9 @@
 pub mod display;
-pub mod scheduler_algorithm;
-pub mod scheduler_message;
+pub mod strategic_algorithm;
+pub mod strategic_message;
 
-use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
-use crate::agents::scheduler_agent::scheduler_message::ScheduleIteration;
+use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
+use crate::agents::strategic_agent::strategic_message::ScheduleIteration;
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::order_type::WorkOrderType;
@@ -24,14 +24,14 @@ use crate::agents::tactical_agent::TacticalAgent;
 pub struct StrategicAgent {
     platform: String,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-    scheduler_agent_algorithm: SchedulerAgentAlgorithm,
-    ws_agent_addr: Option<Addr<WebSocketAgent>>,
+    scheduler_agent_algorithm: StrategicAlgorithm,
+    ws_addr: Option<Addr<WebSocketAgent>>,
     work_planner_agent_addr: Option<Addr<TacticalAgent>>,
 }
 
 impl StrategicAgent {
     pub fn set_ws_agent_addr(&mut self, ws_agent_addr: Addr<WebSocketAgent>) {
-        self.ws_agent_addr = Some(ws_agent_addr);
+        self.ws_addr = Some(ws_agent_addr);
     }
 }
 
@@ -52,7 +52,7 @@ impl StrategicAgent {
     pub fn new(
         platform: String,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-        scheduler_agent_algorithm: SchedulerAgentAlgorithm,
+        scheduler_agent_algorithm: StrategicAlgorithm,
         ws_agent_addr: Option<Addr<WebSocketAgent>>,
         work_planner_agent_addr: Option<Addr<TacticalAgent>>,
     ) -> Self {
@@ -60,7 +60,7 @@ impl StrategicAgent {
             platform,
             scheduling_environment,
             scheduler_agent_algorithm,
-            ws_agent_addr,
+            ws_addr: ws_agent_addr,
             work_planner_agent_addr,
         }
     }
@@ -219,12 +219,12 @@ mod tests {
     use shared_messages::strategic::strategic_resources_message::StrategicResourcesMessage;
     use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
 
-    use super::scheduler_algorithm::AlgorithmResources;
-    use super::scheduler_message::tests::TestRequest;
-    use super::scheduler_message::tests::TestResponse;
+    use super::strategic_algorithm::AlgorithmResources;
+    use super::strategic_message::tests::TestRequest;
+    use super::strategic_message::tests::TestResponse;
 
     use super::{
-        scheduler_algorithm::{OptimizedWorkOrders, PriorityQueues},
+        strategic_algorithm::{OptimizedWorkOrders, PriorityQueues},
         *,
     };
 
@@ -306,7 +306,7 @@ mod tests {
 
         let periods: Vec<Period> = vec![Period::new_from_string("2023-W47-48").unwrap()];
 
-        let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::new(resource_capacity),
             AlgorithmResources::new(resource_loadings),
@@ -459,7 +459,7 @@ mod tests {
 
         work_orders.insert(work_order_1);
 
-        let scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::default(),
             AlgorithmResources::default(),

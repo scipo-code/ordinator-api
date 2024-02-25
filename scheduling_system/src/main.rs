@@ -6,8 +6,6 @@ mod models;
 
 use std::sync::{Arc, Mutex};
 
-use agents::tactical_agent;
-
 use crate::init::application_builder::ApplicationBuilder;
 use crate::init::logging;
 
@@ -19,10 +17,11 @@ async fn main() -> () {
         init::model_initializers::initialize_scheduling_environment(52),
     ));
 
-    let scheduler_agent_addr = init::agent_factory::build_scheduler_agent(scheduling_environment);
+    let scheduler_agent_addr =
+        init::agent_factory::build_scheduler_agent(Arc::clone(&scheduling_environment));
 
     let tactical_agent_addr =
-        init::agent_factory::build_tactical_agent(Arc::clone(scheduling_environment));
+        init::agent_factory::build_tactical_agent(Arc::clone(&scheduling_environment));
 
     let application_builder = ApplicationBuilder::new()
         .with_scheduler_agent(scheduler_agent_addr)

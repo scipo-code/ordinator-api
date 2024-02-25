@@ -7,13 +7,14 @@ use shared_messages::strategic::strategic_status_message::StrategicStatusMessage
 use shared_messages::strategic::{
     strategic_scheduling_message::StrategicSchedulingMessage, StrategicRequest,
 };
+use shared_messages::tactical::TacticalRequest;
 use shared_messages::SystemMessages;
 use std::collections::HashMap;
 use std::net::TcpStream;
 use strum::IntoEnumIterator;
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;
-use webbrowser;
+
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -34,7 +35,10 @@ enum Commands {
         subcommand: Option<StrategicSubcommands>,
     },
     /// Access the tactical agent
-    Tactical {},
+    Tactical {
+        #[clap(subcommand)]
+        tactical_commands: Option<TacticalSubcommands>,
+    },
     /// Access the opertional agents
     Operational,
 
@@ -114,6 +118,13 @@ enum SchedulingSubcommands {
     PeriodLock { period: String },
     /// Exclude a work order from a period
     Exclude { work_order: u32, period: String },
+}
+#[derive(Subcommand, Debug)]
+enum TacticalSubcommands {
+    /// Get the status of the tactical agent
+    Status,
+    /// Get the objectives of the tactical agent
+    Objectives,
 }
 
 #[derive(Subcommand, Debug)]
@@ -391,19 +402,31 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                 // get_objectives(&mut socket);
             }
         },
-        Some(Commands::Tactical {}) => {
-            println!("Tactical");
-        }
+        Some(Commands::Tactical { tactical_commands }) => match tactical_commands {
+            Some(TacticalSubcommands::Status) => {
+                let tactical_status_message = SystemMessages::Tactical(TacticalRequest::Status);
+                let tactical_request_json =
+                    serde_json::to_string(&tactical_status_message).unwrap();
+                println!("Tactical");
+                socket.send(Message::Text(tactical_request_json)).unwrap();
+            }
+            Some(TacticalSubcommands::Objectives) => {
+                todo!()
+            }
+            None => {
+                todo!()
+            }
+        },
         Some(Commands::Operational) => {
             println!("Operational");
         }
-        Some(Commands::SAP { subcommand }) => match subcommand {
+        Some(Commands::SAP {
+            subcommand: sap_commands,
+        }) => match sap_commands {
             Some(SAPSubcommands::ExtractFromSAP) => {
                 let url = "https://help.sap.com/docs/SAP_BUSINESSOBJECTS_BUSINESS_INTELLIGENCE_PLATFORM/9029a149a3314dadb8418a2b4ada9bb8/099046a701cb4014b20123ae31320959.html"; // Replace with the actual SAP authorization URL
 
-                // Open the URL in the default web browser
                 if webbrowser::open(url).is_ok() {
-                    // The URL was opened successfully
                     println!("Opened {} in the default web browser.", url);
                 } else {
                     // There was an error opening the URL

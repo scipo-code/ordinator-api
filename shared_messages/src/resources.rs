@@ -153,21 +153,21 @@ impl Resources {
     }
 
     pub fn is_ven_variant(&self) -> bool {
-        match self {
+        matches!(
+            self,
             Resources::VenAcco
-            | Resources::VenComm
-            | Resources::VenCran
-            | Resources::VenElec
-            | Resources::VenHvac
-            | Resources::VenInsp
-            | Resources::VenInst
-            | Resources::VenMech
-            | Resources::VenMete
-            | Resources::VenRope
-            | Resources::VenScaf
-            | Resources::VenSubs => true,
-            _ => false,
-        }
+                | Resources::VenComm
+                | Resources::VenCran
+                | Resources::VenElec
+                | Resources::VenHvac
+                | Resources::VenInsp
+                | Resources::VenInst
+                | Resources::VenMech
+                | Resources::VenMete
+                | Resources::VenRope
+                | Resources::VenScaf
+                | Resources::VenSubs
+        )
     }
 }
 

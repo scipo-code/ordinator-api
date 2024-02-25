@@ -4,16 +4,18 @@ use actix_web_actors::ws;
 use std::sync::Arc;
 use tracing::info;
 
-use crate::agents::scheduler_agent::scheduler_message::LoadingMessage;
-use crate::agents::scheduler_agent::scheduler_message::OverviewMessage;
-use crate::agents::scheduler_agent::scheduler_message::PeriodMessage;
-use crate::agents::scheduler_agent::scheduler_message::SetAgentAddrMessage;
-use crate::agents::scheduler_agent::scheduler_message::SuccesMessage;
-use crate::agents::scheduler_agent::StrategicAgent;
+use crate::agents::strategic_agent::strategic_message::LoadingMessage;
+use crate::agents::strategic_agent::strategic_message::OverviewMessage;
+use crate::agents::strategic_agent::strategic_message::PeriodMessage;
+use crate::agents::strategic_agent::strategic_message::SetAgentAddrMessage;
+use crate::agents::strategic_agent::strategic_message::SuccesMessage;
+use crate::agents::strategic_agent::StrategicAgent;
+use crate::agents::tactical_agent::TacticalAgent;
 use shared_messages::SystemMessages;
 
 pub struct WebSocketAgent {
-    scheduler_agent_addr: Arc<Addr<StrategicAgent>>,
+    strategic_agent_addr: Arc<Addr<StrategicAgent>>,
+    tactical_agent_addr: Arc<Addr<TacticalAgent>>,
 }
 
 impl Actor for WebSocketAgent {
@@ -21,9 +23,14 @@ impl Actor for WebSocketAgent {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         info!("WebSocketAgent is alive");
-        let addr = ctx.address();
-        self.scheduler_agent_addr
-            .do_send(SetAgentAddrMessage { addr });
+        let ws_addr = ctx.address();
+        self.strategic_agent_addr.do_send(SetAgentAddrMessage {
+            addr: ws_addr.clone(),
+        });
+
+        self.tactical_agent_addr.do_send(SetAgentAddrMessage {
+            addr: ws_addr.clone(),
+        });
     }
 }
 
@@ -36,17 +43,18 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                     serde_json::from_str(&text);
                 match msg_type {
                     Ok(SystemMessages::Status(status_input)) => {
-                        self.scheduler_agent_addr.do_send(status_input);
+                        self.strategic_agent_addr.do_send(status_input);
                     }
-                    Ok(SystemMessages::Strategic(scheduler_input)) => {
-                        info!(scheduler_front_end_message = %scheduler_input, "SchedulerAgent received SchedulerMessage");
-                        self.scheduler_agent_addr.do_send(scheduler_input);
+                    Ok(SystemMessages::Strategic(strategic_request)) => {
+                        info!(scheduler_front_end_message = %strategic_request, "SchedulerAgent received SchedulerMessage");
+                        self.strategic_agent_addr.do_send(strategic_request);
 
                         let addr = ctx.address();
-                        self.scheduler_agent_addr
+                        self.strategic_agent_addr
                             .do_send(SetAgentAddrMessage { addr });
                     }
-                    Ok(SystemMessages::Tactical) => {
+                    Ok(SystemMessages::Tactical(tactical_request)) => {
+                        self.tactical_agent_addr.do_send(tactical_request);
                         println!("WorkPlannerAgent received WorkPlannerMessage");
                     }
                     Ok(SystemMessages::Operational) => {
@@ -64,9 +72,13 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
 }
 
 impl WebSocketAgent {
-    pub fn new(scheduler_agent_addr: Arc<Addr<StrategicAgent>>) -> Self {
+    pub fn new(
+        strategic_agent_addr: Arc<Addr<StrategicAgent>>,
+        tactical_agent_addr: Arc<Addr<TacticalAgent>>,
+    ) -> Self {
         WebSocketAgent {
-            scheduler_agent_addr,
+            strategic_agent_addr,
+            tactical_agent_addr,
         }
     }
 }
@@ -148,11 +160,11 @@ impl Handler<shared_messages::Response> for WebSocketAgent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agents::scheduler_agent::scheduler_algorithm::AlgorithmResources;
-    use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrders;
-    use crate::agents::scheduler_agent::scheduler_algorithm::PriorityQueues;
-    use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
-    use crate::agents::scheduler_agent::StrategicAgent;
+    use crate::agents::strategic_agent::strategic_algorithm::AlgorithmResources;
+    use crate::agents::strategic_agent::strategic_algorithm::OptimizedWorkOrders;
+    use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
+    use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
+    use crate::agents::strategic_agent::StrategicAgent;
     use crate::models::SchedulingEnvironment;
     use chrono::{DateTime, Utc};
     use shared_messages::strategic::StrategicRequest;
@@ -178,7 +190,7 @@ mod tests {
         let scheduler_agent_addr = StrategicAgent::new(
             "test".to_string(),
             Arc::new(Mutex::new(SchedulingEnvironment::default())),
-            SchedulerAgentAlgorithm::new(
+            StrategicAlgorithm::new(
                 0.0,
                 AlgorithmResources::default(),
                 AlgorithmResources::default(),

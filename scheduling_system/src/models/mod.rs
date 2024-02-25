@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::fmt;
 use tracing::info;
 
-use crate::agents::scheduler_agent::scheduler_message::PeriodMessage;
+use crate::agents::strategic_agent::strategic_message::PeriodMessage;
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::WorkOrder;

@@ -283,14 +283,9 @@ impl WorkOrder {
 
     pub fn initialize_vendor(&mut self) {
         let work_load = self.work_load.clone();
-        if work_load
+        self.vendor = work_load
             .iter()
             .any(|(resource, _)| resource.is_ven_variant())
-        {
-            self.vendor = true;
-        } else {
-            self.vendor = false;
-        }
     }
 }
 

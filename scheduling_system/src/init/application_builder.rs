@@ -5,8 +5,8 @@ use std::{sync::Arc, thread};
 use tokio::task::JoinHandle;
 use tracing::{info, trace};
 
-use crate::agents::tactical_agent::{self, TacticalAgent};
-use crate::{agents::scheduler_agent::StrategicAgent, api::routes::ws_index};
+use crate::agents::tactical_agent::TacticalAgent;
+use crate::{agents::strategic_agent::StrategicAgent, api::routes::ws_index};
 
 pub struct ApplicationBuilder {
     scheduler_agent_addr: Option<Addr<StrategicAgent>>,
@@ -21,13 +21,13 @@ impl ApplicationBuilder {
         }
     }
 
-    pub fn with_scheduler_agent(mut self, addr: Addr<StrategicAgent>) -> Self {
-        self.scheduler_agent_addr = Some(addr);
+    pub fn with_scheduler_agent(mut self, scheduler_agent_addr: Addr<StrategicAgent>) -> Self {
+        self.scheduler_agent_addr = Some(scheduler_agent_addr);
         self
     }
 
-    pub fn with_tactical_agent(self, tactical_agent_addr: Addr<TacticalAgent>) -> Self {
-        self.with_tactical_agent(tactical_agent_addr);
+    pub fn with_tactical_agent(mut self, tactical_agent_addr: Addr<TacticalAgent>) -> Self {
+        self.tactical_agent_addr = Some(tactical_agent_addr);
         self
     }
 

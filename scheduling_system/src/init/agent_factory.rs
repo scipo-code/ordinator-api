@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrders;
-use crate::agents::scheduler_agent::scheduler_algorithm::PriorityQueues;
-use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
-use crate::agents::scheduler_agent::scheduler_algorithm::{AlgorithmResources, OptimizedWorkOrder};
-use crate::agents::scheduler_agent::StrategicAgent;
+use crate::agents::strategic_agent::strategic_algorithm::OptimizedWorkOrders;
+use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
+use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
+use crate::agents::strategic_agent::strategic_algorithm::{AlgorithmResources, OptimizedWorkOrder};
+use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::tactical_agent::TacticalAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::SchedulingEnvironment;
@@ -59,7 +59,7 @@ pub fn build_scheduler_agent(
 
     let locked_scheduling_environment = scheduling_environment.lock().unwrap();
 
-    let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+    let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
         0.0,
         AlgorithmResources::new(initialize_manual_resources(
             &locked_scheduling_environment,

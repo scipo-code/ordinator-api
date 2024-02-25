@@ -1,5 +1,4 @@
 use actix::prelude::*;
-use chrono::format;
 use serde::{Deserialize, Serialize};
 use shared_messages::status::StatusRequest;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
@@ -10,8 +9,7 @@ use std::fmt::{self, Display};
 use tokio::time::{sleep, Duration};
 use tracing::{debug, error, info, instrument, trace};
 
-use crate::agents::scheduler_agent::scheduler_algorithm::QueueType;
-use crate::agents::scheduler_agent::{self, StrategicAgent};
+use crate::agents::strategic_agent::{self, StrategicAgent};
 use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::time_environment::period::Period;
 use shared_messages::resources::Resources;
@@ -116,7 +114,7 @@ impl Message for LoadingMessage {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OverviewMessage {
     pub frontend_message_type: String,
-    pub scheduling_overview_data: Vec<scheduler_agent::SchedulingOverviewData>,
+    pub scheduling_overview_data: Vec<strategic_agent::SchedulingOverviewData>,
 }
 
 /// The Scheduler Output should contain all that is needed to make
@@ -162,7 +160,7 @@ impl Handler<StrategicRequest> for StrategicAgent {
                         "{}\nWith objectives: \n  strategic objective of: {}\n    {} of {} work orders scheduled",
                         scheduling_status, strategic_objective, scheduled_count, number_of_strategic_work_orders
                     );
-                    match self.ws_agent_addr.as_ref() {
+                    match self.ws_addr.as_ref() {
                         Some(addr) => addr
                             .do_send(shared_messages::Response::Success(Some(scheduling_status))),
                         None => {
@@ -189,9 +187,9 @@ impl Handler<StrategicRequest> for StrategicAgent {
                         .collect();
                     let mut message = String::new();
 
-                    write!(
+                    writeln!(
                         message,
-                        "Work orders scheduled for period: {} are: \n",
+                        "Work orders scheduled for period: {} are: ",
                         period,
                     )
                     .unwrap();
@@ -207,9 +205,9 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     println!("work_orders_by_period: {:?}", work_orders_by_period);
 
                     for work_order_number in work_orders_by_period {
-                        write!(
+                        writeln!(
                             message,
-                            "    Work order: {}    |{:<5}|{:<5}|{:?}|{:?}|{:<5}|\n",
+                            "    Work order: {}    |{:<5}|{:<5}|{:?}|{:?}|{:<5}|",
                             work_order_number,
                             work_orders
                                 .inner
@@ -241,7 +239,7 @@ impl Handler<StrategicRequest> for StrategicAgent {
                         );
                     }
 
-                    match self.ws_agent_addr.as_ref() {
+                    match self.ws_addr.as_ref() {
                         Some(addr) => {
                             addr.do_send(shared_messages::Response::Success(Some(message)))
                         }
@@ -264,7 +262,7 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     .scheduler_agent_algorithm
                     .update_scheduling_state(scheduling_message);
 
-                match self.ws_agent_addr.as_ref() {
+                match self.ws_addr.as_ref() {
                     Some(addr) => addr.do_send(response),
                     None => {
                         println!("No WebSocketAgentAddr set yet, so no message sent to frontend")
@@ -276,7 +274,7 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     .scheduler_agent_algorithm
                     .update_resources_state(resources_message);
 
-                match self.ws_agent_addr.as_ref() {
+                match self.ws_addr.as_ref() {
                     Some(addr) => addr.do_send(response),
                     None => {
                         println!("No WebSocketAgentAddr set yet, so no message sent to frontend")
@@ -319,7 +317,7 @@ impl Handler<StatusRequest> for StrategicAgent {
 
                 if let Some(work_order_status) = cloned_work_orders.inner.get(&work_order_number) {
                     let work_order_status = work_order_status.to_string();
-                    match self.ws_agent_addr.as_ref() {
+                    match self.ws_addr.as_ref() {
                         Some(addr) => addr
                             .do_send(shared_messages::Response::Success(Some(work_order_status))),
                         None => {
@@ -341,7 +339,7 @@ impl Handler<StatusRequest> for StrategicAgent {
                     .collect::<Vec<String>>()
                     .join(",");
 
-                match self.ws_agent_addr.as_ref() {
+                match self.ws_addr.as_ref() {
                     Some(addr) => {
                         addr.do_send(shared_messages::Response::Success(Some(periods_string)))
                     }
@@ -374,7 +372,7 @@ impl Handler<MessageToFrontend> for StrategicAgent {
                     "scheduler_frontend_overview_message: {:?}",
                     overview_message
                 );
-                match self.ws_agent_addr.as_ref() {
+                match self.ws_addr.as_ref() {
                     Some(ws_agent) => {
                         ws_agent.do_send(overview_message);
                     }
@@ -384,7 +382,7 @@ impl Handler<MessageToFrontend> for StrategicAgent {
                 }
             }
             MessageToFrontend::Loading => {
-                let nested_loadings = scheduler_agent::transform_hashmap_to_nested_hashmap(
+                let nested_loadings = strategic_agent::transform_hashmap_to_nested_hashmap(
                     self.scheduler_agent_algorithm
                         .get_resources_loadings()
                         .inner
@@ -400,7 +398,7 @@ impl Handler<MessageToFrontend> for StrategicAgent {
                     "scheduler_frontend_loading_message: {:?}",
                     scheduler_frontend_loading_message
                 );
-                match self.ws_agent_addr.as_ref() {
+                match self.ws_addr.as_ref() {
                     Some(ws_agent) => {
                         ws_agent.do_send(scheduler_frontend_loading_message);
                     }
@@ -424,7 +422,7 @@ impl Handler<MessageToFrontend> for StrategicAgent {
                     "scheduler_frontend_period_message: {:?}",
                     scheduler_frontend_period_message
                 );
-                match self.ws_agent_addr.as_ref() {
+                match self.ws_addr.as_ref() {
                     Some(ws_agent) => {
                         ws_agent.do_send(scheduler_frontend_period_message);
                     }
@@ -462,14 +460,14 @@ pub mod tests {
 
     use super::*;
 
-    use crate::agents::scheduler_agent::scheduler_algorithm::{
-        OptimizedWorkOrder, OptimizedWorkOrders, PriorityQueues, SchedulerAgentAlgorithm,
+    use crate::agents::strategic_agent::strategic_algorithm::{
+        OptimizedWorkOrder, OptimizedWorkOrders, PriorityQueues, StrategicAlgorithm,
     };
 
     use shared_messages::strategic::strategic_scheduling_message::{
         SingleWorkOrder, StrategicSchedulingMessage,
     };
-    use tests::scheduler_agent::scheduler_algorithm::AlgorithmResources;
+    use tests::strategic_agent::strategic_algorithm::AlgorithmResources;
 
     #[test]
     fn test_update_scheduler_state() {
@@ -482,7 +480,7 @@ pub mod tests {
 
         let periods: Vec<Period> = vec![Period::new_from_string("2023-W47-48").unwrap()];
 
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::default(),
             AlgorithmResources::default(),
@@ -567,7 +565,7 @@ pub mod tests {
 
         loadings.insert(Resources::VenMech, periods_hash_map_0);
 
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::new(capacities),
             AlgorithmResources::new(loadings),
@@ -623,7 +621,7 @@ pub mod tests {
 
         optimized_work_orders.insert_optimized_work_order(2100023841, optimized_work_order);
 
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::default(),
             AlgorithmResources::default(),
