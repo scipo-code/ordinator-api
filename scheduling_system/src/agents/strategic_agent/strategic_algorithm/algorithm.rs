@@ -62,7 +62,7 @@ impl StrategicAlgorithm {
         work_order_key: u32,
         period: &Period,
     ) -> Option<u32> {
-        let work_order = self
+        let optimized_work_order = self
             .optimized_work_orders
             .inner
             .get(&work_order_key)
@@ -71,7 +71,7 @@ impl StrategicAlgorithm {
 
         // The if statements found in here are each constraints that has to be upheld.
         if period != self.get_periods().last().unwrap() {
-            for (resource, resource_needed) in work_order.get_work_load().clone().iter() {
+            for (resource, resource_needed) in optimized_work_order.get_work_load().clone().iter() {
                 let resource_capacity: &f64 = self
                     .resources_capacity
                     .inner
@@ -91,7 +91,7 @@ impl StrategicAlgorithm {
                     return Some(work_order_key);
                 }
 
-                if work_order.get_excluded_periods().contains(period) {
+                if optimized_work_order.get_excluded_periods().contains(period) {
                     return Some(work_order_key);
                 }
             }
@@ -113,7 +113,7 @@ impl StrategicAlgorithm {
             "Work order {} from the normal has been scheduled",
             work_order_key
         );
-        self.update_loadings(period.clone(), &work_order);
+        self.update_loadings(period.clone(), &optimized_work_order);
         None
     }
     /// There is something that I do not like about this. The is_scheduled function in not ideal

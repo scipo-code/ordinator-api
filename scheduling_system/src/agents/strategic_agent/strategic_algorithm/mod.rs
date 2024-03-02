@@ -62,7 +62,7 @@ impl AlgorithmResources {
             write!(string, "{:<12}", resource.variant_name()).unwrap();
             for (_, period) in periods.iter().enumerate().take(number_of_periods as usize) {
                 let value = inner_map.get(period).unwrap_or(&0.0);
-                write!(string, "{:>12}", value).ok();
+                write!(string, "{:>12}", value.round()).ok();
             }
             writeln!(string).ok();
         }

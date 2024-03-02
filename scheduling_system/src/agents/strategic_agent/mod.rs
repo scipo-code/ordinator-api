@@ -127,7 +127,7 @@ impl StrategicAgent {
             .unwrap()
             .clone_work_orders();
 
-        for (work_order_number, work_order) in work_orders.inner {
+        for (work_order_number, mut work_order) in work_orders.inner {
             for (operation_number, operation) in work_order.get_operations().clone() {
                 let scheduling_overview_data_item = SchedulingOverviewData {
                     scheduled_period: match self
@@ -177,6 +177,7 @@ impl StrategicAgent {
                         WorkOrderType::Wdf(_wdf_priority) => "WDF".to_string(),
                         WorkOrderType::Wgn(_wgn_priority) => "WGN".to_string(),
                         WorkOrderType::Wpm(_wpm_priority) => "WPM".to_string(),
+                        WorkOrderType::Wro(_) => "WRO".to_string(),
                         WorkOrderType::Other => "Missing Work Order Type".to_string(),
                     },
                     priority: match work_order.get_priority().clone() {

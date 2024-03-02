@@ -44,9 +44,9 @@ impl SchedulingEnvironment {
         self.work_orders.clone()
     }
 
-    pub fn initialize_work_orders(&mut self) {
+    pub fn initialize_work_orders(&mut self, periods: &Vec<Period>) {
         for (_, work_order) in self.work_orders.inner.iter_mut() {
-            work_order.initialize();
+            work_order.initialize(periods);
         }
     }
 

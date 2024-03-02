@@ -158,7 +158,10 @@ fn main() {
     match message_sent {
         Some(_) => {
             let response: Message = socket.read().expect("Failed to read message");
-            let formatted_response = response.to_string().replace("\\n", "\n").replace('\"', "");
+            let formatted_response = response
+                .to_string()
+                .replace("\\n", "\n")
+                .replace(['\"', '\\'], "");
 
             println!("{}", formatted_response);
         }

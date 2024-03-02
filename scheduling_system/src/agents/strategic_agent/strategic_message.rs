@@ -158,6 +158,31 @@ impl Handler<StrategicRequest> for StrategicAgent {
                 StrategicStatusMessage::Period(period) => {
                     let work_orders = self.scheduler_agent_algorithm.get_optimized_work_orders();
 
+                    dbg!(self
+                        .scheduler_agent_algorithm
+                        .get_periods()
+                        .iter()
+                        .map(|period| period.get_period_string())
+                        .collect::<Vec<_>>());
+                    if !self
+                        .scheduler_agent_algorithm
+                        .get_periods()
+                        .iter()
+                        .map(|period| period.get_period_string())
+                        .collect::<Vec<_>>()
+                        .contains(&period)
+                    {
+                        match self.ws_addr.as_ref() {
+                            Some(addr) => addr.do_send(shared_messages::Response::Failure),
+                            None => {
+                                println!(
+                                    "No WebSocketAgentAddr set yet, so no message sent to frontend"
+                                )
+                            }
+                        }
+                        return;
+                    }
+
                     let work_orders_by_period: Vec<u32> = work_orders
                         .iter()
                         .filter(|(_, opt_wo)| match opt_wo.get_scheduled_period() {
@@ -177,48 +202,86 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     )
                     .unwrap();
 
-                    write!(message, "                      |AWCS|SECE|TYPE|PRIO|VEN*|",).unwrap();
+                    writeln!(
+                        message,
+                        "                      EARL-PERIOD|AWCS|SECE|REVISION|TYPE|PRIO|VEN*| MAT|",
+                    )
+                    .unwrap();
 
-                    let work_orders: crate::models::WorkOrders = self
+                    let mut work_orders: crate::models::WorkOrders = self
                         .scheduling_environment
                         .lock()
                         .unwrap()
                         .clone_work_orders();
 
-                    println!("work_orders_by_period: {:?}", work_orders_by_period);
-
                     for work_order_number in work_orders_by_period {
                         writeln!(
                             message,
-                            "    Work order: {}    |{:<5}|{:<5}|{:?}|{:?}|{:<5}|",
+                            "    Work order: {}    |{:>11}|{:<}|{:<}|{:>8}|{:?}|{:?}|{:<3}|{:?}|",
                             work_order_number,
                             work_orders
                                 .inner
-                                .get(&work_order_number)
+                                .get_mut(&work_order_number)
                                 .unwrap()
-                                .get_status_codes()
-                                .awsc,
-                            work_orders
+                                .get_order_dates()
+                                .earliest_allowed_start_period
+                                .get_period_string(),
+                            if work_orders
                                 .inner
                                 .get(&work_order_number)
                                 .unwrap()
                                 .get_status_codes()
-                                .sece,
+                                .awsc
+                            {
+                                "AWSC"
+                            } else {
+                                "----"
+                            },
+                            if work_orders
+                                .inner
+                                .get(&work_order_number)
+                                .unwrap()
+                                .get_status_codes()
+                                .sece
+                            {
+                                "SECE"
+                            } else {
+                                "----"
+                            },
                             work_orders
                                 .inner
                                 .get(&work_order_number)
                                 .unwrap()
-                                .get_order_type(),
+                                .get_revision()
+                                .string,
                             work_orders
                                 .inner
                                 .get(&work_order_number)
                                 .unwrap()
-                                .get_priority(),
+                                .get_order_type()
+                                .get_type_string(),
                             work_orders
                                 .inner
                                 .get(&work_order_number)
                                 .unwrap()
-                                .is_vendor(),
+                                .get_priority()
+                                .get_priority_string(),
+                            if work_orders
+                                .inner
+                                .get(&work_order_number)
+                                .unwrap()
+                                .is_vendor()
+                            {
+                                "VEN"
+                            } else {
+                                "---"
+                            },
+                            work_orders
+                                .inner
+                                .get(&work_order_number)
+                                .unwrap()
+                                .get_status_codes()
+                                .material_status,
                         )
                         .unwrap();
                     }
