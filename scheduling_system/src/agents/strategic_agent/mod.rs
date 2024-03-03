@@ -2,9 +2,9 @@ pub mod display;
 pub mod strategic_algorithm;
 pub mod strategic_message;
 
+use crate::agents::orchestrator_agent::OrchestratorAgent;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::strategic_agent::strategic_message::ScheduleIteration;
-use crate::api::orchestrator_agent::OrchestratorAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::work_order::priority::Priority;

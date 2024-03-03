@@ -9,8 +9,8 @@ use std::fmt::{self, Display};
 use tokio::time::{sleep, Duration};
 use tracing::{debug, error, info, instrument};
 
+use crate::agents::orchestrator_agent::OrchestratorAgent;
 use crate::agents::strategic_agent::{self, StrategicAgent};
-use crate::api::orchestrator_agent::OrchestratorAgent;
 use crate::models::time_environment::period::Period;
 use shared_messages::resources::Resources;
 

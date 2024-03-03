@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use tracing::info;
 
-use crate::api::orchestrator_agent::OrchestratorAgent;
+use crate::agents::orchestrator_agent::OrchestratorAgent;
 use crate::models::SchedulingEnvironment;
 
 #[get("/ws")]

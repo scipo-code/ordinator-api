@@ -6,7 +6,7 @@ use actix::prelude::*;
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::api::orchestrator_agent::OrchestratorAgent;
+use crate::agents::orchestrator_agent::OrchestratorAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::WorkOrder;
 use crate::models::worker_environment::WorkerEnvironment;

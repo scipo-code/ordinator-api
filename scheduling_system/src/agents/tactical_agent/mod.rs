@@ -5,8 +5,8 @@ use actix::prelude::*;
 use shared_messages::tactical::TacticalRequest;
 use std::sync::{Arc, Mutex};
 
+use crate::agents::orchestrator_agent::OrchestratorAgent;
 use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
-use crate::api::orchestrator_agent::OrchestratorAgent;
 use crate::models::SchedulingEnvironment;
 
 use crate::agents::strategic_agent::strategic_message::SetAgentAddrMessage;
