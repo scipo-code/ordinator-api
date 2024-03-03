@@ -1,12 +1,10 @@
 use core::panic;
 use rand::prelude::SliceRandom;
-use std::collections::HashSet;
-use tracing::error;
 use tracing::info;
 use tracing::instrument;
 
-use super::SchedulerAgentAlgorithm;
-use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrder;
+use super::StrategicAlgorithm;
+use crate::agents::strategic_agent::strategic_algorithm::OptimizedWorkOrder;
 use crate::models::time_environment::period::Period;
 
 /// This implementation of the SchedulerAgent will do the following. It should take a messgage
@@ -16,7 +14,7 @@ use crate::models::time_environment::period::Period;
 /// normal queue. Is this done in the correct way? I am not really sure. I think that the priority
 /// queue should be updated in a more understandable way. The whole thing will need refactoring at
 /// some point, but how and in what way that is another story.
-impl SchedulerAgentAlgorithm {
+impl StrategicAlgorithm {
     pub fn schedule_normal_work_orders(&mut self) {
         while !self.priority_queues.normal.is_empty() {
             for period in self.periods.clone() {
@@ -64,7 +62,7 @@ impl SchedulerAgentAlgorithm {
         work_order_key: u32,
         period: &Period,
     ) -> Option<u32> {
-        let work_order = self
+        let optimized_work_order = self
             .optimized_work_orders
             .inner
             .get(&work_order_key)
@@ -73,7 +71,7 @@ impl SchedulerAgentAlgorithm {
 
         // The if statements found in here are each constraints that has to be upheld.
         if period != self.get_periods().last().unwrap() {
-            for (resource, resource_needed) in work_order.get_work_load().clone().iter() {
+            for (resource, resource_needed) in optimized_work_order.get_work_load().clone().iter() {
                 let resource_capacity: &f64 = self
                     .resources_capacity
                     .inner
@@ -93,7 +91,7 @@ impl SchedulerAgentAlgorithm {
                     return Some(work_order_key);
                 }
 
-                if work_order.get_excluded_periods().contains(period) {
+                if optimized_work_order.get_excluded_periods().contains(period) {
                     return Some(work_order_key);
                 }
             }
@@ -115,7 +113,7 @@ impl SchedulerAgentAlgorithm {
             "Work order {} from the normal has been scheduled",
             work_order_key
         );
-        self.update_loadings(period.clone(), &work_order);
+        self.update_loadings(period.clone(), &optimized_work_order);
         None
     }
     /// There is something that I do not like about this. The is_scheduled function in not ideal
@@ -165,16 +163,17 @@ impl SchedulerAgentAlgorithm {
         number_of_work_orders: usize,
         rng: &mut impl rand::Rng,
     ) {
-        let mut work_order_keys: Vec<_> = self
-            .get_optimized_work_orders()
-            .keys()
-            .cloned()
-            .collect::<Vec<_>>()
-            .clone();
+        let mut optimized_work_orders = self.get_optimized_work_orders();
 
-        work_order_keys.sort();
+        let mut filtered_keys: Vec<_> = optimized_work_orders
+            .iter()
+            .filter(|(&key, value)| value.get_locked_in_period().is_none())
+            .map(|(&key, _)| key)
+            .collect();
 
-        let sampled_work_order_keys = work_order_keys
+        filtered_keys.sort();
+
+        let sampled_work_order_keys = filtered_keys
             .choose_multiple(rng, number_of_work_orders)
             .collect::<Vec<_>>()
             .clone();
@@ -244,20 +243,18 @@ impl SchedulerAgentAlgorithm {
             };
             objective += objective_contribution;
         }
-        dbg!(objective);
         self.objective_value = objective as f64;
     }
 }
 
-fn calculate_period_difference(period_1: Period, period_2: Option<Period>) -> i64 {
-    let period_1_date = period_1.get_end_date();
-    let period_2_date = match period_2 {
+fn calculate_period_difference(scheduled_period: Period, latest_period: Option<Period>) -> i64 {
+    let scheduled_period_date = scheduled_period.get_end_date();
+    let latest_period_date = match latest_period.clone() {
         Some(period) => period.get_end_date(),
-        None => period_1_date,
+        None => scheduled_period_date,
     };
 
-    let duration = period_1_date.signed_duration_since(period_2_date);
-
+    let duration = scheduled_period_date.signed_duration_since(latest_period_date);
     let days = duration.num_days();
     days / 7
 }
@@ -273,7 +270,7 @@ fn calculate_period_difference(period_1: Period, period_2: Option<Period>) -> i6
 /// this system scale. Now this stop, you cannot keep not testing you code. Okay, so we should
 /// change the implementation so that the work orders that are "manually" scheduled are simply
 /// forced into the schedule. There is no reason to loop over every period to fix the problem.
-impl SchedulerAgentAlgorithm {
+impl StrategicAlgorithm {
     #[instrument(skip(self))]
     fn is_scheduled(&self, work_order_key: u32) -> Option<u32> {
         self.optimized_work_orders
@@ -337,7 +334,7 @@ impl SchedulerAgentAlgorithm {
     }
 }
 
-impl SchedulerAgentAlgorithm {
+impl StrategicAlgorithm {
     #[cfg(test)]
     pub fn set_optimized_work_order(
         &mut self,
@@ -358,10 +355,10 @@ mod tests {
 
     use chrono::{Duration, TimeZone, Utc};
     use rand::{rngs::StdRng, SeedableRng};
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
 
-    use crate::agents::scheduler_agent::scheduler_algorithm::{
-        AlgorithmResources, OptimizedWorkOrders, PriorityQueues, SchedulerAgentAlgorithm,
+    use crate::agents::strategic_agent::strategic_algorithm::{
+        AlgorithmResources, OptimizedWorkOrders, PriorityQueues, StrategicAlgorithm,
     };
     use shared_messages::resources::Resources;
 
@@ -395,7 +392,7 @@ mod tests {
         resource_loadings.insert(Resources::MtnMech, period_hash_map_0.clone());
         resource_loadings.insert(Resources::MtnElec, period_hash_map_0.clone());
         resource_loadings.insert(Resources::Prodtech, period_hash_map_0.clone());
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::new(resource_capacity),
             AlgorithmResources::new(resource_loadings),
@@ -448,7 +445,7 @@ mod tests {
         resource_capacity.insert(Resources::MtnMech, period_hash_map_0.clone());
         resource_loadings.insert(Resources::MtnMech, period_hash_map_0.clone());
 
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::new(resource_capacity),
             AlgorithmResources::new(resource_loadings),
@@ -500,7 +497,7 @@ mod tests {
         resource_loadings.insert(Resources::MtnElec, period_hash_map_0.clone());
         resource_loadings.insert(Resources::Prodtech, period_hash_map_0.clone());
 
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::new(resource_capacity),
             AlgorithmResources::new(resource_loadings),
@@ -613,7 +610,7 @@ mod tests {
             .inner
             .insert(2200002020, optimized_work_order);
 
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::new(resource_capacity),
             AlgorithmResources::new(resource_loadings),
@@ -925,7 +922,7 @@ mod tests {
             Period::new_from_string("2023-W49-50").unwrap(),
         ];
 
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::default(),
             AlgorithmResources::default(),
@@ -1019,7 +1016,7 @@ mod tests {
             .inner
             .insert(2100000001, optimized_work_order);
 
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::default(),
             AlgorithmResources::default(),

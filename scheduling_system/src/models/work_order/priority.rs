@@ -1,11 +1,18 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone)]
-#[derive(Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum Priority {
     IntValue(u32),
     StringValue(String),
+}
+
+impl Priority {
+    pub fn get_priority_string(&self) -> String {
+        match self {
+            Priority::IntValue(priority) => priority.to_string(),
+            Priority::StringValue(priority) => priority.to_string(),
+        }
+    }
 }
 
 impl Priority {

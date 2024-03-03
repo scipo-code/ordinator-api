@@ -4,6 +4,7 @@ pub struct Revision {
     pub string: String,
     pub shutdown: bool,
 }
+
 #[allow(dead_code)]
 impl Revision {
     pub fn new_default() -> Self {
@@ -21,9 +22,6 @@ impl Revision {
     }
 
     pub fn new_with_shutdown(string: String, shutdown: bool) -> Self {
-        Revision {
-            string,
-            shutdown,
-        }
+        Revision { string, shutdown }
     }
 }

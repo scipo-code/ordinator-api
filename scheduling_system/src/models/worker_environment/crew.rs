@@ -10,10 +10,7 @@ pub struct Crew {
 
 impl Crew {
     pub fn new(workers: Option<HashMap<u32, Worker>>) -> Option<Self> {
-        match workers {
-            Some(workers) => Some(Crew { workers }),
-            None => None,
-        }
+        workers.map(|workers| Crew { workers })
     }
 
     pub fn get_workers(&self) -> &HashMap<u32, Worker> {
