@@ -1,39 +1,81 @@
 use actix::prelude::*;
 use actix_web::Result;
 use actix_web_actors::ws;
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::Mutex;
 use tracing::info;
 
+use crate::agents::operational_agent::OperationalAgent;
 use crate::agents::strategic_agent::strategic_message::LoadingMessage;
 use crate::agents::strategic_agent::strategic_message::OverviewMessage;
 use crate::agents::strategic_agent::strategic_message::PeriodMessage;
 use crate::agents::strategic_agent::strategic_message::SetAgentAddrMessage;
 use crate::agents::strategic_agent::StrategicAgent;
+use crate::agents::supervisor_agent::SupervisorAgent;
 use crate::agents::tactical_agent::TacticalAgent;
+use crate::init::agent_factory;
+use crate::init::agent_factory::AgentFactory;
+use crate::models::SchedulingEnvironment;
 use shared_messages::SystemMessages;
 
-pub struct WebSocketAgent {
-    strategic_agent_addr: Arc<Addr<StrategicAgent>>,
-    tactical_agent_addr: Arc<Addr<TacticalAgent>>,
+pub struct OrchestratorAgent {
+    scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
+    agent_factory: AgentFactory,
+    agent_registry: ActorRegistry,
 }
 
-impl Actor for WebSocketAgent {
+impl Actor for OrchestratorAgent {
     type Context = ws::WebsocketContext<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
         info!("WebSocketAgent is alive");
         let ws_addr = ctx.address();
-        self.strategic_agent_addr.do_send(SetAgentAddrMessage {
-            addr: ws_addr.clone(),
-        });
 
-        self.tactical_agent_addr.do_send(SetAgentAddrMessage {
-            addr: ws_addr.clone(),
-        });
+        self.agent_registry
+            .strategic_agent_addr
+            .do_send(SetAgentAddrMessage {
+                addr: ws_addr.clone(),
+            });
+
+        self.agent_registry
+            .tactical_agent_addr
+            .do_send(SetAgentAddrMessage {
+                addr: ws_addr.clone(),
+            });
     }
 }
 
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
+struct ActorRegistry {
+    strategic_agent_addr: Addr<StrategicAgent>,
+    tactical_agent_addr: Addr<TacticalAgent>,
+    supervisor_agent_addrs: HashMap<String, Addr<SupervisorAgent>>,
+    operational_agent_addrs: HashMap<String, Addr<OperationalAgent>>,
+}
+
+impl ActorRegistry {
+    fn new(
+        strategic_agent_addr: Addr<StrategicAgent>,
+        tactical_agent_addr: Addr<TacticalAgent>,
+    ) -> Self {
+        ActorRegistry {
+            strategic_agent_addr,
+            tactical_agent_addr,
+            supervisor_agent_addrs: HashMap::new(),
+            operational_agent_addrs: HashMap::new(),
+        }
+    }
+
+    fn add_supervisor_agent(&mut self, name: String, addr: Addr<SupervisorAgent>) {
+        self.supervisor_agent_addrs.insert(name, addr);
+    }
+
+    fn add_operational_agent(&mut self, name: String, addr: Addr<OperationalAgent>) {
+        self.operational_agent_addrs.insert(name, addr);
+    }
+}
+
+impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for OrchestratorAgent {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
@@ -42,18 +84,25 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
                     serde_json::from_str(&text);
                 match msg_type {
                     Ok(SystemMessages::Status(status_input)) => {
-                        self.strategic_agent_addr.do_send(status_input);
+                        self.agent_registry
+                            .strategic_agent_addr
+                            .do_send(status_input);
                     }
                     Ok(SystemMessages::Strategic(strategic_request)) => {
                         info!(scheduler_front_end_message = %strategic_request, "SchedulerAgent received SchedulerMessage");
-                        self.strategic_agent_addr.do_send(strategic_request);
+                        self.agent_registry
+                            .strategic_agent_addr
+                            .do_send(strategic_request);
 
                         let addr = ctx.address();
-                        self.strategic_agent_addr
+                        self.agent_registry
+                            .strategic_agent_addr
                             .do_send(SetAgentAddrMessage { addr });
                     }
                     Ok(SystemMessages::Tactical(tactical_request)) => {
-                        self.tactical_agent_addr.do_send(tactical_request);
+                        self.agent_registry
+                            .tactical_agent_addr
+                            .do_send(tactical_request);
                         println!("WorkPlannerAgent received WorkPlannerMessage");
                     }
                     Ok(SystemMessages::Operational) => {
@@ -70,14 +119,18 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocketAgent {
     }
 }
 
-impl WebSocketAgent {
-    pub fn new(
-        strategic_agent_addr: Arc<Addr<StrategicAgent>>,
-        tactical_agent_addr: Arc<Addr<TacticalAgent>>,
-    ) -> Self {
-        WebSocketAgent {
-            strategic_agent_addr,
-            tactical_agent_addr,
+impl OrchestratorAgent {
+    pub fn new(scheduling_environment: Arc<Mutex<SchedulingEnvironment>>) -> Self {
+        let agent_factory = agent_factory::AgentFactory::new(scheduling_environment.clone());
+
+        let strategic_agent_addr = agent_factory.build_strategic_agent();
+
+        let tactical_agent_addr = agent_factory.build_tactical_agent();
+
+        OrchestratorAgent {
+            scheduling_environment,
+            agent_factory,
+            agent_registry: ActorRegistry::new(strategic_agent_addr, tactical_agent_addr),
         }
     }
 }
@@ -95,7 +148,7 @@ impl WebSocketAgent {
 /// I would like it that the SchedulingEnvironment is not an Actor. But is accessed concurrently by
 /// the Actors themselves. The question is whether it is possible to handle the state change in a
 /// good way for the Actors? Does it go against the Actor model? I am not sure. I think it is
-impl Handler<OverviewMessage> for WebSocketAgent {
+impl Handler<OverviewMessage> for OrchestratorAgent {
     type Result = ();
 
     fn handle(&mut self, msg: OverviewMessage, ctx: &mut Self::Context) -> Self::Result {
@@ -108,7 +161,7 @@ impl Handler<OverviewMessage> for WebSocketAgent {
     }
 }
 
-impl Handler<LoadingMessage> for WebSocketAgent {
+impl Handler<LoadingMessage> for OrchestratorAgent {
     type Result = ();
 
     fn handle(&mut self, msg: LoadingMessage, ctx: &mut Self::Context) -> Self::Result {
@@ -119,7 +172,7 @@ impl Handler<LoadingMessage> for WebSocketAgent {
     }
 }
 
-impl Handler<PeriodMessage> for WebSocketAgent {
+impl Handler<PeriodMessage> for OrchestratorAgent {
     type Result = ();
 
     fn handle(&mut self, msg: PeriodMessage, ctx: &mut Self::Context) -> Self::Result {
@@ -130,7 +183,7 @@ impl Handler<PeriodMessage> for WebSocketAgent {
     }
 }
 
-impl Handler<shared_messages::Response> for WebSocketAgent {
+impl Handler<shared_messages::Response> for OrchestratorAgent {
     type Result = ();
 
     fn handle(
@@ -146,75 +199,4 @@ impl Handler<shared_messages::Response> for WebSocketAgent {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::agents::strategic_agent::strategic_algorithm::AlgorithmResources;
-    use crate::agents::strategic_agent::strategic_algorithm::OptimizedWorkOrders;
-    use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
-    use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
-    use crate::agents::strategic_agent::StrategicAgent;
-    use crate::models::SchedulingEnvironment;
-    use chrono::{DateTime, Utc};
-    use shared_messages::strategic::StrategicRequest;
-    use std::collections::HashMap;
-    use std::sync::Mutex;
-
-    use crate::models::time_environment::period::Period;
-    use std::fs;
-
-    #[actix_rt::test]
-    async fn test_websocket_agent() {
-        let start_date_str = "2023-10-23T12:00:00Z";
-        let start_date: DateTime<Utc> = start_date_str
-            .parse()
-            .expect("test of start day string failed");
-
-        let end_date: DateTime<Utc> = start_date + chrono::Duration::days(14);
-
-        let periods = vec![Period::new(1, start_date, end_date)];
-
-        let optimized_work_orders: OptimizedWorkOrders = OptimizedWorkOrders::new(HashMap::new());
-
-        let scheduler_agent_addr = StrategicAgent::new(
-            "test".to_string(),
-            Arc::new(Mutex::new(SchedulingEnvironment::default())),
-            StrategicAlgorithm::new(
-                0.0,
-                AlgorithmResources::default(),
-                AlgorithmResources::default(),
-                PriorityQueues::new(),
-                optimized_work_orders,
-                periods,
-                true,
-            ),
-            None,
-            None,
-        )
-        .start();
-
-        let tactical_agent_addr = TacticalAgent::new(
-            1,
-            Arc::new(Mutex::new(SchedulingEnvironment::default())),
-            None,
-        )
-        .start();
-
-        let _ws_agent = WebSocketAgent::new(
-            Arc::new(scheduler_agent_addr.clone()),
-            Arc::new(tactical_agent_addr),
-        );
-
-        // let mut ws_agent_addr = ws_agent.start();
-    }
-
-    #[test]
-    fn test_scheduler_input() {
-        let json_message =
-            fs::read_to_string("tests/unit_testing/frontend_scheduler.json").unwrap();
-
-        let scheduler_input: StrategicRequest = serde_json::from_str(&json_message).unwrap();
-
-        // How can this deserialization be tested? I am not sure. I know that the message is the
-        // correct one but that it is not deserialized correctly.
-    }
-}
+mod tests {}

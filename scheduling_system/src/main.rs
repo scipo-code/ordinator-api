@@ -6,8 +6,8 @@ mod models;
 
 use std::sync::{Arc, Mutex};
 
-use crate::init::application_builder::ApplicationBuilder;
 use crate::init::logging;
+use crate::init::ordinator_builder::OrdinatorBuilder;
 
 #[actix_web::main]
 async fn main() -> () {
@@ -17,15 +17,9 @@ async fn main() -> () {
         init::model_initializers::initialize_scheduling_environment(52),
     ));
 
-    let scheduler_agent_addr =
-        init::agent_factory::build_scheduler_agent(Arc::clone(&scheduling_environment));
+    let agent_factory = init::agent_factory::AgentFactory::new(Arc::clone(&scheduling_environment));
 
-    let tactical_agent_addr =
-        init::agent_factory::build_tactical_agent(Arc::clone(&scheduling_environment));
-
-    let application_builder = ApplicationBuilder::new()
-        .with_scheduler_agent(scheduler_agent_addr)
-        .with_tactical_agent(tactical_agent_addr)
+    let application_builder = OrdinatorBuilder::new(scheduling_environment, agent_factory)
         .build()
         .await;
 

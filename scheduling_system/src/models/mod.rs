@@ -6,7 +6,7 @@ use actix::prelude::*;
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::api::websocket_agent::WebSocketAgent;
+use crate::api::orchestrator_agent::OrchestratorAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::WorkOrder;
 use crate::models::worker_environment::WorkerEnvironment;
@@ -15,7 +15,7 @@ pub struct SchedulingEnvironment {
     work_orders: WorkOrders,
     worker_environment: WorkerEnvironment,
     periods: Vec<Period>,
-    web_socket_agent_addr_option: Option<Addr<WebSocketAgent>>,
+    web_socket_agent_addr_option: Option<Addr<OrchestratorAgent>>,
     // material
 }
 
@@ -24,7 +24,7 @@ impl SchedulingEnvironment {
         work_orders: WorkOrders,
         worker_environment: WorkerEnvironment,
         periods: Vec<Period>,
-        web_socket_agent_addr: Option<Addr<WebSocketAgent>>,
+        web_socket_agent_addr: Option<Addr<OrchestratorAgent>>,
     ) -> Self {
         SchedulingEnvironment {
             work_orders,

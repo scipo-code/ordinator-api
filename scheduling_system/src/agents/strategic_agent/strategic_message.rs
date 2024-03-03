@@ -10,7 +10,7 @@ use tokio::time::{sleep, Duration};
 use tracing::{debug, error, info, instrument};
 
 use crate::agents::strategic_agent::{self, StrategicAgent};
-use crate::api::websocket_agent::WebSocketAgent;
+use crate::api::orchestrator_agent::OrchestratorAgent;
 use crate::models::time_environment::period::Period;
 use shared_messages::resources::Resources;
 
@@ -399,12 +399,12 @@ impl Handler<StatusRequest> for StrategicAgent {
     }
 }
 
-impl Handler<SetAgentAddrMessage<WebSocketAgent>> for StrategicAgent {
+impl Handler<SetAgentAddrMessage<OrchestratorAgent>> for StrategicAgent {
     type Result = ();
 
     fn handle(
         &mut self,
-        msg: SetAgentAddrMessage<WebSocketAgent>,
+        msg: SetAgentAddrMessage<OrchestratorAgent>,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
         self.set_ws_agent_addr(msg.addr);

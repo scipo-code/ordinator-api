@@ -1,18 +1,15 @@
-use actix::prelude::*;
 use actix_web::{get, web, HttpRequest, HttpResponse, Responder, Result};
 use actix_web_actors::ws;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use tracing::info;
 
-use crate::agents::strategic_agent::StrategicAgent;
-use crate::agents::tactical_agent::TacticalAgent;
-use crate::api::websocket_agent::WebSocketAgent;
+use crate::api::orchestrator_agent::OrchestratorAgent;
+use crate::models::SchedulingEnvironment;
 
 #[get("/ws")]
 async fn ws_index(
-    strategic_actor_addr: web::Data<Arc<Addr<StrategicAgent>>>,
-    tactical_actor_addr: web::Data<Arc<Addr<TacticalAgent>>>,
+    scheduling_environment: web::Data<Arc<Mutex<SchedulingEnvironment>>>,
     req: HttpRequest,
     stream: web::Payload,
 ) -> Result<HttpResponse> {
@@ -20,10 +17,7 @@ async fn ws_index(
     info!(?current_thread_id, "Setting up ws_index route handler");
 
     let res = ws::start(
-        WebSocketAgent::new(
-            strategic_actor_addr.get_ref().clone(),
-            tactical_actor_addr.get_ref().clone(),
-        ),
+        OrchestratorAgent::new(scheduling_environment.get_ref().clone()),
         &req,
         stream,
     );

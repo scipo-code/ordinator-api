@@ -4,7 +4,7 @@ pub mod strategic_message;
 
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::strategic_agent::strategic_message::ScheduleIteration;
-use crate::api::websocket_agent::WebSocketAgent;
+use crate::api::orchestrator_agent::OrchestratorAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::work_order::priority::Priority;
@@ -25,12 +25,12 @@ pub struct StrategicAgent {
     platform: String,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     scheduler_agent_algorithm: StrategicAlgorithm,
-    ws_addr: Option<Addr<WebSocketAgent>>,
+    ws_addr: Option<Addr<OrchestratorAgent>>,
     work_planner_agent_addr: Option<Addr<TacticalAgent>>,
 }
 
 impl StrategicAgent {
-    pub fn set_ws_agent_addr(&mut self, ws_agent_addr: Addr<WebSocketAgent>) {
+    pub fn set_ws_agent_addr(&mut self, ws_agent_addr: Addr<OrchestratorAgent>) {
         self.ws_addr = Some(ws_agent_addr);
     }
 }
@@ -53,7 +53,7 @@ impl StrategicAgent {
         platform: String,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         scheduler_agent_algorithm: StrategicAlgorithm,
-        ws_agent_addr: Option<Addr<WebSocketAgent>>,
+        ws_agent_addr: Option<Addr<OrchestratorAgent>>,
         work_planner_agent_addr: Option<Addr<TacticalAgent>>,
     ) -> Self {
         Self {
