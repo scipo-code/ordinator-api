@@ -8,17 +8,12 @@ use tracing::{info, trace};
 use crate::api::routes::ws_index;
 use crate::models::SchedulingEnvironment;
 
-use super::agent_factory::AgentFactory;
-
 pub struct OrdinatorBuilder {
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
 }
 
 impl OrdinatorBuilder {
-    pub fn new(
-        scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-        agent_factory: AgentFactory,
-    ) -> Self {
+    pub fn new(scheduling_environment: Arc<Mutex<SchedulingEnvironment>>) -> Self {
         OrdinatorBuilder {
             scheduling_environment,
         }

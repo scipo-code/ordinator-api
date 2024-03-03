@@ -2,11 +2,9 @@ pub mod time_environment;
 pub mod work_order;
 pub mod worker_environment;
 
-use actix::prelude::*;
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::agents::orchestrator_agent::OrchestratorAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::WorkOrder;
 use crate::models::worker_environment::WorkerEnvironment;
@@ -15,7 +13,6 @@ pub struct SchedulingEnvironment {
     work_orders: WorkOrders,
     worker_environment: WorkerEnvironment,
     periods: Vec<Period>,
-    web_socket_agent_addr_option: Option<Addr<OrchestratorAgent>>,
     // material
 }
 
@@ -24,13 +21,11 @@ impl SchedulingEnvironment {
         work_orders: WorkOrders,
         worker_environment: WorkerEnvironment,
         periods: Vec<Period>,
-        web_socket_agent_addr: Option<Addr<OrchestratorAgent>>,
     ) -> Self {
         SchedulingEnvironment {
             work_orders,
             worker_environment,
             periods,
-            web_socket_agent_addr_option: web_socket_agent_addr,
         }
     }
 
@@ -67,11 +62,6 @@ impl SchedulingEnvironment {
     }
 }
 
-enum Assets {
-    DanF,
-    Gorm,
-}
-
 impl Default for SchedulingEnvironment {
     fn default() -> Self {
         SchedulingEnvironment {
@@ -81,9 +71,8 @@ impl Default for SchedulingEnvironment {
                 0,
                 chrono::Utc::now(),
                 chrono::Utc::now() + chrono::Duration::days(14) - chrono::Duration::seconds(1),
-            )],
-            web_socket_agent_addr_option: None,
-        }
+            )]
+                }
     }
 }
 

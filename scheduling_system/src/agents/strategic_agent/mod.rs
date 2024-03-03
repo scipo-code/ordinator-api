@@ -216,9 +216,6 @@ fn transform_hashmap_to_nested_hashmap(
 mod tests {
 
     use chrono::{TimeZone, Utc};
-    use shared_messages::strategic::strategic_periods_message::StrategicPeriodsMessage;
-    use shared_messages::strategic::strategic_resources_message::StrategicResourcesMessage;
-    use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
 
     use super::strategic_algorithm::AlgorithmResources;
     use super::strategic_message::tests::TestRequest;
@@ -241,7 +238,6 @@ mod tests {
         },
     };
     use crate::models::{work_order::*, WorkOrders};
-    use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
 
     #[test]
     fn test_scheduler_agent_initialization() {
@@ -317,12 +313,6 @@ mod tests {
             true,
         );
 
-        let schedule_single_work_order =
-            SingleWorkOrder::new(2200002020, "2023-W47-48".to_string());
-
-        let strategic_scheduling_message =
-            StrategicSchedulingMessage::Schedule(schedule_single_work_order);
-
         let mut manual_resources = HashMap::new();
 
         let mut period_hash_map = HashMap::new();
@@ -331,13 +321,6 @@ mod tests {
         manual_resources.insert(Resources::MtnMech, period_hash_map.clone());
         manual_resources.insert(Resources::MtnElec, period_hash_map.clone());
         manual_resources.insert(Resources::Prodtech, period_hash_map.clone());
-
-        let strategic_resources_message =
-            StrategicResourcesMessage::new_set_resources(manual_resources);
-
-        let strategic_periods_message = StrategicPeriodsMessage {
-            period_lock: HashMap::new(),
-        };
 
         let scheduler_agent = StrategicAgent::new(
             "test".to_string(),
@@ -470,12 +453,8 @@ mod tests {
             true,
         );
 
-        let scheduling_environment = SchedulingEnvironment::new(
-            work_orders,
-            WorkerEnvironment::new(),
-            Vec::<Period>::new(),
-            None,
-        );
+        let scheduling_environment =
+            SchedulingEnvironment::new(work_orders, WorkerEnvironment::new(), Vec::<Period>::new());
 
         let scheduler_agent = StrategicAgent::new(
             "test".to_string(),

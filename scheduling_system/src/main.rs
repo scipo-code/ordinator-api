@@ -17,13 +17,9 @@ async fn main() -> () {
         init::model_initializers::initialize_scheduling_environment(52),
     ));
 
-    let agent_factory = init::agent_factory::AgentFactory::new(Arc::clone(&scheduling_environment));
+    let ordinator_builder = OrdinatorBuilder::new(scheduling_environment).build().await;
 
-    let application_builder = OrdinatorBuilder::new(scheduling_environment, agent_factory)
-        .build()
-        .await;
-
-    application_builder.await.unwrap();
+    ordinator_builder.await.unwrap();
 }
 
 #[cfg(test)]

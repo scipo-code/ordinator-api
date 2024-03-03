@@ -44,7 +44,7 @@ impl WorkerEnvironment {
     /// will be the default crew.
     pub fn initialize(&mut self) {
         match self.crew {
-            Some(ref mut crew) => {
+            Some(ref mut _crew) => {
                 // for (_, worker) in crew.get_workers().iter_mut() {
                 //     for resource in worker.get_resources().iter() {
                 //         self.work_centers.remove(resource);
