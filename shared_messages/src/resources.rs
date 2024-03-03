@@ -151,6 +151,24 @@ impl Resources {
             Resources::QaqcPain => "QAQCPAIN".to_string(),
         }
     }
+
+    pub fn is_ven_variant(&self) -> bool {
+        matches!(
+            self,
+            Resources::VenAcco
+                | Resources::VenComm
+                | Resources::VenCran
+                | Resources::VenElec
+                | Resources::VenHvac
+                | Resources::VenInsp
+                | Resources::VenInst
+                | Resources::VenMech
+                | Resources::VenMete
+                | Resources::VenRope
+                | Resources::VenScaf
+                | Resources::VenSubs
+        )
+    }
 }
 
 impl Display for Resources {

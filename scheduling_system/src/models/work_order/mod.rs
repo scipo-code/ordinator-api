@@ -34,6 +34,8 @@ use crate::models::work_order::{
 
 use shared_messages::resources::Resources;
 
+use super::time_environment::period::Period;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrder {
     order_number: u32,
@@ -122,8 +124,8 @@ impl WorkOrder {
         &self.order_text
     }
 
-    pub fn get_order_dates(&self) -> &OrderDates {
-        &self.order_dates
+    pub fn get_order_dates(&mut self) -> &mut OrderDates {
+        &mut self.order_dates
     }
 
     pub fn get_status_codes(&self) -> &StatusCodes {
@@ -154,7 +156,7 @@ impl WorkOrder {
         self.order_weight
     }
 
-    pub fn get_vendor(&self) -> bool {
+    pub fn is_vendor(&self) -> bool {
         self.vendor
     }
 }
@@ -182,9 +184,11 @@ impl WeightParam {
 }
 
 impl WorkOrder {
-    pub fn initialize(&mut self) {
+    pub fn initialize(&mut self, periods: &Vec<Period>) {
         self.initialize_weight();
         self.initialize_work_load();
+        self.initialize_vendor();
+        self.initialize_material(periods);
         // TODO : Other fields
     }
 
@@ -248,8 +252,9 @@ impl WorkOrder {
                         parameters.wpm_priority_map["D"] * parameters.order_type_weights["WPM"]
                 }
             },
+            WorkOrderType::Wro(_) => (),
             WorkOrderType::Other => self.order_weight += parameters.order_type_weights["Other"],
-        }
+        };
 
         if self.status_codes.awsc {
             self.order_weight += parameters.status_weights["AWSC"];
@@ -278,6 +283,37 @@ impl WorkOrder {
         }
 
         self.work_load = work_load;
+    }
+
+    pub fn initialize_vendor(&mut self) {
+        let work_load = self.work_load.clone();
+        self.vendor = work_load
+            .iter()
+            .any(|(resource, _)| resource.is_ven_variant())
+    }
+
+    /// This method determines that earliest allow start date and period for the work order. This is
+    /// a maximum of the material status and the earliest start period of the operations.
+    /// TODO : A stance will have to be taken on the VEN, SHUTDOWN, and SUBNETWORKS.
+    fn initialize_material(&mut self, periods: &[Period]) {
+        match self.get_status_codes().material_status {
+            MaterialStatus::Nmat => {
+                self.get_order_dates().earliest_allowed_start_period = periods[0].clone();
+            }
+            MaterialStatus::Smat => {
+                self.get_order_dates().earliest_allowed_start_period = periods[0].clone();
+            }
+            MaterialStatus::Cmat => {
+                self.get_order_dates().earliest_allowed_start_period = periods[2].clone();
+            }
+            MaterialStatus::Pmat => {
+                self.get_order_dates().earliest_allowed_start_period = periods[3].clone();
+            }
+            MaterialStatus::Wmat => {
+                self.get_order_dates().earliest_allowed_start_period = periods[3].clone();
+            }
+            MaterialStatus::Unknown => {}
+        }
     }
 }
 

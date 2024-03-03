@@ -5,12 +5,14 @@ use std::sync::Arc;
 use std::thread;
 use tracing::info;
 
-use crate::agents::scheduler_agent::StrategicAgent;
+use crate::agents::strategic_agent::StrategicAgent;
+use crate::agents::tactical_agent::TacticalAgent;
 use crate::api::websocket_agent::WebSocketAgent;
 
 #[get("/ws")]
 async fn ws_index(
-    sche_actor_addr: web::Data<Arc<Addr<StrategicAgent>>>,
+    strategic_actor_addr: web::Data<Arc<Addr<StrategicAgent>>>,
+    tactical_actor_addr: web::Data<Arc<Addr<TacticalAgent>>>,
     req: HttpRequest,
     stream: web::Payload,
 ) -> Result<HttpResponse> {
@@ -18,7 +20,10 @@ async fn ws_index(
     info!(?current_thread_id, "Setting up ws_index route handler");
 
     let res = ws::start(
-        WebSocketAgent::new(sche_actor_addr.get_ref().clone()),
+        WebSocketAgent::new(
+            strategic_actor_addr.get_ref().clone(),
+            tactical_actor_addr.get_ref().clone(),
+        ),
         &req,
         stream,
     );

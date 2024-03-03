@@ -1,19 +1,21 @@
 pub mod resources;
 pub mod status;
 pub mod strategic;
+pub mod tactical;
 
 use actix::prelude::*;
 use serde::{Deserialize, Serialize};
 use status::StatusRequest;
 
 use crate::strategic::StrategicRequest;
+use crate::tactical::TacticalRequest;
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "message_type")]
 pub enum SystemMessages {
     Status(StatusRequest),
     Strategic(StrategicRequest),
-    Tactical,
+    Tactical(TacticalRequest),
     Operational,
 }
 

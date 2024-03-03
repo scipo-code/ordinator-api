@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use crate::agents::scheduler_agent::scheduler_algorithm::OptimizedWorkOrders;
-use crate::agents::scheduler_agent::scheduler_algorithm::PriorityQueues;
-use crate::agents::scheduler_agent::scheduler_algorithm::SchedulerAgentAlgorithm;
-use crate::agents::scheduler_agent::scheduler_algorithm::{AlgorithmResources, OptimizedWorkOrder};
-use crate::agents::scheduler_agent::StrategicAgent;
+use crate::agents::strategic_agent::strategic_algorithm::OptimizedWorkOrders;
+use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
+use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
+use crate::agents::strategic_agent::strategic_algorithm::{AlgorithmResources, OptimizedWorkOrder};
+use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::tactical_agent::TacticalAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::SchedulingEnvironment;
@@ -19,10 +19,10 @@ use shared_messages::resources::Resources;
 pub fn build_scheduler_agent(
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
 ) -> Addr<StrategicAgent> {
-    let cloned_work_orders = scheduling_environment.lock().unwrap().clone_work_orders();
+    let mut cloned_work_orders = scheduling_environment.lock().unwrap().clone_work_orders();
     let cloned_periods = scheduling_environment.lock().unwrap().clone_periods();
     let optimized_work_orders: OptimizedWorkOrders =
-        create_optimized_work_orders(&cloned_work_orders, &cloned_periods);
+        create_optimized_work_orders(&mut cloned_work_orders, &cloned_periods);
 
     // The periods should really not be where it is here. It should be in the SchedulingEnvironment.
     // What is the problem? The problem is that we would either need to clone the periods or
@@ -59,7 +59,7 @@ pub fn build_scheduler_agent(
 
     let locked_scheduling_environment = scheduling_environment.lock().unwrap();
 
-    let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+    let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
         0.0,
         AlgorithmResources::new(initialize_manual_resources(
             &locked_scheduling_environment,
@@ -100,13 +100,35 @@ pub fn build_tactical_agent(
 /// This function should be used by the scheduling environment. It should not be used by the
 /// algorithm itself.
 fn create_optimized_work_orders(
-    work_orders: &WorkOrders,
+    work_orders: &mut WorkOrders,
     periods: &[Period],
 ) -> OptimizedWorkOrders {
     let mut optimized_work_orders: HashMap<u32, OptimizedWorkOrder> = HashMap::new();
 
     let last_period = periods.last();
-    for (work_order_number, work_order) in &work_orders.inner {
+    for (work_order_number, work_order) in &mut work_orders.inner {
+        let mut excluded_periods: HashSet<Period> = HashSet::new();
+
+        for period in periods.iter() {
+            if period < &work_order.get_order_dates().earliest_allowed_start_period {
+                excluded_periods.insert(period.clone());
+            }
+        }
+
+        if work_order.is_vendor() {
+            optimized_work_orders.insert(
+                *work_order_number,
+                OptimizedWorkOrder::new(
+                    periods.last().cloned(),
+                    periods.last().cloned(),
+                    excluded_periods.clone(),
+                    None,
+                    work_order.get_order_weight(),
+                    work_order.get_work_load().clone(),
+                ),
+            );
+        }
+
         if work_order.get_unloading_point().present {
             let period = work_order.get_unloading_point().period.clone();
             optimized_work_orders.insert(
@@ -114,30 +136,30 @@ fn create_optimized_work_orders(
                 OptimizedWorkOrder::new(
                     period.clone(),
                     period,
-                    HashSet::new(),
+                    excluded_periods.clone(),
                     None,
                     work_order.get_order_weight(),
                     work_order.get_work_load().clone(),
                 ),
             );
-        } else {
-            optimized_work_orders.insert(
-                *work_order_number,
-                OptimizedWorkOrder::new(
-                    last_period.cloned(),
-                    None,
-                    HashSet::new(),
-                    Some(
-                        work_order
-                            .get_order_dates()
-                            .latest_allowed_finish_period
-                            .clone(),
-                    ),
-                    work_order.get_order_weight(),
-                    work_order.get_work_load().clone(),
-                ),
-            );
+            continue;
         }
+        optimized_work_orders.insert(
+            *work_order_number,
+            OptimizedWorkOrder::new(
+                last_period.cloned(),
+                None,
+                excluded_periods,
+                Some(
+                    work_order
+                        .get_order_dates()
+                        .latest_allowed_finish_period
+                        .clone(),
+                ),
+                work_order.get_order_weight(),
+                work_order.get_work_load().clone(),
+            ),
+        );
     }
     OptimizedWorkOrders::new(optimized_work_orders)
 }

@@ -21,6 +21,7 @@ pub struct Operation {
 }
 
 impl Operation {
+    #[allow(dead_code)]
     pub fn new(
         activity: u32,
         number: u32,

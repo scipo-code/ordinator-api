@@ -5,6 +5,7 @@ pub enum WorkOrderType {
     Wdf(WDFPriority),
     Wgn(WGNPriority),
     Wpm(WPMPriority),
+    Wro(WROPriority),
     Other,
 }
 
@@ -22,12 +23,33 @@ pub enum WGNPriority {
     Three,
     Four,
 }
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub enum WROPriority {
+    One,
+    Two,
+    Three,
+    Four,
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum WPMPriority {
     A,
     B,
     C,
     D,
+}
+
+impl WorkOrderType {
+    pub fn get_type_string(&self) -> String {
+        match self {
+            WorkOrderType::Wdf(_) => "WDF".to_owned(),
+            WorkOrderType::Wgn(_) => "WGN".to_owned(),
+            WorkOrderType::Wpm(_) => "WPM".to_owned(),
+            WorkOrderType::Wro(_) => "WRO".to_owned(),
+            WorkOrderType::Other => "Other".to_owned(),
+        }
+    }
 }
 
 impl WDFPriority {

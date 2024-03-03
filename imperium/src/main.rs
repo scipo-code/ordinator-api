@@ -7,6 +7,7 @@ use shared_messages::strategic::strategic_status_message::StrategicStatusMessage
 use shared_messages::strategic::{
     strategic_scheduling_message::StrategicSchedulingMessage, StrategicRequest,
 };
+use shared_messages::tactical::TacticalRequest;
 use shared_messages::SystemMessages;
 use std::collections::HashMap;
 use std::net::TcpStream;
@@ -34,9 +35,18 @@ enum Commands {
         subcommand: Option<StrategicSubcommands>,
     },
     /// Access the tactical agent
-    Tactical {},
+    Tactical {
+        #[clap(subcommand)]
+        tactical_commands: Option<TacticalSubcommands>,
+    },
     /// Access the opertional agents
     Operational,
+
+    /// Access the SAP integration (Requires user authorization)
+    Sap {
+        #[clap(subcommand)]
+        subcommand: Option<SapSubcommands>,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -75,6 +85,7 @@ enum ResourcesSubcommands {
         select_resources: Option<Vec<String>>,
     },
 
+    /// Get the capacity of the resources
     Capacity {
         periods_end: String,
         select_resources: Option<Vec<String>>,
@@ -87,11 +98,9 @@ enum ResourcesSubcommands {
         capacity: u32,
     },
 
-    SetCapacityPolicy {
-        resource: String,
-        capacity: u32,
-    },
-
+    /// Set the capacity policy of a resource (used for operation)
+    SetCapacityPolicy { resource: String, capacity: u32 },
+    /// Set the capacity policy to default (used for testing)
     SetCapacityPolicyDefault,
 }
 
@@ -110,6 +119,28 @@ enum SchedulingSubcommands {
     /// Exclude a work order from a period
     Exclude { work_order: u32, period: String },
 }
+#[derive(Subcommand, Debug)]
+enum TacticalSubcommands {
+    /// Get the status of the tactical agent
+    Status,
+    /// Get the objectives of the tactical agent
+    Objectives,
+}
+
+#[derive(Subcommand, Debug)]
+enum SapSubcommands {
+    /// Extract scheduling relevant data from SAP (requires user authorization)
+    ExtractFromSap,
+
+    /// Push the 4M+ (strategic) optimized data to SAP (requires user authorization)
+    PushStrategicToSap,
+
+    /// Push the 5W (tactical) optimized data to SAP (requires user authorization)
+    PushTacticalToSap,
+
+    /// Access the 2WF (operational) opmized data (requires user authorization)
+    Operational,
+}
 
 #[derive(Debug, Args)]
 struct WorkOrderSchedule {
@@ -127,7 +158,10 @@ fn main() {
     match message_sent {
         Some(_) => {
             let response: Message = socket.read().expect("Failed to read message");
-            let formatted_response = response.to_string().replace("\\n", "\n").replace('\"', "");
+            let formatted_response = response
+                .to_string()
+                .replace("\\n", "\n")
+                .replace(['\"', '\\'], "");
 
             println!("{}", formatted_response);
         }
@@ -154,6 +188,8 @@ impl Commands {
         let front_end_message = SystemMessages::Strategic(scheduler_request);
 
         let scheduler_request_json = serde_json::to_string(&front_end_message).unwrap();
+        println!("{}", scheduler_request_json);
+
         socket
             .send(Message::Text(scheduler_request_json))
             .expect("Failed to send a message");
@@ -184,12 +220,14 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                 let front_end_message = SystemMessages::Status(environment_status_message);
                 let status_request_json = serde_json::to_string(&front_end_message).unwrap();
 
+                println!("{}", status_request_json.clone());
                 socket.send(Message::Text(status_request_json)).unwrap();
             }
             Some(StatusSchedulingEnvironment::Periods) => {
                 let environment_status_message = StatusRequest::GetPeriods;
                 let front_end_message = SystemMessages::Status(environment_status_message);
                 let status_request_json = serde_json::to_string(&front_end_message).unwrap();
+                println!("{}", status_request_json);
 
                 socket.send(Message::Text(status_request_json)).unwrap();
             }
@@ -240,10 +278,10 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
 
                         let scheduler_request_json =
                             serde_json::to_string(&front_end_message).unwrap();
-
+                        println!("{}", scheduler_request_json);
                         socket.send(Message::Text(scheduler_request_json)).unwrap();
                     }
-                    Some(SchedulingSubcommands::PeriodLock { period }) => {
+                    Some(SchedulingSubcommands::PeriodLock { period: _ }) => {
                         todo!()
                     }
                     Some(SchedulingSubcommands::Exclude { work_order, period }) => {
@@ -333,13 +371,16 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                     }
 
                     Some(ResourcesSubcommands::SetCapacity {
-                        resource,
-                        period,
-                        capacity,
+                        resource: _,
+                        period: _,
+                        capacity: _,
                     }) => {
                         todo!()
                     }
-                    Some(ResourcesSubcommands::SetCapacityPolicy { resource, capacity }) => {
+                    Some(ResourcesSubcommands::SetCapacityPolicy {
+                        resource: _,
+                        capacity: _,
+                    }) => {
                         todo!()
                     }
                     Some(ResourcesSubcommands::SetCapacityPolicyDefault) => {
@@ -367,12 +408,50 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                 // get_objectives(&mut socket);
             }
         },
-        Some(Commands::Tactical {}) => {
-            println!("Tactical");
-        }
+        Some(Commands::Tactical { tactical_commands }) => match tactical_commands {
+            Some(TacticalSubcommands::Status) => {
+                let tactical_status_message = SystemMessages::Tactical(TacticalRequest::Status);
+                let tactical_request_json =
+                    serde_json::to_string(&tactical_status_message).unwrap();
+                println!("Tactical");
+                socket.send(Message::Text(tactical_request_json)).unwrap();
+            }
+            Some(TacticalSubcommands::Objectives) => {
+                todo!()
+            }
+            None => {
+                todo!()
+            }
+        },
         Some(Commands::Operational) => {
             println!("Operational");
         }
+        Some(Commands::Sap {
+            subcommand: sap_commands,
+        }) => match sap_commands {
+            Some(SapSubcommands::ExtractFromSap) => {
+                let url = "https://help.sap.com/docs/SAP_BUSINESSOBJECTS_BUSINESS_INTELLIGENCE_PLATFORM/9029a149a3314dadb8418a2b4ada9bb8/099046a701cb4014b20123ae31320959.html"; // Replace with the actual SAP authorization URL
+
+                if webbrowser::open(url).is_ok() {
+                    println!("Opened {} in the default web browser.", url);
+                } else {
+                    // There was an error opening the URL
+                    println!("Failed to open {}.", url);
+                }
+            }
+            Some(SapSubcommands::PushStrategicToSap) => {
+                todo!()
+            }
+            Some(SapSubcommands::PushTacticalToSap) => {
+                todo!()
+            }
+            Some(SapSubcommands::Operational) => {
+                todo!()
+            }
+            None => {
+                todo!()
+            }
+        },
         None => return None,
     }
     Some("Message sent".to_string())
