@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
 
-use crate::agents::scheduler_agent::StrategicAgent;
+use crate::agents::strategic_agent::StrategicAgent;
 
 impl Display for StrategicAgent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -13,7 +13,7 @@ impl Display for StrategicAgent {
             Platform: {}, \n
             SchedulerAgentAlgorithm: {:?}, \n
             WebSocketAgent Addr: {:?}",
-            self.platform, self.scheduler_agent_algorithm, self.ws_agent_addr
+            self.platform, self.scheduler_agent_algorithm, self.ws_addr
         )
     }
 }

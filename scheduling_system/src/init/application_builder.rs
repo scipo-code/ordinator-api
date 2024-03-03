@@ -5,26 +5,35 @@ use std::{sync::Arc, thread};
 use tokio::task::JoinHandle;
 use tracing::{info, trace};
 
-use crate::{agents::scheduler_agent::StrategicAgent, api::routes::ws_index};
+use crate::agents::tactical_agent::TacticalAgent;
+use crate::{agents::strategic_agent::StrategicAgent, api::routes::ws_index};
 
 pub struct ApplicationBuilder {
     scheduler_agent_addr: Option<Addr<StrategicAgent>>,
+    tactical_agent_addr: Option<Addr<TacticalAgent>>,
 }
 
 impl ApplicationBuilder {
     pub fn new() -> Self {
         ApplicationBuilder {
             scheduler_agent_addr: None,
+            tactical_agent_addr: None,
         }
     }
 
-    pub fn with_scheduler_agent(mut self, addr: Addr<StrategicAgent>) -> Self {
-        self.scheduler_agent_addr = Some(addr);
+    pub fn with_scheduler_agent(mut self, scheduler_agent_addr: Addr<StrategicAgent>) -> Self {
+        self.scheduler_agent_addr = Some(scheduler_agent_addr);
+        self
+    }
+
+    pub fn with_tactical_agent(mut self, tactical_agent_addr: Addr<TacticalAgent>) -> Self {
+        self.tactical_agent_addr = Some(tactical_agent_addr);
         self
     }
 
     pub async fn build(self) -> JoinHandle<()> {
         let scheduler_agent_addr_clone = self.scheduler_agent_addr.clone();
+        let tactical_agent_addr_clone = self.tactical_agent_addr.clone();
         tokio::spawn(async move {
             info!("Server running at http://127.0.0.1:8001/");
             HttpServer::new(move || {
@@ -34,6 +43,10 @@ impl ApplicationBuilder {
 
                 if let Some(scheduler_agent_addr) = &scheduler_agent_addr_clone {
                     app = app.app_data(Data::new(Arc::new(scheduler_agent_addr.clone())))
+                }
+
+                if let Some(tactical_agent_addr) = &tactical_agent_addr_clone {
+                    app = app.app_data(Data::new(Arc::new(tactical_agent_addr.clone())))
                 }
 
                 trace!("about to register routes");

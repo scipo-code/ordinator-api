@@ -14,7 +14,8 @@ use crate::models::time_environment::period::{Period};
 use shared_messages::resources::Resources;
 
 #[derive(Debug, Clone)]
-pub struct SchedulerAgentAlgorithm {
+
+pub struct StrategicAlgorithm {
     objective_value: f64,
     resources_capacity: AlgorithmResources,
     resources_loading: AlgorithmResources,
@@ -30,8 +31,7 @@ pub struct AlgorithmResources {
 }
 
 impl AlgorithmResources {
-
-
+    
     pub fn new(resources: HashMap<Resources, HashMap<Period, f64>>) -> Self {
         Self {
             inner: resources
@@ -62,7 +62,7 @@ impl AlgorithmResources {
             write!(string, "{:<12}", resource.variant_name()).unwrap();
             for (_, period) in periods.iter().enumerate().take(number_of_periods as usize) {
                 let value = inner_map.get(period).unwrap_or(&0.0);
-                write!(string, "{:>12}", value).ok();
+                write!(string, "{:>12}", value.round()).ok();
             }
             writeln!(string).ok();
         }
@@ -73,17 +73,9 @@ impl AlgorithmResources {
 
 }
 
-impl SchedulerAgentAlgorithm {
+impl StrategicAlgorithm {
     pub fn get_optimized_work_order(&self, work_order_number: &u32) -> Option<&OptimizedWorkOrder> {
         self.optimized_work_orders.inner.get(work_order_number)
-    }
-
-    pub fn changed(&self) -> bool {
-        self.changed
-    }
-
-    pub fn set_changed(&mut self, changed: bool) {
-        self.changed = changed;
     }
 
     pub fn set_periods(&mut self, periods: Vec<Period>) {
@@ -93,6 +85,7 @@ impl SchedulerAgentAlgorithm {
     pub fn get_objective_value(&self) -> f64 {
         self.objective_value
     }
+
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -232,7 +225,7 @@ impl OptimizedWorkOrder {
     }
 }
 
-impl Display for SchedulerAgentAlgorithm {
+impl Display for StrategicAlgorithm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -253,7 +246,7 @@ impl Display for SchedulerAgentAlgorithm {
     }
 }
 
-impl SchedulerAgentAlgorithm {
+impl StrategicAlgorithm {
     pub fn update_resources_state(
         &mut self,
         strategic_resources_message: StrategicResourcesMessage,
@@ -280,7 +273,7 @@ impl SchedulerAgentAlgorithm {
             }
             StrategicResourcesMessage::GetLoadings {
                 periods_end,
-                select_resources,
+                select_resources: _,
             
             } => {
                 
@@ -317,6 +310,10 @@ impl SchedulerAgentAlgorithm {
                         period.get_period_string() == schedule_work_order.get_period_string()
                     })
                     .cloned();
+
+                    dbg!(&schedule_work_order);
+                    dbg!(self.get_optimized_work_order(&schedule_work_order.get_work_order_number()));
+    
                 match period {
                     Some(period) => {
                         self.optimized_work_orders
@@ -436,7 +433,7 @@ impl SchedulerAgentAlgorithm {
 /// better way of handling it. More general. There could be speedups associated with having multiple
 /// priority queues, but I think that it is a bit too early to start thinking about that. Profiling 
 /// should determine the appropriate course of action at that point.
-impl SchedulerAgentAlgorithm {
+impl StrategicAlgorithm {
     pub fn populate_priority_queues(&mut self) {
         for (key, work_order) in self.optimized_work_orders.inner.iter() {
             debug!("Work order {} has been added to the normal queue", key);
@@ -473,7 +470,7 @@ impl PriorityQueues<u32, u32> {
 
 // The backlog should not be in the algorithm, it should be in the agent under the 
 // SchedulingEnvironment. I should remove it immediately 
-impl SchedulerAgentAlgorithm {
+impl StrategicAlgorithm {
     pub fn new(
         objective_value: f64,
         resources_capacity: AlgorithmResources,
@@ -483,7 +480,7 @@ impl SchedulerAgentAlgorithm {
         periods: Vec<Period>,
         changed: bool,
     ) -> Self {
-        SchedulerAgentAlgorithm {
+        StrategicAlgorithm {
             objective_value,
             resources_capacity,
             resources_loading,
@@ -533,8 +530,8 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::{
-        agents::scheduler_agent::scheduler_algorithm::{
-            OptimizedWorkOrders, PriorityQueues, SchedulerAgentAlgorithm,
+        agents::strategic_agent::strategic_algorithm::{
+            OptimizedWorkOrders, PriorityQueues, StrategicAlgorithm,
         },
         models::{
             work_order::{
@@ -611,7 +608,7 @@ mod tests {
             inner: manual_resource_capacity.clone(),
         };
 
-        let mut scheduler_agent_algorithm = SchedulerAgentAlgorithm::new(
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             resource_capacity,
             AlgorithmResources::default(),

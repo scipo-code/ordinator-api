@@ -2,6 +2,7 @@ use actix::Message;
 use std::env;
 use tracing::{event, Level};
 use tracing_flame::FlameLayer;
+use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::fmt::{self};
 use tracing_subscriber::prelude::*;
 
@@ -26,6 +27,7 @@ pub fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
     tracing_subscriber::registry()
         .with(flame_layer)
         .with(subscriber)
+        .with(EnvFilter::from_default_env())
         .init();
 
     event!(Level::INFO, "starting loging");

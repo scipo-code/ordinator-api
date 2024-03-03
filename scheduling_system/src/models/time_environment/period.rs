@@ -145,8 +145,6 @@ mod tests {
         // Perform the addition
         let new_period = period + duration_to_add;
 
-        dbg!(new_period.clone().get_start_date());
-        dbg!(new_period.clone().get_end_date());
         // Assert that the new period has the expected values
         assert_eq!(new_period.id, initial_id + 1);
         assert_eq!(new_period.start_date, initial_start_date + duration_to_add);
@@ -246,8 +244,6 @@ mod tests {
             period.get_end_date() + Duration::weeks(2),
         );
 
-        dbg!(new_period.clone().get_start_date().year());
-        dbg!(new_period.clone().get_start_date());
 
         assert_eq!(new_period.period_string, "2025-W1-2".to_string());
     }

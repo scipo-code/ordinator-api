@@ -1,4 +1,4 @@
-use calamine::{open_workbook, DataType, Error, Reader, Xlsx};
+use calamine::{Data, Error, Reader, Xlsx};
 use core::fmt;
 use regex::Regex;
 use std::collections::HashMap;
@@ -11,8 +11,8 @@ use crate::models::work_order::system_condition::SystemCondition;
 use crate::models::work_order::functional_location::FunctionalLocation;
 use crate::models::work_order::order_dates::OrderDates;
 use crate::models::work_order::order_text::OrderText;
-use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::work_order::order_type::{WDFPriority, WGNPriority, WPMPriority};
+use crate::models::work_order::order_type::{WROPriority, WorkOrderType};
 use crate::models::work_order::priority::Priority;
 use crate::models::work_order::revision::Revision;
 use crate::models::work_order::status_codes::{MaterialStatus, StatusCodes};
@@ -45,13 +45,14 @@ pub fn load_data_file(
     file_path: &Path,
     number_of_periods: u32,
 ) -> Result<SchedulingEnvironment, calamine::Error> {
-    let mut workbook: Xlsx<_> = open_workbook(file_path)?;
+    let mut workbook: Xlsx<_> = calamine::open_workbook(file_path)?;
     println!("Successfully loaded file.");
 
-    let sheet: &calamine::Range<DataType> = &workbook
+    let sheet: &calamine::Range<calamine::Data> = &workbook
         .worksheet_range_at(0)
         .ok_or(calamine::Error::Msg("Cannot find work order sheet"))?
         .expect("Could not load work order sheet.");
+
     let mut work_orders: WorkOrders = WorkOrders::new();
     let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
 
@@ -74,7 +75,7 @@ pub fn load_data_file(
 fn populate_work_orders<'a>(
     work_orders: &'a mut WorkOrders,
     periods: &[Period],
-    sheet: &'a calamine::Range<DataType>,
+    sheet: &'a calamine::Range<calamine::Data>,
 ) -> Result<&'a mut WorkOrders, calamine::Error> {
     let headers: Vec<String> = sheet
         .rows()
@@ -82,7 +83,7 @@ fn populate_work_orders<'a>(
         .ok_or(calamine::Error::Msg("Sheet is empty"))?
         .iter()
         .filter_map(|cell| {
-            if let DataType::String(s) = cell {
+            if let calamine::Data::String(s) = cell {
                 Some(s.clone())
             } else {
                 None
@@ -102,16 +103,16 @@ fn populate_work_orders<'a>(
             if index < row.len() {
                 let value = &row[index];
                 match value {
-                    DataType::String(s) => match s.parse::<u32>() {
+                    calamine::Data::String(s) => match s.parse::<u32>() {
                         Ok(n) => work_order_number = n,
                         Err(e) => {
                             println!("Could not parse work order number as string: {}", e)
                         }
                     },
-                    DataType::Int(s) => work_order_number = *s as u32,
-                    DataType::Float(s) => work_order_number = *s as u32,
+                    calamine::Data::Int(s) => work_order_number = *s as u32,
+                    calamine::Data::Float(s) => work_order_number = *s as u32,
                     _ => {
-                        todo!("Handle other cases of DataType");
+                        todo!("Handle other cases of calamine::Data");
                     }
                 }
             }
@@ -152,11 +153,11 @@ fn populate_work_orders<'a>(
 /// Maybe we should just initialize the operations as empty here and then simply always run the
 /// operation reading on each row! Yes that is the approach that I want to take.
 fn create_new_work_order(
-    row: &[DataType],
+    row: &[calamine::Data],
     header_to_index: &HashMap<String, usize>,
     periods: &[Period],
 ) -> Result<WorkOrder, Error> {
-    let work_order_type_possible_headers = ["Work Order", "Work_Order"];
+    let work_order_type_possible_headers = ["Order Type", "Order_Type"];
 
     let work_order_type_data =
         get_data_from_headers(row, header_to_index, &work_order_type_possible_headers);
@@ -169,14 +170,14 @@ fn create_new_work_order(
         )
         .cloned()
     {
-        Some(DataType::Int(n)) => Priority::IntValue(n as u32),
-        Some(DataType::String(s)) => {
+        Some(calamine::Data::Int(n)) => Priority::IntValue(n as u32),
+        Some(calamine::Data::String(s)) => {
             match s.parse::<u32>() {
                 Ok(num) => Priority::IntValue(num), // If successful, use the integer value
                 Err(_) => Priority::StringValue(s), // If not, fall back to using the string
             }
         }
-        Some(DataType::Float(n)) => Priority::IntValue(n as u32),
+        Some(calamine::Data::Float(n)) => Priority::IntValue(n as u32),
         _ => Priority::StringValue(String::new()),
     };
 
@@ -189,13 +190,13 @@ fn create_new_work_order(
             )
             .cloned()
         {
-            Some(DataType::Int(n)) => n as u32,
-            Some(DataType::Float(n)) => n as u32,
-            Some(DataType::String(s)) => s.parse::<u32>().unwrap_or(0),
+            Some(calamine::Data::Int(n)) => n as u32,
+            Some(calamine::Data::Float(n)) => n as u32,
+            Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(0),
             _ => 0,
         },
         false,
-        0, // TODO: Implement calculate_weight method.
+        0,
         priority.clone(),
         0.0,
         HashMap::<u32, Operation>::new(),
@@ -203,44 +204,7 @@ fn create_new_work_order(
         Vec::<bool>::new(),
         Vec::<bool>::new(),
         Vec::<DateTime<Utc>>::new(),
-        match work_order_type_data.cloned() {
-            Some(DataType::String(work_order_type)) => match work_order_type.as_str() {
-                "WDF" => match &priority {
-                    Priority::IntValue(value) => match value {
-                        1 => Ok(WorkOrderType::Wdf(WDFPriority::One)),
-                        2 => Ok(WorkOrderType::Wdf(WDFPriority::Two)),
-                        3 => Ok(WorkOrderType::Wdf(WDFPriority::Three)),
-                        4 => Ok(WorkOrderType::Wdf(WDFPriority::Four)),
-                        _ => Ok(WorkOrderType::Other),
-                    },
-                    _ => Err(ExcelLoadError("Could not parse WDF priority as int".into())),
-                },
-                "WGN" => match &priority {
-                    Priority::IntValue(value) => match value {
-                        1 => Ok(WorkOrderType::Wgn(WGNPriority::One)),
-                        2 => Ok(WorkOrderType::Wgn(WGNPriority::Two)),
-                        3 => Ok(WorkOrderType::Wgn(WGNPriority::Three)),
-                        4 => Ok(WorkOrderType::Wgn(WGNPriority::Four)),
-                        _ => Ok(WorkOrderType::Other),
-                    },
-                    _ => Err(ExcelLoadError("Could not parse WGN priority as int".into())),
-                },
-                "WPM" => match &priority {
-                    Priority::StringValue(value) => match value.as_str() {
-                        "A" => Ok(WorkOrderType::Wpm(WPMPriority::A)),
-                        "B" => Ok(WorkOrderType::Wpm(WPMPriority::B)),
-                        "C" => Ok(WorkOrderType::Wpm(WPMPriority::C)),
-                        "D" => Ok(WorkOrderType::Wpm(WPMPriority::D)),
-                        _ => Ok(WorkOrderType::Other),
-                    },
-                    _ => Err(ExcelLoadError("Could not parse WPM priority as int".into())),
-                },
-                _ => Ok(WorkOrderType::Other),
-            },
-            None => Ok(WorkOrderType::Other),
-            _ => return Err(Error::Msg("Could not parse revision as string")),
-        }
-        .expect("Could not parse order type"),
+        extract_order_type_and_priority(work_order_type_data, priority),
         SystemCondition::new(),
         extract_status_codes(row, header_to_index).expect("Failed to extract StatusCodes"),
         extract_order_dates(row, header_to_index, periods).expect("Failed to extract OrderDates"),
@@ -255,7 +219,7 @@ fn create_new_work_order(
 }
 
 fn create_new_operation(
-    row: &[DataType],
+    row: &[calamine::Data],
     header_to_index: &HashMap<String, usize>,
 ) -> Result<Operation, Error> {
     let default_future_date = Utc.with_ymd_and_hms(2026, 1, 1, 7, 0, 0).unwrap();
@@ -303,9 +267,9 @@ fn create_new_operation(
             )
             .cloned()
         {
-            Some(DataType::Int(n)) => n as u32,
-            Some(DataType::Float(n)) => n as u32,
-            Some(DataType::String(s)) => s.parse::<u32>().unwrap_or(0),
+            Some(calamine::Data::Int(n)) => n as u32,
+            Some(calamine::Data::Float(n)) => n as u32,
+            Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(0),
             _ => 0,
         },
         number: match row
@@ -316,35 +280,35 @@ fn create_new_operation(
             )
             .cloned()
         {
-            Some(DataType::Int(n)) => n as u32,
-            Some(DataType::Float(n)) => n as u32,
-            Some(DataType::String(s)) => s.parse::<u32>().unwrap_or(0),
+            Some(calamine::Data::Int(n)) => n as u32,
+            Some(calamine::Data::Float(n)) => n as u32,
+            Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(0),
             _ => 0,
         },
         work_center: match work_center_data.cloned() {
-            Some(DataType::String(s)) => Resources::new_from_string(s),
+            Some(calamine::Data::String(s)) => Resources::new_from_string(s),
             _ => return Err(Error::Msg("Could not parse work center as string")),
         },
         preparation_time: 0.0,
         work_remaining: match work_remaining_data.cloned() {
-            Some(DataType::Int(n)) => n as f64,
-            Some(DataType::Float(n)) => n,
-            Some(DataType::String(s)) => s.parse::<f64>().unwrap_or(0.0),
+            Some(calamine::Data::Int(n)) => n as f64,
+            Some(calamine::Data::Float(n)) => n,
+            Some(calamine::Data::String(s)) => s.parse::<f64>().unwrap_or(0.0),
             _ => 100000.0,
         },
         work_performed: match actual_work_data.cloned() {
-            Some(DataType::Int(n)) => n as f64,
-            Some(DataType::Float(n)) => n,
-            Some(DataType::String(s)) => s.parse::<f64>().unwrap_or(0.0),
+            Some(calamine::Data::Int(n)) => n as f64,
+            Some(calamine::Data::Float(n)) => n,
+            Some(calamine::Data::String(s)) => s.parse::<f64>().unwrap_or(0.0),
             _ => 0.0,
         },
         work_adjusted: 0.0,
         operating_time: 0.0,
         duration: match header_to_index.get("Duration") {
             Some(index) => match row.get(*index).cloned() {
-                Some(DataType::Int(n)) => n as u32,
-                Some(DataType::Float(n)) => n as u32,
-                Some(DataType::String(s)) => {
+                Some(calamine::Data::Int(n)) => n as u32,
+                Some(calamine::Data::Float(n)) => n as u32,
+                Some(calamine::Data::String(s)) => {
                     s.parse::<u32>().expect("Duration is not a valid number")
                 }
                 _ => 0,
@@ -355,27 +319,29 @@ fn create_new_operation(
         target_finish: default_future_date,
         earliest_start_datetime: {
             let date = match earliest_start_date_data.cloned() {
-                Some(DataType::String(s)) => parse_date(&s),
-                Some(DataType::DateTime(s)) => {
+                Some(calamine::Data::String(s)) => parse_date(&s),
+                Some(calamine::Data::DateTime(s)) => {
                     let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
-                    let date = start.checked_add_signed(Duration::days(s as i64 - 2));
+                    let date = start.checked_add_signed(Duration::days(s.as_f64() as i64 - 2));
                     date.unwrap()
                 }
                 _ => return Err(Error::Msg("Could not parse Earliest_Start_Date as string")),
             };
 
             let time = match earliest_start_time_data.cloned() {
-                Some(DataType::String(s)) => match NaiveTime::parse_from_str(&s, "%H:%M:%s") {
-                    Ok(naive_date) => naive_date,
-                    Err(_) => {
-                        println!(
-                            "Could not parse earliest_start_time_data from string: {}",
-                            s
-                        );
-                        NaiveTime::from_hms_opt(7, 0, 0).unwrap()
+                Some(calamine::Data::String(s)) => {
+                    match NaiveTime::parse_from_str(&s, "%H:%M:%s") {
+                        Ok(naive_date) => naive_date,
+                        Err(_) => {
+                            println!(
+                                "Could not parse earliest_start_time_data from string: {}",
+                                s
+                            );
+                            NaiveTime::from_hms_opt(7, 0, 0).unwrap()
+                        }
                     }
-                },
-                Some(DataType::DateTime(s)) => excel_time_to_hh_mm_ss(s),
+                }
+                Some(calamine::Data::DateTime(s)) => excel_time_to_hh_mm_ss(s.as_f64()),
                 _ => {
                     event!(
                         tracing::Level::WARN,
@@ -389,10 +355,10 @@ fn create_new_operation(
         },
         earliest_finish_datetime: {
             let date = match earliest_finish_date_data.cloned() {
-                Some(DataType::String(s)) => parse_date(&s),
-                Some(DataType::DateTime(s)) => {
+                Some(calamine::Data::String(s)) => parse_date(&s),
+                Some(calamine::Data::DateTime(s)) => {
                     let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
-                    let date = start.checked_add_signed(Duration::days(s as i64 - 2));
+                    let date = start.checked_add_signed(Duration::days(s.as_f64() as i64 - 2));
                     date.unwrap()
                 }
 
@@ -403,17 +369,19 @@ fn create_new_operation(
             };
 
             let time = match earliest_finish_time_data.cloned() {
-                Some(DataType::String(s)) => match NaiveTime::parse_from_str(&s, "%H:%M:%s") {
-                    Ok(naive_date) => naive_date,
-                    Err(_) => {
-                        println!(
-                            "Could not parse earliest_finish_time_data from string: {}",
-                            s
-                        );
-                        NaiveTime::from_hms_opt(7, 0, 0).unwrap()
+                Some(calamine::Data::String(s)) => {
+                    match NaiveTime::parse_from_str(&s, "%H:%M:%s") {
+                        Ok(naive_date) => naive_date,
+                        Err(_) => {
+                            println!(
+                                "Could not parse earliest_finish_time_data from string: {}",
+                                s
+                            );
+                            NaiveTime::from_hms_opt(7, 0, 0).unwrap()
+                        }
                     }
-                },
-                Some(DataType::DateTime(s)) => excel_time_to_hh_mm_ss(s),
+                }
+                Some(calamine::Data::DateTime(s)) => excel_time_to_hh_mm_ss(s.as_f64()),
                 _ => return Err(Error::Msg("Could not parse earliest_finish_time_data")),
             };
             Utc.from_utc_datetime(&naive::NaiveDateTime::new(date, time))
@@ -423,7 +391,7 @@ fn create_new_operation(
 
 /// This function will extract the status codes from the row and return them as a StatusCodes struct.
 fn extract_status_codes(
-    row: &[DataType],
+    row: &[calamine::Data],
     header_to_index: &HashMap<String, usize>,
 ) -> Result<StatusCodes, Error> {
     let system_status_possible_headers = ["System_Status", "System Status", "Order System Status"];
@@ -437,23 +405,23 @@ fn extract_status_codes(
     let op_status_data = get_data_from_headers(row, header_to_index, &op_status_possible_headers);
 
     let system_status = match system_status_data.cloned() {
-        Some(DataType::String(s)) => s,
+        Some(calamine::Data::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse system status as string")),
     };
 
     let user_status = match user_status_data.cloned() {
-        Some(DataType::String(s)) => s,
+        Some(calamine::Data::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse user status as string")),
     };
 
     let opr_user_status = match op_status_data.cloned() {
-        Some(DataType::String(s)) => s,
+        Some(calamine::Data::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse opr user status as string")),
     };
 
     let opr_system_status = match header_to_index.get("Opr_System_Status") {
         Some(index) => match row.get(*index).cloned() {
-            Some(DataType::String(s)) => s,
+            Some(calamine::Data::String(s)) => s,
             None => "Not present".to_string(),
             _ => return Err(Error::Msg("Opr_System_Status value is not a string")),
         },
@@ -487,7 +455,7 @@ fn extract_status_codes(
 }
 
 fn extract_order_dates(
-    row: &[DataType],
+    row: &[calamine::Data],
     header_to_index: &HashMap<String, usize>,
     periods: &[Period],
 ) -> Result<OrderDates, Error> {
@@ -519,7 +487,7 @@ fn extract_order_dates(
         get_data_from_headers(row, header_to_index, &basic_finish_possible_headers);
 
     let earliest_allowed_start_date = match earliest_allowed_start_date_data.cloned() {
-        Some(DataType::DateTimeIso(s)) => {
+        Some(calamine::Data::DateTimeIso(s)) => {
             match s.parse::<DateTime<Utc>>() {
                 Ok(date_time) => {
                     // Now that we have a `DateTime<Utc>`, we can get a `NaiveDate`
@@ -538,15 +506,15 @@ fn extract_order_dates(
             }
             .unwrap()
         }
-        Some(DataType::DateTime(s)) => {
+        Some(calamine::Data::DateTime(s)) => {
             let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
-            let date = start.checked_add_signed(Duration::days(s as i64 - 2));
+            let date = start.checked_add_signed(Duration::days(s.as_f64() as i64 - 2));
             date.unwrap()
         }
-        Some(DataType::String(s)) => parse_date(&s),
-        Some(DataType::Float(s)) => parse_date(&s.to_string()),
-        Some(DataType::Int(s)) => parse_date(&s.to_string()),
-        Some(DataType::Empty) => {
+        Some(calamine::Data::String(s)) => parse_date(&s),
+        Some(calamine::Data::Float(s)) => parse_date(&s.to_string()),
+        Some(calamine::Data::Int(s)) => parse_date(&s.to_string()),
+        Some(calamine::Data::Empty) => {
             panic!("Earliest start date is empty");
         }
         _ => {
@@ -557,10 +525,10 @@ fn extract_order_dates(
     };
 
     let latest_allowed_finish_date = match latest_allowed_finish_date_data.cloned() {
-        Some(DataType::String(s)) => parse_date(&s),
-        Some(DataType::DateTime(s)) => {
+        Some(calamine::Data::String(s)) => parse_date(&s),
+        Some(calamine::Data::DateTime(s)) => {
             let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
-            let date = start.checked_add_signed(Duration::days(s as i64 - 2));
+            let date = start.checked_add_signed(Duration::days(s.as_f64() as i64 - 2));
             date.unwrap()
         }
         _ => {
@@ -571,13 +539,13 @@ fn extract_order_dates(
     };
 
     let basic_start_date: Result<NaiveDate, Error> = match basic_start_data.cloned() {
-        Some(DataType::String(s)) => Ok(parse_date(&s)),
+        Some(calamine::Data::String(s)) => Ok(parse_date(&s)),
         Some(_) => Err(Error::Msg("Could not parse basic_start_data as string")),
         None => Err(Error::Msg("Basic start date is None")),
     };
 
     let basic_finish_date = match basic_finish_data.cloned() {
-        Some(DataType::String(s)) => Ok(parse_date(&s)),
+        Some(calamine::Data::String(s)) => Ok(parse_date(&s)),
         Some(_) => Err(Error::Msg("Could not parse basic finish as string")),
         None => Err(Error::Msg("Basic finish date is None")),
     };
@@ -636,7 +604,7 @@ fn extract_order_dates(
 }
 
 fn extract_revision(
-    row: &[DataType],
+    row: &[calamine::Data],
     header_to_index: &HashMap<String, usize>,
 ) -> Result<Revision, Error> {
     let string = match row
@@ -647,7 +615,7 @@ fn extract_revision(
         )
         .cloned()
     {
-        Some(DataType::String(s)) => s,
+        Some(calamine::Data::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse revision as string")),
     };
 
@@ -660,7 +628,7 @@ fn extract_revision(
 }
 
 fn extract_unloading_point(
-    row: &[DataType],
+    row: &[calamine::Data],
     header_to_index: &HashMap<String, usize>,
     periods: &[Period],
 ) -> Result<UnloadingPoint, Error> {
@@ -670,12 +638,12 @@ fn extract_unloading_point(
         get_data_from_headers(row, header_to_index, &unloading_point_possible_headers);
 
     let string = match unloading_point_data.cloned() {
-        Some(DataType::String(s)) => s,
-        Some(DataType::Int(n)) => n.to_string(),
-        Some(DataType::Float(n)) => n.to_string(),
-        Some(DataType::Bool(b)) => b.to_string(),
-        Some(DataType::Error(e)) => e.to_string(),
-        Some(DataType::Empty) => String::from("Empty"),
+        Some(calamine::Data::String(s)) => s,
+        Some(calamine::Data::Int(n)) => n.to_string(),
+        Some(calamine::Data::Float(n)) => n.to_string(),
+        Some(calamine::Data::Bool(b)) => b.to_string(),
+        Some(calamine::Data::Error(e)) => e.to_string(),
+        Some(calamine::Data::Empty) => String::from("Empty"),
         None => String::from("None"),
         _ => return Err(Error::Msg("Could not parse unloading point as string")),
     };
@@ -762,7 +730,7 @@ fn _extract_weeks(input_string: &str) -> (u32, u32, bool) {
 }
 
 fn extract_functional_location(
-    row: &[DataType],
+    row: &[calamine::Data],
     header_to_index: &HashMap<String, usize>,
 ) -> Result<FunctionalLocation, Error> {
     let functional_location_possible_headers = ["functional_location", "Functional Location"];
@@ -774,7 +742,7 @@ fn extract_functional_location(
 
     match string {
         Some(s) => match s {
-            DataType::String(s) => Ok(FunctionalLocation { string: s }),
+            calamine::Data::String(s) => Ok(FunctionalLocation { string: s }),
             _ => Err(Error::Msg("Could not parse functional location as string")),
         },
         None => Ok(FunctionalLocation {
@@ -784,7 +752,7 @@ fn extract_functional_location(
 }
 
 fn extract_order_text(
-    row: &[DataType],
+    row: &[calamine::Data],
     header_to_index: &HashMap<String, usize>,
 ) -> Result<OrderText, Error> {
     let notes_1_possible_headers = ["Notes_1", "notes_1", "Notes 1"];
@@ -827,14 +795,14 @@ fn extract_order_text(
         get_data_from_headers(row, header_to_index, &user_status_possible_headers);
 
     let notes_1 = match notes_1_data.cloned() {
-        Some(DataType::String(s)) => s.to_string(),
+        Some(calamine::Data::String(s)) => s.to_string(),
         None => "Notes 1 is not part of the inputed data".to_string(),
         _ => return Err(Error::Msg("Could not parse notes_1 as string")),
     };
 
     let notes_2 = match notes_2_data {
-        Some(DataType::String(s)) => s.parse::<u32>().unwrap_or(8),
-        Some(DataType::Int(n)) => *n as u32,
+        Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(8),
+        Some(calamine::Data::Int(n)) => *n as u32,
         None => 5,
         _ => {
             warn!("Could not parse notes_2 as an integer {}", line!());
@@ -843,17 +811,17 @@ fn extract_order_text(
     };
 
     let object_description = match description_2_data.cloned() {
-        Some(DataType::String(s)) => s,
+        Some(calamine::Data::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse object_description as string")),
     };
 
     let order_description = match description_1_data.cloned() {
-        Some(DataType::String(s)) => s,
+        Some(calamine::Data::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse order_description as string")),
     };
 
     let operation_description = match operation_description_data.cloned() {
-        Some(DataType::String(s)) => s,
+        Some(calamine::Data::String(s)) => s,
         _ => {
             event!(
                 tracing::Level::INFO,
@@ -864,12 +832,12 @@ fn extract_order_text(
     };
 
     let order_system_status = match system_status_data.cloned() {
-        Some(DataType::String(s)) => s,
+        Some(calamine::Data::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse order_system_status as string")),
     };
 
     let order_user_status = match user_status_data.cloned() {
-        Some(DataType::String(s)) => s,
+        Some(calamine::Data::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse order_user_status as string")),
     };
 
@@ -925,10 +893,10 @@ fn parse_date(s: &str) -> NaiveDate {
 }
 
 fn get_data_from_headers<'a>(
-    row: &'a [DataType],
+    row: &'a [calamine::Data],
     header_to_index: &HashMap<String, usize>,
     headers: &[&str],
-) -> Option<&'a DataType> {
+) -> Option<&'a calamine::Data> {
     for &header in headers {
         if let Some(&index) = header_to_index.get(header) {
             if let Some(data) = row.get(index) {
@@ -993,6 +961,63 @@ fn excel_time_to_hh_mm_ss(serial_time: f64) -> NaiveTime {
 
     NaiveTime::from_hms_opt(hours, minutes, seconds)
         .expect("Could not convert excel time to NaiveTime")
+}
+
+fn extract_order_type_and_priority(
+    work_order_type_data: Option<&Data>,
+    priority: Priority,
+) -> WorkOrderType {
+    match work_order_type_data.cloned() {
+        Some(calamine::Data::String(work_order_type)) => match work_order_type.as_str() {
+            "WDF" => match &priority {
+                Priority::IntValue(value) => match value {
+                    1 => Ok(WorkOrderType::Wdf(WDFPriority::One)),
+                    2 => Ok(WorkOrderType::Wdf(WDFPriority::Two)),
+                    3 => Ok(WorkOrderType::Wdf(WDFPriority::Three)),
+                    4 => Ok(WorkOrderType::Wdf(WDFPriority::Four)),
+                    _ => Ok(WorkOrderType::Other),
+                },
+                _ => Err(ExcelLoadError("Could not parse WDF priority as int".into())),
+            },
+            "WGN" => match &priority {
+                Priority::IntValue(value) => match value {
+                    1 => Ok(WorkOrderType::Wgn(WGNPriority::One)),
+                    2 => Ok(WorkOrderType::Wgn(WGNPriority::Two)),
+                    3 => Ok(WorkOrderType::Wgn(WGNPriority::Three)),
+                    4 => Ok(WorkOrderType::Wgn(WGNPriority::Four)),
+                    _ => Ok(WorkOrderType::Other),
+                },
+                _ => Err(ExcelLoadError("Could not parse WGN priority as int".into())),
+            },
+            "WPM" => match &priority {
+                Priority::StringValue(value) => match value.as_str() {
+                    "A" => Ok(WorkOrderType::Wpm(WPMPriority::A)),
+                    "B" => Ok(WorkOrderType::Wpm(WPMPriority::B)),
+                    "C" => Ok(WorkOrderType::Wpm(WPMPriority::C)),
+                    "D" => Ok(WorkOrderType::Wpm(WPMPriority::D)),
+                    _ => Ok(WorkOrderType::Other),
+                },
+                _ => Err(ExcelLoadError("Could not parse WPM priority as int".into())),
+            },
+            "WRO" => match &priority {
+                Priority::IntValue(value) => match value {
+                    1 => Ok(WorkOrderType::Wro(WROPriority::One)),
+                    2 => Ok(WorkOrderType::Wro(WROPriority::Two)),
+                    3 => Ok(WorkOrderType::Wro(WROPriority::Three)),
+                    4 => Ok(WorkOrderType::Wro(WROPriority::Four)),
+                    _ => Ok(WorkOrderType::Other),
+                },
+                _ => Err(ExcelLoadError("Could not parse WRO priority as int".into())),
+            },
+
+            _ => Ok(WorkOrderType::Other),
+        },
+        None => Ok(WorkOrderType::Other),
+        _ => Err(ExcelLoadError(
+            "Could not parse work order type as int".into(),
+        )),
+    }
+    .expect("Could not parse order type")
 }
 
 #[cfg(test)]
