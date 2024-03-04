@@ -1,4 +1,5 @@
 use clap::{Args, Parser, Subcommand};
+use reqwest::Client;
 use shared_messages::resources::Resources;
 use shared_messages::status::StatusRequest;
 use shared_messages::strategic::strategic_resources_message::StrategicResourcesMessage;
@@ -10,9 +11,7 @@ use shared_messages::strategic::{
 use shared_messages::tactical::TacticalRequest;
 use shared_messages::SystemMessages;
 use std::collections::HashMap;
-use std::net::TcpStream;
 use strum::IntoEnumIterator;
-use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;
 
 #[derive(Parser)]
@@ -148,41 +147,44 @@ struct WorkOrderSchedule {
     period: String,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let cli = Cli::parse();
 
-    let mut socket = create_websocket_client();
+    let client = reqwest::Client::new();
 
-    let message_sent = handle_command(cli, &mut socket);
+    let response = handle_command(cli, &client).await;
 
-    match message_sent {
-        Some(_) => {
-            let response: Message = socket.read().expect("Failed to read message");
-            let formatted_response = response
-                .to_string()
-                .replace("\\n", "\n")
-                .replace(['\"', '\\'], "");
+    dbg!(response.clone());
+    let formatted_response = response
+        .to_string()
+        .replace("\\n", "\n")
+        .replace(['\"', '\\'], "");
 
-            println!("{}", formatted_response);
-        }
-        None => {
-            println!("No argument provided, use -h or --help")
-        }
-    }
-
-    socket.close(None).expect("Failed to close the connection");
+    println!("{}", formatted_response);
 }
 
-fn create_websocket_client() -> WebSocket<MaybeTlsStream<TcpStream>> {
-    let server_url = Url::parse("ws://localhost:8001/ws").expect("Invalid URL");
+async fn send_http(client: &Client, message: String) -> String {
+    let url = "http://localhost:8080/ws";
+    let res = client
+        .post(url)
+        .body(message)
+        .header("Content-Type", "application/json")
+        .send()
+        .await
+        .expect("Could not send request");
 
-    // Connect to the WebSocket server
-    let (socket, _response) = connect(server_url).expect("Cannot connect to the scheduling system");
-    socket
+    // Check the response status and process the response as needed
+    if res.status().is_success() {
+        println!("Request sent successfully");
+    } else {
+        eprintln!("Failed to send request: {:?}", res.status());
+    }
+    res.text().await.unwrap()
 }
 
 impl Commands {
-    fn get_status(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
+    async fn get_status(client: &Client) -> String {
         let strategic_status_message = StrategicStatusMessage::General;
         let scheduler_request = StrategicRequest::Status(strategic_status_message);
         let front_end_message = SystemMessages::Strategic(scheduler_request);
@@ -190,28 +192,11 @@ impl Commands {
         let scheduler_request_json = serde_json::to_string(&front_end_message).unwrap();
         println!("{}", scheduler_request_json);
 
-        socket
-            .send(Message::Text(scheduler_request_json))
-            .expect("Failed to send a message");
+        send_http(client, scheduler_request_json).await
     }
-
-    // fn get_objective(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) {
-    //     // let scheduler_request = SchedulerRequests::Objectives;
-    //     let front_end_message = FrontendMessages::Scheduler(scheduler_request);
-
-    //     let scheduler_request_json = serde_json::to_string(&front_end_message).unwrap();
-    //     socket
-    //         .send(Message::Text(scheduler_request_json))
-    //         .expect("Failed to send a message");
-
-    //     let response: Message = socket.read().expect("Failed to read message");
-    //     let formatted_response = response.to_string().replace("\\n", "\n").replace('\"', "");
-
-    //     println!("{}", formatted_response);
-    // }
 }
 
-fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -> Option<String> {
+async fn handle_command(cli: Cli, client: &Client) -> String {
     match &cli.command {
         Some(Commands::Status { status_commands }) => match status_commands {
             Some(StatusSchedulingEnvironment::WorkOrder { work_order }) => {
@@ -221,7 +206,7 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                 let status_request_json = serde_json::to_string(&front_end_message).unwrap();
 
                 println!("{}", status_request_json.clone());
-                socket.send(Message::Text(status_request_json)).unwrap();
+                send_http(client, status_request_json).await
             }
             Some(StatusSchedulingEnvironment::Periods) => {
                 let environment_status_message = StatusRequest::GetPeriods;
@@ -229,9 +214,9 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                 let status_request_json = serde_json::to_string(&front_end_message).unwrap();
                 println!("{}", status_request_json);
 
-                socket.send(Message::Text(status_request_json)).unwrap();
+                send_http(client, status_request_json).await
             }
-            None => Commands::get_status(socket),
+            None => Commands::get_status(client).await,
         },
         Some(Commands::Strategic { subcommand }) => match subcommand {
             Some(subcommand) => match subcommand {
@@ -247,7 +232,7 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                         let scheduler_request_json =
                             serde_json::to_string(&front_end_message).unwrap();
 
-                        socket.send(Message::Text(scheduler_request_json)).unwrap();
+                        send_http(client, scheduler_request_json).await
                     }
                     None => {
                         let strategic_status_message: StrategicStatusMessage =
@@ -260,7 +245,7 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                         let scheduler_request_json =
                             serde_json::to_string(&front_end_message).unwrap();
 
-                        socket.send(Message::Text(scheduler_request_json)).unwrap();
+                        send_http(client, scheduler_request_json).await
                     }
                 },
                 StrategicSubcommands::Scheduling { subcommand } => match subcommand {
@@ -279,7 +264,8 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                         let scheduler_request_json =
                             serde_json::to_string(&front_end_message).unwrap();
                         println!("{}", scheduler_request_json);
-                        socket.send(Message::Text(scheduler_request_json)).unwrap();
+
+                        send_http(client, scheduler_request_json).await
                     }
                     Some(SchedulingSubcommands::PeriodLock { period: _ }) => {
                         todo!()
@@ -301,7 +287,7 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                         let scheduler_request_json =
                             serde_json::to_string(&front_end_message).unwrap();
 
-                        socket.send(Message::Text(scheduler_request_json)).unwrap();
+                        send_http(client, scheduler_request_json).await
                     }
                     None => {
                         todo!()
@@ -336,7 +322,7 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                         let scheduler_request_json =
                             serde_json::to_string(&front_end_message).unwrap();
 
-                        socket.send(Message::Text(scheduler_request_json)).unwrap();
+                        send_http(client, scheduler_request_json).await
                     }
                     Some(ResourcesSubcommands::Capacity {
                         periods_end,
@@ -367,7 +353,7 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                         let scheduler_request_json =
                             serde_json::to_string(&front_end_message).unwrap();
 
-                        socket.send(Message::Text(scheduler_request_json)).unwrap();
+                        send_http(client, scheduler_request_json).await
                     }
 
                     Some(ResourcesSubcommands::SetCapacity {
@@ -384,10 +370,10 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                         todo!()
                     }
                     Some(ResourcesSubcommands::SetCapacityPolicyDefault) => {
-                        let resources = generate_manual_resources(socket);
+                        let resources = generate_manual_resources(client);
 
                         let strategic_resources_message =
-                            StrategicResourcesMessage::new_set_resources(resources);
+                            StrategicResourcesMessage::new_set_resources(resources.await);
 
                         let strategic_request =
                             StrategicRequest::Resources(strategic_resources_message);
@@ -396,7 +382,7 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                         let scheduler_request_json =
                             serde_json::to_string(&front_end_message).unwrap();
 
-                        socket.send(Message::Text(scheduler_request_json)).unwrap();
+                        send_http(client, scheduler_request_json).await
                     }
                     None => {
                         todo!()
@@ -414,7 +400,8 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                 let tactical_request_json =
                     serde_json::to_string(&tactical_status_message).unwrap();
                 println!("Tactical");
-                socket.send(Message::Text(tactical_request_json)).unwrap();
+
+                send_http(client, tactical_request_json).await
             }
             Some(TacticalSubcommands::Objectives) => {
                 todo!()
@@ -424,7 +411,7 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
             }
         },
         Some(Commands::Operational) => {
-            println!("Operational");
+            todo!()
         }
         Some(Commands::Sap {
             subcommand: sap_commands,
@@ -438,6 +425,7 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                     // There was an error opening the URL
                     println!("Failed to open {}.", url);
                 }
+                "Opening SAP authorization page".to_string()
             }
             Some(SapSubcommands::PushStrategicToSap) => {
                 todo!()
@@ -452,15 +440,14 @@ fn handle_command(cli: Cli, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -
                 todo!()
             }
         },
-        None => return None,
+        None => "No command provided".to_string(),
     }
-    Some("Message sent".to_string())
 }
 
-fn generate_manual_resources(
-    socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
+async fn generate_manual_resources(
+    client: &Client,
 ) -> HashMap<shared_messages::resources::Resources, HashMap<String, f64>> {
-    let periods = get_periods(socket);
+    let periods: Vec<String> = get_periods(client).await;
 
     let mut resources_hash_map = HashMap::new();
     for resource in shared_messages::resources::Resources::iter() {
@@ -473,16 +460,14 @@ fn generate_manual_resources(
     resources_hash_map
 }
 
-fn get_periods(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -> Vec<String> {
+async fn get_periods(client: &Client) -> Vec<String> {
     let status_request = StatusRequest::GetPeriods;
 
     let front_end_message = SystemMessages::Status(status_request);
 
     let status_request_json = serde_json::to_string(&front_end_message).unwrap();
 
-    socket.send(Message::Text(status_request_json)).unwrap();
-
-    let response: Message = socket.read().expect("Failed to read message");
+    let response = send_http(client, status_request_json).await;
 
     response
         .to_string()

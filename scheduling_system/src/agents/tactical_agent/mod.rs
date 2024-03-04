@@ -43,7 +43,7 @@ impl Actor for TacticalAgent {
 }
 
 impl Handler<TacticalRequest> for TacticalAgent {
-    type Result = ();
+    type Result = Option<shared_messages::Response>;
 
     fn handle(
         &mut self,
@@ -55,14 +55,7 @@ impl Handler<TacticalRequest> for TacticalAgent {
             TacticalRequest::Status => {
                 let tactical_status = self.tactical_algorithm.status();
 
-                match self.ws_addr.as_ref() {
-                    Some(addr) => {
-                        addr.do_send(shared_messages::Response::Success(Some(tactical_status)));
-                    }
-                    None => {
-                        println!("No WebSocketAgent address has been provided yet.");
-                    }
-                }
+                Some(shared_messages::Response::Success(Some(tactical_status)))
             }
             TacticalRequest::Scheduling => {
                 todo!()

@@ -8,6 +8,8 @@ use std::fmt::{self};
 use actix::Message;
 use serde::{Deserialize, Serialize};
 
+use crate::Response;
+
 use self::{
     strategic_periods_message::PeriodsMessage,
     strategic_resources_message::{ManualResource, StrategicResourcesMessage},
@@ -15,7 +17,7 @@ use self::{
     strategic_status_message::StrategicStatusMessage,
 };
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "strategic_message_type")]
 pub enum StrategicRequest {
     Status(StrategicStatusMessage),
@@ -25,7 +27,7 @@ pub enum StrategicRequest {
 }
 
 impl Message for StrategicRequest {
-    type Result = ();
+    type Result = Option<Response>;
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]

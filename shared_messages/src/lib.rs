@@ -10,13 +10,17 @@ use status::StatusRequest;
 use crate::strategic::StrategicRequest;
 use crate::tactical::TacticalRequest;
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "message_type")]
 pub enum SystemMessages {
     Status(StatusRequest),
     Strategic(StrategicRequest),
     Tactical(TacticalRequest),
     Operational,
+}
+
+impl Message for SystemMessages {
+    type Result = Response;
 }
 
 #[derive(Debug, Clone)]
@@ -42,3 +46,5 @@ impl ToString for Response {
         }
     }
 }
+
+

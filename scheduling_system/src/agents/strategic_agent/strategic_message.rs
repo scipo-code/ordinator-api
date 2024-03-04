@@ -1,3 +1,5 @@
+use actix::dev::MessageResponse;
+
 use actix::prelude::*;
 use serde::{Deserialize, Serialize};
 use shared_messages::status::StatusRequest;
@@ -94,16 +96,16 @@ impl Message for LoadingMessage {
     type Result = ();
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct OverviewMessage {
-    pub frontend_message_type: String,
-    pub scheduling_overview_data: Vec<strategic_agent::SchedulingOverviewData>,
-}
+// #[derive(Serialize, Deserialize, Debug)]
+// pub struct OverviewMessage {
+//     pub frontend_message_type: String,
+//     pub scheduling_overview_data: Vec<strategic_agent::SchedulingOverviewData>,
+// }
 
-/// The Scheduler Output should contain all that is needed to make
-impl Message for OverviewMessage {
-    type Result = ();
-}
+// /// The Scheduler Output should contain all that is needed to make
+// impl Message for OverviewMessage {
+//     type Result = ();
+// }
 
 #[derive(Serialize, Debug)]
 pub struct PeriodMessage {
@@ -116,12 +118,13 @@ impl Message for PeriodMessage {
 }
 
 impl Handler<StrategicRequest> for StrategicAgent {
-    type Result = ();
+    type Result = Option<shared_messages::Response>;
 
     fn handle(&mut self, msg: StrategicRequest, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
             StrategicRequest::Status(strategic_status_message) => match strategic_status_message {
                 StrategicStatusMessage::General => {
+                    dbg!();
                     let scheduling_status = self.scheduling_environment.lock().unwrap().to_string();
                     let strategic_objective = self
                         .scheduler_agent_algorithm
@@ -140,20 +143,11 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     }
 
                     let scheduling_status = format!(
-                        "{}\nWith objectives: \n  strategic objective of: {}\n    {} of {} work orders scheduled",
-                        scheduling_status, strategic_objective, scheduled_count, number_of_strategic_work_orders
-                    );
-                    match self.ws_addr.as_ref() {
-                        Some(addr) => addr
-                            .do_send(shared_messages::Response::Success(Some(scheduling_status))),
-                        None => {
-                            println!(
-                                "No WebSocketAgentAddr set yet, so no message sent to frontend"
-                            )
-                        }
-                    }
-
+                    "{}\nWith objectives: \n  strategic objective of: {}\n    {} of {} work orders scheduled",
+                    scheduling_status, strategic_objective, scheduled_count, number_of_strategic_work_orders
+                );
                     info!("SchedulerAgentReceived a Status message");
+                    Some(shared_messages::Response::Success(Some(scheduling_status)))
                 }
                 StrategicStatusMessage::Period(period) => {
                     let work_orders = self.scheduler_agent_algorithm.get_optimized_work_orders();
@@ -172,15 +166,7 @@ impl Handler<StrategicRequest> for StrategicAgent {
                         .collect::<Vec<_>>()
                         .contains(&period)
                     {
-                        match self.ws_addr.as_ref() {
-                            Some(addr) => addr.do_send(shared_messages::Response::Failure),
-                            None => {
-                                println!(
-                                    "No WebSocketAgentAddr set yet, so no message sent to frontend"
-                                )
-                            }
-                        }
-                        return;
+                        return Some(shared_messages::Response::Failure);
                     }
 
                     let work_orders_by_period: Vec<u32> = work_orders
@@ -286,16 +272,7 @@ impl Handler<StrategicRequest> for StrategicAgent {
                         .unwrap();
                     }
 
-                    match self.ws_addr.as_ref() {
-                        Some(addr) => {
-                            addr.do_send(shared_messages::Response::Success(Some(message)))
-                        }
-                        None => {
-                            println!(
-                                "No WebSocketAgentAddr set yet, so no message sent to frontend"
-                            )
-                        }
-                    }
+                    Some(shared_messages::Response::Success(Some(message)))
                 }
             },
             StrategicRequest::Scheduling(scheduling_message) => {
@@ -305,28 +282,18 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     "received a message from the frontend"
                 );
 
-                let response: shared_messages::Response = self
+                let response = self
                     .scheduler_agent_algorithm
                     .update_scheduling_state(scheduling_message);
 
-                match self.ws_addr.as_ref() {
-                    Some(addr) => addr.do_send(response),
-                    None => {
-                        println!("No WebSocketAgentAddr set yet, so no message sent to frontend")
-                    }
-                }
+                Some(response)
             }
             StrategicRequest::Resources(resources_message) => {
-                let response: shared_messages::Response = self
+                let response = self
                     .scheduler_agent_algorithm
                     .update_resources_state(resources_message);
 
-                match self.ws_addr.as_ref() {
-                    Some(addr) => addr.do_send(response),
-                    None => {
-                        println!("No WebSocketAgentAddr set yet, so no message sent to frontend")
-                    }
-                }
+                Some(response)
             }
             StrategicRequest::Periods(periods_message) => {
                 info!(
@@ -348,6 +315,7 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     }
                 }
                 self.scheduler_agent_algorithm.set_periods(periods.to_vec());
+                Some(shared_messages::Response::Success(None))
             }
         }
     }
@@ -364,7 +332,7 @@ impl Handler<StatusRequest> for StrategicAgent {
 
                 if let Some(work_order_status) = cloned_work_orders.inner.get(&work_order_number) {
                     let work_order_status = work_order_status.to_string();
-                    match self.ws_addr.as_ref() {
+                    match self.orchestrator_agent_addr.as_ref() {
                         Some(addr) => addr
                             .do_send(shared_messages::Response::Success(Some(work_order_status))),
                         None => {
@@ -386,7 +354,7 @@ impl Handler<StatusRequest> for StrategicAgent {
                     .collect::<Vec<String>>()
                     .join(",");
 
-                match self.ws_addr.as_ref() {
+                match self.orchestrator_agent_addr.as_ref() {
                     Some(addr) => {
                         addr.do_send(shared_messages::Response::Success(Some(periods_string)))
                     }

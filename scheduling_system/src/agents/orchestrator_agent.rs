@@ -1,15 +1,13 @@
+use actix::dev::MessageResponse;
+use actix::dev::OneshotSender;
+use actix::fut::wrap_future;
 use actix::prelude::*;
-use actix_web::Result;
-use actix_web_actors::ws;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use tracing::info;
 
 use crate::agents::operational_agent::OperationalAgent;
-use crate::agents::strategic_agent::strategic_message::LoadingMessage;
-use crate::agents::strategic_agent::strategic_message::OverviewMessage;
-use crate::agents::strategic_agent::strategic_message::PeriodMessage;
 use crate::agents::strategic_agent::strategic_message::SetAgentAddrMessage;
 use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::supervisor_agent::SupervisorAgent;
@@ -26,7 +24,7 @@ pub struct OrchestratorAgent {
 }
 
 impl Actor for OrchestratorAgent {
-    type Context = ws::WebsocketContext<Self>;
+    type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
         info!("WebSocketAgent is alive");
@@ -75,46 +73,41 @@ impl ActorRegistry {
     }
 }
 
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for OrchestratorAgent {
-    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-        match msg {
-            Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
-            Ok(ws::Message::Text(text)) => {
-                let msg_type: Result<SystemMessages, serde_json::Error> =
-                    serde_json::from_str(&text);
-                match msg_type {
-                    Ok(SystemMessages::Status(status_input)) => {
-                        self.agent_registry
-                            .strategic_agent_addr
-                            .do_send(status_input);
-                    }
-                    Ok(SystemMessages::Strategic(strategic_request)) => {
-                        info!(scheduler_front_end_message = %strategic_request, "SchedulerAgent received SchedulerMessage");
-                        self.agent_registry
-                            .strategic_agent_addr
-                            .do_send(strategic_request);
+impl Handler<SystemMessages> for OrchestratorAgent {
+    type Result = Option<shared_messages::Response>;
 
-                        let addr = ctx.address();
-                        self.agent_registry
-                            .strategic_agent_addr
-                            .do_send(SetAgentAddrMessage { addr });
-                    }
-                    Ok(SystemMessages::Tactical(tactical_request)) => {
-                        self.agent_registry
-                            .tactical_agent_addr
-                            .do_send(tactical_request);
-                        println!("WorkPlannerAgent received WorkPlannerMessage");
-                    }
-                    Ok(SystemMessages::Operational) => {
-                        println!("WorkerAgent received WorkerMessage");
-                    }
-                    Err(e) => {
-                        println!("Error: {}", e);
-                    }
-                }
+    fn handle(&mut self, system_messages: SystemMessages, ctx: &mut Self::Context) -> Self::Result {
+        match system_messages {
+            SystemMessages::Status(status_input) => {
+                self.agent_registry.strategic_agent_addr.send(status_input)
             }
-            Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
-            _ => (),
+            SystemMessages::Strategic(strategic_request) => {
+                info!(scheduler_front_end_message = %strategic_request, "SchedulerAgent received SchedulerMessage");
+                let send_future = self
+                    .agent_registry
+                    .strategic_agent_addr
+                    .send(strategic_request);
+
+                ctx.wait(send_future.into_actor(self).then(|res, actor, ctx| {
+                    match res {
+                        Ok(result) => result,
+                        Err(err) => {
+                            todo!();
+                        }
+                    }
+                    // actix::fut::ready(())
+                }))
+            }
+            SystemMessages::Tactical(tactical_request) => {
+                println!("WorkPlannerAgent received WorkPlannerMessage");
+                self.agent_registry
+                    .tactical_agent_addr
+                    .send(tactical_request)
+            }
+            SystemMessages::Operational => {
+                println!("WorkerAgent received WorkerMessage");
+                todo!()
+            }
         }
     }
 }
@@ -148,40 +141,40 @@ impl OrchestratorAgent {
 /// I would like it that the SchedulingEnvironment is not an Actor. But is accessed concurrently by
 /// the Actors themselves. The question is whether it is possible to handle the state change in a
 /// good way for the Actors? Does it go against the Actor model? I am not sure. I think it is
-impl Handler<OverviewMessage> for OrchestratorAgent {
-    type Result = ();
+// impl Handler<OverviewMessage> for OrchestratorAgent {
+//     type Result = ();
 
-    fn handle(&mut self, msg: OverviewMessage, ctx: &mut Self::Context) -> Self::Result {
-        // Serialize the message
-        info!(scheduler_front_end_message.websocket = ?msg.scheduling_overview_data.len(), "Scheduler Table data sent to frontend");
-        let serialized_message = serde_json::to_string(&msg).unwrap();
+//     fn handle(&mut self, msg: OverviewMessage, ctx: &mut Self::Context) -> Self::Result {
+//         // Serialize the message
+//         info!(scheduler_front_end_message.websocket = ?msg.scheduling_overview_data.len(), "Scheduler Table data sent to frontend");
+//         let serialized_message = serde_json::to_string(&msg).unwrap();
 
-        // Send the serialized message to the frontend
-        ctx.text(serialized_message);
-    }
-}
+//         // Send the serialized message to the frontend
+//         ctx.text(serialized_message);
+//     }
+// }
 
-impl Handler<LoadingMessage> for OrchestratorAgent {
-    type Result = ();
+// impl Handler<LoadingMessage> for OrchestratorAgent {
+//     type Result = ();
 
-    fn handle(&mut self, msg: LoadingMessage, ctx: &mut Self::Context) -> Self::Result {
-        // Serialize the message
-        let serialized_message = serde_json::to_string(&msg).unwrap();
-        // Send the serialized message to the frontend
-        ctx.text(serialized_message);
-    }
-}
+//     fn handle(&mut self, msg: LoadingMessage, ctx: &mut Self::Context) -> Self::Result {
+//         // Serialize the message
+//         let serialized_message = serde_json::to_string(&msg).unwrap();
+//         // Send the serialized message to the frontend
+//         ctx.text(serialized_message);
+//     }
+// }
 
-impl Handler<PeriodMessage> for OrchestratorAgent {
-    type Result = ();
+// impl Handler<PeriodMessage> for OrchestratorAgent {
+//     type Result = ();
 
-    fn handle(&mut self, msg: PeriodMessage, ctx: &mut Self::Context) -> Self::Result {
-        // Serialize the message
-        let serialized_message = serde_json::to_string(&msg).unwrap();
-        // Send the serialized message to the frontend
-        ctx.text(serialized_message);
-    }
-}
+//     fn handle(&mut self, msg: PeriodMessage, ctx: &mut Self::Context) -> Self::Result {
+//         // Serialize the message
+//         let serialized_message = serde_json::to_string(&msg).unwrap();
+//         // Send the serialized message to the frontend
+//         ctx.text(serialized_message);
+//     }
+// }
 
 impl Handler<shared_messages::Response> for OrchestratorAgent {
     type Result = ();
@@ -194,7 +187,7 @@ impl Handler<shared_messages::Response> for OrchestratorAgent {
         // Serialize the message
         let serialized_message = serde_json::to_string(&response.to_string()).unwrap();
         // Send the serialized message to the frontend
-        ctx.text(serialized_message);
+        // ctx.(serialized_message);
     }
 }
 

@@ -1,30 +1,16 @@
-use actix_web::{get, web, HttpRequest, HttpResponse, Responder, Result};
-use actix_web_actors::ws;
-use std::sync::{Arc, Mutex};
-use std::thread;
-use tracing::info;
+use actix::Addr;
+use actix_web::{web, HttpRequest, HttpResponse, Result};
+use shared_messages::SystemMessages;
 
 use crate::agents::orchestrator_agent::OrchestratorAgent;
-use crate::models::SchedulingEnvironment;
 
-#[get("/ws")]
-async fn ws_index(
-    scheduling_environment: web::Data<Arc<Mutex<SchedulingEnvironment>>>,
+pub async fn http_to_scheduling_system(
+    orchestrator_agent_addr: web::Data<Addr<OrchestratorAgent>>,
     req: HttpRequest,
-    stream: web::Payload,
+    payload: web::Json<SystemMessages>,
 ) -> Result<HttpResponse> {
-    let current_thread_id = thread::current().id();
-    info!(?current_thread_id, "Setting up ws_index route handler");
+    dbg!(payload.0.clone());
+    let response = orchestrator_agent_addr.send(payload.0).await;
 
-    let res = ws::start(
-        OrchestratorAgent::new(scheduling_environment.get_ref().clone()),
-        &req,
-        stream,
-    );
-    res
-}
-
-#[get("/hello/{name}")]
-async fn greet(name: web::Path<String>) -> impl Responder {
-    format!("Hello {}!", name)
+    Ok(HttpResponse::Ok().json(response.unwrap()))
 }
