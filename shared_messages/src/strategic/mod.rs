@@ -8,7 +8,7 @@ use std::fmt::{self};
 use actix::Message;
 use serde::{Deserialize, Serialize};
 
-use crate::Response;
+use crate::agent_error::AgentError;
 
 use self::{
     strategic_periods_message::PeriodsMessage,
@@ -27,7 +27,7 @@ pub enum StrategicRequest {
 }
 
 impl Message for StrategicRequest {
-    type Result = Option<Response>;
+    type Result = Result<String, AgentError>;
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]

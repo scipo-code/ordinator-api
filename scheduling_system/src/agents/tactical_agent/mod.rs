@@ -43,7 +43,7 @@ impl Actor for TacticalAgent {
 }
 
 impl Handler<TacticalRequest> for TacticalAgent {
-    type Result = Option<shared_messages::Response>;
+    type Result = String;
 
     fn handle(
         &mut self,
@@ -55,7 +55,7 @@ impl Handler<TacticalRequest> for TacticalAgent {
             TacticalRequest::Status => {
                 let tactical_status = self.tactical_algorithm.status();
 
-                Some(shared_messages::Response::Success(Some(tactical_status)))
+                tactical_status
             }
             TacticalRequest::Scheduling => {
                 todo!()

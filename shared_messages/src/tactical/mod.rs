@@ -1,8 +1,6 @@
 use actix::Message;
 use serde::{Deserialize, Serialize};
 
-use crate::Response;
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum TacticalRequest {
     Status,
@@ -12,5 +10,5 @@ pub enum TacticalRequest {
 }
 
 impl Message for TacticalRequest {
-    type Result = Option<Response>;
+    type Result = String;
 }

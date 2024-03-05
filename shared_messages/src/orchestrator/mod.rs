@@ -2,11 +2,11 @@ use actix::Message;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum StatusRequest {
+pub enum OrchestratorRequest {
     GetWorkOrderStatus(u32),
     GetPeriods,
 }
 
-impl Message for StatusRequest {
-    type Result = ();
+impl Message for OrchestratorRequest {
+    type Result = String;
 }

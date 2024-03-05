@@ -1,50 +1,34 @@
-use actix::dev::MessageResponse;
-use actix::dev::OneshotSender;
-use actix::fut::wrap_future;
 use actix::prelude::*;
+use shared_messages::orchestrator::OrchestratorRequest;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
-use tracing::info;
+use std::sync::RwLock;
 
 use crate::agents::operational_agent::OperationalAgent;
-use crate::agents::strategic_agent::strategic_message::SetAgentAddrMessage;
 use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::supervisor_agent::SupervisorAgent;
 use crate::agents::tactical_agent::TacticalAgent;
 use crate::init::agent_factory;
 use crate::init::agent_factory::AgentFactory;
 use crate::models::SchedulingEnvironment;
-use shared_messages::SystemMessages;
 
 pub struct OrchestratorAgent {
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     agent_factory: AgentFactory,
-    agent_registry: ActorRegistry,
+    agent_registry: Arc<RwLock<ActorRegistry>>,
 }
 
 impl Actor for OrchestratorAgent {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        info!("WebSocketAgent is alive");
-        let ws_addr = ctx.address();
-
-        self.agent_registry
-            .strategic_agent_addr
-            .do_send(SetAgentAddrMessage {
-                addr: ws_addr.clone(),
-            });
-
-        self.agent_registry
-            .tactical_agent_addr
-            .do_send(SetAgentAddrMessage {
-                addr: ws_addr.clone(),
-            });
+        self.agent_registry.write().unwrap().orchestrator_agent_addr = Some(ctx.address());
     }
 }
 
-struct ActorRegistry {
+pub struct ActorRegistry {
+    orchestrator_agent_addr: Option<Addr<OrchestratorAgent>>,
     strategic_agent_addr: Addr<StrategicAgent>,
     tactical_agent_addr: Addr<TacticalAgent>,
     supervisor_agent_addrs: HashMap<String, Addr<SupervisorAgent>>,
@@ -53,10 +37,12 @@ struct ActorRegistry {
 
 impl ActorRegistry {
     fn new(
+        orchestrator_agent_addr: Option<Addr<OrchestratorAgent>>,
         strategic_agent_addr: Addr<StrategicAgent>,
         tactical_agent_addr: Addr<TacticalAgent>,
     ) -> Self {
         ActorRegistry {
+            orchestrator_agent_addr,
             strategic_agent_addr,
             tactical_agent_addr,
             supervisor_agent_addrs: HashMap::new(),
@@ -71,44 +57,25 @@ impl ActorRegistry {
     fn add_operational_agent(&mut self, name: String, addr: Addr<OperationalAgent>) {
         self.operational_agent_addrs.insert(name, addr);
     }
-}
 
-impl Handler<SystemMessages> for OrchestratorAgent {
-    type Result = Option<shared_messages::Response>;
+    pub fn get_orchestrator_agent_addr(&self) -> Addr<OrchestratorAgent> {
+        self.orchestrator_agent_addr.clone().unwrap()
+    }
 
-    fn handle(&mut self, system_messages: SystemMessages, ctx: &mut Self::Context) -> Self::Result {
-        match system_messages {
-            SystemMessages::Status(status_input) => {
-                self.agent_registry.strategic_agent_addr.send(status_input)
-            }
-            SystemMessages::Strategic(strategic_request) => {
-                info!(scheduler_front_end_message = %strategic_request, "SchedulerAgent received SchedulerMessage");
-                let send_future = self
-                    .agent_registry
-                    .strategic_agent_addr
-                    .send(strategic_request);
+    pub fn get_strategic_agent_addr(&self) -> Addr<StrategicAgent> {
+        self.strategic_agent_addr.clone()
+    }
 
-                ctx.wait(send_future.into_actor(self).then(|res, actor, ctx| {
-                    match res {
-                        Ok(result) => result,
-                        Err(err) => {
-                            todo!();
-                        }
-                    }
-                    // actix::fut::ready(())
-                }))
-            }
-            SystemMessages::Tactical(tactical_request) => {
-                println!("WorkPlannerAgent received WorkPlannerMessage");
-                self.agent_registry
-                    .tactical_agent_addr
-                    .send(tactical_request)
-            }
-            SystemMessages::Operational => {
-                println!("WorkerAgent received WorkerMessage");
-                todo!()
-            }
-        }
+    pub fn get_tactical_agent_addr(&self) -> Addr<TacticalAgent> {
+        self.tactical_agent_addr.clone()
+    }
+
+    pub fn get_supervisor_agent_addr(&self, name: String) -> Addr<SupervisorAgent> {
+        self.supervisor_agent_addrs.get(&name).unwrap().clone()
+    }
+
+    pub fn get_operational_agent_addr(&self, name: String) -> Addr<OperationalAgent> {
+        self.operational_agent_addrs.get(&name).unwrap().clone()
     }
 }
 
@@ -123,7 +90,48 @@ impl OrchestratorAgent {
         OrchestratorAgent {
             scheduling_environment,
             agent_factory,
-            agent_registry: ActorRegistry::new(strategic_agent_addr, tactical_agent_addr),
+            agent_registry: Arc::new(RwLock::new(ActorRegistry::new(
+                None,
+                strategic_agent_addr,
+                tactical_agent_addr,
+            ))),
+        }
+    }
+
+    pub fn get_ref_to_actor_registry(&self) -> Arc<RwLock<ActorRegistry>> {
+        self.agent_registry.clone()
+    }
+}
+
+impl Handler<OrchestratorRequest> for OrchestratorAgent {
+    type Result = String;
+    fn handle(&mut self, msg: OrchestratorRequest, _ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            OrchestratorRequest::GetWorkOrderStatus(work_order_number) => {
+                let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+
+                let cloned_work_orders = scheduling_environment_guard.clone_work_orders();
+
+                if let Some(work_order_status) = cloned_work_orders.inner.get(&work_order_number) {
+                    work_order_status.to_string()
+                } else {
+                    "Work order not found".to_string()
+                }
+            }
+            OrchestratorRequest::GetPeriods => {
+                let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+
+                let periods = scheduling_environment_guard.clone_periods();
+
+                let periods_string: String = periods
+                    .iter()
+                    .map(|period| period.get_period_string())
+                    .collect::<Vec<String>>()
+                    .join(",");
+                dbg!(periods_string.clone());
+
+                periods_string
+            }
         }
     }
 }
@@ -175,21 +183,6 @@ impl OrchestratorAgent {
 //         ctx.text(serialized_message);
 //     }
 // }
-
-impl Handler<shared_messages::Response> for OrchestratorAgent {
-    type Result = ();
-
-    fn handle(
-        &mut self,
-        response: shared_messages::Response,
-        ctx: &mut Self::Context,
-    ) -> Self::Result {
-        // Serialize the message
-        let serialized_message = serde_json::to_string(&response.to_string()).unwrap();
-        // Send the serialized message to the frontend
-        // ctx.(serialized_message);
-    }
-}
 
 #[cfg(test)]
 mod tests {}

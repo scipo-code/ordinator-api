@@ -24,11 +24,15 @@ async fn main() -> Result<(), MainError> {
     ));
     dbg!();
 
-    let orchestrator_agent_addr = OrchestratorAgent::new(scheduling_environment.clone()).start();
+    let orchestrator_agent = OrchestratorAgent::new(scheduling_environment.clone());
+
+    let agent_registry = orchestrator_agent.get_ref_to_actor_registry();
+
+    let orchestrator_agent_addr = orchestrator_agent.start();
 
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(orchestrator_agent_addr.clone()))
+            .app_data(web::Data::new(agent_registry.clone()))
             .route(
                 "/ws",
                 web::post().to(api::routes::http_to_scheduling_system),
