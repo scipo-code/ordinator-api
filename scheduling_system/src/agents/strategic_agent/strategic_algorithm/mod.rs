@@ -6,6 +6,7 @@ use std::fmt::{ Display};
 use std::hash::{Hash, Hasher};
 
 use priority_queue::PriorityQueue;
+use shared_messages::agent_error::AgentError;
 use shared_messages::strategic::strategic_resources_message::{StrategicResourcesMessage};
 use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
 use tracing::{debug, info, instrument};
@@ -250,7 +251,7 @@ impl StrategicAlgorithm {
     pub fn update_resources_state(
         &mut self,
         strategic_resources_message: StrategicResourcesMessage,
-    ) -> shared_messages::Response {
+    ) -> Result<String, AgentError> {
 
         match strategic_resources_message {
             StrategicResourcesMessage::SetResources(manual_resources) => {
@@ -269,7 +270,7 @@ impl StrategicAlgorithm {
                 
                 let response_message = format!("{} resources-period pairs updated correctly", count);
 
-                shared_messages::Response::Success(Some(response_message))
+                Ok(response_message)
             }
             StrategicResourcesMessage::GetLoadings {
                 periods_end,
@@ -281,7 +282,7 @@ impl StrategicAlgorithm {
 
                 let periods_end: u32 = periods_end.parse().unwrap();
 
-                shared_messages::Response::Success(Some(loading.to_string(periods_end)))
+                Ok(loading.to_string(periods_end))
             }
             StrategicResourcesMessage::GetCapacities { periods_end, select_resources } => 
             {         
@@ -289,7 +290,8 @@ impl StrategicAlgorithm {
 
                 let periods_end: u32 = periods_end.parse().unwrap();
 
-                shared_messages::Response::Success(Some(capacities.to_string(periods_end)))    }
+                Ok(capacities.to_string(periods_end))
+            }
         }
     }
 
@@ -299,8 +301,8 @@ impl StrategicAlgorithm {
     pub fn update_scheduling_state(
         &mut self,
         strategic_scheduling_message: StrategicSchedulingMessage,
-    ) -> shared_messages::Response {
-        let response: shared_messages::Response = match strategic_scheduling_message {
+    ) -> Result<String, AgentError> {
+        match strategic_scheduling_message {
             StrategicSchedulingMessage::Schedule(schedule_work_order) => {
                 let work_order_number = schedule_work_order.get_work_order_number();
                 let period = self
@@ -319,18 +321,17 @@ impl StrategicAlgorithm {
                         self.optimized_work_orders
                             .set_locked_in_period(work_order_number, period.clone());
              
-                        shared_messages::Response::Success(Some(format!(
+                        Ok(format!(
                             "Work order {} has been scheduled for period {}",
                             work_order_number,
                             period.get_period_string()
-                        )))
+                        ))
                     }
-                    None => shared_messages::Response::Failure,
+                    None => Err(AgentError::StateUpdateError("Could not update strategic scheduling state".to_string())),
                 }
             }
             StrategicSchedulingMessage::ScheduleMultiple(schedule_work_orders) => {
                 let mut output_string = String::new();
-                let mut period_result = Result::Ok(());
                 for schedule_work_order in schedule_work_orders {
                     let work_order_number = schedule_work_order.get_work_order_number();
                     let period = self
@@ -352,21 +353,16 @@ impl StrategicAlgorithm {
                                 period.clone().get_period_string()
                             )
                             .to_string();
-                            period_result = Result::Ok(())
                         }
                         None => {
-                            period_result = Result::Err(
-                            "The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.",
-                            );
-                            break;
+                   
+                            return Err(AgentError::StateUpdateError("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.".to_string()))
                         }
                     }
                 }
         
-                match period_result {
-                    Ok(()) => shared_messages::Response::Success(Some(output_string.to_string())),
-                    Err(_) => shared_messages::Response::Failure,
-                }
+                Ok(output_string.to_string())
+                 
             }
             StrategicSchedulingMessage::ExcludeFromPeriod(exclude_from_period) => {
                 let work_order_number = exclude_from_period.get_work_order_number();
@@ -403,17 +399,16 @@ impl StrategicAlgorithm {
                             info!("Work order {} has been excluded from period {} and the locked in period has been removed", work_order_number, period.get_period_string());
                         }
                             
-                        shared_messages::Response::Success(Some(format!(
+                        Ok(format!(
                             "Work order {} has been excluded from period {}",
                             work_order_number,
                             period.get_period_string()
-                        )))
+                        ))
                     }
-                    None => shared_messages::Response::Failure,
+                    None => Err(AgentError::StateUpdateError("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.".to_string())),
                 }
             }
-        };
-        response
+        }
     }
 }
 
