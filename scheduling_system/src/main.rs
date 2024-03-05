@@ -4,33 +4,41 @@ mod data_processing;
 mod init;
 mod models;
 
-use std::sync::{Arc, Mutex};
+use std::{
+    io,
+    sync::{Arc, Mutex},
+};
 
-use crate::init::application_builder::ApplicationBuilder;
+use actix::Actor;
+use actix_web::{web, App, HttpServer};
+use agents::orchestrator_agent::OrchestratorAgent;
+
 use crate::init::logging;
 
 #[actix_web::main]
-async fn main() -> () {
+async fn main() -> Result<(), io::Error> {
     let _guard = logging::setup_logging();
 
     let scheduling_environment = Arc::new(Mutex::new(
         init::model_initializers::initialize_scheduling_environment(52),
     ));
+    dbg!();
 
-    let scheduler_agent_addr =
-        init::agent_factory::build_scheduler_agent(Arc::clone(&scheduling_environment));
+    let orchestrator_agent = OrchestratorAgent::new(scheduling_environment.clone());
 
-    let tactical_agent_addr =
-        init::agent_factory::build_tactical_agent(Arc::clone(&scheduling_environment));
+    let agent_registry = orchestrator_agent.get_ref_to_actor_registry();
 
-    let application_builder = ApplicationBuilder::new()
-        .with_scheduler_agent(scheduler_agent_addr)
-        .with_tactical_agent(tactical_agent_addr)
-        .build()
-        .await;
+    orchestrator_agent.start();
 
-    application_builder.await.unwrap();
+    HttpServer::new(move || {
+        App::new()
+            .app_data(web::Data::new(agent_registry.clone()))
+            .route(
+                "/ws",
+                web::post().to(api::routes::http_to_scheduling_system),
+            )
+    })
+    .bind("127.0.0.1:8080")?
+    .run()
+    .await
 }
-
-#[cfg(test)]
-mod tests {}

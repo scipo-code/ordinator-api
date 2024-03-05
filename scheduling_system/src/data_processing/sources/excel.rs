@@ -68,7 +68,7 @@ pub fn load_data_file(
         .expect("could not populate the work orders");
 
     let scheduling_environment =
-        SchedulingEnvironment::new(work_orders, worker_environment, periods, None);
+        SchedulingEnvironment::new(work_orders, worker_environment, periods);
     Ok(scheduling_environment)
 }
 

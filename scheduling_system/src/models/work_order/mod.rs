@@ -184,7 +184,7 @@ impl WeightParam {
 }
 
 impl WorkOrder {
-    pub fn initialize(&mut self, periods: &Vec<Period>) {
+    pub fn initialize(&mut self, periods: &[Period]) {
         self.initialize_weight();
         self.initialize_work_load();
         self.initialize_vendor();
