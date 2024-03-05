@@ -16,7 +16,7 @@ use agents::orchestrator_agent::OrchestratorAgent;
 use crate::init::logging;
 
 #[actix_web::main]
-async fn main() -> Result<(), MainError> {
+async fn main() -> Result<(), io::Error> {
     let _guard = logging::setup_logging();
 
     let scheduling_environment = Arc::new(Mutex::new(
@@ -28,7 +28,7 @@ async fn main() -> Result<(), MainError> {
 
     let agent_registry = orchestrator_agent.get_ref_to_actor_registry();
 
-    let orchestrator_agent_addr = orchestrator_agent.start();
+    orchestrator_agent.start();
 
     HttpServer::new(move || {
         App::new()
@@ -40,16 +40,5 @@ async fn main() -> Result<(), MainError> {
     })
     .bind("127.0.0.1:8080")?
     .run()
-    .await;
-    Ok(())
-}
-
-#[derive(Debug)]
-struct MainError;
-
-impl From<io::Error> for MainError {
-    fn from(err: io::Error) -> Self {
-        println!("IO Error: {:?}", err);
-        MainError
-    }
+    .await
 }

@@ -1,10 +1,9 @@
 use std::sync::{Arc, RwLock};
 
-use actix::Addr;
-use actix_web::{http::Error, web, HttpRequest, HttpResponse, Result};
-use shared_messages::{agent_error::AgentError, SystemMessages};
+use actix_web::{web, HttpRequest, HttpResponse, Result};
+use shared_messages::SystemMessages;
 
-use crate::agents::orchestrator_agent::{ActorRegistry, OrchestratorAgent};
+use crate::agents::orchestrator_agent::ActorRegistry;
 
 pub async fn http_to_scheduling_system(
     rw_actor_registry: web::Data<Arc<RwLock<ActorRegistry>>>,
@@ -55,5 +54,6 @@ pub async fn http_to_scheduling_system(
         SystemMessages::Operational => {
             Ok(HttpResponse::Ok().json("OPERATIONAL: IMPLEMENT SEND LOGIC"))
         }
+        SystemMessages::Sap => Ok(HttpResponse::Ok().json("SAP: IMPLEMENT SEND LOGIC")),
     }
 }

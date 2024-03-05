@@ -18,6 +18,7 @@ pub enum SystemMessages {
     Tactical(TacticalRequest),
     Supervisor,
     Operational,
+    Sap,
 }
 
 impl Message for SystemMessages {
