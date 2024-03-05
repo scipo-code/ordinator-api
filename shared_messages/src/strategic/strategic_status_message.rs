@@ -2,7 +2,7 @@ use std::fmt::{self, Display};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum StrategicStatusMessage {
     General,
     Period(String),

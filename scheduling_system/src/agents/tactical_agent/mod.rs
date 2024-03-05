@@ -5,8 +5,8 @@ use actix::prelude::*;
 use shared_messages::tactical::TacticalRequest;
 use std::sync::{Arc, Mutex};
 
+use crate::agents::orchestrator_agent::OrchestratorAgent;
 use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
-use crate::api::websocket_agent::WebSocketAgent;
 use crate::models::SchedulingEnvironment;
 
 use crate::agents::strategic_agent::strategic_message::SetAgentAddrMessage;
@@ -16,14 +16,14 @@ pub struct TacticalAgent {
     id: i32,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     tactical_algorithm: TacticalAlgorithm,
-    ws_addr: Option<Addr<WebSocketAgent>>,
+    ws_addr: Option<Addr<OrchestratorAgent>>,
 }
 
 impl TacticalAgent {
     pub fn new(
         id: i32,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-        addr: Option<Addr<WebSocketAgent>>,
+        addr: Option<Addr<OrchestratorAgent>>,
     ) -> Self {
         TacticalAgent {
             id,
@@ -43,7 +43,7 @@ impl Actor for TacticalAgent {
 }
 
 impl Handler<TacticalRequest> for TacticalAgent {
-    type Result = ();
+    type Result = String;
 
     fn handle(
         &mut self,
@@ -55,14 +55,7 @@ impl Handler<TacticalRequest> for TacticalAgent {
             TacticalRequest::Status => {
                 let tactical_status = self.tactical_algorithm.status();
 
-                match self.ws_addr.as_ref() {
-                    Some(addr) => {
-                        addr.do_send(shared_messages::Response::Success(Some(tactical_status)));
-                    }
-                    None => {
-                        println!("No WebSocketAgent address has been provided yet.");
-                    }
-                }
+                tactical_status
             }
             TacticalRequest::Scheduling => {
                 todo!()
@@ -77,12 +70,12 @@ impl Handler<TacticalRequest> for TacticalAgent {
     }
 }
 
-impl Handler<SetAgentAddrMessage<WebSocketAgent>> for TacticalAgent {
+impl Handler<SetAgentAddrMessage<OrchestratorAgent>> for TacticalAgent {
     type Result = ();
 
     fn handle(
         &mut self,
-        ws_addr_message: SetAgentAddrMessage<WebSocketAgent>,
+        ws_addr_message: SetAgentAddrMessage<OrchestratorAgent>,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
         self.ws_addr = Some(ws_addr_message.addr);

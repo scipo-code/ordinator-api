@@ -4,7 +4,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use super::TimePeriod;
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "scheduling_message_type")]
 pub enum StrategicSchedulingMessage {
     Schedule(SingleWorkOrder),

@@ -6,7 +6,7 @@ use crate::resources::Resources;
 
 use super::TimePeriod;
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum StrategicResourcesMessage {
     SetResources(HashMap<Resources, HashMap<String, f64>>),
     GetLoadings {
