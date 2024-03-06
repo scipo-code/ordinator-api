@@ -5,32 +5,33 @@ use actix::prelude::*;
 use shared_messages::tactical::TacticalRequest;
 use std::sync::{Arc, Mutex};
 
-use crate::agents::orchestrator_agent::OrchestratorAgent;
 use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
 use crate::models::SchedulingEnvironment;
-
-use crate::agents::strategic_agent::strategic_message::SetAgentAddrMessage;
 
 #[allow(dead_code)]
 pub struct TacticalAgent {
     id: i32,
+    days: u32,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     tactical_algorithm: TacticalAlgorithm,
-    ws_addr: Option<Addr<OrchestratorAgent>>,
 }
 
 impl TacticalAgent {
     pub fn new(
         id: i32,
+        days: u32,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-        addr: Option<Addr<OrchestratorAgent>>,
     ) -> Self {
         TacticalAgent {
             id,
+            days,
             scheduling_environment,
             tactical_algorithm: TacticalAlgorithm::new(),
-            ws_addr: addr,
         }
+    }
+
+    pub fn get_time_horizon(&self) -> u32 {
+        self.days
     }
 }
 
@@ -52,11 +53,7 @@ impl Handler<TacticalRequest> for TacticalAgent {
     ) -> Self::Result {
         println!("WorkPlannerAgent received WorkPlannerMessage");
         match tactical_request {
-            TacticalRequest::Status => {
-                let tactical_status = self.tactical_algorithm.status();
-
-                tactical_status
-            }
+            TacticalRequest::Status => self.tactical_algorithm.status(),
             TacticalRequest::Scheduling => {
                 todo!()
             }
@@ -67,17 +64,5 @@ impl Handler<TacticalRequest> for TacticalAgent {
                 todo!()
             }
         }
-    }
-}
-
-impl Handler<SetAgentAddrMessage<OrchestratorAgent>> for TacticalAgent {
-    type Result = ();
-
-    fn handle(
-        &mut self,
-        ws_addr_message: SetAgentAddrMessage<OrchestratorAgent>,
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
-        self.ws_addr = Some(ws_addr_message.addr);
     }
 }

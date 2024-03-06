@@ -163,11 +163,11 @@ impl StrategicAlgorithm {
         number_of_work_orders: usize,
         rng: &mut impl rand::Rng,
     ) {
-        let mut optimized_work_orders = self.get_optimized_work_orders();
+        let optimized_work_orders = self.get_optimized_work_orders();
 
         let mut filtered_keys: Vec<_> = optimized_work_orders
             .iter()
-            .filter(|(&key, value)| value.get_locked_in_period().is_none())
+            .filter(|(&_key, value)| value.get_locked_in_period().is_none())
             .map(|(&key, _)| key)
             .collect();
 

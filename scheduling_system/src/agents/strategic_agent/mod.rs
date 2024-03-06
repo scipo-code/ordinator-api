@@ -2,18 +2,11 @@ pub mod display;
 pub mod strategic_algorithm;
 pub mod strategic_message;
 
-use crate::agents::orchestrator_agent::OrchestratorAgent;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::strategic_agent::strategic_message::ScheduleIteration;
-use crate::models::time_environment::period::Period;
-use crate::models::work_order::order_type::WorkOrderType;
-use crate::models::work_order::priority::Priority;
-use crate::models::work_order::status_codes::MaterialStatus;
 use crate::models::SchedulingEnvironment;
 
 use actix::prelude::*;
-use shared_messages::resources::Resources;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -25,14 +18,7 @@ pub struct StrategicAgent {
     platform: String,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     scheduler_agent_algorithm: StrategicAlgorithm,
-    orchestrator_agent_addr: Option<Addr<OrchestratorAgent>>,
-    work_planner_agent_addr: Option<Addr<TacticalAgent>>,
-}
-
-impl StrategicAgent {
-    pub fn set_ws_agent_addr(&mut self, ws_agent_addr: Addr<OrchestratorAgent>) {
-        self.orchestrator_agent_addr = Some(ws_agent_addr);
-    }
+    tactical_agent_addr: Option<Addr<TacticalAgent>>,
 }
 
 impl Actor for StrategicAgent {
@@ -53,15 +39,13 @@ impl StrategicAgent {
         platform: String,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         scheduler_agent_algorithm: StrategicAlgorithm,
-        ws_agent_addr: Option<Addr<OrchestratorAgent>>,
-        work_planner_agent_addr: Option<Addr<TacticalAgent>>,
+        tactical_agent_addr: Option<Addr<TacticalAgent>>,
     ) -> Self {
         Self {
             platform,
             scheduling_environment,
             scheduler_agent_algorithm,
-            orchestrator_agent_addr: ws_agent_addr,
-            work_planner_agent_addr,
+            tactical_agent_addr,
         }
     }
 }
@@ -69,20 +53,23 @@ impl StrategicAgent {
 #[cfg(test)]
 mod tests {
 
+    use crate::models::work_order::order_type::WorkOrderType;
+    use crate::models::work_order::priority::Priority;
     use chrono::{TimeZone, Utc};
 
     use super::strategic_algorithm::AlgorithmResources;
     use super::strategic_message::tests::TestRequest;
     use super::strategic_message::tests::TestResponse;
+    use std::collections::HashMap;
 
     use super::{
         strategic_algorithm::{OptimizedWorkOrders, PriorityQueues},
         *,
     };
+    use shared_messages::resources::Resources;
 
     use crate::models::work_order::operation::Operation;
     use crate::models::work_order::order_type::WDFPriority;
-    use crate::models::worker_environment::WorkerEnvironment;
     use crate::models::{
         time_environment::period::Period,
         work_order::{
@@ -180,7 +167,6 @@ mod tests {
             "test".to_string(),
             Arc::new(Mutex::new(SchedulingEnvironment::default())),
             scheduler_agent_algorithm,
-            None,
             None,
         );
 
@@ -296,27 +282,6 @@ mod tests {
         let mut work_orders = WorkOrders::new();
 
         work_orders.insert(work_order_1);
-
-        let scheduler_agent_algorithm = StrategicAlgorithm::new(
-            0.0,
-            AlgorithmResources::default(),
-            AlgorithmResources::default(),
-            PriorityQueues::new(),
-            OptimizedWorkOrders::new(HashMap::new()),
-            vec![],
-            true,
-        );
-
-        let scheduling_environment =
-            SchedulingEnvironment::new(work_orders, WorkerEnvironment::new(), Vec::<Period>::new());
-
-        let scheduler_agent = StrategicAgent::new(
-            "test".to_string(),
-            Arc::new(Mutex::new(scheduling_environment)),
-            scheduler_agent_algorithm,
-            None,
-            None,
-        );
 
         // let scheduler_overview = scheduler_agent.extract_state_to_scheduler_overview();
 

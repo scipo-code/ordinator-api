@@ -14,7 +14,7 @@ use crate::agents::tactical_agent::TacticalAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::SchedulingEnvironment;
 use crate::models::WorkOrders;
-use shared_messages::resources::Resources;
+use shared_messages::resources::{Id, Resources};
 
 pub struct AgentFactory {
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
@@ -64,24 +64,37 @@ impl AgentFactory {
             self.scheduling_environment.clone(),
             scheduler_agent_algorithm,
             None,
-            None,
         );
         scheduler_agent.start()
     }
 
-    pub fn build_tactical_agent(&self) -> Addr<TacticalAgent> {
-        let tactical_agent = TacticalAgent::new(0, self.scheduling_environment.clone(), None);
+    pub fn build_tactical_agent(&self, time_horizon: u32) -> Addr<TacticalAgent> {
+        let tactical_agent =
+            TacticalAgent::new(0, time_horizon, self.scheduling_environment.clone());
         tactical_agent.start()
     }
 
-    pub fn build_supervisor_agent(&self, id: String) -> Addr<SupervisorAgent> {
-        let supervisor_agent = SupervisorAgent::new(id, self.scheduling_environment.clone());
+    pub fn build_supervisor_agent(
+        &self,
+        id: Id,
+        resource: shared_messages::resources::Resources,
+    ) -> Addr<SupervisorAgent> {
+        let supervisor_agent =
+            SupervisorAgent::new(id, resource, self.scheduling_environment.clone());
         supervisor_agent.start()
     }
 
-    pub fn build_operational_agent(&self, id: String) -> Addr<OperationalAgent> {
-        let operational_agent =
-            OperationalAgentBuilder::new(id, self.scheduling_environment.clone()).build();
+    pub fn build_operational_agent(
+        &self,
+        id: Id,
+        resource: Vec<shared_messages::resources::Resources>,
+    ) -> Addr<OperationalAgent> {
+        let operational_agent = OperationalAgentBuilder::new(
+            id,
+            resource.into_iter().collect(),
+            self.scheduling_environment.clone(),
+        )
+        .build();
         operational_agent.start()
     }
 }

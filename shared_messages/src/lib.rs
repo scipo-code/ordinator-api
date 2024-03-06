@@ -24,3 +24,15 @@ pub enum SystemMessages {
 impl Message for SystemMessages {
     type Result = ();
 }
+
+pub struct StopMessage {}
+
+impl Message for StopMessage {
+    type Result = ();
+}
+
+pub struct StatusMessage {}
+
+impl Message for StatusMessage {
+    type Result = String;
+}

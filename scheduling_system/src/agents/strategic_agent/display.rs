@@ -11,9 +11,8 @@ impl Display for StrategicAgent {
             f,
             "SchedulerAgent: \n
             Platform: {}, \n
-            SchedulerAgentAlgorithm: {:?}, \n
-            WebSocketAgent Addr: {:?}",
-            self.platform, self.scheduler_agent_algorithm, self.orchestrator_agent_addr
+            SchedulerAgentAlgorithm: {:?}, \n",
+            self.platform, self.scheduler_agent_algorithm,
         )
     }
 }

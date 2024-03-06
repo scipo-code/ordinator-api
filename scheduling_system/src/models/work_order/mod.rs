@@ -116,24 +116,12 @@ impl WorkOrder {
         &self.unloading_point
     }
 
-    pub fn get_operations(&self) -> &HashMap<u32, Operation> {
-        &self.operations
-    }
-
-    pub fn get_order_text(&self) -> &OrderText {
-        &self.order_text
-    }
-
     pub fn get_order_dates(&mut self) -> &mut OrderDates {
         &mut self.order_dates
     }
 
     pub fn get_status_codes(&self) -> &StatusCodes {
         &self.status_codes
-    }
-
-    pub fn get_functional_location(&self) -> &FunctionalLocation {
-        &self.functional_location
     }
 
     pub fn get_revision(&self) -> &Revision {
@@ -399,9 +387,8 @@ mod tests {
                 false,
             )
         }
-
-        pub fn get_mut_order_dates(&mut self) -> &mut OrderDates {
-            &mut self.order_dates
+        pub fn get_operations(&self) -> &HashMap<u32, Operation> {
+            &self.operations
         }
     }
 

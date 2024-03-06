@@ -284,7 +284,7 @@ impl StrategicAlgorithm {
 
                 Ok(loading.to_string(periods_end))
             }
-            StrategicResourcesMessage::GetCapacities { periods_end, select_resources } => 
+            StrategicResourcesMessage::GetCapacities { periods_end, select_resources: _ } => 
             {         
                 let capacities = self.get_resources_capacities();
 
@@ -294,7 +294,7 @@ impl StrategicAlgorithm {
             }
         }
     }
-
+    #[allow(dead_code)]
     pub fn update_periods_state() { todo!() }
 
     #[tracing::instrument(name = "update_scheduling_state", level = "DEBUG", skip(self, strategic_scheduling_message), fields(self.objective_value))]
@@ -503,16 +503,10 @@ impl StrategicAlgorithm {
         &self.periods
     }
 
-    pub fn get_priority_queues(&self) -> &PriorityQueues<u32, u32> {
-        &self.priority_queues
-    }
+
 
 }
 
-#[derive(Debug, PartialEq)]
-pub enum QueueType {
-    Normal,
-}
 
 #[cfg(test)]
 mod tests {
@@ -653,8 +647,8 @@ mod tests {
             ))
         );
 
-        scheduler_agent_algorithm.update_scheduling_state(strategic_scheduling_message);
-        scheduler_agent_algorithm.update_resources_state(strategic_resources_message);
+        scheduler_agent_algorithm.update_scheduling_state(strategic_scheduling_message).unwrap();
+        scheduler_agent_algorithm.update_resources_state(strategic_resources_message).unwrap();
 
         assert_eq!(
             scheduler_agent_algorithm.resources_capacity.inner

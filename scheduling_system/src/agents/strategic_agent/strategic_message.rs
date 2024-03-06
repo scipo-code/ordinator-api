@@ -3,14 +3,14 @@ use serde::{Deserialize, Serialize};
 use shared_messages::agent_error::AgentError;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
 use shared_messages::strategic::StrategicRequest;
+use shared_messages::StatusMessage;
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::fmt::{self, Display};
 use tokio::time::{sleep, Duration};
 use tracing::{debug, error, info, instrument};
 
-use crate::agents::orchestrator_agent::OrchestratorAgent;
-use crate::agents::strategic_agent::{self, StrategicAgent};
+use crate::agents::strategic_agent::StrategicAgent;
 use crate::models::time_environment::period::Period;
 use shared_messages::resources::Resources;
 
@@ -64,7 +64,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
             self.scheduler_agent_algorithm = previous_schedule;
         }
 
-        dbg!(&self.scheduler_agent_algorithm.get_objective_value());
+        // dbg!(&self.scheduler_agent_algorithm.get_objective_value());
 
         debug!(
             "Objective value: {}",
@@ -297,22 +297,15 @@ impl Handler<StrategicRequest> for StrategicAgent {
     }
 }
 
-impl Handler<SetAgentAddrMessage<OrchestratorAgent>> for StrategicAgent {
-    type Result = ();
+impl Handler<StatusMessage> for StrategicAgent {
+    type Result = String;
 
-    fn handle(
-        &mut self,
-        msg: SetAgentAddrMessage<OrchestratorAgent>,
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
-        self.set_ws_agent_addr(msg.addr);
+    fn handle(&mut self, _msg: StatusMessage, _ctx: &mut Self::Context) -> Self::Result {
+        format!(
+            "Objective: {}",
+            self.scheduler_agent_algorithm.get_objective_value()
+        )
     }
-}
-
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct SetAgentAddrMessage<T: actix::Actor> {
-    pub addr: Addr<T>,
 }
 
 #[cfg(test)]
@@ -329,7 +322,8 @@ pub mod tests {
     use shared_messages::strategic::strategic_scheduling_message::{
         SingleWorkOrder, StrategicSchedulingMessage,
     };
-    use tests::strategic_agent::strategic_algorithm::AlgorithmResources;
+
+    use crate::agents::strategic_agent::strategic_algorithm::AlgorithmResources;
 
     #[test]
     fn test_update_scheduler_state() {
@@ -363,7 +357,9 @@ pub mod tests {
 
         scheduler_agent_algorithm.set_optimized_work_order(2200002020, optimized_work_order);
 
-        scheduler_agent_algorithm.update_scheduling_state(strategic_scheduling_internal);
+        scheduler_agent_algorithm
+            .update_scheduling_state(strategic_scheduling_internal)
+            .unwrap();
 
         assert_eq!(
             scheduler_agent_algorithm
@@ -448,7 +444,9 @@ pub mod tests {
 
         scheduler_agent_algorithm.set_optimized_work_order(2100023841, optimized_work_order);
 
-        scheduler_agent_algorithm.update_scheduling_state(strategic_scheduling_message);
+        scheduler_agent_algorithm
+            .update_scheduling_state(strategic_scheduling_message)
+            .unwrap();
 
         assert_eq!(
             scheduler_agent_algorithm
@@ -531,7 +529,7 @@ pub mod tests {
                     .get_resources_loadings()
                     .inner
                     .clone(),
-                priority_queues: self.scheduler_agent_algorithm.get_priority_queues().clone(),
+                priority_queues: PriorityQueues::new(),
                 optimized_work_orders: OptimizedWorkOrders::new(
                     self.scheduler_agent_algorithm
                         .get_optimized_work_orders()

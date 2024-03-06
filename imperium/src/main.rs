@@ -57,9 +57,7 @@ async fn main() {
 
     let system_message = handle_command(cli, &client).await;
 
-    let message = serde_json::to_string(&system_message);
-
-    let response = send_http(&client, message.unwrap()).await;
+    let response = send_http(&client, system_message).await;
 
     let formatted_response = response
         .to_string()
@@ -77,7 +75,7 @@ async fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
         }
         Commands::Orchestrator {
             orchestrator_commands,
-        } => orchestrator_commands.execute(),
+        } => orchestrator_commands.execute(client).await,
 
         Commands::Strategic { strategic_commands } => strategic_commands.execute(client).await,
 
@@ -94,8 +92,9 @@ async fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
     }
 }
 
-async fn send_http(client: &Client, message: String) -> String {
+async fn send_http(client: &Client, system_message: SystemMessages) -> String {
     let url = "http://localhost:8080/ws";
+    let message = serde_json::to_string(&system_message).unwrap();
     let res = client
         .post(url)
         .body(message)
