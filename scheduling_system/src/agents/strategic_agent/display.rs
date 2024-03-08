@@ -12,7 +12,7 @@ impl Display for StrategicAgent {
             "SchedulerAgent: \n
             Platform: {}, \n
             SchedulerAgentAlgorithm: {:?}, \n",
-            self.platform, self.scheduler_agent_algorithm,
+            self.platform, self.strategic_agent_algorithm,
         )
     }
 }

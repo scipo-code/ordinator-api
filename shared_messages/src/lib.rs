@@ -36,3 +36,9 @@ pub struct StatusMessage {}
 impl Message for StatusMessage {
     type Result = String;
 }
+
+pub trait ResourceMessage {}
+
+pub trait TimeMessage {}
+
+pub trait SchedulingMessage {}

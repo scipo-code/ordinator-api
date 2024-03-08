@@ -25,7 +25,6 @@ pub enum OrchestratorCommands {
 pub enum AgentCommands {}
 
 #[derive(Subcommand, Debug)]
-
 pub enum SupervisorAgentCommands {
     /// Create a new SupervisorAgent
     Create {
@@ -58,19 +57,17 @@ impl OrchestratorCommands {
                 let agent_status = OrchestratorRequest::GetAgentStatus;
                 SystemMessages::Orchestrator(agent_status)
             }
-
             OrchestratorCommands::SupervisorAgent(supervisor_agent_command) => {
                 match supervisor_agent_command {
                     SupervisorAgentCommands::Create { id, resource } => {
                         let create_supervisor_agent = OrchestratorRequest::CreateSupervisorAgent(
-                            Id::new(id.clone()),
-                            resource.clone(),
+                            Id::new(id.clone(), vec![resource.clone()]),
                         );
                         SystemMessages::Orchestrator(create_supervisor_agent)
                     }
                     SupervisorAgentCommands::Delete { id } => {
                         let delete_supervisor_agent =
-                            OrchestratorRequest::DeleteSupervisorAgent(Id::new(id.clone()));
+                            OrchestratorRequest::DeleteSupervisorAgent(id.clone());
                         SystemMessages::Orchestrator(delete_supervisor_agent)
                     }
                 }
@@ -79,14 +76,13 @@ impl OrchestratorCommands {
                 match operational_agent_command {
                     OperationalAgentCommands::Create { id, resource } => {
                         let create_operational_agent = OrchestratorRequest::CreateOperationalAgent(
-                            Id::new(id.clone()),
-                            resource.clone(),
+                            Id::new(id.clone(), resource.clone()),
                         );
                         SystemMessages::Orchestrator(create_operational_agent)
                     }
                     OperationalAgentCommands::Delete { id } => {
                         let delete_operational_agent =
-                            OrchestratorRequest::DeleteOperationalAgent(Id::new(id.clone()));
+                            OrchestratorRequest::DeleteOperationalAgent(id.clone());
                         SystemMessages::Orchestrator(delete_operational_agent)
                     }
                 }
@@ -100,10 +96,10 @@ impl OrchestratorCommands {
 
                 for (i, resource) in supervisor_resources.iter().enumerate() {
                     let create_supervisor_agent: OrchestratorRequest =
-                        OrchestratorRequest::CreateSupervisorAgent(
-                            Id::new(format!("L111000{}", i)),
-                            resource.clone(),
-                        );
+                        OrchestratorRequest::CreateSupervisorAgent(Id::new(
+                            format!("L111000{}", i),
+                            vec![resource.clone()],
+                        ));
                     let message = SystemMessages::Orchestrator(create_supervisor_agent);
                     crate::send_http(client, message).await;
                 }
@@ -117,14 +113,14 @@ impl OrchestratorCommands {
 
                 let number_of_each_resource = [4, 2, 3, 2];
                 let mut counter = 0;
-                for i in 0..3 {
+                for i in 0..4 {
                     for _j in 0..number_of_each_resource[i] {
                         counter += 1;
                         let create_operational_agent: OrchestratorRequest =
-                            OrchestratorRequest::CreateOperationalAgent(
-                                Id::new(format!("L111001{}", counter)),
+                            OrchestratorRequest::CreateOperationalAgent(Id::new(
+                                format!("L111001{}", counter),
                                 vec![operational_resources[i].clone()],
-                            );
+                            ));
                         let message = SystemMessages::Orchestrator(create_operational_agent);
                         crate::send_http(client, message).await;
                     }

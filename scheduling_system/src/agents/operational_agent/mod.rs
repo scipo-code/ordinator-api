@@ -12,16 +12,18 @@ use shared_messages::{
 
 use crate::models::{work_order::operation::Operation, SchedulingEnvironment};
 
+use super::{supervisor_agent::SupervisorAgent, SetAddr};
+
 #[allow(dead_code)]
 pub struct OperationalAgent {
     id: Id,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     operational_algorithm: OperationalAlgorithm,
-    agent_traits: HashSet<Resources>,
     capacity: Option<f32>,
     availability: Option<Vec<Availability>>,
     assigned: Option<Vec<AssignedWork>>,
     backup_activities: Option<HashMap<u32, Operation>>,
+    supervisor_agent_addr: Addr<SupervisorAgent>,
 }
 
 struct OperationalAlgorithm {
@@ -43,24 +45,29 @@ pub struct AssignedWork {
 
 impl Actor for OperationalAgent {
     type Context = Context<Self>;
+
+    fn started(&mut self, ctx: &mut Self::Context) {
+        self.supervisor_agent_addr
+            .do_send(SetAddr::SetOperational(self.id.clone(), ctx.address()));
+    }
 }
 
 pub struct OperationalAgentBuilder {
     id: Id,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     operational_algorithm: OperationalAlgorithm,
-    agent_traits: HashSet<Resources>,
     capacity: Option<f32>,
     availability: Option<Vec<Availability>>,
     assigned: Option<Vec<AssignedWork>>,
     backup_activities: Option<HashMap<u32, Operation>>,
+    supervisor_agent_addr: Addr<SupervisorAgent>,
 }
 
 impl OperationalAgentBuilder {
     pub fn new(
         id: Id,
-        agent_traits: HashSet<Resources>,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
+        supervisor_agent_addr: Addr<SupervisorAgent>,
     ) -> Self {
         OperationalAgentBuilder {
             id,
@@ -68,18 +75,12 @@ impl OperationalAgentBuilder {
             operational_algorithm: OperationalAlgorithm {
                 objective_value: 0.0,
             },
-            agent_traits,
             capacity: None,
             availability: None,
             assigned: None,
             backup_activities: None,
+            supervisor_agent_addr,
         }
-    }
-
-    #[allow(dead_code)]
-    pub fn with_agent_traits(mut self, agent_traits: HashSet<Resources>) -> Self {
-        self.agent_traits = agent_traits;
-        self
     }
 
     #[allow(dead_code)]
@@ -111,11 +112,11 @@ impl OperationalAgentBuilder {
             id: self.id,
             scheduling_environment: self.scheduling_environment,
             operational_algorithm: self.operational_algorithm,
-            agent_traits: self.agent_traits,
             capacity: self.capacity,
             availability: self.availability,
             assigned: self.assigned,
             backup_activities: self.backup_activities,
+            supervisor_agent_addr: self.supervisor_agent_addr,
         }
     }
 }
@@ -125,9 +126,10 @@ impl Handler<StatusMessage> for OperationalAgent {
 
     fn handle(&mut self, _msg: StatusMessage, _ctx: &mut Self::Context) -> Self::Result {
         format!(
-            "ID: {}, traits: {}, objective_value: {}",
-            self.id,
-            self.agent_traits
+            "ID: {}, traits: {}, Objective: {}",
+            self.id.0,
+            self.id
+                .1
                 .iter()
                 .map(|resource| resource.to_string())
                 .collect::<Vec<String>>()

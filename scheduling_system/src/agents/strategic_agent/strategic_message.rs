@@ -11,6 +11,7 @@ use tokio::time::{sleep, Duration};
 use tracing::{debug, error, info, instrument};
 
 use crate::agents::strategic_agent::StrategicAgent;
+use crate::agents::traits::LargeNeighborHoodSearch;
 use crate::models::time_environment::period::Period;
 use shared_messages::resources::Resources;
 
@@ -47,32 +48,22 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         // event!(tracing::Level::INFO , "schedule_iteration_message");
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
 
-        let previous_schedule = self.scheduler_agent_algorithm.clone();
+        let previous_schedule = self.strategic_agent_algorithm.clone();
 
-        self.scheduler_agent_algorithm
+        self.strategic_agent_algorithm
             .unschedule_random_work_orders(50, rng);
 
-        self.scheduler_agent_algorithm.schedule_normal_work_orders();
+        self.strategic_agent_algorithm.schedule();
 
-        self.scheduler_agent_algorithm.schedule_forced_work_orders();
-
-        self.scheduler_agent_algorithm.calculate_objective();
+        self.strategic_agent_algorithm.calculate_objective();
 
         if previous_schedule.get_objective_value()
-            < self.scheduler_agent_algorithm.get_objective_value()
+            < self.strategic_agent_algorithm.get_objective_value()
         {
-            self.scheduler_agent_algorithm = previous_schedule;
+            self.strategic_agent_algorithm = previous_schedule;
         }
 
-        // dbg!(&self.scheduler_agent_algorithm.get_objective_value());
-
-        debug!(
-            "Objective value: {}",
-            self.scheduler_agent_algorithm.get_objective_value()
-        );
-
         #[cfg(debug_assertions)]
-        //self.scheduler_agent_algorithm.check_strategic_state();
         let actor_addr = ctx.address().clone();
 
         let fut = async move {
@@ -114,12 +105,12 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     dbg!();
                     let scheduling_status = self.scheduling_environment.lock().unwrap().to_string();
                     let strategic_objective = self
-                        .scheduler_agent_algorithm
+                        .strategic_agent_algorithm
                         .get_objective_value()
                         .to_string();
 
                     let optimized_work_orders =
-                        self.scheduler_agent_algorithm.get_optimized_work_orders();
+                        self.strategic_agent_algorithm.get_optimized_work_orders();
 
                     let number_of_strategic_work_orders = optimized_work_orders.len();
                     let mut scheduled_count = 0;
@@ -137,10 +128,10 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     Ok(scheduling_status)
                 }
                 StrategicStatusMessage::Period(period) => {
-                    let work_orders = self.scheduler_agent_algorithm.get_optimized_work_orders();
+                    let work_orders = self.strategic_agent_algorithm.get_optimized_work_orders();
 
                     if !self
-                        .scheduler_agent_algorithm
+                        .strategic_agent_algorithm
                         .get_periods()
                         .iter()
                         .map(|period| period.get_period_string())
@@ -258,25 +249,13 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     Ok(message)
                 }
             },
-            StrategicRequest::Scheduling(scheduling_message) => {
-                info!(
-                    target: "SchedulerRequest::Input",
-                    message = ?scheduling_message,
-                    "received a message from the frontend"
-                );
-
-                self.scheduler_agent_algorithm
-                    .update_scheduling_state(scheduling_message)
-            }
+            StrategicRequest::Scheduling(scheduling_message) => self
+                .strategic_agent_algorithm
+                .update_scheduling_state(scheduling_message),
             StrategicRequest::Resources(resources_message) => self
-                .scheduler_agent_algorithm
+                .strategic_agent_algorithm
                 .update_resources_state(resources_message),
             StrategicRequest::Periods(periods_message) => {
-                info!(
-                    "SchedulerAgentReceived a PeriodMessage message: {:?}",
-                    periods_message
-                );
-
                 let mut scheduling_env_lock = self.scheduling_environment.lock().unwrap();
 
                 let periods = scheduling_env_lock.get_mut_periods();
@@ -290,7 +269,7 @@ impl Handler<StrategicRequest> for StrategicAgent {
                         error!("periods not handled correctly");
                     }
                 }
-                self.scheduler_agent_algorithm.set_periods(periods.to_vec());
+                self.strategic_agent_algorithm.set_periods(periods.to_vec());
                 Ok("Periods updated".to_string())
             }
         }
@@ -303,7 +282,7 @@ impl Handler<StatusMessage> for StrategicAgent {
     fn handle(&mut self, _msg: StatusMessage, _ctx: &mut Self::Context) -> Self::Result {
         format!(
             "Objective: {}",
-            self.scheduler_agent_algorithm.get_objective_value()
+            self.strategic_agent_algorithm.get_objective_value()
         )
     }
 }
@@ -504,7 +483,7 @@ pub mod tests {
     }
 
     pub struct TestResponse {
-        pub objective_value: f64,
+        pub objective_value: f32,
         pub manual_resources_capacity: HashMap<Resources, HashMap<Period, f64>>,
         pub manual_resources_loading: HashMap<Resources, HashMap<Period, f64>>,
         pub priority_queues: PriorityQueues<u32, u32>,
@@ -518,24 +497,24 @@ pub mod tests {
         fn handle(&mut self, _msg: TestRequest, _: &mut Context<Self>) -> Self::Result {
             // Return the state or part of it
             Some(TestResponse {
-                objective_value: self.scheduler_agent_algorithm.get_objective_value(),
+                objective_value: self.strategic_agent_algorithm.get_objective_value(),
                 manual_resources_capacity: self
-                    .scheduler_agent_algorithm
+                    .strategic_agent_algorithm
                     .get_resources_capacities()
                     .inner
                     .clone(),
                 manual_resources_loading: self
-                    .scheduler_agent_algorithm
+                    .strategic_agent_algorithm
                     .get_resources_loadings()
                     .inner
                     .clone(),
                 priority_queues: PriorityQueues::new(),
                 optimized_work_orders: OptimizedWorkOrders::new(
-                    self.scheduler_agent_algorithm
+                    self.strategic_agent_algorithm
                         .get_optimized_work_orders()
                         .clone(),
                 ),
-                periods: self.scheduler_agent_algorithm.get_periods().clone(),
+                periods: self.strategic_agent_algorithm.get_periods().clone(),
             })
         }
     }

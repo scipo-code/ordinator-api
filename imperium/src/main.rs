@@ -47,6 +47,7 @@ enum Commands {
         #[clap(subcommand)]
         sap_commands: SapCommands,
     },
+    Test,
 }
 
 #[tokio::main]
@@ -70,7 +71,7 @@ async fn main() {
 async fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
     match &cli.command {
         Commands::Default => {
-            let strategic_status_message: StrategicStatusMessage = StrategicStatusMessage::General;
+            let strategic_status_message = StrategicStatusMessage::General;
             SystemMessages::Strategic(StrategicRequest::Status(strategic_status_message))
         }
         Commands::Orchestrator {
@@ -84,20 +85,23 @@ async fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
         Commands::Supervisor => {
             todo!()
         }
-
         Commands::Operational => {
             todo!()
         }
         Commands::Sap { sap_commands } => sap_commands.execute(),
+        Commands::Test => {
+            println!("Hello this is a test");
+            todo!();
+        }
     }
 }
 
 async fn send_http(client: &Client, system_message: SystemMessages) -> String {
     let url = "http://localhost:8080/ws";
-    let message = serde_json::to_string(&system_message).unwrap();
+    let system_message_json = serde_json::to_string(&system_message).unwrap();
     let res = client
         .post(url)
-        .body(message)
+        .body(system_message_json)
         .header("Content-Type", "application/json")
         .send()
         .await

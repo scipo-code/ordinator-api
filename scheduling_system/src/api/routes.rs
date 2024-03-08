@@ -41,10 +41,7 @@ pub async fn http_to_scheduling_system(
 
             let response = tactical_agent_addr.send(tactical_request).await;
             match response {
-                Ok(response) => {
-                    dbg!(response);
-                    Ok(HttpResponse::Ok().json("TACTICAL: SUCCESS"))
-                }
+                Ok(response) => Ok(HttpResponse::Ok().json(response)),
                 Err(_) => Ok(HttpResponse::BadRequest().json("TACTICAL: FAILURE")),
             }
         }
@@ -120,16 +117,19 @@ impl Orchestrator {
 
                 periods_string
             }
-            OrchestratorRequest::CreateSupervisorAgent(id, resource) => {
+            OrchestratorRequest::CreateSupervisorAgent(id) => {
+                let tactical_agent_addr = self.agent_registry.get_tactical_agent_addr();
                 let supervisor_agent_addr = self
                     .agent_factory
-                    .build_supervisor_agent(id.clone(), resource.clone());
+                    .build_supervisor_agent(id.clone(), tactical_agent_addr);
 
                 self.agent_registry
                     .add_supervisor_agent(id.clone(), supervisor_agent_addr.clone());
                 format!("Supervisor agent created with id {}", id)
             }
-            OrchestratorRequest::DeleteSupervisorAgent(id) => {
+            OrchestratorRequest::DeleteSupervisorAgent(id_string) => {
+                let id = self.agent_registry.get_supervisor_by_id_string(id_string);
+
                 let supervisor_agent_addr =
                     self.agent_registry.get_supervisor_agent_addr(id.clone());
 
@@ -139,25 +139,33 @@ impl Orchestrator {
 
                 format!("Supervisor agent deleted with id {}", id)
             }
-            OrchestratorRequest::CreateOperationalAgent(id, resources) => {
+            OrchestratorRequest::CreateOperationalAgent(id) => {
+                let supervisor_agent_addr = self
+                    .agent_registry
+                    .get_supervisor_agent_addr_by_resource(&id.1[0].clone());
+
                 let operational_agent_addr = self
                     .agent_factory
-                    .build_operational_agent(id.clone(), resources.clone());
+                    .build_operational_agent(id.clone(), supervisor_agent_addr);
 
                 self.agent_registry
                     .add_operational_agent(id.clone(), operational_agent_addr.clone());
 
                 format!("Operational agent created with id {}", id)
             }
-            OrchestratorRequest::DeleteOperationalAgent(name) => {
+            OrchestratorRequest::DeleteOperationalAgent(id_string) => {
+                let id = self
+                    .agent_registry
+                    .get_supervisor_by_id_string(id_string.clone());
+
                 let operational_agent_addr =
-                    self.agent_registry.get_operational_agent_addr(name.clone());
+                    self.agent_registry.get_operational_agent_addr(id.clone());
 
                 operational_agent_addr.do_send(shared_messages::StopMessage {});
 
-                self.agent_registry.operational_agent_addrs.remove(&name);
+                self.agent_registry.operational_agent_addrs.remove(&id);
 
-                format!("Operational agent deleted with id {}", name)
+                format!("Operational agent deleted with id {}", id_string)
             }
         }
     }

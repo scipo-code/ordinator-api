@@ -68,31 +68,39 @@ impl AgentFactory {
         scheduler_agent.start()
     }
 
-    pub fn build_tactical_agent(&self, time_horizon: u32) -> Addr<TacticalAgent> {
-        let tactical_agent =
-            TacticalAgent::new(0, time_horizon, self.scheduling_environment.clone());
+    pub fn build_tactical_agent(
+        &self,
+        time_horizon: u32,
+        strategic_agent_addr: Addr<StrategicAgent>,
+    ) -> Addr<TacticalAgent> {
+        let tactical_agent = TacticalAgent::new(
+            0,
+            time_horizon,
+            strategic_agent_addr,
+            self.scheduling_environment.clone(),
+        );
         tactical_agent.start()
     }
 
     pub fn build_supervisor_agent(
         &self,
         id: Id,
-        resource: shared_messages::resources::Resources,
+        tactical_agent_addr: Addr<TacticalAgent>,
     ) -> Addr<SupervisorAgent> {
         let supervisor_agent =
-            SupervisorAgent::new(id, resource, self.scheduling_environment.clone());
+            SupervisorAgent::new(id, tactical_agent_addr, self.scheduling_environment.clone());
         supervisor_agent.start()
     }
 
     pub fn build_operational_agent(
         &self,
         id: Id,
-        resource: Vec<shared_messages::resources::Resources>,
+        supervisor_agent_addr: Addr<SupervisorAgent>,
     ) -> Addr<OperationalAgent> {
         let operational_agent = OperationalAgentBuilder::new(
             id,
-            resource.into_iter().collect(),
             self.scheduling_environment.clone(),
+            supervisor_agent_addr,
         )
         .build();
         operational_agent.start()

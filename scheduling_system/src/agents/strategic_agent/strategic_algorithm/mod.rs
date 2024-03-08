@@ -7,17 +7,20 @@ use std::hash::{Hash, Hasher};
 
 use priority_queue::PriorityQueue;
 use shared_messages::agent_error::AgentError;
-use shared_messages::strategic::strategic_resources_message::{StrategicResourcesMessage};
+use shared_messages::strategic::strategic_periods_message::StrategicTimeMessage;
+use shared_messages::strategic::strategic_resources_message::{StrategicResourceMessage};
 use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
+use shared_messages::{ResourceMessage, SchedulingMessage, TimeMessage};
 use tracing::{debug, info, instrument};
 
+use crate::agents::traits::{LargeNeighborHoodSearch};
 use crate::models::time_environment::period::{Period};
 use shared_messages::resources::Resources;
 
 #[derive(Debug, Clone)]
 
 pub struct StrategicAlgorithm {
-    objective_value: f64,
+    objective_value: f32,
     resources_capacity: AlgorithmResources,
     resources_loading: AlgorithmResources,
     priority_queues: PriorityQueues<u32, u32>,
@@ -83,9 +86,7 @@ impl StrategicAlgorithm {
         self.periods = periods;
     }
 
-    pub fn get_objective_value(&self) -> f64 {
-        self.objective_value
-    }
+
 
 }
 
@@ -247,14 +248,66 @@ impl Display for StrategicAlgorithm {
     }
 }
 
-impl StrategicAlgorithm {
-    pub fn update_resources_state(
+impl LargeNeighborHoodSearch for StrategicAlgorithm {
+
+    type TimeUnit = Period;
+    type ResourceUnit = Resources;
+    type ScheduleUnit = u32;
+
+    fn get_objective_value(&self) -> f32 {
+        self.objective_value
+    }
+
+    #[instrument(level = "trace", skip_all)]
+    fn schedule(&mut self) {
+        self.schedule_normal_work_orders();
+
+        self.schedule_forced_work_orders();
+
+    }
+    
+    #[instrument(level = "trace", skip_all)]
+    fn unschedule(&mut self, work_order_key: u32) {
+  
+        let optimized_work_order: &mut OptimizedWorkOrder = self
+            .optimized_work_orders
+            .inner
+            .get_mut(&work_order_key)
+            .unwrap();
+
+        match optimized_work_order.get_scheduled_period() {
+            Some(_) => {
+                for (resource, periods_loading) in self.resources_loading.inner.iter_mut() {
+                    let period = optimized_work_order.get_scheduled_period().unwrap();
+                    let loading = periods_loading.get_mut(&period).unwrap();
+                    let work_load_for_resource = optimized_work_order.get_work_load().get(resource);
+                    if let Some(work_load_for_resource) = work_load_for_resource {
+                        *loading -= work_load_for_resource;
+                    }
+                }
+                optimized_work_order.set_scheduled_period(None);
+            }
+            None => panic!(),
+        }
+    }
+
+
+    /// The problem here is that we are making the code more generic than it needs to be. We are 
+    /// increasing complexity. We are already implementing the actor model. And this means that we
+    /// are already implementing handlers and different kinds of messages. If somethings need to 
+    /// change we will make a new message and implement a handler on it. So what I am doing here is 
+    /// making an update_resources_state that based on a message implementing the ResourceMessage
+    /// will do different things. This is the same thing as implementing many different Handlers in 
+    /// the actix model.
+    #[instrument(level = "info", skip_all)]
+    fn update_resources_state(
         &mut self,
-        strategic_resources_message: StrategicResourcesMessage,
-    ) -> Result<String, AgentError> {
+        strategic_resources_message: StrategicResourceMessage,
+    ) -> Result<String, AgentError> 
+ {
 
         match strategic_resources_message {
-            StrategicResourcesMessage::SetResources(manual_resources) => {
+            StrategicResourceMessage::SetResources(manual_resources) => {
                 let mut count = 0;
                 for (resource, periods) in manual_resources {
                     for (period_string, capacity) in periods {
@@ -272,7 +325,7 @@ impl StrategicAlgorithm {
 
                 Ok(response_message)
             }
-            StrategicResourcesMessage::GetLoadings {
+            StrategicResourceMessage::GetLoadings {
                 periods_end,
                 select_resources: _,
             
@@ -284,7 +337,7 @@ impl StrategicAlgorithm {
 
                 Ok(loading.to_string(periods_end))
             }
-            StrategicResourcesMessage::GetCapacities { periods_end, select_resources: _ } => 
+            StrategicResourceMessage::GetCapacities { periods_end, select_resources: _ } => 
             {         
                 let capacities = self.get_resources_capacities();
 
@@ -295,13 +348,15 @@ impl StrategicAlgorithm {
         }
     }
     #[allow(dead_code)]
-    pub fn update_periods_state() { todo!() }
+    fn update_time_state(&mut self, time_message: StrategicTimeMessage) -> Result<String, AgentError> 
+        { todo!() }
 
-    #[tracing::instrument(name = "update_scheduling_state", level = "DEBUG", skip(self, strategic_scheduling_message), fields(self.objective_value))]
-    pub fn update_scheduling_state(
+    #[tracing::instrument(level = "DEBUG", skip_all)]
+    fn update_scheduling_state(
         &mut self,
         strategic_scheduling_message: StrategicSchedulingMessage,
-    ) -> Result<String, AgentError> {
+    ) -> Result<String, AgentError>
+{
         match strategic_scheduling_message {
             StrategicSchedulingMessage::Schedule(schedule_work_order) => {
                 let work_order_number = schedule_work_order.get_work_order_number();
@@ -467,7 +522,7 @@ impl PriorityQueues<u32, u32> {
 // SchedulingEnvironment. I should remove it immediately 
 impl StrategicAlgorithm {
     pub fn new(
-        objective_value: f64,
+        objective_value: f32,
         resources_capacity: AlgorithmResources,
         resources_loading: AlgorithmResources,
         priority_queues: PriorityQueues<u32, u32>,
@@ -622,7 +677,7 @@ mod tests {
         let strategic_scheduling_message = StrategicSchedulingMessage::Schedule(
             SingleWorkOrder::new(2200002020, "2023-W47-48".to_string()),
         );
-        let strategic_resources_message = StrategicResourcesMessage::new_test();
+        let strategic_resources_message = StrategicResourceMessage::new_test();
 
         assert_eq!(
             scheduler_agent_algorithm.resources_capacity.inner

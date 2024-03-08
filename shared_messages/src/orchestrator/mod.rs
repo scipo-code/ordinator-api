@@ -1,17 +1,17 @@
 use actix::Message;
 use serde::{Deserialize, Serialize};
 
-use crate::resources::{Id, Resources};
+use crate::resources::Id;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum OrchestratorRequest {
     GetWorkOrderStatus(u32),
     GetPeriods,
     GetAgentStatus,
-    CreateSupervisorAgent(Id, Resources),
-    DeleteSupervisorAgent(Id),
-    CreateOperationalAgent(Id, Vec<Resources>),
-    DeleteOperationalAgent(Id),
+    CreateSupervisorAgent(Id),
+    DeleteSupervisorAgent(String),
+    CreateOperationalAgent(Id),
+    DeleteOperationalAgent(String),
 }
 
 impl Message for OrchestratorRequest {

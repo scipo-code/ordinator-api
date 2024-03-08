@@ -177,16 +177,16 @@ impl Display for Resources {
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug)]
-pub struct Id(String);
+pub struct Id(pub String, pub Vec<Resources>);
 
 impl Id {
-    pub fn new(id: String) -> Self {
-        Id(id)
+    pub fn new(id: String, resources: Vec<Resources>) -> Self {
+        Id(id, resources)
     }
 }
 
 impl Display for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "{} | {:?}", self.0, self.1)
     }
 }

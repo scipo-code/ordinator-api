@@ -12,12 +12,14 @@ use std::sync::Mutex;
 
 use crate::agents::tactical_agent::TacticalAgent;
 
+use super::SetAddr;
+
 /// This is the primary struct for the scheduler agent.
 #[allow(dead_code)]
 pub struct StrategicAgent {
     platform: String,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-    scheduler_agent_algorithm: StrategicAlgorithm,
+    strategic_agent_algorithm: StrategicAlgorithm,
     tactical_agent_addr: Option<Addr<TacticalAgent>>,
 }
 
@@ -25,7 +27,7 @@ impl Actor for StrategicAgent {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Context<Self>) {
-        self.scheduler_agent_algorithm.populate_priority_queues();
+        self.strategic_agent_algorithm.populate_priority_queues();
         ctx.notify(ScheduleIteration {})
     }
 
@@ -44,8 +46,24 @@ impl StrategicAgent {
         Self {
             platform,
             scheduling_environment,
-            scheduler_agent_algorithm,
+            strategic_agent_algorithm: scheduler_agent_algorithm,
             tactical_agent_addr,
+        }
+    }
+}
+
+impl Handler<SetAddr> for StrategicAgent {
+    type Result = ();
+
+    fn handle(&mut self, msg: SetAddr, _ctx: &mut Context<Self>) {
+        match msg {
+            SetAddr::SetTactical(addr) => {
+                self.tactical_agent_addr = Some(addr);
+            }
+            _ => {
+                println!("The strategic agent received an Addr<T>, where T is not a valid Actor");
+                todo!()
+            }
         }
     }
 }

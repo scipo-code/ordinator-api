@@ -1,4 +1,5 @@
 use actix::prelude::*;
+use shared_messages::resources;
 use shared_messages::resources::Id;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -58,8 +59,52 @@ impl ActorRegistry {
         self.supervisor_agent_addrs.get(&id).unwrap().clone()
     }
 
+    pub fn get_supervisor_agent_addr_by_resource(
+        &self,
+        resource: &shared_messages::resources::Resources,
+    ) -> Addr<SupervisorAgent> {
+        let matching_supervisor = self.supervisor_agent_addrs.iter().find_map(|(id, addr)| {
+            if id.1.contains(resource) {
+                Some(addr)
+            } else {
+                None
+            }
+        });
+
+        match matching_supervisor {
+            Some(addr) => addr.clone(),
+            None => self
+                .supervisor_agent_addrs
+                .iter()
+                .find_map(|(id, addr)| {
+                    if id.1.contains(&resources::Resources::MtnMech) {
+                        Some(addr)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap()
+                .clone(),
+        }
+    }
+
     pub fn get_operational_agent_addr(&self, id: Id) -> Addr<OperationalAgent> {
         self.operational_agent_addrs.get(&id).unwrap().clone()
+    }
+
+    pub fn get_supervisor_by_id_string(&self, id_string: String) -> Id {
+        self.supervisor_agent_addrs
+            .keys()
+            .find(|id| id.0 == id_string)
+            .unwrap()
+            .clone()
+    }
+    pub fn get_operational_by_id_string(&self, id_string: String) -> Id {
+        self.operational_agent_addrs
+            .keys()
+            .find(|id| id.0 == id_string)
+            .unwrap()
+            .clone()
     }
 }
 
@@ -69,7 +114,8 @@ impl Orchestrator {
 
         let strategic_agent_addr = agent_factory.build_strategic_agent();
 
-        let tactical_agent_addr = agent_factory.build_tactical_agent(56);
+        let tactical_agent_addr =
+            agent_factory.build_tactical_agent(56, strategic_agent_addr.clone());
 
         Orchestrator {
             scheduling_environment,
