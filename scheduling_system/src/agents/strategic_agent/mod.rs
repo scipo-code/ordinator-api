@@ -57,7 +57,7 @@ impl Handler<SetAddr> for StrategicAgent {
 
     fn handle(&mut self, msg: SetAddr, _ctx: &mut Context<Self>) {
         match msg {
-            SetAddr::SetTactical(addr) => {
+            SetAddr::Tactical(addr) => {
                 self.tactical_agent_addr = Some(addr);
             }
             _ => {

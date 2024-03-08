@@ -1,4 +1,6 @@
+use actix_web::http::header;
 use actix_web::{web, HttpRequest, HttpResponse, Result};
+use shared_messages::LevelOfDetail;
 use shared_messages::{orchestrator::OrchestratorRequest, SystemMessages};
 use std::fmt::Write;
 use std::sync::{Arc, Mutex};
@@ -26,7 +28,13 @@ pub async fn http_to_scheduling_system(
             let response = strategic_agent_addr.send(strategic_request).await;
             match response {
                 Ok(response) => match response {
-                    Ok(response) => Ok(HttpResponse::Ok().json(response)),
+                    Ok(response) => {
+                        println!("{}", response.clone());
+                        let http_response = HttpResponse::Ok()
+                            .insert_header(header::ContentType::plaintext())
+                            .body(response);
+                        Ok(http_response)
+                    }
                     Err(_) => Ok(HttpResponse::BadRequest().json("STRATEGIC: FAILURE")),
                 },
                 Err(_) => Ok(HttpResponse::BadRequest().json("STRATEGIC: FAILURE")),
@@ -93,15 +101,30 @@ impl Orchestrator {
 
                 buffer
             }
-            OrchestratorRequest::GetWorkOrderStatus(work_order_number) => {
+            OrchestratorRequest::GetWorkOrderStatus(work_order_number, level_of_detail) => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
                 let cloned_work_orders = scheduling_environment_guard.clone_work_orders();
 
-                if let Some(work_order_status) = cloned_work_orders.inner.get(&work_order_number) {
-                    work_order_status.to_string()
+                if let Some(work_order) = cloned_work_orders.inner.get(&work_order_number) {
+                    match level_of_detail {
+                        LevelOfDetail::Low => work_order.to_string(),
+                        LevelOfDetail::Medium => work_order.to_string_medium().to_string(),
+                        LevelOfDetail::High => work_order.to_string_high(),
+                    }
                 } else {
                     "Work order not found".to_string()
+                }
+            }
+            OrchestratorRequest::GetWorkOrdersState(level_of_detail) => {
+                let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+
+                let cloned_work_orders = scheduling_environment_guard.clone_work_orders();
+
+                match level_of_detail {
+                    LevelOfDetail::Low => cloned_work_orders.to_string(),
+                    LevelOfDetail::Medium => "".to_string(),
+                    LevelOfDetail::High => "".to_string(),
                 }
             }
             OrchestratorRequest::GetPeriods => {

@@ -118,11 +118,119 @@ impl fmt::Display for WorkOrders {
             self.inner.len()
         )?;
         for (_, work_order) in self.inner.iter() {
-            write!(f, "{}", work_order)?;
+            write!(f, "{}", work_order.to_string_low())?;
         }
         Ok(())
     }
 }
+
+// impl WorkOrders {
+
+//     pub fn format_selected_work_orders(
+//         &self,
+//         work_orders_number: Vec<u32>,
+//         period: Option<String>,
+//     ) -> String {
+//         let mut message = String::new();
+
+//         match period {
+//             Some(period) => writeln!(
+//                 message,
+//                 "Work orders scheduled for period: {} are: ",
+//                 period,
+//             ),
+//             None => writeln!(message, "All work orders"),
+//         }
+//         .unwrap();
+
+//         writeln!(
+//             message,
+//             "                      EARL-PERIOD|AWCS|SECE|REVISION|TYPE|PRIO|VEN*| MAT|",
+//         )
+//         .unwrap();
+
+//         let mut work_orders = self
+//             .scheduling_environment
+//             .lock()
+//             .unwrap()
+//             .clone_work_orders();
+
+//         for work_order_number in work_orders_number {
+//             writeln!(
+//                 message,
+//                 "    Work order: {}    |{:>11}|{:<}|{:<}|{:>8}|{:?}|{:?}|{:<3}|{:?}|",
+//                 work_order_number,
+//                 work_orders
+//                     .inner
+//                     .get_mut(&work_order_number)
+//                     .unwrap()
+//                     .get_order_dates()
+//                     .earliest_allowed_start_period
+//                     .get_period_string(),
+//                 if work_orders
+//                     .inner
+//                     .get(&work_order_number)
+//                     .unwrap()
+//                     .get_status_codes()
+//                     .awsc
+//                 {
+//                     "AWSC"
+//                 } else {
+//                     "----"
+//                 },
+//                 if work_orders
+//                     .inner
+//                     .get(&work_order_number)
+//                     .unwrap()
+//                     .get_status_codes()
+//                     .sece
+//                 {
+//                     "SECE"
+//                 } else {
+//                     "----"
+//                 },
+//                 work_orders
+//                     .inner
+//                     .get(&work_order_number)
+//                     .unwrap()
+//                     .get_revision()
+//                     .string,
+//                 work_orders
+//                     .inner
+//                     .get(&work_order_number)
+//                     .unwrap()
+//                     .get_order_type()
+//                     .get_type_string(),
+//                 work_orders
+//                     .inner
+//                     .get(&work_order_number)
+//                     .unwrap()
+//                     .get_priority()
+//                     .get_priority_string(),
+//                 if work_orders
+//                     .inner
+//                     .get(&work_order_number)
+//                     .unwrap()
+//                     .is_vendor()
+//                 {
+//                     "VEN"
+//                 } else {
+//                     "---"
+//                 },
+//                 work_orders
+//                     .inner
+//                     .get(&work_order_number)
+//                     .unwrap()
+//                     .get_status_codes()
+//                     .material_status,
+//             )
+//             .unwrap();
+//         }
+//         message
+//     }
+    
+// }
+
 
 #[cfg(test)]
 mod tests {

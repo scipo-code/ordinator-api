@@ -14,10 +14,10 @@ pub mod tactical_agent;
 pub mod traits;
 
 pub enum SetAddr {
-    SetStrategic(Addr<StrategicAgent>),
-    SetTactical(Addr<TacticalAgent>),
-    SetSupervisor(Id, Addr<SupervisorAgent>),
-    SetOperational(Id, Addr<OperationalAgent>),
+    Strategic(Addr<StrategicAgent>),
+    Tactical(Addr<TacticalAgent>),
+    Supervisor(Id, Addr<SupervisorAgent>),
+    Operational(Id, Addr<OperationalAgent>),
 }
 
 impl Message for SetAddr {

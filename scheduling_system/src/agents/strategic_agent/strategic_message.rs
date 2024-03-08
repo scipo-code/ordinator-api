@@ -1,51 +1,22 @@
 use actix::prelude::*;
-use serde::{Deserialize, Serialize};
 use shared_messages::agent_error::AgentError;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
 use shared_messages::strategic::StrategicRequest;
 use shared_messages::StatusMessage;
-use std::collections::HashMap;
-use std::fmt::Write;
-use std::fmt::{self, Display};
-use tokio::time::{sleep, Duration};
-use tracing::{debug, error, info, instrument};
+use tracing::{error, info, instrument};
 
 use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::traits::LargeNeighborHoodSearch;
-use crate::models::time_environment::period::Period;
-use shared_messages::resources::Resources;
-
-struct SchedulerResources<'a>(&'a HashMap<(Resources, String), f64>);
-
-impl Display for SchedulerResources<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "--------------------------")?;
-        for ((resource, period), capacity) in self.0 {
-            writeln!(
-                f,
-                "Resource: {:?}\nPeriod: {}\nCapacity: {}",
-                resource, period, capacity
-            )?;
-        }
-        write!(f, "--------------------------")
-    }
-}
-
-#[derive(Deserialize, Debug)]
-pub struct UpdatePeriod {
-    pub periods: Vec<Period>,
-}
 
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct ScheduleIteration {}
 
 impl Handler<ScheduleIteration> for StrategicAgent {
-    type Result = ResponseActFuture<Self, ()>;
+    type Result = ();
 
     #[instrument(skip(self, _msg, ctx))]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
-        // event!(tracing::Level::INFO , "schedule_iteration_message");
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
 
         let previous_schedule = self.strategic_agent_algorithm.clone();
@@ -63,46 +34,18 @@ impl Handler<ScheduleIteration> for StrategicAgent {
             self.strategic_agent_algorithm = previous_schedule;
         }
 
-        #[cfg(debug_assertions)]
-        let actor_addr = ctx.address().clone();
-
-        let fut = async move {
-            sleep(Duration::from_secs(0)).await;
-            actor_addr.do_send(ScheduleIteration {});
-        };
-
-        Box::pin(actix::fut::wrap_future::<_, Self>(fut))
+        ctx.notify(ScheduleIteration {});
     }
-}
-
-#[derive(serde::Serialize, Debug)]
-pub struct LoadingMessage {
-    pub frontend_message_type: String,
-    pub manual_resources_loading: HashMap<Resources, HashMap<String, f64>>,
-}
-
-impl Message for LoadingMessage {
-    type Result = ();
-}
-
-#[derive(Serialize, Debug)]
-pub struct PeriodMessage {
-    pub frontend_message_type: String,
-    pub periods: Vec<Period>,
-}
-
-impl Message for PeriodMessage {
-    type Result = ();
 }
 
 impl Handler<StrategicRequest> for StrategicAgent {
     type Result = Result<String, AgentError>;
 
+    #[instrument(level = "debug", skip_all)]
     fn handle(&mut self, msg: StrategicRequest, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
             StrategicRequest::Status(strategic_status_message) => match strategic_status_message {
                 StrategicStatusMessage::General => {
-                    dbg!();
                     let scheduling_status = self.scheduling_environment.lock().unwrap().to_string();
                     let strategic_objective = self
                         .strategic_agent_algorithm
@@ -124,7 +67,6 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     "{}\nWith objectives: \n  strategic objective of: {}\n    {} of {} work orders scheduled",
                     scheduling_status, strategic_objective, scheduled_count, number_of_strategic_work_orders
                 );
-                    info!("SchedulerAgentReceived a Status message");
                     Ok(scheduling_status)
                 }
                 StrategicStatusMessage::Period(period) => {
@@ -153,98 +95,8 @@ impl Handler<StrategicRequest> for StrategicAgent {
                         })
                         .map(|(work_order_number, _)| *work_order_number)
                         .collect();
-                    let mut message = String::new();
-
-                    writeln!(
-                        message,
-                        "Work orders scheduled for period: {} are: ",
-                        period,
-                    )
-                    .unwrap();
-
-                    writeln!(
-                        message,
-                        "                      EARL-PERIOD|AWCS|SECE|REVISION|TYPE|PRIO|VEN*| MAT|",
-                    )
-                    .unwrap();
-
-                    let mut work_orders: crate::models::WorkOrders = self
-                        .scheduling_environment
-                        .lock()
-                        .unwrap()
-                        .clone_work_orders();
-
-                    for work_order_number in work_orders_by_period {
-                        writeln!(
-                            message,
-                            "    Work order: {}    |{:>11}|{:<}|{:<}|{:>8}|{:?}|{:?}|{:<3}|{:?}|",
-                            work_order_number,
-                            work_orders
-                                .inner
-                                .get_mut(&work_order_number)
-                                .unwrap()
-                                .get_order_dates()
-                                .earliest_allowed_start_period
-                                .get_period_string(),
-                            if work_orders
-                                .inner
-                                .get(&work_order_number)
-                                .unwrap()
-                                .get_status_codes()
-                                .awsc
-                            {
-                                "AWSC"
-                            } else {
-                                "----"
-                            },
-                            if work_orders
-                                .inner
-                                .get(&work_order_number)
-                                .unwrap()
-                                .get_status_codes()
-                                .sece
-                            {
-                                "SECE"
-                            } else {
-                                "----"
-                            },
-                            work_orders
-                                .inner
-                                .get(&work_order_number)
-                                .unwrap()
-                                .get_revision()
-                                .string,
-                            work_orders
-                                .inner
-                                .get(&work_order_number)
-                                .unwrap()
-                                .get_order_type()
-                                .get_type_string(),
-                            work_orders
-                                .inner
-                                .get(&work_order_number)
-                                .unwrap()
-                                .get_priority()
-                                .get_priority_string(),
-                            if work_orders
-                                .inner
-                                .get(&work_order_number)
-                                .unwrap()
-                                .is_vendor()
-                            {
-                                "VEN"
-                            } else {
-                                "---"
-                            },
-                            work_orders
-                                .inner
-                                .get(&work_order_number)
-                                .unwrap()
-                                .get_status_codes()
-                                .material_status,
-                        )
-                        .unwrap();
-                    }
+                    let message =
+                        self.format_selected_work_orders(work_orders_by_period, Some(period));
 
                     Ok(message)
                 }
@@ -293,16 +145,19 @@ pub mod tests {
     use std::collections::HashSet;
 
     use super::*;
+    use std::collections::HashMap;
 
     use crate::agents::strategic_agent::strategic_algorithm::{
         OptimizedWorkOrder, OptimizedWorkOrders, PriorityQueues, StrategicAlgorithm,
     };
 
+    use shared_messages::resources::Resources;
     use shared_messages::strategic::strategic_scheduling_message::{
         SingleWorkOrder, StrategicSchedulingMessage,
     };
 
     use crate::agents::strategic_agent::strategic_algorithm::AlgorithmResources;
+    use crate::models::time_environment::period::Period;
 
     #[test]
     fn test_update_scheduler_state() {

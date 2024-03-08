@@ -1,14 +1,11 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     sync::{Arc, Mutex},
 };
 
 use actix::prelude::*;
 use chrono::{DateTime, Utc};
-use shared_messages::{
-    resources::{Id, Resources},
-    StatusMessage, StopMessage,
-};
+use shared_messages::{resources::Id, StatusMessage, StopMessage};
 
 use crate::models::{work_order::operation::Operation, SchedulingEnvironment};
 
@@ -48,7 +45,7 @@ impl Actor for OperationalAgent {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         self.supervisor_agent_addr
-            .do_send(SetAddr::SetOperational(self.id.clone(), ctx.address()));
+            .do_send(SetAddr::Operational(self.id.clone(), ctx.address()));
     }
 }
 

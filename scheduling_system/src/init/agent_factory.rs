@@ -119,8 +119,16 @@ fn create_optimized_work_orders(
     for (work_order_number, work_order) in &mut work_orders.inner {
         let mut excluded_periods: HashSet<Period> = HashSet::new();
 
-        for period in periods.iter() {
-            if period < &work_order.get_order_dates().earliest_allowed_start_period {
+        for (i, period) in periods.iter().enumerate() {
+            if period
+                < &work_order
+                    .get_mut_order_dates()
+                    .earliest_allowed_start_period
+            {
+                excluded_periods.insert(period.clone());
+            } else if work_order.is_vendor() && i <= 3 {
+                excluded_periods.insert(period.clone());
+            } else if work_order.get_revision().shutdown && i <= 3 {
                 excluded_periods.insert(period.clone());
             }
         }
@@ -162,7 +170,7 @@ fn create_optimized_work_orders(
                 excluded_periods,
                 Some(
                     work_order
-                        .get_order_dates()
+                        .get_mut_order_dates()
                         .latest_allowed_finish_period
                         .clone(),
                 ),

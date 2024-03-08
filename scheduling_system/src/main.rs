@@ -9,7 +9,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use actix_web::{web, App, HttpServer};
+use actix_web::{guard, web, App, HttpServer};
 use agents::orchestrator::Orchestrator;
 
 use crate::init::logging;
@@ -30,7 +30,9 @@ async fn main() -> Result<(), io::Error> {
         let orchestrator = orchestrator.clone();
         App::new().app_data(web::Data::new(orchestrator)).route(
             "/ws",
-            web::post().to(api::routes::http_to_scheduling_system),
+            web::post()
+                .guard(guard::Header("content-type", "application/json"))
+                .to(api::routes::http_to_scheduling_system),
         )
     })
     .bind("127.0.0.1:8080")?

@@ -51,7 +51,7 @@ impl Actor for TacticalAgent {
 
     fn started(&mut self, ctx: &mut Context<Self>) {
         self.strategic_addr
-            .do_send(SetAddr::SetTactical(ctx.address()));
+            .do_send(SetAddr::Tactical(ctx.address()));
     }
 }
 
@@ -83,7 +83,7 @@ impl Handler<SetAddr> for TacticalAgent {
 
     fn handle(&mut self, msg: SetAddr, _ctx: &mut Context<Self>) {
         match msg {
-            SetAddr::SetSupervisor(id, addr) => {
+            SetAddr::Supervisor(id, addr) => {
                 self.supervisor_addrs.insert(id, addr);
             }
             _ => {

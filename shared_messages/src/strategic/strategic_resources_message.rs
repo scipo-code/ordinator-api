@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{resources::Resources, ResourceMessage};
+use crate::resources::Resources;
 
 use super::TimePeriod;
 
@@ -18,8 +18,6 @@ pub enum StrategicResourceMessage {
         select_resources: Option<Vec<Resources>>,
     },
 }
-
-impl ResourceMessage for StrategicResourceMessage {}
 
 impl StrategicResourceMessage {
     pub fn new_set_resources(manual_resources: HashMap<Resources, HashMap<String, f64>>) -> Self {

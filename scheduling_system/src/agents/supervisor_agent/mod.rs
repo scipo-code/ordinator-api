@@ -27,7 +27,7 @@ impl Actor for SupervisorAgent {
     #[instrument(level = "trace", skip_all)]
     fn started(&mut self, ctx: &mut Self::Context) {
         self.tactical_agent_addr
-            .do_send(SetAddr::SetSupervisor(self.id.clone(), ctx.address()));
+            .do_send(SetAddr::Supervisor(self.id.clone(), ctx.address()));
     }
 }
 
@@ -63,14 +63,13 @@ impl Handler<StopMessage> for SupervisorAgent {
     }
 }
 
-
 impl Handler<SetAddr> for SupervisorAgent {
     type Result = ();
 
     #[instrument(level = "trace", skip_all)]
     fn handle(&mut self, msg: SetAddr, _ctx: &mut Self::Context) {
         match msg {
-            SetAddr::SetOperational(id, addr) => {
+            SetAddr::Operational(id, addr) => {
                 self.operational_agent_addrs.insert(id, addr);
             }
             _ => {}

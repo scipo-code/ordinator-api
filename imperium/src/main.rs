@@ -3,12 +3,12 @@ pub mod commands;
 use clap::{Parser, Subcommand};
 use commands::orchestrator::OrchestratorCommands;
 use commands::sap::SapCommands;
+use commands::status::{StatusCommands, WorkOrders};
 use commands::strategic::StrategicCommands;
 use commands::tactical::TacticalCommands;
 use reqwest::Client;
-use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
-use shared_messages::strategic::StrategicRequest;
-use shared_messages::SystemMessages;
+use shared_messages::orchestrator::OrchestratorRequest;
+use shared_messages::{LevelOfDetail, SystemMessages};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -21,8 +21,10 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    #[command(name = "default")]
-    Default,
+    Status {
+        #[clap(subcommand)]
+        status_commands: StatusCommands,
+    },
     /// Access the orchestrator agent (controls the scheduling environment)
     Orchestrator {
         #[clap(subcommand)]
@@ -60,20 +62,41 @@ async fn main() {
 
     let response = send_http(&client, system_message).await;
 
-    let formatted_response = response
-        .to_string()
-        .replace("\\n", "\n")
-        .replace(['\"', '\\'], "");
+    dbg!(r#"{}"#, response.clone());
+    let formatted_response = response;
+    // .replace("\\n", "\n")
+    // .replace(['\\'], "");
 
     println!("{}", formatted_response);
 }
 
 async fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
     match &cli.command {
-        Commands::Default => {
-            let strategic_status_message = StrategicStatusMessage::General;
-            SystemMessages::Strategic(StrategicRequest::Status(strategic_status_message))
-        }
+        Commands::Status { status_commands } => match status_commands {
+            StatusCommands::WorkOrders { work_orders } => match work_orders {
+                WorkOrders::WorkOrderState { level_of_detail } => {
+                    let orchestrator_request =
+                        OrchestratorRequest::GetWorkOrdersState(level_of_detail.clone());
+                    SystemMessages::Orchestrator(orchestrator_request)
+                }
+                WorkOrders::WorkOrder {
+                    work_order_number,
+                    level_of_detail,
+                } => {
+                    let strategic_status_message = OrchestratorRequest::GetWorkOrderStatus(
+                        *work_order_number,
+                        level_of_detail.clone(),
+                    );
+                    SystemMessages::Orchestrator(strategic_status_message)
+                }
+            },
+            StatusCommands::Workers => {
+                todo!()
+            }
+            StatusCommands::Time {} => {
+                todo!()
+            }
+        },
         Commands::Orchestrator {
             orchestrator_commands,
         } => orchestrator_commands.execute(client).await,

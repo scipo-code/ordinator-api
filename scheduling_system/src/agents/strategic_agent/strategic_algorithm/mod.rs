@@ -4,14 +4,14 @@ use std::fmt::Write;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{ Display};
 use std::hash::{Hash, Hasher};
+use tracing::{debug, info, instrument};
+use colored::*;
 
 use priority_queue::PriorityQueue;
 use shared_messages::agent_error::AgentError;
 use shared_messages::strategic::strategic_periods_message::StrategicTimeMessage;
 use shared_messages::strategic::strategic_resources_message::{StrategicResourceMessage};
 use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
-use shared_messages::{ResourceMessage, SchedulingMessage, TimeMessage};
-use tracing::{debug, info, instrument};
 
 use crate::agents::traits::{LargeNeighborHoodSearch};
 use crate::models::time_environment::period::{Period};
@@ -55,8 +55,14 @@ impl AlgorithmResources {
 
         // Header
         write!(string, "{:<12}", "Resource").ok();
-        for (_, period) in periods.iter().enumerate().take(number_of_periods as usize) {
-            write!(string, "{:>12}", period.get_period_string()).ok();
+        for (nr_period, period) in periods.iter().enumerate().take(number_of_periods as usize) {
+            if nr_period == 0 {
+                write!(string, "{:>12}", period.get_period_string().red()).ok();
+            } else if nr_period == 1 || nr_period == 2 {
+                write!(string, "{:>12}", period.get_period_string().green()).ok();
+            } else {
+                write!(string, "{:>12}", period.get_period_string()).ok();
+            }
         }
         writeln!(string).ok();
         
@@ -64,17 +70,20 @@ impl AlgorithmResources {
         // Rows
         for (resource, inner_map) in self.inner.iter() {
             write!(string, "{:<12}", resource.variant_name()).unwrap();
-            for (_, period) in periods.iter().enumerate().take(number_of_periods as usize) {
+            for (nr_period, period) in periods.iter().enumerate().take(number_of_periods as usize) {
                 let value = inner_map.get(period).unwrap_or(&0.0);
-                write!(string, "{:>12}", value.round()).ok();
+                if nr_period == 0 {
+                    write!(string, "{:>12}", value.round().to_string().red()).ok();
+                } else if nr_period == 1 || nr_period == 2 {
+                    write!(string, "{:>12}", value.round().to_string().green()).ok();
+                } else {
+                    write!(string, "{:>12}", value.round()).ok();
+                }
             }
             writeln!(string).ok();
         }
         string
     }
-
-
-
 }
 
 impl StrategicAlgorithm {
@@ -125,6 +134,7 @@ impl OptimizedWorkOrders {
     pub fn new(inner: HashMap<u32, OptimizedWorkOrder>) -> Self {
         Self { inner }
     }
+
     #[instrument(skip(self))]
     pub fn set_scheduled_period(&mut self, work_order_number: u32, period: Period) {
         let optimized_work_order = match self.inner.get_mut(&work_order_number) {
@@ -305,7 +315,6 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
         strategic_resources_message: StrategicResourceMessage,
     ) -> Result<String, AgentError> 
  {
-
         match strategic_resources_message {
             StrategicResourceMessage::SetResources(manual_resources) => {
                 let mut count = 0;
@@ -320,17 +329,13 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                         count += 1;
                     }
                 }
-                
                 let response_message = format!("{} resources-period pairs updated correctly", count);
-
                 Ok(response_message)
             }
             StrategicResourceMessage::GetLoadings {
                 periods_end,
                 select_resources: _,
-            
             } => {
-                
                 let loading = self.get_resources_loadings();
 
                 let periods_end: u32 = periods_end.parse().unwrap();
@@ -348,10 +353,10 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
         }
     }
     #[allow(dead_code)]
-    fn update_time_state(&mut self, time_message: StrategicTimeMessage) -> Result<String, AgentError> 
+    fn update_time_state(&mut self, _time_message: StrategicTimeMessage) -> Result<String, AgentError> 
         { todo!() }
 
-    #[tracing::instrument(level = "DEBUG", skip_all)]
+    #[instrument(level = "DEBUG", skip_all)]
     fn update_scheduling_state(
         &mut self,
         strategic_scheduling_message: StrategicSchedulingMessage,

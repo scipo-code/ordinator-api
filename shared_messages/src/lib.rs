@@ -4,6 +4,7 @@ pub mod resources;
 pub mod strategic;
 pub mod tactical;
 use actix::prelude::*;
+use clap::{FromArgMatches, ValueEnum};
 use orchestrator::OrchestratorRequest;
 use serde::{Deserialize, Serialize};
 
@@ -37,8 +38,9 @@ impl Message for StatusMessage {
     type Result = String;
 }
 
-pub trait ResourceMessage {}
-
-pub trait TimeMessage {}
-
-pub trait SchedulingMessage {}
+#[derive(Deserialize, Serialize, Debug, Clone, ValueEnum)]
+pub enum LevelOfDetail {
+    Low,
+    Medium,
+    High,
+}
