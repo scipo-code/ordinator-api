@@ -176,6 +176,7 @@ pub mod tests {
             AlgorithmResources::default(),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
+            HashSet::new(),
             periods.clone(),
             true,
         );
@@ -263,6 +264,7 @@ pub mod tests {
             AlgorithmResources::new(loadings),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
+            HashSet::new(),
             periods.clone(),
             true,
         );
@@ -321,6 +323,7 @@ pub mod tests {
             AlgorithmResources::default(),
             PriorityQueues::new(),
             optimized_work_orders,
+            HashSet::new(),
             vec![],
             true,
         );
