@@ -7,7 +7,7 @@ use crate::resources::Resources;
 use super::TimePeriod;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub enum StrategicResourcesMessage {
+pub enum StrategicResourceMessage {
     SetResources(HashMap<Resources, HashMap<String, f64>>),
     GetLoadings {
         periods_end: String,
@@ -19,7 +19,7 @@ pub enum StrategicResourcesMessage {
     },
 }
 
-impl StrategicResourcesMessage {
+impl StrategicResourceMessage {
     pub fn new_set_resources(manual_resources: HashMap<Resources, HashMap<String, f64>>) -> Self {
         Self::SetResources(manual_resources)
     }
@@ -49,7 +49,7 @@ impl ManualResource {
     }
 }
 
-impl StrategicResourcesMessage {
+impl StrategicResourceMessage {
     pub fn new_test() -> Self {
         let mut manual_resources = HashMap::new();
 

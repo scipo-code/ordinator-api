@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 use crate::agent_error::AgentError;
 
 use self::{
-    strategic_periods_message::PeriodsMessage,
-    strategic_resources_message::{ManualResource, StrategicResourcesMessage},
+    strategic_periods_message::StrategicTimeMessage,
+    strategic_resources_message::{ManualResource, StrategicResourceMessage},
     strategic_scheduling_message::StrategicSchedulingMessage,
     strategic_status_message::StrategicStatusMessage,
 };
@@ -22,8 +22,8 @@ use self::{
 pub enum StrategicRequest {
     Status(StrategicStatusMessage),
     Scheduling(StrategicSchedulingMessage),
-    Resources(StrategicResourcesMessage),
-    Periods(PeriodsMessage),
+    Resources(StrategicResourceMessage),
+    Periods(StrategicTimeMessage),
 }
 
 impl Message for StrategicRequest {
