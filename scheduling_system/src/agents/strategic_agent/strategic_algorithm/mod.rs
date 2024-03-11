@@ -52,7 +52,6 @@ impl AlgorithmResources {
         periods.sort();
         periods.dedup();
 
-
         // Header
         write!(string, "{:<12}", "Resource").ok();
         for (nr_period, period) in periods.iter().enumerate().take(number_of_periods as usize) {
@@ -66,7 +65,6 @@ impl AlgorithmResources {
         }
         writeln!(string).ok();
         
-
         // Rows
         for (resource, inner_map) in self.inner.iter() {
             write!(string, "{:<12}", resource.variant_name()).unwrap();
@@ -94,9 +92,6 @@ impl StrategicAlgorithm {
     pub fn set_periods(&mut self, periods: Vec<Period>) {
         self.periods = periods;
     }
-
-
-
 }
 
 #[derive(Debug, PartialEq, Clone)]
