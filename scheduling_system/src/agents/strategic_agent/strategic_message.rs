@@ -30,9 +30,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 
         if previous_schedule.get_objective_value()
             < self.strategic_agent_algorithm.get_objective_value()
-        {
-            self.strategic_agent_algorithm = previous_schedule;
-        }
+        {}
 
         ctx.notify(ScheduleIteration {});
     }
