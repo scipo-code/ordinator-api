@@ -9,9 +9,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use actix::Actor;
-use actix_web::{web, App, HttpServer};
-use agents::orchestrator_agent::OrchestratorAgent;
+use actix_web::{guard, web, App, HttpServer};
+use agents::orchestrator::Orchestrator;
 
 use crate::init::logging;
 
@@ -22,21 +21,19 @@ async fn main() -> Result<(), io::Error> {
     let scheduling_environment = Arc::new(Mutex::new(
         init::model_initializers::initialize_scheduling_environment(52),
     ));
-    dbg!();
 
-    let orchestrator_agent = OrchestratorAgent::new(scheduling_environment.clone());
-
-    let agent_registry = orchestrator_agent.get_ref_to_actor_registry();
-
-    orchestrator_agent.start();
+    let orchestrator = Arc::new(Mutex::new(Orchestrator::new(
+        scheduling_environment.clone(),
+    )));
 
     HttpServer::new(move || {
-        App::new()
-            .app_data(web::Data::new(agent_registry.clone()))
-            .route(
-                "/ws",
-                web::post().to(api::routes::http_to_scheduling_system),
-            )
+        let orchestrator = orchestrator.clone();
+        App::new().app_data(web::Data::new(orchestrator)).route(
+            "/ws",
+            web::post()
+                .guard(guard::Header("content-type", "application/json"))
+                .to(api::routes::http_to_scheduling_system),
+        )
     })
     .bind("127.0.0.1:8080")?
     .run()

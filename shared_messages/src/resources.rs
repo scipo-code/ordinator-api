@@ -2,9 +2,8 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
-
 /// This enum holds all the resources that are available needed to schedule work order.
-#[derive(Debug, Eq, PartialEq, Hash, Clone, Serialize, Deserialize, EnumIter)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Serialize, Deserialize, EnumIter, clap::ValueEnum)]
 pub enum Resources {
     #[serde(rename = "MEDIC")]
     Medic,
@@ -174,5 +173,20 @@ impl Resources {
 impl Display for Resources {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.variant_name())
+    }
+}
+
+#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug)]
+pub struct Id(pub String, pub Vec<Resources>);
+
+impl Id {
+    pub fn new(id: String, resources: Vec<Resources>) -> Self {
+        Id(id, resources)
+    }
+}
+
+impl Display for Id {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} | {:?}", self.0, self.1)
     }
 }

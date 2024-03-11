@@ -4,7 +4,7 @@ use clap::Args;
 use clap::Subcommand;
 use reqwest::Client;
 use shared_messages::resources::Resources;
-use shared_messages::strategic::strategic_resources_message::StrategicResourcesMessage;
+use shared_messages::strategic::strategic_resources_message::StrategicResourceMessage;
 use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
 use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
@@ -144,7 +144,7 @@ impl StrategicCommands {
                         None => None,
                     };
 
-                    let strategic_resources_message = StrategicResourcesMessage::GetLoadings {
+                    let strategic_resources_message = StrategicResourceMessage::GetLoadings {
                         periods_end: periods_end.to_string(),
                         select_resources: resources,
                     };
@@ -169,7 +169,7 @@ impl StrategicCommands {
                         None => None,
                     };
 
-                    let strategic_resources_message = StrategicResourcesMessage::GetCapacities {
+                    let strategic_resources_message = StrategicResourceMessage::GetCapacities {
                         periods_end: periods_end.to_string(),
                         select_resources: resources,
                     };
@@ -197,7 +197,7 @@ impl StrategicCommands {
                     let resources = generate_manual_resources(client);
 
                     let strategic_resources_message =
-                        StrategicResourcesMessage::new_set_resources(resources.await);
+                        StrategicResourceMessage::new_set_resources(resources.await);
 
                     let strategic_request =
                         StrategicRequest::Resources(strategic_resources_message);
