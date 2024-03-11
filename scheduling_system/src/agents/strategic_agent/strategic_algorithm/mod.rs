@@ -20,7 +20,7 @@ use shared_messages::resources::Resources;
 #[derive(Debug, Clone)]
 
 pub struct StrategicAlgorithm {
-    objective_value: f32,
+    objective_value: f64,
     resources_capacity: AlgorithmResources,
     resources_loading: AlgorithmResources,
     priority_queues: PriorityQueues<u32, u32>,
@@ -260,7 +260,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
     type ResourceUnit = Resources;
     type ScheduleUnit = u32;
 
-    fn get_objective_value(&self) -> f32 {
+    fn get_objective_value(&self) -> f64 {
         self.objective_value
     }
 
@@ -523,7 +523,7 @@ impl PriorityQueues<u32, u32> {
 // SchedulingEnvironment. I should remove it immediately 
 impl StrategicAlgorithm {
     pub fn new(
-        objective_value: f32,
+        objective_value: f64,
         resources_capacity: AlgorithmResources,
         resources_loading: AlgorithmResources,
         priority_queues: PriorityQueues<u32, u32>,

@@ -14,7 +14,7 @@ pub trait LargeNeighborHoodSearch {
     type ResourceUnit;
     type ScheduleUnit;
 
-    fn get_objective_value(&self) -> f32;
+    fn get_objective_value(&self) -> f64;
 
     fn schedule(&mut self);
 
