@@ -4,6 +4,7 @@ pub mod resources;
 pub mod strategic;
 pub mod tactical;
 use actix::prelude::*;
+use clap::{FromArgMatches, ValueEnum};
 use orchestrator::OrchestratorRequest;
 use serde::{Deserialize, Serialize};
 
@@ -23,4 +24,23 @@ pub enum SystemMessages {
 
 impl Message for SystemMessages {
     type Result = ();
+}
+
+pub struct StopMessage {}
+
+impl Message for StopMessage {
+    type Result = ();
+}
+
+pub struct StatusMessage {}
+
+impl Message for StatusMessage {
+    type Result = String;
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, ValueEnum)]
+pub enum LevelOfDetail {
+    Low,
+    Medium,
+    High,
 }

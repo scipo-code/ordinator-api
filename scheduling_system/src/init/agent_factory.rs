@@ -14,7 +14,7 @@ use crate::agents::tactical_agent::TacticalAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::SchedulingEnvironment;
 use crate::models::WorkOrders;
-use shared_messages::resources::Resources;
+use shared_messages::resources::{Id, Resources};
 
 pub struct AgentFactory {
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
@@ -64,24 +64,45 @@ impl AgentFactory {
             self.scheduling_environment.clone(),
             scheduler_agent_algorithm,
             None,
-            None,
         );
         scheduler_agent.start()
     }
 
-    pub fn build_tactical_agent(&self) -> Addr<TacticalAgent> {
-        let tactical_agent = TacticalAgent::new(0, self.scheduling_environment.clone(), None);
+    pub fn build_tactical_agent(
+        &self,
+        time_horizon: u32,
+        strategic_agent_addr: Addr<StrategicAgent>,
+    ) -> Addr<TacticalAgent> {
+        let tactical_agent = TacticalAgent::new(
+            0,
+            time_horizon,
+            strategic_agent_addr,
+            self.scheduling_environment.clone(),
+        );
         tactical_agent.start()
     }
 
-    pub fn build_supervisor_agent(&self, id: String) -> Addr<SupervisorAgent> {
-        let supervisor_agent = SupervisorAgent::new(id, self.scheduling_environment.clone());
+    pub fn build_supervisor_agent(
+        &self,
+        id: Id,
+        tactical_agent_addr: Addr<TacticalAgent>,
+    ) -> Addr<SupervisorAgent> {
+        let supervisor_agent =
+            SupervisorAgent::new(id, tactical_agent_addr, self.scheduling_environment.clone());
         supervisor_agent.start()
     }
 
-    pub fn build_operational_agent(&self, id: String) -> Addr<OperationalAgent> {
-        let operational_agent =
-            OperationalAgentBuilder::new(id, self.scheduling_environment.clone()).build();
+    pub fn build_operational_agent(
+        &self,
+        id: Id,
+        supervisor_agent_addr: Addr<SupervisorAgent>,
+    ) -> Addr<OperationalAgent> {
+        let operational_agent = OperationalAgentBuilder::new(
+            id,
+            self.scheduling_environment.clone(),
+            supervisor_agent_addr,
+        )
+        .build();
         operational_agent.start()
     }
 }
@@ -98,8 +119,16 @@ fn create_optimized_work_orders(
     for (work_order_number, work_order) in &mut work_orders.inner {
         let mut excluded_periods: HashSet<Period> = HashSet::new();
 
-        for period in periods.iter() {
-            if period < &work_order.get_order_dates().earliest_allowed_start_period {
+        for (i, period) in periods.iter().enumerate() {
+            if period
+                < &work_order
+                    .get_mut_order_dates()
+                    .earliest_allowed_start_period
+            {
+                excluded_periods.insert(period.clone());
+            } else if work_order.is_vendor() && i <= 3 {
+                excluded_periods.insert(period.clone());
+            } else if work_order.get_revision().shutdown && i <= 3 {
                 excluded_periods.insert(period.clone());
             }
         }
@@ -141,7 +170,7 @@ fn create_optimized_work_orders(
                 excluded_periods,
                 Some(
                     work_order
-                        .get_order_dates()
+                        .get_mut_order_dates()
                         .latest_allowed_finish_period
                         .clone(),
                 ),

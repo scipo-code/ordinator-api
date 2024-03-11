@@ -116,24 +116,16 @@ impl WorkOrder {
         &self.unloading_point
     }
 
-    pub fn get_operations(&self) -> &HashMap<u32, Operation> {
-        &self.operations
-    }
-
-    pub fn get_order_text(&self) -> &OrderText {
-        &self.order_text
-    }
-
-    pub fn get_order_dates(&mut self) -> &mut OrderDates {
+    pub fn get_mut_order_dates(&mut self) -> &mut OrderDates {
         &mut self.order_dates
+    }
+
+    pub fn get_order_dates(&self) -> &OrderDates {
+        &self.order_dates
     }
 
     pub fn get_status_codes(&self) -> &StatusCodes {
         &self.status_codes
-    }
-
-    pub fn get_functional_location(&self) -> &FunctionalLocation {
-        &self.functional_location
     }
 
     pub fn get_revision(&self) -> &Revision {
@@ -298,19 +290,19 @@ impl WorkOrder {
     fn initialize_material(&mut self, periods: &[Period]) {
         match self.get_status_codes().material_status {
             MaterialStatus::Nmat => {
-                self.get_order_dates().earliest_allowed_start_period = periods[0].clone();
+                self.get_mut_order_dates().earliest_allowed_start_period = periods[0].clone();
             }
             MaterialStatus::Smat => {
-                self.get_order_dates().earliest_allowed_start_period = periods[0].clone();
+                self.get_mut_order_dates().earliest_allowed_start_period = periods[0].clone();
             }
             MaterialStatus::Cmat => {
-                self.get_order_dates().earliest_allowed_start_period = periods[2].clone();
+                self.get_mut_order_dates().earliest_allowed_start_period = periods[2].clone();
             }
             MaterialStatus::Pmat => {
-                self.get_order_dates().earliest_allowed_start_period = periods[3].clone();
+                self.get_mut_order_dates().earliest_allowed_start_period = periods[3].clone();
             }
             MaterialStatus::Wmat => {
-                self.get_order_dates().earliest_allowed_start_period = periods[3].clone();
+                self.get_mut_order_dates().earliest_allowed_start_period = periods[3].clone();
             }
             MaterialStatus::Unknown => {}
         }
@@ -399,9 +391,8 @@ mod tests {
                 false,
             )
         }
-
-        pub fn get_mut_order_dates(&mut self) -> &mut OrderDates {
-            &mut self.order_dates
+        pub fn get_operations(&self) -> &HashMap<u32, Operation> {
+            &self.operations
         }
     }
 

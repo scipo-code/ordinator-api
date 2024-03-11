@@ -5,16 +5,13 @@ use tracing::instrument;
 
 use super::StrategicAlgorithm;
 use crate::agents::strategic_agent::strategic_algorithm::OptimizedWorkOrder;
+use crate::agents::traits::LargeNeighborHoodSearch;
 use crate::models::time_environment::period::Period;
 
-/// This implementation of the SchedulerAgent will do the following. It should take a messgage
-/// and then return a scheduler
-///
-/// Okay, so the problem is that we never get through to the actual scheduling part for the
-/// normal queue. Is this done in the correct way? I am not really sure. I think that the priority
-/// queue should be updated in a more understandable way. The whole thing will need refactoring at
-/// some point, but how and in what way that is another story.
+/// Okay I think that this impl block should be refactored into something different. It is not BadRequest
+/// practice to have so many different
 impl StrategicAlgorithm {
+    #[instrument(level = "trace", skip_all)]
     pub fn schedule_normal_work_orders(&mut self) {
         while !self.priority_queues.normal.is_empty() {
             for period in self.periods.clone() {
@@ -34,10 +31,7 @@ impl StrategicAlgorithm {
         }
     }
 
-    /// How should the forced schedule be different? We already know the period here and we already
-    /// know the period. What should be done about this. This depends on where we can find the
-    /// period. We can find the period in the part of the state that is handled by the
-    /// update_scheduler_state function.
+    #[instrument(level = "trace", skip_all)]
     pub fn schedule_forced_work_orders(&mut self) {
         let mut work_order_keys: Vec<u32> = vec![];
         for (work_order_key, opt_work_order) in self.get_optimized_work_orders().iter() {
@@ -51,12 +45,7 @@ impl StrategicAlgorithm {
         }
     }
 
-    /// The queue type here should be changed. The problem is that the unloading point scheduling is
-    /// fundamentally different and we should therefore handle it in a different place than where we
-    /// initially thought. The schedule_normal_work_orders should simply schedule work orders that
-    /// are not in the schedule yet. I think, but I am not sure, that the there should be no
-    /// rescheduling here.
-    #[instrument(skip(self, period))]
+    #[instrument(level = "trace", skip_all)]
     pub fn schedule_normal_work_order(
         &mut self,
         work_order_key: u32,
@@ -69,7 +58,6 @@ impl StrategicAlgorithm {
             .unwrap()
             .clone();
 
-        // The if statements found in here are each constraints that has to be upheld.
         if period != self.get_periods().last().unwrap() {
             for (resource, resource_needed) in optimized_work_order.get_work_load().clone().iter() {
                 let resource_capacity: &f64 = self
@@ -116,12 +104,11 @@ impl StrategicAlgorithm {
         self.update_loadings(period.clone(), &optimized_work_order);
         None
     }
-    /// There is something that I do not like about this. The is_scheduled function in not ideal
-    /// but I do not really know how to change it. I think that the best approach will be to
-    #[instrument(skip(self))]
+
+    #[instrument(level = "trace", skip_all)]
     pub fn schedule_forced_work_order(&mut self, work_order_key: u32) {
         if let Some(work_order_key) = self.is_scheduled(work_order_key) {
-            self.unschedule_work_order(&work_order_key);
+            self.unschedule(work_order_key);
         }
 
         let period_internal = self
@@ -144,30 +131,20 @@ impl StrategicAlgorithm {
             .unwrap()
             .clone();
 
-        // Is this really the place where we should update the loadings? I am not sure about it.
-        // It is either here or in the update_scheduler_state function. Well thank you for that
         self.update_loadings(period_internal, &work_order);
-        // for (resource, periods) in self.resources_loading.inner.iter_mut() {
-        //     if let Some(loading) = periods.get_mut(&period_internal) {
-        //         *loading += work_order.get_work_load().get(resource).unwrap_or(&0.0);
-        //     }
-        // }
     }
 
-    /// Does it matter that we clone the work orders. I think that it does not matter here as the
-    /// code should be able to work as long as the optimized work orders are updated correctly and
-    /// not clone anywhere. After sampling the work orders based on the keys I should take care to
-    #[instrument(skip(self, rng))]
+    #[instrument(level = "trace", skip_all)]
     pub fn unschedule_random_work_orders(
         &mut self,
         number_of_work_orders: usize,
         rng: &mut impl rand::Rng,
     ) {
-        let mut optimized_work_orders = self.get_optimized_work_orders();
+        let optimized_work_orders = self.get_optimized_work_orders();
 
         let mut filtered_keys: Vec<_> = optimized_work_orders
             .iter()
-            .filter(|(&key, value)| value.get_locked_in_period().is_none())
+            .filter(|(&_key, value)| value.get_locked_in_period().is_none())
             .map(|(&key, _)| key)
             .collect();
 
@@ -179,7 +156,7 @@ impl StrategicAlgorithm {
             .clone();
 
         for work_order_key in sampled_work_order_keys {
-            self.unschedule_work_order(work_order_key);
+            self.unschedule(*work_order_key);
 
             self.populate_priority_queues();
         }
@@ -187,14 +164,7 @@ impl StrategicAlgorithm {
         self.changed = true;
     }
 
-    /// Here we calculate the objective value. If the work order is has been unscheduled then we
-    /// do not have a Period in the scheduled_period. If we do not have a period in the
-    ///
-    /// So what should be done if a work order in not scheduled? I think that the best approach will
-    /// be to "schedule" it outside of the initialized periods. That will make a lot of sense. I
-    /// think that it will be the best approach. Actually every work order should be scheduled like
-    /// this to make the system consistent. And make the objective value meaningful.
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub fn calculate_objective(&mut self) {
         let mut objective = 0;
         for (work_order_key, optimized_work_order) in &self.optimized_work_orders.inner {
@@ -209,15 +179,6 @@ impl StrategicAlgorithm {
                 }
             };
 
-            // Here we use the latest_allowed_finish_period to calculate the differenct between the
-            // period that the work order is scheduled in and when its latest allowed finish period
-            // is. Where should we be getting the latest allowed finish period from? The thing is
-            // that we do not actually need to have it be calculated here. We could simply have it
-            // be calculated beforehand. No calculating it here is the best approach. But what about
-            // the framework? We should make a trait on the algorithm that calls
-
-            // Now the period difference can be turned into a method. You would have to implement
-            // the
             let work_order_latest_allowed_finish_period = self
                 .optimized_work_orders
                 .inner
@@ -243,7 +204,31 @@ impl StrategicAlgorithm {
             };
             objective += objective_contribution;
         }
-        self.objective_value = objective as f64;
+        self.objective_value = objective as f32;
+    }
+
+    #[instrument(skip_all)]
+    fn is_scheduled(&self, work_order_key: u32) -> Option<u32> {
+        self.optimized_work_orders
+            .inner
+            .get(&work_order_key)
+            .and_then(|optimized_work_order| {
+                optimized_work_order
+                    .scheduled_period
+                    .as_ref()
+                    .map(|_| work_order_key)
+            })
+    }
+
+    #[instrument(skip_all)]
+    fn update_loadings(&mut self, period_input: Period, work_order: &OptimizedWorkOrder) {
+        for (resource, periods) in self.resources_loading.inner.iter_mut() {
+            for (period, loading) in periods {
+                if *period == period_input {
+                    *loading += work_order.get_work_load().get(resource).unwrap_or(&0.0);
+                }
+            }
+        }
     }
 }
 
@@ -259,96 +244,6 @@ fn calculate_period_difference(scheduled_period: Period, latest_period: Option<P
     days / 7
 }
 
-// This becomes more simple right? if the key exists you simply change the period. Or else you
-// create a new entry. It should not be needed to create a new entry as we already have, be
-// definition received it from the front end. No that is only if we are in the manual queue.
-
-// There are more problems here. We now have to make sure that the work order is unscheduled
-// correctly. And then updated correctly.
-
-/// Okay here we have a super chance to apply testing. That will be a crucial step towards making
-/// this system scale. Now this stop, you cannot keep not testing you code. Okay, so we should
-/// change the implementation so that the work orders that are "manually" scheduled are simply
-/// forced into the schedule. There is no reason to loop over every period to fix the problem.
-impl StrategicAlgorithm {
-    #[instrument(skip(self))]
-    fn is_scheduled(&self, work_order_key: u32) -> Option<u32> {
-        self.optimized_work_orders
-            .inner
-            .get(&work_order_key)
-            .and_then(|optimized_work_order| {
-                optimized_work_order
-                    .scheduled_period
-                    .as_ref()
-                    .map(|_| work_order_key)
-            })
-    }
-
-    /// This function is responsible for unscheduling the work order. It should be called to make
-    /// the work order leave the schedule. It is crucial that the work order is unscheduled
-    /// correctly so that the loading is updated correctly.
-    ///
-    /// So we want the unschedule_work_order to remove the loading in its scheduled period first
-    /// then set the scheduled_period Option to None and then return, there is no need for anything
-    /// else here. Yes do that.
-    ///
-    /// We have to handle the case the where the locked_in_period is Some in a robust way where we
-    /// do not unschedule the work order. Actually it is really an edge case here in that we the
-    /// locked_in_period has changed, then we do have to unschedule it and update its
-    /// scheduled period together with its loading. Then now the question is if we should have a
-    /// allow the function to unschedule and reschedule if nothing has changed. I think that the
-    /// right approach in to to make the check for is_scheduled
-    #[instrument(skip(self))]
-    fn unschedule_work_order(&mut self, work_order_key: &u32) {
-        let optimized_work_order: &mut OptimizedWorkOrder = self
-            .optimized_work_orders
-            .inner
-            .get_mut(work_order_key)
-            .unwrap();
-
-        match optimized_work_order.get_scheduled_period() {
-            Some(_) => {
-                for (resource, periods_loading) in self.resources_loading.inner.iter_mut() {
-                    let period = optimized_work_order.get_scheduled_period().unwrap();
-                    let loading = periods_loading.get_mut(&period).unwrap();
-                    let work_load_for_resource = optimized_work_order.get_work_load().get(resource);
-                    if let Some(work_load_for_resource) = work_load_for_resource {
-                        *loading -= work_load_for_resource;
-                    }
-                }
-                optimized_work_order.set_scheduled_period(None);
-            }
-            None => panic!(),
-        }
-    }
-
-    #[instrument(skip(self))]
-    fn update_loadings(&mut self, period_input: Period, work_order: &OptimizedWorkOrder) {
-        for (resource, periods) in self.resources_loading.inner.iter_mut() {
-            for (period, loading) in periods {
-                if *period == period_input {
-                    *loading += work_order.get_work_load().get(resource).unwrap_or(&0.0);
-                }
-            }
-        }
-    }
-}
-
-impl StrategicAlgorithm {
-    #[cfg(test)]
-    pub fn set_optimized_work_order(
-        &mut self,
-        work_order_key: u32,
-        optimized_work_order: OptimizedWorkOrder,
-    ) {
-        self.optimized_work_orders
-            .inner
-            .insert(work_order_key, optimized_work_order);
-    }
-}
-
-/// Test scheduler scheduling logic
-/// Make your own trait that you can use
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -664,7 +559,7 @@ mod tests {
             60.0
         );
 
-        scheduler_agent_algorithm.unschedule_work_order(&2200002020);
+        scheduler_agent_algorithm.unschedule(2200002020);
         assert_eq!(
             *scheduler_agent_algorithm
                 .get_resources_loadings()
@@ -796,7 +691,7 @@ mod tests {
             60.0
         );
 
-        scheduler_agent_algorithm.unschedule_work_order(&2200002020);
+        scheduler_agent_algorithm.unschedule(2200002020);
         assert_eq!(
             *scheduler_agent_algorithm
                 .get_resources_loadings()
@@ -1026,7 +921,7 @@ mod tests {
             true,
         );
 
-        scheduler_agent_algorithm.unschedule_work_order(&2100000001);
+        scheduler_agent_algorithm.unschedule(2100000001);
         assert_eq!(
             scheduler_agent_algorithm
                 .optimized_work_orders
@@ -1045,5 +940,17 @@ mod tests {
 
         assert_eq!(period_1, period_2);
         assert_eq!(period_1, period_1.clone());
+    }
+
+    impl StrategicAlgorithm {
+        pub fn set_optimized_work_order(
+            &mut self,
+            work_order_key: u32,
+            optimized_work_order: OptimizedWorkOrder,
+        ) {
+            self.optimized_work_orders
+                .inner
+                .insert(work_order_key, optimized_work_order);
+        }
     }
 }

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -55,9 +57,9 @@ impl Operation {
 
 #[cfg(test)]
 mod tests {
+    use super::Operation;
     use chrono::Utc;
     use shared_messages::resources::Resources;
-    use super::Operation;
 
     impl Operation {
         pub fn new_test(activity: u32, work_center: Resources, work_remaining: f64) -> Self {
@@ -77,5 +79,12 @@ mod tests {
                 earliest_finish_datetime: Utc::now(),
             }
         }
+    }
+}
+
+impl Display for Operation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Operation: {} \n  work_center: {} \n  work_remaining: {} \n  operating_time: {} \n  duration: {} \n  possible_start: {} \n  target_finish: {} \n  earliest_start_datetime: {} \n  earliest_finish_datetime: {}", 
+        self.number, self.work_center, self.work_remaining, self.operating_time, self.duration, self.possible_start, self.target_finish, self.earliest_start_datetime, self.earliest_finish_datetime)
     }
 }

@@ -1,29 +1,132 @@
 use clap::Subcommand;
 use reqwest::Client;
-use shared_messages::{orchestrator::OrchestratorRequest, SystemMessages};
-
-use crate::send_http;
+use shared_messages::{orchestrator::OrchestratorRequest, resources::Id, SystemMessages};
 
 #[derive(Subcommand, Debug)]
 pub enum OrchestratorCommands {
-    /// Get the status of a specific WorkOrder
-    WorkOrder {
-        work_order: u32,
+    /// Status of the scheduling environment
+    SchedulingEnvironment,
+
+    /// Status of the agents
+    AgentStatus,
+
+    /// Access the Superviser agent factory
+    #[clap(subcommand)]
+    SupervisorAgent(SupervisorAgentCommands),
+    /// Access the Operational agent factory
+    #[clap(subcommand)]
+    OperationalAgent(OperationalAgentCommands),
+
+    /// Load a default setup
+    LoadDefaultWorkCrew,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AgentCommands {}
+
+#[derive(Subcommand, Debug)]
+pub enum SupervisorAgentCommands {
+    /// Create a new SupervisorAgent
+    Create {
+        id: String,
+        resource: shared_messages::resources::Resources,
     },
-    Periods,
+
+    /// Delete a SupervisorAgent
+    Delete { id: String },
+}
+#[derive(Subcommand, Debug)]
+pub enum OperationalAgentCommands {
+    /// Create a new OperationalAgent
+    Create {
+        id: String,
+        resource: Vec<shared_messages::resources::Resources>,
+    },
+
+    /// Delete an OperationalAgent
+    Delete { id: String },
 }
 
 impl OrchestratorCommands {
-    pub fn execute(&self) -> SystemMessages {
+    pub async fn execute(&self, client: &Client) -> SystemMessages {
         match self {
-            OrchestratorCommands::WorkOrder { work_order } => {
-                let environment_status_message: OrchestratorRequest =
-                    OrchestratorRequest::GetWorkOrderStatus(*work_order);
-                SystemMessages::Orchestrator(environment_status_message)
+            OrchestratorCommands::SchedulingEnvironment => {
+                todo!()
             }
-            OrchestratorCommands::Periods => {
-                let environment_status_message = OrchestratorRequest::GetPeriods;
-                SystemMessages::Orchestrator(environment_status_message)
+            OrchestratorCommands::AgentStatus => {
+                let agent_status = OrchestratorRequest::GetAgentStatus;
+                SystemMessages::Orchestrator(agent_status)
+            }
+            OrchestratorCommands::SupervisorAgent(supervisor_agent_command) => {
+                match supervisor_agent_command {
+                    SupervisorAgentCommands::Create { id, resource } => {
+                        let create_supervisor_agent = OrchestratorRequest::CreateSupervisorAgent(
+                            Id::new(id.clone(), vec![resource.clone()]),
+                        );
+                        SystemMessages::Orchestrator(create_supervisor_agent)
+                    }
+                    SupervisorAgentCommands::Delete { id } => {
+                        let delete_supervisor_agent =
+                            OrchestratorRequest::DeleteSupervisorAgent(id.clone());
+                        SystemMessages::Orchestrator(delete_supervisor_agent)
+                    }
+                }
+            }
+            OrchestratorCommands::OperationalAgent(operational_agent_command) => {
+                match operational_agent_command {
+                    OperationalAgentCommands::Create { id, resource } => {
+                        let create_operational_agent = OrchestratorRequest::CreateOperationalAgent(
+                            Id::new(id.clone(), resource.clone()),
+                        );
+                        SystemMessages::Orchestrator(create_operational_agent)
+                    }
+                    OperationalAgentCommands::Delete { id } => {
+                        let delete_operational_agent =
+                            OrchestratorRequest::DeleteOperationalAgent(id.clone());
+                        SystemMessages::Orchestrator(delete_operational_agent)
+                    }
+                }
+            }
+            OrchestratorCommands::LoadDefaultWorkCrew => {
+                let supervisor_resources = [
+                    shared_messages::resources::Resources::MtnMech,
+                    shared_messages::resources::Resources::MtnElec,
+                    shared_messages::resources::Resources::MtnScaf,
+                ];
+
+                for (i, resource) in supervisor_resources.iter().enumerate() {
+                    let create_supervisor_agent: OrchestratorRequest =
+                        OrchestratorRequest::CreateSupervisorAgent(Id::new(
+                            format!("L111000{}", i),
+                            vec![resource.clone()],
+                        ));
+                    let message = SystemMessages::Orchestrator(create_supervisor_agent);
+                    crate::send_http(client, message).await;
+                }
+
+                let operational_resources = [
+                    shared_messages::resources::Resources::MtnMech,
+                    shared_messages::resources::Resources::MtnElec,
+                    shared_messages::resources::Resources::MtnScaf,
+                    shared_messages::resources::Resources::MtnCran,
+                ];
+
+                let number_of_each_resource = [4, 2, 3, 2];
+                let mut counter = 0;
+                for i in 0..4 {
+                    for _j in 0..number_of_each_resource[i] {
+                        counter += 1;
+                        let create_operational_agent: OrchestratorRequest =
+                            OrchestratorRequest::CreateOperationalAgent(Id::new(
+                                format!("L111001{}", counter),
+                                vec![operational_resources[i].clone()],
+                            ));
+                        let message = SystemMessages::Orchestrator(create_operational_agent);
+                        crate::send_http(client, message).await;
+                    }
+                }
+
+                SystemMessages::Orchestrator(OrchestratorRequest::GetAgentStatus)
             }
         }
     }
@@ -32,11 +135,9 @@ impl OrchestratorCommands {
 pub async fn get_periods(client: &Client) -> Vec<String> {
     let status_request = OrchestratorRequest::GetPeriods;
 
-    let front_end_message = SystemMessages::Orchestrator(status_request);
+    let system_message = SystemMessages::Orchestrator(status_request);
 
-    let status_request_json = serde_json::to_string(&front_end_message).unwrap();
-
-    let response = send_http(client, status_request_json).await;
+    let response = crate::send_http(client, system_message).await;
     response
         .to_string()
         .replace('\"', "")
