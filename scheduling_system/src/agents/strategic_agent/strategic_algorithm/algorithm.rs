@@ -171,45 +171,51 @@ impl StrategicAlgorithm {
 
     #[instrument(skip_all)]
     pub fn calculate_objective(&mut self) {
-        let mut objective = 0;
+        let mut period_penalty_contribution: f64 = 0.0;
+        let mut excess_penalty_contribution: f64 = 0.0;
+
         for (work_order_key, optimized_work_order) in &self.optimized_work_orders.inner {
             let optimized_period = match &optimized_work_order.scheduled_period {
                 Some(optimized_period) => optimized_period.clone(),
                 None => {
-                    if let Some(last_period) = self.periods.last() {
-                        last_period.clone()
-                    } else {
-                        panic!("There are no periods in the system")
-                    }
+                    panic!("There are no periods in the system")
                 }
             };
 
-            let work_order_latest_allowed_finish_period = self
-                .optimized_work_orders
-                .inner
-                .get(work_order_key)
-                .unwrap()
-                .get_latest_period()
-                .clone();
+            let work_order_latest_allowed_finish_period =
+                optimized_work_order.get_latest_period().clone();
 
             let period_difference = calculate_period_difference(
                 optimized_period,
                 work_order_latest_allowed_finish_period,
             );
-            let objective_contribution = if period_difference > 0 {
-                period_difference
-                    * self
-                        .optimized_work_orders
-                        .inner
-                        .get(work_order_key)
-                        .unwrap()
-                        .get_weight() as i64
-            } else {
-                0
-            };
-            objective += objective_contribution;
+            let period_penalty = std::cmp::max(period_difference, 0) as f64
+                * self
+                    .optimized_work_orders
+                    .inner
+                    .get(work_order_key)
+                    .unwrap()
+                    .get_weight() as f64;
+
+            period_penalty_contribution += period_penalty;
         }
-        self.objective_value = objective as f32;
+
+        for (resource, periods) in &self.get_resources_capacities().inner {
+            for (period, capacity) in periods {
+                let loading = self
+                    .get_resources_loadings()
+                    .inner
+                    .get(resource)
+                    .unwrap()
+                    .get(period)
+                    .unwrap();
+                if *loading > *capacity {
+                    excess_penalty_contribution += loading - capacity;
+                }
+            }
+        }
+
+        self.objective_value = period_penalty_contribution + excess_penalty_contribution;
     }
 
     #[instrument(skip_all)]
