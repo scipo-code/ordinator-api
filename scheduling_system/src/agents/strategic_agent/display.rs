@@ -53,7 +53,7 @@ impl StrategicAgent {
 
         writeln!(
             message,
-            "                      EARL-PERIOD|AWCS|SECE|REVISION|TYPE|PRIO|VEN*| MAT|",
+            "                                      |EARL-PERIOD|AWSC|SECE|REVISION|TYPE|PRIO|VEN*| MAT|",
         )
         .unwrap();
 
@@ -66,7 +66,7 @@ impl StrategicAgent {
         for work_order_number in work_orders_number {
             writeln!(
                 message,
-                "    Work order: {}    |{:>11}|{:<}|{:<}|{:>8}|{:?}|{:?}|{:<3}|{:?}|",
+                "            Work order: {}    |{:>11}|{:<}|{:<}|{:>8}|{:>4}|{:>4}|{:>4}|{:?}|",
                 work_order_number,
                 work_orders
                     .inner
@@ -123,14 +123,15 @@ impl StrategicAgent {
                 {
                     "VEN"
                 } else {
-                    "---"
+                    "----"
                 },
                 work_orders
                     .inner
                     .get(&work_order_number)
                     .unwrap()
                     .get_status_codes()
-                    .material_status,
+                    .material_status
+                    .to_string(),
             )
             .unwrap();
         }

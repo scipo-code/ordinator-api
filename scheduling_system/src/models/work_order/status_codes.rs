@@ -1,3 +1,5 @@
+use std::fmt::{self, Display};
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -42,6 +44,19 @@ impl MaterialStatus {
 
         MaterialStatus::Unknown
         // If no patterns match, return the Unknown variant
+    }
+}
+
+impl Display for MaterialStatus {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            MaterialStatus::Smat => write!(f, "SMAT"),
+            MaterialStatus::Nmat => write!(f, "NMAT"),
+            MaterialStatus::Cmat => write!(f, "CMAT"),
+            MaterialStatus::Wmat => write!(f, "WMAT"),
+            MaterialStatus::Pmat => write!(f, "PMAT"),
+            MaterialStatus::Unknown => write!(f, "----"),
+        }
     }
 }
 

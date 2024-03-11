@@ -40,7 +40,6 @@ impl Message for StatusMessage {
 
 #[derive(Deserialize, Serialize, Debug, Clone, ValueEnum)]
 pub enum LevelOfDetail {
-    Low,
-    Medium,
-    High,
+    Normal,
+    Verbose,
 }
