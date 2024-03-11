@@ -214,11 +214,62 @@ async fn generate_manual_resources(
 ) -> HashMap<shared_messages::resources::Resources, HashMap<String, f64>> {
     let periods: Vec<String> = crate::commands::orchestrator::get_periods(client).await;
 
+    let gradual_reduction = |i: usize| -> f64 {
+        if i == 0 {
+            1.0
+        } else if i == 1 {
+            0.8
+        } else {
+            0.6
+        }
+    };
+
+    let resource_specific = |resource: &Resources| -> f64 {
+        match resource {
+            Resources::Medic => 50.0,
+            Resources::MtnCran => 200.0,
+            Resources::MtnElec => 300.0,
+            Resources::MtnInst => 300.0,
+            Resources::MtnLagg => 300.0,
+            Resources::MtnMech => 300.0,
+            Resources::MtnPain => 300.0,
+            Resources::MtnPipf => 300.0,
+            Resources::MtnRigg => 300.0,
+            Resources::MtnRope => 300.0,
+            Resources::MtnRous => 300.0,
+            Resources::MtnSat => 300.0,
+            Resources::MtnScaf => 300.0,
+            Resources::MtnTele => 300.0,
+            Resources::MtnTurb => 300.0,
+            Resources::InpSite => 300.0,
+            Resources::Prodlabo => 300.0,
+            Resources::Prodtech => 300.0,
+            Resources::VenAcco => 300.0,
+            Resources::VenComm => 300.0,
+            Resources::VenCran => 300.0,
+            Resources::VenElec => 300.0,
+            Resources::VenHvac => 300.0,
+            Resources::VenInsp => 300.0,
+            Resources::VenInst => 300.0,
+            Resources::VenMech => 300.0,
+            Resources::VenMete => 300.0,
+            Resources::VenRope => 300.0,
+            Resources::VenScaf => 300.0,
+            Resources::VenSubs => 300.0,
+            Resources::QaqcElec => 300.0,
+            Resources::QaqcMech => 300.0,
+            Resources::QaqcPain => 300.0,
+        }
+    };
+
     let mut resources_hash_map = HashMap::new();
     for resource in shared_messages::resources::Resources::iter() {
         let mut periods_hash_map = HashMap::new();
-        for period in periods.clone() {
-            periods_hash_map.insert(period, 300.0);
+        for (i, period) in periods.clone().iter().enumerate() {
+            periods_hash_map.insert(
+                period.to_string(),
+                resource_specific(&resource) * gradual_reduction(i),
+            );
         }
         resources_hash_map.insert(resource, periods_hash_map);
     }

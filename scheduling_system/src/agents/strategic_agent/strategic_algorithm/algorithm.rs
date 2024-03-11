@@ -21,6 +21,7 @@ impl StrategicAlgorithm {
                         break;
                     }
                 };
+
                 let inf_work_order_number =
                     self.schedule_normal_work_order(work_order_number, &period);
 
@@ -80,6 +81,10 @@ impl StrategicAlgorithm {
                 }
 
                 if optimized_work_order.get_excluded_periods().contains(period) {
+                    return Some(work_order_key);
+                }
+
+                if self.period_locks.contains(period) {
                     return Some(work_order_key);
                 }
             }
@@ -293,6 +298,7 @@ mod tests {
             AlgorithmResources::new(resource_loadings),
             PriorityQueues::new(),
             optimized_work_orders,
+            HashSet::new(),
             vec![period.clone()],
             true,
         );
@@ -346,6 +352,7 @@ mod tests {
             AlgorithmResources::new(resource_loadings),
             PriorityQueues::new(),
             optimized_work_orders,
+            HashSet::new(),
             vec![period.clone()],
             true,
         );
@@ -398,6 +405,7 @@ mod tests {
             AlgorithmResources::new(resource_loadings),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
+            HashSet::new(),
             vec![],
             true,
         );
@@ -511,6 +519,7 @@ mod tests {
             AlgorithmResources::new(resource_loadings),
             PriorityQueues::new(),
             optimized_work_orders,
+            HashSet::new(),
             periods,
             true,
         );
@@ -823,6 +832,7 @@ mod tests {
             AlgorithmResources::default(),
             PriorityQueues::new(),
             optimized_work_orders,
+            HashSet::new(),
             periods,
             true,
         );
@@ -917,6 +927,7 @@ mod tests {
             AlgorithmResources::default(),
             PriorityQueues::new(),
             optimized_work_orders,
+            HashSet::new(),
             vec![Period::new_from_string("2023-W47-48").unwrap()],
             true,
         );

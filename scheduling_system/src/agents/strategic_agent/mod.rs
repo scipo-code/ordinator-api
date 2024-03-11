@@ -79,6 +79,7 @@ mod tests {
     use super::strategic_message::tests::TestRequest;
     use super::strategic_message::tests::TestResponse;
     use std::collections::HashMap;
+    use std::collections::HashSet;
 
     use super::{
         strategic_algorithm::{OptimizedWorkOrders, PriorityQueues},
@@ -168,6 +169,7 @@ mod tests {
             AlgorithmResources::new(resource_loadings),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
+            HashSet::new(),
             periods,
             true,
         );
