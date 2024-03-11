@@ -341,7 +341,7 @@ pub mod tests {
     }
 
     pub struct TestResponse {
-        pub objective_value: f32,
+        pub objective_value: f64,
         pub manual_resources_capacity: HashMap<Resources, HashMap<Period, f64>>,
         pub manual_resources_loading: HashMap<Resources, HashMap<Period, f64>>,
         pub priority_queues: PriorityQueues<u32, u32>,

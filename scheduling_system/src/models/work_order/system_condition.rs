@@ -1,7 +1,6 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum SystemCondition {
     A,
     B,
@@ -10,7 +9,7 @@ pub enum SystemCondition {
     E,
     F,
     G,
-    Unknown
+    Unknown,
 }
 
 impl SystemCondition {

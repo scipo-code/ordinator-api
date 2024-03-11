@@ -292,13 +292,13 @@ fn create_new_operation(
         preparation_time: 0.0,
         work_remaining: match work_remaining_data.cloned() {
             Some(calamine::Data::Int(n)) => n as f64,
-            Some(calamine::Data::Float(n)) => n,
+            Some(calamine::Data::Float(n)) => n as f64,
             Some(calamine::Data::String(s)) => s.parse::<f64>().unwrap_or(0.0),
             _ => 100000.0,
         },
         work_performed: match actual_work_data.cloned() {
             Some(calamine::Data::Int(n)) => n as f64,
-            Some(calamine::Data::Float(n)) => n,
+            Some(calamine::Data::Float(n)) => n as f64,
             Some(calamine::Data::String(s)) => s.parse::<f64>().unwrap_or(0.0),
             _ => 0.0,
         },
@@ -341,7 +341,7 @@ fn create_new_operation(
                         }
                     }
                 }
-                Some(calamine::Data::DateTime(s)) => excel_time_to_hh_mm_ss(s.as_f64()),
+                Some(calamine::Data::DateTime(s)) => excel_time_to_hh_mm_ss(s.as_f64() as f64),
                 _ => {
                     event!(
                         tracing::Level::WARN,

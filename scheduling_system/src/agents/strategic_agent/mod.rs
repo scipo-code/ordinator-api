@@ -145,6 +145,7 @@ mod tests {
             + chrono::Duration::seconds(59);
         let period = Period::new(1, start_date, end_date);
 
+        
         let mut resource_capacity: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
         let mut resource_loadings: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
 
