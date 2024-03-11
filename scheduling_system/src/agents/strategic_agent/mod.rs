@@ -145,7 +145,6 @@ mod tests {
             + chrono::Duration::seconds(59);
         let period = Period::new(1, start_date, end_date);
 
-        
         let mut resource_capacity: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
         let mut resource_loadings: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
 
@@ -303,9 +302,5 @@ mod tests {
         let mut work_orders = WorkOrders::new();
 
         work_orders.insert(work_order_1);
-
-        // let scheduler_overview = scheduler_agent.extract_state_to_scheduler_overview();
-
-        // assert_eq!(scheduler_overview.len(), 3);
     }
 }

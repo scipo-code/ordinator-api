@@ -177,8 +177,8 @@ impl WeightParam {
 
 impl WorkOrder {
     pub fn initialize(&mut self, periods: &[Period]) {
-        self.initialize_weight();
         self.initialize_work_load();
+        self.initialize_weight();
         self.initialize_vendor();
         self.initialize_material(periods);
         // TODO : Other fields
@@ -186,7 +186,6 @@ impl WorkOrder {
 
     pub fn initialize_weight(&mut self) {
         let parameters: WeightParam = WeightParam::read_config().unwrap();
-
         self.order_weight = 0;
 
         match &self.order_type {
@@ -261,6 +260,7 @@ impl WorkOrder {
         {
             self.order_weight += parameters.status_weights["PCNF_NMAT_SMAT"];
         }
+        self.order_weight *= self.order_work.round() as u32;
 
         // TODO Implement for VIS and ABC
     }
@@ -274,6 +274,7 @@ impl WorkOrder {
                 .or_insert(0.0) += operation.work_remaining;
         }
 
+        self.order_work = work_load.values().sum();
         self.work_load = work_load;
     }
 
