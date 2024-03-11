@@ -25,6 +25,7 @@ pub struct StrategicAlgorithm {
     resources_loading: AlgorithmResources,
     priority_queues: PriorityQueues<u32, u32>,
     optimized_work_orders: OptimizedWorkOrders,
+    period_locks: HashSet<Period>,
     periods: Vec<Period>,
     changed: bool,
 }
@@ -527,6 +528,7 @@ impl StrategicAlgorithm {
         resources_loading: AlgorithmResources,
         priority_queues: PriorityQueues<u32, u32>,
         optimized_work_orders: OptimizedWorkOrders,
+        period_locks: HashSet<Period>,
         periods: Vec<Period>,
         changed: bool,
     ) -> Self {
@@ -537,6 +539,7 @@ impl StrategicAlgorithm {
             priority_queues,
             optimized_work_orders,
             periods,
+            period_locks,
             changed,
         }
     }
@@ -658,6 +661,7 @@ mod tests {
             AlgorithmResources::default(),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
+            HashSet::new(),
             periods,
             true,
         );

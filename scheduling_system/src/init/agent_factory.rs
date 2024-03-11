@@ -39,6 +39,11 @@ impl AgentFactory {
 
         let locked_scheduling_environment = self.scheduling_environment.lock().unwrap();
 
+        let mut period_locks = HashSet::new();
+
+        period_locks.insert(locked_scheduling_environment.get_periods()[0].clone());
+        period_locks.insert(locked_scheduling_environment.get_periods()[1].clone());
+
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             AlgorithmResources::new(initialize_manual_resources(
@@ -51,6 +56,7 @@ impl AgentFactory {
             )),
             PriorityQueues::new(),
             optimized_work_orders,
+            period_locks,
             locked_scheduling_environment.clone_periods(),
             true,
         );

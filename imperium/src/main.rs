@@ -62,10 +62,7 @@ async fn main() {
 
     let response = send_http(&client, system_message).await;
 
-    dbg!(r#"{}"#, response.clone());
     let formatted_response = response;
-    // .replace("\\n", "\n")
-    // .replace(['\\'], "");
 
     println!("{}", formatted_response);
 }
