@@ -118,7 +118,7 @@ impl fmt::Display for WorkOrders {
             self.inner.len()
         )?;
         for (_, work_order) in self.inner.iter() {
-            write!(f, "{}", work_order.to_string_low())?;
+            write!(f, "{}", work_order.to_string_normal())?;
         }
         Ok(())
     }

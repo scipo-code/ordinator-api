@@ -16,7 +16,10 @@ pub async fn http_to_scheduling_system(
         SystemMessages::Orchestrator(orchestrator_request) => {
             let mut mutux_guard = orchestrator.lock().unwrap();
             let response = mutux_guard.handle(orchestrator_request).await;
-            Ok(HttpResponse::Ok().json(response))
+            let http_response = HttpResponse::Ok()
+                .insert_header(header::ContentType::plaintext())
+                .body(response);
+            Ok(http_response)
         }
         SystemMessages::Strategic(strategic_request) => {
             let strategic_agent_addr = orchestrator
@@ -48,8 +51,14 @@ pub async fn http_to_scheduling_system(
                 .get_tactical_agent_addr();
 
             let response = tactical_agent_addr.send(tactical_request).await;
+
             match response {
-                Ok(response) => Ok(HttpResponse::Ok().json(response)),
+                Ok(response) => {
+                    let http_response = HttpResponse::Ok()
+                        .insert_header(header::ContentType::plaintext())
+                        .body(response);
+                    Ok(http_response)
+                }
                 Err(_) => Ok(HttpResponse::BadRequest().json("TACTICAL: FAILURE")),
             }
         }
@@ -108,9 +117,8 @@ impl Orchestrator {
 
                 if let Some(work_order) = cloned_work_orders.inner.get(&work_order_number) {
                     match level_of_detail {
-                        LevelOfDetail::Low => work_order.to_string(),
-                        LevelOfDetail::Medium => work_order.to_string_medium().to_string(),
-                        LevelOfDetail::High => work_order.to_string_high(),
+                        LevelOfDetail::Normal => work_order.to_string_normal(),
+                        LevelOfDetail::Verbose => work_order.to_string_verbose(),
                     }
                 } else {
                     "Work order not found".to_string()
@@ -122,9 +130,8 @@ impl Orchestrator {
                 let cloned_work_orders = scheduling_environment_guard.clone_work_orders();
 
                 match level_of_detail {
-                    LevelOfDetail::Low => cloned_work_orders.to_string(),
-                    LevelOfDetail::Medium => "".to_string(),
-                    LevelOfDetail::High => "".to_string(),
+                    LevelOfDetail::Normal => cloned_work_orders.to_string(),
+                    LevelOfDetail::Verbose => "Not implemented".to_string(),
                 }
             }
             OrchestratorRequest::GetPeriods => {
