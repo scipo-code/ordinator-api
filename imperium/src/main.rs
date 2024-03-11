@@ -62,7 +62,7 @@ async fn main() {
 
     let response = send_http(&client, system_message).await;
 
-    let formatted_response = response;
+    let formatted_response = response.replace('\"', "");
 
     println!("{}", formatted_response);
 }
