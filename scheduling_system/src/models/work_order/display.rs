@@ -71,7 +71,7 @@ impl WorkOrder {
         .unwrap();
 
         let mut keys: Vec<_> = self.operations.keys().collect();
-        keys.sort(); // or keys.sort_by(...) for custom sorting
+        keys.sort();
         for key in keys {
             if let Some(operation) = self.operations.get(key) {
                 write!(verbose_message, "{}", operation).unwrap();
