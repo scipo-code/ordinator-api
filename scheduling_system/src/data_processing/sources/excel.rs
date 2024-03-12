@@ -1,11 +1,12 @@
 use calamine::{Data, Error, Reader, Xlsx};
-use core::fmt;
+use core::{fmt, num};
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::{event, info, warn};
 
 use crate::models::time_environment::period::Period;
+use crate::models::time_environment::TimeEnvironment;
 use crate::models::work_order::system_condition::SystemCondition;
 
 use crate::models::work_order::functional_location::FunctionalLocation;
@@ -17,11 +18,12 @@ use crate::models::work_order::priority::Priority;
 use crate::models::work_order::revision::Revision;
 use crate::models::work_order::status_codes::{MaterialStatus, StatusCodes};
 use crate::models::work_order::unloading_point::UnloadingPoint;
-use crate::models::work_order::WorkOrder;
+use crate::models::work_order::{ActivityRelation, WorkOrder};
 use crate::models::worker_environment::WorkerEnvironment;
 use crate::models::{SchedulingEnvironment, WorkOrders};
 use chrono::{
-    naive, DateTime, Datelike, Duration, NaiveDate, NaiveTime, TimeZone, Timelike, Utc, Weekday,
+    naive, DateTime, Datelike, Duration, Local, NaiveDate, NaiveTime, TimeZone, Timelike, Utc,
+    Weekday,
 };
 use shared_messages::resources::Resources;
 
@@ -44,6 +46,7 @@ impl fmt::Display for ExcelLoadError {
 pub fn load_data_file(
     file_path: &Path,
     number_of_periods: u32,
+    number_of_days: u32,
 ) -> Result<SchedulingEnvironment, calamine::Error> {
     let mut workbook: Xlsx<_> = calamine::open_workbook(file_path)?;
     println!("Successfully loaded file.");
@@ -56,7 +59,7 @@ pub fn load_data_file(
     let mut work_orders: WorkOrders = WorkOrders::new();
     let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
 
-    let periods: Vec<Period> = create_periods(number_of_periods).unwrap_or_else(|_| {
+    let strategic_periods: Vec<Period> = create_periods(number_of_periods).unwrap_or_else(|_| {
         panic!(
             "Could not create periods in {} at line {}",
             file!(),
@@ -64,11 +67,24 @@ pub fn load_data_file(
         )
     });
 
-    populate_work_orders(&mut work_orders, &periods, sheet)
+    let tactical_days = |number_of_days: u32| -> Vec<NaiveDate> {
+        let mut days: Vec<NaiveDate> = Vec::new();
+        let mut date = Local::now().date_naive();
+
+        for _ in 0..number_of_days {
+            days.push(date);
+            date = date.succ_opt().unwrap();
+        }
+        days
+    };
+
+    populate_work_orders(&mut work_orders, &strategic_periods, sheet)
         .expect("could not populate the work orders");
 
+    let time_environment = TimeEnvironment::new(strategic_periods, tactical_days(number_of_days));
+
     let scheduling_environment =
-        SchedulingEnvironment::new(work_orders, worker_environment, periods);
+        SchedulingEnvironment::new(work_orders, worker_environment, time_environment);
     Ok(scheduling_environment)
 }
 
@@ -201,9 +217,7 @@ fn create_new_work_order(
         0.0,
         HashMap::<u32, Operation>::new(),
         HashMap::<Resources, f64>::new(),
-        Vec::<bool>::new(),
-        Vec::<bool>::new(),
-        Vec::<DateTime<Utc>>::new(),
+        Vec::<ActivityRelation>::new(),
         extract_order_type_and_priority(work_order_type_data, priority),
         SystemCondition::new(),
         extract_status_codes(row, header_to_index).expect("Failed to extract StatusCodes"),
@@ -1046,15 +1060,16 @@ mod tests {
     fn test_load_data_file() {
         let file_path = Path::new("test_data/export.XLSX");
         let number_of_periods = 26;
+        let number_of_days = 56;
 
-        let scheduling_environment = load_data_file(file_path, number_of_periods);
+        let scheduling_environment = load_data_file(file_path, number_of_periods, number_of_days);
 
         assert_eq!(
             scheduling_environment.unwrap().clone_periods().len(),
             number_of_periods as usize
         );
 
-        let scheduling_environment = load_data_file(file_path, number_of_periods);
+        let scheduling_environment = load_data_file(file_path, number_of_periods, number_of_days);
 
         let number_of_work_orders = scheduling_environment
             .as_ref()

@@ -9,9 +9,12 @@ use crate::models::SchedulingEnvironment;
 use actix::prelude::*;
 use std::sync::Arc;
 use std::sync::Mutex;
+use tracing::error;
+use tracing::warn;
 
 use crate::agents::tactical_agent::TacticalAgent;
 
+use super::SendState;
 use super::SetAddr;
 
 /// This is the primary struct for the scheduler agent.
@@ -28,6 +31,7 @@ impl Actor for StrategicAgent {
 
     fn started(&mut self, ctx: &mut Context<Self>) {
         self.strategic_agent_algorithm.populate_priority_queues();
+        warn!("StrategicAgent has started for platform: {}", self.platform);
         ctx.notify(ScheduleIteration {})
     }
 
@@ -40,14 +44,29 @@ impl StrategicAgent {
     pub fn new(
         platform: String,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-        scheduler_agent_algorithm: StrategicAlgorithm,
+        strategic_agent_algorithm: StrategicAlgorithm,
         tactical_agent_addr: Option<Addr<TacticalAgent>>,
     ) -> Self {
         Self {
             platform,
             scheduling_environment,
-            strategic_agent_algorithm: scheduler_agent_algorithm,
+            strategic_agent_algorithm,
             tactical_agent_addr,
+        }
+    }
+
+    pub fn update_tactical_agent(&self) {
+        let tactical_work_orders = self.strategic_agent_algorithm.get_tactical_work_orders();
+
+        match &self.tactical_agent_addr {
+            Some(tactical_agent_addr) => {
+                tactical_agent_addr.do_send(SendState::Strategic(tactical_work_orders));
+            }
+            None => {
+                error!(
+                    "The StrategicAgent cannot update the TacticalAgent as its address is not set"
+                );
+            }
         }
     }
 }
@@ -121,8 +140,6 @@ mod tests {
             100.0,
             HashMap::new(),
             work_load,
-            vec![],
-            vec![],
             vec![],
             WorkOrderType::Wdf(WDFPriority::new(1)),
             SystemCondition::new(),
@@ -285,8 +302,6 @@ mod tests {
             100.0,
             operations,
             HashMap::new(),
-            vec![],
-            vec![],
             vec![],
             WorkOrderType::Wdf(WDFPriority::new(1)),
             SystemCondition::new(),

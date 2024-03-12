@@ -45,9 +45,7 @@ pub struct WorkOrder {
     order_work: f64,
     operations: HashMap<u32, Operation>,
     work_load: HashMap<Resources, f64>,
-    start_start: Vec<bool>,
-    finish_start: Vec<bool>,
-    postpone: Vec<DateTime<Utc>>,
+    relations: Vec<ActivityRelation>,
     order_type: WorkOrderType,
     system_condition: SystemCondition,
     status_codes: StatusCodes,
@@ -68,9 +66,7 @@ impl WorkOrder {
         order_work: f64,
         operations: HashMap<u32, Operation>,
         work_load: HashMap<Resources, f64>,
-        start_start: Vec<bool>,
-        finish_start: Vec<bool>,
-        postpone: Vec<DateTime<Utc>>,
+        relations: Vec<ActivityRelation>,
         order_type: WorkOrderType,
         system_condition: SystemCondition,
         status_codes: StatusCodes,
@@ -89,9 +85,7 @@ impl WorkOrder {
             order_work,
             operations,
             work_load,
-            start_start,
-            finish_start,
-            postpone,
+            relations,
             order_type,
             system_condition,
             status_codes,
@@ -102,6 +96,10 @@ impl WorkOrder {
             order_text,
             vendor,
         }
+    }
+
+    pub fn get_operations(&self) -> &HashMap<u32, Operation> {
+        &self.operations
     }
 
     pub fn get_work_order_number(&self) -> u32 {
@@ -151,6 +149,17 @@ impl WorkOrder {
     pub fn is_vendor(&self) -> bool {
         self.vendor
     }
+
+    pub fn get_relations(&self) -> &Vec<ActivityRelation> {
+        &self.relations
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum ActivityRelation {
+    StartStart,
+    FinishStart,
+    Postpone(DateTime<Utc>),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -379,8 +388,6 @@ mod tests {
                 operations,
                 HashMap::new(),
                 vec![],
-                vec![],
-                vec![],
                 WorkOrderType::Wdf(WDFPriority::new(1)),
                 crate::models::work_order::system_condition::SystemCondition::Unknown,
                 StatusCodes::new_default(),
@@ -391,9 +398,6 @@ mod tests {
                 OrderText::new_default(),
                 false,
             )
-        }
-        pub fn get_operations(&self) -> &HashMap<u32, Operation> {
-            &self.operations
         }
     }
 
@@ -419,8 +423,6 @@ mod tests {
                 100.0,
                 operations,
                 HashMap::new(),
-                vec![],
-                vec![],
                 vec![],
                 WorkOrderType::Wdf(WDFPriority::new(1)),
                 SystemCondition::Unknown,

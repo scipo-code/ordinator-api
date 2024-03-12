@@ -16,6 +16,9 @@ use strum::IntoEnumIterator;
 pub enum StrategicCommands {
     #[command(name = "default")]
     Default,
+    /// Schedule one ScheduleIteration
+    ScheduleIteration,
+
     /// overview of the strategic agent
     Status {
         #[clap(subcommand)]
@@ -90,6 +93,10 @@ impl StrategicCommands {
                     StrategicStatusMessage::General;
 
                 SystemMessages::Strategic(StrategicRequest::Status(strategic_status_message))
+            }
+            StrategicCommands::ScheduleIteration => {
+                let strategic_iteration_message = StrategicRequest::ScheduleIteration;
+                SystemMessages::Strategic(strategic_iteration_message)
             }
             StrategicCommands::Status { subcommand } => match subcommand {
                 StatusStrategic::WorkOrders { period } => {
