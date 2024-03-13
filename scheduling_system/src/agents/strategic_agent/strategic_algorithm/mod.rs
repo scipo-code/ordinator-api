@@ -30,21 +30,49 @@ pub struct StrategicAlgorithm {
     changed: bool,
 }
 
+
+impl StrategicAlgorithm {
+    pub fn get_optimized_work_order(&self, work_order_number: &u32) -> Option<&OptimizedWorkOrder> {
+        self.optimized_work_orders.inner.get(work_order_number)
+    }
+
+    pub fn set_periods(&mut self, periods: Vec<Period>) {
+        self.periods = periods;
+    }
+
+    pub fn get_tactical_work_orders(&self) -> Vec<(u32, Period)> {
+        let periods = &self.periods.clone()[0..4];
+        let mut tactical_work_orders: Vec<(u32, Period)> = vec![];
+
+        for (work_order_number, optimized_work_order) in &self.optimized_work_orders.inner {
+            match optimized_work_order.get_scheduled_period() {
+                Some(period) => {
+                    if periods.contains(&period) {
+                        tactical_work_orders.push((*work_order_number, period));
+                    }
+                }
+                None => {
+                    panic!("Work order number {} does not have a scheduled period", work_order_number)
+                }
+            }
+        }
+        tactical_work_orders
+    }
+}
+
+
 #[derive(Debug, Clone)]
 pub struct AlgorithmResources {
     pub inner: HashMap<Resources, HashMap<Period, f64>>
 }
 
 impl AlgorithmResources {
-    
     pub fn new(resources: HashMap<Resources, HashMap<Period, f64>>) -> Self {
         Self {
             inner: resources
         }
     }
-}
 
-impl AlgorithmResources {
     fn to_string(&self, number_of_periods: u32) -> String{
         let mut string = String::new();
         let mut periods = self.inner.values()
@@ -85,15 +113,6 @@ impl AlgorithmResources {
     }
 }
 
-impl StrategicAlgorithm {
-    pub fn get_optimized_work_order(&self, work_order_number: &u32) -> Option<&OptimizedWorkOrder> {
-        self.optimized_work_orders.inner.get(work_order_number)
-    }
-
-    pub fn set_periods(&mut self, periods: Vec<Period>) {
-        self.periods = periods;
-    }
-}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct OptimizedWorkOrders {
@@ -297,14 +316,6 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
         }
     }
 
-
-    /// The problem here is that we are making the code more generic than it needs to be. We are 
-    /// increasing complexity. We are already implementing the actor model. And this means that we
-    /// are already implementing handlers and different kinds of messages. If somethings need to 
-    /// change we will make a new message and implement a handler on it. So what I am doing here is 
-    /// making an update_resources_state that based on a message implementing the ResourceMessage
-    /// will do different things. This is the same thing as implementing many different Handlers in 
-    /// the actix model.
     #[instrument(level = "info", skip_all)]
     fn update_resources_state(
         &mut self,
@@ -609,8 +620,6 @@ mod tests {
             100.0,
             HashMap::new(),
             HashMap::new(),
-            vec![],
-            vec![],
             vec![],
             WorkOrderType::Wdf(WDFPriority::new(1)),
             SystemCondition::new(),

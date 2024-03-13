@@ -9,10 +9,12 @@ use crate::models::time_environment::period::Period;
 use crate::models::work_order::WorkOrder;
 use crate::models::worker_environment::WorkerEnvironment;
 
+use self::time_environment::TimeEnvironment;
+
 pub struct SchedulingEnvironment {
     work_orders: WorkOrders,
     worker_environment: WorkerEnvironment,
-    periods: Vec<Period>,
+    pub(super) time_environment: TimeEnvironment,
     // material
 }
 
@@ -20,19 +22,17 @@ impl SchedulingEnvironment {
     pub fn new(
         work_orders: WorkOrders,
         worker_environment: WorkerEnvironment,
-        periods: Vec<Period>,
+        time_environment: TimeEnvironment,
     ) -> Self {
         SchedulingEnvironment {
             work_orders,
             worker_environment,
-            periods,
+            time_environment,
         }
     }
 
-
-    
     pub fn clone_periods(&self) -> Vec<Period> {
-        self.periods.clone()
+        self.time_environment.get_strategic_periods().clone()
     }
 
     pub fn clone_work_orders(&self) -> WorkOrders {
@@ -46,11 +46,11 @@ impl SchedulingEnvironment {
     }
 
     pub fn get_mut_periods(&mut self) -> &mut Vec<Period> {
-        &mut self.periods
+        &mut self.time_environment.strategic_periods
     }
 
     pub fn get_periods(&self) -> &Vec<Period> {
-        &self.periods
+        &self.time_environment.get_strategic_periods()
     }
 
     pub fn get_worker_environment(&self) -> &WorkerEnvironment {
@@ -60,6 +60,10 @@ impl SchedulingEnvironment {
     pub fn initialize_worker_environment(&mut self) {
         self.worker_environment.initialize();
     }
+
+    pub fn get_work_orders(&self) -> &WorkOrders {
+        &self.work_orders
+    }
 }
 
 impl Default for SchedulingEnvironment {
@@ -67,12 +71,8 @@ impl Default for SchedulingEnvironment {
         SchedulingEnvironment {
             work_orders: WorkOrders::new(),
             worker_environment: WorkerEnvironment::new(),
-            periods: vec![Period::new(
-                0,
-                chrono::Utc::now(),
-                chrono::Utc::now() + chrono::Duration::days(14) - chrono::Duration::seconds(1),
-            )]
-                }
+            time_environment: TimeEnvironment::new(Vec::new(), Vec::new()),
+        }
     }
 }
 
@@ -99,13 +99,24 @@ impl WorkOrders {
 }
 
 impl fmt::Display for SchedulingEnvironment {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {                 
-        write!(f, "The Scheduling Environment is currently comprised of \n  number of work orders: {},\n  number of worker entries: {},\n  number of periods: {}", 
-        self.work_orders.inner.len(), 
-        match self.get_worker_environment().get_crew().as_ref() {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let workers = match self.get_worker_environment().get_crew().as_ref() {
             Some(crew) => crew.get_workers().len(),
             None => 0,
-    }, self.periods.len())?;
+        };
+
+        write!(
+            f,
+            "The Scheduling Environment is currently comprised of
+        \n  number of work orders: {}
+        \n  number of worker entries: {}
+        \n  number of strategic periods: {}, 
+        \n  number of tactical days: {}",
+            self.work_orders.inner.len(),
+            workers,
+            self.time_environment.get_strategic_periods().len(),
+            self.time_environment.get_tactical_days().len(),
+        )?;
         Ok(())
     }
 }
@@ -121,124 +132,5 @@ impl fmt::Display for WorkOrders {
             write!(f, "{}", work_order.to_string_normal())?;
         }
         Ok(())
-    }
-}
-
-// impl WorkOrders {
-
-//     pub fn format_selected_work_orders(
-//         &self,
-//         work_orders_number: Vec<u32>,
-//         period: Option<String>,
-//     ) -> String {
-//         let mut message = String::new();
-
-//         match period {
-//             Some(period) => writeln!(
-//                 message,
-//                 "Work orders scheduled for period: {} are: ",
-//                 period,
-//             ),
-//             None => writeln!(message, "All work orders"),
-//         }
-//         .unwrap();
-
-//         writeln!(
-//             message,
-//             "                      EARL-PERIOD|AWCS|SECE|REVISION|TYPE|PRIO|VEN*| MAT|",
-//         )
-//         .unwrap();
-
-//         let mut work_orders = self
-//             .scheduling_environment
-//             .lock()
-//             .unwrap()
-//             .clone_work_orders();
-
-//         for work_order_number in work_orders_number {
-//             writeln!(
-//                 message,
-//                 "    Work order: {}    |{:>11}|{:<}|{:<}|{:>8}|{:?}|{:?}|{:<3}|{:?}|",
-//                 work_order_number,
-//                 work_orders
-//                     .inner
-//                     .get_mut(&work_order_number)
-//                     .unwrap()
-//                     .get_order_dates()
-//                     .earliest_allowed_start_period
-//                     .get_period_string(),
-//                 if work_orders
-//                     .inner
-//                     .get(&work_order_number)
-//                     .unwrap()
-//                     .get_status_codes()
-//                     .awsc
-//                 {
-//                     "AWSC"
-//                 } else {
-//                     "----"
-//                 },
-//                 if work_orders
-//                     .inner
-//                     .get(&work_order_number)
-//                     .unwrap()
-//                     .get_status_codes()
-//                     .sece
-//                 {
-//                     "SECE"
-//                 } else {
-//                     "----"
-//                 },
-//                 work_orders
-//                     .inner
-//                     .get(&work_order_number)
-//                     .unwrap()
-//                     .get_revision()
-//                     .string,
-//                 work_orders
-//                     .inner
-//                     .get(&work_order_number)
-//                     .unwrap()
-//                     .get_order_type()
-//                     .get_type_string(),
-//                 work_orders
-//                     .inner
-//                     .get(&work_order_number)
-//                     .unwrap()
-//                     .get_priority()
-//                     .get_priority_string(),
-//                 if work_orders
-//                     .inner
-//                     .get(&work_order_number)
-//                     .unwrap()
-//                     .is_vendor()
-//                 {
-//                     "VEN"
-//                 } else {
-//                     "---"
-//                 },
-//                 work_orders
-//                     .inner
-//                     .get(&work_order_number)
-//                     .unwrap()
-//                     .get_status_codes()
-//                     .material_status,
-//             )
-//             .unwrap();
-//         }
-//         message
-//     }
-    
-// }
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    impl SchedulingEnvironment {
-        pub fn get_work_orders(&self) -> &WorkOrders {
-            &self.work_orders
-        }
     }
 }

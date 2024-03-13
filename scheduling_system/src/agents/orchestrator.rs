@@ -113,9 +113,10 @@ impl Orchestrator {
         let agent_factory = agent_factory::AgentFactory::new(scheduling_environment.clone());
 
         let strategic_agent_addr = agent_factory.build_strategic_agent();
-
+        dbg!("before tactical agent ");
         let tactical_agent_addr =
             agent_factory.build_tactical_agent(56, strategic_agent_addr.clone());
+        dbg!("{}", tactical_agent_addr.clone());
 
         Orchestrator {
             scheduling_environment,

@@ -20,6 +20,7 @@ pub async fn http_to_scheduling_system(
                 .insert_header(header::ContentType::plaintext())
                 .body(response);
             Ok(http_response)
+            // Ok(HttpResponse::BadRequest().json("STRATEGIC: FAILURE"))
         }
         SystemMessages::Strategic(strategic_request) => {
             let strategic_agent_addr = orchestrator
@@ -28,7 +29,9 @@ pub async fn http_to_scheduling_system(
                 .agent_registry
                 .get_strategic_agent_addr();
 
+            dbg!();
             let response = strategic_agent_addr.send(strategic_request).await;
+            dbg!();
             match response {
                 Ok(response) => match response {
                     Ok(response) => {
@@ -48,8 +51,9 @@ pub async fn http_to_scheduling_system(
                 .unwrap()
                 .agent_registry
                 .get_tactical_agent_addr();
-
+            dbg!();
             let response = tactical_agent_addr.send(tactical_request).await;
+            dbg!();
 
             match response {
                 Ok(response) => {

@@ -21,6 +21,7 @@ use self::{
 #[serde(tag = "strategic_message_type")]
 pub enum StrategicRequest {
     Status(StrategicStatusMessage),
+    ScheduleIteration,
     Scheduling(StrategicSchedulingMessage),
     Resources(StrategicResourceMessage),
     Periods(StrategicTimeMessage),
@@ -45,6 +46,10 @@ impl fmt::Display for StrategicRequest {
         match self {
             StrategicRequest::Status(strategic_status_message) => {
                 write!(f, "status: {}", strategic_status_message)?;
+                Ok(())
+            }
+            StrategicRequest::ScheduleIteration => {
+                write!(f, "schedule_iteration")?;
                 Ok(())
             }
             StrategicRequest::Scheduling(scheduling_message) => {

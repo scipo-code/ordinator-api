@@ -65,13 +65,13 @@ impl AgentFactory {
 
         scheduler_agent_algorithm.calculate_objective();
 
-        let scheduler_agent = StrategicAgent::new(
+        let strategic_agent = StrategicAgent::new(
             String::from("Dan F"),
             self.scheduling_environment.clone(),
             scheduler_agent_algorithm,
             None,
         );
-        scheduler_agent.start()
+        strategic_agent.start()
     }
 
     pub fn build_tactical_agent(
@@ -85,6 +85,7 @@ impl AgentFactory {
             strategic_agent_addr,
             self.scheduling_environment.clone(),
         );
+        dbg!("Tactical agent created");
         tactical_agent.start()
     }
 
