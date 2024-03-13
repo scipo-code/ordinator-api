@@ -26,16 +26,16 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         temporary_schedule.schedule();
 
         temporary_schedule.calculate_objective();
-        dbg!();
+
         if temporary_schedule.get_objective_value()
             < self.strategic_agent_algorithm.get_objective_value()
         {
             self.strategic_agent_algorithm = temporary_schedule;
 
-            self.update_tactical_agent();
+            // self.update_tactical_agent();
         }
 
-        // ctx.notify(ScheduleIteration {});
+        ctx.notify(ScheduleIteration {});
     }
 }
 

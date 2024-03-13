@@ -71,10 +71,13 @@ pub enum Resources {
     QaqcMech,
     #[serde(rename = "QAQCPAIN")]
     QaqcPain,
+    #[serde(rename = "WellSupv")]
+    WellSupv,
 }
 
 impl Resources {
     pub fn new_from_string(resource: String) -> Self {
+        dbg!(resource.clone());
         match resource.as_str() {
             "MEDIC" => Resources::Medic,
             "MTN-CRAN" => Resources::MtnCran,
@@ -109,7 +112,8 @@ impl Resources {
             "QAQCELEC" => Resources::QaqcElec,
             "QAQCMECH" => Resources::QaqcMech,
             "QAQCPAIN" => Resources::QaqcPain,
-            _ => panic!("Invalid resource"),
+            "WELLSUPV" => Resources::WellSupv,
+            _ => Resources::WellSupv,
         }
     }
 
@@ -148,6 +152,7 @@ impl Resources {
             Resources::QaqcElec => "QAQCELEC".to_string(),
             Resources::QaqcMech => "QAQCMECH".to_string(),
             Resources::QaqcPain => "QAQCPAIN".to_string(),
+            Resources::WellSupv => "WELLSUPV".to_string(),
         }
     }
 
