@@ -19,7 +19,7 @@ async fn main() -> Result<(), io::Error> {
     let _guard = logging::setup_logging();
 
     let scheduling_environment = Arc::new(Mutex::new(
-        init::model_initializers::initialize_scheduling_environment(52),
+        init::model_initializers::initialize_scheduling_environment(52, 56),
     ));
 
     let orchestrator = Arc::new(Mutex::new(Orchestrator::new(
@@ -35,6 +35,7 @@ async fn main() -> Result<(), io::Error> {
                 .to(api::routes::http_to_scheduling_system),
         )
     })
+    .workers(4)
     .bind("127.0.0.1:8080")?
     .run()
     .await

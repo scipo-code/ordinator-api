@@ -6,6 +6,7 @@ use shared_messages::resources::Id;
 use shared_messages::tactical::TacticalRequest;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use tracing::warn;
 
 use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
 use crate::agents::SetAddr;
@@ -13,6 +14,7 @@ use crate::models::SchedulingEnvironment;
 
 use super::strategic_agent::StrategicAgent;
 use super::supervisor_agent::SupervisorAgent;
+use super::SendState;
 
 #[allow(dead_code)]
 pub struct TacticalAgent {
@@ -31,6 +33,7 @@ impl TacticalAgent {
         strategic_addr: Addr<StrategicAgent>,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     ) -> Self {
+        dbg!("TacticalAgent::new");
         TacticalAgent {
             id,
             time_horizon: days,
@@ -50,6 +53,10 @@ impl Actor for TacticalAgent {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Context<Self>) {
+        warn!(
+            "TacticalAgent {} has started, sending Its address to the StrategicAgent",
+            self.id
+        );
         self.strategic_addr
             .do_send(SetAddr::Tactical(ctx.address()));
     }
@@ -72,6 +79,40 @@ impl Handler<TacticalRequest> for TacticalAgent {
                 todo!()
             }
             TacticalRequest::Days => {
+                todo!()
+            }
+        }
+    }
+}
+
+impl Handler<SendState> for TacticalAgent {
+    type Result = ();
+
+    fn handle(&mut self, msg: SendState, _ctx: &mut Context<Self>) {
+        match msg {
+            SendState::Strategic(strategic_state) => {
+                // The tactical agent initializes his state based on the strategic agent and the
+                // `SchedulingEnvironment`.
+
+                match self.scheduling_environment.lock() {
+                    Ok(scheduling_environment) => {
+                        let work_orders = scheduling_environment.get_work_orders();
+                        self.tactical_algorithm
+                            .update_state_based_on_strategic(work_orders, strategic_state);
+                    }
+                    Err(_) => {
+                        println!("The tactical agent could not lock the `SchedulingEnvironment`");
+                        todo!()
+                    }
+                }
+            }
+            SendState::Tactical => {
+                todo!()
+            }
+            SendState::Supervisor => {
+                todo!()
+            }
+            SendState::Operational => {
                 todo!()
             }
         }
