@@ -115,10 +115,16 @@ fn populate_work_orders<'a>(
 
     for row in sheet.rows().skip(1) {
         let mut work_order_number: u32 = 0;
+        match row[5] {
+            Data::Empty => continue,
+            _ => (),
+        }
+
         if let Some(&index) = header_to_index.get("Order") {
             if index < row.len() {
                 let value = &row[index];
                 match value {
+                    calamine::Data::Empty => continue,
                     calamine::Data::String(s) => match s.parse::<u32>() {
                         Ok(n) => work_order_number = n,
                         Err(e) => {
@@ -238,8 +244,12 @@ fn create_new_operation(
 ) -> Result<Operation, Error> {
     let default_future_date = Utc.with_ymd_and_hms(2026, 1, 1, 7, 0, 0).unwrap();
 
-    let work_possible_headers = ["Remaining Work", "Work_Remaining", "Work_Planned"];
-    let earliest_start_date_headers = ["Earliest_Start_Date", "Earliest start date"];
+    let work_possible_headers = ["Remaining Work", "Work_Remaining", "Work_Planned", "Work"];
+    let earliest_start_date_headers = [
+        "Earliest_Start_Date",
+        "Earliest start date",
+        "Earliest StrDate",
+    ];
     let earliest_start_time_headers = ["Earliest start time", "Earliest_Start_Time"];
     let earliest_finish_date_headers = [
         "Earliest_Finish_Date",
@@ -252,7 +262,12 @@ fn create_new_operation(
         "Latest_Finish_Time",
         "Earliest finish time",
     ];
-    let work_center_headers = ["Work_Center", "Work Center", "Work center"];
+    let work_center_headers = [
+        "Work_Center",
+        "Work Center",
+        "Work center",
+        "Oper.WorkCenter",
+    ];
     let actual_work_headers = [
         "Work_Actual",
         "Work Actual",
@@ -287,11 +302,7 @@ fn create_new_operation(
             _ => 0,
         },
         number: match row
-            .get(
-                *header_to_index
-                    .get("Number")
-                    .ok_or("Number header not found")?,
-            )
+            .get(*header_to_index.get("Number").unwrap_or(&(1 as usize)))
             .cloned()
         {
             Some(calamine::Data::Int(n)) => n as u32,
@@ -396,7 +407,7 @@ fn create_new_operation(
                     }
                 }
                 Some(calamine::Data::DateTime(s)) => excel_time_to_hh_mm_ss(s.as_f64()),
-                _ => return Err(Error::Msg("Could not parse earliest_finish_time_data")),
+                _ => NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
             };
             Utc.from_utc_datetime(&naive::NaiveDateTime::new(date, time))
         },
@@ -408,9 +419,19 @@ fn extract_status_codes(
     row: &[calamine::Data],
     header_to_index: &HashMap<String, usize>,
 ) -> Result<StatusCodes, Error> {
-    let system_status_possible_headers = ["System_Status", "System Status", "Order System Status"];
-    let user_status_possible_headers = ["User_Status", "User Status", "Order User Status"];
-    let op_status_possible_headers = ["Opr_User_Status", "Op User Status"];
+    let system_status_possible_headers = [
+        "System_Status",
+        "System Status",
+        "Order System Status",
+        "System status",
+    ];
+    let user_status_possible_headers = [
+        "User_Status",
+        "User Status",
+        "Order User Status",
+        "User status",
+    ];
+    let op_status_possible_headers = ["Opr_User_Status", "Op User Status", "Oper.UserStatus"];
 
     let system_status_data =
         get_data_from_headers(row, header_to_index, &system_status_possible_headers);
@@ -477,11 +498,12 @@ fn extract_order_dates(
         "Earliest Allowed Start Date",
         "Earliest_Start_Date",
         "Earliest start date",
+        "Earl.start date",
     ];
-    let latest_allowed_finish_date_possible_headers =
-        ["Latest_Allowed_Finish_Date", "Latest Allowed Finish Date"];
-    let basic_start_possible_headers = ["Basic_Start_Date", "Basic Start Date"];
-    let basic_finish_possible_headers = ["Basic_Finish_Date", "Basic Finish Date"];
+    let latest_allowed_finish_date_possible_headers = ["Latst Allowd.FinDate"];
+    let basic_start_possible_headers = ["Basic_Start_Date", "Basic Start Date", "Bas. start date"];
+    let basic_finish_possible_headers =
+        ["Basic_Finish_Date", "Basic Finish Date", "Basic fin. date"];
 
     // let earliest_start_time_possible_headers = ["Earliest_Start_Time", "Earliest start time"];
 
@@ -537,7 +559,7 @@ fn extract_order_dates(
             return Err(Error::Msg(error_message));
         }
     };
-
+    dbg!(latest_allowed_finish_date_data.clone());
     let latest_allowed_finish_date = match latest_allowed_finish_date_data.cloned() {
         Some(calamine::Data::String(s)) => parse_date(&s),
         Some(calamine::Data::DateTime(s)) => {
@@ -545,6 +567,7 @@ fn extract_order_dates(
             let date = start.checked_add_signed(Duration::days(s.as_f64() as i64 - 2));
             date.unwrap()
         }
+        Some(calamine::Data::Empty) => NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
         _ => {
             return Err(Error::Msg(
                 "Could not parse latest_allowed_finish_date_data as string",
@@ -776,21 +799,32 @@ fn extract_order_text(
         "Description_1",
         "Description 1",
         "Description_1",
+        "Description",
     ];
     let description_2_possible_headers = [
         "Order Description",
         "Description_2",
         "Description 2",
-        "Description_2",
+        "Description",
     ];
     let operation_description_possible_headers = [
         "Short_Text",
         "Operation Description",
-        "Operation_Description",
+        "Opr. short text",
         "Operation Description",
     ];
-    let system_status_possible_headers = ["System_Status", "System Status", "Order System Status"];
-    let user_status_possible_headers = ["User_Status", "User Status", "Order User Status"];
+    let system_status_possible_headers = [
+        "System_Status",
+        "System Status",
+        "Order System Status",
+        "Op.SystemStatus",
+    ];
+    let user_status_possible_headers = [
+        "User_Status",
+        "User Status",
+        "Order User Status",
+        "User status",
+    ];
 
     let notes_1_data = get_data_from_headers(row, header_to_index, &notes_1_possible_headers);
     let notes_2_data = get_data_from_headers(row, header_to_index, &notes_2_possible_headers);
@@ -1026,6 +1060,50 @@ fn extract_order_type_and_priority(
 
             _ => Ok(WorkOrderType::Other),
         },
+        // Some(calamine::Data::Int(work_order_type)) => match work_order_type.as_str() {
+        //     "WDF" => match &priority {
+        //         Priority::IntValue(value) => match value {
+        //             1 => Ok(WorkOrderType::Wdf(WDFPriority::One)),
+        //             2 => Ok(WorkOrderType::Wdf(WDFPriority::Two)),
+        //             3 => Ok(WorkOrderType::Wdf(WDFPriority::Three)),
+        //             4 => Ok(WorkOrderType::Wdf(WDFPriority::Four)),
+        //             _ => Ok(WorkOrderType::Other),
+        //         },
+        //         _ => Err(ExcelLoadError("Could not parse WDF priority as int".into())),
+        //     },
+        //     "WGN" => match &priority {
+        //         Priority::IntValue(value) => match value {
+        //             1 => Ok(WorkOrderType::Wgn(WGNPriority::One)),
+        //             2 => Ok(WorkOrderType::Wgn(WGNPriority::Two)),
+        //             3 => Ok(WorkOrderType::Wgn(WGNPriority::Three)),
+        //             4 => Ok(WorkOrderType::Wgn(WGNPriority::Four)),
+        //             _ => Ok(WorkOrderType::Other),
+        //         },
+        //         _ => Err(ExcelLoadError("Could not parse WGN priority as int".into())),
+        //     },
+        //     "WPM" => match &priority {
+        //         Priority::StringValue(value) => match value.as_str() {
+        //             "A" => Ok(WorkOrderType::Wpm(WPMPriority::A)),
+        //             "B" => Ok(WorkOrderType::Wpm(WPMPriority::B)),
+        //             "C" => Ok(WorkOrderType::Wpm(WPMPriority::C)),
+        //             "D" => Ok(WorkOrderType::Wpm(WPMPriority::D)),
+        //             _ => Ok(WorkOrderType::Other),
+        //         },
+        //         _ => Err(ExcelLoadError("Could not parse WPM priority as int".into())),
+        //     },
+        //     "WRO" => match &priority {
+        //         Priority::IntValue(value) => match value {
+        //             1 => Ok(WorkOrderType::Wro(WROPriority::One)),
+        //             2 => Ok(WorkOrderType::Wro(WROPriority::Two)),
+        //             3 => Ok(WorkOrderType::Wro(WROPriority::Three)),
+        //             4 => Ok(WorkOrderType::Wro(WROPriority::Four)),
+        //             _ => Ok(WorkOrderType::Other),
+        //         },
+        //         _ => Err(ExcelLoadError("Could not parse WRO priority as int".into())),
+        //     },
+
+        //     _ => Ok(WorkOrderType::Other),
+        // },
         None => Ok(WorkOrderType::Other),
         _ => Err(ExcelLoadError(
             "Could not parse work order type as int".into(),
