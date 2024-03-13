@@ -42,7 +42,7 @@ impl AgentFactory {
         let mut period_locks = HashSet::new();
 
         period_locks.insert(locked_scheduling_environment.get_periods()[0].clone());
-        period_locks.insert(locked_scheduling_environment.get_periods()[1].clone());
+        //period_locks.insert(locked_scheduling_environment.get_periods()[1].clone());
 
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
