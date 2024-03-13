@@ -15,24 +15,27 @@ pub struct ScheduleIteration {}
 impl Handler<ScheduleIteration> for StrategicAgent {
     type Result = ();
 
-    #[instrument(skip(self, _msg, ctx))]
+    #[instrument(skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
 
-        let previous_schedule = self.strategic_agent_algorithm.clone();
+        let mut temporary_schedule = self.strategic_agent_algorithm.clone();
 
-        self.strategic_agent_algorithm
-            .unschedule_random_work_orders(50, rng);
+        temporary_schedule.unschedule_random_work_orders(50, rng);
 
-        self.strategic_agent_algorithm.schedule();
+        temporary_schedule.schedule();
 
-        self.strategic_agent_algorithm.calculate_objective();
-
-        if previous_schedule.get_objective_value()
+        temporary_schedule.calculate_objective();
+        dbg!();
+        if temporary_schedule.get_objective_value()
             < self.strategic_agent_algorithm.get_objective_value()
-        {}
+        {
+            self.strategic_agent_algorithm = temporary_schedule;
 
-        ctx.notify(ScheduleIteration {});
+            self.update_tactical_agent();
+        }
+
+        // ctx.notify(ScheduleIteration {});
     }
 }
 
@@ -99,6 +102,10 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     Ok(message)
                 }
             },
+            StrategicRequest::ScheduleIteration => {
+                _ctx.notify(ScheduleIteration {});
+                Ok("Schedule iteration completed".to_string())
+            }
             StrategicRequest::Scheduling(scheduling_message) => self
                 .strategic_agent_algorithm
                 .update_scheduling_state(scheduling_message),

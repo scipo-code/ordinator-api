@@ -12,7 +12,10 @@ pub enum TacticalCommands {
 impl TacticalCommands {
     pub fn execute(&self) -> shared_messages::SystemMessages {
         match self {
-            TacticalCommands::Status => SystemMessages::Tactical(TacticalRequest::Status),
+            TacticalCommands::Status => {
+                dbg!("TacticalAgent Status Message");
+                SystemMessages::Tactical(TacticalRequest::Status)
+            }
             TacticalCommands::Objectives => {
                 todo!()
             }
