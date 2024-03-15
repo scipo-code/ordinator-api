@@ -1,5 +1,6 @@
 use clap::Subcommand;
-use shared_messages::LevelOfDetail;
+use shared_messages::{LevelOfDetail, LogLevel};
+use tracing::Level;
 
 /// The StatusCommands are mostly important for the schedulingenvironment.
 #[derive(Subcommand, Debug)]
@@ -10,6 +11,10 @@ pub enum StatusCommands {
     },
     Workers,
     Time {},
+    Log {
+        #[clap(subcommand)]
+        level: LogLevel,
+    },
 }
 
 /// We should put a lot of thought into the subcommand of the work orders.

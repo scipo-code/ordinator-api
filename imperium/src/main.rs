@@ -8,7 +8,7 @@ use commands::strategic::StrategicCommands;
 use commands::tactical::TacticalCommands;
 use reqwest::Client;
 use shared_messages::orchestrator::OrchestratorRequest;
-use shared_messages::{LevelOfDetail, SystemMessages};
+use shared_messages::{LevelOfDetail, LogLevel, SystemMessages};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -92,6 +92,9 @@ async fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
             }
             StatusCommands::Time {} => {
                 todo!()
+            }
+            StatusCommands::Log { level } => {
+                SystemMessages::Orchestrator(OrchestratorRequest::SetLogLevel(level.clone()))
             }
         },
         Commands::Orchestrator {

@@ -1,7 +1,7 @@
 use actix::Message;
 use serde::{Deserialize, Serialize};
 
-use crate::{resources::Id, LevelOfDetail};
+use crate::{resources::Id, LevelOfDetail, LogLevel};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum OrchestratorRequest {
@@ -13,6 +13,7 @@ pub enum OrchestratorRequest {
     DeleteSupervisorAgent(String),
     CreateOperationalAgent(Id),
     DeleteOperationalAgent(String),
+    SetLogLevel(LogLevel),
 }
 
 impl Message for OrchestratorRequest {

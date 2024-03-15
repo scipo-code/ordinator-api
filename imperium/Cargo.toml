@@ -8,10 +8,10 @@ edition = "2021"
 [dependencies]
 shared_messages = { path = "../shared_messages" }
 clap = { version = "4", features = ["derive"] }
-tungstenite = "0"
 url = "2"
 serde_json = "1"
 strum = "0"
 webbrowser = "0"
 reqwest = "0"
 tokio = { version = "1", features = ["full"] }
+tracing = "0"

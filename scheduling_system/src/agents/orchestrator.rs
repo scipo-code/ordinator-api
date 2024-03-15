@@ -11,12 +11,14 @@ use crate::agents::supervisor_agent::SupervisorAgent;
 use crate::agents::tactical_agent::TacticalAgent;
 use crate::init::agent_factory;
 use crate::init::agent_factory::AgentFactory;
+use crate::init::logging::LogHandles;
 use crate::models::SchedulingEnvironment;
 
 pub struct Orchestrator {
     pub scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub agent_factory: AgentFactory,
     pub agent_registry: ActorRegistry,
+    pub log_handles: LogHandles,
 }
 
 pub struct ActorRegistry {
@@ -109,7 +111,10 @@ impl ActorRegistry {
 }
 
 impl Orchestrator {
-    pub fn new(scheduling_environment: Arc<Mutex<SchedulingEnvironment>>) -> Self {
+    pub fn new(
+        scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
+        log_handles: LogHandles,
+    ) -> Self {
         let agent_factory = agent_factory::AgentFactory::new(scheduling_environment.clone());
 
         let strategic_agent_addr = agent_factory.build_strategic_agent();
@@ -120,6 +125,7 @@ impl Orchestrator {
             scheduling_environment,
             agent_factory,
             agent_registry: ActorRegistry::new(strategic_agent_addr, tactical_agent_addr),
+            log_handles,
         }
     }
 }

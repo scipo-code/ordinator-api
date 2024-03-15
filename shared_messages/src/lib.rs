@@ -4,7 +4,7 @@ pub mod resources;
 pub mod strategic;
 pub mod tactical;
 use actix::prelude::*;
-use clap::ValueEnum;
+use clap::{Subcommand, ValueEnum};
 use orchestrator::OrchestratorRequest;
 use serde::{Deserialize, Serialize};
 
@@ -42,4 +42,25 @@ impl Message for StatusMessage {
 pub enum LevelOfDetail {
     Normal,
     Verbose,
+}
+
+#[derive(Subcommand, Debug, Clone, Serialize, Deserialize)]
+pub enum LogLevel {
+    Trace,
+    Debug,
+    Info,
+    Warn,
+    Error,
+}
+
+impl LogLevel {
+    pub fn to_level_string(&self) -> String {
+        match self {
+            LogLevel::Trace => "trace".to_string(),
+            LogLevel::Debug => "debug".to_string(),
+            LogLevel::Info => "info".to_string(),
+            LogLevel::Warn => "warn".to_string(),
+            LogLevel::Error => "error".to_string(),
+        }
+    }
 }
