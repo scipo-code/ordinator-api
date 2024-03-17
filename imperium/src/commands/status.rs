@@ -15,6 +15,10 @@ pub enum StatusCommands {
         #[clap(subcommand)]
         level: LogLevel,
     },
+    Profiling {
+        #[clap(subcommand)]
+        level: LogLevel,
+    },
 }
 
 /// We should put a lot of thought into the subcommand of the work orders.

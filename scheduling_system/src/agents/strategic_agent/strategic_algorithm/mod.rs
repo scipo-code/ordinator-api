@@ -316,12 +316,13 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
         }
     }
 
-    #[instrument(level = "info", skip_all)]
+    #[instrument(skip_all, level = "info")]
     fn update_resources_state(
         &mut self,
         strategic_resources_message: StrategicResourceMessage,
     ) -> Result<String, AgentError> 
  {
+    tracing::info!("update_resources_state called");
         match strategic_resources_message {
             StrategicResourceMessage::SetResources(manual_resources) => {
                 let mut count = 0;

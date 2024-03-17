@@ -96,6 +96,9 @@ async fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
             StatusCommands::Log { level } => {
                 SystemMessages::Orchestrator(OrchestratorRequest::SetLogLevel(level.clone()))
             }
+            StatusCommands::Profiling { level } => {
+                SystemMessages::Orchestrator(OrchestratorRequest::SetProfiling(level.clone()))
+            }
         },
         Commands::Orchestrator {
             orchestrator_commands,

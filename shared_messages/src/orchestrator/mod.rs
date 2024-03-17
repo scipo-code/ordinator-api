@@ -14,6 +14,7 @@ pub enum OrchestratorRequest {
     CreateOperationalAgent(Id),
     DeleteOperationalAgent(String),
     SetLogLevel(LogLevel),
+    SetProfiling(LogLevel),
 }
 
 impl Message for OrchestratorRequest {

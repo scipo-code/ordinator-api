@@ -202,12 +202,26 @@ impl Orchestrator {
                 format!("Operational agent deleted  with id {}", id_string)
             }
             OrchestratorRequest::SetLogLevel(log_level) => {
-                dbg!(log_level.to_level_string());
+                dbg!();
                 self.log_handles
                     .file_handle
-                    .modify(|layer| *layer.filter_mut() = EnvFilter::new("TRACE"))
+                    .modify(|layer| {
+                        *layer.filter_mut() = EnvFilter::new(log_level.to_level_string())
+                    })
                     .unwrap();
+
                 format!("Log level {}", log_level.to_level_string())
+            }
+            OrchestratorRequest::SetProfiling(log_level) => {
+                dbg!();
+                self.log_handles
+                    .file_handle
+                    .modify(|layer| {
+                        *layer.filter_mut() = EnvFilter::new(log_level.to_level_string())
+                    })
+                    .unwrap();
+
+                format!("Profiling level {}", log_level.to_level_string())
             }
         }
     }
