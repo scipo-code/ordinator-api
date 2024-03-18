@@ -1,9 +1,9 @@
 use calamine::{Data, Error, Reader, Xlsx};
-use core::{fmt, num};
+use core::fmt;
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
-use tracing::{event, info, warn};
+use tracing::{debug, event};
 
 use crate::models::time_environment::period::Period;
 use crate::models::time_environment::TimeEnvironment;
@@ -115,9 +115,8 @@ fn populate_work_orders<'a>(
 
     for row in sheet.rows().skip(1) {
         let mut work_order_number: u32 = 0;
-        match row[5] {
-            Data::Empty => continue,
-            _ => (),
+        if row[5] == Data::Empty {
+            continue;
         }
 
         if let Some(&index) = header_to_index.get("Order") {
@@ -369,7 +368,7 @@ fn create_new_operation(
                 Some(calamine::Data::DateTime(s)) => excel_time_to_hh_mm_ss(s.as_f64() as f64),
                 _ => {
                     event!(
-                        tracing::Level::WARN,
+                        tracing::Level::DEBUG,
                         "Could not parse earliest_start_time is not present"
                     );
                     NaiveTime::from_hms_opt(7, 0, 0).unwrap()
@@ -387,10 +386,7 @@ fn create_new_operation(
                     date.unwrap()
                 }
 
-                _ => {
-                    info!("Could not earliest_finish_date_data as string");
-                    NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()
-                }
+                _ => NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
             };
 
             let time = match earliest_finish_time_data.cloned() {
@@ -559,7 +555,6 @@ fn extract_order_dates(
             return Err(Error::Msg(error_message));
         }
     };
-    dbg!(latest_allowed_finish_date_data.clone());
     let latest_allowed_finish_date = match latest_allowed_finish_date_data.cloned() {
         Some(calamine::Data::String(s)) => parse_date(&s),
         Some(calamine::Data::DateTime(s)) => {
@@ -853,7 +848,7 @@ fn extract_order_text(
         Some(calamine::Data::Int(n)) => *n as u32,
         None => 5,
         _ => {
-            warn!("Could not parse notes_2 as an integer {}", line!());
+            debug!("Could not parse notes_2 as an integer {}", line!());
             return Err(Error::Msg("Could not parse notes_2 as an integer {}"));
         }
     };
