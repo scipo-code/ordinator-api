@@ -1,11 +1,15 @@
 use std::collections::HashMap;
 
 use shared_messages::resources::Resources;
+use tracing_subscriber::filter::combinator::Or;
 
-use crate::models::{
-    time_environment::period::Period,
-    work_order::{self, ActivityRelation},
-    WorkOrders,
+use crate::{
+    agents::strategic_agent::strategic_algorithm::OptimizedWorkOrders,
+    models::{
+        time_environment::period::Period,
+        work_order::{self, ActivityRelation},
+        WorkOrders,
+    },
 };
 
 /// The TacticalAlgorithm contains everything that is needed to run the tactical algorithm. For this
@@ -65,6 +69,7 @@ impl TacticalAlgorithm {
         work_order: &WorkOrders,
         strategic_state: Vec<(u32, Period)>,
     ) {
+        let mut optimized_work_orders = HashMap::new();
         for (work_order_id, period) in strategic_state {
             let work_order = work_order.inner.get(&work_order_id).unwrap();
 
@@ -87,11 +92,11 @@ impl TacticalAlgorithm {
                     .insert(*activity, optimized_operation);
             }
 
-            self.optimized_work_orders
-                .insert(work_order_id, optimized_work_order);
+            optimized_work_orders.insert(work_order_id, optimized_work_order);
         }
 
-        self.number_of_orders = self.optimized_work_orders.len() as u32;
+        self.number_of_orders = optimized_work_orders.len() as u32;
+        self.optimized_work_orders = optimized_work_orders;
         dbg!(self.number_of_orders);
     }
 }
