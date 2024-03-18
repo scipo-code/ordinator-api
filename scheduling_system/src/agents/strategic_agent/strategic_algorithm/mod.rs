@@ -150,7 +150,7 @@ impl OptimizedWorkOrders {
         Self { inner }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(level = "trace", skip_all)]
     pub fn set_scheduled_period(&mut self, work_order_number: u32, period: Period) {
         let optimized_work_order = match self.inner.get_mut(&work_order_number) {
             Some(optimized_work_order) => optimized_work_order,
@@ -161,7 +161,7 @@ impl OptimizedWorkOrders {
         };
         optimized_work_order.scheduled_period = Some(period);
     }
-    #[instrument(skip(self))]
+    #[instrument(level = "trace", skip_all)]
     pub fn get_locked_in_period(&self, work_order_number: u32) -> Period {
         let option_period = match self.inner.get(&work_order_number) {
             Some(optimized_work_order) => optimized_work_order.locked_in_period.clone(),
@@ -176,6 +176,7 @@ impl OptimizedWorkOrders {
         }
     }
 
+    #[instrument(level = "trace", skip_all)]
     pub fn set_locked_in_period(&mut self, work_order_number: u32, period: Period) {
 
         let optimized_work_order = match self.inner.get_mut(&work_order_number) {
@@ -236,7 +237,6 @@ impl OptimizedWorkOrder {
         self.latest_period.clone()
     }
 
-    #[instrument(skip(self))]
     pub fn get_work_load(&self) -> &HashMap<Resources, f64> {
         &self.work_load
     }
@@ -316,12 +316,13 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
         }
     }
 
-    #[instrument(level = "info", skip_all)]
+    #[instrument(skip_all, level = "info")]
     fn update_resources_state(
         &mut self,
         strategic_resources_message: StrategicResourceMessage,
     ) -> Result<String, AgentError> 
  {
+    tracing::info!("update_resources_state called");
         match strategic_resources_message {
             StrategicResourceMessage::SetResources(manual_resources) => {
                 let mut count = 0;
@@ -363,7 +364,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
     fn update_time_state(&mut self, _time_message: StrategicTimeMessage) -> Result<String, AgentError> 
         { todo!() }
 
-    #[instrument(level = "DEBUG", skip_all)]
+    #[instrument(level = "info", skip_all)]
     fn update_scheduling_state(
         &mut self,
         strategic_scheduling_message: StrategicSchedulingMessage,
@@ -379,9 +380,6 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                         period.get_period_string() == schedule_work_order.get_period_string()
                     })
                     .cloned();
-
-                    dbg!(&schedule_work_order);
-                    dbg!(self.get_optimized_work_order(&schedule_work_order.get_work_order_number()));
     
                 match period {
                     Some(period) => {
@@ -479,22 +477,6 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
     }
 }
 
-/// Remember that it should under no circumstances be in the algorithm. It should be in the agent
-/// the algothim should be updated by the agent when a message is received. If the backlog is in 
-/// the algorithm it means that we will have to update the backlog in the algorithm on every message
-/// that is received. This is silly as the agent should be the one that is responsible for updating
-/// the algorithm. 
-/// 
-/// This is actually a huge problem that is going to cause a lot of issues. I need to fix this now
-/// The central question here is which different types there exists for the different types of the
-/// work orders. Unloading point means that it is fixed and shutdown/vendor means that action is 
-/// required before scheduling is meaningful. It does not make sense to have this in the algorithm
-/// itself. This is clearly on the wrong level of abstraction. It should again be handle in the 
-/// agent. The agent communicates the state of the work orders to user. The idea of a priority queue
-/// is a good one, but I think that relying on the period_lock and the period_exclusion is a much
-/// better way of handling it. More general. There could be speedups associated with having multiple
-/// priority queues, but I think that it is a bit too early to start thinking about that. Profiling 
-/// should determine the appropriate course of action at that point.
 impl StrategicAlgorithm {
     pub fn populate_priority_queues(&mut self) {
         for (key, work_order) in self.optimized_work_orders.inner.iter() {

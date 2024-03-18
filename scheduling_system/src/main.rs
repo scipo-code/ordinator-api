@@ -16,7 +16,7 @@ use crate::init::logging;
 
 #[actix_web::main]
 async fn main() -> Result<(), io::Error> {
-    let _guard = logging::setup_logging();
+    let log_handles = logging::setup_logging();
 
     let scheduling_environment = Arc::new(Mutex::new(
         init::model_initializers::initialize_scheduling_environment(52, 56),
@@ -24,6 +24,7 @@ async fn main() -> Result<(), io::Error> {
 
     let orchestrator = Arc::new(Mutex::new(Orchestrator::new(
         scheduling_environment.clone(),
+        log_handles,
     )));
 
     HttpServer::new(move || {

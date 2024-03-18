@@ -1,6 +1,5 @@
 use core::panic;
 use rand::prelude::SliceRandom;
-use tracing::info;
 use tracing::instrument;
 
 use super::StrategicAlgorithm;
@@ -101,11 +100,6 @@ impl StrategicAlgorithm {
                 )
             }
         }
-
-        info!(
-            "Work order {} from the normal has been scheduled",
-            work_order_key
-        );
         self.update_loadings(period.clone(), &optimized_work_order);
         None
     }
@@ -119,11 +113,6 @@ impl StrategicAlgorithm {
         let period_internal = self
             .optimized_work_orders
             .get_locked_in_period(work_order_key);
-
-        info!(
-            "Work order {} has been scheduled with unloading point or manual",
-            work_order_key
-        );
 
         self.optimized_work_orders
             .set_scheduled_period(work_order_key, period_internal.clone());
@@ -169,7 +158,7 @@ impl StrategicAlgorithm {
         self.changed = true;
     }
 
-    #[instrument(skip_all)]
+    #[instrument(level = "trace", skip_all)]
     pub fn calculate_objective(&mut self) {
         let mut period_penalty_contribution: f64 = 0.0;
         let mut excess_penalty_contribution: f64 = 0.0;
@@ -218,7 +207,7 @@ impl StrategicAlgorithm {
         self.objective_value = period_penalty_contribution + excess_penalty_contribution;
     }
 
-    #[instrument(skip_all)]
+    #[instrument(level = "trace", skip_all)]
     fn is_scheduled(&self, work_order_key: u32) -> Option<u32> {
         self.optimized_work_orders
             .inner
@@ -231,7 +220,7 @@ impl StrategicAlgorithm {
             })
     }
 
-    #[instrument(skip_all)]
+    #[instrument(level = "trace", skip_all)]
     fn update_loadings(&mut self, period_input: Period, work_order: &OptimizedWorkOrder) {
         for (resource, periods) in self.resources_loading.inner.iter_mut() {
             for (period, loading) in periods {

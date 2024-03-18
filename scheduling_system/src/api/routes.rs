@@ -4,9 +4,13 @@ use shared_messages::LevelOfDetail;
 use shared_messages::{orchestrator::OrchestratorRequest, SystemMessages};
 use std::fmt::Write;
 use std::sync::{Arc, Mutex};
+use tracing::instrument;
+use tracing_flame::FlameLayer;
+use tracing_subscriber::{filter, layer, EnvFilter};
 
 use crate::agents::orchestrator::Orchestrator;
 
+#[instrument(level = "info", skip_all)]
 pub async fn http_to_scheduling_system(
     orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
     _req: HttpRequest,
@@ -29,9 +33,7 @@ pub async fn http_to_scheduling_system(
                 .agent_registry
                 .get_strategic_agent_addr();
 
-            dbg!();
             let response = strategic_agent_addr.send(strategic_request).await;
-            dbg!();
             match response {
                 Ok(response) => match response {
                     Ok(response) => {
@@ -51,9 +53,7 @@ pub async fn http_to_scheduling_system(
                 .unwrap()
                 .agent_registry
                 .get_tactical_agent_addr();
-            dbg!();
             let response = tactical_agent_addr.send(tactical_request).await;
-            dbg!();
 
             match response {
                 Ok(response) => {
@@ -76,6 +76,7 @@ pub async fn http_to_scheduling_system(
 }
 
 impl Orchestrator {
+    #[instrument(level = "info", skip_all)]
     async fn handle(&mut self, msg: OrchestratorRequest) -> String {
         match msg {
             OrchestratorRequest::GetAgentStatus => {
@@ -198,7 +199,29 @@ impl Orchestrator {
 
                 self.agent_registry.operational_agent_addrs.remove(&id);
 
-                format!("Operational agent deleted with id {}", id_string)
+                format!("Operational agent deleted  with id {}", id_string)
+            }
+            OrchestratorRequest::SetLogLevel(log_level) => {
+                dbg!();
+                self.log_handles
+                    .file_handle
+                    .modify(|layer| {
+                        *layer.filter_mut() = EnvFilter::new(log_level.to_level_string())
+                    })
+                    .unwrap();
+
+                format!("Log level {}", log_level.to_level_string())
+            }
+            OrchestratorRequest::SetProfiling(log_level) => {
+                dbg!();
+                self.log_handles
+                    .file_handle
+                    .modify(|layer| {
+                        *layer.filter_mut() = EnvFilter::new(log_level.to_level_string())
+                    })
+                    .unwrap();
+
+                format!("Profiling level {}", log_level.to_level_string())
             }
         }
     }
