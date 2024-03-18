@@ -3,7 +3,7 @@ use shared_messages::agent_error::AgentError;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
 use shared_messages::strategic::StrategicRequest;
 use shared_messages::StatusMessage;
-use tracing::{error, info, instrument};
+use tracing::{error, instrument};
 
 use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::traits::LargeNeighborHoodSearch;
@@ -31,10 +31,8 @@ impl Handler<ScheduleIteration> for StrategicAgent {
             < self.strategic_agent_algorithm.get_objective_value()
         {
             self.strategic_agent_algorithm = temporary_schedule;
-
-            // self.update_tactical_agent();
+            self.update_tactical_agent();
         }
-
         ctx.notify(ScheduleIteration {});
     }
 }
@@ -102,10 +100,7 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     Ok(message)
                 }
             },
-            StrategicRequest::ScheduleIteration => {
-                _ctx.notify(ScheduleIteration {});
-                Ok("Schedule iteration completed".to_string())
-            }
+
             StrategicRequest::Scheduling(scheduling_message) => self
                 .strategic_agent_algorithm
                 .update_scheduling_state(scheduling_message),

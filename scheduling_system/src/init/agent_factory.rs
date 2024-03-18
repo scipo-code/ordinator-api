@@ -65,13 +65,22 @@ impl AgentFactory {
 
         scheduler_agent_algorithm.calculate_objective();
 
-        let strategic_agent = StrategicAgent::new(
-            String::from("Dan F"),
-            self.scheduling_environment.clone(),
-            scheduler_agent_algorithm,
-            None,
-        );
-        strategic_agent.start()
+        let (sender, receiver) = std::sync::mpsc::channel();
+
+        let arc_scheduling_environment = self.scheduling_environment.clone();
+
+        Arbiter::new().spawn_fn(move || {
+            let strategic_addr = StrategicAgent::new(
+                String::from("Dan F"),
+                arc_scheduling_environment,
+                scheduler_agent_algorithm,
+                None,
+            )
+            .start();
+            sender.send(strategic_addr).unwrap();
+        });
+
+        receiver.recv().unwrap()
     }
 
     pub fn build_tactical_agent(
@@ -79,14 +88,22 @@ impl AgentFactory {
         time_horizon: u32,
         strategic_agent_addr: Addr<StrategicAgent>,
     ) -> Addr<TacticalAgent> {
-        let tactical_agent = TacticalAgent::new(
-            0,
-            time_horizon,
-            strategic_agent_addr,
-            self.scheduling_environment.clone(),
-        );
-        dbg!("Tactical agent created");
-        tactical_agent.start()
+        let (sender, receiver) = std::sync::mpsc::channel::<Addr<TacticalAgent>>();
+
+        let arc_scheduling_environment = self.scheduling_environment.clone();
+
+        Arbiter::new().spawn_fn(move || {
+            dbg!("Tactical agent created");
+            let tactical_addr = TacticalAgent::new(
+                0,
+                time_horizon,
+                strategic_agent_addr,
+                arc_scheduling_environment,
+            )
+            .start();
+            sender.send(tactical_addr).unwrap();
+        });
+        receiver.recv().unwrap()
     }
 
     pub fn build_supervisor_agent(
