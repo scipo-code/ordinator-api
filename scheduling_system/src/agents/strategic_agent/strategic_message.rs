@@ -15,7 +15,7 @@ pub struct ScheduleIteration {}
 impl Handler<ScheduleIteration> for StrategicAgent {
     type Result = ();
 
-    #[instrument(skip_all)]
+    #[instrument(level = "trace", skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
 
@@ -42,7 +42,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 impl Handler<StrategicRequest> for StrategicAgent {
     type Result = Result<String, AgentError>;
 
-    #[instrument(level = "debug", skip_all)]
+    #[instrument(level = "info", skip_all)]
     fn handle(&mut self, msg: StrategicRequest, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
             StrategicRequest::Status(strategic_status_message) => match strategic_status_message {
