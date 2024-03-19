@@ -3,7 +3,9 @@ pub mod tactical_algorithm;
 
 use actix::prelude::*;
 use shared_messages::resources::Id;
-use shared_messages::tactical::TacticalRequest;
+use shared_messages::tactical::{
+    tactical_resources_message, tactical_scheduling_message, TacticalRequest,
+};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{instrument, warn};
@@ -34,18 +36,25 @@ impl TacticalAgent {
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     ) -> Self {
         dbg!("TacticalAgent::new");
+
+        let scheduling_environment_lock = scheduling_environment.lock().unwrap();
+
+        let tactical_days = scheduling_environment_lock
+            .get_time_environment()
+            .get_tactical_days();
+
         TacticalAgent {
             id,
             time_horizon: days,
-            scheduling_environment,
-            tactical_algorithm: TacticalAlgorithm::new(),
+            scheduling_environment: scheduling_environment.clone(),
+            tactical_algorithm: TacticalAlgorithm::new(tactical_days.to_vec()),
             strategic_addr,
             supervisor_addrs: HashMap::new(),
         }
     }
 
-    pub fn get_time_horizon(&self) -> u32 {
-        self.time_horizon
+    pub fn time_horizon(&self) -> &u32 {
+        &self.time_horizon
     }
 }
 
@@ -72,14 +81,14 @@ impl Handler<TacticalRequest> for TacticalAgent {
         _ctx: &mut Context<Self>,
     ) -> Self::Result {
         match tactical_request {
-            TacticalRequest::Status => self.tactical_algorithm.status(),
-            TacticalRequest::Scheduling => {
+            TacticalRequest::Status(tactical_status_message) => self.tactical_algorithm.status(),
+            TacticalRequest::Scheduling(tactical_scheduling_message) => {
                 todo!()
             }
-            TacticalRequest::Resources => {
+            TacticalRequest::Resources(tactical_resources_message) => {
                 todo!()
             }
-            TacticalRequest::Days => {
+            TacticalRequest::Days(tactical_time_message) => {
                 todo!()
             }
         }

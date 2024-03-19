@@ -9,7 +9,7 @@ use shared_messages::resources::Resources;
 pub struct Operation {
     pub activity: u32,
     pub number: u32,
-    pub work_center: Resources,
+    pub resource: Resources,
     pub preparation_time: f64,
     pub work_remaining: f64,
     pub work_performed: f64,
@@ -40,7 +40,7 @@ impl Operation {
         Operation {
             activity,
             number,
-            work_center,
+            resource: work_center,
             preparation_time,
             work_remaining,
             work_performed: 0.0,
@@ -62,8 +62,8 @@ impl Operation {
         self.number
     }
 
-    pub fn get_work_center(&self) -> &Resources {
-        &self.work_center
+    pub fn get_resource(&self) -> &Resources {
+        &self.resource
     }
 
     pub fn get_work_remaining(&self) -> f64 {
@@ -101,7 +101,7 @@ impl Display for Operation {
             f,
             "    Activity: {:>8}    |{:>11}|{:>14}|{:>8}|{:>6}|",
             self.activity,
-            self.work_center.to_string(),
+            self.resource.to_string(),
             self.work_remaining,
             self.duration,
             self.number,
@@ -120,7 +120,7 @@ mod tests {
             Operation {
                 activity,
                 number: 1,
-                work_center,
+                resource: work_center,
                 preparation_time: 1.0,
                 work_remaining,
                 work_performed: 0.0,

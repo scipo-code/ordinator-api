@@ -64,6 +64,10 @@ impl SchedulingEnvironment {
     pub fn get_work_orders(&self) -> &WorkOrders {
         &self.work_orders
     }
+
+    pub fn get_time_environment(&self) -> &TimeEnvironment {
+        &self.time_environment
+    }
 }
 
 impl Default for SchedulingEnvironment {

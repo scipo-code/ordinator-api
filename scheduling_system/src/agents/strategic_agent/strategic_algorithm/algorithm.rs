@@ -233,9 +233,9 @@ impl StrategicAlgorithm {
 }
 
 fn calculate_period_difference(scheduled_period: Period, latest_period: Option<Period>) -> i64 {
-    let scheduled_period_date = scheduled_period.get_end_date();
+    let scheduled_period_date = scheduled_period.end_date().clone();
     let latest_period_date = match latest_period.clone() {
-        Some(period) => period.get_end_date(),
+        Some(period) => period.end_date().clone(),
         None => scheduled_period_date,
     };
 

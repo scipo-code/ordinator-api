@@ -275,9 +275,11 @@ impl Display for StrategicAlgorithm {
 
 impl LargeNeighborHoodSearch for StrategicAlgorithm {
 
-    type TimeUnit = Period;
-    type ResourceUnit = Resources;
-    type ScheduleUnit = u32;
+    type SchedulingMessage = StrategicSchedulingMessage;
+    type ResourceMessage = StrategicResourceMessage;
+    type TimeMessage = StrategicTimeMessage;
+
+    type Error = AgentError;
 
     fn get_objective_value(&self) -> f64 {
         self.objective_value

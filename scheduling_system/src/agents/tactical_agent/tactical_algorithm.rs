@@ -1,10 +1,21 @@
 use std::collections::HashMap;
 
-use shared_messages::resources::Resources;
+use chrono::{DateTime, Utc};
+use shared_messages::{
+    agent_error::AgentError,
+    resources::Resources,
+    tactical::{
+        tactical_resources_message::TacticalResourceMessage,
+        tactical_scheduling_message::TacticalSchedulingMessage,
+        tactical_time_message::TacticalTimeMessage,
+    },
+};
 use tracing_subscriber::filter::combinator::Or;
 
 use crate::{
-    agents::strategic_agent::strategic_algorithm::OptimizedWorkOrders,
+    agents::{
+        strategic_agent::strategic_algorithm::OptimizedWorkOrders, traits::LargeNeighborHoodSearch,
+    },
     models::{
         time_environment::period::Period,
         work_order::{self, ActivityRelation},
@@ -32,10 +43,11 @@ use crate::{
 /// activities minus one relations. This means that
 pub struct TacticalAlgorithm {
     objective_value: f64,
-    time_horizon: u32,
+    time_horizon: usize,
     number_of_orders: u32,
     optimized_work_orders: HashMap<u32, OptimizedTacticalWorkOrder>,
-    capacity: HashMap<Resources, HashMap<u32, f64>>,
+    capacity: HashMap<Resources, HashMap<Day, f64>>,
+    dates: Vec<Day>,
 }
 
 struct OptimizedTacticalWorkOrder {
@@ -51,16 +63,27 @@ struct OptimizedOperation {
     scheduled_end: u32,
     number: u32,
     operating_time: f64,
+    work_remaining: f64,
+    resource: Resources,
+}
+
+// This should come from the scheduling environment, as that is the single point of entry into the
+// application for these kinds of data.
+#[derive(Eq, PartialEq, Hash)]
+struct Day {
+    day: usize,
+    date: DateTime<Utc>,
 }
 
 impl TacticalAlgorithm {
-    pub fn new() -> Self {
+    pub fn new(tactical_days: Vec<DateTime<Utc>>) -> Self {
         TacticalAlgorithm {
             objective_value: 0.0,
-            time_horizon: 56,
+            time_horizon: tactical_days.len(),
             number_of_orders: 0,
             optimized_work_orders: HashMap::new(),
             capacity: HashMap::new(),
+            dates: Vec::new(),
         }
     }
 
@@ -84,20 +107,103 @@ impl TacticalAlgorithm {
                     work_order_id,
                     scheduled_start: 0,
                     scheduled_end: 0,
-                    number: operation.get_number(),
-                    operating_time: operation.get_operating_time(),
+                    number: operation.number,
+                    operating_time: operation.operating_time,
+                    work_remaining: operation.work_remaining,
+                    resource: operation.resource.clone(),
                 };
                 optimized_work_order
                     .optimized_activities
                     .insert(*activity, optimized_operation);
             }
-
             optimized_work_orders.insert(work_order_id, optimized_work_order);
         }
 
         self.number_of_orders = optimized_work_orders.len() as u32;
         self.optimized_work_orders = optimized_work_orders;
         dbg!(self.number_of_orders);
+    }
+}
+
+impl LargeNeighborHoodSearch for TacticalAlgorithm {
+    type SchedulingMessage = TacticalSchedulingMessage;
+    type ResourceMessage = TacticalResourceMessage;
+    type TimeMessage = TacticalTimeMessage;
+    type Error = AgentError;
+
+    fn get_objective_value(&self) -> f64 {
+        self.objective_value
+    }
+
+    /// This scheduling methods will handle a complete scheduling of the work orders that are a part
+    /// of the TacticalAlgorithm. This means that it will be the method that will be called when the
+    /// agent is running pasively.
+    ///
+    /// This is the most beautiful thing. I can hear it talking to me
+    ///
+    /// We need to schedule all the work orders against the available resource, here the important
+    /// thing to note is that the penality is also a part of the objective function, meaning that
+    /// all the work orders that are in the scope will always be able to be scheduled.
+    ///
+    /// So all work orders will be scheduled, then question is whether or not we should allow hmm...
+    /// The question becomes how to handle the boundary between the periods. I know that it is the
+    /// start of the work order that counts, but beyond that I am not so sure. The penality will be
+    /// applied on the days. Should the algorithm be able to exceed the penality, or should it
+    /// postphone the work order and corresponding activities into the next week.
+    ///
+    /// Let us dive deep into this. I think that the algorithm should be able to exceed the penalty
+    /// but only in specific circumstances. The question is what you would rather want
+    ///     * Do you prefer to contain the work orders in the period, or do you want to map the
+    /// work orders out and exceed the period? I think that the latter option is the way to go.
+    ///
+    /// We want to see how we are progressing with the work orders. What about the patterns?
+    ///
+    /// Should we make a day struct? Yes I think so.
+    fn schedule(&mut self) {
+        for order_in_period in self.optimized_work_orders.values() {
+            for (activity, operation) in order_in_period.optimized_activities.iter() {
+                let resource = operation.resource.clone();
+                // We have to jump around a lot in the days. That means that we are better of with
+                // while loop
+                for date in self.dates.iter() {
+                    if *self.capacity.get(&resource).unwrap().get(&date).unwrap()
+                        > operation.work_remaining
+                    {
+                        // We can schedule the work order
+                    }
+                }
+            }
+        }
+
+        // This is where the algorithm will schedule the work orders.
+    }
+
+    fn unschedule(&mut self, message: u32) {
+        // This is where the algorithm will unschedule the work orders.
+    }
+
+    fn update_scheduling_state(
+        &mut self,
+        scheduling_message: Self::SchedulingMessage,
+    ) -> Result<String, Self::Error> {
+        Ok("".to_string())
+        // This is where the algorithm will update the scheduling state.
+    }
+
+    fn update_time_state(
+        &mut self,
+        time_message: Self::TimeMessage,
+    ) -> Result<String, Self::Error> {
+        // This is where the algorithm will update the time state.
+        Ok("".to_string())
+    }
+
+    fn update_resources_state(
+        &mut self,
+        resource_message: Self::ResourceMessage,
+    ) -> Result<String, Self::Error> {
+        Ok("".to_string())
+        // This is where the algorithm will update the resources state.
     }
 }
 

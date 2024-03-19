@@ -1,5 +1,8 @@
 use clap::Subcommand;
-use shared_messages::{tactical::TacticalRequest, SystemMessages};
+use shared_messages::{
+    tactical::{tactical_status_message::TacticalStatusMessage, TacticalRequest},
+    SystemMessages,
+};
 
 #[derive(Subcommand, Debug)]
 pub enum TacticalCommands {
@@ -14,7 +17,8 @@ impl TacticalCommands {
         match self {
             TacticalCommands::Status => {
                 dbg!("TacticalAgent Status Message");
-                SystemMessages::Tactical(TacticalRequest::Status)
+
+                SystemMessages::Tactical(TacticalRequest::Status(TacticalStatusMessage::General))
             }
             TacticalCommands::Objectives => {
                 todo!()

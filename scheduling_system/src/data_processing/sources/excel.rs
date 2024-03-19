@@ -22,8 +22,8 @@ use crate::models::work_order::{ActivityRelation, WorkOrder};
 use crate::models::worker_environment::WorkerEnvironment;
 use crate::models::{SchedulingEnvironment, WorkOrders};
 use chrono::{
-    naive, DateTime, Datelike, Duration, Local, NaiveDate, NaiveTime, TimeZone, Timelike, Utc,
-    Weekday,
+    naive, DateTime, Datelike, Days, Duration, Local, NaiveDate, NaiveTime, TimeZone, Timelike,
+    Utc, Weekday,
 };
 use shared_messages::resources::Resources;
 
@@ -67,13 +67,20 @@ pub fn load_data_file(
         )
     });
 
-    let tactical_days = |number_of_days: u32| -> Vec<NaiveDate> {
-        let mut days: Vec<NaiveDate> = Vec::new();
-        let mut date = Local::now().date_naive();
+    // The dates should be based on the idea of periods. This means that the code should actually
+    // start on the date of the first period and not today? Hmm... is this correct? Is it really the
+    // period. We are interested in the progression of the frozen schedule, so we want to start the
+    // date on the first day of the first period. In a way what we actually want maybe is to have
+    // the first day of the previous period as it would allow us to understand the boundary.
+    let first_period = strategic_periods.first().unwrap().clone();
 
+    let tactical_days = |number_of_days: u32| -> Vec<DateTime<Utc>> {
+        let mut days: Vec<DateTime<Utc>> = Vec::new();
+        let mut date = first_period.start_date().clone();
+        // How should I handle the time zones? Hmm... that is a good question?
         for _ in 0..number_of_days {
             days.push(date);
-            date = date.succ_opt().unwrap();
+            date = date.checked_add_days(Days::new(1)).unwrap();
         }
         days
     };
@@ -309,7 +316,7 @@ fn create_new_operation(
             Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(0),
             _ => 0,
         },
-        work_center: match work_center_data.cloned() {
+        resource: match work_center_data.cloned() {
             Some(calamine::Data::String(s)) => Resources::new_from_string(s),
             _ => return Err(Error::Msg("Could not parse work center as string")),
         },
@@ -608,14 +615,14 @@ fn extract_order_dates(
         ),
         earliest_allowed_start_period: date_to_period(
             periods,
-            DateTime::<Utc>::from_naive_utc_and_offset(
+            &DateTime::<Utc>::from_naive_utc_and_offset(
                 earliest_allowed_start_date.and_hms_opt(7, 0, 0).unwrap(),
                 Utc,
             ),
         ),
         latest_allowed_finish_period: date_to_period(
             periods,
-            DateTime::<Utc>::from_naive_utc_and_offset(
+            &DateTime::<Utc>::from_naive_utc_and_offset(
                 latest_allowed_finish_date.and_hms_opt(7, 0, 0).unwrap(),
                 Utc,
             ),
@@ -691,7 +698,7 @@ fn extract_unloading_point(
                 Some(
                     match periods
                         .iter()
-                        .find(|period| period.get_start_date() == start_date)
+                        .find(|period| period.start_date().clone() == start_date)
                     {
                         Some(period) => period.clone(),
                         None => periods.last().unwrap().clone(),
@@ -895,10 +902,10 @@ fn extract_order_text(
     })
 }
 
-fn date_to_period(periods: &[Period], date: DateTime<Utc>) -> Period {
+fn date_to_period(periods: &[Period], date: &DateTime<Utc>) -> Period {
     let period: Option<Period> = periods
         .iter()
-        .find(|period| period.get_start_date() <= date && period.get_end_date() >= date)
+        .find(|period| period.start_date() <= date && period.end_date() >= date)
         .cloned();
 
     match period {
@@ -909,7 +916,7 @@ fn date_to_period(periods: &[Period], date: DateTime<Utc>) -> Period {
             loop {
                 counter += 1;
                 first_period = first_period - Duration::weeks(2);
-                if first_period.get_start_date() <= date && first_period.get_end_date() >= date {
+                if first_period.start_date() <= date && first_period.end_date() >= date {
                     break;
                 }
                 if counter >= 1000 {
@@ -1126,7 +1133,7 @@ mod tests {
         ];
 
         let date: DateTime<Utc> = Utc.with_ymd_and_hms(2023, 1, 10, 7, 0, 0).unwrap();
-        assert_eq!(date_to_period(&periods, date), periods[0].clone());
+        assert_eq!(date_to_period(&periods, &date), periods[0].clone());
     }
 
     #[test]

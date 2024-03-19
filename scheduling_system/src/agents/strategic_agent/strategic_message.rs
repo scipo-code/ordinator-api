@@ -113,7 +113,7 @@ impl Handler<StrategicRequest> for StrategicAgent {
                 let periods = scheduling_env_lock.get_mut_periods();
 
                 for period_id in periods_message.periods.iter() {
-                    if periods.last().unwrap().get_id() + 1 == *period_id {
+                    if periods.last().unwrap().id() + 1 == *period_id {
                         let new_period =
                             periods.last().unwrap().clone() + chrono::Duration::weeks(2);
                         periods.push(new_period);

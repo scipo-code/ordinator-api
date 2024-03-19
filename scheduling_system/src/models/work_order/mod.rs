@@ -278,9 +278,7 @@ impl WorkOrder {
         let mut work_load: HashMap<Resources, f64> = HashMap::new();
 
         for (_, operation) in self.operations.iter() {
-            *work_load
-                .entry(operation.work_center.clone())
-                .or_insert(0.0) += operation.work_remaining;
+            *work_load.entry(operation.resource.clone()).or_insert(0.0) += operation.work_remaining;
         }
 
         self.order_work = work_load.values().sum();
