@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
@@ -47,6 +49,7 @@ pub struct TacticalAlgorithm {
     number_of_orders: u32,
     optimized_work_orders: HashMap<u32, OptimizedTacticalWorkOrder>,
     capacity: HashMap<Resources, HashMap<Day, f64>>,
+    loading: HashMap<Resources, HashMap<Day, f64>>,
     dates: Vec<Day>,
 }
 
@@ -56,12 +59,16 @@ struct OptimizedTacticalWorkOrder {
     scheduled_period: Period,
 }
 
-/// The fundamental unit here is the day. Nothing else than the day is important.
+/// The fundamental unit here is the day. Nothing else than the day is important. Should the data be
+/// inside of the OprimizedOperation? I do not think that this is the best idea. I think that we
+/// should strive to have all the data inside of the. Hmm... For now we will just put the data
+/// inside of the OptimizedOperation.
 struct OptimizedOperation {
     work_order_id: u32,
     scheduled_start: u32,
     scheduled_end: u32,
     number: u32,
+    duration: u32,
     operating_time: f64,
     work_remaining: f64,
     resource: Resources,
@@ -69,7 +76,7 @@ struct OptimizedOperation {
 
 // This should come from the scheduling environment, as that is the single point of entry into the
 // application for these kinds of data.
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Clone)]
 struct Day {
     day: usize,
     date: DateTime<Utc>,
@@ -83,6 +90,7 @@ impl TacticalAlgorithm {
             number_of_orders: 0,
             optimized_work_orders: HashMap::new(),
             capacity: HashMap::new(),
+            loading: HashMap::new(),
             dates: Vec::new(),
         }
     }
@@ -108,6 +116,7 @@ impl TacticalAlgorithm {
                     scheduled_start: 0,
                     scheduled_end: 0,
                     number: operation.number,
+                    duration: operation.duration,
                     operating_time: operation.operating_time,
                     work_remaining: operation.work_remaining,
                     resource: operation.resource.clone(),
@@ -160,17 +169,81 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
     ///
     /// Should we make a day struct? Yes I think so.
     fn schedule(&mut self) {
-        for order_in_period in self.optimized_work_orders.values() {
-            for (activity, operation) in order_in_period.optimized_activities.iter() {
+        for work_order in self.optimized_work_orders.values() {
+            let snapshot_work_order = work_order.to_owned();
+
+            let dates_clone = self.dates.clone();
+            // The first day is given by the scheduled period. Yes we should remember that.
+            // You are feeling a little stressed about this.
+            let allowed_starting_days: Vec<Day> = dates_clone
+                .into_iter()
+                .filter(|date| {
+                    work_order.scheduled_period.start_date() <= &date.date
+                        && &date.date <= work_order.scheduled_period.end_date()
+                })
+                .collect();
+
+            let mut current_day: Day = allowed_starting_days.first().unwrap().clone();
+
+            // How can I iterate through the days in a good way? So now days are the contain all the
+            // days in which the work order can start, that is a crucial point to make. What should
+            // we do about the code that makes it possible to schedule into the nest period? This
+            // will also be crucial. The easiest path will be to simply, let it extend but then how
+            // do we solve the problem of the... Ahh we should simply let the days variable above be
+            // the one that determines the start date of the work order, yes that is a good approach
+
+            for (activity, operation) in work_order.optimized_activities.iter() {
                 let resource = operation.resource.clone();
-                // We have to jump around a lot in the days. That means that we are better of with
-                // while loop
-                for date in self.dates.iter() {
-                    if *self.capacity.get(&resource).unwrap().get(&date).unwrap()
+
+                let load_pattern = Vec::new();
+
+                let remaining_capacity = self
+                    .capacity
+                    .get(&resource)
+                    .unwrap()
+                    .get(&current_day)
+                    .unwrap()
+                    - self
+                        .loading
+                        .get(&resource)
+                        .unwrap()
+                        .get(&current_day)
+                        .unwrap();
+
+                let first_day_load = match remaining_capacity.partial_cmp(&operation.operating_time) {
+                    Some(Ordering::Less) => remaining_capacity,
+                    Some(Ordering::Equal) => remaining_capacity,
+                    Some(Ordering::Greater) => operation.operating_time,
+                    None => panic!("remaining work and operating_time are not comparable. There is an error in the data initialization"),
+                };
+
+                for data in 0..operation.duration {
+                    if *self
+                        .capacity
+                        .get(&resource)
+                        .unwrap()
+                        .get(&current_day)
+                        .unwrap()
                         > operation.work_remaining
-                    {
-                        // We can schedule the work order
-                    }
+                    {}
+                }
+
+                let load_pattern = self
+                    .capacity
+                    .get(&resource)
+                    .unwrap()
+                    .get(current_day)
+                    .unwrap();
+
+                for data in 0..operation.duration {
+                    if *self
+                        .capacity
+                        .get(&resource)
+                        .unwrap()
+                        .get(current_day)
+                        .unwrap()
+                        > operation.work_remaining
+                    {}
                 }
             }
         }
@@ -220,4 +293,9 @@ impl TacticalAlgorithm {
     pub fn get_objective_value(&self) -> f64 {
         self.objective_value
     }
+}
+
+enum OperationDifference {
+    SameDay,
+    DiffDay,
 }
