@@ -16,7 +16,7 @@ pub trait LargeNeighborHoodSearch {
 
     type Error;
 
-    fn get_objective_value(&self) -> f64;
+    fn objective_value(&self) -> f64;
 
     fn schedule(&mut self);
 

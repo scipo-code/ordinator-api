@@ -38,7 +38,7 @@ use super::time_environment::period::Period;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrder {
-    order_number: u32,
+    work_order_number: u32,
     fixed: bool,
     order_weight: u32,
     priority: Priority,
@@ -78,7 +78,7 @@ impl WorkOrder {
         vendor: bool,
     ) -> Self {
         WorkOrder {
-            order_number,
+            work_order_number: order_number,
             fixed,
             order_weight,
             priority,
@@ -98,51 +98,51 @@ impl WorkOrder {
         }
     }
 
-    pub fn get_operations(&self) -> &HashMap<u32, Operation> {
+    pub fn operations(&self) -> &HashMap<u32, Operation> {
         &self.operations
     }
 
-    pub fn get_work_order_number(&self) -> u32 {
-        self.order_number
+    pub fn work_order_number(&self) -> &u32 {
+        &self.work_order_number
     }
 
     pub fn insert_operation(&mut self, operation: Operation) {
         self.operations.insert(operation.activity, operation);
     }
 
-    pub fn get_unloading_point(&self) -> &UnloadingPoint {
+    pub fn unloading_point(&self) -> &UnloadingPoint {
         &self.unloading_point
     }
 
-    pub fn get_mut_order_dates(&mut self) -> &mut OrderDates {
+    pub fn order_dates_mut(&mut self) -> &mut OrderDates {
         &mut self.order_dates
     }
 
-    pub fn get_order_dates(&self) -> &OrderDates {
+    pub fn order_dates(&self) -> &OrderDates {
         &self.order_dates
     }
 
-    pub fn get_status_codes(&self) -> &StatusCodes {
+    pub fn status_codes(&self) -> &StatusCodes {
         &self.status_codes
     }
 
-    pub fn get_revision(&self) -> &Revision {
+    pub fn revision(&self) -> &Revision {
         &self.revision
     }
 
-    pub fn get_order_type(&self) -> &WorkOrderType {
+    pub fn order_type(&self) -> &WorkOrderType {
         &self.order_type
     }
 
-    pub fn get_priority(&self) -> &Priority {
+    pub fn priority(&self) -> &Priority {
         &self.priority
     }
 
-    pub fn get_work_load(&self) -> &HashMap<Resources, f64> {
+    pub fn work_load(&self) -> &HashMap<Resources, f64> {
         &self.work_load
     }
 
-    pub fn get_order_weight(&self) -> u32 {
+    pub fn work_order_weight(&self) -> u32 {
         self.order_weight
     }
 
@@ -150,7 +150,7 @@ impl WorkOrder {
         self.vendor
     }
 
-    pub fn get_relations(&self) -> &Vec<ActivityRelation> {
+    pub fn relations(&self) -> &Vec<ActivityRelation> {
         &self.relations
     }
 }
@@ -296,21 +296,21 @@ impl WorkOrder {
     /// a maximum of the material status and the earliest start period of the operations.
     /// TODO : A stance will have to be taken on the VEN, SHUTDOWN, and SUBNETWORKS.
     fn initialize_material(&mut self, periods: &[Period]) {
-        match self.get_status_codes().material_status {
+        match self.status_codes().material_status {
             MaterialStatus::Nmat => {
-                self.get_mut_order_dates().earliest_allowed_start_period = periods[0].clone();
+                self.order_dates_mut().earliest_allowed_start_period = periods[0].clone();
             }
             MaterialStatus::Smat => {
-                self.get_mut_order_dates().earliest_allowed_start_period = periods[0].clone();
+                self.order_dates_mut().earliest_allowed_start_period = periods[0].clone();
             }
             MaterialStatus::Cmat => {
-                self.get_mut_order_dates().earliest_allowed_start_period = periods[2].clone();
+                self.order_dates_mut().earliest_allowed_start_period = periods[2].clone();
             }
             MaterialStatus::Pmat => {
-                self.get_mut_order_dates().earliest_allowed_start_period = periods[3].clone();
+                self.order_dates_mut().earliest_allowed_start_period = periods[3].clone();
             }
             MaterialStatus::Wmat => {
-                self.get_mut_order_dates().earliest_allowed_start_period = periods[3].clone();
+                self.order_dates_mut().earliest_allowed_start_period = periods[3].clone();
             }
             MaterialStatus::Unknown => {}
         }

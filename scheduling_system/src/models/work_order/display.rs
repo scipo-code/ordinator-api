@@ -14,7 +14,7 @@ impl fmt::Display for WorkOrder {
             AWSC: {} \n
             Revision: {}\n
             ---------------------\n",
-            self.order_number,
+            self.work_order_number,
             self.order_weight,
             self.work_load,
             self.operations.len(),
@@ -36,25 +36,25 @@ impl WorkOrder {
         writeln!(
             message,
             "Work order: {}    |{:>11}|{:<}|{:<}|{:>8}|{:>4}|{:>4}|{:>4}|{:?}|",
-            self.get_work_order_number(),
-            self.get_order_dates()
+            self.work_order_number(),
+            self.order_dates()
                 .earliest_allowed_start_period
                 .get_period_string(),
-            if self.get_status_codes().awsc {
+            if self.status_codes().awsc {
                 "AWSC"
             } else {
                 "----"
             },
-            if self.get_status_codes().sece {
+            if self.status_codes().sece {
                 "SECE"
             } else {
                 "----"
             },
-            self.get_revision().string,
-            self.get_order_type().get_type_string(),
-            self.get_priority().get_priority_string(),
+            self.revision().string,
+            self.order_type().get_type_string(),
+            self.priority().get_priority_string(),
             if self.is_vendor() { "VEN" } else { "----" },
-            self.get_status_codes().material_status,
+            self.status_codes().material_status,
         )
         .unwrap();
 

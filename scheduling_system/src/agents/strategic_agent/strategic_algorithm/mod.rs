@@ -281,7 +281,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
 
     type Error = AgentError;
 
-    fn get_objective_value(&self) -> f64 {
+    fn objective_value(&self) -> f64 {
         self.objective_value
     }
 

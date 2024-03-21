@@ -94,7 +94,7 @@ impl WorkOrders {
 
     pub fn insert(&mut self, work_order: WorkOrder) {
         self.inner
-            .insert(work_order.get_work_order_number(), work_order);
+            .insert(*work_order.work_order_number(), work_order);
     }
 
     pub fn new_work_order(&self, order_number: u32) -> bool {

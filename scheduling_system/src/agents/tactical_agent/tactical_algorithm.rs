@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
+use priority_queue::PriorityQueue;
 use shared_messages::{
     agent_error::AgentError,
     resources::Resources,
@@ -12,17 +13,10 @@ use shared_messages::{
         tactical_time_message::TacticalTimeMessage,
     },
 };
-use tracing_subscriber::filter::combinator::Or;
 
 use crate::{
-    agents::{
-        strategic_agent::strategic_algorithm::OptimizedWorkOrders, traits::LargeNeighborHoodSearch,
-    },
-    models::{
-        time_environment::period::Period,
-        work_order::{self, ActivityRelation},
-        WorkOrders,
-    },
+    agents::traits::LargeNeighborHoodSearch,
+    models::{time_environment::period::Period, work_order::ActivityRelation, WorkOrders},
 };
 
 /// The TacticalAlgorithm contains everything that is needed to run the tactical algorithm. For this
@@ -50,11 +44,13 @@ pub struct TacticalAlgorithm {
     optimized_work_orders: HashMap<u32, OptimizedTacticalWorkOrder>,
     capacity: HashMap<Resources, HashMap<Day, f64>>,
     loading: HashMap<Resources, HashMap<Day, f64>>,
+    priority_queue: PriorityQueue<u32, u32>,
     dates: Vec<Day>,
 }
 
 struct OptimizedTacticalWorkOrder {
     optimized_activities: HashMap<u32, OptimizedOperation>,
+    weight: u32,
     relations: Vec<ActivityRelation>,
     scheduled_period: Period,
 }
@@ -91,6 +87,7 @@ impl TacticalAlgorithm {
             optimized_work_orders: HashMap::new(),
             capacity: HashMap::new(),
             loading: HashMap::new(),
+            priority_queue: PriorityQueue::new(),
             dates: Vec::new(),
         }
     }
@@ -106,11 +103,12 @@ impl TacticalAlgorithm {
 
             let mut optimized_work_order = OptimizedTacticalWorkOrder {
                 optimized_activities: HashMap::new(),
-                relations: work_order.get_relations().clone(),
+                relations: work_order.relations().clone(),
+                weight: work_order.work_order_weight(),
                 scheduled_period: period,
             };
 
-            for (activity, operation) in work_order.get_operations() {
+            for (activity, operation) in work_order.operations() {
                 let optimized_operation = OptimizedOperation {
                     work_order_id,
                     scheduled_start: 0,
@@ -130,6 +128,7 @@ impl TacticalAlgorithm {
 
         self.number_of_orders = optimized_work_orders.len() as u32;
         self.optimized_work_orders = optimized_work_orders;
+
         dbg!(self.number_of_orders);
     }
 }
@@ -140,7 +139,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
     type TimeMessage = TacticalTimeMessage;
     type Error = AgentError;
 
-    fn get_objective_value(&self) -> f64 {
+    fn objective_value(&self) -> f64 {
         self.objective_value
     }
 
@@ -167,23 +166,36 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
     ///
     /// We want to see how we are progressing with the work orders. What about the patterns?
     ///
-    /// Should we make a day struct? Yes I think so.
+    /// Should we make a day struct? Yes I think so. At the moment we are simply scheduling
+    /// everything every time, I do not think that this is the most appropriate way to go about it.
+    /// But I cannot determine if I should do it in some different way instead. Should
     fn schedule(&mut self) {
-        for work_order in self.optimized_work_orders.values() {
-            let snapshot_work_order = work_order.to_owned();
+        for (work_order_number, work_order) in self.optimized_work_orders.iter() {
+            self.priority_queue
+                .push(*work_order_number, work_order.weight);
+        }
 
-            let dates_clone = self.dates.clone();
-            // The first day is given by the scheduled period. Yes we should remember that.
-            // You are feeling a little stressed about this.
-            let allowed_starting_days: Vec<Day> = dates_clone
-                .into_iter()
+        let work_order = self
+            .optimized_work_orders
+            .get(&self.priority_queue.pop().unwrap().0)
+            .unwrap();
+        let mut start_day_index = 0;
+
+        loop {
+            let mut allowed_days = self.dates.clone();
+            let allowed_starting_days: Vec<&Day> = allowed_days
+                .iter()
                 .filter(|date| {
                     work_order.scheduled_period.start_date() <= &date.date
                         && &date.date <= work_order.scheduled_period.end_date()
                 })
                 .collect();
 
-            let mut current_day: Day = allowed_starting_days.first().unwrap().clone();
+            let start_day: Day = allowed_starting_days[start_day_index].clone();
+
+            let _ = allowed_days
+                .iter_mut()
+                .filter(|date| start_day.date <= date.date);
 
             // How can I iterate through the days in a good way? So now days are the contain all the
             // days in which the work order can start, that is a crucial point to make. What should
@@ -191,59 +203,43 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             // will also be crucial. The easiest path will be to simply, let it extend but then how
             // do we solve the problem of the... Ahh we should simply let the days variable above be
             // the one that determines the start date of the work order, yes that is a good approach
-
+            let mut current_day = allowed_days.into_iter().peekable();
             for (activity, operation) in work_order.optimized_activities.iter() {
                 let resource = operation.resource.clone();
+                let mut work_remaining = operation.work_remaining;
 
-                let load_pattern = Vec::new();
+                let mut load_pattern = HashMap::<Day, f64>::new();
 
-                let remaining_capacity = self
-                    .capacity
-                    .get(&resource)
-                    .unwrap()
-                    .get(&current_day)
-                    .unwrap()
-                    - self
-                        .loading
-                        .get(&resource)
-                        .unwrap()
-                        .get(&current_day)
-                        .unwrap();
-
-                let first_day_load = match remaining_capacity.partial_cmp(&operation.operating_time) {
-                    Some(Ordering::Less) => remaining_capacity,
-                    Some(Ordering::Equal) => remaining_capacity,
-                    Some(Ordering::Greater) => operation.operating_time,
-                    None => panic!("remaining work and operating_time are not comparable. There is an error in the data initialization"),
+                let remaining_capacity = match self
+                    .remaining_capacity(resource.clone(), current_day.peek().unwrap().clone())
+                {
+                    Some(remaining_capacity) => remaining_capacity,
+                    None => {
+                        start_day_index += 1;
+                        break;
+                    }
                 };
 
-                for data in 0..operation.duration {
-                    if *self
-                        .capacity
-                        .get(&resource)
-                        .unwrap()
-                        .get(&current_day)
-                        .unwrap()
-                        > operation.work_remaining
-                    {}
-                }
+                let first_day_load =
+                    self.determine_load(remaining_capacity, operation.operating_time);
 
-                let load_pattern = self
-                    .capacity
-                    .get(&resource)
-                    .unwrap()
-                    .get(current_day)
-                    .unwrap();
+                load_pattern.insert(current_day.peek().unwrap().clone(), first_day_load);
+                // When we remove something from the work remaining we should also add it to the
+                // loading. This is fundamental. Yay! This is fun!
 
-                for data in 0..operation.duration {
-                    if *self
-                        .capacity
-                        .get(&resource)
-                        .unwrap()
-                        .get(current_day)
-                        .unwrap()
-                        > operation.work_remaining
-                    {}
+                for _ in 0..operation.duration {
+                    current_day.next();
+                    let remaining_capacity = match self
+                        .remaining_capacity(resource.clone(), current_day.peek().unwrap().clone())
+                    {
+                        Some(remaining_capacity) => remaining_capacity,
+                        None => {
+                            start_day_index += 1;
+                            break;
+                        }
+                    };
+                    let load = self.determine_load(remaining_capacity, operation.operating_time);
+                    load_pattern.insert(current_day.peek().unwrap().clone(), load);
                 }
             }
         }
@@ -277,6 +273,44 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
     ) -> Result<String, Self::Error> {
         Ok("".to_string())
         // This is where the algorithm will update the resources state.
+    }
+}
+
+impl TacticalAlgorithm {
+    // fn update_loadings(
+    //     &mut self,
+    //     work_remaining_cal: f64,
+    //     load: f64,
+    //     resource: Resources,
+    //     day: Day,
+    // ) -> f64 {
+    //     work_remaining_cal -= load;
+    //     *self
+    //         .loading
+    //         .get_mut(&resource)
+    //         .unwrap()
+    //         .get_mut(&day)
+    //         .unwrap() += load;
+    //     work_remaining_cal
+    // }
+    fn remaining_capacity(&self, resource: Resources, day: Day) -> Option<f64> {
+        let remaining_capacity = self.capacity.get(&resource).unwrap().get(&day).unwrap()
+            - self.loading.get(&resource).unwrap().get(&day).unwrap();
+
+        if remaining_capacity < 0.0 {
+            return None;
+        } else {
+            return Some(remaining_capacity);
+        }
+    }
+
+    fn determine_load(&self, remaining_capacity: f64, operating_time: f64) -> f64 {
+        match remaining_capacity.partial_cmp(&operating_time) {
+            Some(Ordering::Less) => remaining_capacity,
+            Some(Ordering::Equal) => remaining_capacity,
+            Some(Ordering::Greater) => operating_time,
+            None => panic!("remaining work and operating_time are not comparable. There is an error in the data initialization"),
+        }
     }
 }
 

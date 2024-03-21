@@ -1164,7 +1164,7 @@ mod tests {
             .inner
             .get(&2100024139)
             .unwrap()
-            .get_operations()
+            .operations()
             .len();
 
         assert_eq!(number_of_work_orders, 1227);

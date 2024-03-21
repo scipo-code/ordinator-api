@@ -72,14 +72,14 @@ impl StrategicAgent {
                     .inner
                     .get_mut(&work_order_number)
                     .unwrap()
-                    .get_mut_order_dates()
+                    .order_dates_mut()
                     .earliest_allowed_start_period
                     .get_period_string(),
                 if work_orders
                     .inner
                     .get(&work_order_number)
                     .unwrap()
-                    .get_status_codes()
+                    .status_codes()
                     .awsc
                 {
                     "AWSC"
@@ -90,7 +90,7 @@ impl StrategicAgent {
                     .inner
                     .get(&work_order_number)
                     .unwrap()
-                    .get_status_codes()
+                    .status_codes()
                     .sece
                 {
                     "SECE"
@@ -101,19 +101,19 @@ impl StrategicAgent {
                     .inner
                     .get(&work_order_number)
                     .unwrap()
-                    .get_revision()
+                    .revision()
                     .string,
                 work_orders
                     .inner
                     .get(&work_order_number)
                     .unwrap()
-                    .get_order_type()
+                    .order_type()
                     .get_type_string(),
                 work_orders
                     .inner
                     .get(&work_order_number)
                     .unwrap()
-                    .get_priority()
+                    .priority()
                     .get_priority_string(),
                 if work_orders
                     .inner
@@ -129,7 +129,7 @@ impl StrategicAgent {
                     .inner
                     .get(&work_order_number)
                     .unwrap()
-                    .get_status_codes()
+                    .status_codes()
                     .material_status
                     .to_string(),
             )

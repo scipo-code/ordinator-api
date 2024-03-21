@@ -27,9 +27,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 
         temporary_schedule.calculate_objective();
 
-        if temporary_schedule.get_objective_value()
-            < self.strategic_agent_algorithm.get_objective_value()
-        {
+        if temporary_schedule.objective_value() < self.strategic_agent_algorithm.objective_value() {
             self.strategic_agent_algorithm = temporary_schedule;
             self.update_tactical_agent();
         }
@@ -46,10 +44,8 @@ impl Handler<StrategicRequest> for StrategicAgent {
             StrategicRequest::Status(strategic_status_message) => match strategic_status_message {
                 StrategicStatusMessage::General => {
                     let scheduling_status = self.scheduling_environment.lock().unwrap().to_string();
-                    let strategic_objective = self
-                        .strategic_agent_algorithm
-                        .get_objective_value()
-                        .to_string();
+                    let strategic_objective =
+                        self.strategic_agent_algorithm.objective_value().to_string();
 
                     let optimized_work_orders =
                         self.strategic_agent_algorithm.get_optimized_work_orders();
@@ -134,7 +130,7 @@ impl Handler<StatusMessage> for StrategicAgent {
     fn handle(&mut self, _msg: StatusMessage, _ctx: &mut Self::Context) -> Self::Result {
         format!(
             "Objective: {}",
-            self.strategic_agent_algorithm.get_objective_value()
+            self.strategic_agent_algorithm.objective_value()
         )
     }
 }
@@ -331,7 +327,7 @@ pub mod tests {
         scheduler_agent_algorithm.calculate_objective();
 
         // This test fails because the objective value in not initialized
-        assert_eq!(scheduler_agent_algorithm.get_objective_value(), 2000.0);
+        assert_eq!(scheduler_agent_algorithm.objective_value(), 2000.0);
     }
 
     pub struct TestRequest {}
@@ -355,7 +351,7 @@ pub mod tests {
         fn handle(&mut self, _msg: TestRequest, _: &mut Context<Self>) -> Self::Result {
             // Return the state or part of it
             Some(TestResponse {
-                objective_value: self.strategic_agent_algorithm.get_objective_value(),
+                objective_value: self.strategic_agent_algorithm.objective_value(),
                 manual_resources_capacity: self
                     .strategic_agent_algorithm
                     .get_resources_capacities()

@@ -144,15 +144,11 @@ fn create_optimized_work_orders(
         let mut excluded_periods: HashSet<Period> = HashSet::new();
 
         for (i, period) in periods.iter().enumerate() {
-            if period
-                < &work_order
-                    .get_mut_order_dates()
-                    .earliest_allowed_start_period
-            {
+            if period < &work_order.order_dates_mut().earliest_allowed_start_period {
                 excluded_periods.insert(period.clone());
             } else if work_order.is_vendor() && i <= 3 {
                 excluded_periods.insert(period.clone());
-            } else if work_order.get_revision().shutdown && i <= 3 {
+            } else if work_order.revision().shutdown && i <= 3 {
                 excluded_periods.insert(period.clone());
             }
         }
@@ -165,14 +161,14 @@ fn create_optimized_work_orders(
                     periods.last().cloned(),
                     excluded_periods.clone(),
                     None,
-                    work_order.get_order_weight(),
-                    work_order.get_work_load().clone(),
+                    work_order.work_order_weight(),
+                    work_order.work_load().clone(),
                 ),
             );
         }
 
-        if work_order.get_unloading_point().present {
-            let period = work_order.get_unloading_point().period.clone();
+        if work_order.unloading_point().present {
+            let period = work_order.unloading_point().period.clone();
             optimized_work_orders.insert(
                 *work_order_number,
                 OptimizedWorkOrder::new(
@@ -180,8 +176,8 @@ fn create_optimized_work_orders(
                     period,
                     excluded_periods.clone(),
                     None,
-                    work_order.get_order_weight(),
-                    work_order.get_work_load().clone(),
+                    work_order.work_order_weight(),
+                    work_order.work_load().clone(),
                 ),
             );
             continue;
@@ -194,12 +190,12 @@ fn create_optimized_work_orders(
                 excluded_periods,
                 Some(
                     work_order
-                        .get_mut_order_dates()
+                        .order_dates_mut()
                         .latest_allowed_finish_period
                         .clone(),
                 ),
-                work_order.get_order_weight(),
-                work_order.get_work_load().clone(),
+                work_order.work_order_weight(),
+                work_order.work_load().clone(),
             ),
         );
     }
