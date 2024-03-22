@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, ops::Deref};
 
 use std::collections::HashMap;
 
@@ -175,19 +175,31 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 .push(*work_order_number, work_order.weight);
         }
 
-        let work_order = self
-            .optimized_work_orders
-            .get(&self.priority_queue.pop().unwrap().0)
-            .unwrap();
         let mut start_day_index = 0;
 
-        loop {
+        let mut loop_state: LoopState = LoopState::Scheduled;
+
+        let mut current_work_order_number = self.priority_queue.pop().unwrap().0;
+        'main: loop {
+            let optimized_work_order = match loop_state {
+                LoopState::Unscheduled => self
+                    .optimized_work_orders
+                    .get(&current_work_order_number)
+                    .unwrap(),
+                LoopState::Scheduled => {
+                    current_work_order_number = self.priority_queue.pop().unwrap().0;
+                    self.optimized_work_orders
+                        .get(&current_work_order_number)
+                        .unwrap()
+                }
+            };
+
             let mut allowed_days = self.dates.clone();
             let allowed_starting_days: Vec<&Day> = allowed_days
                 .iter()
                 .filter(|date| {
-                    work_order.scheduled_period.start_date() <= &date.date
-                        && &date.date <= work_order.scheduled_period.end_date()
+                    optimized_work_order.scheduled_period.start_date() <= &date.date
+                        && &date.date <= optimized_work_order.scheduled_period.end_date()
                 })
                 .collect();
 
@@ -197,6 +209,8 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 .iter_mut()
                 .filter(|date| start_day.date <= date.date);
 
+            let mut work_order_load = HashMap::<Resources, HashMap<Day, f64>>::new();
+
             // How can I iterate through the days in a good way? So now days are the contain all the
             // days in which the work order can start, that is a crucial point to make. What should
             // we do about the code that makes it possible to schedule into the nest period? This
@@ -204,11 +218,10 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             // do we solve the problem of the... Ahh we should simply let the days variable above be
             // the one that determines the start date of the work order, yes that is a good approach
             let mut current_day = allowed_days.into_iter().peekable();
-            for (activity, operation) in work_order.optimized_activities.iter() {
+            for (activity, operation) in optimized_work_order.optimized_activities.iter() {
+                let mut activity_load = HashMap::<Day, f64>::new();
                 let resource = operation.resource.clone();
                 let mut work_remaining = operation.work_remaining;
-
-                let mut load_pattern = HashMap::<Day, f64>::new();
 
                 let remaining_capacity = match self
                     .remaining_capacity(resource.clone(), current_day.peek().unwrap().clone())
@@ -216,16 +229,30 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     Some(remaining_capacity) => remaining_capacity,
                     None => {
                         start_day_index += 1;
-                        break;
+                        loop_state = LoopState::Unscheduled;
+                        continue 'main;
                     }
                 };
 
-                let first_day_load =
-                    self.determine_load(remaining_capacity, operation.operating_time);
+                // So what is it that we want now? Remember being focused feels calm and empty. It
+                // you do not feel this way then you are not focused. Prioritize meditation is this
+                // case.
 
-                load_pattern.insert(current_day.peek().unwrap().clone(), first_day_load);
-                // When we remove something from the work remaining we should also add it to the
-                // loading. This is fundamental. Yay! This is fun!
+                // The first day load should not be the same as the other days. This is because the
+                // first day is the one that yields and all the remaining days are the ones that are
+                // follow suit. This means that the determine_load function should return an array
+                // of loads. For each of the days. But what to do if there is no capacity left? then
+                // it would move to the next day. Yes, what we are doing now could essentially be
+                // wrong, in that a 12 hour operation with [2, 4, 4, 2] could be scheduled on like
+                // [2, 1, 1, 1] and the function would not complain. This is not the way to go about
+                // it. We need to make sure that the
+                let first_day_load = self.determine_load(
+                    remaining_capacity,
+                    operation.operating_time,
+                    &mut work_remaining,
+                );
+
+                activity_load.insert(current_day.peek().unwrap().clone(), first_day_load);
 
                 for _ in 0..operation.duration {
                     current_day.next();
@@ -235,16 +262,22 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                         Some(remaining_capacity) => remaining_capacity,
                         None => {
                             start_day_index += 1;
-                            break;
+                            loop_state = LoopState::Unscheduled;
+                            continue 'main;
                         }
                     };
-                    let load = self.determine_load(remaining_capacity, operation.operating_time);
-                    load_pattern.insert(current_day.peek().unwrap().clone(), load);
+                    let load = self.determine_load(
+                        remaining_capacity,
+                        operation.operating_time,
+                        &mut work_remaining,
+                    );
+                    activity_load.insert(current_day.peek().unwrap().clone(), load);
                 }
+                work_order_load.insert(resource, activity_load);
             }
+            loop_state = LoopState::Scheduled;
+            self.update_loadings(work_order_load);
         }
-
-        // This is where the algorithm will schedule the work orders.
     }
 
     fn unschedule(&mut self, message: u32) {
@@ -276,41 +309,64 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
     }
 }
 
+enum LoopState {
+    Unscheduled,
+    Scheduled,
+}
+
 impl TacticalAlgorithm {
-    // fn update_loadings(
-    //     &mut self,
-    //     work_remaining_cal: f64,
-    //     load: f64,
-    //     resource: Resources,
-    //     day: Day,
-    // ) -> f64 {
-    //     work_remaining_cal -= load;
-    //     *self
-    //         .loading
-    //         .get_mut(&resource)
-    //         .unwrap()
-    //         .get_mut(&day)
-    //         .unwrap() += load;
-    //     work_remaining_cal
-    // }
+    fn update_loadings(&mut self, work_order_load: HashMap<Resources, HashMap<Day, f64>>) {
+        for (resource, days) in work_order_load {
+            for (day, load) in days {
+                let loading = self
+                    .loading
+                    .get_mut(&resource)
+                    .unwrap()
+                    .get_mut(&day)
+                    .unwrap();
+                *loading += load;
+            }
+        }
+    }
+
     fn remaining_capacity(&self, resource: Resources, day: Day) -> Option<f64> {
         let remaining_capacity = self.capacity.get(&resource).unwrap().get(&day).unwrap()
             - self.loading.get(&resource).unwrap().get(&day).unwrap();
 
         if remaining_capacity < 0.0 {
-            return None;
+            None
         } else {
-            return Some(remaining_capacity);
+            Some(remaining_capacity)
         }
     }
 
-    fn determine_load(&self, remaining_capacity: f64, operating_time: f64) -> f64 {
-        match remaining_capacity.partial_cmp(&operating_time) {
+    fn determine_load(
+        &self,
+        remaining_capacity: f64,
+        operating_time: f64,
+        work_remaining: &mut f64,
+    ) -> Vec<f64> {
+        let loadings = Vec::new();
+
+        let first_day_load = match remaining_capacity.partial_cmp(&operating_time) {
             Some(Ordering::Less) => remaining_capacity,
             Some(Ordering::Equal) => remaining_capacity,
             Some(Ordering::Greater) => operating_time,
             None => panic!("remaining work and operating_time are not comparable. There is an error in the data initialization"),
+        }.min(*work_remaining);
+
+        loadings.push(first_day_load);
+        // The problem is that we do not know if there will be enough capacity. The only logical
+        // thing to do will be to make the load vector and then we will see if there is enough
+        // capacity in the loop afterwards. Yes this is a good idea. Also, we should be allowed to
+        // excced the capacity, but I am not really sure about the mechanism, though. This is so
+        // exciting. I will meditate now.
+        while work_remaining > &0.0 {
+            work_remaining -= first_day_load;
         }
+
+        *work_remaining -= load;
+        load
     }
 }
 
