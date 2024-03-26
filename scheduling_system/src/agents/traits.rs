@@ -1,14 +1,3 @@
-use shared_messages::{
-    agent_error::AgentError,
-    strategic::{
-        strategic_periods_message::StrategicTimeMessage,
-        strategic_resources_message::StrategicResourceMessage,
-        strategic_scheduling_message::StrategicSchedulingMessage,
-    },
-};
-
-/// What should an algorithm be able to do? This is the trait that all scheduling algorithms should
-/// implement. It is a trait so that we can have multiple algorithms in the same system.
 pub trait LargeNeighborHoodSearch {
     type SchedulingMessage;
     type ResourceMessage;

@@ -74,7 +74,7 @@ impl StrategicAgent {
                     .unwrap()
                     .order_dates_mut()
                     .earliest_allowed_start_period
-                    .get_period_string(),
+                    .period_string(),
                 if work_orders
                     .inner
                     .get(&work_order_number)

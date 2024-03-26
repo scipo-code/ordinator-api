@@ -27,12 +27,11 @@ pub struct StrategicAlgorithm {
     optimized_work_orders: OptimizedWorkOrders,
     period_locks: HashSet<Period>,
     periods: Vec<Period>,
-    changed: bool,
 }
 
 
 impl StrategicAlgorithm {
-    pub fn get_optimized_work_order(&self, work_order_number: &u32) -> Option<&OptimizedWorkOrder> {
+    pub fn optimized_work_order(&self, work_order_number: &u32) -> Option<&OptimizedWorkOrder> {
         self.optimized_work_orders.inner.get(work_order_number)
     }
 
@@ -40,7 +39,7 @@ impl StrategicAlgorithm {
         self.periods = periods;
     }
 
-    pub fn get_tactical_work_orders(&self) -> Vec<(u32, Period)> {
+    pub fn tactical_work_orders(&self) -> Vec<(u32, Period)> {
         let periods = &self.periods.clone()[0..4];
         let mut tactical_work_orders: Vec<(u32, Period)> = vec![];
 
@@ -85,11 +84,11 @@ impl AlgorithmResources {
         write!(string, "{:<12}", "Resource").ok();
         for (nr_period, period) in periods.iter().enumerate().take(number_of_periods as usize) {
             if nr_period == 0 {
-                write!(string, "{:>12}", period.get_period_string().red()).ok();
+                write!(string, "{:>12}", period.period_string().red()).ok();
             } else if nr_period == 1 || nr_period == 2 {
-                write!(string, "{:>12}", period.get_period_string().green()).ok();
+                write!(string, "{:>12}", period.period_string().green()).ok();
             } else {
-                write!(string, "{:>12}", period.get_period_string()).ok();
+                write!(string, "{:>12}", period.period_string()).ok();
             }
         }
         writeln!(string).ok();
@@ -330,7 +329,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 let mut count = 0;
                 for (resource, periods) in manual_resources {
                     for (period_string, capacity) in periods {
-                        let period = self.periods.iter().find(|period| period.get_period_string() == period_string).expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
+                        let period = self.periods.iter().find(|period| period.period_string() == period_string).expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
                         self.resources_capacity
                             .inner
                             .get_mut(&resource.clone())
@@ -346,7 +345,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 periods_end,
                 select_resources: _,
             } => {
-                let loading = self.get_resources_loadings();
+                let loading = self.resources_loadings();
 
                 let periods_end: u32 = periods_end.parse().unwrap();
 
@@ -354,7 +353,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
             }
             StrategicResourceMessage::GetCapacities { periods_end, select_resources: _ } => 
             {         
-                let capacities = self.get_resources_capacities();
+                let capacities = self.resources_capacities();
 
                 let periods_end: u32 = periods_end.parse().unwrap();
 
@@ -379,7 +378,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                     .periods
                     .iter()
                     .find(|period| {
-                        period.get_period_string() == schedule_work_order.get_period_string()
+                        period.period_string() == schedule_work_order.get_period_string()
                     })
                     .cloned();
     
@@ -391,7 +390,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                         Ok(format!(
                             "Work order {} has been scheduled for period {}",
                             work_order_number,
-                            period.get_period_string()
+                            period.period_string()
                         ))
                     }
                     None => Err(AgentError::StateUpdateError("Could not update strategic scheduling state".to_string())),
@@ -405,7 +404,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                         .periods
                         .iter()
                         .find(|period| {
-                            period.get_period_string() == schedule_work_order.get_period_string()
+                            period.period_string() == schedule_work_order.get_period_string()
                         })
                         .cloned();
 
@@ -417,7 +416,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                             output_string += &format!(
                                 "Work order {} has been scheduled for period {}",
                                 work_order_number,
-                                period.clone().get_period_string()
+                                period.clone().period_string()
                             )
                             .to_string();
                         }
@@ -434,7 +433,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
             StrategicSchedulingMessage::ExcludeFromPeriod(exclude_from_period) => {
                 let work_order_number = exclude_from_period.get_work_order_number();
                 let period = self.periods.iter().find(|period| {
-                    period.get_period_string() == exclude_from_period.get_period_string().clone()
+                    period.period_string() == exclude_from_period.get_period_string().clone()
                 });
 
                 match period {
@@ -463,13 +462,13 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                         };
 
                         if overwrite {
-                            info!("Work order {} has been excluded from period {} and the locked in period has been removed", work_order_number, period.get_period_string());
+                            info!("Work order {} has been excluded from period {} and the locked in period has been removed", work_order_number, period.period_string());
                         }
                             
                         Ok(format!(
                             "Work order {} has been excluded from period {}",
                             work_order_number,
-                            period.get_period_string()
+                            period.period_string()
                         ))
                     }
                     None => Err(AgentError::StateUpdateError("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.".to_string())),
@@ -525,7 +524,6 @@ impl StrategicAlgorithm {
         optimized_work_orders: OptimizedWorkOrders,
         period_locks: HashSet<Period>,
         periods: Vec<Period>,
-        changed: bool,
     ) -> Self {
         StrategicAlgorithm {
             objective_value,
@@ -535,24 +533,24 @@ impl StrategicAlgorithm {
             optimized_work_orders,
             periods,
             period_locks,
-            changed,
+            
         }
     }
 
-    pub fn get_optimized_work_orders(&self) -> &HashMap<u32, OptimizedWorkOrder> {
+    pub fn optimized_work_orders(&self) -> &HashMap<u32, OptimizedWorkOrder> {
         &self.optimized_work_orders.inner
     }
 
-    pub fn get_resources_loadings(&self) -> &AlgorithmResources {
+    pub fn resources_loadings(&self) -> &AlgorithmResources {
         &self.resources_loading
     }
 
-    pub fn get_resources_capacities(&self) -> &AlgorithmResources {
+    pub fn resources_capacities(&self) -> &AlgorithmResources {
         &self.resources_capacity
     }
 
 
-    pub fn get_periods(&self) -> &Vec<Period> {
+    pub fn periods(&self) -> &Vec<Period> {
         &self.periods
     }
 
@@ -656,7 +654,6 @@ mod tests {
             OptimizedWorkOrders::new(HashMap::new()),
             HashSet::new(),
             periods,
-            true,
         );
 
         let optimized_work_order =

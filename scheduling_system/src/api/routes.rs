@@ -5,8 +5,7 @@ use shared_messages::{orchestrator::OrchestratorRequest, SystemMessages};
 use std::fmt::Write;
 use std::sync::{Arc, Mutex};
 use tracing::instrument;
-use tracing_flame::FlameLayer;
-use tracing_subscriber::{filter, layer, EnvFilter};
+use tracing_subscriber::EnvFilter;
 
 use crate::agents::orchestrator::Orchestrator;
 
@@ -16,6 +15,7 @@ pub async fn http_to_scheduling_system(
     _req: HttpRequest,
     payload: web::Json<SystemMessages>,
 ) -> Result<HttpResponse> {
+    dbg!();
     match payload.0 {
         SystemMessages::Orchestrator(orchestrator_request) => {
             let mut mutux_guard = orchestrator.lock().unwrap();
@@ -31,7 +31,7 @@ pub async fn http_to_scheduling_system(
                 .lock()
                 .unwrap()
                 .agent_registry
-                .get_strategic_agent_addr();
+                .strategic_agent_addr();
 
             let response = strategic_agent_addr.send(strategic_request).await;
             match response {
@@ -52,16 +52,19 @@ pub async fn http_to_scheduling_system(
                 .lock()
                 .unwrap()
                 .agent_registry
-                .get_tactical_agent_addr();
+                .tactical_agent_addr();
             let response = tactical_agent_addr.send(tactical_request).await;
 
             match response {
-                Ok(response) => {
-                    let http_response = HttpResponse::Ok()
-                        .insert_header(header::ContentType::plaintext())
-                        .body(response);
-                    Ok(http_response)
-                }
+                Ok(response) => match response {
+                    Ok(response) => {
+                        let http_response = HttpResponse::Ok()
+                            .insert_header(header::ContentType::plaintext())
+                            .body(response);
+                        Ok(http_response)
+                    }
+                    Err(_) => Ok(HttpResponse::BadRequest().json("TACTICAL: FAILURE")),
+                },
                 Err(_) => Ok(HttpResponse::BadRequest().json("TACTICAL: FAILURE")),
             }
         }
@@ -80,8 +83,8 @@ impl Orchestrator {
     async fn handle(&mut self, msg: OrchestratorRequest) -> String {
         match msg {
             OrchestratorRequest::GetAgentStatus => {
-                let strategic_agent_addr = self.agent_registry.get_strategic_agent_addr();
-                let tactical_agent_addr = self.agent_registry.get_tactical_agent_addr();
+                let strategic_agent_addr = self.agent_registry.strategic_agent_addr();
+                let tactical_agent_addr = self.agent_registry.tactical_agent_addr();
 
                 let mut buffer = String::new();
 
@@ -141,18 +144,31 @@ impl Orchestrator {
             OrchestratorRequest::GetPeriods => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
-                let periods = scheduling_environment_guard.clone_periods();
+                let periods = scheduling_environment_guard.clone_strategic_periods();
 
                 let periods_string: String = periods
                     .iter()
-                    .map(|period| period.get_period_string())
+                    .map(|period| period.period_string())
                     .collect::<Vec<String>>()
                     .join(",");
 
                 periods_string
             }
+            OrchestratorRequest::GetDays => {
+                let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+
+                let days = scheduling_environment_guard.clone_tactical_days();
+
+                let days_string: String = days
+                    .iter()
+                    .map(|day| day.date().to_string())
+                    .collect::<Vec<String>>()
+                    .join(",");
+
+                days_string
+            }
             OrchestratorRequest::CreateSupervisorAgent(id) => {
-                let tactical_agent_addr = self.agent_registry.get_tactical_agent_addr();
+                let tactical_agent_addr = self.agent_registry.tactical_agent_addr();
                 let supervisor_agent_addr = self
                     .agent_factory
                     .build_supervisor_agent(id.clone(), tactical_agent_addr);
@@ -162,10 +178,9 @@ impl Orchestrator {
                 format!("Supervisor agent created with id {}", id)
             }
             OrchestratorRequest::DeleteSupervisorAgent(id_string) => {
-                let id = self.agent_registry.get_supervisor_by_id_string(id_string);
+                let id = self.agent_registry.supervisor_by_id_string(id_string);
 
-                let supervisor_agent_addr =
-                    self.agent_registry.get_supervisor_agent_addr(id.clone());
+                let supervisor_agent_addr = self.agent_registry.supervisor_agent_addr(id.clone());
 
                 supervisor_agent_addr.do_send(shared_messages::StopMessage {});
 
@@ -176,7 +191,7 @@ impl Orchestrator {
             OrchestratorRequest::CreateOperationalAgent(id) => {
                 let supervisor_agent_addr = self
                     .agent_registry
-                    .get_supervisor_agent_addr_by_resource(&id.1[0].clone());
+                    .supervisor_agent_addr_by_resource(&id.1[0].clone());
 
                 let operational_agent_addr = self
                     .agent_factory
@@ -190,10 +205,9 @@ impl Orchestrator {
             OrchestratorRequest::DeleteOperationalAgent(id_string) => {
                 let id = self
                     .agent_registry
-                    .get_supervisor_by_id_string(id_string.clone());
+                    .supervisor_by_id_string(id_string.clone());
 
-                let operational_agent_addr =
-                    self.agent_registry.get_operational_agent_addr(id.clone());
+                let operational_agent_addr = self.agent_registry.operational_agent_addr(id.clone());
 
                 operational_agent_addr.do_send(shared_messages::StopMessage {});
 

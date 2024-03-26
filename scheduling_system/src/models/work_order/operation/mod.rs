@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-use std::fmt::Write;
 
 use shared_messages::resources::Resources;
 
@@ -52,46 +51,6 @@ impl Operation {
             earliest_start_datetime,
             earliest_finish_datetime,
         }
-    }
-
-    pub fn get_activity(&self) -> u32 {
-        self.activity
-    }
-
-    pub fn get_number(&self) -> u32 {
-        self.number
-    }
-
-    pub fn get_resource(&self) -> &Resources {
-        &self.resource
-    }
-
-    pub fn get_work_remaining(&self) -> f64 {
-        self.work_remaining
-    }
-
-    pub fn get_work_performed(&self) -> f64 {
-        self.work_performed
-    }
-
-    pub fn get_work_adjusted(&self) -> f64 {
-        self.work_adjusted
-    }
-
-    pub fn get_operating_time(&self) -> f64 {
-        self.operating_time
-    }
-
-    pub fn get_duration(&self) -> u32 {
-        self.duration
-    }
-
-    pub fn get_possible_start(&self) -> &DateTime<Utc> {
-        &self.possible_start
-    }
-
-    pub fn get_target_finish(&self) -> &DateTime<Utc> {
-        &self.target_finish
     }
 }
 

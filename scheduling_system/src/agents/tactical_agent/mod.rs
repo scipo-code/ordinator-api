@@ -2,20 +2,21 @@ pub mod messages;
 pub mod tactical_algorithm;
 
 use actix::prelude::*;
+use shared_messages::agent_error::AgentError;
 use shared_messages::resources::Id;
-use shared_messages::tactical::{
-    tactical_resources_message, tactical_scheduling_message, TacticalRequest,
-};
+use shared_messages::tactical::TacticalRequest;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{instrument, warn};
 
+use crate::agents::strategic_agent::strategic_message::ScheduleIteration;
 use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
 use crate::agents::SetAddr;
 use crate::models::SchedulingEnvironment;
 
 use super::strategic_agent::StrategicAgent;
 use super::supervisor_agent::SupervisorAgent;
+use super::traits::LargeNeighborHoodSearch;
 use super::SendState;
 
 #[allow(dead_code)]
@@ -33,21 +34,14 @@ impl TacticalAgent {
         id: i32,
         days: u32,
         strategic_addr: Addr<StrategicAgent>,
+        tactical_algorithm: TacticalAlgorithm,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     ) -> Self {
-        dbg!("TacticalAgent::new");
-
-        let scheduling_environment_lock = scheduling_environment.lock().unwrap();
-
-        let tactical_days = scheduling_environment_lock
-            .get_time_environment()
-            .get_tactical_days();
-
         TacticalAgent {
             id,
             time_horizon: days,
             scheduling_environment: scheduling_environment.clone(),
-            tactical_algorithm: TacticalAlgorithm::new(tactical_days.to_vec()),
+            tactical_algorithm,
             strategic_addr,
             supervisor_addrs: HashMap::new(),
         }
@@ -68,11 +62,24 @@ impl Actor for TacticalAgent {
         );
         self.strategic_addr
             .do_send(SetAddr::Tactical(ctx.address()));
+        ctx.notify(ScheduleIteration {});
+    }
+}
+
+impl Handler<ScheduleIteration> for TacticalAgent {
+    type Result = ();
+
+    fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
+        dbg!();
+        self.tactical_algorithm.schedule();
+        dbg!();
+        ctx.notify(ScheduleIteration {});
+        dbg!();
     }
 }
 
 impl Handler<TacticalRequest> for TacticalAgent {
-    type Result = String;
+    type Result = Result<String, AgentError>;
 
     #[instrument(level = "info", skip_all)]
     fn handle(
@@ -85,9 +92,9 @@ impl Handler<TacticalRequest> for TacticalAgent {
             TacticalRequest::Scheduling(tactical_scheduling_message) => {
                 todo!()
             }
-            TacticalRequest::Resources(tactical_resources_message) => {
-                todo!()
-            }
+            TacticalRequest::Resources(tactical_resources_message) => self
+                .tactical_algorithm
+                .update_resources_state(tactical_resources_message),
             TacticalRequest::Days(tactical_time_message) => {
                 todo!()
             }
@@ -99,22 +106,14 @@ impl Handler<SendState> for TacticalAgent {
     type Result = ();
 
     fn handle(&mut self, msg: SendState, _ctx: &mut Context<Self>) {
+        let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
         match msg {
             SendState::Strategic(strategic_state) => {
-                // The tactical agent initializes his state based on the strategic agent and the
-                // `SchedulingEnvironment`.
-
-                match self.scheduling_environment.lock() {
-                    Ok(scheduling_environment) => {
-                        let work_orders = scheduling_environment.get_work_orders();
-                        self.tactical_algorithm
-                            .update_state_based_on_strategic(work_orders, strategic_state);
-                    }
-                    Err(_) => {
-                        println!("The tactical agent could not lock the `SchedulingEnvironment`");
-                        todo!()
-                    }
-                }
+                let work_orders = scheduling_environment_guard.work_orders().clone();
+                drop(scheduling_environment_guard);
+                self.tactical_algorithm
+                    .update_state_based_on_strategic(&work_orders, strategic_state);
+                dbg!();
             }
             SendState::Tactical => {
                 todo!()

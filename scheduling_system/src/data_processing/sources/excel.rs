@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use tracing::{debug, event};
 
+use crate::agents::tactical_agent::tactical_algorithm::Day;
 use crate::models::time_environment::period::Period;
 use crate::models::time_environment::TimeEnvironment;
 use crate::models::work_order::system_condition::SystemCondition;
@@ -22,8 +23,8 @@ use crate::models::work_order::{ActivityRelation, WorkOrder};
 use crate::models::worker_environment::WorkerEnvironment;
 use crate::models::{SchedulingEnvironment, WorkOrders};
 use chrono::{
-    naive, DateTime, Datelike, Days, Duration, Local, NaiveDate, NaiveTime, TimeZone, Timelike,
-    Utc, Weekday,
+    naive, DateTime, Datelike, Days, Duration, NaiveDate, NaiveTime, TimeZone, Timelike, Utc,
+    Weekday,
 };
 use shared_messages::resources::Resources;
 
@@ -74,12 +75,12 @@ pub fn load_data_file(
     // the first day of the previous period as it would allow us to understand the boundary.
     let first_period = strategic_periods.first().unwrap().clone();
 
-    let tactical_days = |number_of_days: u32| -> Vec<DateTime<Utc>> {
-        let mut days: Vec<DateTime<Utc>> = Vec::new();
-        let mut date = first_period.start_date().clone();
+    let tactical_days = |number_of_days: u32| -> Vec<Day> {
+        let mut days: Vec<Day> = Vec::new();
+        let mut date = first_period.start_date().to_owned();
         // How should I handle the time zones? Hmm... that is a good question?
-        for _ in 0..number_of_days {
-            days.push(date);
+        for day_index in 0..number_of_days {
+            days.push(Day::new(day_index as usize, date.to_owned()));
             date = date.checked_add_days(Days::new(1)).unwrap();
         }
         days
@@ -334,7 +335,7 @@ fn create_new_operation(
             _ => 0.0,
         },
         work_adjusted: 0.0,
-        operating_time: 0.0,
+        operating_time: 4.0,
         duration: match header_to_index.get("Duration") {
             Some(index) => match row.get(*index).cloned() {
                 Some(calamine::Data::Int(n)) => n as u32,
@@ -1145,7 +1146,10 @@ mod tests {
         let scheduling_environment = load_data_file(file_path, number_of_periods, number_of_days);
 
         assert_eq!(
-            scheduling_environment.unwrap().clone_periods().len(),
+            scheduling_environment
+                .unwrap()
+                .clone_strategic_periods()
+                .len(),
             number_of_periods as usize
         );
 
@@ -1154,13 +1158,13 @@ mod tests {
         let number_of_work_orders = scheduling_environment
             .as_ref()
             .unwrap()
-            .get_work_orders()
+            .work_orders()
             .inner
             .len();
         let number_of_operations = scheduling_environment
             .as_ref()
             .unwrap()
-            .get_work_orders()
+            .work_orders()
             .inner
             .get(&2100024139)
             .unwrap()

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use clap::Args;
 use clap::Subcommand;
-use reqwest::Client;
+use reqwest::blocking::Client;
 use shared_messages::resources::Resources;
 use shared_messages::strategic::strategic_resources_message::StrategicResourceMessage;
 use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
@@ -20,22 +20,22 @@ pub enum StrategicCommands {
     /// overview of the strategic agent
     Status {
         #[clap(subcommand)]
-        subcommand: StatusStrategic,
+        status_commands: StatusCommands,
     },
     /// Scheduling commands
     Scheduling {
         #[clap(subcommand)]
-        subcommand: SchedulingSubcommands,
+        scheduling_commands: SchedulingCommands,
     },
     /// Resources commands
     Resources {
         #[clap(subcommand)]
-        subcommand: ResourcesSubcommands,
+        resource_commands: ResourceCommands,
     },
 }
 
 #[derive(Subcommand, Debug)]
-pub enum ResourcesSubcommands {
+pub enum ResourceCommands {
     /// Get the loading of the resources
     Loading {
         periods_end: String,
@@ -62,13 +62,13 @@ pub enum ResourcesSubcommands {
 }
 
 #[derive(Subcommand, Debug)]
-pub enum StatusStrategic {
+pub enum StatusCommands {
     /// List all work orders in a given period
     WorkOrders { period: String },
 }
 
 #[derive(Subcommand, Debug)]
-pub enum SchedulingSubcommands {
+pub enum SchedulingCommands {
     /// Schedule a specific work order in a given period
     Schedule(WorkOrderSchedule),
     /// Lock a period from any scheduling changes
@@ -84,7 +84,7 @@ pub struct WorkOrderSchedule {
 }
 
 impl StrategicCommands {
-    pub async fn execute(&self, client: &Client) -> SystemMessages {
+    pub fn execute(&self, client: &Client) -> SystemMessages {
         match self {
             StrategicCommands::Default => {
                 let strategic_status_message: StrategicStatusMessage =
@@ -92,16 +92,20 @@ impl StrategicCommands {
 
                 SystemMessages::Strategic(StrategicRequest::Status(strategic_status_message))
             }
-            StrategicCommands::Status { subcommand } => match subcommand {
-                StatusStrategic::WorkOrders { period } => {
+            StrategicCommands::Status {
+                status_commands: subcommand,
+            } => match subcommand {
+                StatusCommands::WorkOrders { period } => {
                     let strategic_status_message: StrategicStatusMessage =
                         StrategicStatusMessage::new_period(period.to_string());
 
                     SystemMessages::Strategic(StrategicRequest::Status(strategic_status_message))
                 }
             },
-            StrategicCommands::Scheduling { subcommand } => match subcommand {
-                SchedulingSubcommands::Schedule(schedule) => {
+            StrategicCommands::Scheduling {
+                scheduling_commands: subcommand,
+            } => match subcommand {
+                SchedulingCommands::Schedule(schedule) => {
                     let schedule_single_work_order =
                         SingleWorkOrder::new(schedule.work_order, schedule.period.clone());
 
@@ -113,10 +117,10 @@ impl StrategicCommands {
 
                     SystemMessages::Strategic(strategic_request)
                 }
-                SchedulingSubcommands::PeriodLock { period: _ } => {
+                SchedulingCommands::PeriodLock { period: _ } => {
                     todo!()
                 }
-                SchedulingSubcommands::Exclude { work_order, period } => {
+                SchedulingCommands::Exclude { work_order, period } => {
                     let exclude_single_work_order =
                         SingleWorkOrder::new(*work_order, period.clone());
 
@@ -129,8 +133,10 @@ impl StrategicCommands {
                     SystemMessages::Strategic(strategic_request)
                 }
             },
-            StrategicCommands::Resources { subcommand } => match subcommand {
-                ResourcesSubcommands::Loading {
+            StrategicCommands::Resources {
+                resource_commands: subcommand,
+            } => match subcommand {
+                ResourceCommands::Loading {
                     periods_end,
                     select_resources,
                 } => {
@@ -155,7 +161,7 @@ impl StrategicCommands {
 
                     SystemMessages::Strategic(strategic_request)
                 }
-                ResourcesSubcommands::Capacity {
+                ResourceCommands::Capacity {
                     periods_end,
                     select_resources,
                 } => {
@@ -181,24 +187,24 @@ impl StrategicCommands {
                     SystemMessages::Strategic(strategic_request)
                 }
 
-                ResourcesSubcommands::SetCapacity {
+                ResourceCommands::SetCapacity {
                     resource: _,
                     period: _,
                     capacity: _,
                 } => {
                     todo!()
                 }
-                ResourcesSubcommands::SetCapacityPolicy {
+                ResourceCommands::SetCapacityPolicy {
                     resource: _,
                     capacity: _,
                 } => {
                     todo!()
                 }
-                ResourcesSubcommands::SetCapacityPolicyDefault => {
+                ResourceCommands::SetCapacityPolicyDefault => {
                     let resources = generate_manual_resources(client);
 
                     let strategic_resources_message =
-                        StrategicResourceMessage::new_set_resources(resources.await);
+                        StrategicResourceMessage::new_set_resources(resources);
 
                     let strategic_request =
                         StrategicRequest::Resources(strategic_resources_message);
@@ -210,10 +216,8 @@ impl StrategicCommands {
     }
 }
 
-async fn generate_manual_resources(
-    client: &Client,
-) -> HashMap<shared_messages::resources::Resources, HashMap<String, f64>> {
-    let periods: Vec<String> = crate::commands::orchestrator::get_periods(client).await;
+fn generate_manual_resources(client: &Client) -> HashMap<Resources, HashMap<String, f64>> {
+    let periods: Vec<String> = crate::commands::orchestrator::strategic_periods(client);
 
     let gradual_reduction = |i: usize| -> f64 {
         if i == 0 {

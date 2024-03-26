@@ -39,7 +39,7 @@ impl Period {
 }
 
 impl Period {
-    pub fn get_period_string(&self) -> String {
+    pub fn period_string(&self) -> String {
         self.period_string.clone()
     }
 
@@ -240,8 +240,8 @@ mod tests {
 
         let new_period = Period::new(
             1,
-            period.start_date().clone() + Duration::weeks(2),
-            period.end_date().clone() + Duration::weeks(2),
+            period.start_date().to_owned() + Duration::weeks(2),
+            period.end_date().to_owned() + Duration::weeks(2),
         );
 
         assert_eq!(new_period.period_string, "2025-W1-2".to_string());

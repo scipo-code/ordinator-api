@@ -1,6 +1,5 @@
 use clap::Subcommand;
 use shared_messages::{LevelOfDetail, LogLevel};
-use tracing::Level;
 
 /// The StatusCommands are mostly important for the schedulingenvironment.
 #[derive(Subcommand, Debug)]

@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use reqwest::Client;
+use reqwest::blocking::Client;
 use shared_messages::{orchestrator::OrchestratorRequest, resources::Id, SystemMessages};
 
 #[derive(Subcommand, Debug)]
@@ -48,7 +48,7 @@ pub enum OperationalAgentCommands {
 }
 
 impl OrchestratorCommands {
-    pub async fn execute(&self, client: &Client) -> SystemMessages {
+    pub fn execute(&self, client: &Client) -> SystemMessages {
         match self {
             OrchestratorCommands::SchedulingEnvironment => {
                 todo!()
@@ -101,7 +101,7 @@ impl OrchestratorCommands {
                             vec![resource.clone()],
                         ));
                     let message = SystemMessages::Orchestrator(create_supervisor_agent);
-                    crate::send_http(client, message).await;
+                    crate::send_http(client, message);
                 }
 
                 let operational_resources = [
@@ -122,7 +122,7 @@ impl OrchestratorCommands {
                                 vec![operational_resources[i].clone()],
                             ));
                         let message = SystemMessages::Orchestrator(create_operational_agent);
-                        crate::send_http(client, message).await;
+                        crate::send_http(client, message);
                     }
                 }
 
@@ -132,13 +132,28 @@ impl OrchestratorCommands {
     }
 }
 
-pub async fn get_periods(client: &Client) -> Vec<String> {
-    let status_request = OrchestratorRequest::GetPeriods;
+pub fn strategic_periods(client: &Client) -> Vec<String> {
+    let orchestrator_request = OrchestratorRequest::GetPeriods;
 
-    let system_message = SystemMessages::Orchestrator(status_request);
+    let system_message = SystemMessages::Orchestrator(orchestrator_request);
 
-    let response = crate::send_http(client, system_message).await;
-    response
+    let strategic_periods = crate::send_http(client, system_message);
+    strategic_periods
+        .to_string()
+        .replace('\"', "")
+        .split(',')
+        .map(|s| s.to_string())
+        .collect::<Vec<String>>()
+}
+
+pub fn tactical_days(client: &Client) -> Vec<String> {
+    let orchestrator_request = OrchestratorRequest::GetDays;
+
+    let system_message = SystemMessages::Orchestrator(orchestrator_request);
+
+    let tactical_days = crate::send_http(client, system_message);
+
+    tactical_days
         .to_string()
         .replace('\"', "")
         .split(',')

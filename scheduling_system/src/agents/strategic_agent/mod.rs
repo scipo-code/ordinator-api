@@ -56,7 +56,7 @@ impl StrategicAgent {
     }
 
     pub fn update_tactical_agent(&self) {
-        let tactical_work_orders = self.strategic_agent_algorithm.get_tactical_work_orders();
+        let tactical_work_orders = self.strategic_agent_algorithm.tactical_work_orders();
 
         match &self.tactical_agent_addr {
             Some(tactical_agent_addr) => {
@@ -188,13 +188,12 @@ mod tests {
             OptimizedWorkOrders::new(HashMap::new()),
             HashSet::new(),
             periods,
-            true,
         );
 
         let mut manual_resources = HashMap::new();
 
         let mut period_hash_map = HashMap::new();
-        period_hash_map.insert(period.get_period_string(), 300.0);
+        period_hash_map.insert(period.period_string(), 300.0);
 
         manual_resources.insert(Resources::MtnMech, period_hash_map.clone());
         manual_resources.insert(Resources::MtnElec, period_hash_map.clone());

@@ -6,6 +6,8 @@ pub mod tactical_time_message;
 use actix::Message;
 use serde::{Deserialize, Serialize};
 
+use crate::agent_error::AgentError;
+
 use self::{
     tactical_resources_message::TacticalResourceMessage,
     tactical_scheduling_message::TacticalSchedulingMessage,
@@ -21,5 +23,5 @@ pub enum TacticalRequest {
 }
 
 impl Message for TacticalRequest {
-    type Result = String;
+    type Result = Result<String, AgentError>;
 }

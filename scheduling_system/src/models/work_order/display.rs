@@ -39,7 +39,7 @@ impl WorkOrder {
             self.work_order_number(),
             self.order_dates()
                 .earliest_allowed_start_period
-                .get_period_string(),
+                .period_string(),
             if self.status_codes().awsc {
                 "AWSC"
             } else {

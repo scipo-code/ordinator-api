@@ -4,12 +4,13 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use crate::agents::operational_agent::{OperationalAgent, OperationalAgentBuilder};
-use crate::agents::strategic_agent::strategic_algorithm::OptimizedWorkOrders;
+use crate::agents::strategic_agent::strategic_algorithm::OptimizedWorkOrder;
 use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
-use crate::agents::strategic_agent::strategic_algorithm::{AlgorithmResources, OptimizedWorkOrder};
+use crate::agents::strategic_agent::strategic_algorithm::{self, OptimizedWorkOrders};
 use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::supervisor_agent::SupervisorAgent;
+use crate::agents::tactical_agent::tactical_algorithm::{self, Day, TacticalAlgorithm};
 use crate::agents::tactical_agent::TacticalAgent;
 use crate::models::time_environment::period::Period;
 use crate::models::SchedulingEnvironment;
@@ -33,7 +34,11 @@ impl AgentFactory {
             .lock()
             .unwrap()
             .clone_work_orders();
-        let cloned_periods = self.scheduling_environment.lock().unwrap().clone_periods();
+        let cloned_periods = self
+            .scheduling_environment
+            .lock()
+            .unwrap()
+            .clone_strategic_periods();
         let optimized_work_orders: OptimizedWorkOrders =
             create_optimized_work_orders(&mut cloned_work_orders, &cloned_periods);
 
@@ -41,24 +46,17 @@ impl AgentFactory {
 
         let mut period_locks = HashSet::new();
 
-        period_locks.insert(locked_scheduling_environment.get_periods()[0].clone());
+        period_locks.insert(locked_scheduling_environment.periods()[0].clone());
         //period_locks.insert(locked_scheduling_environment.get_periods()[1].clone());
 
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
-            AlgorithmResources::new(initialize_manual_resources(
-                &locked_scheduling_environment,
-                0.0,
-            )),
-            AlgorithmResources::new(initialize_manual_resources(
-                &locked_scheduling_environment,
-                0.0,
-            )),
+            initialize_strategic_resources(&locked_scheduling_environment, 0.0),
+            initialize_strategic_resources(&locked_scheduling_environment, 0.0),
             PriorityQueues::new(),
             optimized_work_orders,
             period_locks,
-            locked_scheduling_environment.clone_periods(),
-            true,
+            locked_scheduling_environment.clone_strategic_periods(),
         );
 
         drop(locked_scheduling_environment);
@@ -79,7 +77,7 @@ impl AgentFactory {
             .start();
             sender.send(strategic_addr).unwrap();
         });
-
+        dbg!();
         receiver.recv().unwrap()
     }
 
@@ -89,15 +87,25 @@ impl AgentFactory {
         strategic_agent_addr: Addr<StrategicAgent>,
     ) -> Addr<TacticalAgent> {
         let (sender, receiver) = std::sync::mpsc::channel::<Addr<TacticalAgent>>();
+        dbg!();
+        let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+        dbg!();
+        let tactical_algorithm = TacticalAlgorithm::new(
+            scheduling_environment_guard.clone_tactical_days(),
+            initialize_tactical_resources(&scheduling_environment_guard, 0.0),
+            initialize_tactical_resources(&scheduling_environment_guard, 0.0),
+        );
 
+        drop(scheduling_environment_guard);
+        dbg!();
         let arc_scheduling_environment = self.scheduling_environment.clone();
-
         Arbiter::new().spawn_fn(move || {
             dbg!("Tactical agent created");
             let tactical_addr = TacticalAgent::new(
                 0,
                 time_horizon,
                 strategic_agent_addr,
+                tactical_algorithm,
                 arc_scheduling_environment,
             )
             .start();
@@ -202,21 +210,41 @@ fn create_optimized_work_orders(
     OptimizedWorkOrders::new(optimized_work_orders)
 }
 
-fn initialize_manual_resources(
+fn initialize_strategic_resources(
     scheduling_environment: &SchedulingEnvironment,
     start_value: f64,
-) -> HashMap<Resources, HashMap<Period, f64>> {
+) -> strategic_algorithm::AlgorithmResources {
     let mut resource_capacity: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
     for resource in scheduling_environment
-        .get_worker_environment()
+        .worker_environment()
         .get_work_centers()
         .iter()
     {
         let mut periods = HashMap::new();
-        for period in scheduling_environment.get_periods().iter() {
+        for period in scheduling_environment.periods().iter() {
             periods.insert(period.clone(), start_value);
         }
         resource_capacity.insert(resource.clone(), periods);
     }
-    resource_capacity
+    strategic_algorithm::AlgorithmResources::new(resource_capacity)
+}
+
+fn initialize_tactical_resources(
+    scheduling_environment: &SchedulingEnvironment,
+    start_value: f64,
+) -> tactical_algorithm::AlgorithmResources {
+    let mut resource_capacity: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
+    for resource in scheduling_environment
+        .worker_environment()
+        .get_work_centers()
+        .iter()
+    {
+        let mut days = HashMap::new();
+        for day in scheduling_environment.clone_tactical_days().iter() {
+            days.insert(day.clone(), start_value);
+        }
+        resource_capacity.insert(resource.clone(), days);
+    }
+    dbg!(resource_capacity.clone());
+    tactical_algorithm::AlgorithmResources::new(resource_capacity)
 }
