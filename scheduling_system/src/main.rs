@@ -14,15 +14,17 @@ use agents::orchestrator::Orchestrator;
 
 use crate::init::logging;
 
+///This is the entry point of the application
 #[actix_web::main]
 async fn main() -> Result<(), io::Error> {
+    ///logs all the entries
     let log_handles = logging::setup_logging();
 
     let scheduling_environment = Arc::new(Mutex::new(
         init::model_initializers::initialize_scheduling_environment(52, 56),
     ));
 
-    let orchestrator = Arc::new(Mutex::new(Orchestrator::new(
+    let orchestrator = Arc::new(Mutex::new(Orchestrator::new( 
         scheduling_environment.clone(),
         log_handles,
     )));
