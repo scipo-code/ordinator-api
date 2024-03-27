@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::models::time_environment::period::Period;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct OrderDates {
+pub struct WorkOrderDates {
     pub earliest_allowed_start_date: DateTime<Utc>,
     pub latest_allowed_finish_date: DateTime<Utc>,
     pub earliest_allowed_start_period: Period,
@@ -21,7 +21,7 @@ pub struct OrderDates {
     pub material_expected_date: Option<DateTime<Utc>>,
 }
 
-impl OrderDates {
+impl WorkOrderDates {
     #[cfg(test)]
     pub fn new_test() -> Self {
         use chrono::TimeZone;

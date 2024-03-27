@@ -68,11 +68,8 @@ impl Handler<SetAddr> for SupervisorAgent {
 
     #[instrument(level = "trace", skip_all)]
     fn handle(&mut self, msg: SetAddr, _ctx: &mut Self::Context) {
-        match msg {
-            SetAddr::Operational(id, addr) => {
-                self.operational_agent_addrs.insert(id, addr);
-            }
-            _ => {}
+        if let SetAddr::Operational(id, addr) = msg {
+            self.operational_agent_addrs.insert(id, addr);
         }
     }
 }

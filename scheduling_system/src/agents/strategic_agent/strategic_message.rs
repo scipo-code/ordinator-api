@@ -27,11 +27,9 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 
         temporary_schedule.calculate_objective();
 
-        if temporary_schedule.get_objective_value()
-            < self.strategic_agent_algorithm.get_objective_value()
-        {
+        if temporary_schedule.objective_value() < self.strategic_agent_algorithm.objective_value() {
             self.strategic_agent_algorithm = temporary_schedule;
-            self.update_tactical_agent();
+            // self.update_tactical_agent();
         }
         ctx.notify(ScheduleIteration {});
     }
@@ -46,13 +44,11 @@ impl Handler<StrategicRequest> for StrategicAgent {
             StrategicRequest::Status(strategic_status_message) => match strategic_status_message {
                 StrategicStatusMessage::General => {
                     let scheduling_status = self.scheduling_environment.lock().unwrap().to_string();
-                    let strategic_objective = self
-                        .strategic_agent_algorithm
-                        .get_objective_value()
-                        .to_string();
+                    let strategic_objective =
+                        self.strategic_agent_algorithm.objective_value().to_string();
 
                     let optimized_work_orders =
-                        self.strategic_agent_algorithm.get_optimized_work_orders();
+                        self.strategic_agent_algorithm.optimized_work_orders();
 
                     let number_of_strategic_work_orders = optimized_work_orders.len();
                     let mut scheduled_count = 0;
@@ -65,17 +61,17 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     let scheduling_status = format!(
                     "{}\nWith objectives: \n  strategic objective of: {}\n    {} of {} work orders scheduled",
                     scheduling_status, strategic_objective, scheduled_count, number_of_strategic_work_orders
-                );
+                    );
                     Ok(scheduling_status)
                 }
                 StrategicStatusMessage::Period(period) => {
-                    let work_orders = self.strategic_agent_algorithm.get_optimized_work_orders();
+                    let work_orders = self.strategic_agent_algorithm.optimized_work_orders();
 
                     if !self
                         .strategic_agent_algorithm
-                        .get_periods()
+                        .periods()
                         .iter()
-                        .map(|period| period.get_period_string())
+                        .map(|period| period.period_string())
                         .collect::<Vec<_>>()
                         .contains(&period)
                     {
@@ -87,9 +83,7 @@ impl Handler<StrategicRequest> for StrategicAgent {
                     let work_orders_by_period: Vec<u32> = work_orders
                         .iter()
                         .filter(|(_, opt_wo)| match opt_wo.get_scheduled_period() {
-                            Some(scheduled_period) => {
-                                scheduled_period.get_period_string() == period
-                            }
+                            Some(scheduled_period) => scheduled_period.period_string() == period,
                             None => false,
                         })
                         .map(|(work_order_number, _)| *work_order_number)
@@ -110,10 +104,10 @@ impl Handler<StrategicRequest> for StrategicAgent {
             StrategicRequest::Periods(periods_message) => {
                 let mut scheduling_env_lock = self.scheduling_environment.lock().unwrap();
 
-                let periods = scheduling_env_lock.get_mut_periods();
+                let periods = scheduling_env_lock.periods_mut();
 
                 for period_id in periods_message.periods.iter() {
-                    if periods.last().unwrap().get_id() + 1 == *period_id {
+                    if periods.last().unwrap().id() + 1 == *period_id {
                         let new_period =
                             periods.last().unwrap().clone() + chrono::Duration::weeks(2);
                         periods.push(new_period);
@@ -134,7 +128,7 @@ impl Handler<StatusMessage> for StrategicAgent {
     fn handle(&mut self, _msg: StatusMessage, _ctx: &mut Self::Context) -> Self::Result {
         format!(
             "Objective: {}",
-            self.strategic_agent_algorithm.get_objective_value()
+            self.strategic_agent_algorithm.objective_value()
         )
     }
 }
@@ -178,7 +172,6 @@ pub mod tests {
             OptimizedWorkOrders::new(HashMap::new()),
             HashSet::new(),
             periods.clone(),
-            true,
         );
 
         let optimized_work_order = OptimizedWorkOrder::new(
@@ -198,14 +191,14 @@ pub mod tests {
 
         assert_eq!(
             scheduler_agent_algorithm
-                .get_optimized_work_orders()
+                .optimized_work_orders()
                 .get(&2200002020)
                 .as_ref()
                 .unwrap()
                 .get_locked_in_period()
                 .as_ref()
                 .unwrap()
-                .get_period_string(),
+                .period_string(),
             "2023-W47-48"
         );
     }
@@ -266,7 +259,6 @@ pub mod tests {
             OptimizedWorkOrders::new(HashMap::new()),
             HashSet::new(),
             periods.clone(),
-            true,
         );
 
         let optimized_work_order = OptimizedWorkOrder::new(
@@ -286,14 +278,14 @@ pub mod tests {
 
         assert_eq!(
             scheduler_agent_algorithm
-                .get_optimized_work_order(&2100023841)
+                .optimized_work_order(&2100023841)
                 .unwrap()
                 .get_locked_in_period(),
             Some(Period::new_from_string("2023-W49-50").unwrap())
         );
         assert_eq!(
             scheduler_agent_algorithm
-                .get_optimized_work_order(&2100023841)
+                .optimized_work_order(&2100023841)
                 .unwrap()
                 .get_scheduled_period(),
             None
@@ -325,13 +317,12 @@ pub mod tests {
             optimized_work_orders,
             HashSet::new(),
             vec![],
-            true,
         );
 
         scheduler_agent_algorithm.calculate_objective();
 
         // This test fails because the objective value in not initialized
-        assert_eq!(scheduler_agent_algorithm.get_objective_value(), 2000.0);
+        assert_eq!(scheduler_agent_algorithm.objective_value(), 2000.0);
     }
 
     pub struct TestRequest {}
@@ -355,24 +346,24 @@ pub mod tests {
         fn handle(&mut self, _msg: TestRequest, _: &mut Context<Self>) -> Self::Result {
             // Return the state or part of it
             Some(TestResponse {
-                objective_value: self.strategic_agent_algorithm.get_objective_value(),
+                objective_value: self.strategic_agent_algorithm.objective_value(),
                 manual_resources_capacity: self
                     .strategic_agent_algorithm
-                    .get_resources_capacities()
+                    .resources_capacities()
                     .inner
                     .clone(),
                 manual_resources_loading: self
                     .strategic_agent_algorithm
-                    .get_resources_loadings()
+                    .resources_loadings()
                     .inner
                     .clone(),
                 priority_queues: PriorityQueues::new(),
                 optimized_work_orders: OptimizedWorkOrders::new(
                     self.strategic_agent_algorithm
-                        .get_optimized_work_orders()
+                        .optimized_work_orders()
                         .clone(),
                 ),
-                periods: self.strategic_agent_algorithm.get_periods().clone(),
+                periods: self.strategic_agent_algorithm.periods().clone(),
             })
         }
     }

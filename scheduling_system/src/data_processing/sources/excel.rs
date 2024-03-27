@@ -5,12 +5,13 @@ use std::collections::HashMap;
 use std::path::Path;
 use tracing::{debug, event};
 
+use crate::agents::tactical_agent::tactical_algorithm::Day;
 use crate::models::time_environment::period::Period;
 use crate::models::time_environment::TimeEnvironment;
 use crate::models::work_order::system_condition::SystemCondition;
 
 use crate::models::work_order::functional_location::FunctionalLocation;
-use crate::models::work_order::order_dates::OrderDates;
+use crate::models::work_order::order_dates::WorkOrderDates;
 use crate::models::work_order::order_text::OrderText;
 use crate::models::work_order::order_type::{WDFPriority, WGNPriority, WPMPriority};
 use crate::models::work_order::order_type::{WROPriority, WorkOrderType};
@@ -18,11 +19,11 @@ use crate::models::work_order::priority::Priority;
 use crate::models::work_order::revision::Revision;
 use crate::models::work_order::status_codes::{MaterialStatus, StatusCodes};
 use crate::models::work_order::unloading_point::UnloadingPoint;
-use crate::models::work_order::{ActivityRelation, WorkOrder};
+use crate::models::work_order::{ActivityRelation, WorkOrder, WorkOrderAnalytic, WorkOrderInfo};
 use crate::models::worker_environment::WorkerEnvironment;
 use crate::models::{SchedulingEnvironment, WorkOrders};
 use chrono::{
-    naive, DateTime, Datelike, Duration, Local, NaiveDate, NaiveTime, TimeZone, Timelike, Utc,
+    naive, DateTime, Datelike, Days, Duration, NaiveDate, NaiveTime, TimeZone, Timelike, Utc,
     Weekday,
 };
 use shared_messages::resources::Resources;
@@ -67,13 +68,20 @@ pub fn load_data_file(
         )
     });
 
-    let tactical_days = |number_of_days: u32| -> Vec<NaiveDate> {
-        let mut days: Vec<NaiveDate> = Vec::new();
-        let mut date = Local::now().date_naive();
+    // The dates should be based on the idea of periods. This means that the code should actually
+    // start on the date of the first period and not today? Hmm... is this correct? Is it really the
+    // period. We are interested in the progression of the frozen schedule, so we want to start the
+    // date on the first day of the first period. In a way what we actually want maybe is to have
+    // the first day of the previous period as it would allow us to understand the boundary.
+    let first_period = strategic_periods.first().unwrap().clone();
 
-        for _ in 0..number_of_days {
-            days.push(date);
-            date = date.succ_opt().unwrap();
+    let tactical_days = |number_of_days: u32| -> Vec<Day> {
+        let mut days: Vec<Day> = Vec::new();
+        let mut date = first_period.start_date().to_owned();
+        // How should I handle the time zones? Hmm... that is a good question?
+        for day_index in 0..number_of_days {
+            days.push(Day::new(day_index as usize, date.to_owned()));
+            date = date.checked_add_days(Days::new(1)).unwrap();
         }
         days
     };
@@ -202,38 +210,48 @@ fn create_new_work_order(
         _ => Priority::StringValue(String::new()),
     };
 
-    Ok(WorkOrder::new(
-        match row
-            .get(
-                *header_to_index
-                    .get("Order")
-                    .ok_or("Order header not found")?,
-            )
-            .cloned()
-        {
-            Some(calamine::Data::Int(n)) => n as u32,
-            Some(calamine::Data::Float(n)) => n as u32,
-            Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(0),
-            _ => 0,
-        },
-        false,
+    let work_order_number = match row
+        .get(
+            *header_to_index
+                .get("Order")
+                .ok_or("Order header not found")?,
+        )
+        .cloned()
+    {
+        Some(calamine::Data::Int(n)) => n as u32,
+        Some(calamine::Data::Float(n)) => n as u32,
+        Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(0),
+        _ => 0,
+    };
+
+    let work_order_analytic = WorkOrderAnalytic::new(
         0,
-        priority.clone(),
         0.0,
-        HashMap::<u32, Operation>::new(),
-        HashMap::<Resources, f64>::new(),
-        Vec::<ActivityRelation>::new(),
-        extract_order_type_and_priority(work_order_type_data, priority),
-        SystemCondition::new(),
+        HashMap::new(),
+        false,
+        false,
         extract_status_codes(row, header_to_index).expect("Failed to extract StatusCodes"),
-        extract_order_dates(row, header_to_index, periods).expect("Failed to extract OrderDates"),
-        extract_revision(row, header_to_index).expect("Failed to extract Revision"),
-        extract_unloading_point(row, header_to_index, periods)
-            .expect("Failed to extract UnloadingPoint"),
+    );
+
+    let work_order_info = WorkOrderInfo::new(
+        priority.clone(),
+        extract_order_type_and_priority(work_order_type_data, priority),
         extract_functional_location(row, header_to_index)
             .expect("Failed to extract FunctionalLocation"),
         extract_order_text(row, header_to_index).expect("Failed to extract OrderText"),
-        false,
+        extract_unloading_point(row, header_to_index, periods)
+            .expect("Failed to extract UnloadingPoint"),
+        extract_revision(row, header_to_index).expect("Failed to extract Revision"),
+        SystemCondition::new(),
+    );
+
+    Ok(WorkOrder::new(
+        work_order_number,
+        HashMap::<u32, Operation>::new(),
+        Vec::<ActivityRelation>::new(),
+        work_order_analytic,
+        extract_order_dates(row, header_to_index, periods).expect("Failed to extract OrderDates"),
+        work_order_info,
     ))
 }
 
@@ -301,7 +319,7 @@ fn create_new_operation(
             _ => 0,
         },
         number: match row
-            .get(*header_to_index.get("Number").unwrap_or(&(1 as usize)))
+            .get(*header_to_index.get("Number").unwrap_or(&1_usize))
             .cloned()
         {
             Some(calamine::Data::Int(n)) => n as u32,
@@ -309,25 +327,25 @@ fn create_new_operation(
             Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(0),
             _ => 0,
         },
-        work_center: match work_center_data.cloned() {
+        resource: match work_center_data.cloned() {
             Some(calamine::Data::String(s)) => Resources::new_from_string(s),
             _ => return Err(Error::Msg("Could not parse work center as string")),
         },
         preparation_time: 0.0,
         work_remaining: match work_remaining_data.cloned() {
             Some(calamine::Data::Int(n)) => n as f64,
-            Some(calamine::Data::Float(n)) => n as f64,
+            Some(calamine::Data::Float(n)) => n,
             Some(calamine::Data::String(s)) => s.parse::<f64>().unwrap_or(0.0),
             _ => 100000.0,
         },
         work_performed: match actual_work_data.cloned() {
             Some(calamine::Data::Int(n)) => n as f64,
-            Some(calamine::Data::Float(n)) => n as f64,
+            Some(calamine::Data::Float(n)) => n,
             Some(calamine::Data::String(s)) => s.parse::<f64>().unwrap_or(0.0),
             _ => 0.0,
         },
         work_adjusted: 0.0,
-        operating_time: 0.0,
+        operating_time: 4.0,
         duration: match header_to_index.get("Duration") {
             Some(index) => match row.get(*index).cloned() {
                 Some(calamine::Data::Int(n)) => n as u32,
@@ -365,7 +383,7 @@ fn create_new_operation(
                         }
                     }
                 }
-                Some(calamine::Data::DateTime(s)) => excel_time_to_hh_mm_ss(s.as_f64() as f64),
+                Some(calamine::Data::DateTime(s)) => excel_time_to_hh_mm_ss(s.as_f64()),
                 _ => {
                     event!(
                         tracing::Level::DEBUG,
@@ -489,7 +507,7 @@ fn extract_order_dates(
     row: &[calamine::Data],
     header_to_index: &HashMap<String, usize>,
     periods: &[Period],
-) -> Result<OrderDates, Error> {
+) -> Result<WorkOrderDates, Error> {
     let earliest_allowed_start_date_possible_headers = [
         "Earliest Allowed Start Date",
         "Earliest_Start_Date",
@@ -591,7 +609,7 @@ fn extract_order_dates(
         .and_hms_opt(7, 0, 0)
         .unwrap();
 
-    Ok(OrderDates {
+    Ok(WorkOrderDates {
         earliest_allowed_start_date: DateTime::<Utc>::from_naive_utc_and_offset(
             earliest_allowed_start_date
                 .clone()
@@ -608,14 +626,14 @@ fn extract_order_dates(
         ),
         earliest_allowed_start_period: date_to_period(
             periods,
-            DateTime::<Utc>::from_naive_utc_and_offset(
+            &DateTime::<Utc>::from_naive_utc_and_offset(
                 earliest_allowed_start_date.and_hms_opt(7, 0, 0).unwrap(),
                 Utc,
             ),
         ),
         latest_allowed_finish_period: date_to_period(
             periods,
-            DateTime::<Utc>::from_naive_utc_and_offset(
+            &DateTime::<Utc>::from_naive_utc_and_offset(
                 latest_allowed_finish_date.and_hms_opt(7, 0, 0).unwrap(),
                 Utc,
             ),
@@ -691,7 +709,7 @@ fn extract_unloading_point(
                 Some(
                     match periods
                         .iter()
-                        .find(|period| period.get_start_date() == start_date)
+                        .find(|period| period.start_date() == &start_date)
                     {
                         Some(period) => period.clone(),
                         None => periods.last().unwrap().clone(),
@@ -895,10 +913,10 @@ fn extract_order_text(
     })
 }
 
-fn date_to_period(periods: &[Period], date: DateTime<Utc>) -> Period {
+fn date_to_period(periods: &[Period], date: &DateTime<Utc>) -> Period {
     let period: Option<Period> = periods
         .iter()
-        .find(|period| period.get_start_date() <= date && period.get_end_date() >= date)
+        .find(|period| period.start_date() <= date && period.end_date() >= date)
         .cloned();
 
     match period {
@@ -909,7 +927,7 @@ fn date_to_period(periods: &[Period], date: DateTime<Utc>) -> Period {
             loop {
                 counter += 1;
                 first_period = first_period - Duration::weeks(2);
-                if first_period.get_start_date() <= date && first_period.get_end_date() >= date {
+                if first_period.start_date() <= date && first_period.end_date() >= date {
                     break;
                 }
                 if counter >= 1000 {
@@ -1126,7 +1144,7 @@ mod tests {
         ];
 
         let date: DateTime<Utc> = Utc.with_ymd_and_hms(2023, 1, 10, 7, 0, 0).unwrap();
-        assert_eq!(date_to_period(&periods, date), periods[0].clone());
+        assert_eq!(date_to_period(&periods, &date), periods[0].clone());
     }
 
     #[test]
@@ -1138,7 +1156,10 @@ mod tests {
         let scheduling_environment = load_data_file(file_path, number_of_periods, number_of_days);
 
         assert_eq!(
-            scheduling_environment.unwrap().clone_periods().len(),
+            scheduling_environment
+                .unwrap()
+                .clone_strategic_periods()
+                .len(),
             number_of_periods as usize
         );
 
@@ -1147,17 +1168,17 @@ mod tests {
         let number_of_work_orders = scheduling_environment
             .as_ref()
             .unwrap()
-            .get_work_orders()
+            .work_orders()
             .inner
             .len();
         let number_of_operations = scheduling_environment
             .as_ref()
             .unwrap()
-            .get_work_orders()
+            .work_orders()
             .inner
             .get(&2100024139)
             .unwrap()
-            .get_operations()
+            .operations()
             .len();
 
         assert_eq!(number_of_work_orders, 1227);

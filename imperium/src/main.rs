@@ -6,9 +6,9 @@ use commands::sap::SapCommands;
 use commands::status::{StatusCommands, WorkOrders};
 use commands::strategic::StrategicCommands;
 use commands::tactical::TacticalCommands;
-use reqwest::Client;
+use reqwest::blocking::Client;
 use shared_messages::orchestrator::OrchestratorRequest;
-use shared_messages::{LevelOfDetail, LogLevel, SystemMessages};
+use shared_messages::SystemMessages;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -17,7 +17,7 @@ struct Cli {
     command: Commands,
 }
 
-// None => Commands::get_status(client).await,
+// None => Commands::get_status(client),
 
 #[derive(Subcommand)]
 enum Commands {
@@ -51,23 +51,21 @@ enum Commands {
     },
     Test,
 }
-
-#[tokio::main]
-async fn main() {
+fn main() {
     let cli = Cli::parse();
 
-    let client = reqwest::Client::new();
+    let client = reqwest::blocking::Client::new();
 
-    let system_message = handle_command(cli, &client).await;
+    let system_message = handle_command(cli, &client);
 
-    let response = send_http(&client, system_message).await;
+    let response = send_http(&client, system_message);
 
     let formatted_response = response.replace('\"', "");
 
     println!("{}", formatted_response);
 }
 
-async fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
+fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
     match &cli.command {
         Commands::Status { status_commands } => match status_commands {
             StatusCommands::WorkOrders { work_orders } => match work_orders {
@@ -102,11 +100,11 @@ async fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
         },
         Commands::Orchestrator {
             orchestrator_commands,
-        } => orchestrator_commands.execute(client).await,
+        } => orchestrator_commands.execute(client),
 
-        Commands::Strategic { strategic_commands } => strategic_commands.execute(client).await,
+        Commands::Strategic { strategic_commands } => strategic_commands.execute(client),
 
-        Commands::Tactical { tactical_commands } => tactical_commands.execute(),
+        Commands::Tactical { tactical_commands } => tactical_commands.execute(client),
 
         Commands::Supervisor => {
             todo!()
@@ -122,7 +120,7 @@ async fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
     }
 }
 
-async fn send_http(client: &Client, system_message: SystemMessages) -> String {
+fn send_http(client: &Client, system_message: SystemMessages) -> String {
     let url = "http://localhost:8080/ws";
     let system_message_json = serde_json::to_string(&system_message).unwrap();
     let res = client
@@ -130,7 +128,6 @@ async fn send_http(client: &Client, system_message: SystemMessages) -> String {
         .body(system_message_json)
         .header("Content-Type", "application/json")
         .send()
-        .await
         .expect("Could not send request");
 
     // Check the response status and process the response as needed
@@ -139,5 +136,5 @@ async fn send_http(client: &Client, system_message: SystemMessages) -> String {
     } else {
         eprintln!("Failed to send request: {:?}", res.status());
     }
-    res.text().await.unwrap()
+    res.text().unwrap()
 }

@@ -15,6 +15,7 @@ pub mod supervisor_agent;
 pub mod tactical_agent;
 pub mod traits;
 
+#[allow(dead_code)]
 pub enum SetAddr {
     Strategic(Addr<StrategicAgent>),
     Tactical(Addr<TacticalAgent>),
@@ -26,6 +27,7 @@ impl Message for SetAddr {
     type Result = ();
 }
 
+#[allow(dead_code)]
 pub enum SendState {
     Strategic(Vec<(u32, Period)>),
     Tactical,

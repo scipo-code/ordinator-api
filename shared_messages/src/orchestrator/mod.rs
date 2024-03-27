@@ -8,6 +8,7 @@ pub enum OrchestratorRequest {
     GetWorkOrderStatus(u32, LevelOfDetail),
     GetWorkOrdersState(LevelOfDetail),
     GetPeriods,
+    GetDays,
     GetAgentStatus,
     CreateSupervisorAgent(Id),
     DeleteSupervisorAgent(String),

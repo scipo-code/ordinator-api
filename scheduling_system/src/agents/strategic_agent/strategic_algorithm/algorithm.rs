@@ -34,7 +34,7 @@ impl StrategicAlgorithm {
     #[instrument(level = "trace", skip_all)]
     pub fn schedule_forced_work_orders(&mut self) {
         let mut work_order_keys: Vec<u32> = vec![];
-        for (work_order_key, opt_work_order) in self.get_optimized_work_orders().iter() {
+        for (work_order_key, opt_work_order) in self.optimized_work_orders().iter() {
             if opt_work_order.locked_in_period.is_some() {
                 work_order_keys.push(*work_order_key);
             }
@@ -58,7 +58,7 @@ impl StrategicAlgorithm {
             .unwrap()
             .clone();
 
-        if period != self.get_periods().last().unwrap() {
+        if period != self.periods().last().unwrap() {
             for (resource, resource_needed) in optimized_work_order.get_work_load().clone().iter() {
                 let resource_capacity: &f64 = self
                     .resources_capacity
@@ -91,7 +91,6 @@ impl StrategicAlgorithm {
         match self.optimized_work_orders.inner.get_mut(&work_order_key) {
             Some(optimized_work_order) => {
                 optimized_work_order.set_scheduled_period(Some(period.clone()));
-                self.changed = true;
             }
             None => {
                 panic!(
@@ -116,7 +115,6 @@ impl StrategicAlgorithm {
 
         self.optimized_work_orders
             .set_scheduled_period(work_order_key, period_internal.clone());
-        self.changed = true;
 
         let work_order = self
             .optimized_work_orders
@@ -134,7 +132,7 @@ impl StrategicAlgorithm {
         number_of_work_orders: usize,
         rng: &mut impl rand::Rng,
     ) {
-        let optimized_work_orders = self.get_optimized_work_orders();
+        let optimized_work_orders = self.optimized_work_orders();
 
         let mut filtered_keys: Vec<_> = optimized_work_orders
             .iter()
@@ -154,8 +152,6 @@ impl StrategicAlgorithm {
 
             self.populate_priority_queues();
         }
-
-        self.changed = true;
     }
 
     #[instrument(level = "trace", skip_all)]
@@ -189,10 +185,10 @@ impl StrategicAlgorithm {
             period_penalty_contribution += period_penalty;
         }
 
-        for (resource, periods) in &self.get_resources_capacities().inner {
+        for (resource, periods) in &self.resources_capacities().inner {
             for (period, capacity) in periods {
                 let loading = self
-                    .get_resources_loadings()
+                    .resources_loadings()
                     .inner
                     .get(resource)
                     .unwrap()
@@ -233,9 +229,9 @@ impl StrategicAlgorithm {
 }
 
 fn calculate_period_difference(scheduled_period: Period, latest_period: Option<Period>) -> i64 {
-    let scheduled_period_date = scheduled_period.get_end_date();
+    let scheduled_period_date = scheduled_period.end_date().to_owned();
     let latest_period_date = match latest_period.clone() {
-        Some(period) => period.get_end_date(),
+        Some(period) => period.end_date().to_owned(),
         None => scheduled_period_date,
     };
 
@@ -295,7 +291,6 @@ mod tests {
             optimized_work_orders,
             HashSet::new(),
             vec![period.clone()],
-            true,
         );
 
         scheduler_agent_algorithm.schedule_normal_work_order(2200002020, &period);
@@ -349,7 +344,6 @@ mod tests {
             optimized_work_orders,
             HashSet::new(),
             vec![period.clone()],
-            true,
         );
         scheduler_agent_algorithm.schedule_normal_work_order(2200002020, &period);
 
@@ -360,7 +354,7 @@ mod tests {
                 .get(&2200002020)
                 .unwrap()
                 .get_scheduled_period(),
-            scheduler_agent_algorithm.get_periods().last().cloned()
+            scheduler_agent_algorithm.periods().last().cloned()
         );
     }
 
@@ -402,7 +396,6 @@ mod tests {
             OptimizedWorkOrders::new(HashMap::new()),
             HashSet::new(),
             vec![],
-            true,
         );
 
         let work_order = OptimizedWorkOrder::new(
@@ -516,12 +509,11 @@ mod tests {
             optimized_work_orders,
             HashSet::new(),
             periods,
-            true,
         );
 
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::MtnMech)
                 .unwrap()
@@ -533,7 +525,7 @@ mod tests {
 
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::MtnMech)
                 .unwrap()
@@ -544,7 +536,7 @@ mod tests {
 
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::MtnElec)
                 .unwrap()
@@ -554,7 +546,7 @@ mod tests {
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::Prodtech)
                 .unwrap()
@@ -566,7 +558,7 @@ mod tests {
         scheduler_agent_algorithm.unschedule(2200002020);
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::MtnMech)
                 .unwrap()
@@ -576,7 +568,7 @@ mod tests {
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::MtnElec)
                 .unwrap()
@@ -586,7 +578,7 @@ mod tests {
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::Prodtech)
                 .unwrap()
@@ -599,7 +591,7 @@ mod tests {
 
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::MtnMech)
                 .unwrap()
@@ -609,7 +601,7 @@ mod tests {
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::MtnElec)
                 .unwrap()
@@ -619,7 +611,7 @@ mod tests {
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::Prodtech)
                 .unwrap()
@@ -635,7 +627,7 @@ mod tests {
 
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::MtnMech)
                 .unwrap()
@@ -645,7 +637,7 @@ mod tests {
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::MtnElec)
                 .unwrap()
@@ -655,7 +647,7 @@ mod tests {
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::Prodtech)
                 .unwrap()
@@ -666,7 +658,7 @@ mod tests {
 
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::MtnMech)
                 .unwrap()
@@ -676,7 +668,7 @@ mod tests {
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::MtnElec)
                 .unwrap()
@@ -686,7 +678,7 @@ mod tests {
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::Prodtech)
                 .unwrap()
@@ -698,7 +690,7 @@ mod tests {
         scheduler_agent_algorithm.unschedule(2200002020);
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::MtnMech)
                 .unwrap()
@@ -708,7 +700,7 @@ mod tests {
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::MtnElec)
                 .unwrap()
@@ -718,7 +710,7 @@ mod tests {
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::Prodtech)
                 .unwrap()
@@ -729,7 +721,7 @@ mod tests {
 
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::MtnMech)
                 .unwrap()
@@ -739,7 +731,7 @@ mod tests {
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::MtnElec)
                 .unwrap()
@@ -749,7 +741,7 @@ mod tests {
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .get_resources_loadings()
+                .resources_loadings()
                 .inner
                 .get(&Resources::Prodtech)
                 .unwrap()
@@ -829,7 +821,6 @@ mod tests {
             optimized_work_orders,
             HashSet::new(),
             periods,
-            true,
         );
 
         let seed: [u8; 32] = [
@@ -924,7 +915,6 @@ mod tests {
             optimized_work_orders,
             HashSet::new(),
             vec![Period::new_from_string("2023-W47-48").unwrap()],
-            true,
         );
 
         scheduler_agent_algorithm.unschedule(2100000001);

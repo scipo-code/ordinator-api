@@ -18,7 +18,7 @@ use std::fs;
 
 use crate::models::work_order::functional_location::FunctionalLocation;
 use crate::models::work_order::operation::Operation;
-use crate::models::work_order::order_dates::OrderDates;
+use crate::models::work_order::order_dates::WorkOrderDates;
 use crate::models::work_order::order_text::OrderText;
 use crate::models::work_order::order_type::WorkOrderType;
 use crate::models::work_order::priority::Priority;
@@ -38,119 +38,150 @@ use super::time_environment::period::Period;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrder {
-    order_number: u32,
-    fixed: bool,
-    order_weight: u32,
-    priority: Priority,
-    order_work: f64,
+    work_order_number: u32,
     operations: HashMap<u32, Operation>,
-    work_load: HashMap<Resources, f64>,
     relations: Vec<ActivityRelation>,
-    order_type: WorkOrderType,
-    system_condition: SystemCondition,
-    status_codes: StatusCodes,
-    order_dates: OrderDates,
-    revision: Revision,
-    unloading_point: UnloadingPoint,
+    work_order_analytic: WorkOrderAnalytic,
+    order_dates: WorkOrderDates,
+    work_order_info: WorkOrderInfo,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct WorkOrderInfo {
+    priority: Priority,
+    work_order_type: WorkOrderType,
     functional_location: FunctionalLocation,
     order_text: OrderText,
+    unloading_point: UnloadingPoint,
+    revision: Revision,
+    system_condition: SystemCondition,
+}
+
+impl WorkOrderInfo {
+    pub fn new(
+        priority: Priority,
+        work_order_type: WorkOrderType,
+        functional_location: FunctionalLocation,
+        order_text: OrderText,
+        unloading_point: UnloadingPoint,
+        revision: Revision,
+        system_condition: SystemCondition,
+    ) -> Self {
+        WorkOrderInfo {
+            priority,
+            work_order_type,
+            functional_location,
+            order_text,
+            unloading_point,
+            revision,
+            system_condition,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct WorkOrderAnalytic {
+    order_weight: u32,
+    work_order_work: f64,
+    work_load: HashMap<Resources, f64>,
+    fixed: bool,
     vendor: bool,
+    status_codes: StatusCodes,
+}
+
+impl WorkOrderAnalytic {
+    pub fn new(
+        order_weight: u32,
+        work_order_work: f64,
+        work_load: HashMap<Resources, f64>,
+        fixed: bool,
+        vendor: bool,
+        status_codes: StatusCodes,
+    ) -> Self {
+        WorkOrderAnalytic {
+            order_weight,
+            work_order_work,
+            work_load,
+            fixed,
+            vendor,
+            status_codes,
+        }
+    }
 }
 
 impl WorkOrder {
     pub fn new(
-        order_number: u32,
-        fixed: bool,
-        order_weight: u32,
-        priority: Priority,
-        order_work: f64,
+        work_order_number: u32,
         operations: HashMap<u32, Operation>,
-        work_load: HashMap<Resources, f64>,
         relations: Vec<ActivityRelation>,
-        order_type: WorkOrderType,
-        system_condition: SystemCondition,
-        status_codes: StatusCodes,
-        order_dates: OrderDates,
-        revision: Revision,
-        unloading_point: UnloadingPoint,
-        functional_location: FunctionalLocation,
-        order_text: OrderText,
-        vendor: bool,
+        work_order_analytic: WorkOrderAnalytic,
+        order_dates: WorkOrderDates,
+        work_order_info: WorkOrderInfo,
     ) -> Self {
         WorkOrder {
-            order_number,
-            fixed,
-            order_weight,
-            priority,
-            order_work,
+            work_order_number,
             operations,
-            work_load,
             relations,
-            order_type,
-            system_condition,
-            status_codes,
+            work_order_analytic,
+
             order_dates,
-            revision,
-            unloading_point,
-            functional_location,
-            order_text,
-            vendor,
+            work_order_info,
         }
     }
 
-    pub fn get_operations(&self) -> &HashMap<u32, Operation> {
+    pub fn operations(&self) -> &HashMap<u32, Operation> {
         &self.operations
     }
 
-    pub fn get_work_order_number(&self) -> u32 {
-        self.order_number
+    pub fn work_order_number(&self) -> &u32 {
+        &self.work_order_number
     }
 
     pub fn insert_operation(&mut self, operation: Operation) {
         self.operations.insert(operation.activity, operation);
     }
 
-    pub fn get_unloading_point(&self) -> &UnloadingPoint {
-        &self.unloading_point
+    pub fn unloading_point(&self) -> &UnloadingPoint {
+        &self.work_order_info.unloading_point
     }
 
-    pub fn get_mut_order_dates(&mut self) -> &mut OrderDates {
+    pub fn order_dates_mut(&mut self) -> &mut WorkOrderDates {
         &mut self.order_dates
     }
 
-    pub fn get_order_dates(&self) -> &OrderDates {
+    pub fn order_dates(&self) -> &WorkOrderDates {
         &self.order_dates
     }
 
-    pub fn get_status_codes(&self) -> &StatusCodes {
-        &self.status_codes
+    pub fn status_codes(&self) -> &StatusCodes {
+        &self.work_order_analytic.status_codes
     }
 
-    pub fn get_revision(&self) -> &Revision {
-        &self.revision
+    pub fn revision(&self) -> &Revision {
+        &self.work_order_info.revision
     }
 
-    pub fn get_order_type(&self) -> &WorkOrderType {
-        &self.order_type
+    pub fn order_type(&self) -> &WorkOrderType {
+        &self.work_order_info.work_order_type
     }
 
-    pub fn get_priority(&self) -> &Priority {
-        &self.priority
+    pub fn priority(&self) -> &Priority {
+        &self.work_order_info.priority
     }
 
-    pub fn get_work_load(&self) -> &HashMap<Resources, f64> {
-        &self.work_load
+    pub fn work_load(&self) -> &HashMap<Resources, f64> {
+        &self.work_order_analytic.work_load
     }
 
-    pub fn get_order_weight(&self) -> u32 {
-        self.order_weight
+    pub fn work_order_weight(&self) -> u32 {
+        self.work_order_analytic.order_weight
     }
 
     pub fn is_vendor(&self) -> bool {
-        self.vendor
+        self.work_order_analytic.vendor
     }
 
-    pub fn get_relations(&self) -> &Vec<ActivityRelation> {
+    pub fn relations(&self) -> &Vec<ActivityRelation> {
         &self.relations
     }
 }
@@ -195,81 +226,85 @@ impl WorkOrder {
 
     pub fn initialize_weight(&mut self) {
         let parameters: WeightParam = WeightParam::read_config().unwrap();
-        self.order_weight = 0;
+        self.work_order_analytic.order_weight = 0;
 
-        match &self.order_type {
+        match &self.work_order_info.work_order_type {
             WorkOrderType::Wdf(wdf_priority) => match wdf_priority {
                 WDFPriority::One => {
-                    self.order_weight +=
+                    self.work_order_analytic.order_weight +=
                         parameters.wdf_priority_map["1"] * parameters.order_type_weights["WDF"]
                 }
                 WDFPriority::Two => {
-                    self.order_weight +=
+                    self.work_order_analytic.order_weight +=
                         parameters.wdf_priority_map["2"] * parameters.order_type_weights["WDF"]
                 }
                 WDFPriority::Three => {
-                    self.order_weight +=
+                    self.work_order_analytic.order_weight +=
                         parameters.wdf_priority_map["3"] * parameters.order_type_weights["WDF"]
                 }
                 WDFPriority::Four => {
-                    self.order_weight +=
+                    self.work_order_analytic.order_weight +=
                         parameters.wdf_priority_map["4"] * parameters.order_type_weights["WDF"]
                 }
             },
             WorkOrderType::Wgn(wgn_priority) => match wgn_priority {
                 WGNPriority::One => {
-                    self.order_weight +=
+                    self.work_order_analytic.order_weight +=
                         parameters.wgn_priority_map["1"] * parameters.order_type_weights["WGN"]
                 }
                 WGNPriority::Two => {
-                    self.order_weight +=
+                    self.work_order_analytic.order_weight +=
                         parameters.wgn_priority_map["2"] * parameters.order_type_weights["WGN"]
                 }
                 WGNPriority::Three => {
-                    self.order_weight +=
+                    self.work_order_analytic.order_weight +=
                         parameters.wgn_priority_map["3"] * parameters.order_type_weights["WGN"]
                 }
                 WGNPriority::Four => {
-                    self.order_weight +=
+                    self.work_order_analytic.order_weight +=
                         parameters.wgn_priority_map["4"] * parameters.order_type_weights["WGN"]
                 }
             },
             WorkOrderType::Wpm(wpm_priority) => match wpm_priority {
                 WPMPriority::A => {
-                    self.order_weight +=
+                    self.work_order_analytic.order_weight +=
                         parameters.wpm_priority_map["A"] * parameters.order_type_weights["WPM"]
                 }
                 WPMPriority::B => {
-                    self.order_weight +=
+                    self.work_order_analytic.order_weight +=
                         parameters.wpm_priority_map["B"] * parameters.order_type_weights["WPM"]
                 }
                 WPMPriority::C => {
-                    self.order_weight +=
+                    self.work_order_analytic.order_weight +=
                         parameters.wpm_priority_map["C"] * parameters.order_type_weights["WPM"]
                 }
                 WPMPriority::D => {
-                    self.order_weight +=
+                    self.work_order_analytic.order_weight +=
                         parameters.wpm_priority_map["D"] * parameters.order_type_weights["WPM"]
                 }
             },
             WorkOrderType::Wro(_) => (),
-            WorkOrderType::Other => self.order_weight += parameters.order_type_weights["Other"],
+            WorkOrderType::Other => {
+                self.work_order_analytic.order_weight += parameters.order_type_weights["Other"]
+            }
         };
 
-        if self.status_codes.awsc {
-            self.order_weight += parameters.status_weights["AWSC"];
+        if self.work_order_analytic.status_codes.awsc {
+            self.work_order_analytic.order_weight += parameters.status_weights["AWSC"];
         }
 
-        if self.status_codes.sece {
-            self.order_weight += parameters.status_weights["SECE"];
+        if self.work_order_analytic.status_codes.sece {
+            self.work_order_analytic.order_weight += parameters.status_weights["SECE"];
         }
 
-        if self.status_codes.pcnf && self.status_codes.material_status == MaterialStatus::Nmat
-            || self.status_codes.material_status == MaterialStatus::Smat
+        if self.work_order_analytic.status_codes.pcnf
+            && self.work_order_analytic.status_codes.material_status == MaterialStatus::Nmat
+            || self.work_order_analytic.status_codes.material_status == MaterialStatus::Smat
         {
-            self.order_weight += parameters.status_weights["PCNF_NMAT_SMAT"];
+            self.work_order_analytic.order_weight += parameters.status_weights["PCNF_NMAT_SMAT"];
         }
-        self.order_weight *= self.order_work.round() as u32;
+        self.work_order_analytic.order_weight *=
+            self.work_order_analytic.work_order_work.round() as u32;
 
         // TODO Implement for VIS and ABC
     }
@@ -278,18 +313,16 @@ impl WorkOrder {
         let mut work_load: HashMap<Resources, f64> = HashMap::new();
 
         for (_, operation) in self.operations.iter() {
-            *work_load
-                .entry(operation.work_center.clone())
-                .or_insert(0.0) += operation.work_remaining;
+            *work_load.entry(operation.resource.clone()).or_insert(0.0) += operation.work_remaining;
         }
 
-        self.order_work = work_load.values().sum();
-        self.work_load = work_load;
+        self.work_order_analytic.work_order_work = work_load.values().sum();
+        self.work_order_analytic.work_load = work_load;
     }
 
     pub fn initialize_vendor(&mut self) {
-        let work_load = self.work_load.clone();
-        self.vendor = work_load
+        let work_load = self.work_load().clone();
+        self.work_order_analytic.vendor = work_load
             .iter()
             .any(|(resource, _)| resource.is_ven_variant())
     }
@@ -298,21 +331,21 @@ impl WorkOrder {
     /// a maximum of the material status and the earliest start period of the operations.
     /// TODO : A stance will have to be taken on the VEN, SHUTDOWN, and SUBNETWORKS.
     fn initialize_material(&mut self, periods: &[Period]) {
-        match self.get_status_codes().material_status {
+        match self.status_codes().material_status {
             MaterialStatus::Nmat => {
-                self.get_mut_order_dates().earliest_allowed_start_period = periods[0].clone();
+                self.order_dates_mut().earliest_allowed_start_period = periods[0].clone();
             }
             MaterialStatus::Smat => {
-                self.get_mut_order_dates().earliest_allowed_start_period = periods[0].clone();
+                self.order_dates_mut().earliest_allowed_start_period = periods[0].clone();
             }
             MaterialStatus::Cmat => {
-                self.get_mut_order_dates().earliest_allowed_start_period = periods[2].clone();
+                self.order_dates_mut().earliest_allowed_start_period = periods[2].clone();
             }
             MaterialStatus::Pmat => {
-                self.get_mut_order_dates().earliest_allowed_start_period = periods[3].clone();
+                self.order_dates_mut().earliest_allowed_start_period = periods[3].clone();
             }
             MaterialStatus::Wmat => {
-                self.get_mut_order_dates().earliest_allowed_start_period = periods[3].clone();
+                self.order_dates_mut().earliest_allowed_start_period = periods[3].clone();
             }
             MaterialStatus::Unknown => {}
         }
@@ -328,7 +361,7 @@ mod tests {
     use super::{
         functional_location::FunctionalLocation,
         operation::Operation,
-        order_dates::OrderDates,
+        order_dates::WorkOrderDates,
         order_text::OrderText,
         order_type::{WDFPriority, WorkOrderType},
         priority::Priority,
@@ -336,7 +369,7 @@ mod tests {
         status_codes::StatusCodes,
         system_condition::SystemCondition,
         unloading_point::UnloadingPoint,
-        WorkOrder,
+        WorkOrder, WorkOrderAnalytic, WorkOrderInfo,
     };
 
     #[test]
@@ -347,14 +380,14 @@ mod tests {
 
         assert_eq!(
             *work_order
-                .work_load
+                .work_load()
                 .get(&Resources::new_from_string("PRODTECH".to_string()))
                 .unwrap(),
             50.0
         );
         assert_eq!(
             *work_order
-                .work_load
+                .work_load()
                 .get(&Resources::new_from_string("MTN-MECH".to_string()))
                 .unwrap(),
             50.0
@@ -379,24 +412,32 @@ mod tests {
             operations.insert(30, operation_0030);
             operations.insert(40, operation_0040);
 
-            WorkOrder::new(
-                2100023841,
-                false,
+            let work_order_analytic = WorkOrderAnalytic::new(
                 1000,
-                Priority::new_int(1),
                 100.0,
-                operations,
                 HashMap::new(),
-                vec![],
-                WorkOrderType::Wdf(WDFPriority::new(1)),
-                crate::models::work_order::system_condition::SystemCondition::Unknown,
+                false,
+                false,
                 StatusCodes::new_default(),
-                OrderDates::new_test(),
-                Revision::new_default(),
-                UnloadingPoint::new_default(),
+            );
+
+            let work_order_info = WorkOrderInfo::new(
+                Priority::new_int(1),
+                WorkOrderType::Wdf(WDFPriority::new(1)),
                 FunctionalLocation::new_default(),
                 OrderText::new_default(),
-                false,
+                UnloadingPoint::new_default(),
+                Revision::new_default(),
+                SystemCondition::Unknown,
+            );
+
+            WorkOrder::new(
+                2100023841,
+                operations,
+                Vec::new(),
+                work_order_analytic,
+                WorkOrderDates::new_test(),
+                work_order_info,
             )
         }
     }
@@ -415,24 +456,32 @@ mod tests {
             operations.insert(30, operation_0030);
             operations.insert(40, operation_0040);
 
-            WorkOrder::new(
-                2100000001,
-                false,
+            let work_order_analytic = WorkOrderAnalytic::new(
                 1000,
-                Priority::new_int(1),
                 100.0,
-                operations,
                 HashMap::new(),
-                vec![],
-                WorkOrderType::Wdf(WDFPriority::new(1)),
-                SystemCondition::Unknown,
+                false,
+                false,
                 StatusCodes::new_default(),
-                OrderDates::new_test(),
-                Revision::new_default(),
-                UnloadingPoint::new_default(),
+            );
+
+            let work_order_info = WorkOrderInfo::new(
+                Priority::new_int(1),
+                WorkOrderType::Wdf(WDFPriority::new(1)),
                 FunctionalLocation::new_default(),
                 OrderText::new_default(),
-                false,
+                UnloadingPoint::new_default(),
+                Revision::new_default(),
+                SystemCondition::Unknown,
+            );
+
+            WorkOrder::new(
+                2100000001,
+                operations,
+                Vec::new(),
+                work_order_analytic,
+                WorkOrderDates::new_test(),
+                work_order_info,
             )
         }
     }
