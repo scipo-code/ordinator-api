@@ -56,7 +56,7 @@ impl StrategicAgent {
     }
 
     pub fn update_tactical_agent(&self) {
-        let tactical_work_orders = self.strategic_agent_algorithm.get_tactical_work_orders();
+        let tactical_work_orders = self.strategic_agent_algorithm.tactical_work_orders();
 
         match &self.tactical_agent_addr {
             Some(tactical_agent_addr) => {
@@ -111,7 +111,7 @@ mod tests {
     use crate::models::{
         time_environment::period::Period,
         work_order::{
-            functional_location::FunctionalLocation, order_dates::OrderDates,
+            functional_location::FunctionalLocation, order_dates::WorkOrderDates,
             order_text::OrderText, revision::Revision, status_codes::StatusCodes,
             system_condition::SystemCondition, unloading_point::UnloadingPoint,
         },
@@ -132,25 +132,9 @@ mod tests {
         work_load.insert(Resources::MtnElec, 40.0);
         work_load.insert(Resources::Prodtech, 60.0);
 
-        let work_order = WorkOrder::new(
-            2200002020,
-            false,
-            1000,
-            Priority::new_int(1),
-            100.0,
-            HashMap::new(),
-            work_load,
-            vec![],
-            WorkOrderType::Wdf(WDFPriority::new(1)),
-            SystemCondition::new(),
-            StatusCodes::new_default(),
-            OrderDates::new_test(),
-            Revision::new_default(),
-            UnloadingPoint::new_default(),
-            FunctionalLocation::new_default(),
-            OrderText::new_default(),
-            false,
-        );
+        let mut work_order = WorkOrder::default();
+
+    
 
         work_orders.insert(work_order.clone());
 
@@ -188,13 +172,12 @@ mod tests {
             OptimizedWorkOrders::new(HashMap::new()),
             HashSet::new(),
             periods,
-            true,
         );
 
         let mut manual_resources = HashMap::new();
 
         let mut period_hash_map = HashMap::new();
-        period_hash_map.insert(period.get_period_string(), 300.0);
+        period_hash_map.insert(period.period_string(), 300.0);
 
         manual_resources.insert(Resources::MtnMech, period_hash_map.clone());
         manual_resources.insert(Resources::MtnElec, period_hash_map.clone());
@@ -294,25 +277,7 @@ mod tests {
         operations.insert(20, operation_2);
         operations.insert(30, operation_3);
 
-        let work_order_1 = WorkOrder::new(
-            2200002020,
-            false,
-            1000,
-            Priority::new_int(1),
-            100.0,
-            operations,
-            HashMap::new(),
-            vec![],
-            WorkOrderType::Wdf(WDFPriority::new(1)),
-            SystemCondition::new(),
-            StatusCodes::new_default(),
-            OrderDates::new_test(),
-            Revision::new_default(),
-            UnloadingPoint::new_default(),
-            FunctionalLocation::new_default(),
-            OrderText::new_default(),
-            false,
-        );
+        let work_order_1 = WorkOrder::default();
 
         let mut work_orders = WorkOrders::new();
 

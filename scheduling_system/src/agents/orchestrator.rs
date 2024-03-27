@@ -49,19 +49,19 @@ impl ActorRegistry {
         self.operational_agent_addrs.insert(id, addr);
     }
 
-    pub fn get_strategic_agent_addr(&self) -> Addr<StrategicAgent> {
+    pub fn strategic_agent_addr(&self) -> Addr<StrategicAgent> {
         self.strategic_agent_addr.clone()
     }
 
-    pub fn get_tactical_agent_addr(&self) -> Addr<TacticalAgent> {
+    pub fn tactical_agent_addr(&self) -> Addr<TacticalAgent> {
         self.tactical_agent_addr.clone()
     }
 
-    pub fn get_supervisor_agent_addr(&self, id: Id) -> Addr<SupervisorAgent> {
+    pub fn supervisor_agent_addr(&self, id: Id) -> Addr<SupervisorAgent> {
         self.supervisor_agent_addrs.get(&id).unwrap().clone()
     }
 
-    pub fn get_supervisor_agent_addr_by_resource(
+    pub fn supervisor_agent_addr_by_resource(
         &self,
         resource: &shared_messages::resources::Resources,
     ) -> Addr<SupervisorAgent> {
@@ -90,18 +90,20 @@ impl ActorRegistry {
         }
     }
 
-    pub fn get_operational_agent_addr(&self, id: Id) -> Addr<OperationalAgent> {
+    pub fn operational_agent_addr(&self, id: Id) -> Addr<OperationalAgent> {
         self.operational_agent_addrs.get(&id).unwrap().clone()
     }
 
-    pub fn get_supervisor_by_id_string(&self, id_string: String) -> Id {
+    pub fn supervisor_by_id_string(&self, id_string: String) -> Id {
         self.supervisor_agent_addrs
             .keys()
             .find(|id| id.0 == id_string)
             .unwrap()
             .clone()
     }
-    pub fn get_operational_by_id_string(&self, id_string: String) -> Id {
+
+    #[allow(dead_code)]
+    pub fn operational_by_id_string(&self, id_string: String) -> Id {
         self.operational_agent_addrs
             .keys()
             .find(|id| id.0 == id_string)
@@ -118,6 +120,7 @@ impl Orchestrator {
         let agent_factory = agent_factory::AgentFactory::new(scheduling_environment.clone());
 
         let strategic_agent_addr = agent_factory.build_strategic_agent();
+
         let tactical_agent_addr =
             agent_factory.build_tactical_agent(56, strategic_agent_addr.clone());
 

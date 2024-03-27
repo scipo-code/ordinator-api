@@ -16,7 +16,7 @@ impl Handler<StatusMessage> for TacticalAgent {
         format!(
             "Id: {}, Time horizon: {}, Objective: {}",
             self.id,
-            self.get_time_horizon(),
+            self.time_horizon(),
             self.tactical_algorithm.get_objective_value()
         )
     }

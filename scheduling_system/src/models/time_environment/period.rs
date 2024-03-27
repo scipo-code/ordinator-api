@@ -39,20 +39,20 @@ impl Period {
 }
 
 impl Period {
-    pub fn get_period_string(&self) -> String {
+    pub fn period_string(&self) -> String {
         self.period_string.clone()
     }
 
-    pub fn get_start_date(&self) -> DateTime<Utc> {
-        self.start_date
+    pub fn start_date(&self) -> &DateTime<Utc> {
+        &self.start_date
     }
 
-    pub fn get_end_date(&self) -> DateTime<Utc> {
-        self.end_date
+    pub fn end_date(&self) -> &DateTime<Utc> {
+        &self.end_date
     }
 
-    pub fn get_id(&self) -> i32 {
-        self.id
+    pub fn id(&self) -> &i32 {
+        &self.id
     }
 }
 
@@ -240,10 +240,9 @@ mod tests {
 
         let new_period = Period::new(
             1,
-            period.get_start_date() + Duration::weeks(2),
-            period.get_end_date() + Duration::weeks(2),
+            period.start_date().to_owned() + Duration::weeks(2),
+            period.end_date().to_owned() + Duration::weeks(2),
         );
-
 
         assert_eq!(new_period.period_string, "2025-W1-2".to_string());
     }

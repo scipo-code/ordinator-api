@@ -5,6 +5,7 @@ pub mod worker_environment;
 use std::collections::HashMap;
 use std::fmt;
 
+use crate::agents::tactical_agent::tactical_algorithm::Day;
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::WorkOrder;
 use crate::models::worker_environment::WorkerEnvironment;
@@ -14,7 +15,7 @@ use self::time_environment::TimeEnvironment;
 pub struct SchedulingEnvironment {
     work_orders: WorkOrders,
     worker_environment: WorkerEnvironment,
-    pub(super) time_environment: TimeEnvironment,
+    time_environment: TimeEnvironment,
     // material
 }
 
@@ -31,8 +32,12 @@ impl SchedulingEnvironment {
         }
     }
 
-    pub fn clone_periods(&self) -> Vec<Period> {
-        self.time_environment.get_strategic_periods().clone()
+    pub fn clone_strategic_periods(&self) -> Vec<Period> {
+        self.time_environment.strategic_periods().clone()
+    }
+
+    pub fn clone_tactical_days(&self) -> Vec<Day> {
+        self.time_environment.tactical_days().clone()
     }
 
     pub fn clone_work_orders(&self) -> WorkOrders {
@@ -45,15 +50,15 @@ impl SchedulingEnvironment {
         }
     }
 
-    pub fn get_mut_periods(&mut self) -> &mut Vec<Period> {
+    pub fn periods_mut(&mut self) -> &mut Vec<Period> {
         &mut self.time_environment.strategic_periods
     }
 
-    pub fn get_periods(&self) -> &Vec<Period> {
-        &self.time_environment.get_strategic_periods()
+    pub fn periods(&self) -> &Vec<Period> {
+        self.time_environment.strategic_periods()
     }
 
-    pub fn get_worker_environment(&self) -> &WorkerEnvironment {
+    pub fn worker_environment(&self) -> &WorkerEnvironment {
         &self.worker_environment
     }
 
@@ -61,8 +66,12 @@ impl SchedulingEnvironment {
         self.worker_environment.initialize();
     }
 
-    pub fn get_work_orders(&self) -> &WorkOrders {
+    pub fn work_orders(&self) -> &WorkOrders {
         &self.work_orders
+    }
+
+    pub fn time_environment(&self) -> &TimeEnvironment {
+        &self.time_environment
     }
 }
 
@@ -90,7 +99,7 @@ impl WorkOrders {
 
     pub fn insert(&mut self, work_order: WorkOrder) {
         self.inner
-            .insert(work_order.get_work_order_number(), work_order);
+            .insert(*work_order.work_order_number(), work_order);
     }
 
     pub fn new_work_order(&self, order_number: u32) -> bool {
@@ -100,7 +109,7 @@ impl WorkOrders {
 
 impl fmt::Display for SchedulingEnvironment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let workers = match self.get_worker_environment().get_crew().as_ref() {
+        let workers = match self.worker_environment().get_crew().as_ref() {
             Some(crew) => crew.get_workers().len(),
             None => 0,
         };
@@ -114,8 +123,8 @@ impl fmt::Display for SchedulingEnvironment {
         \n  number of tactical days: {}",
             self.work_orders.inner.len(),
             workers,
-            self.time_environment.get_strategic_periods().len(),
-            self.time_environment.get_tactical_days().len(),
+            self.time_environment.strategic_periods().len(),
+            self.time_environment.tactical_days().len(),
         )?;
         Ok(())
     }
