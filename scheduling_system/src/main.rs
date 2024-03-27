@@ -14,6 +14,7 @@ use agents::orchestrator::Orchestrator;
 
 use crate::init::logging;
 
+///Jeg er god til kode 
 #[actix_web::main]
 async fn main() -> Result<(), io::Error> {
     let log_handles = logging::setup_logging();
@@ -22,7 +23,7 @@ async fn main() -> Result<(), io::Error> {
         init::model_initializers::initialize_scheduling_environment(52, 56),
     ));
 
-    let orchestrator = Arc::new(Mutex::new(Orchestrator::new(
+    let orchestrator = Arc::new(Mutex::new(Orchestrator::new( ///den her funktion gør et eller andet
         scheduling_environment.clone(),
         log_handles,
     )));
