@@ -11,7 +11,7 @@ use crate::models::time_environment::TimeEnvironment;
 use crate::models::work_order::system_condition::SystemCondition;
 
 use crate::models::work_order::functional_location::FunctionalLocation;
-use crate::models::work_order::order_dates::OrderDates;
+use crate::models::work_order::order_dates::WorkOrderDates;
 use crate::models::work_order::order_text::OrderText;
 use crate::models::work_order::order_type::{WDFPriority, WGNPriority, WPMPriority};
 use crate::models::work_order::order_type::{WROPriority, WorkOrderType};
@@ -19,7 +19,7 @@ use crate::models::work_order::priority::Priority;
 use crate::models::work_order::revision::Revision;
 use crate::models::work_order::status_codes::{MaterialStatus, StatusCodes};
 use crate::models::work_order::unloading_point::UnloadingPoint;
-use crate::models::work_order::{ActivityRelation, WorkOrder};
+use crate::models::work_order::{ActivityRelation, WorkOrder, WorkOrderAnalytic, WorkOrderInfo};
 use crate::models::worker_environment::WorkerEnvironment;
 use crate::models::{SchedulingEnvironment, WorkOrders};
 use chrono::{
@@ -210,38 +210,48 @@ fn create_new_work_order(
         _ => Priority::StringValue(String::new()),
     };
 
-    Ok(WorkOrder::new(
-        match row
-            .get(
-                *header_to_index
-                    .get("Order")
-                    .ok_or("Order header not found")?,
-            )
-            .cloned()
-        {
-            Some(calamine::Data::Int(n)) => n as u32,
-            Some(calamine::Data::Float(n)) => n as u32,
-            Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(0),
-            _ => 0,
-        },
-        false,
+    let work_order_number = match row
+        .get(
+            *header_to_index
+                .get("Order")
+                .ok_or("Order header not found")?,
+        )
+        .cloned()
+    {
+        Some(calamine::Data::Int(n)) => n as u32,
+        Some(calamine::Data::Float(n)) => n as u32,
+        Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(0),
+        _ => 0,
+    };
+
+    let work_order_analytic = WorkOrderAnalytic::new(
         0,
-        priority.clone(),
         0.0,
-        HashMap::<u32, Operation>::new(),
-        HashMap::<Resources, f64>::new(),
-        Vec::<ActivityRelation>::new(),
-        extract_order_type_and_priority(work_order_type_data, priority),
-        SystemCondition::new(),
+        HashMap::new(),
+        false,
+        false,
         extract_status_codes(row, header_to_index).expect("Failed to extract StatusCodes"),
-        extract_order_dates(row, header_to_index, periods).expect("Failed to extract OrderDates"),
-        extract_revision(row, header_to_index).expect("Failed to extract Revision"),
-        extract_unloading_point(row, header_to_index, periods)
-            .expect("Failed to extract UnloadingPoint"),
+    );
+
+    let work_order_info = WorkOrderInfo::new(
+        priority.clone(),
+        extract_order_type_and_priority(work_order_type_data, priority),
         extract_functional_location(row, header_to_index)
             .expect("Failed to extract FunctionalLocation"),
         extract_order_text(row, header_to_index).expect("Failed to extract OrderText"),
-        false,
+        extract_unloading_point(row, header_to_index, periods)
+            .expect("Failed to extract UnloadingPoint"),
+        extract_revision(row, header_to_index).expect("Failed to extract Revision"),
+        SystemCondition::new(),
+    );
+
+    Ok(WorkOrder::new(
+        work_order_number,
+        HashMap::<u32, Operation>::new(),
+        Vec::<ActivityRelation>::new(),
+        work_order_analytic,
+        extract_order_dates(row, header_to_index, periods).expect("Failed to extract OrderDates"),
+        work_order_info,
     ))
 }
 
@@ -309,7 +319,7 @@ fn create_new_operation(
             _ => 0,
         },
         number: match row
-            .get(*header_to_index.get("Number").unwrap_or(&(1 as usize)))
+            .get(*header_to_index.get("Number").unwrap_or(&1_usize))
             .cloned()
         {
             Some(calamine::Data::Int(n)) => n as u32,
@@ -373,7 +383,7 @@ fn create_new_operation(
                         }
                     }
                 }
-                Some(calamine::Data::DateTime(s)) => excel_time_to_hh_mm_ss(s.as_f64() as f64),
+                Some(calamine::Data::DateTime(s)) => excel_time_to_hh_mm_ss(s.as_f64()),
                 _ => {
                     event!(
                         tracing::Level::DEBUG,
@@ -497,7 +507,7 @@ fn extract_order_dates(
     row: &[calamine::Data],
     header_to_index: &HashMap<String, usize>,
     periods: &[Period],
-) -> Result<OrderDates, Error> {
+) -> Result<WorkOrderDates, Error> {
     let earliest_allowed_start_date_possible_headers = [
         "Earliest Allowed Start Date",
         "Earliest_Start_Date",
@@ -599,7 +609,7 @@ fn extract_order_dates(
         .and_hms_opt(7, 0, 0)
         .unwrap();
 
-    Ok(OrderDates {
+    Ok(WorkOrderDates {
         earliest_allowed_start_date: DateTime::<Utc>::from_naive_utc_and_offset(
             earliest_allowed_start_date
                 .clone()

@@ -77,7 +77,7 @@ impl AgentFactory {
             .start();
             sender.send(strategic_addr).unwrap();
         });
-        dbg!();
+
         receiver.recv().unwrap()
     }
 
@@ -87,9 +87,9 @@ impl AgentFactory {
         strategic_agent_addr: Addr<StrategicAgent>,
     ) -> Addr<TacticalAgent> {
         let (sender, receiver) = std::sync::mpsc::channel::<Addr<TacticalAgent>>();
-        dbg!();
+
         let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
-        dbg!();
+
         let tactical_algorithm = TacticalAlgorithm::new(
             scheduling_environment_guard.clone_tactical_days(),
             initialize_tactical_resources(&scheduling_environment_guard, 0.0),
@@ -97,10 +97,9 @@ impl AgentFactory {
         );
 
         drop(scheduling_environment_guard);
-        dbg!();
+
         let arc_scheduling_environment = self.scheduling_environment.clone();
         Arbiter::new().spawn_fn(move || {
-            dbg!("Tactical agent created");
             let tactical_addr = TacticalAgent::new(
                 0,
                 time_horizon,
@@ -152,11 +151,10 @@ fn create_optimized_work_orders(
         let mut excluded_periods: HashSet<Period> = HashSet::new();
 
         for (i, period) in periods.iter().enumerate() {
-            if period < &work_order.order_dates_mut().earliest_allowed_start_period {
-                excluded_periods.insert(period.clone());
-            } else if work_order.is_vendor() && i <= 3 {
-                excluded_periods.insert(period.clone());
-            } else if work_order.revision().shutdown && i <= 3 {
+            if period < &work_order.order_dates_mut().earliest_allowed_start_period
+                || (work_order.is_vendor() && i <= 3)
+                || (work_order.revision().shutdown && i <= 3)
+            {
                 excluded_periods.insert(period.clone());
             }
         }
@@ -245,6 +243,5 @@ fn initialize_tactical_resources(
         }
         resource_capacity.insert(resource.clone(), days);
     }
-    dbg!(resource_capacity.clone());
     tactical_algorithm::AlgorithmResources::new(resource_capacity)
 }

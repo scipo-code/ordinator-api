@@ -101,6 +101,8 @@ impl ActorRegistry {
             .unwrap()
             .clone()
     }
+
+    #[allow(dead_code)]
     pub fn operational_by_id_string(&self, id_string: String) -> Id {
         self.operational_agent_addrs
             .keys()
@@ -116,12 +118,12 @@ impl Orchestrator {
         log_handles: LogHandles,
     ) -> Self {
         let agent_factory = agent_factory::AgentFactory::new(scheduling_environment.clone());
-        dbg!();
+
         let strategic_agent_addr = agent_factory.build_strategic_agent();
-        dbg!();
+
         let tactical_agent_addr =
             agent_factory.build_tactical_agent(56, strategic_agent_addr.clone());
-        dbg!();
+
         Orchestrator {
             scheduling_environment,
             agent_factory,

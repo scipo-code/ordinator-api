@@ -31,6 +31,7 @@ pub struct StrategicAlgorithm {
 
 
 impl StrategicAlgorithm {
+    #[allow(dead_code)]
     pub fn optimized_work_order(&self, work_order_number: &u32) -> Option<&OptimizedWorkOrder> {
         self.optimized_work_orders.inner.get(work_order_number)
     }
@@ -576,7 +577,7 @@ mod tests {
         models::{
             work_order::{
                 functional_location::FunctionalLocation,
-                order_dates::OrderDates,
+                order_dates::WorkOrderDates,
                 order_text::OrderText,
                 order_type::{WDFPriority, WorkOrderType},
                 priority::Priority,
@@ -594,25 +595,7 @@ mod tests {
     fn test_update_scheduler_algorithm_state() {
         let mut work_orders = WorkOrders::new();
 
-        let work_order = WorkOrder::new(
-            2200002020,
-            false,
-            1000,
-            Priority::new_int(1),
-            100.0,
-            HashMap::new(),
-            HashMap::new(),
-            vec![],
-            WorkOrderType::Wdf(WDFPriority::new(1)),
-            SystemCondition::new(),
-            StatusCodes::new_default(),
-            OrderDates::new_test(),
-            Revision::new_default(),
-            UnloadingPoint::new_default(),
-            FunctionalLocation::new_default(),
-            OrderText::new_default(),
-            false,
-        );
+        let work_order = WorkOrder::default(     );
 
         work_orders.insert(work_order.clone());
 

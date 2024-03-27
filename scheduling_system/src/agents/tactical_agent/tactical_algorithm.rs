@@ -13,31 +13,13 @@ use shared_messages::{
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Write;
-use tracing::{info, instrument};
+use tracing::{debug, instrument, warn};
 
 use crate::{
     agents::traits::LargeNeighborHoodSearch,
     models::{time_environment::period::Period, work_order::ActivityRelation, WorkOrders},
 };
 
-/// The TacticalAlgorithm contains everything that is needed to run the tactical algorithm. For this
-/// to work we will need something that can cleanly represent the solution, as well as how they
-/// should be initialized into the algorithm. What is the goal now? I think that the goal is to make
-/// sure that. When the algorithm gets a message from the strategic message about a new work order,
-/// the TacticalAgent should integrate it into his TacticalAlgorithm. This means that we need a
-/// message that can update the state of the TacticalAlgorithm. Based on the SchedulingEnvironment.
-///
-/// The critical goal now is to construct the TacticalAlgorithm so that it can hold the
-///
-/// How should the TacticalAlgorithm represent a schedule? Having a hashmap of the activities is not
-/// enough we need something that is richer. Should the relationships between the activities be
-/// inside or outside of the optimized_activities? I think that it should be outside. That will make
-/// the most sense. I think that the optimized_activities should be wrapped in a should an activity
-/// relation be a internal to the activity? I like that idea. I will make it easier for an activity
-/// to live its own life, and this I feel in my guts will be the right approach to take in the
-/// tactical algorithm. I want this to be a very clean and as simple as possible implementation.
-/// This means that I should work on. The thing is there will always only be the number of
-/// activities minus one relations. This means that
 pub struct TacticalAlgorithm {
     objective_value: f64,
     time_horizon: usize,
@@ -48,7 +30,7 @@ pub struct TacticalAlgorithm {
     priority_queue: PriorityQueue<u32, u32>,
     tactical_days: Vec<Day>,
 }
-
+#[allow(dead_code)]
 struct OptimizedTacticalWorkOrder {
     optimized_activities: HashMap<u32, OptimizedOperation>,
     weight: u32,
@@ -130,10 +112,7 @@ impl AlgorithmResources {
     }
 }
 
-/// The fundamental unit here is the day. Nothing else than the day is important. Should the data be
-/// inside of the OprimizedOperation? I do not think that this is the best idea. I think that we
-/// should strive to have all the data inside of the. Hmm... For now we will just put the data
-/// inside of the OptimizedOperation.
+#[allow(dead_code)]
 struct OptimizedOperation {
     work_order_id: u32,
     scheduled_start: u32,
@@ -145,8 +124,6 @@ struct OptimizedOperation {
     resource: Resources,
 }
 
-// This should come from the scheduling environment, as that is the single point of entry into the
-// application for these kinds of data.
 #[derive(Eq, PartialEq, Hash, Clone, PartialOrd, Ord, Debug)]
 pub struct Day {
     day_index: usize,
@@ -218,7 +195,10 @@ impl TacticalAlgorithm {
         self.number_of_orders = optimized_work_orders.len() as u32;
         self.optimized_work_orders = optimized_work_orders;
 
-        dbg!(self.number_of_orders);
+        debug!(
+            "Number of work orders in TacticalAgent: {}",
+            self.number_of_orders
+        );
     }
 
     pub fn loading(&self) -> &AlgorithmResources {
@@ -240,32 +220,6 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
         self.objective_value
     }
 
-    /// This scheduling methods will handle a complete scheduling of the work orders that are a part
-    /// of the TacticalAlgorithm. This means that it will be the method that will be called when the
-    /// agent is running pasively.
-    ///
-    /// This is the most beautiful thing. I can hear it talking to me
-    ///
-    /// We need to schedule all the work orders against the available resource, here the important
-    /// thing to note is that the penality is also a part of the objective function, meaning that
-    /// all the work orders that are in the scope will always be able to be scheduled.
-    ///
-    /// So all work orders will be scheduled, then question is whether or not we should allow hmm...
-    /// The question becomes how to handle the boundary between the periods. I know that it is the
-    /// start of the work order that counts, but beyond that I am not so sure. The penality will be
-    /// applied on the days. Should the algorithm be able to exceed the penality, or should it
-    /// postphone the work order and corresponding activities into the next week.
-    ///
-    /// Let us dive deep into this. I think that the algorithm should be able to exceed the penalty
-    /// but only in specific circumstances. The question is what you would rather want
-    ///     * Do you prefer to contain the work orders in the period, or do you want to map the
-    /// work orders out and exceed the period? I think that the latter option is the way to go.
-    ///
-    /// We want to see how we are progressing with the work orders. What about the patterns?
-    ///
-    /// Should we make a day struct? Yes I think so. At the moment we are simply scheduling
-    /// everything every time, I do not think that this is the most appropriate way to go about it.
-    /// But I cannot determine if I should do it in some different way instead. Should
     fn schedule(&mut self) {
         for (work_order_number, work_order) in self.optimized_work_orders.iter() {
             self.priority_queue
@@ -341,12 +295,10 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     operation.work_remaining,
                 );
 
-                for day_index in 0..operation.duration {
-                    activity_load.insert(
-                        current_day.peek().unwrap().clone(),
-                        loadings[day_index as usize],
-                    );
+                for load in loadings {
+                    activity_load.insert(current_day.peek().unwrap().clone(), load);
 
+                    current_day.next();
                     if self
                         .remaining_capacity(&resource, current_day.peek().unwrap().clone())
                         .is_none()
@@ -355,32 +307,25 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                         loop_state = LoopState::Unscheduled;
                         continue 'main;
                     };
-
-                    activity_load.insert(
-                        current_day.peek().unwrap().clone(),
-                        loadings[day_index as usize],
-                    );
-
-                    current_day.next();
                 }
-                info!(
-                    "Tactical Work Order {} has been scheduled starting on day {}",
-                    current_work_order_number, start_day.day_index
-                );
                 work_order_load.insert(resource, activity_load);
             }
+            debug!(
+                "Tactical Work Order {} has been scheduled starting on day {}",
+                current_work_order_number, start_day.day_index
+            );
             loop_state = LoopState::Scheduled;
             self.update_loadings(work_order_load);
         }
     }
 
-    fn unschedule(&mut self, message: u32) {
+    fn unschedule(&mut self, _message: u32) {
         // This is where the algorithm will unschedule the work orders.
     }
 
     fn update_scheduling_state(
         &mut self,
-        scheduling_message: Self::SchedulingMessage,
+        _scheduling_message: Self::SchedulingMessage,
     ) -> Result<String, Self::Error> {
         Ok("".to_string())
         // This is where the algorithm will update the scheduling state.
@@ -388,7 +333,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
     fn update_time_state(
         &mut self,
-        time_message: Self::TimeMessage,
+        _time_message: Self::TimeMessage,
     ) -> Result<String, Self::Error> {
         // This is where the algorithm will update the time state.
         Ok("".to_string())
@@ -399,7 +344,6 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
         &mut self,
         resource_message: Self::ResourceMessage,
     ) -> Result<String, Self::Error> {
-        dbg!();
         match resource_message {
             TacticalResourceMessage::SetResources(resources) => {
                 // The resources should be initialized together with the Agent itself
@@ -465,7 +409,6 @@ impl TacticalAlgorithm {
     fn remaining_capacity(&self, resource: &Resources, day: Day) -> Option<f64> {
         let remaining_capacity =
             self.capacity.capacity(resource, &day) - self.loading.loading(resource, &day);
-        dbg!();
         if remaining_capacity < 0.0 {
             None
         } else {
@@ -476,9 +419,14 @@ impl TacticalAlgorithm {
     fn determine_load(
         &self,
         remaining_capacity: f64,
-        operating_time: f64,
+        mut operating_time: f64,
         mut work_remaining: f64,
     ) -> Vec<f64> {
+        if operating_time < 0.0 {
+            operating_time = 4.0;
+            warn!("Operating time is less than 0.0. This is an error in the data initialization, setting it to 4.0 hours as default");
+        }
+
         let mut loadings = Vec::new();
 
         let first_day_load = match remaining_capacity.partial_cmp(&operating_time) {
@@ -515,6 +463,7 @@ impl TacticalAlgorithm {
     }
 }
 
+#[allow(dead_code)]
 enum OperationDifference {
     SameDay,
     DiffDay,

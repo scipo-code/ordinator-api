@@ -1,7 +1,7 @@
 use clap::Subcommand;
 use shared_messages::{LevelOfDetail, LogLevel};
 
-/// The StatusCommands are mostly important for the schedulingenvironment.
+/// The StatusCommands are mostly important for the scheduling environment.
 #[derive(Subcommand, Debug)]
 pub enum StatusCommands {
     WorkOrders {

@@ -15,7 +15,7 @@ use self::time_environment::TimeEnvironment;
 pub struct SchedulingEnvironment {
     work_orders: WorkOrders,
     worker_environment: WorkerEnvironment,
-    pub(super) time_environment: TimeEnvironment,
+    time_environment: TimeEnvironment,
     // material
 }
 
@@ -55,7 +55,7 @@ impl SchedulingEnvironment {
     }
 
     pub fn periods(&self) -> &Vec<Period> {
-        &self.time_environment.strategic_periods()
+        self.time_environment.strategic_periods()
     }
 
     pub fn worker_environment(&self) -> &WorkerEnvironment {

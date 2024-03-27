@@ -29,7 +29,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 
         if temporary_schedule.objective_value() < self.strategic_agent_algorithm.objective_value() {
             self.strategic_agent_algorithm = temporary_schedule;
-            self.update_tactical_agent();
+            // self.update_tactical_agent();
         }
         ctx.notify(ScheduleIteration {});
     }

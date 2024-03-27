@@ -14,13 +14,10 @@ use strum::IntoEnumIterator;
 
 #[derive(Subcommand, Debug)]
 pub enum StrategicCommands {
-    #[command(name = "default")]
-    Default,
-
     /// overview of the strategic agent
     Status {
         #[clap(subcommand)]
-        status_commands: StatusCommands,
+        status_commands: Option<StatusCommands>,
     },
     /// Scheduling commands
     Scheduling {
@@ -86,18 +83,18 @@ pub struct WorkOrderSchedule {
 impl StrategicCommands {
     pub fn execute(&self, client: &Client) -> SystemMessages {
         match self {
-            StrategicCommands::Default => {
-                let strategic_status_message: StrategicStatusMessage =
-                    StrategicStatusMessage::General;
-
-                SystemMessages::Strategic(StrategicRequest::Status(strategic_status_message))
-            }
             StrategicCommands::Status {
                 status_commands: subcommand,
             } => match subcommand {
-                StatusCommands::WorkOrders { period } => {
+                Some(StatusCommands::WorkOrders { period }) => {
                     let strategic_status_message: StrategicStatusMessage =
                         StrategicStatusMessage::new_period(period.to_string());
+
+                    SystemMessages::Strategic(StrategicRequest::Status(strategic_status_message))
+                }
+                None => {
+                    let strategic_status_message: StrategicStatusMessage =
+                        StrategicStatusMessage::General;
 
                     SystemMessages::Strategic(StrategicRequest::Status(strategic_status_message))
                 }

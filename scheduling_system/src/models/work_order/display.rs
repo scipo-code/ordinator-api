@@ -15,12 +15,12 @@ impl fmt::Display for WorkOrder {
             Revision: {}\n
             ---------------------\n",
             self.work_order_number,
-            self.order_weight,
-            self.work_load,
+            self.work_order_analytic.order_weight,
+            self.work_order_analytic.work_load,
             self.operations.len(),
-            self.vendor,
-            self.status_codes.awsc,
-            self.revision.string
+            self.work_order_analytic.vendor,
+            self.work_order_analytic.status_codes.awsc,
+            self.work_order_info.revision.string
         )
     }
 }
@@ -50,11 +50,11 @@ impl WorkOrder {
             } else {
                 "----"
             },
-            self.revision().string,
-            self.order_type().get_type_string(),
-            self.priority().get_priority_string(),
+            self.work_order_info.revision.string,
+            self.work_order_info.work_order_type.get_type_string(),
+            self.work_order_info.priority.get_priority_string(),
             if self.is_vendor() { "VEN" } else { "----" },
-            self.status_codes().material_status,
+            self.work_order_analytic.status_codes.material_status,
         )
         .unwrap();
 
