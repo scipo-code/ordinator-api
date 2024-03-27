@@ -334,13 +334,13 @@ fn create_new_operation(
         preparation_time: 0.0,
         work_remaining: match work_remaining_data.cloned() {
             Some(calamine::Data::Int(n)) => n as f64,
-            Some(calamine::Data::Float(n)) => n as f64,
+            Some(calamine::Data::Float(n)) => n,
             Some(calamine::Data::String(s)) => s.parse::<f64>().unwrap_or(0.0),
             _ => 100000.0,
         },
         work_performed: match actual_work_data.cloned() {
             Some(calamine::Data::Int(n)) => n as f64,
-            Some(calamine::Data::Float(n)) => n as f64,
+            Some(calamine::Data::Float(n)) => n,
             Some(calamine::Data::String(s)) => s.parse::<f64>().unwrap_or(0.0),
             _ => 0.0,
         },
@@ -709,7 +709,7 @@ fn extract_unloading_point(
                 Some(
                     match periods
                         .iter()
-                        .find(|period| period.start_date().clone() == start_date)
+                        .find(|period| period.start_date() == &start_date)
                     {
                         Some(period) => period.clone(),
                         None => periods.last().unwrap().clone(),

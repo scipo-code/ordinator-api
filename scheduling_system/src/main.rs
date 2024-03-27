@@ -26,6 +26,7 @@ async fn main() -> Result<(), io::Error> {
         scheduling_environment.clone(),
         log_handles,
     )));
+
     HttpServer::new(move || {
         let orchestrator = orchestrator.clone();
         App::new().app_data(web::Data::new(orchestrator)).route(
