@@ -1,11 +1,10 @@
 use std::env;
 use std::fs::File;
 use std::io::BufWriter;
-use tracing::instrument::WithSubscriber;
 use tracing::{event, Level};
 use tracing_appender::non_blocking::NonBlocking;
 use tracing_flame::FlameLayer;
-use tracing_subscriber::filter::{self, EnvFilter, Filtered};
+use tracing_subscriber::filter::{EnvFilter, Filtered};
 use tracing_subscriber::fmt::format::{Format, Json, JsonFields};
 use tracing_subscriber::fmt::{self, Layer};
 use tracing_subscriber::reload::Handle;
@@ -18,7 +17,7 @@ pub struct LogHandles {
     >,
     pub flame_handle:
         Handle<Filtered<FlameLayer<Registry, BufWriter<File>>, EnvFilter, Registry>, Registry>,
-    guard: tracing_appender::non_blocking::WorkerGuard,
+    _guard: tracing_appender::non_blocking::WorkerGuard,
 }
 
 pub fn setup_logging() -> LogHandles {
@@ -48,6 +47,6 @@ pub fn setup_logging() -> LogHandles {
     LogHandles {
         file_handle,
         flame_handle,
-        guard,
+        _guard: guard,
     }
 }
