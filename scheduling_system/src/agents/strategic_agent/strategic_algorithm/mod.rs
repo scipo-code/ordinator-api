@@ -4,7 +4,7 @@ use std::fmt::Write;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{ Display};
 use std::hash::{Hash, Hasher};
-use tracing::{debug, info, instrument};
+use tracing::{trace, info, instrument};
 use colored::*;
 
 use priority_queue::PriorityQueue;
@@ -81,7 +81,6 @@ impl AlgorithmResources {
         periods.sort();
         periods.dedup();
 
-        // Header
         write!(string, "{:<12}", "Resource").ok();
         for (nr_period, period) in periods.iter().enumerate().take(number_of_periods as usize) {
             if nr_period == 0 {
@@ -94,7 +93,6 @@ impl AlgorithmResources {
         }
         writeln!(string).ok();
         
-        // Rows
         for (resource, inner_map) in self.inner.iter() {
             write!(string, "{:<12}", resource.variant_name()).unwrap();
             for (nr_period, period) in periods.iter().enumerate().take(number_of_periods as usize) {
@@ -482,7 +480,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
 impl StrategicAlgorithm {
     pub fn populate_priority_queues(&mut self) {
         for (key, work_order) in self.optimized_work_orders.inner.iter() {
-            debug!("Work order {} has been added to the normal queue", key);
+            trace!("Work order {} has been added to the normal queue", key);
             if work_order.scheduled_period.is_none() {
                 self.priority_queues
                     .normal

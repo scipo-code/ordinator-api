@@ -66,17 +66,11 @@ pub fn load_data_file(
         )
     });
 
-    // The dates should be based on the idea of periods. This means that the code should actually
-    // start on the date of the first period and not today? Hmm... is this correct? Is it really the
-    // period. We are interested in the progression of the frozen schedule, so we want to start the
-    // date on the first day of the first period. In a way what we actually want maybe is to have
-    // the first day of the previous period as it would allow us to understand the boundary.
     let first_period = strategic_periods.first().unwrap().clone();
 
     let tactical_days = |number_of_days: u32| -> Vec<Day> {
         let mut days: Vec<Day> = Vec::new();
         let mut date = first_period.start_date().to_owned();
-        // How should I handle the time zones? Hmm... that is a good question?
         for day_index in 0..number_of_days {
             days.push(Day::new(day_index as usize, date.to_owned()));
             date = date.checked_add_days(Days::new(1)).unwrap();
@@ -163,22 +157,7 @@ fn populate_work_orders<'a>(
     }
     Ok(work_orders)
 }
-/// The fact that I want to extend this means that we should initialize the work order with a default value.
-/// This means that the WorkOrder type should receive a new method, that will create a new
-/// instance that can then be used to populate the work_orders HashMap.
-///
-/// The operations field is a little more complex as we could have multiple different rows that
-///
-/// The operations field is a little more complex as we could have multiple different rows that
-/// write to the same work order. This means that we need to check if the work order already exists
-///
-///
-/// The problem is to find the right approach that makes the function work for both work
-///
-/// Maybe we should just initialize the operations as empty here and then simply always run the
-///
-/// Maybe we should just initialize the operations as empty here and then simply always run the
-/// operation reading on each row! Yes that is the approach that I want to take.
+
 fn create_new_work_order(
     row: &[calamine::Data],
     header_to_index: &HashMap<String, usize>,

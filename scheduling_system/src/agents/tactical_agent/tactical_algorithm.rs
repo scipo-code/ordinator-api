@@ -30,6 +30,7 @@ pub struct TacticalAlgorithm {
     priority_queue: PriorityQueue<u32, u32>,
     tactical_days: Vec<Day>,
 }
+
 #[allow(dead_code)]
 struct OptimizedTacticalWorkOrder {
     optimized_activities: HashMap<u32, OptimizedOperation>,
