@@ -3,7 +3,7 @@ use core::fmt;
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
-use tracing::{debug, event};
+use tracing::{debug, event, info};
 
 use crate::agents::tactical_agent::tactical_algorithm::Day;
 use crate::models::time_environment::period::Period;
@@ -43,17 +43,13 @@ impl fmt::Display for ExcelLoadError {
     }
 }
 
-/// This function will load data from excel. It is crucial that the approach is modular and scalable
-/// so that it will always be possible to add new data sources and data transformers in the future.
-///
 pub fn load_data_file(
     file_path: &Path,
     number_of_periods: u32,
     number_of_days: u32,
 ) -> Result<SchedulingEnvironment, calamine::Error> {
     let mut workbook: Xlsx<_> = calamine::open_workbook(file_path)?;
-    println!("Successfully loaded file.");
-
+    info!("Excel file from path {:?} successfully loaded", file_path);
     let sheet: &calamine::Range<calamine::Data> = &workbook
         .worksheet_range_at(0)
         .ok_or(calamine::Error::Msg("Cannot find work order sheet"))?
