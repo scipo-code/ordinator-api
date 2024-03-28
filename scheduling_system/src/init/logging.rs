@@ -10,13 +10,12 @@ use tracing_subscriber::fmt::{self, Layer};
 use tracing_subscriber::reload::Handle;
 use tracing_subscriber::{prelude::*, reload, Registry};
 
+type LogLayer =
+    Filtered<Layer<Registry, JsonFields, Format<Json>, NonBlocking>, EnvFilter, Registry>;
+type ProfilingLayer = Filtered<FlameLayer<Registry, BufWriter<File>>, EnvFilter, Registry>;
 pub struct LogHandles {
-    pub file_handle: Handle<
-        Filtered<Layer<Registry, JsonFields, Format<Json>, NonBlocking>, EnvFilter, Registry>,
-        Registry,
-    >,
-    pub flame_handle:
-        Handle<Filtered<FlameLayer<Registry, BufWriter<File>>, EnvFilter, Registry>, Registry>,
+    pub file_handle: Handle<LogLayer, Registry>,
+    pub flame_handle: Handle<ProfilingLayer, Registry>,
     _guard: tracing_appender::non_blocking::WorkerGuard,
 }
 

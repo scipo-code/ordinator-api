@@ -576,15 +576,6 @@ mod tests {
         },
         models::{
             work_order::{
-                functional_location::FunctionalLocation,
-                order_dates::WorkOrderDates,
-                order_text::OrderText,
-                order_type::{WDFPriority, WorkOrderType},
-                priority::Priority,
-                revision::Revision,
-                status_codes::StatusCodes,
-                system_condition::SystemCondition,
-                unloading_point::UnloadingPoint,
                 WorkOrder,
             },
             WorkOrders,

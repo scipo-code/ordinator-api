@@ -179,11 +179,11 @@ impl TacticalAlgorithm {
                     work_order_id,
                     scheduled_start: 0,
                     scheduled_end: 0,
-                    number: operation.number,
-                    duration: operation.duration,
-                    operating_time: operation.operating_time,
-                    work_remaining: operation.work_remaining,
-                    resource: operation.resource.clone(),
+                    number: operation.number(),
+                    duration: operation.duration(),
+                    operating_time: operation.operating_time(),
+                    work_remaining: operation.work_remaining(),
+                    resource: operation.resource().clone(),
                 };
                 optimized_work_order
                     .optimized_activities

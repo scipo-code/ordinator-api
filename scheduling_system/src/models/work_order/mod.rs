@@ -138,7 +138,7 @@ impl WorkOrder {
     }
 
     pub fn insert_operation(&mut self, operation: Operation) {
-        self.operations.insert(operation.activity, operation);
+        self.operations.insert(operation.activity(), operation);
     }
 
     pub fn unloading_point(&self) -> &UnloadingPoint {
@@ -313,7 +313,8 @@ impl WorkOrder {
         let mut work_load: HashMap<Resources, f64> = HashMap::new();
 
         for (_, operation) in self.operations.iter() {
-            *work_load.entry(operation.resource.clone()).or_insert(0.0) += operation.work_remaining;
+            *work_load.entry(operation.resource().clone()).or_insert(0.0) +=
+                operation.work_remaining();
         }
 
         self.work_order_analytic.work_order_work = work_load.values().sum();

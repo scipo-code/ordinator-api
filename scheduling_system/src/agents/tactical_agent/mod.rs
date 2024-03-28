@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{instrument, warn};
 
-use crate::agents::strategic_agent::strategic_message::ScheduleIteration;
+use crate::agents::strategic_agent::ScheduleIteration;
 use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
 use crate::agents::SetAddr;
 use crate::models::SchedulingEnvironment;
