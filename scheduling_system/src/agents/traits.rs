@@ -23,3 +23,14 @@ pub trait LargeNeighborHoodSearch {
         message: Self::ResourceMessage,
     ) -> Result<String, Self::Error>;
 }
+
+/// TestAlgorithm is a trait that all algorithms should implement. Running `feasible()` tests if the solution
+/// violates any constraints of the problem, or if the objective is not correctly calcalated.
+pub trait TestAlgorithm {
+    fn determine_algorithm_state(&self) -> AlgorithmState;
+}
+
+pub enum AlgorithmState {
+    Feasible,
+    Infeasible,
+}

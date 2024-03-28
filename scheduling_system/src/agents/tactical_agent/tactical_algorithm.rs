@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use colored::Colorize;
+
 use priority_queue::PriorityQueue;
 use shared_messages::{
     agent_error::AgentError,
@@ -13,10 +14,11 @@ use shared_messages::{
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Write;
+use strum::IntoEnumIterator;
 use tracing::{debug, instrument, warn};
 
 use crate::{
-    agents::traits::LargeNeighborHoodSearch,
+    agents::traits::{AlgorithmState, LargeNeighborHoodSearch, TestAlgorithm},
     models::{time_environment::period::Period, work_order::ActivityRelation, WorkOrders},
 };
 
@@ -32,10 +34,12 @@ pub struct TacticalAlgorithm {
 }
 
 #[allow(dead_code)]
+#[derive(Clone)]
 struct OptimizedTacticalWorkOrder {
     optimized_activities: HashMap<u32, OptimizedOperation>,
     weight: u32,
     relations: Vec<ActivityRelation>,
+    work_order_load: HashMap<Resources, HashMap<Day, f64>>,
     scheduled_period: Period,
 }
 
@@ -114,6 +118,7 @@ impl AlgorithmResources {
 }
 
 #[allow(dead_code)]
+#[derive(Clone)]
 struct OptimizedOperation {
     work_order_id: u32,
     scheduled_start: u32,
@@ -173,6 +178,7 @@ impl TacticalAlgorithm {
                 relations: work_order.relations().clone(),
                 weight: work_order.work_order_weight(),
                 scheduled_period: period,
+                work_order_load: HashMap::new(),
             };
 
             for (activity, operation) in work_order.operations() {
@@ -473,6 +479,44 @@ impl TacticalAlgorithm {
 enum OperationDifference {
     SameDay,
     DiffDay,
+}
+
+impl TestAlgorithm for TacticalAlgorithm {
+    fn determine_algorithm_state(&self) -> AlgorithmState {
+        // In here we have to test that each constraint of the problem to satisfied.
+
+        // The first one should sum up all scheduled work orders and make sure that their work
+        // load is equal to the amount given by the loading.
+
+        let mut aggregated_load: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
+        for (_work_order_id, optimized_work_order) in self.optimized_work_orders.clone() {
+            for (resource, days) in optimized_work_order.work_order_load {
+                for (day, load) in days {
+                    *aggregated_load
+                        .entry(resource.clone())
+                        .or_insert_with(HashMap::new)
+                        .entry(day)
+                        .or_insert(0.0) += load;
+                }
+            }
+        }
+
+        for resource in Resources::iter() {
+            for day in self.tactical_days.clone() {
+                let agg_load = aggregated_load
+                    .get(&resource)
+                    .unwrap()
+                    .get(&day)
+                    .unwrap_or(&0.0);
+                let sch_load = self.loading().loading(&resource, &day);
+                if *agg_load != sch_load {
+                    return AlgorithmState::Infeasible;
+                }
+            }
+        }
+
+        AlgorithmState::Feasible
+    }
 }
 
 #[cfg(test)]
