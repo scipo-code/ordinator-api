@@ -284,9 +284,12 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     match self.remaining_capacity(&resource, current_day.peek().unwrap().clone()) {
                         Some(remaining_capacity) => remaining_capacity,
                         None => {
-                            start_day_index += 1;
-                            loop_state = LoopState::Unscheduled;
-                            continue 'main;
+                            if start_day_index <= 12 {
+                                start_day_index += 1;
+                                loop_state = LoopState::Unscheduled;
+                                continue 'main;
+                            }
+                            0.0
                         }
                     };
 
@@ -304,9 +307,11 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                         .remaining_capacity(&resource, current_day.peek().unwrap().clone())
                         .is_none()
                     {
-                        start_day_index += 1;
-                        loop_state = LoopState::Unscheduled;
-                        continue 'main;
+                        if start_day_index <= 12 {
+                            start_day_index += 1;
+                            loop_state = LoopState::Unscheduled;
+                            continue 'main;
+                        }
                     };
                 }
                 work_order_load.insert(resource, activity_load);
