@@ -1,8 +1,13 @@
+pub mod operation_analytic;
+pub mod operation_info;
+
+use crate::models::work_order::operation::operation_analytic::OperationAnalytic;
+use crate::models::work_order::operation::operation_info::OperationInfo;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
-
 use shared_messages::resources::Resources;
+use std::fmt::Display;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Operation {
@@ -31,7 +36,7 @@ impl Operation {
     }
 
     pub fn work_remaining(&self) -> f64 {
-        self.operation_info.work_remaining
+        self.operation_info.work_remaining()
     }
 
     pub fn resource(&self) -> &Resources {
@@ -43,57 +48,15 @@ impl Operation {
     }
 
     pub fn number(&self) -> u32 {
-        self.operation_info.number
+        self.operation_info.number()
     }
 
     pub fn duration(&self) -> u32 {
-        self.operation_analytic.duration
+        self.operation_analytic.duration()
     }
 
     pub fn operating_time(&self) -> f64 {
-        self.operation_info.operating_time
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct OperationInfo {
-    number: u32,
-    work_remaining: f64,
-    work_performed: f64,
-    work_adjusted: f64,
-    operating_time: f64,
-}
-
-impl OperationInfo {
-    pub fn new(
-        number: u32,
-        work_remaining: f64,
-        work_performed: f64,
-        work_adjusted: f64,
-        operating_time: f64,
-    ) -> Self {
-        OperationInfo {
-            number,
-            work_remaining,
-            work_performed,
-            work_adjusted,
-            operating_time,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct OperationAnalytic {
-    preparation_time: f64,
-    duration: u32,
-}
-
-impl OperationAnalytic {
-    pub fn new(preparation_time: f64, duration: u32) -> Self {
-        OperationAnalytic {
-            preparation_time,
-            duration,
-        }
+        self.operation_info.operating_time()
     }
 }
 
@@ -128,9 +91,9 @@ impl Display for Operation {
             "    Activity: {:>8}    |{:>11}|{:>14}|{:>8}|{:>6}|",
             self.activity,
             self.resource.to_string(),
-            self.operation_info.work_remaining,
-            self.operation_analytic.duration,
-            self.operation_info.number,
+            self.operation_info.work_remaining(),
+            self.operation_analytic.duration(),
+            self.operation_info.number(),
         )
     }
 }

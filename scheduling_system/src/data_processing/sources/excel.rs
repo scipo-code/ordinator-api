@@ -30,9 +30,9 @@ use shared_messages::resources::Resources;
 
 extern crate regex;
 
-use crate::models::work_order::operation::{
-    Operation, OperationAnalytic, OperationDates, OperationInfo,
-};
+use crate::models::work_order::operation::operation_analytic::OperationAnalytic;
+use crate::models::work_order::operation::operation_info::OperationInfo;
+use crate::models::work_order::operation::{Operation, OperationDates};
 
 #[derive(Debug)]
 struct ExcelLoadError(String);
