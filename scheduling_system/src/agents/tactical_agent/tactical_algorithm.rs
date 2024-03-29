@@ -312,12 +312,11 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     if self
                         .remaining_capacity(&resource, current_day.peek().unwrap().clone())
                         .is_none()
+                        && start_day_index <= 12
                     {
-                        if start_day_index <= 12 {
-                            start_day_index += 1;
-                            loop_state = LoopState::Unscheduled;
-                            continue 'main;
-                        }
+                        start_day_index += 1;
+                        loop_state = LoopState::Unscheduled;
+                        continue 'main;
                     };
                 }
                 work_order_load.insert(resource, activity_load);
@@ -494,7 +493,7 @@ impl TestAlgorithm for TacticalAlgorithm {
                 for (day, load) in days {
                     *aggregated_load
                         .entry(resource.clone())
-                        .or_insert_with(HashMap::new)
+                        .or_default()
                         .entry(day)
                         .or_insert(0.0) += load;
                 }
