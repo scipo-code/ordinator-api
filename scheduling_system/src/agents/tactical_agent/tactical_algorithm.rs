@@ -11,15 +11,19 @@ use shared_messages::{
         tactical_time_message::TacticalTimeMessage,
     },
 };
-use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Write;
+use std::{borrow::Cow, cmp::Ordering};
 use strum::IntoEnumIterator;
 use tracing::{debug, instrument, warn};
 
 use crate::{
     agents::traits::{AlgorithmState, LargeNeighborHoodSearch, TestAlgorithm},
-    models::{time_environment::period::Period, work_order::ActivityRelation, WorkOrders},
+    models::{
+        time_environment::period::Period,
+        work_order::{ActivityRelation, WorkOrder},
+        WorkOrders,
+    },
 };
 
 pub struct TacticalAlgorithm {
@@ -39,7 +43,7 @@ struct OptimizedTacticalWorkOrder {
     optimized_activities: HashMap<u32, OptimizedOperation>,
     weight: u32,
     relations: Vec<ActivityRelation>,
-    work_order_load: HashMap<Resources, HashMap<Day, f64>>,
+    work_order_load: Option<HashMap<Resources, HashMap<Day, f64>>>,
     scheduled_period: Period,
 }
 
@@ -91,9 +95,9 @@ impl AlgorithmResources {
         write!(string, "{:<12}", "Resource").ok();
         for (nr_day, day) in days.iter().enumerate().take(number_of_periods as usize) {
             match nr_day {
-                0..=13 => write!(string, "{:>12}", day.date.to_string().red()).ok(),
-                14..=27 => write!(string, "{:>12}", day.date.to_string().green()).ok(),
-                _ => write!(string, "{:>12}", day.date.to_string()).ok(),
+                0..=13 => write!(string, "{:>12}", day.date.date_naive().to_string().red()).ok(),
+                14..=27 => write!(string, "{:>12}", day.date.date_naive().to_string().green()).ok(),
+                _ => write!(string, "{:>12}", day.date.date_naive().to_string()).ok(),
             }
             .unwrap()
         }
@@ -169,43 +173,76 @@ impl TacticalAlgorithm {
         work_order: &WorkOrders,
         strategic_state: Vec<(u32, Period)>,
     ) {
-        let mut optimized_work_orders = HashMap::new();
-        for (work_order_id, period) in strategic_state {
+        for (work_order_id, period) in &strategic_state {
             let work_order = work_order.inner.get(&work_order_id).unwrap();
-
-            let mut optimized_work_order = OptimizedTacticalWorkOrder {
-                optimized_activities: HashMap::new(),
-                relations: work_order.relations().clone(),
-                weight: work_order.work_order_weight(),
-                scheduled_period: period,
-                work_order_load: HashMap::new(),
+            match self.optimized_work_orders.contains_key(&work_order_id) {
+                false => {
+                    self.create_new_optimized_work_order(work_order, period.clone());
+                }
+                true => {
+                    let optimized_work_order =
+                        self.optimized_work_orders.get_mut(&work_order_id).unwrap();
+                    if period != &optimized_work_order.scheduled_period {
+                        optimized_work_order.scheduled_period = period.clone();
+                    }
+                }
             };
-
-            for (activity, operation) in work_order.operations() {
-                let optimized_operation = OptimizedOperation {
-                    work_order_id,
-                    scheduled_start: 0,
-                    scheduled_end: 0,
-                    number: operation.number(),
-                    duration: operation.duration(),
-                    operating_time: operation.operating_time(),
-                    work_remaining: operation.work_remaining(),
-                    resource: operation.resource().clone(),
-                };
-                optimized_work_order
-                    .optimized_activities
-                    .insert(*activity, optimized_operation);
-            }
-            optimized_work_orders.insert(work_order_id, optimized_work_order);
         }
 
-        self.number_of_orders = optimized_work_orders.len() as u32;
-        self.optimized_work_orders = optimized_work_orders;
+        let strategic_work_order_numbers: Vec<u32> = strategic_state
+            .iter()
+            .map(|work_order_period| work_order_period.0)
+            .collect();
+
+        let leaving_work_order_numbers: Vec<u32> = {
+            self.optimized_work_orders
+                .keys()
+                .cloned()
+                .filter(|tactical_work_order_number| {
+                    !strategic_work_order_numbers.contains(tactical_work_order_number)
+                })
+                .collect()
+        };
+
+        //         
+        for leaving_work_order_number in leaving_work_order_numbers {
+            self.unschedule(leaving_work_order_number)
+        }
+
+        self.number_of_orders = self.optimized_work_orders.len() as u32;
 
         debug!(
             "Number of work orders in TacticalAgent: {}",
             self.number_of_orders
         );
+    }
+
+    pub fn create_new_optimized_work_order(&mut self, work_order: &WorkOrder, period: Period) {
+        let mut optimized_work_order = OptimizedTacticalWorkOrder {
+            optimized_activities: HashMap::new(),
+            relations: work_order.relations().clone(),
+            weight: work_order.work_order_weight(),
+            scheduled_period: period,
+            work_order_load: None,
+        };
+
+        for (activity, operation) in work_order.operations() {
+            let optimized_operation = OptimizedOperation {
+                work_order_id: *work_order.work_order_number(),
+                scheduled_start: 0,
+                scheduled_end: 0,
+                number: operation.number(),
+                duration: operation.duration(),
+                operating_time: operation.operating_time(),
+                work_remaining: operation.work_remaining(),
+                resource: operation.resource().clone(),
+            };
+            optimized_work_order
+                .optimized_activities
+                .insert(*activity, optimized_operation);
+        }
+        self.optimized_work_orders
+            .insert(*work_order.work_order_number(), optimized_work_order);
     }
 
     pub fn loading(&self) -> &AlgorithmResources {
@@ -251,6 +288,8 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     .get(&current_work_order_number)
                     .unwrap(),
                 LoopState::Scheduled => {
+                    start_day_index = 0;
+
                     current_work_order_number = match self.priority_queue.pop() {
                         Some((work_order_number, _)) => work_order_number,
                         None => {
@@ -309,10 +348,10 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     activity_load.insert(current_day.peek().unwrap().clone(), load);
 
                     current_day.next();
-                    if self
-                        .remaining_capacity(&resource, current_day.peek().unwrap().clone())
-                        .is_none()
-                        && start_day_index <= 12
+                    if start_day_index <= 12
+                        && self
+                            .remaining_capacity(&resource, current_day.peek().unwrap().clone())
+                            .is_none()
                     {
                         start_day_index += 1;
                         loop_state = LoopState::Unscheduled;
@@ -326,12 +365,23 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 current_work_order_number, start_day.day_index
             );
             loop_state = LoopState::Scheduled;
-            self.update_loadings(work_order_load);
+            self.update_loadings(&work_order_load, LoadOperation::Add);
         }
     }
 
-    fn unschedule(&mut self, _message: u32) {
-        // This is where the algorithm will unschedule the work orders.
+    fn unschedule(&mut self, work_order_number: u32) {
+        let work_order_load = {
+            let optimized_work_order = self.optimized_work_orders.get_mut(&work_order_number)
+            .expect("A call was made to TacticalAlgorith.unschedule(work_order_number) where the underlying work order was not in a scheduled state");
+
+           match optimized_work_order.work_order_load.take() {
+                Some(work_order_load) => work_order_load,
+                
+            None => panic!("Tactical work order did not have a load which is a requirement for being scheduled and therefore also being unscheduled")
+            } 
+        };
+
+        self.update_loadings(&work_order_load, LoadOperation::Sub);
     }
 
     fn update_scheduling_state(
@@ -407,12 +457,25 @@ enum LoopState {
     Scheduled,
 }
 
+enum LoadOperation {
+    Add,
+    Sub,
+}
+
 impl TacticalAlgorithm {
-    fn update_loadings(&mut self, work_order_load: HashMap<Resources, HashMap<Day, f64>>) {
+    fn update_loadings(
+        &mut self,
+        work_order_load: &HashMap<Resources, HashMap<Day, f64>>,
+        load_operation: LoadOperation,
+    ) {
         for (resource, days) in work_order_load {
             for (day, load) in days {
                 let loading = self.loading.loading_mut(&resource, &day);
-                *loading += load;
+
+                match load_operation {
+                    LoadOperation::Add => *loading += load,
+                    LoadOperation::Sub => *loading -= load,
+                }
             }
         }
     }
@@ -420,7 +483,7 @@ impl TacticalAlgorithm {
     fn remaining_capacity(&self, resource: &Resources, day: Day) -> Option<f64> {
         let remaining_capacity =
             self.capacity.capacity(resource, &day) - self.loading.loading(resource, &day);
-        if remaining_capacity < 0.0 {
+        if remaining_capacity <= 0.0 {
             None
         } else {
             Some(remaining_capacity)
@@ -489,7 +552,7 @@ impl TestAlgorithm for TacticalAlgorithm {
 
         let mut aggregated_load: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
         for (_work_order_id, optimized_work_order) in self.optimized_work_orders.clone() {
-            for (resource, days) in optimized_work_order.work_order_load {
+            for (resource, days) in optimized_work_order.work_order_load.expect("If this is None it means that the OptimizedTacticalWorkOrder was not initialized correctly") {
                 for (day, load) in days {
                     *aggregated_load
                         .entry(resource.clone())
@@ -502,11 +565,12 @@ impl TestAlgorithm for TacticalAlgorithm {
 
         for resource in Resources::iter() {
             for day in self.tactical_days.clone() {
-                let agg_load = aggregated_load
-                    .get(&resource)
-                    .unwrap()
-                    .get(&day)
-                    .unwrap_or(&0.0);
+                let resource_map = match aggregated_load.get(&resource) {
+                    Some(map) => Cow::Borrowed(map),
+                    None => Cow::Owned(HashMap::new()),
+                };
+
+                let agg_load = resource_map.get(&day).unwrap_or(&0.0);
                 let sch_load = self.loading().loading(&resource, &day);
                 if *agg_load != sch_load {
                     return AlgorithmState::Infeasible;

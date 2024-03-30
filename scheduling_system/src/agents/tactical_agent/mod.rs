@@ -16,7 +16,7 @@ use crate::models::SchedulingEnvironment;
 
 use super::strategic_agent::StrategicAgent;
 use super::supervisor_agent::SupervisorAgent;
-use super::traits::LargeNeighborHoodSearch;
+use super::traits::{AlgorithmState, LargeNeighborHoodSearch, TestAlgorithm};
 use super::SendState;
 
 #[allow(dead_code)]
@@ -95,6 +95,14 @@ impl Handler<TacticalRequest> for TacticalAgent {
                 .update_resources_state(tactical_resources_message),
             TacticalRequest::Days(_tactical_time_message) => {
                 todo!()
+            }
+            TacticalRequest::Test => {
+                let algorithm_state = self.tactical_algorithm.determine_algorithm_state();
+
+                match algorithm_state {
+                    AlgorithmState::Feasible => Ok("Tactical Schedule is Feasible (Additional tests may be needed)".to_string()),
+                    AlgorithmState::Infeasible => Ok("Tactical Schedule is Infesible (Consider outputting which of the constraints that are causing the problem)".to_string())
+                }
             }
         }
     }

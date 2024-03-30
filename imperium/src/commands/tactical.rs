@@ -27,6 +27,8 @@ pub enum TacticalCommands {
     Scheduling,
     /// Access the days of the tactical agent
     Days,
+    /// Test the feasibility of the tactical schedule
+    Test,
 }
 
 impl TacticalCommands {
@@ -81,6 +83,11 @@ impl TacticalCommands {
             }
             TacticalCommands::Days => {
                 todo!()
+            }
+            TacticalCommands::Test => {
+                let tactical_request = TacticalRequest::Test;
+
+                SystemMessages::Tactical(tactical_request)
             }
         }
     }
