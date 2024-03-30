@@ -40,10 +40,10 @@ pub struct TacticalAlgorithm {
 #[allow(dead_code)]
 #[derive(Clone)]
 struct OptimizedTacticalWorkOrder {
-    optimized_activities: HashMap<u32, OptimizedOperation>,
+    operation_parameters: HashMap<u32, OperationParameters>,
     weight: u32,
     relations: Vec<ActivityRelation>,
-    work_order_load: Option<HashMap<Resources, HashMap<Day, f64>>>,
+    operation_solution: Option<HashMap<Resources, HashMap<Day, f64>>>,
     scheduled_period: Period,
 }
 
@@ -123,7 +123,7 @@ impl AlgorithmResources {
 
 #[allow(dead_code)]
 #[derive(Clone)]
-struct OptimizedOperation {
+struct OperationParameters {
     work_order_id: u32,
     scheduled_start: u32,
     scheduled_end: u32,
@@ -132,6 +132,10 @@ struct OptimizedOperation {
     operating_time: f64,
     work_remaining: f64,
     resource: Resources,
+}
+
+struct OperationSolution {
+    scheduled: Vec<(Day, f64)>,
 }
 
 #[derive(Eq, PartialEq, Hash, Clone, PartialOrd, Ord, Debug)]
@@ -219,15 +223,15 @@ impl TacticalAlgorithm {
 
     pub fn create_new_optimized_work_order(&mut self, work_order: &WorkOrder, period: Period) {
         let mut optimized_work_order = OptimizedTacticalWorkOrder {
-            optimized_activities: HashMap::new(),
+            operation_parameters: HashMap::new(),
             relations: work_order.relations().clone(),
             weight: work_order.work_order_weight(),
             scheduled_period: period,
-            work_order_load: None,
+            operation_solution: None,
         };
 
         for (activity, operation) in work_order.operations() {
-            let optimized_operation = OptimizedOperation {
+            let optimized_operation = OperationParameters {
                 work_order_id: *work_order.work_order_number(),
                 scheduled_start: 0,
                 scheduled_end: 0,
@@ -238,7 +242,7 @@ impl TacticalAlgorithm {
                 resource: operation.resource().clone(),
             };
             optimized_work_order
-                .optimized_activities
+                .operation_parameters
                 .insert(*activity, optimized_operation);
         }
         self.optimized_work_orders
@@ -266,7 +270,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
     fn schedule(&mut self) {
         for (work_order_number, optimized_work_order) in self.optimized_work_orders.iter() {
-            match &optimized_work_order.work_order_load {
+            match &optimized_work_order.operation_solution {
                 None => {
                     self.priority_queue
                         .push(*work_order_number, optimized_work_order.weight);
@@ -326,7 +330,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
             let mut current_day = allowed_days.into_iter().peekable();
 
-            for (_activity, operation) in optimized_work_order.optimized_activities.iter() {
+            for (_activity, operation) in optimized_work_order.operation_parameters.iter() {
                 let mut activity_load = HashMap::<Day, f64>::new();
                 let resource = operation.resource.clone();
 
@@ -379,7 +383,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             let optimized_work_order = self.optimized_work_orders.get_mut(&work_order_number)
             .expect("A call was made to TacticalAlgorith.unschedule(work_order_number) where the underlying work order was not in a scheduled state");
 
-            match optimized_work_order.work_order_load.take() {
+            match optimized_work_order.operation_solution.take() {
                 Some(work_order_load) => work_order_load,
                 None => {
                     debug!(
@@ -562,7 +566,7 @@ impl TestAlgorithm for TacticalAlgorithm {
 
         let mut aggregated_load: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
         for (_work_order_id, optimized_work_order) in self.optimized_work_orders.clone() {
-            for (resource, days) in optimized_work_order.work_order_load.unwrap_or_default() {
+            for (resource, days) in optimized_work_order.operation_solution.unwrap_or_default() {
                 for (day, load) in days {
                     *aggregated_load
                         .entry(resource.clone())
