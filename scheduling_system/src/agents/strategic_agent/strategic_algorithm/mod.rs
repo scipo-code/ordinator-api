@@ -2,7 +2,7 @@ mod algorithm;
 use std::fmt::Write;
 
 use std::collections::{HashMap, HashSet};
-use std::fmt::{ Display};
+use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use tracing::{trace, info, instrument};
 use colored::*;
@@ -10,15 +10,14 @@ use colored::*;
 use priority_queue::PriorityQueue;
 use shared_messages::agent_error::AgentError;
 use shared_messages::strategic::strategic_periods_message::StrategicTimeMessage;
-use shared_messages::strategic::strategic_resources_message::{StrategicResourceMessage};
+use shared_messages::strategic::strategic_resources_message::StrategicResourceMessage;
 use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
 
-use crate::agents::traits::{LargeNeighborHoodSearch};
-use crate::models::time_environment::period::{Period};
+use crate::agents::traits::LargeNeighborHoodSearch;
+use crate::models::time_environment::period::Period;
 use shared_messages::resources::Resources;
 
 #[derive(Debug, Clone)]
-
 pub struct StrategicAlgorithm {
     objective_value: f64,
     resources_capacity: AlgorithmResources,
@@ -28,7 +27,6 @@ pub struct StrategicAlgorithm {
     period_locks: HashSet<Period>,
     periods: Vec<Period>,
 }
-
 
 impl StrategicAlgorithm {
     #[allow(dead_code)]
@@ -59,7 +57,6 @@ impl StrategicAlgorithm {
         tactical_work_orders
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct AlgorithmResources {
@@ -111,12 +108,10 @@ impl AlgorithmResources {
     }
 }
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct OptimizedWorkOrders {
     inner: HashMap<u32, OptimizedWorkOrder>,
 }
-
 
 impl Hash for OptimizedWorkOrders {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -134,7 +129,6 @@ impl Hash for OptimizedWorkOrders {
 impl Hash for OptimizedWorkOrder {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Hash the length of the HashMap to ensure different lengths produce different hashes
-
         self.scheduled_period.hash(state);
         self.locked_in_period.hash(state);
         for period in &self.excluded_periods {
@@ -560,9 +554,7 @@ impl StrategicAlgorithm {
 
 #[cfg(test)]
 mod tests {
-    use shared_messages::strategic::{
-        strategic_scheduling_message::SingleWorkOrder,
-    };
+    use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
 
     use super::*;
 
@@ -573,9 +565,8 @@ mod tests {
             OptimizedWorkOrders, PriorityQueues, StrategicAlgorithm,
         },
         models::{
-            work_order::{
-                WorkOrder,
-            },
+            work_order::WorkOrder,
+            
             WorkOrders,
         },
     };

@@ -204,7 +204,7 @@ impl TacticalAlgorithm {
                 .collect()
         };
 
-        //         
+        //
         for leaving_work_order_number in leaving_work_order_numbers {
             self.unschedule(leaving_work_order_number)
         }
@@ -265,9 +265,14 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
     }
 
     fn schedule(&mut self) {
-        for (work_order_number, work_order) in self.optimized_work_orders.iter() {
-            self.priority_queue
-                .push(*work_order_number, work_order.weight);
+        for (work_order_number, optimized_work_order) in self.optimized_work_orders.iter() {
+            match &optimized_work_order.work_order_load {
+                None => {
+                    self.priority_queue
+                        .push(*work_order_number, optimized_work_order.weight);
+                }
+                Some(_) => (),
+            }
         }
 
         let mut start_day_index = 0;
@@ -374,11 +379,16 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             let optimized_work_order = self.optimized_work_orders.get_mut(&work_order_number)
             .expect("A call was made to TacticalAlgorith.unschedule(work_order_number) where the underlying work order was not in a scheduled state");
 
-           match optimized_work_order.work_order_load.take() {
+            match optimized_work_order.work_order_load.take() {
                 Some(work_order_load) => work_order_load,
-                
-            None => panic!("Tactical work order did not have a load which is a requirement for being scheduled and therefore also being unscheduled")
-            } 
+                None => {
+                    debug!(
+                        "Work order {} was not scheduled before leaving the tactical schedule",
+                        work_order_number
+                    );
+                    HashMap::new()
+                }
+            }
         };
 
         self.update_loadings(&work_order_load, LoadOperation::Sub);
@@ -552,7 +562,7 @@ impl TestAlgorithm for TacticalAlgorithm {
 
         let mut aggregated_load: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
         for (_work_order_id, optimized_work_order) in self.optimized_work_orders.clone() {
-            for (resource, days) in optimized_work_order.work_order_load.expect("If this is None it means that the OptimizedTacticalWorkOrder was not initialized correctly") {
+            for (resource, days) in optimized_work_order.work_order_load.unwrap_or_default() {
                 for (day, load) in days {
                     *aggregated_load
                         .entry(resource.clone())
