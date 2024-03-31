@@ -27,6 +27,8 @@ pub enum TacticalCommands {
     Scheduling,
     /// Access the days of the tactical agent
     Days,
+    /// Test the feasibility of the tactical schedule
+    Test,
 }
 
 impl TacticalCommands {
@@ -38,59 +40,54 @@ impl TacticalCommands {
                 SystemMessages::Tactical(TacticalRequest::Status(TacticalStatusMessage::General))
             }
 
-            TacticalCommands::Resources { resource_commands } => {
-                dbg!("TacticalAgent Resources Message");
+            TacticalCommands::Resources { resource_commands } => match resource_commands {
+                ResourceCommands::Capacity {
+                    days_end,
+                    select_resources,
+                } => {
+                    let tactical_resources_message = TacticalResourceMessage::GetCapacities {
+                        days_end: days_end.to_string(),
+                        select_resources: select_resources.clone(),
+                    };
 
-                // Here we want to match the subcommand and fill in the capacity for the tactical
-                // agent. Okay I think that we should calm down a little here and consider what our
+                    let tactical_request = TacticalRequest::Resources(tactical_resources_message);
 
-                match resource_commands {
-                    ResourceCommands::GetCapacities {
-                        days_end,
-                        select_resources,
-                    } => {
-                        let tactical_resources_message = TacticalResourceMessage::GetCapacities {
-                            days_end: days_end.to_string(),
-                            select_resources: select_resources.clone(),
-                        };
-
-                        let tactical_request =
-                            TacticalRequest::Resources(tactical_resources_message);
-
-                        SystemMessages::Tactical(tactical_request)
-                    }
-                    ResourceCommands::GetLoadings {
-                        days_end,
-                        select_resources,
-                    } => {
-                        let tactical_resources_message = TacticalResourceMessage::GetLoadings {
-                            days_end: days_end.to_string(),
-                            select_resources: select_resources.clone(),
-                        };
-
-                        let tactical_request =
-                            TacticalRequest::Resources(tactical_resources_message);
-
-                        SystemMessages::Tactical(tactical_request)
-                    }
-                    ResourceCommands::SetCapacityPolicyDefault => {
-                        let resources = generate_manual_resources(client);
-
-                        let tactical_resources_message =
-                            TacticalResourceMessage::new_set_resources(resources);
-
-                        let tactical_request =
-                            TacticalRequest::Resources(tactical_resources_message);
-
-                        SystemMessages::Tactical(tactical_request)
-                    }
+                    SystemMessages::Tactical(tactical_request)
                 }
-            }
+                ResourceCommands::Loading {
+                    days_end,
+                    select_resources,
+                } => {
+                    let tactical_resources_message = TacticalResourceMessage::GetLoadings {
+                        days_end: days_end.to_string(),
+                        select_resources: select_resources.clone(),
+                    };
+
+                    let tactical_request = TacticalRequest::Resources(tactical_resources_message);
+
+                    SystemMessages::Tactical(tactical_request)
+                }
+                ResourceCommands::SetCapacityPolicyDefault => {
+                    let resources = generate_manual_resources(client);
+
+                    let tactical_resources_message =
+                        TacticalResourceMessage::new_set_resources(resources);
+
+                    let tactical_request = TacticalRequest::Resources(tactical_resources_message);
+
+                    SystemMessages::Tactical(tactical_request)
+                }
+            },
             TacticalCommands::Scheduling => {
                 todo!()
             }
             TacticalCommands::Days => {
                 todo!()
+            }
+            TacticalCommands::Test => {
+                let tactical_request = TacticalRequest::Test;
+
+                SystemMessages::Tactical(tactical_request)
             }
         }
     }
@@ -98,11 +95,11 @@ impl TacticalCommands {
 
 #[derive(Debug, Subcommand)]
 pub enum ResourceCommands {
-    GetLoadings {
+    Loading {
         days_end: u32,
         select_resources: Option<Vec<Resources>>,
     },
-    GetCapacities {
+    Capacity {
         days_end: u32,
         select_resources: Option<Vec<Resources>>,
     },

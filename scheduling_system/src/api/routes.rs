@@ -9,22 +9,27 @@ use tracing_subscriber::EnvFilter;
 
 use crate::agents::orchestrator::Orchestrator;
 
+#[allow(clippy::await_holding_lock)]
 #[instrument(level = "info", skip_all)]
 pub async fn http_to_scheduling_system(
     orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
     _req: HttpRequest,
     payload: web::Json<SystemMessages>,
 ) -> Result<HttpResponse> {
-    dbg!();
     match payload.0 {
         SystemMessages::Orchestrator(orchestrator_request) => {
-            let mut mutux_guard = orchestrator.lock().unwrap();
-            let response = mutux_guard.handle(orchestrator_request).await;
+            let response = {
+                orchestrator
+                    .lock()
+                    .unwrap()
+                    .handle(orchestrator_request)
+                    .await
+            };
+
             let http_response = HttpResponse::Ok()
                 .insert_header(header::ContentType::plaintext())
                 .body(response);
             Ok(http_response)
-            // Ok(HttpResponse::BadRequest().json("STRATEGIC: FAILURE"))
         }
         SystemMessages::Strategic(strategic_request) => {
             let strategic_agent_addr = orchestrator
