@@ -3,7 +3,7 @@ use core::fmt;
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
-use tracing::{debug, event};
+use tracing::{debug, event, info};
 
 use crate::agents::tactical_agent::tactical_algorithm::Day;
 use crate::models::time_environment::period::Period;
@@ -30,7 +30,9 @@ use shared_messages::resources::Resources;
 
 extern crate regex;
 
-use crate::models::work_order::operation::Operation;
+use crate::models::work_order::operation::operation_analytic::OperationAnalytic;
+use crate::models::work_order::operation::operation_info::OperationInfo;
+use crate::models::work_order::operation::{Operation, OperationDates};
 
 #[derive(Debug)]
 struct ExcelLoadError(String);
@@ -41,17 +43,13 @@ impl fmt::Display for ExcelLoadError {
     }
 }
 
-/// This function will load data from excel. It is crucial that the approach is modular and scalable
-/// so that it will always be possible to add new data sources and data transformers in the future.
-///
 pub fn load_data_file(
     file_path: &Path,
     number_of_periods: u32,
     number_of_days: u32,
 ) -> Result<SchedulingEnvironment, calamine::Error> {
     let mut workbook: Xlsx<_> = calamine::open_workbook(file_path)?;
-    println!("Successfully loaded file.");
-
+    info!("Excel file from path {:?} successfully loaded", file_path);
     let sheet: &calamine::Range<calamine::Data> = &workbook
         .worksheet_range_at(0)
         .ok_or(calamine::Error::Msg("Cannot find work order sheet"))?
@@ -68,17 +66,11 @@ pub fn load_data_file(
         )
     });
 
-    // The dates should be based on the idea of periods. This means that the code should actually
-    // start on the date of the first period and not today? Hmm... is this correct? Is it really the
-    // period. We are interested in the progression of the frozen schedule, so we want to start the
-    // date on the first day of the first period. In a way what we actually want maybe is to have
-    // the first day of the previous period as it would allow us to understand the boundary.
     let first_period = strategic_periods.first().unwrap().clone();
 
     let tactical_days = |number_of_days: u32| -> Vec<Day> {
         let mut days: Vec<Day> = Vec::new();
         let mut date = first_period.start_date().to_owned();
-        // How should I handle the time zones? Hmm... that is a good question?
         for day_index in 0..number_of_days {
             days.push(Day::new(day_index as usize, date.to_owned()));
             date = date.checked_add_days(Days::new(1)).unwrap();
@@ -165,22 +157,7 @@ fn populate_work_orders<'a>(
     }
     Ok(work_orders)
 }
-/// The fact that I want to extend this means that we should initialize the work order with a default value.
-/// This means that the WorkOrder type should receive a new method, that will create a new
-/// instance that can then be used to populate the work_orders HashMap.
-///
-/// The operations field is a little more complex as we could have multiple different rows that
-///
-/// The operations field is a little more complex as we could have multiple different rows that
-/// write to the same work order. This means that we need to check if the work order already exists
-///
-///
-/// The problem is to find the right approach that makes the function work for both work
-///
-/// Maybe we should just initialize the operations as empty here and then simply always run the
-///
-/// Maybe we should just initialize the operations as empty here and then simply always run the
-/// operation reading on each row! Yes that is the approach that I want to take.
+
 fn create_new_work_order(
     row: &[calamine::Data],
     header_to_index: &HashMap<String, usize>,
@@ -304,21 +281,24 @@ fn create_new_operation(
     let work_remaining_data = get_data_from_headers(row, header_to_index, &work_possible_headers);
     let actual_work_data = get_data_from_headers(row, header_to_index, &actual_work_headers);
 
-    Ok(Operation {
-        activity: match row
-            .get(
-                *header_to_index
-                    .get("Activity")
-                    .ok_or("Activity header not found")?,
-            )
-            .cloned()
-        {
-            Some(calamine::Data::Int(n)) => n as u32,
-            Some(calamine::Data::Float(n)) => n as u32,
-            Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(0),
-            _ => 0,
-        },
-        number: match row
+    let activity = match row
+        .get(
+            *header_to_index
+                .get("Activity")
+                .ok_or("Activity header not found")?,
+        )
+        .cloned()
+    {
+        Some(calamine::Data::Int(n)) => n as u32,
+        Some(calamine::Data::Float(n)) => n as u32,
+        Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(0),
+        _ => 0,
+    };
+
+    let operating_time = 4.0;
+
+    let operation_info = OperationInfo::new(
+        match row
             .get(*header_to_index.get("Number").unwrap_or(&1_usize))
             .cloned()
         {
@@ -327,26 +307,25 @@ fn create_new_operation(
             Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(0),
             _ => 0,
         },
-        resource: match work_center_data.cloned() {
-            Some(calamine::Data::String(s)) => Resources::new_from_string(s),
-            _ => return Err(Error::Msg("Could not parse work center as string")),
-        },
-        preparation_time: 0.0,
-        work_remaining: match work_remaining_data.cloned() {
+        match work_remaining_data.cloned() {
             Some(calamine::Data::Int(n)) => n as f64,
             Some(calamine::Data::Float(n)) => n,
             Some(calamine::Data::String(s)) => s.parse::<f64>().unwrap_or(0.0),
             _ => 100000.0,
         },
-        work_performed: match actual_work_data.cloned() {
+        match actual_work_data.cloned() {
             Some(calamine::Data::Int(n)) => n as f64,
             Some(calamine::Data::Float(n)) => n,
             Some(calamine::Data::String(s)) => s.parse::<f64>().unwrap_or(0.0),
             _ => 0.0,
         },
-        work_adjusted: 0.0,
-        operating_time: 4.0,
-        duration: match header_to_index.get("Duration") {
+        0.0,
+        operating_time,
+    );
+
+    let operation_analytic = OperationAnalytic::new(
+        0.0,
+        match header_to_index.get("Duration") {
             Some(index) => match row.get(*index).cloned() {
                 Some(calamine::Data::Int(n)) => n as u32,
                 Some(calamine::Data::Float(n)) => n as u32,
@@ -357,75 +336,89 @@ fn create_new_operation(
             },
             None => 0,
         },
-        possible_start: default_future_date,
-        target_finish: default_future_date,
-        earliest_start_datetime: {
-            let date = match earliest_start_date_data.cloned() {
-                Some(calamine::Data::String(s)) => parse_date(&s),
-                Some(calamine::Data::DateTime(s)) => {
-                    let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
-                    let date = start.checked_add_signed(Duration::days(s.as_f64() as i64 - 2));
-                    date.unwrap()
-                }
-                _ => return Err(Error::Msg("Could not parse Earliest_Start_Date as string")),
-            };
+    );
 
-            let time = match earliest_start_time_data.cloned() {
-                Some(calamine::Data::String(s)) => {
-                    match NaiveTime::parse_from_str(&s, "%H:%M:%s") {
-                        Ok(naive_date) => naive_date,
-                        Err(_) => {
-                            println!(
-                                "Could not parse earliest_start_time_data from string: {}",
-                                s
-                            );
-                            NaiveTime::from_hms_opt(7, 0, 0).unwrap()
-                        }
-                    }
-                }
-                Some(calamine::Data::DateTime(s)) => excel_time_to_hh_mm_ss(s.as_f64()),
-                _ => {
-                    event!(
-                        tracing::Level::DEBUG,
-                        "Could not parse earliest_start_time is not present"
+    let earliest_start_datetime = {
+        let date = match earliest_start_date_data.cloned() {
+            Some(calamine::Data::String(s)) => parse_date(&s),
+            Some(calamine::Data::DateTime(s)) => {
+                let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
+                let date = start.checked_add_signed(Duration::days(s.as_f64() as i64 - 2));
+                date.unwrap()
+            }
+            _ => return Err(Error::Msg("Could not parse Earliest_Start_Date as string")),
+        };
+
+        let time = match earliest_start_time_data.cloned() {
+            Some(calamine::Data::String(s)) => match NaiveTime::parse_from_str(&s, "%H:%M:%s") {
+                Ok(naive_date) => naive_date,
+                Err(_) => {
+                    println!(
+                        "Could not parse earliest_start_time_data from string: {}",
+                        s
                     );
                     NaiveTime::from_hms_opt(7, 0, 0).unwrap()
                 }
-            };
+            },
+            Some(calamine::Data::DateTime(s)) => excel_time_to_hh_mm_ss(s.as_f64()),
+            _ => {
+                event!(
+                    tracing::Level::DEBUG,
+                    "Could not parse earliest_start_time is not present"
+                );
+                NaiveTime::from_hms_opt(7, 0, 0).unwrap()
+            }
+        };
 
-            Utc.from_utc_datetime(&naive::NaiveDateTime::new(date, time))
-        },
-        earliest_finish_datetime: {
-            let date = match earliest_finish_date_data.cloned() {
-                Some(calamine::Data::String(s)) => parse_date(&s),
-                Some(calamine::Data::DateTime(s)) => {
-                    let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
-                    let date = start.checked_add_signed(Duration::days(s.as_f64() as i64 - 2));
-                    date.unwrap()
+        Utc.from_utc_datetime(&naive::NaiveDateTime::new(date, time))
+    };
+
+    let earliest_finish_datetime = {
+        let date = match earliest_finish_date_data.cloned() {
+            Some(calamine::Data::String(s)) => parse_date(&s),
+            Some(calamine::Data::DateTime(s)) => {
+                let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
+                let date = start.checked_add_signed(Duration::days(s.as_f64() as i64 - 2));
+                date.unwrap()
+            }
+
+            _ => NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+        };
+
+        let time = match earliest_finish_time_data.cloned() {
+            Some(calamine::Data::String(s)) => match NaiveTime::parse_from_str(&s, "%H:%M:%s") {
+                Ok(naive_date) => naive_date,
+                Err(_) => {
+                    println!(
+                        "Could not parse earliest_finish_time_data from string: {}",
+                        s
+                    );
+                    NaiveTime::from_hms_opt(7, 0, 0).unwrap()
                 }
+            },
+            Some(calamine::Data::DateTime(s)) => excel_time_to_hh_mm_ss(s.as_f64()),
+            _ => NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
+        };
+        Utc.from_utc_datetime(&naive::NaiveDateTime::new(date, time))
+    };
 
-                _ => NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
-            };
+    let operation_dates = OperationDates::new(
+        default_future_date,
+        default_future_date,
+        earliest_start_datetime,
+        earliest_finish_datetime,
+    );
 
-            let time = match earliest_finish_time_data.cloned() {
-                Some(calamine::Data::String(s)) => {
-                    match NaiveTime::parse_from_str(&s, "%H:%M:%s") {
-                        Ok(naive_date) => naive_date,
-                        Err(_) => {
-                            println!(
-                                "Could not parse earliest_finish_time_data from string: {}",
-                                s
-                            );
-                            NaiveTime::from_hms_opt(7, 0, 0).unwrap()
-                        }
-                    }
-                }
-                Some(calamine::Data::DateTime(s)) => excel_time_to_hh_mm_ss(s.as_f64()),
-                _ => NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
-            };
-            Utc.from_utc_datetime(&naive::NaiveDateTime::new(date, time))
+    Ok(Operation::new(
+        activity,
+        match work_center_data.cloned() {
+            Some(calamine::Data::String(s)) => Resources::new_from_string(s),
+            _ => return Err(Error::Msg("Could not parse work center as string")),
         },
-    })
+        operation_info,
+        operation_analytic,
+        operation_dates,
+    ))
 }
 
 /// This function will extract the status codes from the row and return them as a StatusCodes struct.

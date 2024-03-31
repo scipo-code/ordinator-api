@@ -1,51 +1,81 @@
+pub mod operation_analytic;
+pub mod operation_info;
+
+use crate::models::work_order::operation::operation_analytic::OperationAnalytic;
+use crate::models::work_order::operation::operation_info::OperationInfo;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
-
 use shared_messages::resources::Resources;
+use std::fmt::Display;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Operation {
-    pub activity: u32,
-    pub number: u32,
-    pub resource: Resources,
-    pub preparation_time: f64,
-    pub work_remaining: f64,
-    pub work_performed: f64,
-    pub work_adjusted: f64,
-    pub operating_time: f64,
-    pub duration: u32,
-    pub possible_start: DateTime<Utc>,
-    pub target_finish: DateTime<Utc>,
-    pub earliest_start_datetime: DateTime<Utc>,
-    pub earliest_finish_datetime: DateTime<Utc>,
+    activity: u32,
+    resource: Resources,
+    operation_info: OperationInfo,
+    operation_analytic: OperationAnalytic,
+    operation_dates: OperationDates,
 }
 
 impl Operation {
-    #[allow(dead_code)]
     pub fn new(
         activity: u32,
-        number: u32,
-        work_center: Resources,
-        preparation_time: f64,
-        work_remaining: f64,
-        operating_time: f64,
-        duration: u32,
+        resource: Resources,
+        operation_info: OperationInfo,
+        operation_analytic: OperationAnalytic,
+        operation_dates: OperationDates,
+    ) -> Self {
+        Operation {
+            activity,
+            resource,
+            operation_info,
+            operation_analytic,
+            operation_dates,
+        }
+    }
+
+    pub fn work_remaining(&self) -> f64 {
+        self.operation_info.work_remaining()
+    }
+
+    pub fn resource(&self) -> &Resources {
+        &self.resource
+    }
+
+    pub fn activity(&self) -> u32 {
+        self.activity
+    }
+
+    pub fn number(&self) -> u32 {
+        self.operation_info.number()
+    }
+
+    pub fn duration(&self) -> u32 {
+        self.operation_analytic.duration()
+    }
+
+    pub fn operating_time(&self) -> f64 {
+        self.operation_info.operating_time()
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct OperationDates {
+    possible_start: DateTime<Utc>,
+    target_finish: DateTime<Utc>,
+    earliest_start_datetime: DateTime<Utc>,
+    earliest_finish_datetime: DateTime<Utc>,
+}
+
+impl OperationDates {
+    pub fn new(
         possible_start: DateTime<Utc>,
         target_finish: DateTime<Utc>,
         earliest_start_datetime: DateTime<Utc>,
         earliest_finish_datetime: DateTime<Utc>,
     ) -> Self {
-        Operation {
-            activity,
-            number,
-            resource: work_center,
-            preparation_time,
-            work_remaining,
-            work_performed: 0.0,
-            work_adjusted: 0.0,
-            operating_time,
-            duration,
+        OperationDates {
             possible_start,
             target_finish,
             earliest_start_datetime,
@@ -61,35 +91,34 @@ impl Display for Operation {
             "    Activity: {:>8}    |{:>11}|{:>14}|{:>8}|{:>6}|",
             self.activity,
             self.resource.to_string(),
-            self.work_remaining,
-            self.duration,
-            self.number,
+            self.operation_info.work_remaining(),
+            self.operation_analytic.duration(),
+            self.operation_info.number(),
         )
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Operation;
+    use super::{Operation, OperationAnalytic, OperationDates, OperationInfo};
     use chrono::Utc;
     use shared_messages::resources::Resources;
 
     impl Operation {
         pub fn new_test(activity: u32, work_center: Resources, work_remaining: f64) -> Self {
+            let operation_info = OperationInfo::new(1, work_remaining, 0.0, 0.0, 6.0);
+
+            let operation_analytic = OperationAnalytic::new(1.0, 6);
+
+            let operation_dates =
+                OperationDates::new(Utc::now(), Utc::now(), Utc::now(), Utc::now());
+
             Operation {
                 activity,
-                number: 1,
                 resource: work_center,
-                preparation_time: 1.0,
-                work_remaining,
-                work_performed: 0.0,
-                work_adjusted: 0.0,
-                operating_time: 6.0,
-                duration: 6,
-                possible_start: Utc::now(),
-                target_finish: Utc::now(),
-                earliest_start_datetime: Utc::now(),
-                earliest_finish_datetime: Utc::now(),
+                operation_info,
+                operation_analytic,
+                operation_dates,
             }
         }
     }
