@@ -2,23 +2,22 @@ mod algorithm;
 use std::fmt::Write;
 
 use std::collections::{HashMap, HashSet};
-use std::fmt::{ Display};
+use std::fmt::Display;
 use std::hash::{Hash, Hasher};
-use tracing::{debug, info, instrument};
+use tracing::{trace, info, instrument};
 use colored::*;
 
 use priority_queue::PriorityQueue;
 use shared_messages::agent_error::AgentError;
 use shared_messages::strategic::strategic_periods_message::StrategicTimeMessage;
-use shared_messages::strategic::strategic_resources_message::{StrategicResourceMessage};
+use shared_messages::strategic::strategic_resources_message::StrategicResourceMessage;
 use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
 
-use crate::agents::traits::{LargeNeighborHoodSearch};
-use crate::models::time_environment::period::{Period};
+use crate::agents::traits::LargeNeighborHoodSearch;
+use crate::models::time_environment::period::Period;
 use shared_messages::resources::Resources;
 
 #[derive(Debug, Clone)]
-
 pub struct StrategicAlgorithm {
     objective_value: f64,
     resources_capacity: AlgorithmResources,
@@ -28,7 +27,6 @@ pub struct StrategicAlgorithm {
     period_locks: HashSet<Period>,
     periods: Vec<Period>,
 }
-
 
 impl StrategicAlgorithm {
     #[allow(dead_code)]
@@ -60,7 +58,6 @@ impl StrategicAlgorithm {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct AlgorithmResources {
     pub inner: HashMap<Resources, HashMap<Period, f64>>
@@ -81,7 +78,6 @@ impl AlgorithmResources {
         periods.sort();
         periods.dedup();
 
-        // Header
         write!(string, "{:<12}", "Resource").ok();
         for (nr_period, period) in periods.iter().enumerate().take(number_of_periods as usize) {
             if nr_period == 0 {
@@ -94,7 +90,6 @@ impl AlgorithmResources {
         }
         writeln!(string).ok();
         
-        // Rows
         for (resource, inner_map) in self.inner.iter() {
             write!(string, "{:<12}", resource.variant_name()).unwrap();
             for (nr_period, period) in periods.iter().enumerate().take(number_of_periods as usize) {
@@ -113,12 +108,10 @@ impl AlgorithmResources {
     }
 }
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct OptimizedWorkOrders {
     inner: HashMap<u32, OptimizedWorkOrder>,
 }
-
 
 impl Hash for OptimizedWorkOrders {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -136,7 +129,6 @@ impl Hash for OptimizedWorkOrders {
 impl Hash for OptimizedWorkOrder {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Hash the length of the HashMap to ensure different lengths produce different hashes
-
         self.scheduled_period.hash(state);
         self.locked_in_period.hash(state);
         for period in &self.excluded_periods {
@@ -280,8 +272,9 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
     type TimeMessage = StrategicTimeMessage;
 
     type Error = AgentError;
-
+    
     fn objective_value(&self) -> f64 {
+        info!("Strategic Objective: {}", self.objective_value);
         self.objective_value
     }
 
@@ -482,7 +475,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
 impl StrategicAlgorithm {
     pub fn populate_priority_queues(&mut self) {
         for (key, work_order) in self.optimized_work_orders.inner.iter() {
-            debug!("Work order {} has been added to the normal queue", key);
+            trace!("Work order {} has been added to the normal queue", key);
             if work_order.scheduled_period.is_none() {
                 self.priority_queues
                     .normal
@@ -562,9 +555,7 @@ impl StrategicAlgorithm {
 
 #[cfg(test)]
 mod tests {
-    use shared_messages::strategic::{
-        strategic_scheduling_message::SingleWorkOrder,
-    };
+    use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
 
     use super::*;
 
@@ -575,18 +566,8 @@ mod tests {
             OptimizedWorkOrders, PriorityQueues, StrategicAlgorithm,
         },
         models::{
-            work_order::{
-                functional_location::FunctionalLocation,
-                order_dates::WorkOrderDates,
-                order_text::OrderText,
-                order_type::{WDFPriority, WorkOrderType},
-                priority::Priority,
-                revision::Revision,
-                status_codes::StatusCodes,
-                system_condition::SystemCondition,
-                unloading_point::UnloadingPoint,
-                WorkOrder,
-            },
+            work_order::WorkOrder,
+            
             WorkOrders,
         },
     };
