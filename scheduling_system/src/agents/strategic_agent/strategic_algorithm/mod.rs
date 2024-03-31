@@ -272,8 +272,9 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
     type TimeMessage = StrategicTimeMessage;
 
     type Error = AgentError;
-
+    
     fn objective_value(&self) -> f64 {
+        info!("Strategic Objective: {}", self.objective_value);
         self.objective_value
     }
 

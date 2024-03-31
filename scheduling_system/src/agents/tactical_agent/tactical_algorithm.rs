@@ -43,7 +43,7 @@ struct OptimizedTacticalWorkOrder {
     operation_parameters: HashMap<u32, OperationParameters>,
     weight: u32,
     relations: Vec<ActivityRelation>,
-    operation_solution: Option<HashMap<Resources, HashMap<Day, f64>>>,
+    operation_solutions: Option<HashMap<u32, OperationSolution>>,
     scheduled_period: Period,
 }
 
@@ -125,17 +125,25 @@ impl AlgorithmResources {
 #[derive(Clone)]
 struct OperationParameters {
     work_order_id: u32,
-    scheduled_start: u32,
-    scheduled_end: u32,
     number: u32,
     duration: u32,
     operating_time: f64,
     work_remaining: f64,
     resource: Resources,
 }
-
+#[derive(Clone)]
 struct OperationSolution {
     scheduled: Vec<(Day, f64)>,
+    resource: Resources,
+}
+
+impl OperationSolution {
+    pub fn new(scheduled: Vec<(Day, f64)>, resource: Resources) -> OperationSolution {
+        OperationSolution {
+            scheduled,
+            resource,
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Hash, Clone, PartialOrd, Ord, Debug)]
@@ -227,14 +235,12 @@ impl TacticalAlgorithm {
             relations: work_order.relations().clone(),
             weight: work_order.work_order_weight(),
             scheduled_period: period,
-            operation_solution: None,
+            operation_solutions: None,
         };
 
         for (activity, operation) in work_order.operations() {
             let optimized_operation = OperationParameters {
                 work_order_id: *work_order.work_order_number(),
-                scheduled_start: 0,
-                scheduled_end: 0,
                 number: operation.number(),
                 duration: operation.duration(),
                 operating_time: operation.operating_time(),
@@ -270,7 +276,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
     fn schedule(&mut self) {
         for (work_order_number, optimized_work_order) in self.optimized_work_orders.iter() {
-            match &optimized_work_order.operation_solution {
+            match &optimized_work_order.operation_solutions {
                 None => {
                     self.priority_queue
                         .push(*work_order_number, optimized_work_order.weight);
@@ -311,8 +317,8 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 }
             };
 
-            let mut allowed_days = self.tactical_days.clone();
-            let allowed_starting_days: Vec<&Day> = allowed_days
+            let mut all_days = self.tactical_days.clone();
+            let allowed_starting_days: Vec<&Day> = all_days
                 .iter()
                 .filter(|date| {
                     optimized_work_order.scheduled_period.start_date() <= &date.date
@@ -322,20 +328,21 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
             let start_day: Day = allowed_starting_days[start_day_index].clone();
 
-            let _ = allowed_days
+            let allowed_days: Vec<_> = all_days
                 .iter_mut()
-                .filter(|date| start_day.date <= date.date);
+                .filter(|date| start_day.date <= date.date)
+                .collect();
 
-            let mut work_order_load = HashMap::<Resources, HashMap<Day, f64>>::new();
+            let mut operation_solutions = HashMap::<u32, OperationSolution>::new();
 
             let mut current_day = allowed_days.into_iter().peekable();
 
-            for (_activity, operation) in optimized_work_order.operation_parameters.iter() {
-                let mut activity_load = HashMap::<Day, f64>::new();
+            for (activity, operation) in optimized_work_order.operation_parameters.iter() {
+                let mut activity_load = Vec::<(Day, f64)>::new();
                 let resource = operation.resource.clone();
 
                 let remaining_capacity =
-                    match self.remaining_capacity(&resource, current_day.peek().unwrap().clone()) {
+                    match self.remaining_capacity(&resource, current_day.peek().unwrap()) {
                         Some(remaining_capacity) => remaining_capacity,
                         None => {
                             if start_day_index <= 12 {
@@ -354,12 +361,17 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 );
 
                 for load in loadings {
-                    activity_load.insert(current_day.peek().unwrap().clone(), load);
+                    let day = match current_day.peek() {
+                        Some(day) => (*day).clone(),
+                        //TODO We should fix the problem by changing the operating time.
+                        None => continue 'main,
+                    };
+                    activity_load.push((day, load));
 
                     current_day.next();
                     if start_day_index <= 12
                         && self
-                            .remaining_capacity(&resource, current_day.peek().unwrap().clone())
+                            .remaining_capacity(&resource, current_day.peek().unwrap())
                             .is_none()
                     {
                         start_day_index += 1;
@@ -367,35 +379,41 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                         continue 'main;
                     };
                 }
-                work_order_load.insert(resource, activity_load);
+
+                let operation_solution = OperationSolution::new(activity_load, resource);
+                operation_solutions.insert(*activity, operation_solution);
             }
             debug!(
                 "Tactical Work Order {} has been scheduled starting on day {}",
                 current_work_order_number, start_day.day_index
             );
             loop_state = LoopState::Scheduled;
-            self.update_loadings(&work_order_load, LoadOperation::Add);
+
+            self.optimized_work_orders
+                .get_mut(&current_work_order_number)
+                .unwrap()
+                .operation_solutions = Some(operation_solutions.clone());
+            self.update_loadings(&operation_solutions, LoadOperation::Add);
         }
     }
 
     fn unschedule(&mut self, work_order_number: u32) {
-        let work_order_load = {
+        let _operation_solution = {
             let optimized_work_order = self.optimized_work_orders.get_mut(&work_order_number)
             .expect("A call was made to TacticalAlgorith.unschedule(work_order_number) where the underlying work order was not in a scheduled state");
 
-            match optimized_work_order.operation_solution.take() {
-                Some(work_order_load) => work_order_load,
+            match optimized_work_order.operation_solutions.take() {
+                Some(operation_solution) => {
+                    self.update_loadings(&operation_solution, LoadOperation::Sub)
+                }
                 None => {
                     debug!(
                         "Work order {} was not scheduled before leaving the tactical schedule",
                         work_order_number
                     );
-                    HashMap::new()
                 }
             }
         };
-
-        self.update_loadings(&work_order_load, LoadOperation::Sub);
     }
 
     fn update_scheduling_state(
@@ -479,22 +497,26 @@ enum LoadOperation {
 impl TacticalAlgorithm {
     fn update_loadings(
         &mut self,
-        work_order_load: &HashMap<Resources, HashMap<Day, f64>>,
+        operation_solutions: &HashMap<u32, OperationSolution>,
         load_operation: LoadOperation,
     ) {
-        for (resource, days) in work_order_load {
-            for (day, load) in days {
-                let loading = self.loading.loading_mut(&resource, &day);
+        for (_activity, operation) in operation_solutions {
+            let resource = operation.resource.clone();
+            for loadings in operation.scheduled.clone() {
+                let day = loadings.0;
+                let load = loadings.1;
+
+                let resource_loading = self.loading.loading_mut(&resource, &day);
 
                 match load_operation {
-                    LoadOperation::Add => *loading += load,
-                    LoadOperation::Sub => *loading -= load,
+                    LoadOperation::Add => *resource_loading += load,
+                    LoadOperation::Sub => *resource_loading -= load,
                 }
             }
         }
     }
 
-    fn remaining_capacity(&self, resource: &Resources, day: Day) -> Option<f64> {
+    fn remaining_capacity(&self, resource: &Resources, day: &Day) -> Option<f64> {
         let remaining_capacity =
             self.capacity.capacity(resource, &day) - self.loading.loading(resource, &day);
         if remaining_capacity <= 0.0 {
@@ -563,11 +585,14 @@ impl TestAlgorithm for TacticalAlgorithm {
 
         // The first one should sum up all scheduled work orders and make sure that their work
         // load is equal to the amount given by the loading.
-
         let mut aggregated_load: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
         for (_work_order_id, optimized_work_order) in self.optimized_work_orders.clone() {
-            for (resource, days) in optimized_work_order.operation_solution.unwrap_or_default() {
-                for (day, load) in days {
+            for (_activity, operation_solution) in
+                optimized_work_order.operation_solutions.unwrap_or_default()
+            {
+                let resource = operation_solution.resource;
+
+                for (day, load) in operation_solution.scheduled {
                     *aggregated_load
                         .entry(resource.clone())
                         .or_default()
@@ -592,6 +617,29 @@ impl TestAlgorithm for TacticalAlgorithm {
             }
         }
 
+        for (_work_order_number, optimized_work_order) in self.optimized_work_orders.clone() {
+            let start_date_from_period = optimized_work_order.scheduled_period.start_date();
+
+            if let Some(operation_solutions) = optimized_work_order.operation_solutions {
+                let start_days: Vec<_> = operation_solutions
+                    .values()
+                    .map(|operation_solution| {
+                        operation_solution
+                            .scheduled
+                            .first()
+                            .expect("All scheduled operations should have a first scheduled day")
+                            .0
+                            .clone()
+                    })
+                    .collect();
+
+                for start_day in start_days {
+                    if start_day.date().date_naive() < start_date_from_period.date_naive() {
+                        return AlgorithmState::Infeasible;
+                    }
+                }
+            }
+        }
         AlgorithmState::Feasible
     }
 }

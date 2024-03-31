@@ -41,7 +41,7 @@ impl TacticalCommands {
             }
 
             TacticalCommands::Resources { resource_commands } => match resource_commands {
-                ResourceCommands::GetCapacities {
+                ResourceCommands::Capacity {
                     days_end,
                     select_resources,
                 } => {
@@ -54,7 +54,7 @@ impl TacticalCommands {
 
                     SystemMessages::Tactical(tactical_request)
                 }
-                ResourceCommands::GetLoadings {
+                ResourceCommands::Loading {
                     days_end,
                     select_resources,
                 } => {
@@ -95,11 +95,11 @@ impl TacticalCommands {
 
 #[derive(Debug, Subcommand)]
 pub enum ResourceCommands {
-    GetLoadings {
+    Loading {
         days_end: u32,
         select_resources: Option<Vec<Resources>>,
     },
-    GetCapacities {
+    Capacity {
         days_end: u32,
         select_resources: Option<Vec<Resources>>,
     },
