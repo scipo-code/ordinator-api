@@ -10,6 +10,7 @@ use shared_messages::agent_error::AgentError;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
 use shared_messages::strategic::StrategicRequest;
 use shared_messages::StatusMessage;
+use tracing::info;
 use std::sync::Arc;
 use std::sync::Mutex;
 use tracing::error;
@@ -96,6 +97,8 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 
         if temporary_schedule.objective_value() < self.strategic_agent_algorithm.objective_value() {
             self.strategic_agent_algorithm = temporary_schedule;
+            
+            info!("Found better schedule for the strategic algorithm {}", self.strategic_agent_algorithm.objective_value());
             self.update_tactical_agent();
         }
         ctx.notify(ScheduleIteration {});

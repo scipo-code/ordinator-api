@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use colored::Colorize;
 
 use priority_queue::PriorityQueue;
+use rand::seq::SliceRandom;
 use shared_messages::{
     agent_error::AgentError,
     resources::Resources,
@@ -15,7 +16,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::{borrow::Cow, cmp::Ordering};
 use strum::IntoEnumIterator;
-use tracing::{debug, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 
 use crate::{
     agents::traits::{AlgorithmState, LargeNeighborHoodSearch, TestAlgorithm},
@@ -25,7 +26,7 @@ use crate::{
         WorkOrders,
     },
 };
-
+#[derive(Clone)]
 pub struct TacticalAlgorithm {
     objective_value: f64,
     time_horizon: usize,
@@ -255,6 +256,24 @@ impl TacticalAlgorithm {
             .insert(*work_order.work_order_number(), optimized_work_order);
     }
 
+    pub fn unschedule_random_work_orders(
+        &mut self,
+        rng: &mut impl rand::Rng,
+        number_of_work_orders: u32,
+    ) {
+        let work_order_numbers: Vec<u32> = self
+            .optimized_work_orders
+            .clone()
+            .into_keys()
+            .collect::<Vec<u32>>();
+
+        let random_work_order_numbers =
+            work_order_numbers.choose_multiple(rng, number_of_work_orders as usize);
+        for work_order_number in random_work_order_numbers {
+            self.unschedule(*work_order_number);
+        }
+    }
+
     pub fn loading(&self) -> &AlgorithmResources {
         &self.loading
     }
@@ -270,8 +289,45 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
     type TimeMessage = TacticalTimeMessage;
     type Error = AgentError;
 
-    fn objective_value(&self) -> f64 {
-        self.objective_value
+    fn calculate_objective_value(&mut self) {
+        let mut objective_value = 0.0;
+        for (_work_order_number, optimized_work_order) in self.optimized_work_orders.iter() {
+            let period_start_date = optimized_work_order
+                .scheduled_period
+                .start_date()
+                .date_naive();
+            let mut activity_keys: Vec<u32> = optimized_work_order
+                .operation_solutions
+                .clone()
+                .expect("When calculating the objective value all work order should be scheduled")
+                .keys()
+                .cloned()
+                .collect();
+
+            activity_keys.sort_unstable_by(|a, b| b.cmp(a));
+
+            let last_activity = activity_keys.last().unwrap();
+
+            let last_day = optimized_work_order
+                .operation_solutions
+                .clone()
+                .unwrap()
+                .get(last_activity)
+                .unwrap()
+                .scheduled
+                .last()
+                .unwrap()
+                .0
+                .date
+                .date_naive();
+
+            let day_difference = last_day - period_start_date;
+
+            objective_value +=
+                (optimized_work_order.weight as i64 * day_difference.num_days()) as f64;
+        }
+
+        self.objective_value = objective_value;
     }
 
     fn schedule(&mut self) {
@@ -337,7 +393,20 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
             let mut current_day = allowed_days.into_iter().peekable();
 
-            for (activity, operation) in optimized_work_order.operation_parameters.iter() {
+            let mut sorted_activities = optimized_work_order
+                .operation_parameters
+                .keys()
+                .clone()
+                .collect::<Vec<&u32>>();
+
+            sorted_activities.sort();
+
+            for activity in sorted_activities {
+                // optimized_work_order.operation_parameters.iter() {
+                let operation = optimized_work_order
+                    .operation_parameters
+                    .get(activity)
+                    .expect("The work order should always have its corresponding parameters");
                 let mut activity_load = Vec::<(Day, f64)>::new();
                 let resource = operation.resource.clone();
 
@@ -364,7 +433,13 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     let day = match current_day.peek() {
                         Some(day) => (*day).clone(),
                         //TODO We should fix the problem by changing the operating time.
-                        None => continue 'main,
+                        None => {
+                            info!(
+                                "Work order {} did not fit in the tactical schedule",
+                                current_work_order_number
+                            );
+                            panic!();
+                        }
                     };
                     activity_load.push((day, load));
 

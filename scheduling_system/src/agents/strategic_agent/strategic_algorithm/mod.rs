@@ -34,6 +34,10 @@ impl StrategicAlgorithm {
         self.optimized_work_orders.inner.get(work_order_number)
     }
 
+    pub fn objective_value(&self) -> f64 {
+        self.objective_value
+    }
+
     pub fn set_periods(&mut self, periods: Vec<Period>) {
         self.periods = periods;
     }
@@ -273,9 +277,9 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
 
     type Error = AgentError;
     
-    fn objective_value(&self) -> f64 {
-        info!("Strategic Objective: {}", self.objective_value);
-        self.objective_value
+    fn calculate_objective_value(&mut self) {
+        // TODO remove this
+        self.objective_value;
     }
 
     #[instrument(level = "trace", skip_all)]

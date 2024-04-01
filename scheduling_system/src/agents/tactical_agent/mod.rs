@@ -7,7 +7,7 @@ use shared_messages::resources::Id;
 use shared_messages::tactical::TacticalRequest;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tracing::{instrument, warn};
+use tracing::{info, instrument, warn};
 
 use crate::agents::strategic_agent::ScheduleIteration;
 use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
@@ -70,7 +70,22 @@ impl Handler<ScheduleIteration> for TacticalAgent {
     type Result = ();
 
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
-        self.tactical_algorithm.schedule();
+        let mut rng = rand::thread_rng();
+
+        let mut temporary_schedule: TacticalAlgorithm = self.tactical_algorithm.clone();
+
+        temporary_schedule.unschedule_random_work_orders(&mut rng, 50);
+
+        temporary_schedule.schedule();
+
+        temporary_schedule.calculate_objective_value();
+
+        if temporary_schedule.calculate_objective_value()
+            < self.tactical_algorithm.calculate_objective_value()
+        {
+            info!("Found better schedule for tactical agent");
+            self.tactical_algorithm = temporary_schedule;
+        };
 
         ctx.notify(ScheduleIteration {});
     }
