@@ -2,6 +2,7 @@ use actix::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::Mutex;
+use tracing::warn;
 
 use crate::agents::operational_agent::{OperationalAgent, OperationalAgentBuilder};
 use crate::agents::strategic_agent::strategic_algorithm::OptimizedWorkOrder;
@@ -173,6 +174,31 @@ fn create_optimized_work_orders(
             );
         }
 
+        if work_order.status_codes().sch {
+            let containing_period = periods.iter().find(|period| {
+                period.start_date() <= &work_order.order_dates().basic_start_date
+                    && &work_order.order_dates().basic_start_date <= period.end_date()
+            });
+
+            let scheduled_period = match containing_period {
+                Some(period) => Some(period),
+                None => periods.first(),
+            };
+
+            optimized_work_orders.insert(
+                *work_order_number,
+                OptimizedWorkOrder::new(
+                    scheduled_period.cloned(),
+                    scheduled_period.cloned(),
+                    excluded_periods.clone(),
+                    None,
+                    work_order.work_order_weight(),
+                    work_order.work_load().clone(),
+                ),
+            );
+            continue;
+        };
+
         if work_order.unloading_point().present {
             let period = work_order.unloading_point().period.clone();
             optimized_work_orders.insert(
@@ -188,6 +214,7 @@ fn create_optimized_work_orders(
             );
             continue;
         }
+
         optimized_work_orders.insert(
             *work_order_number,
             OptimizedWorkOrder::new(

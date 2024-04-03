@@ -98,7 +98,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         if temporary_schedule.objective_value() < self.strategic_agent_algorithm.objective_value() {
             self.strategic_agent_algorithm = temporary_schedule;
             
-            info!("Found better schedule for the strategic algorithm {}", self.strategic_agent_algorithm.objective_value());
+            info!(strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
             self.update_tactical_agent();
         }
         ctx.notify(ScheduleIteration {});

@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::{borrow::Cow, cmp::Ordering};
 use strum::IntoEnumIterator;
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 use crate::{
     agents::traits::{AlgorithmState, LargeNeighborHoodSearch, TestAlgorithm},
@@ -181,6 +181,10 @@ impl TacticalAlgorithm {
         }
     }
 
+    pub fn objective_value(&self) -> &f64 {
+        &self.objective_value
+    }
+
     pub fn update_state_based_on_strategic(
         &mut self,
         work_order: &WorkOrders,
@@ -296,6 +300,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 .scheduled_period
                 .start_date()
                 .date_naive();
+
             let mut activity_keys: Vec<u32> = optimized_work_order
                 .operation_solutions
                 .clone()
@@ -432,13 +437,12 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 for load in loadings {
                     let day = match current_day.peek() {
                         Some(day) => (*day).clone(),
-                        //TODO We should fix the problem by changing the operating time.
                         None => {
                             info!(
                                 "Work order {} did not fit in the tactical schedule",
                                 current_work_order_number
                             );
-                            panic!();
+                            panic!("Operation left the window set by the tactical days, either the work order and very large or there is a bug");
                         }
                     };
                     activity_load.push((day, load));
@@ -469,26 +473,33 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 .unwrap()
                 .operation_solutions = Some(operation_solutions.clone());
             self.update_loadings(&operation_solutions, LoadOperation::Add);
+
+            if self
+                .optimized_work_orders
+                .get_mut(&current_work_order_number)
+                .is_none()
+            {
+                error!(unscheduled_work_order = &current_work_order_number);
+                panic!("Unscheduled work order got through the schedule function");
+            }
         }
     }
 
     fn unschedule(&mut self, work_order_number: u32) {
-        let _operation_solution = {
-            let optimized_work_order = self.optimized_work_orders.get_mut(&work_order_number)
+        let optimized_work_order = self.optimized_work_orders.get_mut(&work_order_number)
             .expect("A call was made to TacticalAlgorith.unschedule(work_order_number) where the underlying work order was not in a scheduled state");
 
-            match optimized_work_order.operation_solutions.take() {
-                Some(operation_solution) => {
-                    self.update_loadings(&operation_solution, LoadOperation::Sub)
-                }
-                None => {
-                    debug!(
-                        "Work order {} was not scheduled before leaving the tactical schedule",
-                        work_order_number
-                    );
-                }
+        match optimized_work_order.operation_solutions.take() {
+            Some(operation_solution) => {
+                self.update_loadings(&operation_solution, LoadOperation::Sub)
             }
-        };
+            None => {
+                debug!(
+                    "Work order {} was not scheduled before leaving the tactical schedule",
+                    work_order_number
+                );
+            }
+        }
     }
 
     fn update_scheduling_state(
@@ -655,11 +666,11 @@ enum OperationDifference {
 }
 
 impl TestAlgorithm for TacticalAlgorithm {
-    fn determine_algorithm_state(&self) -> AlgorithmState {
-        // In here we have to test that each constraint of the problem to satisfied.
+    type InfeasibleCases = TacticalInfeasibleCases;
 
-        // The first one should sum up all scheduled work orders and make sure that their work
-        // load is equal to the amount given by the loading.
+    fn determine_algorithm_state(&self) -> AlgorithmState<Self::InfeasibleCases> {
+        let mut infeasible_cases = TacticalInfeasibleCases::default();
+        let mut algorithm_state = AlgorithmState::Feasible;
         let mut aggregated_load: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
         for (_work_order_id, optimized_work_order) in self.optimized_work_orders.clone() {
             for (_activity, operation_solution) in
@@ -687,7 +698,8 @@ impl TestAlgorithm for TacticalAlgorithm {
                 let agg_load = resource_map.get(&day).unwrap_or(&0.0);
                 let sch_load = self.loading().loading(&resource, &day);
                 if *agg_load != sch_load {
-                    return AlgorithmState::Infeasible;
+                    infeasible_cases.aggregated_load = true;
+                    algorithm_state = AlgorithmState::Infeasible(infeasible_cases.clone());
                 }
             }
         }
@@ -710,15 +722,39 @@ impl TestAlgorithm for TacticalAlgorithm {
 
                 for start_day in start_days {
                     if start_day.date().date_naive() < start_date_from_period.date_naive() {
-                        return AlgorithmState::Infeasible;
+                        infeasible_cases.earliest_start_day = true;
+                        algorithm_state = AlgorithmState::Infeasible(infeasible_cases.clone());
                     }
                 }
             }
         }
-        AlgorithmState::Feasible
+
+        for optimized_work_order in self.optimized_work_orders.clone().values() {
+            if optimized_work_order.operation_solutions.is_none() {
+                infeasible_cases.all_scheduled = true;
+                algorithm_state = AlgorithmState::Infeasible(infeasible_cases.clone());
+            }
+        }
+        algorithm_state
     }
 }
 
+#[derive(Clone)]
+pub struct TacticalInfeasibleCases {
+    aggregated_load: bool,
+    earliest_start_day: bool,
+    all_scheduled: bool,
+}
+
+impl Default for TacticalInfeasibleCases {
+    fn default() -> Self {
+        Self {
+            aggregated_load: false,
+            earliest_start_day: false,
+            all_scheduled: false,
+        }
+    }
+}
 #[cfg(test)]
 pub mod tests {
     use std::collections::HashMap;

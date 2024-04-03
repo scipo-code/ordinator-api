@@ -73,18 +73,16 @@ impl Handler<ScheduleIteration> for TacticalAgent {
         let mut rng = rand::thread_rng();
 
         let mut temporary_schedule: TacticalAlgorithm = self.tactical_algorithm.clone();
-
+        // TODO Start here
         temporary_schedule.unschedule_random_work_orders(&mut rng, 50);
 
         temporary_schedule.schedule();
 
         temporary_schedule.calculate_objective_value();
 
-        if temporary_schedule.calculate_objective_value()
-            < self.tactical_algorithm.calculate_objective_value()
-        {
-            info!("Found better schedule for tactical agent");
+        if temporary_schedule.objective_value() < self.tactical_algorithm.objective_value() {
             self.tactical_algorithm = temporary_schedule;
+            info!(tactical_objective_value = %self.tactical_algorithm.objective_value());
         };
 
         ctx.notify(ScheduleIteration {});
@@ -116,7 +114,9 @@ impl Handler<TacticalRequest> for TacticalAgent {
 
                 match algorithm_state {
                     AlgorithmState::Feasible => Ok("Tactical Schedule is Feasible (Additional tests may be needed)".to_string()),
-                    AlgorithmState::Infeasible => Ok("Tactical Schedule is Infesible (Consider outputting which of the constraints that are causing the problem)".to_string())
+                    AlgorithmState::Infeasible(infeasible_cases) => {
+                        Ok("Tactical Schedule is Infesible (Consider outputting which of the constraints that are causing the problem)".to_string())
+                    }
                 }
             }
         }

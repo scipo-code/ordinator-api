@@ -27,10 +27,12 @@ pub trait LargeNeighborHoodSearch {
 /// TestAlgorithm is a trait that all algorithms should implement. Running `feasible()` tests if the solution
 /// violates any constraints of the problem, or if the objective is not correctly calcalated.
 pub trait TestAlgorithm {
-    fn determine_algorithm_state(&self) -> AlgorithmState;
+    type InfeasibleCases;
+
+    fn determine_algorithm_state(&self) -> AlgorithmState<Self::InfeasibleCases>;
 }
 
-pub enum AlgorithmState {
+pub enum AlgorithmState<T> {
     Feasible,
-    Infeasible,
+    Infeasible(T),
 }
