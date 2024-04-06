@@ -1,6 +1,6 @@
 use core::panic;
 use rand::prelude::SliceRandom;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 use super::StrategicAlgorithm;
 use crate::agents::strategic_agent::strategic_algorithm::OptimizedWorkOrder;
@@ -43,6 +43,8 @@ impl StrategicAlgorithm {
         for work_order_key in work_order_keys {
             self.schedule_forced_work_order(work_order_key);
         }
+        self.calculate_objective_value();
+        // info!(strategic_objective_value = %self.objective_value());
     }
 
     #[instrument(level = "trace", skip_all)]

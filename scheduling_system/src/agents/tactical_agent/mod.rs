@@ -73,16 +73,18 @@ impl Handler<ScheduleIteration> for TacticalAgent {
         let mut rng = rand::thread_rng();
 
         let mut temporary_schedule: TacticalAlgorithm = self.tactical_algorithm.clone();
-        // TODO Start here
+
         temporary_schedule.unschedule_random_work_orders(&mut rng, 50);
 
         temporary_schedule.schedule();
 
         temporary_schedule.calculate_objective_value();
 
-        if temporary_schedule.objective_value() < self.tactical_algorithm.objective_value() {
+        if temporary_schedule.get_objective_value() < self.tactical_algorithm.get_objective_value()
+        {
             self.tactical_algorithm = temporary_schedule;
-            info!(tactical_objective_value = %self.tactical_algorithm.objective_value());
+
+            info!(tactical_objective_value = %self.tactical_algorithm.get_objective_value());
         };
 
         ctx.notify(ScheduleIteration {});
@@ -113,10 +115,20 @@ impl Handler<TacticalRequest> for TacticalAgent {
                 let algorithm_state = self.tactical_algorithm.determine_algorithm_state();
 
                 match algorithm_state {
-                    AlgorithmState::Feasible => Ok("Tactical Schedule is Feasible (Additional tests may be needed)".to_string()),
-                    AlgorithmState::Infeasible(infeasible_cases) => {
-                        Ok("Tactical Schedule is Infesible (Consider outputting which of the constraints that are causing the problem)".to_string())
-                    }
+                    AlgorithmState::Feasible => Ok(
+                        "Tactical Schedule is Feasible (Additional tests may be needed)"
+                            .to_string(),
+                    ),
+                    AlgorithmState::Infeasible(infeasible_cases) => Ok(format!(
+                        "Tactical Schedule is Infesible: \n 
+                           aggregated_load: {}\n
+                           all_scheduled: {}\n
+                           earliest_start_day: {}\n",
+                        infeasible_cases.aggregated_load,
+                        infeasible_cases.all_scheduled,
+                        infeasible_cases.earliest_start_day
+                    )
+                    .to_string()),
                 }
             }
         }

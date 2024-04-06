@@ -2,7 +2,6 @@ use actix::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::Mutex;
-use tracing::warn;
 
 use crate::agents::operational_agent::{OperationalAgent, OperationalAgentBuilder};
 use crate::agents::strategic_agent::strategic_algorithm::OptimizedWorkOrder;
@@ -45,10 +44,10 @@ impl AgentFactory {
 
         let locked_scheduling_environment = self.scheduling_environment.lock().unwrap();
 
-        let mut period_locks = HashSet::new();
+        let period_locks = HashSet::new();
 
-        period_locks.insert(locked_scheduling_environment.periods()[0].clone());
-        //period_locks.insert(locked_scheduling_environment.get_periods()[1].clone());
+        // period_locks.insert(locked_scheduling_environment.periods()[0].clone());
+        // period_locks.insert(locked_scheduling_environment.get_periods()[1].clone());
 
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
