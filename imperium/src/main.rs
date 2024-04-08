@@ -123,6 +123,7 @@ fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
 fn send_http(client: &Client, system_message: SystemMessages) -> String {
     let url = "http://localhost:8080/ws";
     let system_message_json = serde_json::to_string(&system_message).unwrap();
+    dbg!(system_message_json.clone());
     let res = client
         .post(url)
         .body(system_message_json)

@@ -43,6 +43,8 @@ impl StrategicAlgorithm {
         for work_order_key in work_order_keys {
             self.schedule_forced_work_order(work_order_key);
         }
+        self.calculate_objective_value();
+        // info!(strategic_objective_value = %self.objective_value());
     }
 
     #[instrument(level = "trace", skip_all)]

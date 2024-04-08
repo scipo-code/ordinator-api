@@ -17,6 +17,10 @@ pub enum StrategicResourceMessage {
         periods_end: String,
         select_resources: Option<Vec<Resources>>,
     },
+    GetPercentageLoadings {
+        periods_end: String,
+        resources: Option<Vec<Resources>>,
+    },
 }
 
 impl StrategicResourceMessage {

@@ -34,6 +34,10 @@ impl StrategicAlgorithm {
         self.optimized_work_orders.inner.get(work_order_number)
     }
 
+    pub fn objective_value(&self) -> f64 {
+        self.objective_value
+    }
+
     pub fn set_periods(&mut self, periods: Vec<Period>) {
         self.periods = periods;
     }
@@ -273,9 +277,9 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
 
     type Error = AgentError;
     
-    fn objective_value(&self) -> f64 {
-        info!("Strategic Objective: {}", self.objective_value);
-        self.objective_value
+    fn calculate_objective_value(&mut self) {
+        // TODO remove this
+        self.objective_value;
     }
 
     #[instrument(level = "trace", skip_all)]
@@ -352,6 +356,26 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 let periods_end: u32 = periods_end.parse().unwrap();
 
                 Ok(capacities.to_string(periods_end))
+            }
+            StrategicResourceMessage::GetPercentageLoadings { periods_end, resources: _ } => {
+                let periods_end: u32 = periods_end.parse().unwrap();
+                let capacities = self.resources_capacities();
+                let loadings = self.resources_loadings();
+
+                let mut percentage_loading = HashMap::<Resources, HashMap<Period, f64>>::new();
+
+                for (resource, periods) in &capacities.inner {
+                    if percentage_loading.get(resource).is_none() {
+                        percentage_loading.insert(resource.clone(), HashMap::<Period, f64>::new());
+                    }
+                    for (period, capacity) in periods {
+                        let percentage: f64 = (loadings.inner.get(resource).unwrap().get(period).unwrap() / capacity * 100.0).round();
+                        percentage_loading.get_mut(resource).unwrap().insert(period.clone(), percentage);
+                    }
+                }
+
+                let algorithm_resources = AlgorithmResources::new(percentage_loading );
+                Ok(algorithm_resources.to_string(periods_end))
             }
         }
     }
