@@ -129,6 +129,7 @@ impl Handler<TacticalRequest> for TacticalAgent {
                         infeasible_cases.earliest_start_day
                     )
                     .to_string()),
+
                 }
             }
         }
