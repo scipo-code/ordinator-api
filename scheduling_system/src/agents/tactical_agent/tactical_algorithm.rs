@@ -129,7 +129,7 @@ impl AlgorithmResources {
 #[allow(dead_code)]
 #[derive(Clone)]
 pub struct OperationParameters {
-    work_order_id: u32,
+    work_order_number: u32,
     number: u32,
     duration: u32,
     operating_time: f64,
@@ -139,7 +139,7 @@ pub struct OperationParameters {
 
 impl OperationParameters {
     pub fn new(
-        work_order_id: u32,
+        work_order_number: u32,
         number: u32,
         duration: u32,
         operating_time: f64,
@@ -147,7 +147,7 @@ impl OperationParameters {
         resource: Resources,
     ) -> Self {
         OperationParameters {
-            work_order_id,
+            work_order_number,
             number,
             duration,
             operating_time,
@@ -324,7 +324,7 @@ impl TacticalAlgorithm {
 
         for (activity, operation) in work_order.operations() {
             let optimized_operation = OperationParameters {
-                work_order_id: *work_order.work_order_number(),
+                work_order_number: *work_order.work_order_number(),
                 number: operation.number(),
                 duration: operation.duration(),
                 operating_time: operation.operating_time(),
@@ -415,7 +415,6 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 }
             }
         }
-
         self.objective_value = objective_value_from_tardiness + objective_value_from_excess;
     }
 
@@ -714,10 +713,9 @@ impl TacticalAlgorithm {
                 let load = loadings.1;
                 let resource_loading = self.loading(&resource, &day);
 
-                let mut new_load = 0.0;
-                match load_operation {
-                    LoadOperation::Add => new_load = resource_loading + load,
-                    LoadOperation::Sub => new_load = resource_loading - load,
+                let new_load = match load_operation {
+                    LoadOperation::Add => resource_loading + load,
+                    LoadOperation::Sub => resource_loading - load,
                 };
                 *self.loading_mut(&resource, &day) = new_load;
             }
@@ -792,7 +790,7 @@ impl TestAlgorithm for TacticalAlgorithm {
         let mut algorithm_state = AlgorithmState::Feasible;
 
         let mut aggregated_load: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
-        for (_work_order_id, optimized_work_order) in self.optimized_work_orders.clone() {
+        for (_work_order_number, optimized_work_order) in self.optimized_work_orders.clone() {
             for (_activity, operation_solution) in
                 optimized_work_order.operation_solutions.unwrap_or_default()
             {
