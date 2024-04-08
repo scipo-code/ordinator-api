@@ -291,12 +291,12 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
     }
     
     #[instrument(level = "trace", skip_all)]
-    fn unschedule(&mut self, work_order_key: u32) {
+    fn unschedule(&mut self, work_order_number: u32) {
   
         let optimized_work_order: &mut OptimizedWorkOrder = self
             .optimized_work_orders
             .inner
-            .get_mut(&work_order_key)
+            .get_mut(&work_order_number)
             .unwrap();
 
         match optimized_work_order.get_scheduled_period() {
