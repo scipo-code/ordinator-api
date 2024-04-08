@@ -357,6 +357,26 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
 
                 Ok(capacities.to_string(periods_end))
             }
+            StrategicResourceMessage::GetPercentageLoadings { periods_end, resources: _ } => {
+                let periods_end: u32 = periods_end.parse().unwrap();
+                let capacities = self.resources_capacities();
+                let loadings = self.resources_loadings();
+
+                let mut percentage_loading = HashMap::<Resources, HashMap<Period, f64>>::new();
+
+                for (resource, periods) in &capacities.inner {
+                    if percentage_loading.get(resource).is_none() {
+                        percentage_loading.insert(resource.clone(), HashMap::<Period, f64>::new());
+                    }
+                    for (period, capacity) in periods {
+                        let percentage: f64 = (loadings.inner.get(resource).unwrap().get(period).unwrap() / capacity * 100.0).round();
+                        percentage_loading.get_mut(resource).unwrap().insert(period.clone(), percentage);
+                    }
+                }
+
+                let algorithm_resources = AlgorithmResources::new(percentage_loading );
+                Ok(algorithm_resources.to_string(periods_end))
+            }
         }
     }
     #[allow(dead_code)]

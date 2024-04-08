@@ -67,6 +67,20 @@ impl TacticalCommands {
 
                     SystemMessages::Tactical(tactical_request)
                 }
+                ResourceCommands::PercentageLoading {
+                    days_end,
+                    select_resources,
+                } => {
+                    let tactical_resources_message =
+                        TacticalResourceMessage::GetPercentageLoadings {
+                            days_end: days_end.to_string(),
+                            resources: select_resources.clone(),
+                        };
+
+                    let tactical_request = TacticalRequest::Resources(tactical_resources_message);
+
+                    SystemMessages::Tactical(tactical_request)
+                }
                 ResourceCommands::SetCapacityPolicyDefault => {
                     let resources = generate_manual_resources(client);
 
@@ -100,6 +114,10 @@ pub enum ResourceCommands {
         select_resources: Option<Vec<Resources>>,
     },
     Capacity {
+        days_end: u32,
+        select_resources: Option<Vec<Resources>>,
+    },
+    PercentageLoading {
         days_end: u32,
         select_resources: Option<Vec<Resources>>,
     },

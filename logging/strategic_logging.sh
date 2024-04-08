@@ -6,7 +6,7 @@ TODAY=$(date +"%Y-%m-%d")
 LOG_FILE="$ORDINATOR_PATH/logging/logs/ordinator.log.$TODAY"
 
 # jq filter to select logs where 'target' starts with the specified string
-JQ_FILTER='select(.target | startswith("scheduling_system::agents::strategic_agent::"))'
+JQ_FILTER='select(.target | startswith("scheduling_system::agents::strategic_agent"))'
 
 # Function to apply the jq filter to the log file
 apply_filter() {

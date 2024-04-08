@@ -303,6 +303,8 @@ impl TacticalAlgorithm {
 
         self.calculate_objective_value();
 
+        info!(tactical_objective_value = %self.get_objective_value());
+
         self.number_of_orders = self.optimized_work_orders.len() as u32;
 
         debug!(
@@ -363,7 +365,8 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
     type Error = AgentError;
 
     fn calculate_objective_value(&mut self) {
-        let mut objective_value = 0.0;
+        let mut objective_value_from_tardiness = 0.0;
+        let mut objective_value_from_excess = 0.0;
         for (_work_order_number, optimized_work_order) in self.optimized_work_orders.iter() {
             let period_start_date = optimized_work_order
                 .scheduled_period
@@ -397,7 +400,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
             let day_difference = last_day - period_start_date;
 
-            objective_value +=
+            objective_value_from_tardiness +=
                 (optimized_work_order.weight as i64 * day_difference.num_days()) as f64;
         }
 
@@ -408,12 +411,12 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     self.loading(&resource, &day) - self.capacity(&resource, &day);
 
                 if excess_capacity > 0.0 {
-                    objective_value += 1000000.0 * excess_capacity;
+                    objective_value_from_excess += 1000000.0 * excess_capacity;
                 }
             }
         }
 
-        self.objective_value = objective_value;
+        self.objective_value = objective_value_from_tardiness + objective_value_from_excess;
     }
 
     fn schedule(&mut self) {
@@ -652,6 +655,36 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 let days_end: u32 = days_end.parse().unwrap();
 
                 Ok(capacities.to_string(days_end))
+            }
+            TacticalResourceMessage::GetPercentageLoadings {
+                days_end,
+                resources: _,
+            } => {
+                let days_end: u32 = days_end.parse().unwrap();
+                let capacities = &self.capacity;
+                let loadings = &self.loading;
+
+                let mut percentage_loading = HashMap::<Resources, HashMap<Day, f64>>::new();
+
+                for (resource, days) in &capacities.resources {
+                    if percentage_loading.get(resource).is_none() {
+                        percentage_loading.insert(resource.clone(), HashMap::new());
+                    }
+                    for (day, capacity) in days {
+                        let percentage =
+                            (loadings.resources.get(resource).unwrap().get(day).unwrap()
+                                / capacity
+                                * 100.0)
+                                .round();
+                        percentage_loading
+                            .get_mut(resource)
+                            .unwrap()
+                            .insert(day.clone(), percentage);
+                    }
+                }
+
+                let algorithm_resources = AlgorithmResources::new(percentage_loading);
+                Ok(algorithm_resources.to_string(days_end))
             }
         }
     }

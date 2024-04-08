@@ -4,6 +4,7 @@ use clap::Args;
 use clap::Subcommand;
 use reqwest::blocking::Client;
 use shared_messages::resources::Resources;
+use shared_messages::strategic::strategic_resources_message;
 use shared_messages::strategic::strategic_resources_message::StrategicResourceMessage;
 use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
 use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
@@ -45,6 +46,11 @@ pub enum ResourceCommands {
         select_resources: Option<Vec<String>>,
     },
 
+    /// Get the percentage loading
+    PercentageLoading {
+        periods_end: String,
+        select_resources: Option<Vec<String>>,
+    },
     /// Set the capacity of a resource
     SetCapacity {
         resource: String,
@@ -184,6 +190,32 @@ impl StrategicCommands {
                     SystemMessages::Strategic(strategic_request)
                 }
 
+                ResourceCommands::PercentageLoading {
+                    periods_end,
+                    select_resources,
+                } => {
+                    let resources = match select_resources {
+                        Some(select_resources) => {
+                            let mut resources: Vec<Resources> = vec![];
+                            for resource in select_resources {
+                                resources.push(Resources::new_from_string(resource.clone()));
+                            }
+                            Some(resources)
+                        }
+                        None => None,
+                    };
+
+                    let strategic_resources_message =
+                        StrategicResourceMessage::GetPercentageLoadings {
+                            periods_end: periods_end.to_string(),
+                            resources,
+                        };
+
+                    let strategic_request =
+                        StrategicRequest::Resources(strategic_resources_message);
+
+                    SystemMessages::Strategic(strategic_request)
+                }
                 ResourceCommands::SetCapacity {
                     resource: _,
                     period: _,
