@@ -15,6 +15,10 @@ pub enum TacticalResourceMessage {
         days_end: String,
         select_resources: Option<Vec<Resources>>,
     },
+    GetPercentageLoadings {
+        days_end: String,
+        resources: Option<Vec<Resources>>,
+    },
 }
 
 impl TacticalResourceMessage {

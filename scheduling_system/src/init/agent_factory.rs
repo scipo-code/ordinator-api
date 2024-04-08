@@ -44,10 +44,10 @@ impl AgentFactory {
 
         let locked_scheduling_environment = self.scheduling_environment.lock().unwrap();
 
-        let mut period_locks = HashSet::new();
+        let period_locks = HashSet::new();
 
-        period_locks.insert(locked_scheduling_environment.periods()[0].clone());
-        //period_locks.insert(locked_scheduling_environment.get_periods()[1].clone());
+        // period_locks.insert(locked_scheduling_environment.periods()[0].clone());
+        // period_locks.insert(locked_scheduling_environment.get_periods()[1].clone());
 
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
@@ -173,6 +173,31 @@ fn create_optimized_work_orders(
             );
         }
 
+        if work_order.status_codes().sch {
+            let containing_period = periods.iter().find(|period| {
+                period.start_date() <= &work_order.order_dates().basic_start_date
+                    && &work_order.order_dates().basic_start_date <= period.end_date()
+            });
+
+            let scheduled_period = match containing_period {
+                Some(period) => Some(period),
+                None => periods.first(),
+            };
+
+            optimized_work_orders.insert(
+                *work_order_number,
+                OptimizedWorkOrder::new(
+                    scheduled_period.cloned(),
+                    scheduled_period.cloned(),
+                    excluded_periods.clone(),
+                    None,
+                    work_order.work_order_weight(),
+                    work_order.work_load().clone(),
+                ),
+            );
+            continue;
+        };
+
         if work_order.unloading_point().present {
             let period = work_order.unloading_point().period.clone();
             optimized_work_orders.insert(
@@ -188,6 +213,7 @@ fn create_optimized_work_orders(
             );
             continue;
         }
+
         optimized_work_orders.insert(
             *work_order_number,
             OptimizedWorkOrder::new(
