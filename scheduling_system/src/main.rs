@@ -17,6 +17,11 @@ use crate::init::logging;
 ///This is the entry point of the application
 #[actix_web::main]
 async fn main() -> Result<(), io::Error> {
+    println!("LOG_DIR before dotenv: {:?}", std::env::var("ORDINATOR_LOG_DIR"));
+
+    dotenv::dotenv().ok();
+
+    println!("LOG_DIR after dotenv: {:?}", std::env::var("ORDINATOR_LOG_DIR"));
     let log_handles = logging::setup_logging();
 
     let scheduling_environment = Arc::new(Mutex::new(

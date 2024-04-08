@@ -1,6 +1,6 @@
 use core::panic;
 use rand::prelude::SliceRandom;
-use tracing::{info, instrument};
+use tracing::instrument;
 
 use super::StrategicAlgorithm;
 use crate::agents::strategic_agent::strategic_algorithm::OptimizedWorkOrder;
