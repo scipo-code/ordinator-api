@@ -20,7 +20,7 @@ pub struct LogHandles {
 }
 
 pub fn setup_logging() -> LogHandles {
-    let log_dir = env::var("LOG_DIR").unwrap_or("./logs".to_string());
+    let log_dir = env::var("ORDINATOR_LOG_DIR").unwrap_or("./logging/logs".to_string());
     let file_appender = tracing_appender::rolling::daily(log_dir, "ordinator.log");
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
