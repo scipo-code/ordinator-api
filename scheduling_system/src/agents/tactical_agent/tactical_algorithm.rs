@@ -18,7 +18,6 @@ use std::{borrow::Cow, cmp::Ordering};
 use strum::IntoEnumIterator;
 use tracing::{debug, error, info, instrument, warn};
 
-
 use crate::{
     agents::traits::{AlgorithmState, LargeNeighborHoodSearch, TestAlgorithm},
     models::{
@@ -42,7 +41,6 @@ pub struct TacticalAlgorithm {
 #[allow(dead_code)]
 #[derive(Clone)]
 pub struct OptimizedTacticalWorkOrder {
-
     operation_parameters: HashMap<u32, OperationParameters>,
     weight: u32,
     relations: Vec<ActivityRelation>,
@@ -137,20 +135,6 @@ pub struct OperationParameters {
     operating_time: f64,
     work_remaining: f64,
     resource: Resources,
-}
-#[derive(Clone)]
-struct OperationSolution {
-    scheduled: Vec<(Day, f64)>,
-    resource: Resources,
-}
-
-impl OperationSolution {
-    pub fn new(scheduled: Vec<(Day, f64)>, resource: Resources) -> OperationSolution {
-        OperationSolution {
-            scheduled,
-            resource,
-        }
-    }
 }
 
 impl OperationParameters {
@@ -279,7 +263,6 @@ impl TacticalAlgorithm {
         for (work_order_number, period) in &strategic_state {
             let work_order = work_order.inner.get(work_order_number).unwrap();
             match self.optimized_work_orders.contains_key(work_order_number) {
-
                 false => {
                     self.create_new_optimized_work_order(work_order, period.clone());
                 }
@@ -291,7 +274,6 @@ impl TacticalAlgorithm {
                     if period != &optimized_work_order.scheduled_period {
                         optimized_work_order.scheduled_period = period.clone();
                         self.unschedule(*work_order_number);
-
                     }
                 }
             };
@@ -322,7 +304,6 @@ impl TacticalAlgorithm {
         self.calculate_objective_value();
 
         info!(tactical_objective_value = %self.get_objective_value());
-
 
         self.number_of_orders = self.optimized_work_orders.len() as u32;
 
@@ -356,7 +337,6 @@ impl TacticalAlgorithm {
         }
         self.optimized_work_orders
             .insert(*work_order.work_order_number(), optimized_work_order);
-
     }
 
     pub fn unschedule_random_work_orders(
@@ -519,7 +499,6 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 let resource = operation_parameters.resource.clone();
 
                 let first_day_remaining_capacity =
-
                     match self.remaining_capacity(&resource, current_day.peek().unwrap()) {
                         Some(remaining_capacity) => remaining_capacity,
                         None => {
@@ -548,7 +527,6 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                             );
                             panic!("Operation left the window set by the tactical days, either the work order and very large or there is a bug");
                         }
-
                     };
                     activity_load.push((day, load));
 
@@ -613,7 +591,6 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 );
             }
         }
-
     }
 
     fn update_scheduling_state(
@@ -731,7 +708,6 @@ impl TacticalAlgorithm {
         load_operation: LoadOperation,
     ) {
         for operation in operation_solutions.values() {
-
             let resource = operation.resource.clone();
             for loadings in operation.scheduled.clone() {
                 let day = loadings.0;
@@ -744,7 +720,6 @@ impl TacticalAlgorithm {
                     LoadOperation::Sub => new_load = resource_loading - load,
                 };
                 *self.loading_mut(&resource, &day) = new_load;
-
             }
         }
     }
@@ -846,7 +821,6 @@ impl TestAlgorithm for TacticalAlgorithm {
                     error!(agg_load = ?agg_load, sch_load = ?sch_load, resource = ?resource, day = ?day);
                     infeasible_cases.aggregated_load = true;
                     algorithm_state = AlgorithmState::Infeasible(infeasible_cases.clone());
-
                 }
             }
         }
@@ -893,7 +867,6 @@ pub struct TacticalInfeasibleCases {
     pub earliest_start_day: bool,
     pub all_scheduled: bool,
 }
-
 
 #[cfg(test)]
 pub mod tests {
