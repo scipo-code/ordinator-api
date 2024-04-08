@@ -33,15 +33,15 @@ impl StrategicAlgorithm {
 
     #[instrument(level = "trace", skip_all)]
     pub fn schedule_forced_work_orders(&mut self) {
-        let mut work_order_keys: Vec<u32> = vec![];
-        for (work_order_key, opt_work_order) in self.optimized_work_orders().iter() {
+        let mut work_order_numbers: Vec<u32> = vec![];
+        for (work_order_number, opt_work_order) in self.optimized_work_orders().iter() {
             if opt_work_order.locked_in_period.is_some() {
-                work_order_keys.push(*work_order_key);
+                work_order_numbers.push(*work_order_number);
             }
         }
 
-        for work_order_key in work_order_keys {
-            self.schedule_forced_work_order(work_order_key);
+        for work_order_number in work_order_numbers {
+            self.schedule_forced_work_order(work_order_number);
         }
         self.calculate_objective_value();
         // info!(strategic_objective_value = %self.objective_value());
@@ -50,13 +50,13 @@ impl StrategicAlgorithm {
     #[instrument(level = "trace", skip_all)]
     pub fn schedule_normal_work_order(
         &mut self,
-        work_order_key: u32,
+        work_order_number: u32,
         period: &Period,
     ) -> Option<u32> {
         let optimized_work_order = self
             .optimized_work_orders
             .inner
-            .get(&work_order_key)
+            .get(&work_order_number)
             .unwrap()
             .clone();
 
@@ -78,19 +78,19 @@ impl StrategicAlgorithm {
                     .get(&period.clone())
                     .unwrap();
                 if *resource_needed > *resource_capacity - *resource_loading {
-                    return Some(work_order_key);
+                    return Some(work_order_number);
                 }
 
                 if optimized_work_order.get_excluded_periods().contains(period) {
-                    return Some(work_order_key);
+                    return Some(work_order_number);
                 }
 
                 if self.period_locks.contains(period) {
-                    return Some(work_order_key);
+                    return Some(work_order_number);
                 }
             }
         }
-        match self.optimized_work_orders.inner.get_mut(&work_order_key) {
+        match self.optimized_work_orders.inner.get_mut(&work_order_number) {
             Some(optimized_work_order) => {
                 optimized_work_order.set_scheduled_period(Some(period.clone()));
             }
@@ -106,22 +106,22 @@ impl StrategicAlgorithm {
     }
 
     #[instrument(level = "trace", skip_all)]
-    pub fn schedule_forced_work_order(&mut self, work_order_key: u32) {
-        if let Some(work_order_key) = self.is_scheduled(work_order_key) {
-            self.unschedule(work_order_key);
+    pub fn schedule_forced_work_order(&mut self, work_order_number: u32) {
+        if let Some(work_order_number) = self.is_scheduled(work_order_number) {
+            self.unschedule(work_order_number);
         }
 
         let period_internal = self
             .optimized_work_orders
-            .get_locked_in_period(work_order_key);
+            .get_locked_in_period(work_order_number);
 
         self.optimized_work_orders
-            .set_scheduled_period(work_order_key, period_internal.clone());
+            .set_scheduled_period(work_order_number, period_internal.clone());
 
         let work_order = self
             .optimized_work_orders
             .inner
-            .get(&work_order_key)
+            .get(&work_order_number)
             .unwrap()
             .clone();
 
@@ -161,7 +161,7 @@ impl StrategicAlgorithm {
         let mut period_penalty_contribution: f64 = 0.0;
         let mut excess_penalty_contribution: f64 = 0.0;
 
-        for (work_order_key, optimized_work_order) in &self.optimized_work_orders.inner {
+        for (work_order_number, optimized_work_order) in &self.optimized_work_orders.inner {
             let optimized_period = match &optimized_work_order.scheduled_period {
                 Some(optimized_period) => optimized_period.clone(),
                 None => {
@@ -180,7 +180,7 @@ impl StrategicAlgorithm {
                 * self
                     .optimized_work_orders
                     .inner
-                    .get(work_order_key)
+                    .get(work_order_number)
                     .unwrap()
                     .get_weight() as f64;
 
@@ -202,19 +202,20 @@ impl StrategicAlgorithm {
             }
         }
 
-        self.objective_value = period_penalty_contribution + excess_penalty_contribution;
+        self.objective_value =
+            period_penalty_contribution + 10000000000.0 * excess_penalty_contribution;
     }
 
     #[instrument(level = "trace", skip_all)]
-    fn is_scheduled(&self, work_order_key: u32) -> Option<u32> {
+    fn is_scheduled(&self, work_order_number: u32) -> Option<u32> {
         self.optimized_work_orders
             .inner
-            .get(&work_order_key)
+            .get(&work_order_number)
             .and_then(|optimized_work_order| {
                 optimized_work_order
                     .scheduled_period
                     .as_ref()
-                    .map(|_| work_order_key)
+                    .map(|_| work_order_number)
             })
     }
 
@@ -943,12 +944,12 @@ mod tests {
     impl StrategicAlgorithm {
         pub fn set_optimized_work_order(
             &mut self,
-            work_order_key: u32,
+            work_order_number: u32,
             optimized_work_order: OptimizedWorkOrder,
         ) {
             self.optimized_work_orders
                 .inner
-                .insert(work_order_key, optimized_work_order);
+                .insert(work_order_number, optimized_work_order);
         }
     }
 }
