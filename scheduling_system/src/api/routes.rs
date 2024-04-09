@@ -1,11 +1,14 @@
 use actix_web::http::header;
 use actix_web::{web, HttpRequest, HttpResponse, Result};
+use calamine::{open_workbook, Reader, Xlsx};
 use shared_messages::LevelOfDetail;
 use shared_messages::{orchestrator::OrchestratorRequest, SystemMessages};
+use std::env;
 use std::fmt::Write;
 use std::sync::{Arc, Mutex};
 use tracing::instrument;
 use tracing_subscriber::EnvFilter;
+use xlsxwriter::*;
 
 use crate::agents::orchestrator::Orchestrator;
 
@@ -242,6 +245,26 @@ impl Orchestrator {
 
                 format!("Profiling level {}", log_level.to_level_string())
             }
+            OrchestratorRequest::Export => {
+                let strategic_agent_status = self
+                    .agent_registry
+                    .strategic_agent_addr
+                    .send(shared_messages::SolutionExportMessage {})
+                    .await;
+
+                let tactical_agent_solution = self
+                    .agent_registry
+                    .tactical_agent_addr()
+                    .send(shared_messages::SolutionExportMessage {})
+                    .await;
+
+                strategic_agent_status.unwrap()
+            }
         }
     }
+}
+
+struct AgentSolutions {
+    strategic: String,
+    tactical: String,
 }

@@ -1,7 +1,7 @@
 pub mod commands;
 
 use clap::{Parser, Subcommand};
-use commands::orchestrator::OrchestratorCommands;
+use commands::orchestrator::{self, OrchestratorCommands};
 use commands::sap::SapCommands;
 use commands::status::{StatusCommands, WorkOrders};
 use commands::strategic::StrategicCommands;
@@ -49,7 +49,7 @@ enum Commands {
         #[clap(subcommand)]
         sap_commands: SapCommands,
     },
-    Test,
+    Export,
 }
 fn main() {
     let cli = Cli::parse();
@@ -113,9 +113,10 @@ fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
             todo!()
         }
         Commands::Sap { sap_commands } => sap_commands.execute(),
-        Commands::Test => {
-            println!("Hello this is a test");
-            todo!();
+        Commands::Export => {
+            let orchestrator_request = OrchestratorRequest::Export;
+
+            SystemMessages::Orchestrator(orchestrator_request)
         }
     }
 }
@@ -123,7 +124,6 @@ fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
 fn send_http(client: &Client, system_message: SystemMessages) -> String {
     let url = "http://localhost:8080/ws";
     let system_message_json = serde_json::to_string(&system_message).unwrap();
-    dbg!(system_message_json.clone());
     let res = client
         .post(url)
         .body(system_message_json)

@@ -3,6 +3,7 @@ pub mod orchestrator;
 pub mod resources;
 pub mod strategic;
 pub mod tactical;
+
 use actix::prelude::*;
 use clap::{Subcommand, ValueEnum};
 use orchestrator::OrchestratorRequest;
@@ -35,6 +36,12 @@ impl Message for StopMessage {
 pub struct StatusMessage {}
 
 impl Message for StatusMessage {
+    type Result = String;
+}
+
+pub struct SolutionExportMessage {}
+
+impl Message for SolutionExportMessage {
     type Result = String;
 }
 

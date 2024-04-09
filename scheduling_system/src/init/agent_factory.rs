@@ -12,6 +12,7 @@ use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::supervisor_agent::SupervisorAgent;
 use crate::agents::tactical_agent::tactical_algorithm::{self, Day, TacticalAlgorithm};
 use crate::agents::tactical_agent::TacticalAgent;
+use crate::agents::traits::LargeNeighborHoodSearch;
 use crate::models::time_environment::period::Period;
 use crate::models::SchedulingEnvironment;
 use crate::models::WorkOrders;
@@ -61,7 +62,7 @@ impl AgentFactory {
 
         drop(locked_scheduling_environment);
 
-        scheduler_agent_algorithm.calculate_objective();
+        scheduler_agent_algorithm.calculate_objective_value();
 
         let (sender, receiver) = std::sync::mpsc::channel();
 

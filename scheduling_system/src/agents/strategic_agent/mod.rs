@@ -6,12 +6,15 @@ use crate::agents::traits::LargeNeighborHoodSearch;
 use crate::models::SchedulingEnvironment;
 
 use actix::prelude::*;
+use serde::Serialize;
 use shared_messages::agent_error::AgentError;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
 use shared_messages::strategic::StrategicRequest;
+use shared_messages::SolutionExportMessage;
 use shared_messages::StatusMessage;
 use tracing::info;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use tracing::error;
@@ -19,6 +22,8 @@ use tracing::instrument;
 use tracing::warn;
 
 use crate::agents::tactical_agent::TacticalAgent;
+
+use self::strategic_algorithm::OptimizedWorkOrder;
 
 use super::SendState;
 use super::SetAddr;
@@ -86,6 +91,8 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 
     #[instrument(level = "trace", skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
+        self.strategic_agent_algorithm.schedule_forced_work_orders();
+
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
 
         let mut temporary_schedule = self.strategic_agent_algorithm.clone();
@@ -94,11 +101,11 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 
         temporary_schedule.schedule();
 
-        temporary_schedule.calculate_objective();
+        temporary_schedule.calculate_objective_value();
 
         if temporary_schedule.objective_value() < self.strategic_agent_algorithm.objective_value() {
             self.strategic_agent_algorithm = temporary_schedule;
-            
+
             info!(strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
 
             self.update_tactical_agent();
@@ -218,6 +225,14 @@ impl Handler<SetAddr> for StrategicAgent {
                 todo!()
             }
         }
+    }
+}
+
+impl Handler<SolutionExportMessage> for StrategicAgent {
+    type Result = String;
+
+    fn handle(&mut self, _msg: SolutionExportMessage, _ctx: &mut Self::Context) -> Self::Result {
+        serde_json::to_string(self.strategic_agent_algorithm.optimized_work_orders()).unwrap()
     }
 }
 
@@ -537,7 +552,7 @@ mod tests {
             vec![],
         );
 
-        scheduler_agent_algorithm.calculate_objective();
+        scheduler_agent_algorithm.calculate_objective_value();
 
         // This test fails because the objective value in not initialized
         assert_eq!(scheduler_agent_algorithm.objective_value(), 2000.0);

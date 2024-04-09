@@ -3,6 +3,7 @@ use colored::Colorize;
 
 use priority_queue::PriorityQueue;
 use rand::seq::SliceRandom;
+use serde::Serialize;
 use shared_messages::{
     agent_error::AgentError,
     resources::Resources,
@@ -39,7 +40,7 @@ pub struct TacticalAlgorithm {
 }
 
 #[allow(dead_code)]
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct OptimizedTacticalWorkOrder {
     operation_parameters: HashMap<u32, OperationParameters>,
     weight: u32,
@@ -127,7 +128,7 @@ impl AlgorithmResources {
 }
 
 #[allow(dead_code)]
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct OperationParameters {
     work_order_number: u32,
     number: u32,
@@ -157,7 +158,7 @@ impl OperationParameters {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct OperationSolution {
     scheduled: Vec<(Day, f64)>,
     resource: Resources,
@@ -170,17 +171,9 @@ impl OperationSolution {
             resource,
         }
     }
-
-    pub fn scheduled(&self) -> &Vec<(Day, f64)> {
-        &self.scheduled
-    }
-
-    pub fn resource(&self) -> &Resources {
-        &self.resource
-    }
 }
 
-#[derive(Eq, PartialEq, Hash, Clone, PartialOrd, Ord, Debug)]
+#[derive(Eq, PartialEq, Hash, Clone, PartialOrd, Ord, Debug, Serialize)]
 pub struct Day {
     day_index: usize,
     date: DateTime<Utc>,
@@ -738,9 +731,9 @@ impl TacticalAlgorithm {
         mut operating_time: f64,
         mut work_remaining: f64,
     ) -> Vec<f64> {
-        if operating_time < 0.0 {
+        if operating_time <= 0.0 {
             operating_time = 4.0;
-            warn!("Operating time is less than 0.0. This is an error in the data initialization, setting it to 4.0 hours as default");
+            warn!("Operating time is less or equal to 0.0. This is an error in the data initialization, setting it to 4.0 hours as default");
         }
 
         let mut loadings = Vec::new();
@@ -761,6 +754,10 @@ impl TacticalAlgorithm {
             work_remaining -= load;
         }
         loadings
+    }
+
+    pub fn optimized_work_orders(&self) -> &HashMap<u32, OptimizedTacticalWorkOrder> {
+        &self.optimized_work_orders
     }
 }
 

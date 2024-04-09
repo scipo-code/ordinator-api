@@ -5,6 +5,7 @@ use actix::prelude::*;
 use shared_messages::agent_error::AgentError;
 use shared_messages::resources::Id;
 use shared_messages::tactical::TacticalRequest;
+use shared_messages::SolutionExportMessage;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{info, instrument, warn};
@@ -129,7 +130,6 @@ impl Handler<TacticalRequest> for TacticalAgent {
                         infeasible_cases.earliest_start_day
                     )
                     .to_string()),
-
                 }
             }
         }
@@ -174,5 +174,13 @@ impl Handler<SetAddr> for TacticalAgent {
                 todo!()
             }
         }
+    }
+}
+
+impl Handler<SolutionExportMessage> for TacticalAgent {
+    type Result = String;
+
+    fn handle(&mut self, _msg: SolutionExportMessage, _ctx: &mut Context<Self>) -> Self::Result {
+        serde_json::to_string(self.tactical_algorithm.optimized_work_orders()).unwrap()
     }
 }
