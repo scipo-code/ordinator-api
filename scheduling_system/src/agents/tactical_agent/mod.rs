@@ -181,6 +181,18 @@ impl Handler<SolutionExportMessage> for TacticalAgent {
     type Result = String;
 
     fn handle(&mut self, _msg: SolutionExportMessage, _ctx: &mut Context<Self>) -> Self::Result {
-        serde_json::to_string(self.tactical_algorithm.optimized_work_orders()).unwrap()
+        let mut tactical_solution = HashMap::new();
+        for (work_order_number, optimized_work_order) in
+            self.tactical_algorithm.optimized_work_orders()
+        {
+            let mut tactical_operation_solution = HashMap::new();
+            for (activity, operation) in optimized_work_order.operation_solutions.as_ref().unwrap()
+            {
+                tactical_operation_solution
+                    .insert(activity, operation.scheduled.first().unwrap().0.date());
+            }
+            tactical_solution.insert(work_order_number, tactical_operation_solution);
+        }
+        serde_json::to_string(&tactical_solution).unwrap()
     }
 }

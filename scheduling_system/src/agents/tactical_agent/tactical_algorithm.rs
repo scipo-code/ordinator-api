@@ -42,11 +42,11 @@ pub struct TacticalAlgorithm {
 #[allow(dead_code)]
 #[derive(Clone, Serialize)]
 pub struct OptimizedTacticalWorkOrder {
-    operation_parameters: HashMap<u32, OperationParameters>,
-    weight: u32,
-    relations: Vec<ActivityRelation>,
-    operation_solutions: Option<HashMap<u32, OperationSolution>>,
-    scheduled_period: Period,
+    pub operation_parameters: HashMap<u32, OperationParameters>,
+    pub weight: u32,
+    pub relations: Vec<ActivityRelation>,
+    pub operation_solutions: Option<HashMap<u32, OperationSolution>>,
+    pub scheduled_period: Period,
 }
 
 impl OptimizedTacticalWorkOrder {
@@ -160,8 +160,8 @@ impl OperationParameters {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct OperationSolution {
-    scheduled: Vec<(Day, f64)>,
-    resource: Resources,
+    pub scheduled: Vec<(Day, f64)>,
+    pub resource: Resources,
 }
 
 impl OperationSolution {

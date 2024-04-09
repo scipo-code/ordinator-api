@@ -60,9 +60,9 @@ fn main() {
 
     let response = send_http(&client, system_message);
 
-    let formatted_response = response.replace('\"', "");
+    // let formatted_response = response.replace('\"', "");
 
-    println!("{}", formatted_response);
+    println!("{}", response);
 }
 
 fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
@@ -133,7 +133,7 @@ fn send_http(client: &Client, system_message: SystemMessages) -> String {
 
     // Check the response status and process the response as needed
     if res.status().is_success() {
-        println!("Request sent successfully");
+        //println!("Request sent successfully");
     } else {
         eprintln!("Failed to send request: {:?}", res.status());
     }

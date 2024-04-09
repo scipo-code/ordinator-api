@@ -232,7 +232,22 @@ impl Handler<SolutionExportMessage> for StrategicAgent {
     type Result = String;
 
     fn handle(&mut self, _msg: SolutionExportMessage, _ctx: &mut Self::Context) -> Self::Result {
-        serde_json::to_string(self.strategic_agent_algorithm.optimized_work_orders()).unwrap()
+        let mut strategic_solution = HashMap::new();
+        for (work_order_number, optimized_work_order) in self
+            .strategic_agent_algorithm
+            .optimized_work_orders()
+            .iter()
+        {
+            strategic_solution.insert(
+                *work_order_number,
+                optimized_work_order
+                    .get_scheduled_period()
+                    .unwrap()
+                    .period_string(),
+            );
+        }
+
+        serde_json::to_string(&strategic_solution).unwrap()
     }
 }
 

@@ -246,7 +246,7 @@ impl Orchestrator {
                 format!("Profiling level {}", log_level.to_level_string())
             }
             OrchestratorRequest::Export => {
-                let strategic_agent_status = self
+                let strategic_agent_solution = self
                     .agent_registry
                     .strategic_agent_addr
                     .send(shared_messages::SolutionExportMessage {})
@@ -258,13 +258,12 @@ impl Orchestrator {
                     .send(shared_messages::SolutionExportMessage {})
                     .await;
 
-                strategic_agent_status.unwrap()
+                format!(
+                    "{{\"strategic_agent_solution\": {}, \"tactical_agent_solution\": {}}}",
+                    strategic_agent_solution.unwrap(),
+                    tactical_agent_solution.unwrap()
+                )
             }
         }
     }
-}
-
-struct AgentSolutions {
-    strategic: String,
-    tactical: String,
 }
