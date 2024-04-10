@@ -43,6 +43,25 @@ def update_excel_with_tactical_output(json_data, excel_file, work_order_col, act
     # Save the updated DataFrame back to the Excel file
     df.to_excel(excel_file, index=False)
 
+def update_excel_with_strategic_output(json_data, excel_file, work_order_col):
+    # Load the Excel file
+    df = pd.read_excel(excel_file)
+  
+
+    # Load the Excel file into a DataFrame
+
+    df.insert(0, 'Scheduled Period', 0)
+    df = df.dropna(subset=[work_order_col])
+    # Iterate over each item in JSON data
+    for work_order_number, period in json_data.items():
+        df.loc[(df[work_order_col] == int(work_order_number)) , 'Scheduled Period'] = str(period)
+
+    # Save the updated DataFrame back to the Excel file
+    df.to_excel(excel_file, index=False)
+
+
+
+
 def main():
     # print working directory 
     print('Current working directory:', os.getcwd())
@@ -70,6 +89,7 @@ def main():
 
     # Update the Excel file based on JSON data
     update_excel_with_tactical_output(json_data['tactical_agent_solution'], excel_file, work_order_col, activity_col)
+    update_excel_with_strategic_output(json_data['strategic_agent_solution'], excel_file, work_order_col)
 
 if __name__ == "__main__":
     main()
