@@ -1,4 +1,5 @@
 use actix::prelude::*;
+use shared_messages::Asset;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -29,7 +30,7 @@ impl AgentFactory {
         }
     }
 
-    pub fn build_strategic_agent(&self) -> Addr<StrategicAgent> {
+    pub fn build_strategic_agent(&self, asset: Asset) -> Addr<StrategicAgent> {
         let mut cloned_work_orders = self
             .scheduling_environment
             .lock()
@@ -41,7 +42,7 @@ impl AgentFactory {
             .unwrap()
             .clone_strategic_periods();
         let optimized_work_orders: OptimizedWorkOrders =
-            create_optimized_work_orders(&mut cloned_work_orders, &cloned_periods);
+            create_optimized_work_orders(&mut cloned_work_orders, &cloned_periods, &asset);
 
         let locked_scheduling_environment = self.scheduling_environment.lock().unwrap();
 
@@ -70,7 +71,7 @@ impl AgentFactory {
 
         Arbiter::new().spawn_fn(move || {
             let strategic_addr = StrategicAgent::new(
-                String::from("Dan F"),
+                asset,
                 arc_scheduling_environment,
                 scheduler_agent_algorithm,
                 None,
@@ -84,6 +85,7 @@ impl AgentFactory {
 
     pub fn build_tactical_agent(
         &self,
+        asset: Asset,
         time_horizon: u32,
         strategic_agent_addr: Addr<StrategicAgent>,
     ) -> Addr<TacticalAgent> {
@@ -102,6 +104,7 @@ impl AgentFactory {
         let arc_scheduling_environment = self.scheduling_environment.clone();
         Arbiter::new().spawn_fn(move || {
             let tactical_addr = TacticalAgent::new(
+                asset,
                 0,
                 time_horizon,
                 strategic_agent_addr,
@@ -144,11 +147,16 @@ impl AgentFactory {
 fn create_optimized_work_orders(
     work_orders: &mut WorkOrders,
     periods: &[Period],
+    asset: &Asset,
 ) -> OptimizedWorkOrders {
     let mut optimized_work_orders: HashMap<u32, OptimizedWorkOrder> = HashMap::new();
 
     let last_period = periods.last();
     for (work_order_number, work_order) in &mut work_orders.inner {
+        if &work_order.functional_location().asset != asset {
+            continue;
+        }
+
         let mut excluded_periods: HashSet<Period> = HashSet::new();
 
         for (i, period) in periods.iter().enumerate() {

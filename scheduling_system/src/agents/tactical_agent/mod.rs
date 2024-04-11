@@ -4,8 +4,8 @@ pub mod tactical_algorithm;
 use actix::prelude::*;
 use shared_messages::agent_error::AgentError;
 use shared_messages::resources::Id;
-use shared_messages::tactical::TacticalRequest;
-use shared_messages::SolutionExportMessage;
+use shared_messages::tactical::TacticalRequestMessage;
+use shared_messages::{Asset, SolutionExportMessage};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{info, instrument, warn};
@@ -22,6 +22,7 @@ use super::SendState;
 
 #[allow(dead_code)]
 pub struct TacticalAgent {
+    asset: Asset,
     id: i32,
     time_horizon: u32,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
@@ -32,6 +33,7 @@ pub struct TacticalAgent {
 
 impl TacticalAgent {
     pub fn new(
+        asset: Asset,
         id: i32,
         days: u32,
         strategic_addr: Addr<StrategicAgent>,
@@ -39,6 +41,7 @@ impl TacticalAgent {
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     ) -> Self {
         TacticalAgent {
+            asset,
             id,
             time_horizon: days,
             scheduling_environment: scheduling_environment.clone(),
@@ -92,27 +95,29 @@ impl Handler<ScheduleIteration> for TacticalAgent {
     }
 }
 
-impl Handler<TacticalRequest> for TacticalAgent {
+impl Handler<TacticalRequestMessage> for TacticalAgent {
     type Result = Result<String, AgentError>;
 
     #[instrument(level = "info", skip_all)]
     fn handle(
         &mut self,
-        tactical_request: TacticalRequest,
+        tactical_request: TacticalRequestMessage,
         _ctx: &mut Context<Self>,
     ) -> Self::Result {
         match tactical_request {
-            TacticalRequest::Status(_tactical_status_message) => self.tactical_algorithm.status(),
-            TacticalRequest::Scheduling(_tactical_scheduling_message) => {
+            TacticalRequestMessage::Status(_tactical_status_message) => {
+                self.tactical_algorithm.status()
+            }
+            TacticalRequestMessage::Scheduling(_tactical_scheduling_message) => {
                 todo!()
             }
-            TacticalRequest::Resources(tactical_resources_message) => self
+            TacticalRequestMessage::Resources(tactical_resources_message) => self
                 .tactical_algorithm
                 .update_resources_state(tactical_resources_message),
-            TacticalRequest::Days(_tactical_time_message) => {
+            TacticalRequestMessage::Days(_tactical_time_message) => {
                 todo!()
             }
-            TacticalRequest::Test => {
+            TacticalRequestMessage::Test => {
                 let algorithm_state = self.tactical_algorithm.determine_algorithm_state();
 
                 match algorithm_state {

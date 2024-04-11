@@ -1,6 +1,7 @@
 use actix::prelude::*;
 use shared_messages::resources;
 use shared_messages::resources::Id;
+use shared_messages::Asset;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -17,7 +18,7 @@ use crate::models::SchedulingEnvironment;
 pub struct Orchestrator {
     pub scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub agent_factory: AgentFactory,
-    pub agent_registry: ActorRegistry,
+    pub agent_registries: HashMap<Asset, ActorRegistry>,
     pub log_handles: LogHandles,
 }
 
@@ -119,17 +120,28 @@ impl Orchestrator {
     ) -> Self {
         let agent_factory = agent_factory::AgentFactory::new(scheduling_environment.clone());
 
-        let strategic_agent_addr = agent_factory.build_strategic_agent();
-
-        let tactical_agent_addr =
-            agent_factory.build_tactical_agent(56, strategic_agent_addr.clone());
+        let mut agent_registries = HashMap::new();
 
         Orchestrator {
             scheduling_environment,
             agent_factory,
-            agent_registry: ActorRegistry::new(strategic_agent_addr, tactical_agent_addr),
+            agent_registries,
             log_handles,
         }
+    }
+
+    pub fn add_asset(&mut self, asset: Asset) {
+        let strategic_agent_addr = self.agent_factory.build_strategic_agent(asset.clone());
+
+        let tactical_agent_addr = self.agent_factory.build_tactical_agent(
+            asset.clone(),
+            56,
+            strategic_agent_addr.clone(),
+        );
+
+        let agent_registry = ActorRegistry::new(strategic_agent_addr, tactical_agent_addr);
+
+        self.agent_registries.insert(asset, agent_registry);
     }
 }
 

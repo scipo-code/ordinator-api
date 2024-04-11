@@ -1,6 +1,6 @@
 use clap::Subcommand;
 use reqwest::blocking::Client;
-use shared_messages::{orchestrator::OrchestratorRequest, resources::Id, SystemMessages};
+use shared_messages::{orchestrator::OrchestratorRequest, resources::Id, Asset, SystemMessages};
 
 #[derive(Subcommand, Debug)]
 pub enum OrchestratorCommands {
@@ -18,7 +18,7 @@ pub enum OrchestratorCommands {
     OperationalAgent(OperationalAgentCommands),
 
     /// Load a default setup
-    LoadDefaultWorkCrew,
+    LoadDefaultWorkCrew { asset: Asset },
 }
 
 #[derive(Subcommand, Debug)]
@@ -28,23 +28,25 @@ pub enum AgentCommands {}
 pub enum SupervisorAgentCommands {
     /// Create a new SupervisorAgent
     Create {
+        asset: Asset,
         id: String,
         resource: shared_messages::resources::Resources,
     },
 
     /// Delete a SupervisorAgent
-    Delete { id: String },
+    Delete { asset: Asset, id: String },
 }
 #[derive(Subcommand, Debug)]
 pub enum OperationalAgentCommands {
     /// Create a new OperationalAgent
     Create {
+        asset: Asset,
         id: String,
         resource: Vec<shared_messages::resources::Resources>,
     },
 
     /// Delete an OperationalAgent
-    Delete { id: String },
+    Delete { asset: Asset, id: String },
 }
 
 impl OrchestratorCommands {
@@ -59,35 +61,45 @@ impl OrchestratorCommands {
             }
             OrchestratorCommands::SupervisorAgent(supervisor_agent_command) => {
                 match supervisor_agent_command {
-                    SupervisorAgentCommands::Create { id, resource } => {
+                    SupervisorAgentCommands::Create {
+                        asset,
+                        id,
+                        resource,
+                    } => {
                         let create_supervisor_agent = OrchestratorRequest::CreateSupervisorAgent(
+                            asset.clone(),
                             Id::new(id.clone(), vec![resource.clone()]),
                         );
                         SystemMessages::Orchestrator(create_supervisor_agent)
                     }
-                    SupervisorAgentCommands::Delete { id } => {
+                    SupervisorAgentCommands::Delete { asset, id } => {
                         let delete_supervisor_agent =
-                            OrchestratorRequest::DeleteSupervisorAgent(id.clone());
+                            OrchestratorRequest::DeleteSupervisorAgent(asset.clone(), id.clone());
                         SystemMessages::Orchestrator(delete_supervisor_agent)
                     }
                 }
             }
             OrchestratorCommands::OperationalAgent(operational_agent_command) => {
                 match operational_agent_command {
-                    OperationalAgentCommands::Create { id, resource } => {
+                    OperationalAgentCommands::Create {
+                        asset,
+                        id,
+                        resource,
+                    } => {
                         let create_operational_agent = OrchestratorRequest::CreateOperationalAgent(
+                            asset.clone(),
                             Id::new(id.clone(), resource.clone()),
                         );
                         SystemMessages::Orchestrator(create_operational_agent)
                     }
-                    OperationalAgentCommands::Delete { id } => {
+                    OperationalAgentCommands::Delete { asset, id } => {
                         let delete_operational_agent =
-                            OrchestratorRequest::DeleteOperationalAgent(id.clone());
+                            OrchestratorRequest::DeleteOperationalAgent(asset.clone(), id.clone());
                         SystemMessages::Orchestrator(delete_operational_agent)
                     }
                 }
             }
-            OrchestratorCommands::LoadDefaultWorkCrew => {
+            OrchestratorCommands::LoadDefaultWorkCrew { asset } => {
                 let supervisor_resources = [
                     shared_messages::resources::Resources::MtnMech,
                     shared_messages::resources::Resources::MtnElec,
@@ -96,10 +108,10 @@ impl OrchestratorCommands {
 
                 for (i, resource) in supervisor_resources.iter().enumerate() {
                     let create_supervisor_agent: OrchestratorRequest =
-                        OrchestratorRequest::CreateSupervisorAgent(Id::new(
-                            format!("L111000{}", i),
-                            vec![resource.clone()],
-                        ));
+                        OrchestratorRequest::CreateSupervisorAgent(
+                            asset.clone(),
+                            Id::new(format!("L111000{}", i), vec![resource.clone()]),
+                        );
                     let message = SystemMessages::Orchestrator(create_supervisor_agent);
                     crate::send_http(client, message);
                 }
@@ -117,10 +129,13 @@ impl OrchestratorCommands {
                     for _j in 0..number_of_each_resource[i] {
                         counter += 1;
                         let create_operational_agent: OrchestratorRequest =
-                            OrchestratorRequest::CreateOperationalAgent(Id::new(
-                                format!("L111001{}", counter),
-                                vec![operational_resources[i].clone()],
-                            ));
+                            OrchestratorRequest::CreateOperationalAgent(
+                                asset.clone(),
+                                Id::new(
+                                    format!("L111001{}", counter),
+                                    vec![operational_resources[i].clone()],
+                                ),
+                            );
                         let message = SystemMessages::Orchestrator(create_operational_agent);
                         crate::send_http(client, message);
                     }

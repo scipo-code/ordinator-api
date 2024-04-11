@@ -10,6 +10,8 @@ use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
 use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
 use shared_messages::strategic::StrategicRequest;
+use shared_messages::strategic::StrategicRequestMessage;
+use shared_messages::Asset;
 use shared_messages::SystemMessages;
 use strum::IntoEnumIterator;
 
@@ -17,16 +19,19 @@ use strum::IntoEnumIterator;
 pub enum StrategicCommands {
     /// overview of the strategic agent
     Status {
+        asset: Asset,
         #[clap(subcommand)]
         status_commands: Option<StatusCommands>,
     },
     /// Scheduling commands
     Scheduling {
+        asset: Asset,
         #[clap(subcommand)]
         scheduling_commands: SchedulingCommands,
     },
     /// Resources commands
     Resources {
+        asset: Asset,
         #[clap(subcommand)]
         resource_commands: ResourceCommands,
     },
@@ -90,22 +95,39 @@ impl StrategicCommands {
     pub fn execute(&self, client: &Client) -> SystemMessages {
         match self {
             StrategicCommands::Status {
-                status_commands: subcommand,
-            } => match subcommand {
+                asset,
+                status_commands,
+            } => match status_commands {
                 Some(StatusCommands::WorkOrders { period }) => {
                     let strategic_status_message: StrategicStatusMessage =
                         StrategicStatusMessage::new_period(period.to_string());
 
-                    SystemMessages::Strategic(StrategicRequest::Status(strategic_status_message))
+                    let strategic_request = StrategicRequest {
+                        asset: asset.clone(),
+                        strategic_request_message: StrategicRequestMessage::Status(
+                            strategic_status_message,
+                        ),
+                    };
+
+                    SystemMessages::Strategic(strategic_request)
                 }
                 None => {
                     let strategic_status_message: StrategicStatusMessage =
                         StrategicStatusMessage::General;
 
-                    SystemMessages::Strategic(StrategicRequest::Status(strategic_status_message))
+                    let strategic_request_message =
+                        StrategicRequestMessage::Status(strategic_status_message);
+
+                    let strategic_request = StrategicRequest {
+                        asset: asset.clone(),
+                        strategic_request_message,
+                    };
+
+                    SystemMessages::Strategic(strategic_request)
                 }
             },
             StrategicCommands::Scheduling {
+                asset,
                 scheduling_commands: subcommand,
             } => match subcommand {
                 SchedulingCommands::Schedule(schedule) => {
@@ -115,8 +137,13 @@ impl StrategicCommands {
                     let strategic_scheduling_message: StrategicSchedulingMessage =
                         StrategicSchedulingMessage::Schedule(schedule_single_work_order);
 
-                    let strategic_request =
-                        StrategicRequest::Scheduling(strategic_scheduling_message);
+                    let strategic_request_message =
+                        StrategicRequestMessage::Scheduling(strategic_scheduling_message);
+
+                    let strategic_request = StrategicRequest {
+                        asset: asset.clone(),
+                        strategic_request_message,
+                    };
 
                     SystemMessages::Strategic(strategic_request)
                 }
@@ -130,13 +157,19 @@ impl StrategicCommands {
                     let strategic_scheduling_message: StrategicSchedulingMessage =
                         StrategicSchedulingMessage::ExcludeFromPeriod(exclude_single_work_order);
 
-                    let strategic_request =
-                        StrategicRequest::Scheduling(strategic_scheduling_message);
+                    let strategic_request_message =
+                        StrategicRequestMessage::Scheduling(strategic_scheduling_message);
+
+                    let strategic_request = StrategicRequest {
+                        asset: asset.clone(),
+                        strategic_request_message,
+                    };
 
                     SystemMessages::Strategic(strategic_request)
                 }
             },
             StrategicCommands::Resources {
+                asset,
                 resource_commands: subcommand,
             } => match subcommand {
                 ResourceCommands::Loading {
@@ -159,8 +192,13 @@ impl StrategicCommands {
                         select_resources: resources,
                     };
 
-                    let strategic_request =
-                        StrategicRequest::Resources(strategic_resources_message);
+                    let strategic_request_message =
+                        StrategicRequestMessage::Resources(strategic_resources_message);
+
+                    let strategic_request = StrategicRequest {
+                        asset: asset.clone(),
+                        strategic_request_message,
+                    };
 
                     SystemMessages::Strategic(strategic_request)
                 }
@@ -184,8 +222,13 @@ impl StrategicCommands {
                         select_resources: resources,
                     };
 
-                    let strategic_request =
-                        StrategicRequest::Resources(strategic_resources_message);
+                    let strategic_request_message =
+                        StrategicRequestMessage::Resources(strategic_resources_message);
+
+                    let strategic_request = StrategicRequest {
+                        asset: asset.clone(),
+                        strategic_request_message,
+                    };
 
                     SystemMessages::Strategic(strategic_request)
                 }
@@ -211,8 +254,13 @@ impl StrategicCommands {
                             resources,
                         };
 
-                    let strategic_request =
-                        StrategicRequest::Resources(strategic_resources_message);
+                    let strategic_request_message =
+                        StrategicRequestMessage::Resources(strategic_resources_message);
+
+                    let strategic_request = StrategicRequest {
+                        asset: asset.clone(),
+                        strategic_request_message,
+                    };
 
                     SystemMessages::Strategic(strategic_request)
                 }
@@ -235,8 +283,13 @@ impl StrategicCommands {
                     let strategic_resources_message =
                         StrategicResourceMessage::new_set_resources(resources);
 
-                    let strategic_request =
-                        StrategicRequest::Resources(strategic_resources_message);
+                    let strategic_request_message =
+                        StrategicRequestMessage::Resources(strategic_resources_message);
+
+                    let strategic_request = StrategicRequest {
+                        asset: asset.clone(),
+                        strategic_request_message,
+                    };
 
                     SystemMessages::Strategic(strategic_request)
                 }

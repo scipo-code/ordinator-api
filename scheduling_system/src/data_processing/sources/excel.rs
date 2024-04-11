@@ -1,6 +1,7 @@
 use calamine::{Data, Error, Reader, Xlsx};
 use core::fmt;
 use regex::Regex;
+use shared_messages::Asset;
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::{debug, event, info};
@@ -659,7 +660,11 @@ fn extract_revision(
         .cloned()
     {
         Some(calamine::Data::String(s)) => s,
-        _ => return Err(Error::Msg("Could not parse revision as string")),
+        Some(calamine::Data::Empty) => String::from("No Value provided in the input data"),
+        _ => {
+            dbg!(row);
+            return Err(Error::Msg("Could not parse revision as string"));
+        }
     };
 
     let shutdown_pattern = r"NOSD|NE";
@@ -776,7 +781,11 @@ fn extract_functional_location(
     row: &[calamine::Data],
     header_to_index: &HashMap<String, usize>,
 ) -> Result<FunctionalLocation, Error> {
-    let functional_location_possible_headers = ["functional_location", "Functional Location"];
+    let functional_location_possible_headers = [
+        "Functional Loc.",
+        "functional_location",
+        "Functional Location",
+    ];
 
     let functional_location_data =
         get_data_from_headers(row, header_to_index, &functional_location_possible_headers);
@@ -785,11 +794,15 @@ fn extract_functional_location(
 
     match string {
         Some(s) => match s {
-            calamine::Data::String(s) => Ok(FunctionalLocation { string: s }),
+            calamine::Data::String(s) => {
+                let asset = Asset::new_from_string(&s[0..2]);
+                Ok(FunctionalLocation { string: s, asset })
+            }
             _ => Err(Error::Msg("Could not parse functional location as string")),
         },
         None => Ok(FunctionalLocation {
             string: "None".to_string(),
+            asset: Asset::Unknown,
         }),
     }
 }

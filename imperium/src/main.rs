@@ -8,7 +8,7 @@ use commands::strategic::StrategicCommands;
 use commands::tactical::TacticalCommands;
 use reqwest::blocking::Client;
 use shared_messages::orchestrator::OrchestratorRequest;
-use shared_messages::SystemMessages;
+use shared_messages::{Asset, SystemMessages};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -49,7 +49,9 @@ enum Commands {
         #[clap(subcommand)]
         sap_commands: SapCommands,
     },
-    Export,
+    Export {
+        asset: Asset,
+    },
 }
 fn main() {
     let cli = Cli::parse();
@@ -113,8 +115,8 @@ fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
             todo!()
         }
         Commands::Sap { sap_commands } => sap_commands.execute(),
-        Commands::Export => {
-            let orchestrator_request = OrchestratorRequest::Export;
+        Commands::Export { asset } => {
+            let orchestrator_request = OrchestratorRequest::Export(asset.clone());
 
             SystemMessages::Orchestrator(orchestrator_request)
         }

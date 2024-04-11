@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use actix::{Addr, Message};
 use shared_messages::resources::Id;
 
@@ -14,6 +16,8 @@ pub mod strategic_agent;
 pub mod supervisor_agent;
 pub mod tactical_agent;
 pub mod traits;
+
+
 
 #[allow(dead_code)]
 pub enum SetAddr {

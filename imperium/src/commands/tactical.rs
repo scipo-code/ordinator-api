@@ -6,9 +6,9 @@ use shared_messages::{
     resources::Resources,
     tactical::{
         tactical_resources_message::TacticalResourceMessage,
-        tactical_status_message::TacticalStatusMessage, TacticalRequest,
+        tactical_status_message::TacticalStatusMessage, TacticalRequest, TacticalRequestMessage,
     },
-    SystemMessages,
+    Asset, SystemMessages,
 };
 use strum::IntoEnumIterator;
 
@@ -17,9 +17,10 @@ use super::orchestrator;
 #[derive(Subcommand, Debug)]
 pub enum TacticalCommands {
     /// Get the status of the tactical agent
-    Status,
+    Status { asset: Asset },
     /// Get the objectives of the tactical agent
     Resources {
+        asset: Asset,
         #[clap(subcommand)]
         resource_commands: ResourceCommands,
     },
@@ -28,19 +29,29 @@ pub enum TacticalCommands {
     /// Access the days of the tactical agent
     Days,
     /// Test the feasibility of the tactical schedule
-    Test,
+    Test { asset: Asset },
 }
 
 impl TacticalCommands {
     pub fn execute(&self, client: &Client) -> shared_messages::SystemMessages {
         match self {
-            TacticalCommands::Status => {
+            TacticalCommands::Status { asset } => {
                 dbg!("TacticalAgent Status Message");
 
-                SystemMessages::Tactical(TacticalRequest::Status(TacticalStatusMessage::General))
+                let tactical_request = TacticalRequest {
+                    asset: asset.clone(),
+                    tactical_request_message: TacticalRequestMessage::Status(
+                        TacticalStatusMessage::General,
+                    ),
+                };
+
+                SystemMessages::Tactical(tactical_request)
             }
 
-            TacticalCommands::Resources { resource_commands } => match resource_commands {
+            TacticalCommands::Resources {
+                asset,
+                resource_commands,
+            } => match resource_commands {
                 ResourceCommands::Capacity {
                     days_end,
                     select_resources,
@@ -50,7 +61,13 @@ impl TacticalCommands {
                         select_resources: select_resources.clone(),
                     };
 
-                    let tactical_request = TacticalRequest::Resources(tactical_resources_message);
+                    let tactical_request_request =
+                        TacticalRequestMessage::Resources(tactical_resources_message);
+
+                    let tactical_request = TacticalRequest {
+                        asset: asset.clone(),
+                        tactical_request_message: tactical_request_request,
+                    };
 
                     SystemMessages::Tactical(tactical_request)
                 }
@@ -63,7 +80,13 @@ impl TacticalCommands {
                         select_resources: select_resources.clone(),
                     };
 
-                    let tactical_request = TacticalRequest::Resources(tactical_resources_message);
+                    let tactical_request_message =
+                        TacticalRequestMessage::Resources(tactical_resources_message);
+
+                    let tactical_request = TacticalRequest {
+                        asset: asset.clone(),
+                        tactical_request_message,
+                    };
 
                     SystemMessages::Tactical(tactical_request)
                 }
@@ -77,8 +100,13 @@ impl TacticalCommands {
                             resources: select_resources.clone(),
                         };
 
-                    let tactical_request = TacticalRequest::Resources(tactical_resources_message);
+                    let tactical_request_message =
+                        TacticalRequestMessage::Resources(tactical_resources_message);
 
+                    let tactical_request = TacticalRequest {
+                        asset: asset.clone(),
+                        tactical_request_message,
+                    };
                     SystemMessages::Tactical(tactical_request)
                 }
                 ResourceCommands::SetCapacityPolicyDefault => {
@@ -87,8 +115,12 @@ impl TacticalCommands {
                     let tactical_resources_message =
                         TacticalResourceMessage::new_set_resources(resources);
 
-                    let tactical_request = TacticalRequest::Resources(tactical_resources_message);
-
+                    let tactical_request_message =
+                        TacticalRequestMessage::Resources(tactical_resources_message);
+                    let tactical_request = TacticalRequest {
+                        asset: asset.clone(),
+                        tactical_request_message,
+                    };
                     SystemMessages::Tactical(tactical_request)
                 }
             },
@@ -98,9 +130,13 @@ impl TacticalCommands {
             TacticalCommands::Days => {
                 todo!()
             }
-            TacticalCommands::Test => {
-                let tactical_request = TacticalRequest::Test;
+            TacticalCommands::Test { asset } => {
+                let tactical_request_message = TacticalRequestMessage::Test;
 
+                let tactical_request = TacticalRequest {
+                    asset: asset.clone(),
+                    tactical_request_message,
+                };
                 SystemMessages::Tactical(tactical_request)
             }
         }

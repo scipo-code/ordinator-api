@@ -11,6 +11,7 @@ use std::{
 
 use actix_web::{guard, web, App, HttpServer};
 use agents::orchestrator::Orchestrator;
+use shared_messages::Asset;
 
 use crate::init::logging;
 
@@ -25,13 +26,14 @@ async fn main() -> Result<(), io::Error> {
         init::model_initializers::initialize_scheduling_environment(52, 136),
     ));
 
-    let orchestrator = Arc::new(Mutex::new(Orchestrator::new(
-        scheduling_environment.clone(),
-        log_handles,
-    )));
+    let mut orchestrator = Orchestrator::new(scheduling_environment.clone(), log_handles);
+
+    orchestrator.add_asset(Asset::DF);
+
+    let arc_orchestrator = Arc::new(Mutex::new(orchestrator));
 
     HttpServer::new(move || {
-        let orchestrator = orchestrator.clone();
+        let orchestrator = arc_orchestrator.clone();
         App::new().app_data(web::Data::new(orchestrator)).route(
             "/ws",
             web::post()

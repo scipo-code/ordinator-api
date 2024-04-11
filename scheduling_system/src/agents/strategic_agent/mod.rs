@@ -6,10 +6,10 @@ use crate::agents::traits::LargeNeighborHoodSearch;
 use crate::models::SchedulingEnvironment;
 
 use actix::prelude::*;
-use serde::Serialize;
 use shared_messages::agent_error::AgentError;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
-use shared_messages::strategic::StrategicRequest;
+use shared_messages::strategic::StrategicRequestMessage;
+use shared_messages::Asset;
 use shared_messages::SolutionExportMessage;
 use shared_messages::StatusMessage;
 use tracing::info;
@@ -23,15 +23,13 @@ use tracing::warn;
 
 use crate::agents::tactical_agent::TacticalAgent;
 
-use self::strategic_algorithm::OptimizedWorkOrder;
-
 use super::SendState;
 use super::SetAddr;
 
 /// This is the primary struct for the scheduler agent.
 #[allow(dead_code)]
 pub struct StrategicAgent {
-    platform: String,
+    asset: Asset,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     strategic_agent_algorithm: StrategicAlgorithm,
     tactical_agent_addr: Option<Addr<TacticalAgent>>,
@@ -42,7 +40,7 @@ impl Actor for StrategicAgent {
 
     fn started(&mut self, ctx: &mut Context<Self>) {
         self.strategic_agent_algorithm.populate_priority_queues();
-        warn!("StrategicAgent has started for platform: {}", self.platform);
+        warn!("StrategicAgent has started for asset: {}", self.asset);
         ctx.notify(ScheduleIteration {})
     }
 
@@ -53,13 +51,13 @@ impl Actor for StrategicAgent {
 
 impl StrategicAgent {
     pub fn new(
-        platform: String,
+        asset: Asset,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         strategic_agent_algorithm: StrategicAlgorithm,
         tactical_agent_addr: Option<Addr<TacticalAgent>>,
     ) -> Self {
         Self {
-            platform,
+            asset,
             scheduling_environment,
             strategic_agent_algorithm,
             tactical_agent_addr,
@@ -114,73 +112,78 @@ impl Handler<ScheduleIteration> for StrategicAgent {
     }
 }
 
-impl Handler<StrategicRequest> for StrategicAgent {
+impl Handler<StrategicRequestMessage> for StrategicAgent {
     type Result = Result<String, AgentError>;
 
     #[instrument(level = "info", skip_all)]
-    fn handle(&mut self, msg: StrategicRequest, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: StrategicRequestMessage, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
-            StrategicRequest::Status(strategic_status_message) => match strategic_status_message {
-                StrategicStatusMessage::General => {
-                    let scheduling_status = self.scheduling_environment.lock().unwrap().to_string();
-                    let strategic_objective =
-                        self.strategic_agent_algorithm.objective_value().to_string();
+            StrategicRequestMessage::Status(strategic_status_message) => {
+                match strategic_status_message {
+                    StrategicStatusMessage::General => {
+                        let scheduling_status =
+                            self.scheduling_environment.lock().unwrap().to_string();
+                        let strategic_objective =
+                            self.strategic_agent_algorithm.objective_value().to_string();
 
-                    let optimized_work_orders =
-                        self.strategic_agent_algorithm.optimized_work_orders();
+                        let optimized_work_orders =
+                            self.strategic_agent_algorithm.optimized_work_orders();
 
-                    let number_of_strategic_work_orders = optimized_work_orders.len();
-                    let mut scheduled_count = 0;
-                    for optimized_work_order in optimized_work_orders.values() {
-                        if optimized_work_order.get_scheduled_period().is_some() {
-                            scheduled_count += 1;
+                        let number_of_strategic_work_orders = optimized_work_orders.len();
+                        let mut scheduled_count = 0;
+                        for optimized_work_order in optimized_work_orders.values() {
+                            if optimized_work_order.get_scheduled_period().is_some() {
+                                scheduled_count += 1;
+                            }
                         }
-                    }
 
-                    let scheduling_status = format!(
+                        let scheduling_status = format!(
                     "{}\nWith objectives: \n  strategic objective of: {}\n    {} of {} work orders scheduled",
                     scheduling_status, strategic_objective, scheduled_count, number_of_strategic_work_orders
                     );
-                    Ok(scheduling_status)
-                }
-                StrategicStatusMessage::Period(period) => {
-                    let work_orders = self.strategic_agent_algorithm.optimized_work_orders();
-
-                    if !self
-                        .strategic_agent_algorithm
-                        .periods()
-                        .iter()
-                        .map(|period| period.period_string())
-                        .collect::<Vec<_>>()
-                        .contains(&period)
-                    {
-                        return Err(AgentError::StateUpdateError(
-                            "Period not found in the the scheduling environment".to_string(),
-                        ));
+                        Ok(scheduling_status)
                     }
+                    StrategicStatusMessage::Period(period) => {
+                        let work_orders = self.strategic_agent_algorithm.optimized_work_orders();
 
-                    let work_orders_by_period: Vec<u32> = work_orders
-                        .iter()
-                        .filter(|(_, opt_wo)| match opt_wo.get_scheduled_period() {
-                            Some(scheduled_period) => scheduled_period.period_string() == period,
-                            None => false,
-                        })
-                        .map(|(work_order_number, _)| *work_order_number)
-                        .collect();
-                    let message =
-                        self.format_selected_work_orders(work_orders_by_period, Some(period));
+                        if !self
+                            .strategic_agent_algorithm
+                            .periods()
+                            .iter()
+                            .map(|period| period.period_string())
+                            .collect::<Vec<_>>()
+                            .contains(&period)
+                        {
+                            return Err(AgentError::StateUpdateError(
+                                "Period not found in the the scheduling environment".to_string(),
+                            ));
+                        }
 
-                    Ok(message)
+                        let work_orders_by_period: Vec<u32> = work_orders
+                            .iter()
+                            .filter(|(_, opt_wo)| match opt_wo.get_scheduled_period() {
+                                Some(scheduled_period) => {
+                                    scheduled_period.period_string() == period
+                                }
+                                None => false,
+                            })
+                            .map(|(work_order_number, _)| *work_order_number)
+                            .collect();
+                        let message =
+                            self.format_selected_work_orders(work_orders_by_period, Some(period));
+
+                        Ok(message)
+                    }
                 }
-            },
+            }
 
-            StrategicRequest::Scheduling(scheduling_message) => self
+            StrategicRequestMessage::Scheduling(scheduling_message) => self
                 .strategic_agent_algorithm
                 .update_scheduling_state(scheduling_message),
-            StrategicRequest::Resources(resources_message) => self
+            StrategicRequestMessage::Resources(resources_message) => self
                 .strategic_agent_algorithm
                 .update_resources_state(resources_message),
-            StrategicRequest::Periods(periods_message) => {
+            StrategicRequestMessage::Periods(periods_message) => {
                 let mut scheduling_env_lock = self.scheduling_environment.lock().unwrap();
 
                 let periods = scheduling_env_lock.periods_mut();
@@ -337,7 +340,7 @@ mod tests {
         manual_resources.insert(Resources::Prodtech, period_hash_map.clone());
 
         let scheduler_agent = StrategicAgent::new(
-            "test".to_string(),
+            Asset::DF,
             Arc::new(Mutex::new(SchedulingEnvironment::default())),
             scheduler_agent_algorithm,
             None,

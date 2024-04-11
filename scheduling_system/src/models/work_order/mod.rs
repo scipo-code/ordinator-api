@@ -129,6 +129,10 @@ impl WorkOrder {
         }
     }
 
+    pub fn functional_location(&self) -> &FunctionalLocation {
+        &self.work_order_info.functional_location
+    }
+
     pub fn operations(&self) -> &HashMap<u32, Operation> {
         &self.operations
     }
