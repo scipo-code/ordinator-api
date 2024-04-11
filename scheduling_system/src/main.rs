@@ -23,7 +23,7 @@ async fn main() -> Result<(), io::Error> {
     let log_handles = logging::setup_logging();
 
     let scheduling_environment = Arc::new(Mutex::new(
-        init::model_initializers::initialize_scheduling_environment(52, 100),
+        init::model_initializers::initialize_scheduling_environment(52, 120),
     ));
 
     let mut orchestrator = Orchestrator::new(scheduling_environment.clone(), log_handles);

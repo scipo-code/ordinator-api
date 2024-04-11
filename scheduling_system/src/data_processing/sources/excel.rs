@@ -4,7 +4,7 @@ use regex::Regex;
 use shared_messages::Asset;
 use std::collections::HashMap;
 use std::path::Path;
-use tracing::{debug, event, info};
+use tracing::{debug, event, info, warn};
 
 use crate::agents::tactical_agent::tactical_algorithm::Day;
 use crate::models::time_environment::period::Period;
@@ -19,7 +19,7 @@ use crate::models::work_order::order_type::{WROPriority, WorkOrderType};
 use crate::models::work_order::priority::Priority;
 use crate::models::work_order::revision::Revision;
 use crate::models::work_order::status_codes::{MaterialStatus, StatusCodes};
-use crate::models::work_order::unloading_point::UnloadingPoint;
+use crate::models::work_order::unloading_point::{self, UnloadingPoint};
 use crate::models::work_order::{ActivityRelation, WorkOrder, WorkOrderAnalytic, WorkOrderInfo};
 use crate::models::worker_environment::WorkerEnvironment;
 use crate::models::{SchedulingEnvironment, WorkOrders};
@@ -685,7 +685,7 @@ fn extract_unloading_point(
     let unloading_point_data =
         get_data_from_headers(row, header_to_index, &unloading_point_possible_headers);
 
-    let string = match unloading_point_data.cloned() {
+    let unloading_point_string = match unloading_point_data.cloned() {
         Some(calamine::Data::String(s)) => s,
         Some(calamine::Data::Int(n)) => n.to_string(),
         Some(calamine::Data::Float(n)) => n.to_string(),
@@ -696,12 +696,12 @@ fn extract_unloading_point(
         _ => return Err(Error::Msg("Could not parse unloading point as string")),
     };
 
-    let (start_week, _end_week, present) = _extract_weeks(&string);
-    let start_date = _week_to_date(start_week, true);
+    let (start_week, _end_week, present) = extract_weeks(&unloading_point_string);
+    let start_date = week_to_date(start_week, true);
 
-    if present {
-        Ok(UnloadingPoint {
-            string,
+    let unloading_point = if present {
+        UnloadingPoint {
+            string: unloading_point_string,
             present,
             period: {
                 Some(
@@ -715,17 +715,19 @@ fn extract_unloading_point(
                     .clone(),
                 )
             },
-        })
+        }
     } else {
-        Ok(UnloadingPoint {
-            string,
+        UnloadingPoint {
+            string: unloading_point_string,
             present,
             period: None,
-        })
-    }
+        }
+    };
+
+    Ok(unloading_point)
 }
 
-fn _week_to_date(week_number: u32, start_of_week: bool) -> DateTime<Utc> {
+fn week_to_date(week_number: u32, start_of_week: bool) -> DateTime<Utc> {
     let today_date = chrono::Local::now().naive_local();
     let current_year = today_date.year();
     let current_week = today_date.iso_week().week();
@@ -764,14 +766,18 @@ fn _week_to_date(week_number: u32, start_of_week: bool) -> DateTime<Utc> {
     }
 }
 
-fn _extract_weeks(input_string: &str) -> (u32, u32, bool) {
-    let re = regex::Regex::new(r"W(\d+)-(\d+)").unwrap();
+fn extract_weeks(input_string: &str) -> (u32, u32, bool) {
+    let re = regex::Regex::new(r"W(\d+)-?W?(\d+)?").unwrap();
     let captures = re.captures(input_string);
-
     if let Some(cap) = captures {
         let start_week = cap[1].parse::<u32>().unwrap_or(0);
-        let end_week = cap[2].parse::<u32>().unwrap_or(0);
-        (start_week, end_week, true)
+
+        if let Some(end_week_match) = cap.get(2) {
+            let end_week = end_week_match.as_str().parse::<u32>().unwrap_or(0);
+            (start_week, end_week, true)
+        } else {
+            (start_week, 0, true)
+        }
     } else {
         (0, 0, false)
     }

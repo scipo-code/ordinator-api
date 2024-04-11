@@ -490,8 +490,19 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 let mut activity_load = Vec::<(Day, f64)>::new();
                 let resource = operation_parameters.resource.clone();
 
+                let current_day_peek = match current_day.peek() {
+                    Some(day) => day,
+                    None => {
+                        info!(
+                            "Work order {} did not fit in the tactical schedule",
+                            current_work_order_number
+                        );
+                        panic!("Operation left the window set by the tactical days, either the work order and very large or there is a bug");
+                    }
+                };
+
                 let first_day_remaining_capacity =
-                    match self.remaining_capacity(&resource, current_day.peek().unwrap()) {
+                    match self.remaining_capacity(&resource, current_day_peek) {
                         Some(remaining_capacity) => remaining_capacity,
                         None => {
                             if start_day_index <= 12 {
