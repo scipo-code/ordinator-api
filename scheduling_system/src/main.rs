@@ -23,13 +23,13 @@ async fn main() -> Result<(), io::Error> {
     let log_handles = logging::setup_logging();
 
     let scheduling_environment = Arc::new(Mutex::new(
-        init::model_initializers::initialize_scheduling_environment(52, 136),
+        init::model_initializers::initialize_scheduling_environment(52, 100),
     ));
 
     let mut orchestrator = Orchestrator::new(scheduling_environment.clone(), log_handles);
 
-    orchestrator.add_asset(Asset::DF);
-
+    orchestrator.add_asset(Asset::HB);
+    orchestrator.add_asset(Asset::HD);
     let arc_orchestrator = Arc::new(Mutex::new(orchestrator));
 
     HttpServer::new(move || {

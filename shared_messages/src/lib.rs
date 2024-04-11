@@ -144,3 +144,41 @@ impl Asset {
         }
     }
 }
+
+#[derive(Deserialize)]
+pub struct TomlResources {
+    pub Medic: f64,
+    pub MtnCran: f64,
+    pub MtnElec: f64,
+    pub MtnInst: f64,
+    pub MtnLagg: f64,
+    pub MtnMech: f64,
+    pub MtnPain: f64,
+    pub MtnPipf: f64,
+    pub MtnRigg: f64,
+    pub MtnRope: f64,
+    pub MtnRous: f64,
+    pub MtnSat: f64,
+    pub MtnScaf: f64,
+    pub MtnTele: f64,
+    pub MtnTurb: f64,
+    pub InpSite: f64,
+    pub Prodlabo: f64,
+    pub Prodtech: f64,
+    pub VenAcco: f64,
+    pub VenComm: f64,
+    pub VenCran: f64,
+    pub VenElec: f64,
+    pub VenHvac: f64,
+    pub VenInsp: f64,
+    pub VenInst: f64,
+    pub VenMech: f64,
+    pub VenMete: f64,
+    pub VenRope: f64,
+    pub VenScaf: f64,
+    pub VenSubs: f64,
+    pub QaqcElec: f64,
+    pub QaqcMech: f64,
+    pub QaqcPain: f64,
+    pub WellSupv: f64,
+}

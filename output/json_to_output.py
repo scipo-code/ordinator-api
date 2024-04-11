@@ -14,7 +14,7 @@ def update_excel_with_tactical_output(json_data, excel_file, work_order_col, act
 
     # Load the Excel file into a DataFrame
 
-    #df.insert(0, 'Start Day', 0)
+    df.insert(0, 'Start Day', 0)
     df = df.dropna(subset=[work_order_col])
     df[work_order_col] = df[work_order_col].astype(int)
     df[activity_col] = df[activity_col].astype(int)
@@ -44,14 +44,14 @@ def update_excel_with_tactical_output(json_data, excel_file, work_order_col, act
     df.to_excel(excel_file, index=False)
 
 def update_excel_with_strategic_output(json_data, excel_file, work_order_col):
+    
     # Load the Excel file
     df = pd.read_excel(excel_file)
-  
-
+    
     # Load the Excel file into a DataFrame
-
     df.insert(0, 'Scheduled Period', 0)
     df = df.dropna(subset=[work_order_col])
+    
     # Iterate over each item in JSON data
     for work_order_number, period in json_data.items():
         df.loc[(df[work_order_col] == int(work_order_number)) , 'Scheduled Period'] = str(period)
@@ -63,33 +63,34 @@ def update_excel_with_strategic_output(json_data, excel_file, work_order_col):
 
 
 def main():
-    # print working directory 
-    print('Current working directory:', os.getcwd())
 
-    output_path = 'output/output-for-valentin-sap-updater-2024-03-13.xlsx'
+    # Create an argument parser
+    parser = argparse.ArgumentParser(description='Process some integers.')
 
-    # # Check if the file exists to avoid an error
-    # if os.path.exists(output_path):
-    #     os.remove(output_path)
-    #     print(f"File {output_path} has been deleted.")
-    # else:
-    #     print(f"The file {output_path} does not exist.")
-    # shutil.copy('scheduling_system/test_data/valentin-sap-updater-2024-03-13.xlsx', output_path)
+    # Add arguments
+    parser.add_argument('filename', type=str, help='the filename to process')
 
+
+    time = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    input_path = parser.parse_args().filename
+    output_path = './output/output-' + str(time) + '.xlsx'
+
+    print(input_path)
+    print(output_path)
+
+    shutil.copy(input_path, output_path)
 
     # Read JSON data from stdin
     json_str = sys.stdin.read()
     json_data = json.loads(json_str)
 
-
     # Define the Excel file, search column, and update column
-    excel_file = './output/output-for-valentin-sap-updater-2024-03-13-corrected.xlsx'
     work_order_col = 'Order'  # Replace with your actual column name
     activity_col = 'Activity' # Replace with your actual column name
 
     # Update the Excel file based on JSON data
-    update_excel_with_tactical_output(json_data['tactical_agent_solution'], excel_file, work_order_col, activity_col)
-    update_excel_with_strategic_output(json_data['strategic_agent_solution'], excel_file, work_order_col)
+    update_excel_with_tactical_output(json_data['tactical_agent_solution'], output_path, work_order_col, activity_col)
+    update_excel_with_strategic_output(json_data['strategic_agent_solution'], output_path, work_order_col)
 
 if __name__ == "__main__":
     main()
