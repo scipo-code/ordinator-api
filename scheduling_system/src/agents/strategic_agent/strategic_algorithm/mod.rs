@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use serde::Serialize;
-use tracing::{trace, info, instrument};
+use tracing::{error, info, instrument, trace};
 use colored::*;
 
 use priority_queue::PriorityQueue;
@@ -289,6 +289,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
             let optimized_period = match &optimized_work_order.scheduled_period {
                 Some(optimized_period) => optimized_period.clone(),
                 None => {
+                    error!("Work order number {} does not have a scheduled period", work_order_number);
                     panic!("There are no periods in the system")
                 }
             };

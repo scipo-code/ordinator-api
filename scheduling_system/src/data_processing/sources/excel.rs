@@ -582,26 +582,38 @@ fn extract_order_dates(
         }
     };
 
-    let basic_start_date: Result<NaiveDate, Error> = match basic_start_data.cloned() {
-        Some(calamine::Data::String(s)) => Ok(parse_date(&s)),
-        Some(_) => Err(Error::Msg("Could not parse basic_start_data as string")),
-        None => Err(Error::Msg("Basic start date is None")),
-    };
+    dbg!(basic_start_data.clone());
+    let basic_start_date = match basic_start_data.cloned() {
+        Some(calamine::Data::String(s)) => parse_date(&s),
+        Some(calamine::Data::DateTime(datetime)) => {
+            let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
+            start
+                .checked_add_signed(Duration::days(datetime.as_f64() as i64))
+                .unwrap()
+        }
+        Some(_) => panic!("Could not parse basic_start_data as string"),
+        None => panic!("Basic start date is None"),
+    }
+    .and_hms_opt(7, 0, 0)
+    .unwrap()
+    .and_utc();
 
     let basic_finish_date = match basic_finish_data.cloned() {
-        Some(calamine::Data::String(s)) => Ok(parse_date(&s)),
-        Some(_) => Err(Error::Msg("Could not parse basic finish as string")),
-        None => Err(Error::Msg("Basic finish date is None")),
-    };
+        Some(calamine::Data::String(s)) => parse_date(&s),
+        Some(calamine::Data::DateTime(datetime)) => {
+            let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
+            start
+                .checked_add_signed(Duration::days(datetime.as_f64() as i64))
+                .unwrap()
+        }
+        Some(_) => panic!("Could not parse basic finish as string"),
+        None => panic!("Could not parse basic finish as string"),
+    }
+    .and_hms_opt(7, 0, 0)
+    .unwrap()
+    .and_utc();
 
-    let basic_start_date_additional = basic_start_date
-        .unwrap_or(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap())
-        .and_hms_opt(7, 0, 0)
-        .unwrap();
-    let basic_finish_date_additional = basic_finish_date
-        .unwrap_or(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap())
-        .and_hms_opt(7, 0, 0)
-        .unwrap();
+    let duration = basic_finish_date - basic_start_date;
 
     Ok(WorkOrderDates {
         earliest_allowed_start_date: DateTime::<Utc>::from_naive_utc_and_offset(
@@ -632,15 +644,9 @@ fn extract_order_dates(
                 Utc,
             ),
         ),
-        basic_start_date: DateTime::<Utc>::from_naive_utc_and_offset(
-            basic_start_date_additional,
-            Utc,
-        ),
-        basic_finish_date: DateTime::<Utc>::from_naive_utc_and_offset(
-            basic_finish_date_additional,
-            Utc,
-        ),
-        duration: basic_finish_date_additional.signed_duration_since(basic_start_date_additional),
+        basic_start_date,
+        basic_finish_date,
+        duration,
         basic_start_scheduled: None,
         basic_finish_scheduled: None,
         material_expected_date: None,

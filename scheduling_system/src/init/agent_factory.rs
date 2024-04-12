@@ -157,6 +157,8 @@ fn create_optimized_work_orders(
             continue;
         }
 
+        let default_period = periods.last();
+
         let mut excluded_periods: HashSet<Period> = HashSet::new();
 
         for (i, period) in periods.iter().enumerate() {
@@ -183,21 +185,24 @@ fn create_optimized_work_orders(
         }
 
         if work_order.status_codes().sch {
-            let containing_period = periods.iter().find(|period| {
-                period.start_date() <= &work_order.order_dates().basic_start_date
-                    && &work_order.order_dates().basic_start_date <= period.end_date()
-            });
-
-            let scheduled_period = match containing_period {
+            let unloading_period = work_order.unloading_point().period.clone();
+            let scheduled_period = match unloading_period {
                 Some(period) => Some(period),
-                None => periods.first(),
+                None => periods
+                    .iter()
+                    .find(|period| {
+                        dbg!(&work_order.order_dates().basic_start_date);
+                        period.start_date() <= &work_order.order_dates().basic_start_date
+                            && &work_order.order_dates().basic_start_date <= period.end_date()
+                    })
+                    .cloned(),
             };
 
             optimized_work_orders.insert(
                 *work_order_number,
                 OptimizedWorkOrder::new(
-                    scheduled_period.cloned(),
-                    scheduled_period.cloned(),
+                    default_period.cloned(),
+                    scheduled_period.clone(),
                     excluded_periods.clone(),
                     None,
                     work_order.work_order_weight(),
