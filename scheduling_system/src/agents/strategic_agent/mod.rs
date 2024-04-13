@@ -65,7 +65,12 @@ impl StrategicAgent {
     }
 
     pub fn update_tactical_agent(&self) {
-        let tactical_work_orders = self.strategic_agent_algorithm.tactical_work_orders();
+        let locked_scheduling_environment = self.scheduling_environment.lock().unwrap();
+
+        let tactical_periods = locked_scheduling_environment.tactical_periods();
+        let tactical_work_orders = self
+            .strategic_agent_algorithm
+            .tactical_work_orders(tactical_periods.to_vec());
 
         match &self.tactical_agent_addr {
             Some(tactical_agent_addr) => {

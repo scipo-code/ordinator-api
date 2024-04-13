@@ -13,9 +13,9 @@ use shared_messages::{
         tactical_time_message::TacticalTimeMessage,
     },
 };
-use std::collections::HashMap;
 use std::fmt::Write;
 use std::{borrow::Cow, cmp::Ordering};
+use std::{collections::HashMap, fmt};
 use strum::IntoEnumIterator;
 use tracing::{debug, error, info, instrument, warn};
 
@@ -30,7 +30,7 @@ use crate::{
 #[derive(Clone)]
 pub struct TacticalAlgorithm {
     objective_value: f64,
-    time_horizon: usize,
+    tactical_periods: Vec<Period>,
     number_of_orders: u32,
     optimized_work_orders: HashMap<u32, OptimizedTacticalWorkOrder>,
     capacity: AlgorithmResources,
@@ -192,12 +192,13 @@ impl Day {
 impl TacticalAlgorithm {
     pub fn new(
         tactical_days: Vec<Day>,
+        time_horizon: Vec<Period>,
         capacity: AlgorithmResources,
         loading: AlgorithmResources,
     ) -> Self {
         TacticalAlgorithm {
             objective_value: f64::INFINITY,
-            time_horizon: tactical_days.len(),
+            tactical_periods: time_horizon,
             number_of_orders: 0,
             optimized_work_orders: HashMap::new(),
             capacity,
@@ -287,9 +288,10 @@ impl TacticalAlgorithm {
                 .collect()
         };
 
-        //
         for leaving_work_order_number in leaving_work_order_numbers {
-            self.unschedule(leaving_work_order_number)
+            self.unschedule(leaving_work_order_number);
+            self.optimized_work_orders
+                .remove(&leaving_work_order_number);
         }
 
         self.schedule();
@@ -776,9 +778,9 @@ impl TacticalAlgorithm {
     pub fn status(&self) -> Result<String, AgentError> {
         Ok(format!(
             "Objective: {}\n
-            Time horizon: {} days\n
+            Time horizon: {:?} days\n
             Number of work orders: {}",
-            self.objective_value, self.time_horizon, self.number_of_orders,
+            self.objective_value, self.tactical_periods, self.number_of_orders,
         ))
     }
 }
@@ -794,8 +796,7 @@ impl TestAlgorithm for TacticalAlgorithm {
 
     #[instrument(level = "info", skip(self))]
     fn determine_algorithm_state(&self) -> AlgorithmState<Self::InfeasibleCases> {
-        let mut infeasible_cases = TacticalInfeasibleCases::default();
-        let mut algorithm_state = AlgorithmState::Feasible;
+        let mut algorithm_state = AlgorithmState::Infeasible(TacticalInfeasibleCases::default());
 
         let mut aggregated_load: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
         for (_work_order_number, optimized_work_order) in self.optimized_work_orders.clone() {
@@ -814,64 +815,134 @@ impl TestAlgorithm for TacticalAlgorithm {
             }
         }
 
-        for resource in Resources::iter() {
-            for day in self.tactical_days.clone() {
-                let resource_map = match aggregated_load.get(&resource) {
-                    Some(map) => Cow::Borrowed(map),
-                    None => Cow::Owned(HashMap::new()),
-                };
+        algorithm_state
+            .infeasible_cases_mut()
+            .unwrap()
+            .aggregated_load = (|| {
+            for resource in Resources::iter() {
+                for day in &self.tactical_days {
+                    let resource_map = match aggregated_load.get(&resource) {
+                        Some(map) => Cow::Borrowed(map),
+                        None => Cow::Owned(HashMap::new()),
+                    };
 
-                let agg_load = resource_map.get(&day).unwrap_or(&0.0);
-                let sch_load = self.loading(&resource, &day);
-                if (*agg_load - sch_load).abs() >= 0.00001 {
-                    error!(agg_load = ?agg_load, sch_load = ?sch_load, resource = ?resource, day = ?day);
-                    infeasible_cases.aggregated_load = true;
-                    algorithm_state = AlgorithmState::Infeasible(infeasible_cases.clone());
+                    let agg_load = resource_map.get(day).unwrap_or(&0.0);
+                    let sch_load = self.loading(&resource, day);
+                    if (*agg_load - sch_load).abs() >= 0.00001 {
+                        error!(agg_load = ?agg_load, sch_load = ?sch_load, resource = ?resource, day = ?day);
+                        return ConstraintState::Infeasible;
+                    }
                 }
             }
-        }
+            ConstraintState::Feasible
+        })();
 
-        for (_work_order_number, optimized_work_order) in self.optimized_work_orders.clone() {
-            let start_date_from_period = optimized_work_order.scheduled_period.start_date();
+        algorithm_state
+            .infeasible_cases_mut()
+            .unwrap()
+            .earliest_start_day = (|| {
+            for (_work_order_number, optimized_work_order) in self.optimized_work_orders.clone() {
+                let start_date_from_period = optimized_work_order.scheduled_period.start_date();
 
-            if let Some(operation_solutions) = optimized_work_order.operation_solutions {
-                let start_days: Vec<_> = operation_solutions
-                    .values()
-                    .map(|operation_solution| {
-                        operation_solution
+                if let Some(operation_solutions) = optimized_work_order.operation_solutions {
+                    let start_days: Vec<_> =
+                        operation_solutions
+                            .values()
+                            .map(|operation_solution| {
+                                operation_solution
                             .scheduled
                             .first()
                             .expect("All scheduled operations should have a first scheduled day")
                             .0
                             .clone()
-                    })
-                    .collect();
+                            })
+                            .collect();
 
-                for start_day in start_days {
-                    if start_day.date().date_naive() < start_date_from_period.date_naive() {
-                        error!(start_day = ?start_day.date, start_date_from_period = ?start_date_from_period);
-                        infeasible_cases.earliest_start_day = true;
-                        algorithm_state = AlgorithmState::Infeasible(infeasible_cases.clone());
+                    for start_day in start_days {
+                        if start_day.date().date_naive() < start_date_from_period.date_naive() {
+                            error!(start_day = ?start_day.date, start_date_from_period = ?start_date_from_period);
+                            return ConstraintState::Infeasible;
+                        }
                     }
                 }
             }
-        }
+            ConstraintState::Feasible
+        })();
 
-        for optimized_work_order in self.optimized_work_orders.clone().values() {
-            if optimized_work_order.operation_solutions.is_none() {
-                infeasible_cases.all_scheduled = true;
-                algorithm_state = AlgorithmState::Infeasible(infeasible_cases.clone());
-            }
-        }
         algorithm_state
+            .infeasible_cases_mut()
+            .unwrap()
+            .all_scheduled = (|| {
+            for optimized_work_order in self.optimized_work_orders.clone().values() {
+                if optimized_work_order.operation_solutions.is_none() {
+                    return ConstraintState::Infeasible;
+                }
+            }
+            ConstraintState::Feasible
+        })();
+
+        algorithm_state
+            .infeasible_cases_mut()
+            .unwrap()
+            .respect_period_id = (|| {
+            for (_work_order_number, optimized_work_order) in self.optimized_work_orders.clone() {
+                if !self
+                    .tactical_periods
+                    .contains(&optimized_work_order.scheduled_period)
+                {
+                    error!(work_order_number = ?_work_order_number, scheduled_period = ?optimized_work_order.scheduled_period, tactical_periods = ?self.tactical_periods, "Tactical period does not contain the scheduled period of the tactical work order");
+                    return ConstraintState::Infeasible;
+                }
+            }
+            ConstraintState::Feasible
+        })();
+
+        let infeasible_cases = algorithm_state.infeasible_cases_mut().unwrap();
+
+        if infeasible_cases.aggregated_load == ConstraintState::Feasible
+            && infeasible_cases.earliest_start_day == ConstraintState::Feasible
+            && infeasible_cases.all_scheduled == ConstraintState::Feasible
+            && infeasible_cases.respect_period_id == ConstraintState::Feasible
+        {
+            AlgorithmState::Feasible
+        } else {
+            algorithm_state
+        }
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct TacticalInfeasibleCases {
-    pub aggregated_load: bool,
-    pub earliest_start_day: bool,
-    pub all_scheduled: bool,
+    pub aggregated_load: ConstraintState,
+    pub earliest_start_day: ConstraintState,
+    pub all_scheduled: ConstraintState,
+    pub respect_period_id: ConstraintState,
+}
+
+impl Default for TacticalInfeasibleCases {
+    fn default() -> Self {
+        TacticalInfeasibleCases {
+            aggregated_load: ConstraintState::Infeasible,
+            earliest_start_day: ConstraintState::Infeasible,
+            all_scheduled: ConstraintState::Infeasible,
+            respect_period_id: ConstraintState::Infeasible,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub enum ConstraintState {
+    Feasible,
+    Infeasible,
+}
+
+impl fmt::Display for ConstraintState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConstraintState::Feasible => write!(f, "FEASIBLE"),
+            ConstraintState::Infeasible => write!(f, "INFEASIBLE"),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -895,6 +966,7 @@ pub mod tests {
     fn test_determine_load_1() {
         let tactical_algorithm = super::TacticalAlgorithm::new(
             vec![],
+            vec![],
             super::AlgorithmResources::new(HashMap::new()),
             super::AlgorithmResources::new(HashMap::new()),
         );
@@ -912,6 +984,7 @@ pub mod tests {
     #[test]
     fn test_determine_load_2() {
         let tactical_algorithm = super::TacticalAlgorithm::new(
+            vec![],
             vec![],
             super::AlgorithmResources::new(HashMap::new()),
             super::AlgorithmResources::new(HashMap::new()),
@@ -943,6 +1016,7 @@ pub mod tests {
 
         let mut tactical_algorithm = super::TacticalAlgorithm::new(
             tactical_days(56),
+            vec![first_period.clone()],
             super::AlgorithmResources::new(HashMap::new()),
             super::AlgorithmResources::new(HashMap::new()),
         );
@@ -996,6 +1070,11 @@ pub mod tests {
 
         let mut tactical_algorithm = super::TacticalAlgorithm::new(
             tactical_days(56),
+            vec![
+                first_period.clone(),
+                second_period.clone(),
+                third_period.clone(),
+            ],
             super::AlgorithmResources::new_from_data(
                 Resources::iter().collect(),
                 tactical_days(56),
@@ -1065,6 +1144,11 @@ pub mod tests {
 
         let mut tactical_algorithm = super::TacticalAlgorithm::new(
             tactical_days(56),
+            vec![
+                first_period.clone(),
+                second_period.clone(),
+                third_period.clone(),
+            ],
             super::AlgorithmResources::new_from_data(
                 Resources::iter().collect(),
                 tactical_days(56),

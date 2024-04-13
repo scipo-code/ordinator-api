@@ -45,14 +45,15 @@ impl StrategicAlgorithm {
         self.periods = periods;
     }
 
-    pub fn tactical_work_orders(&self) -> Vec<(u32, Period)> {
-        let periods = &self.periods.clone()[0..4];
+    pub fn tactical_work_orders(&self, tactical_periods: Vec<Period>) -> Vec<(u32, Period)> {
+        
+        
         let mut tactical_work_orders: Vec<(u32, Period)> = vec![];
 
         for (work_order_number, optimized_work_order) in &self.optimized_work_orders.inner {
             match optimized_work_order.get_scheduled_period() {
                 Some(period) => {
-                    if periods.contains(&period) {
+                    if tactical_periods.contains(&period) {
                         tactical_work_orders.push((*work_order_number, period));
                     }
                 }

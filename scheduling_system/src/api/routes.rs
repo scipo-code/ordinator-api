@@ -197,7 +197,7 @@ impl Orchestrator {
             OrchestratorRequest::GetDays => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
-                let days = scheduling_environment_guard.clone_tactical_days();
+                let days = scheduling_environment_guard.tactical_days();
 
                 let days_string: String = days
                     .iter()

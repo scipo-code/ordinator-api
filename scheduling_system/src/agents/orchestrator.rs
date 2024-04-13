@@ -133,11 +133,9 @@ impl Orchestrator {
     pub fn add_asset(&mut self, asset: Asset) {
         let strategic_agent_addr = self.agent_factory.build_strategic_agent(asset.clone());
 
-        let tactical_agent_addr = self.agent_factory.build_tactical_agent(
-            asset.clone(),
-            56,
-            strategic_agent_addr.clone(),
-        );
+        let tactical_agent_addr = self
+            .agent_factory
+            .build_tactical_agent(asset.clone(), strategic_agent_addr.clone());
 
         let agent_registry = ActorRegistry::new(strategic_agent_addr, tactical_agent_addr);
 

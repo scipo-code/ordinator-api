@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use actix::{Addr, Message};
 use shared_messages::resources::Id;
 

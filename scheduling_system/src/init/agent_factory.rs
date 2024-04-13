@@ -1,4 +1,5 @@
 use actix::prelude::*;
+use actix_rt::time;
 use shared_messages::Asset;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -86,15 +87,17 @@ impl AgentFactory {
     pub fn build_tactical_agent(
         &self,
         asset: Asset,
-        time_horizon: u32,
         strategic_agent_addr: Addr<StrategicAgent>,
     ) -> Addr<TacticalAgent> {
         let (sender, receiver) = std::sync::mpsc::channel::<Addr<TacticalAgent>>();
 
         let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
+        let tactical_periods = scheduling_environment_guard.tactical_periods().clone();
+
         let tactical_algorithm = TacticalAlgorithm::new(
-            scheduling_environment_guard.clone_tactical_days(),
+            scheduling_environment_guard.tactical_days().clone(),
+            tactical_periods.clone(),
             initialize_tactical_resources(&scheduling_environment_guard, 0.0),
             initialize_tactical_resources(&scheduling_environment_guard, 0.0),
         );
@@ -106,7 +109,7 @@ impl AgentFactory {
             let tactical_addr = TacticalAgent::new(
                 asset,
                 0,
-                time_horizon,
+                tactical_periods,
                 strategic_agent_addr,
                 tactical_algorithm,
                 arc_scheduling_environment,
@@ -191,7 +194,6 @@ fn create_optimized_work_orders(
                 None => periods
                     .iter()
                     .find(|period| {
-                        dbg!(&work_order.order_dates().basic_start_date);
                         period.start_date() <= &work_order.order_dates().basic_start_date
                             && &work_order.order_dates().basic_start_date <= period.end_date()
                     })
@@ -211,6 +213,32 @@ fn create_optimized_work_orders(
             );
             continue;
         };
+
+        if work_order.status_codes().awsc {
+            let scheduled_period = periods
+                .iter()
+                .find(|period| {
+                    period.start_date() <= &work_order.order_dates().basic_start_date
+                        && &work_order.order_dates().basic_start_date <= period.end_date()
+                })
+                .cloned();
+            let locked_in_period = match scheduled_period {
+                Some(ref period) => Some(period.clone()),
+                None => periods.last().cloned(),
+            };
+
+            optimized_work_orders.insert(
+                *work_order_number,
+                OptimizedWorkOrder::new(
+                    scheduled_period,
+                    locked_in_period,
+                    excluded_periods.clone(),
+                    None,
+                    work_order.work_order_weight(),
+                    work_order.work_load().clone(),
+                ),
+            );
+        }
 
         if work_order.unloading_point().present {
             let period = work_order.unloading_point().period.clone();
@@ -278,7 +306,7 @@ fn initialize_tactical_resources(
         .iter()
     {
         let mut days = HashMap::new();
-        for day in scheduling_environment.clone_tactical_days().iter() {
+        for day in scheduling_environment.tactical_days().iter() {
             days.insert(day.clone(), start_value);
         }
         resource_capacity.insert(resource.clone(), days);

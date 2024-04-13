@@ -5,14 +5,20 @@ use self::period::Period;
 pub mod period;
 
 pub struct TimeEnvironment {
-    pub(super) strategic_periods: Vec<Period>,
-    pub(super) tactical_days: Vec<Day>,
+    pub strategic_periods: Vec<Period>,
+    pub tactical_periods: Vec<Period>,
+    pub tactical_days: Vec<Day>,
 }
 
 impl TimeEnvironment {
-    pub fn new(strategic_periods: Vec<Period>, tactical_days: Vec<Day>) -> Self {
+    pub fn new(
+        strategic_periods: Vec<Period>,
+        tactical_periods: Vec<Period>,
+        tactical_days: Vec<Day>,
+    ) -> Self {
         TimeEnvironment {
             strategic_periods,
+            tactical_periods,
             tactical_days,
         }
     }

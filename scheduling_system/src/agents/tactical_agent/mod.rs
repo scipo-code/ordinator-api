@@ -13,6 +13,7 @@ use tracing::{info, instrument, warn};
 use crate::agents::strategic_agent::ScheduleIteration;
 use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
 use crate::agents::SetAddr;
+use crate::models::time_environment::period::Period;
 use crate::models::SchedulingEnvironment;
 
 use super::strategic_agent::StrategicAgent;
@@ -24,7 +25,7 @@ use super::SendState;
 pub struct TacticalAgent {
     asset: Asset,
     id: i32,
-    time_horizon: u32,
+    time_horizon: Vec<Period>,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     tactical_algorithm: TacticalAlgorithm,
     strategic_addr: Addr<StrategicAgent>,
@@ -35,7 +36,7 @@ impl TacticalAgent {
     pub fn new(
         asset: Asset,
         id: i32,
-        days: u32,
+        time_horizon: Vec<Period>,
         strategic_addr: Addr<StrategicAgent>,
         tactical_algorithm: TacticalAlgorithm,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
@@ -43,7 +44,7 @@ impl TacticalAgent {
         TacticalAgent {
             asset,
             id,
-            time_horizon: days,
+            time_horizon,
             scheduling_environment: scheduling_environment.clone(),
             tactical_algorithm,
             strategic_addr,
@@ -51,7 +52,7 @@ impl TacticalAgent {
         }
     }
 
-    pub fn time_horizon(&self) -> &u32 {
+    pub fn time_horizon(&self) -> &Vec<Period> {
         &self.time_horizon
     }
 }
@@ -129,10 +130,12 @@ impl Handler<TacticalRequestMessage> for TacticalAgent {
                         "Tactical Schedule is Infesible: \n 
                            aggregated_load: {}\n
                            all_scheduled: {}\n
-                           earliest_start_day: {}\n",
+                           earliest_start_day: {}\n
+                           respect_period_id: {}\n",
                         infeasible_cases.aggregated_load,
                         infeasible_cases.all_scheduled,
-                        infeasible_cases.earliest_start_day
+                        infeasible_cases.earliest_start_day,
+                        infeasible_cases.respect_period_id,
                     )
                     .to_string()),
                 }

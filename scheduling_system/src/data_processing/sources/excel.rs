@@ -46,7 +46,8 @@ impl fmt::Display for ExcelLoadError {
 
 pub fn load_data_file(
     file_path: &Path,
-    number_of_periods: u32,
+    number_of_strategic_periods: u32,
+    number_of_tactical_periods: u32,
     number_of_days: u32,
 ) -> Result<SchedulingEnvironment, calamine::Error> {
     let mut workbook: Xlsx<_> = calamine::open_workbook(file_path)?;
@@ -59,13 +60,17 @@ pub fn load_data_file(
     let mut work_orders: WorkOrders = WorkOrders::new();
     let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
 
-    let strategic_periods: Vec<Period> = create_periods(number_of_periods).unwrap_or_else(|_| {
-        panic!(
-            "Could not create periods in {} at line {}",
-            file!(),
-            line!()
-        )
-    });
+    let strategic_periods: Vec<Period> = create_periods(number_of_strategic_periods)
+        .unwrap_or_else(|_| {
+            panic!(
+                "Could not create periods in {} at line {}",
+                file!(),
+                line!()
+            )
+        });
+
+    let tactical_periods: &Vec<Period> =
+        &strategic_periods.clone()[0..number_of_tactical_periods as usize].to_vec();
 
     let first_period = strategic_periods.first().unwrap().clone();
 
@@ -82,7 +87,11 @@ pub fn load_data_file(
     populate_work_orders(&mut work_orders, &strategic_periods, sheet)
         .expect("could not populate the work orders");
 
-    let time_environment = TimeEnvironment::new(strategic_periods, tactical_days(number_of_days));
+    let time_environment = TimeEnvironment::new(
+        strategic_periods,
+        tactical_periods.to_vec(),
+        tactical_days(number_of_days),
+    );
 
     let scheduling_environment =
         SchedulingEnvironment::new(work_orders, worker_environment, time_environment);
@@ -1169,9 +1178,15 @@ mod tests {
     fn test_load_data_file() {
         let file_path = Path::new("test_data/export.XLSX");
         let number_of_periods = 26;
+        let number_of_tactical_periods = 4;
         let number_of_days = 56;
 
-        let scheduling_environment = load_data_file(file_path, number_of_periods, number_of_days);
+        let scheduling_environment = load_data_file(
+            file_path,
+            number_of_periods,
+            number_of_tactical_periods,
+            number_of_days,
+        );
 
         assert_eq!(
             scheduling_environment
@@ -1181,7 +1196,12 @@ mod tests {
             number_of_periods as usize
         );
 
-        let scheduling_environment = load_data_file(file_path, number_of_periods, number_of_days);
+        let scheduling_environment = load_data_file(
+            file_path,
+            number_of_periods,
+            number_of_tactical_periods,
+            number_of_days,
+        );
 
         let number_of_work_orders = scheduling_environment
             .as_ref()
