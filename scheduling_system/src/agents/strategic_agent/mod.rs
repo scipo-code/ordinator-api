@@ -23,8 +23,8 @@ use tracing::warn;
 
 use crate::agents::tactical_agent::TacticalAgent;
 
-use super::SendState;
 use super::SetAddr;
+use super::StateLink;
 
 /// This is the primary struct for the scheduler agent.
 #[allow(dead_code)]
@@ -74,7 +74,7 @@ impl StrategicAgent {
 
         match &self.tactical_agent_addr {
             Some(tactical_agent_addr) => {
-                tactical_agent_addr.do_send(SendState::Strategic(tactical_work_orders));
+                tactical_agent_addr.do_send(StateLink::Strategic(tactical_work_orders));
             }
             None => {
                 error!(

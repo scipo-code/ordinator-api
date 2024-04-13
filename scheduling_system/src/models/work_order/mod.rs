@@ -12,6 +12,7 @@ pub mod unloading_point;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use shared_messages::resources::MainResources;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -39,6 +40,7 @@ use super::time_environment::period::Period;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrder {
     work_order_number: u32,
+    main_work_center: MainResources,
     operations: HashMap<u32, Operation>,
     relations: Vec<ActivityRelation>,
     work_order_analytic: WorkOrderAnalytic,
@@ -112,6 +114,7 @@ impl WorkOrderAnalytic {
 impl WorkOrder {
     pub fn new(
         work_order_number: u32,
+        main_work_center: MainResources,
         operations: HashMap<u32, Operation>,
         relations: Vec<ActivityRelation>,
         work_order_analytic: WorkOrderAnalytic,
@@ -120,10 +123,10 @@ impl WorkOrder {
     ) -> Self {
         WorkOrder {
             work_order_number,
+            main_work_center,
             operations,
             relations,
             work_order_analytic,
-
             order_dates,
             work_order_info,
         }
@@ -187,6 +190,10 @@ impl WorkOrder {
 
     pub fn relations(&self) -> &Vec<ActivityRelation> {
         &self.relations
+    }
+
+    pub fn main_work_center(&self) -> &MainResources {
+        &self.main_work_center
     }
 }
 
@@ -361,7 +368,7 @@ impl WorkOrder {
 mod tests {
     use std::collections::HashMap;
 
-    use shared_messages::resources::Resources;
+    use shared_messages::resources::{MainResources, Resources};
 
     use super::{
         functional_location::FunctionalLocation,
@@ -438,6 +445,7 @@ mod tests {
 
             WorkOrder::new(
                 2100023841,
+                MainResources::MtnMech,
                 operations,
                 Vec::new(),
                 work_order_analytic,
@@ -482,6 +490,7 @@ mod tests {
 
             WorkOrder::new(
                 2100000001,
+                MainResources::MtnMech,
                 operations,
                 Vec::new(),
                 work_order_analytic,

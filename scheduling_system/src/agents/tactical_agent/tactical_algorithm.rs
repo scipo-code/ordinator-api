@@ -6,7 +6,7 @@ use rand::seq::SliceRandom;
 use serde::Serialize;
 use shared_messages::{
     agent_error::AgentError,
-    resources::Resources,
+    resources::{MainResources, Resources},
     tactical::{
         tactical_resources_message::TacticalResourceMessage,
         tactical_scheduling_message::TacticalSchedulingMessage,
@@ -42,6 +42,7 @@ pub struct TacticalAlgorithm {
 #[allow(dead_code)]
 #[derive(Clone, Serialize)]
 pub struct OptimizedTacticalWorkOrder {
+    pub main_work_center: MainResources,
     pub operation_parameters: HashMap<u32, OperationParameters>,
     pub weight: u32,
     pub relations: Vec<ActivityRelation>,
@@ -51,6 +52,7 @@ pub struct OptimizedTacticalWorkOrder {
 
 impl OptimizedTacticalWorkOrder {
     pub fn new(
+        main_work_center: MainResources,
         operation_parameters: HashMap<u32, OperationParameters>,
         weight: u32,
         relations: Vec<ActivityRelation>,
@@ -58,6 +60,7 @@ impl OptimizedTacticalWorkOrder {
         scheduled_period: Period,
     ) -> Self {
         OptimizedTacticalWorkOrder {
+            main_work_center,
             operation_parameters,
             weight,
             relations,
@@ -310,6 +313,7 @@ impl TacticalAlgorithm {
 
     pub fn create_new_optimized_work_order(&mut self, work_order: &WorkOrder, period: Period) {
         let mut optimized_work_order = OptimizedTacticalWorkOrder {
+            main_work_center: work_order.main_work_center().clone(),
             operation_parameters: HashMap::new(),
             relations: work_order.relations().clone(),
             weight: work_order.work_order_weight(),
@@ -950,7 +954,7 @@ pub mod tests {
     use std::collections::HashMap;
 
     use chrono::{Days, Duration};
-    use shared_messages::resources::Resources;
+    use shared_messages::resources::{MainResources, Resources};
     use strum::IntoEnumIterator;
 
     use crate::{
@@ -1036,6 +1040,7 @@ pub mod tests {
         operation_solutions.insert(1, operation_solution);
 
         let optimized_tactical_work_order = OptimizedTacticalWorkOrder::new(
+            MainResources::MtnMech,
             operation_parameters,
             10,
             vec![],
@@ -1094,6 +1099,7 @@ pub mod tests {
         operation_parameters.insert(1, operation_parameter);
 
         let optimized_tactical_work_order = OptimizedTacticalWorkOrder::new(
+            MainResources::MtnMech,
             operation_parameters,
             10,
             vec![],
@@ -1168,6 +1174,7 @@ pub mod tests {
         operation_parameters.insert(1, operation_parameter);
 
         let optimized_tactical_work_order = OptimizedTacticalWorkOrder::new(
+            MainResources::MtnMech,
             operation_parameters,
             10,
             vec![],

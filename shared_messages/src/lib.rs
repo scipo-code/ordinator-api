@@ -2,6 +2,7 @@ pub mod agent_error;
 pub mod orchestrator;
 pub mod resources;
 pub mod strategic;
+pub mod supervisor;
 pub mod tactical;
 
 use std::fmt::Display;
@@ -11,6 +12,7 @@ use clap::{Subcommand, ValueEnum};
 use orchestrator::OrchestratorRequest;
 use serde::{Deserialize, Serialize};
 use strategic::StrategicRequest;
+use supervisor::SupervisorRequest;
 use tactical::TacticalRequest;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -19,7 +21,7 @@ pub enum SystemMessages {
     Orchestrator(OrchestratorRequest),
     Strategic(StrategicRequest),
     Tactical(TacticalRequest),
-    Supervisor,
+    Supervisor(SupervisorRequest),
     Operational,
     Sap,
 }

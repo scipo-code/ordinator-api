@@ -2,6 +2,43 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, EnumIter, clap::ValueEnum)]
+pub enum MainResources {
+    MtnMech,
+    MtnElec,
+    MtnInst,
+    MtnRope,
+    MtnPipf,
+    MtnCran,
+    Prodtech,
+    MtnTele,
+    MtnTurb,
+    MtnPain,
+    VenInsp,
+    Wellsupv,
+    InpSite,
+    MtnLagg,
+    MtnRous,
+    VenMech,
+    MtnSat,
+    Qaqcmech,
+    Prodlabo,
+    MtnScaf,
+    Wellmain,
+    VenInst,
+    VenElec,
+    VenSubs,
+    MtnRigg,
+    VenCran,
+    VenRope,
+    Welltech,
+    VenComm,
+    Qaqcelec,
+    Medic,
+    Unknown,
+}
+
 /// This enum holds all the resources that are available needed to schedule work order.
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Serialize, Deserialize, EnumIter, clap::ValueEnum)]
 pub enum Resources {
@@ -181,16 +218,59 @@ impl Display for Resources {
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug)]
-pub struct Id(pub String, pub Vec<Resources>);
+pub struct Id(pub String, pub Vec<Resources>, pub Option<MainResources>);
 
 impl Id {
-    pub fn new(id: String, resources: Vec<Resources>) -> Self {
-        Id(id, resources)
+    pub fn new(
+        id: String,
+        resources: Vec<Resources>,
+        main_resources: Option<MainResources>,
+    ) -> Self {
+        Id(id, resources, main_resources)
     }
 }
 
 impl Display for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} | {:?}", self.0, self.1)
+    }
+}
+
+impl MainResources {
+    pub fn new_from_string(resource: String) -> Self {
+        match resource.as_str() {
+            "MTN-MECH" => MainResources::MtnMech,
+            "MTN-ELEC" => MainResources::MtnElec,
+            "MTN-INST" => MainResources::MtnInst,
+            "MTN-ROPE" => MainResources::MtnRope,
+            "MTN-PIPF" => MainResources::MtnPipf,
+            "MTN-CRAN" => MainResources::MtnCran,
+            "PRODTECH" => MainResources::Prodtech,
+            "MTN-TELE" => MainResources::MtnTele,
+            "MTN-TURB" => MainResources::MtnTurb,
+            "MTN-PAIN" => MainResources::MtnPain,
+            "VEN-INSP" => MainResources::VenInsp,
+            "WELLSUPV" => MainResources::Wellsupv,
+            "INP-SITE" => MainResources::InpSite,
+            "MTN-LAGG" => MainResources::MtnLagg,
+            "MTN-ROUS" => MainResources::MtnRous,
+            "VEN-MECH" => MainResources::VenMech,
+            "MTN-SAT" => MainResources::MtnSat,
+            "QAQCMECH" => MainResources::Qaqcmech,
+            "PRODLABO" => MainResources::Prodlabo,
+            "MTN-SCAF" => MainResources::MtnScaf,
+            "WELLMAIN" => MainResources::Wellmain,
+            "VEN-INST" => MainResources::VenInst,
+            "VEN-ELEC" => MainResources::VenElec,
+            "VEN-SUBS" => MainResources::VenSubs,
+            "MTN-RIGG" => MainResources::MtnRigg,
+            "VEN-CRAN" => MainResources::VenCran,
+            "VEN-ROPE" => MainResources::VenRope,
+            "WELLTECH" => MainResources::Welltech,
+            "VEN-COMM" => MainResources::VenComm,
+            "QAQCELEC" => MainResources::Qaqcelec,
+            "MEDIC" => MainResources::Medic,
+            _ => MainResources::Unknown,
+        }
     }
 }

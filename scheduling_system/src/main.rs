@@ -29,7 +29,7 @@ async fn main() -> Result<(), io::Error> {
     let mut orchestrator = Orchestrator::new(scheduling_environment.clone(), log_handles);
 
     orchestrator.add_asset(Asset::HB);
-    orchestrator.add_asset(Asset::HD);
+    // orchestrator.add_asset(Asset::HD);
     let arc_orchestrator = Arc::new(Mutex::new(orchestrator));
 
     HttpServer::new(move || {

@@ -4,7 +4,7 @@ use regex::Regex;
 use shared_messages::Asset;
 use std::collections::HashMap;
 use std::path::Path;
-use tracing::{debug, event, info, warn};
+use tracing::{debug, event, info};
 
 use crate::agents::tactical_agent::tactical_algorithm::Day;
 use crate::models::time_environment::period::Period;
@@ -19,7 +19,7 @@ use crate::models::work_order::order_type::{WROPriority, WorkOrderType};
 use crate::models::work_order::priority::Priority;
 use crate::models::work_order::revision::Revision;
 use crate::models::work_order::status_codes::{MaterialStatus, StatusCodes};
-use crate::models::work_order::unloading_point::{self, UnloadingPoint};
+use crate::models::work_order::unloading_point::UnloadingPoint;
 use crate::models::work_order::{ActivityRelation, WorkOrder, WorkOrderAnalytic, WorkOrderInfo};
 use crate::models::worker_environment::WorkerEnvironment;
 use crate::models::{SchedulingEnvironment, WorkOrders};
@@ -27,7 +27,7 @@ use chrono::{
     naive, DateTime, Datelike, Days, Duration, NaiveDate, NaiveTime, TimeZone, Timelike, Utc,
     Weekday,
 };
-use shared_messages::resources::Resources;
+use shared_messages::resources::{MainResources, Resources};
 
 extern crate regex;
 
@@ -174,9 +174,14 @@ fn create_new_work_order(
     periods: &[Period],
 ) -> Result<WorkOrder, Error> {
     let work_order_type_possible_headers = ["Order Type", "Order_Type"];
+    let main_work_center_possible_headers =
+        ["Main Work Center", "Main_Work_Center", "Main WorkCtr"];
 
     let work_order_type_data =
         get_data_from_headers(row, header_to_index, &work_order_type_possible_headers);
+
+    let main_work_center_data =
+        get_data_from_headers(row, header_to_index, &main_work_center_possible_headers);
 
     let priority = match row
         .get(
@@ -195,6 +200,11 @@ fn create_new_work_order(
         }
         Some(calamine::Data::Float(n)) => Priority::IntValue(n as u32),
         _ => Priority::StringValue(String::new()),
+    };
+
+    let main_work_center = match main_work_center_data {
+        Some(calamine::Data::String(s)) => MainResources::new_from_string(s.clone()),
+        _ => return Err(Error::Msg("Could not parse Main Work Center as string")),
     };
 
     let work_order_number = match row
@@ -234,6 +244,7 @@ fn create_new_work_order(
 
     Ok(WorkOrder::new(
         work_order_number,
+        main_work_center,
         HashMap::<u32, Operation>::new(),
         Vec::<ActivityRelation>::new(),
         work_order_analytic,
@@ -591,7 +602,6 @@ fn extract_order_dates(
         }
     };
 
-    dbg!(basic_start_data.clone());
     let basic_start_date = match basic_start_data.cloned() {
         Some(calamine::Data::String(s)) => parse_date(&s),
         Some(calamine::Data::DateTime(datetime)) => {

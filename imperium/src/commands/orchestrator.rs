@@ -1,6 +1,7 @@
 use clap::Subcommand;
 use reqwest::blocking::Client;
-use shared_messages::{orchestrator::OrchestratorRequest, resources::Id, Asset, SystemMessages};
+use shared_messages::Asset;
+use shared_messages::{orchestrator::OrchestratorRequest, resources::Id, SystemMessages};
 
 #[derive(Subcommand, Debug)]
 pub enum OrchestratorCommands {
@@ -30,7 +31,7 @@ pub enum SupervisorAgentCommands {
     Create {
         asset: Asset,
         id: String,
-        resource: shared_messages::resources::Resources,
+        resource: shared_messages::resources::MainResources,
     },
 
     /// Delete a SupervisorAgent
@@ -68,7 +69,7 @@ impl OrchestratorCommands {
                     } => {
                         let create_supervisor_agent = OrchestratorRequest::CreateSupervisorAgent(
                             asset.clone(),
-                            Id::new(id.clone(), vec![resource.clone()]),
+                            Id::new(id.clone(), vec![], Some(resource.clone())),
                         );
                         SystemMessages::Orchestrator(create_supervisor_agent)
                     }
@@ -88,7 +89,7 @@ impl OrchestratorCommands {
                     } => {
                         let create_operational_agent = OrchestratorRequest::CreateOperationalAgent(
                             asset.clone(),
-                            Id::new(id.clone(), resource.clone()),
+                            Id::new(id.clone(), resource.clone(), None),
                         );
                         SystemMessages::Orchestrator(create_operational_agent)
                     }
@@ -101,16 +102,16 @@ impl OrchestratorCommands {
             }
             OrchestratorCommands::LoadDefaultWorkCrew { asset } => {
                 let supervisor_resources = [
-                    shared_messages::resources::Resources::MtnMech,
-                    shared_messages::resources::Resources::MtnElec,
-                    shared_messages::resources::Resources::MtnScaf,
+                    shared_messages::resources::MainResources::MtnMech,
+                    shared_messages::resources::MainResources::MtnElec,
+                    shared_messages::resources::MainResources::MtnScaf,
                 ];
 
                 for (i, resource) in supervisor_resources.iter().enumerate() {
                     let create_supervisor_agent: OrchestratorRequest =
                         OrchestratorRequest::CreateSupervisorAgent(
                             asset.clone(),
-                            Id::new(format!("L111000{}", i), vec![resource.clone()]),
+                            Id::new(format!("L111000{}", i), vec![], Some(resource.clone())),
                         );
                     let message = SystemMessages::Orchestrator(create_supervisor_agent);
                     crate::send_http(client, message);
@@ -134,6 +135,7 @@ impl OrchestratorCommands {
                                 Id::new(
                                     format!("L111001{}", counter),
                                     vec![operational_resources[i].clone()],
+                                    None,
                                 ),
                             );
                         let message = SystemMessages::Orchestrator(create_operational_agent);

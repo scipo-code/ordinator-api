@@ -5,6 +5,7 @@ use shared_messages::Asset;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
+use strum::IntoEnumIterator;
 
 use crate::agents::operational_agent::OperationalAgent;
 use crate::agents::strategic_agent::StrategicAgent;
@@ -33,11 +34,12 @@ impl ActorRegistry {
     fn new(
         strategic_agent_addr: Addr<StrategicAgent>,
         tactical_agent_addr: Addr<TacticalAgent>,
+        supervisor_agent_addrs: HashMap<Id, Addr<SupervisorAgent>>,
     ) -> Self {
         ActorRegistry {
             strategic_agent_addr,
             tactical_agent_addr,
-            supervisor_agent_addrs: HashMap::new(),
+            supervisor_agent_addrs,
             operational_agent_addrs: HashMap::new(),
         }
     }
@@ -120,7 +122,7 @@ impl Orchestrator {
     ) -> Self {
         let agent_factory = agent_factory::AgentFactory::new(scheduling_environment.clone());
 
-        let mut agent_registries = HashMap::new();
+        let agent_registries = HashMap::new();
 
         Orchestrator {
             scheduling_environment,
@@ -137,7 +139,20 @@ impl Orchestrator {
             .agent_factory
             .build_tactical_agent(asset.clone(), strategic_agent_addr.clone());
 
-        let agent_registry = ActorRegistry::new(strategic_agent_addr, tactical_agent_addr);
+        let mut supervisor_addrs = HashMap::<Id, Addr<SupervisorAgent>>::new();
+        for main_resource in resources::MainResources::iter() {
+            let id = Id::new("default".to_string(), vec![], Some(main_resource));
+            let supervisor_addr = self.agent_factory.build_supervisor_agent(
+                asset.clone(),
+                id.clone(),
+                tactical_agent_addr.clone(),
+            );
+
+            supervisor_addrs.insert(id, supervisor_addr);
+        }
+
+        let agent_registry =
+            ActorRegistry::new(strategic_agent_addr, tactical_agent_addr, supervisor_addrs);
 
         self.agent_registries.insert(asset, agent_registry);
     }

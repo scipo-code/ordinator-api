@@ -87,8 +87,43 @@ pub async fn http_to_scheduling_system(
                 Err(_) => Ok(HttpResponse::BadRequest().json("TACTICAL: FAILURE")),
             }
         }
-        SystemMessages::Supervisor => {
-            Ok(HttpResponse::Ok().json("OPERATIONAL: IMPLEMENT SEND LOGIC"))
+        SystemMessages::Supervisor(supervisor_request) => {
+            let supervisor_agent_addrs = match orchestrator
+                .lock()
+                .unwrap()
+                .agent_registries
+                .get(&supervisor_request.asset)
+            {
+                Some(agent_registry) => agent_registry.supervisor_agent_addrs.clone(),
+                None => {
+                    warn!("Supervisor agent not created for the asset");
+                    return Ok(HttpResponse::BadRequest()
+                        .json("SUPERVISOR: SUPERVISOR AGENT NOT INITIALIZED FOR THE ASSET"));
+                }
+            };
+
+            let supervisor_agent_addr = supervisor_agent_addrs
+                .iter()
+                .find(|(id, _)| id.2.as_ref().unwrap() == &supervisor_request.main_work_center)
+                .unwrap()
+                .1;
+
+            let response = supervisor_agent_addr
+                .send(supervisor_request.supervisor_request_message)
+                .await;
+
+            match response {
+                Ok(response) => match response {
+                    Ok(response) => {
+                        let http_response = HttpResponse::Ok()
+                            .insert_header(header::ContentType::plaintext())
+                            .body(response);
+                        Ok(http_response)
+                    }
+                    Err(_) => Ok(HttpResponse::BadRequest().json("SUPERVISOR: FAILURE")),
+                },
+                Err(_) => Ok(HttpResponse::BadRequest().json("SUPERVISOR: FAILURE")),
+            }
         }
         SystemMessages::Operational => {
             Ok(HttpResponse::Ok().json("OPERATIONAL: IMPLEMENT SEND LOGIC"))
@@ -214,9 +249,11 @@ impl Orchestrator {
                     .unwrap()
                     .tactical_agent_addr();
 
-                let supervisor_agent_addr = self
-                    .agent_factory
-                    .build_supervisor_agent(id_string.clone(), tactical_agent_addr);
+                let supervisor_agent_addr = self.agent_factory.build_supervisor_agent(
+                    asset.clone(),
+                    id_string.clone(),
+                    tactical_agent_addr,
+                );
 
                 self.agent_registries
                     .get_mut(&asset)

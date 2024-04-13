@@ -19,7 +19,7 @@ use crate::models::SchedulingEnvironment;
 use super::strategic_agent::StrategicAgent;
 use super::supervisor_agent::SupervisorAgent;
 use super::traits::{AlgorithmState, LargeNeighborHoodSearch, TestAlgorithm};
-use super::SendState;
+use super::StateLink;
 
 #[allow(dead_code)]
 pub struct TacticalAgent {
@@ -89,6 +89,26 @@ impl Handler<ScheduleIteration> for TacticalAgent {
         {
             self.tactical_algorithm = temporary_schedule;
 
+            self.supervisor_addrs.iter().for_each(|(id, addr)| {
+                let mut work_orders_to_supervisor = vec![];
+                self.tactical_algorithm
+                    .optimized_work_orders()
+                    .iter()
+                    .for_each(|(work_order_number, optimized_work_order)| {
+                        if id.2.as_ref().unwrap() == &optimized_work_order.main_work_center {
+                            work_orders_to_supervisor.push((
+                                *work_order_number,
+                                optimized_work_order
+                                    .operation_solutions
+                                    .as_ref()
+                                    .unwrap()
+                                    .clone(),
+                            ))
+                        }
+                    });
+
+                addr.do_send(StateLink::Tactical(work_orders_to_supervisor));
+            });
             info!(tactical_objective_value = %self.tactical_algorithm.get_objective_value());
         };
 
@@ -144,25 +164,25 @@ impl Handler<TacticalRequestMessage> for TacticalAgent {
     }
 }
 
-impl Handler<SendState> for TacticalAgent {
+impl Handler<StateLink> for TacticalAgent {
     type Result = ();
 
-    fn handle(&mut self, msg: SendState, _ctx: &mut Context<Self>) {
+    fn handle(&mut self, msg: StateLink, _ctx: &mut Context<Self>) {
         let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
         match msg {
-            SendState::Strategic(strategic_state) => {
+            StateLink::Strategic(strategic_state) => {
                 let work_orders = scheduling_environment_guard.work_orders().clone();
                 drop(scheduling_environment_guard);
                 self.tactical_algorithm
                     .update_state_based_on_strategic(&work_orders, strategic_state);
             }
-            SendState::Tactical => {
+            StateLink::Tactical(_) => {
                 todo!()
             }
-            SendState::Supervisor => {
+            StateLink::Supervisor => {
                 todo!()
             }
-            SendState::Operational => {
+            StateLink::Operational => {
                 todo!()
             }
         }

@@ -122,11 +122,16 @@ impl AgentFactory {
 
     pub fn build_supervisor_agent(
         &self,
+        asset: Asset,
         id: Id,
         tactical_agent_addr: Addr<TacticalAgent>,
     ) -> Addr<SupervisorAgent> {
-        let supervisor_agent =
-            SupervisorAgent::new(id, tactical_agent_addr, self.scheduling_environment.clone());
+        let supervisor_agent = SupervisorAgent::new(
+            id,
+            asset,
+            self.scheduling_environment.clone(),
+            tactical_agent_addr,
+        );
         supervisor_agent.start()
     }
 
