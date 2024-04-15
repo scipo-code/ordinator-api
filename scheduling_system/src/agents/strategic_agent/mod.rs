@@ -23,6 +23,9 @@ use tracing::warn;
 
 use crate::agents::tactical_agent::TacticalAgent;
 
+use super::traits::AlgorithmState;
+use super::traits::ConstraintState;
+use super::traits::TestAlgorithm;
 use super::SetAddr;
 use super::StateLink;
 
@@ -121,8 +124,12 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
     type Result = Result<String, AgentError>;
 
     #[instrument(level = "info", skip_all)]
-    fn handle(&mut self, msg: StrategicRequestMessage, _ctx: &mut Self::Context) -> Self::Result {
-        match msg {
+    fn handle(
+        &mut self,
+        strategic_request_message: StrategicRequestMessage,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
+        match strategic_request_message {
             StrategicRequestMessage::Status(strategic_status_message) => {
                 match strategic_status_message {
                     StrategicStatusMessage::General => {
@@ -181,7 +188,6 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                     }
                 }
             }
-
             StrategicRequestMessage::Scheduling(scheduling_message) => self
                 .strategic_agent_algorithm
                 .update_scheduling_state(scheduling_message),
@@ -204,6 +210,25 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                 }
                 self.strategic_agent_algorithm.set_periods(periods.to_vec());
                 Ok("Periods updated".to_string())
+            }
+            StrategicRequestMessage::Test => {
+                let algorithm_state = self.determine_algorithm_state();
+
+                match algorithm_state {
+                    AlgorithmState::Feasible => Ok(
+                        "Strategic Schedule is Feasible (Additional tests may be needed)"
+                            .to_string(),
+                    ),
+                    AlgorithmState::Infeasible(infeasible_cases) => Ok(format!(
+                        "Strategic Schedule is Infesible: \n
+                            respect_awsc: {}\n
+                            respect_sch: {}\n
+                            respect_aggregated_load: {}\n",
+                        &infeasible_cases.respect_awsc,
+                        &infeasible_cases.respect_sch,
+                        &infeasible_cases.respect_aggregated_load
+                    )),
+                }
             }
         }
     }
@@ -256,6 +281,77 @@ impl Handler<SolutionExportMessage> for StrategicAgent {
         }
 
         serde_json::to_string(&strategic_solution).unwrap()
+    }
+}
+
+impl TestAlgorithm for StrategicAgent {
+    type InfeasibleCases = StrategicInfeasibleCases;
+
+    fn determine_algorithm_state(&self) -> AlgorithmState<Self::InfeasibleCases> {
+        let scheduling_environment = self.scheduling_environment.lock().unwrap();
+
+        let mut strategic_state = AlgorithmState::Infeasible(Self::InfeasibleCases::default());
+
+        for (work_order_number, optimized_work_order) in
+            self.strategic_agent_algorithm.optimized_work_orders()
+        {
+            let scheduled_period = optimized_work_order.get_scheduled_period();
+            let work_order = scheduling_environment
+                .work_orders()
+                .inner
+                .get(work_order_number)
+                .unwrap();
+            let first_period = self.strategic_agent_algorithm.periods().first().unwrap();
+
+            let basic_start_of_first_activity = work_order.order_dates().basic_start_date;
+
+            let awsc = work_order.status_codes().awsc;
+
+            match scheduled_period {
+                Some(period) => {
+                    if awsc
+                        && !period.contains_date(basic_start_of_first_activity)
+                        && &basic_start_of_first_activity > first_period.start_date()
+                    {
+                        strategic_state.infeasible_cases_mut().unwrap().respect_awsc =
+                            ConstraintState::Infeasible(format!(
+                                "Work order {} does not respect AWSC. Period: {}, basic_start_date: {}",
+                                work_order_number,
+                                period,
+                                basic_start_of_first_activity,
+                            ));
+                        break;
+                    }
+                }
+                None => {
+                    strategic_state.infeasible_cases_mut().unwrap().respect_awsc =
+                        ConstraintState::Infeasible(format!(
+                            "Work order {} does not have a period",
+                            work_order_number,
+                        ));
+                    break;
+                }
+            }
+            strategic_state.infeasible_cases_mut().unwrap().respect_awsc =
+                ConstraintState::Feasible;
+        }
+        strategic_state
+    }
+}
+
+pub struct StrategicInfeasibleCases {
+    respect_awsc: ConstraintState<String>,
+    respect_sch: ConstraintState<String>,
+    respect_aggregated_load: ConstraintState<String>,
+}
+
+impl Default for StrategicInfeasibleCases {
+    fn default() -> Self {
+        StrategicInfeasibleCases {
+            respect_awsc: ConstraintState::Infeasible("Infeasible".to_string()),
+            respect_sch: ConstraintState::Infeasible("Infeasible".to_string()),
+            respect_aggregated_load: ConstraintState::Infeasible("Infeasible".to_string()),
+        }
     }
 }
 
