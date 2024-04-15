@@ -36,3 +36,12 @@ pub enum AlgorithmState<T> {
     Feasible,
     Infeasible(T),
 }
+
+impl<T> AlgorithmState<T> {
+    pub fn infeasible_cases_mut(&mut self) -> Option<&mut T> {
+        match self {
+            AlgorithmState::Feasible => None,
+            AlgorithmState::Infeasible(infeasible_cases) => Some(infeasible_cases),
+        }
+    }
+}

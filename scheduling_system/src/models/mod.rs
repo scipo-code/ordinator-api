@@ -36,8 +36,12 @@ impl SchedulingEnvironment {
         self.time_environment.strategic_periods().clone()
     }
 
-    pub fn clone_tactical_days(&self) -> Vec<Day> {
-        self.time_environment.tactical_days().clone()
+    pub fn tactical_days(&self) -> &Vec<Day> {
+        &self.time_environment.tactical_days()
+    }
+
+    pub fn tactical_periods(&self) -> &Vec<Period> {
+        &self.time_environment.tactical_periods
     }
 
     pub fn clone_work_orders(&self) -> WorkOrders {
@@ -80,7 +84,7 @@ impl Default for SchedulingEnvironment {
         SchedulingEnvironment {
             work_orders: WorkOrders::new(),
             worker_environment: WorkerEnvironment::new(),
-            time_environment: TimeEnvironment::new(Vec::new(), Vec::new()),
+            time_environment: TimeEnvironment::new(Vec::new(), Vec::new(), Vec::new()),
         }
     }
 }

@@ -1,0 +1,55 @@
+env {
+	RUST_BACKTRACE 0
+	RUST_LOG "info"
+	ORDINATOR_INPUT "scheduling_system/test_data/input-ordinator-hd-hb-2024-04-11.xlsx" 
+}
+
+on_force_close "quit"
+
+layout {
+	pane split_direction="vertical" {
+		pane size="20%" split_direction="horizontal" {
+			pane split_direction="vertical" {
+				pane size="15%" name="Ordinator watch" close_on_exit=true {	
+		  			command "cargo"
+		      		args "watch" "-s" "./profiling_and_benchmarking/clear_profiling.sh" "-s" "./logs/clear_logging.sh" "-w" "scheduling_system/" "-w" "shared_messages/" "-x" "run --bin scheduling_system -- $ORDINATOR_INPUT "
+	    	  		cwd "$ORDINATOR_PATH"
+	    		}
+		    	pane size="5%" name="Imperium watch"{
+	    	  		command "cargo"
+	      			args "watch" "-w" "imperium/" "-w" "shared_messages/"  "-x" "build --release --bin imperium"
+	      			cwd "$ORDINATOR_PATH"
+		    	}		
+			}
+			pane name="Bottom" borderless=true {
+				cwd "$ORDINATOR_PATH"
+				command "btm"
+			}
+		}
+		pane size="80%" split_direction="horizontal" {
+			pane split_direction="vertical" {
+				pane name="Orchestrator" {
+					cwd "$ORDINATOR_PATH"
+				}
+			
+				pane name="Strategic" {
+					cwd "$ORDINATOR_PATH"
+				}
+				pane name="Tactical" {
+					cwd "$ORDINATOR_PATH"
+				}
+			}
+			pane {
+				pane name="Imperium" cwd="$ORDINATOR_PATH"
+			}
+		}
+	}
+}
+
+keybinds { 
+	shared {
+		bind "Alt 1" { Run "git" "status"; }
+		bind "Alt 2" { Run "git" "status"; }
+		bind "Alt 3" { Run "eza" "-la"; }
+	}
+}
