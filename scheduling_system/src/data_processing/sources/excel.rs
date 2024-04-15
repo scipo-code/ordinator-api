@@ -1,6 +1,7 @@
 use calamine::{Data, Error, Reader, Xlsx};
 use core::fmt;
 use regex::Regex;
+use shared_messages::Asset;
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::{debug, event, info};
@@ -26,7 +27,7 @@ use chrono::{
     naive, DateTime, Datelike, Days, Duration, NaiveDate, NaiveTime, TimeZone, Timelike, Utc,
     Weekday,
 };
-use shared_messages::resources::Resources;
+use shared_messages::resources::{MainResources, Resources};
 
 extern crate regex;
 
@@ -45,7 +46,8 @@ impl fmt::Display for ExcelLoadError {
 
 pub fn load_data_file(
     file_path: &Path,
-    number_of_periods: u32,
+    number_of_strategic_periods: u32,
+    number_of_tactical_periods: u32,
     number_of_days: u32,
 ) -> Result<SchedulingEnvironment, calamine::Error> {
     let mut workbook: Xlsx<_> = calamine::open_workbook(file_path)?;
@@ -58,13 +60,17 @@ pub fn load_data_file(
     let mut work_orders: WorkOrders = WorkOrders::new();
     let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
 
-    let strategic_periods: Vec<Period> = create_periods(number_of_periods).unwrap_or_else(|_| {
-        panic!(
-            "Could not create periods in {} at line {}",
-            file!(),
-            line!()
-        )
-    });
+    let strategic_periods: Vec<Period> = create_periods(number_of_strategic_periods)
+        .unwrap_or_else(|_| {
+            panic!(
+                "Could not create periods in {} at line {}",
+                file!(),
+                line!()
+            )
+        });
+
+    let tactical_periods: &Vec<Period> =
+        &strategic_periods.clone()[0..number_of_tactical_periods as usize].to_vec();
 
     let first_period = strategic_periods.first().unwrap().clone();
 
@@ -81,7 +87,11 @@ pub fn load_data_file(
     populate_work_orders(&mut work_orders, &strategic_periods, sheet)
         .expect("could not populate the work orders");
 
-    let time_environment = TimeEnvironment::new(strategic_periods, tactical_days(number_of_days));
+    let time_environment = TimeEnvironment::new(
+        strategic_periods,
+        tactical_periods.to_vec(),
+        tactical_days(number_of_days),
+    );
 
     let scheduling_environment =
         SchedulingEnvironment::new(work_orders, worker_environment, time_environment);
@@ -164,9 +174,14 @@ fn create_new_work_order(
     periods: &[Period],
 ) -> Result<WorkOrder, Error> {
     let work_order_type_possible_headers = ["Order Type", "Order_Type"];
+    let main_work_center_possible_headers =
+        ["Main Work Center", "Main_Work_Center", "Main WorkCtr"];
 
     let work_order_type_data =
         get_data_from_headers(row, header_to_index, &work_order_type_possible_headers);
+
+    let main_work_center_data =
+        get_data_from_headers(row, header_to_index, &main_work_center_possible_headers);
 
     let priority = match row
         .get(
@@ -185,6 +200,11 @@ fn create_new_work_order(
         }
         Some(calamine::Data::Float(n)) => Priority::IntValue(n as u32),
         _ => Priority::StringValue(String::new()),
+    };
+
+    let main_work_center = match main_work_center_data {
+        Some(calamine::Data::String(s)) => MainResources::new_from_string(s.clone()),
+        _ => return Err(Error::Msg("Could not parse Main Work Center as string")),
     };
 
     let work_order_number = match row
@@ -224,6 +244,7 @@ fn create_new_work_order(
 
     Ok(WorkOrder::new(
         work_order_number,
+        main_work_center,
         HashMap::<u32, Operation>::new(),
         Vec::<ActivityRelation>::new(),
         work_order_analytic,
@@ -295,7 +316,7 @@ fn create_new_operation(
         _ => 0,
     };
 
-    let operating_time = 4.0;
+    let operating_time = 8.0;
 
     let operation_info = OperationInfo::new(
         match row
@@ -581,26 +602,37 @@ fn extract_order_dates(
         }
     };
 
-    let basic_start_date: Result<NaiveDate, Error> = match basic_start_data.cloned() {
-        Some(calamine::Data::String(s)) => Ok(parse_date(&s)),
-        Some(_) => Err(Error::Msg("Could not parse basic_start_data as string")),
-        None => Err(Error::Msg("Basic start date is None")),
-    };
+    let basic_start_date = match basic_start_data.cloned() {
+        Some(calamine::Data::String(s)) => parse_date(&s),
+        Some(calamine::Data::DateTime(datetime)) => {
+            let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
+            start
+                .checked_add_signed(Duration::days(datetime.as_f64() as i64))
+                .unwrap()
+        }
+        Some(_) => panic!("Could not parse basic_start_data as string"),
+        None => panic!("Basic start date is None"),
+    }
+    .and_hms_opt(7, 0, 0)
+    .unwrap()
+    .and_utc();
 
     let basic_finish_date = match basic_finish_data.cloned() {
-        Some(calamine::Data::String(s)) => Ok(parse_date(&s)),
-        Some(_) => Err(Error::Msg("Could not parse basic finish as string")),
-        None => Err(Error::Msg("Basic finish date is None")),
-    };
+        Some(calamine::Data::String(s)) => parse_date(&s),
+        Some(calamine::Data::DateTime(datetime)) => {
+            let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
+            start
+                .checked_add_signed(Duration::days(datetime.as_f64() as i64))
+                .unwrap()
+        }
+        Some(_) => panic!("Could not parse basic finish as string"),
+        None => panic!("Could not parse basic finish as string"),
+    }
+    .and_hms_opt(7, 0, 0)
+    .unwrap()
+    .and_utc();
 
-    let basic_start_date_additional = basic_start_date
-        .unwrap_or(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap())
-        .and_hms_opt(7, 0, 0)
-        .unwrap();
-    let basic_finish_date_additional = basic_finish_date
-        .unwrap_or(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap())
-        .and_hms_opt(7, 0, 0)
-        .unwrap();
+    let duration = basic_finish_date - basic_start_date;
 
     Ok(WorkOrderDates {
         earliest_allowed_start_date: DateTime::<Utc>::from_naive_utc_and_offset(
@@ -631,15 +663,9 @@ fn extract_order_dates(
                 Utc,
             ),
         ),
-        basic_start_date: DateTime::<Utc>::from_naive_utc_and_offset(
-            basic_start_date_additional,
-            Utc,
-        ),
-        basic_finish_date: DateTime::<Utc>::from_naive_utc_and_offset(
-            basic_finish_date_additional,
-            Utc,
-        ),
-        duration: basic_finish_date_additional.signed_duration_since(basic_start_date_additional),
+        basic_start_date,
+        basic_finish_date,
+        duration,
         basic_start_scheduled: None,
         basic_finish_scheduled: None,
         material_expected_date: None,
@@ -659,7 +685,11 @@ fn extract_revision(
         .cloned()
     {
         Some(calamine::Data::String(s)) => s,
-        _ => return Err(Error::Msg("Could not parse revision as string")),
+        Some(calamine::Data::Empty) => String::from("No Value provided in the input data"),
+        _ => {
+            dbg!(row);
+            return Err(Error::Msg("Could not parse revision as string"));
+        }
     };
 
     let shutdown_pattern = r"NOSD|NE";
@@ -680,7 +710,7 @@ fn extract_unloading_point(
     let unloading_point_data =
         get_data_from_headers(row, header_to_index, &unloading_point_possible_headers);
 
-    let string = match unloading_point_data.cloned() {
+    let unloading_point_string = match unloading_point_data.cloned() {
         Some(calamine::Data::String(s)) => s,
         Some(calamine::Data::Int(n)) => n.to_string(),
         Some(calamine::Data::Float(n)) => n.to_string(),
@@ -691,12 +721,12 @@ fn extract_unloading_point(
         _ => return Err(Error::Msg("Could not parse unloading point as string")),
     };
 
-    let (start_week, _end_week, present) = _extract_weeks(&string);
-    let start_date = _week_to_date(start_week, true);
+    let (start_week, _end_week, present) = extract_weeks(&unloading_point_string);
+    let start_date = week_to_date(start_week, true);
 
-    if present {
-        Ok(UnloadingPoint {
-            string,
+    let unloading_point = if present {
+        UnloadingPoint {
+            string: unloading_point_string,
             present,
             period: {
                 Some(
@@ -710,17 +740,19 @@ fn extract_unloading_point(
                     .clone(),
                 )
             },
-        })
+        }
     } else {
-        Ok(UnloadingPoint {
-            string,
+        UnloadingPoint {
+            string: unloading_point_string,
             present,
             period: None,
-        })
-    }
+        }
+    };
+
+    Ok(unloading_point)
 }
 
-fn _week_to_date(week_number: u32, start_of_week: bool) -> DateTime<Utc> {
+fn week_to_date(week_number: u32, start_of_week: bool) -> DateTime<Utc> {
     let today_date = chrono::Local::now().naive_local();
     let current_year = today_date.year();
     let current_week = today_date.iso_week().week();
@@ -759,14 +791,18 @@ fn _week_to_date(week_number: u32, start_of_week: bool) -> DateTime<Utc> {
     }
 }
 
-fn _extract_weeks(input_string: &str) -> (u32, u32, bool) {
-    let re = regex::Regex::new(r"W(\d+)-(\d+)").unwrap();
+fn extract_weeks(input_string: &str) -> (u32, u32, bool) {
+    let re = regex::Regex::new(r"W(\d+)-?W?(\d+)?").unwrap();
     let captures = re.captures(input_string);
-
     if let Some(cap) = captures {
         let start_week = cap[1].parse::<u32>().unwrap_or(0);
-        let end_week = cap[2].parse::<u32>().unwrap_or(0);
-        (start_week, end_week, true)
+
+        if let Some(end_week_match) = cap.get(2) {
+            let end_week = end_week_match.as_str().parse::<u32>().unwrap_or(0);
+            (start_week, end_week, true)
+        } else {
+            (start_week, 0, true)
+        }
     } else {
         (0, 0, false)
     }
@@ -776,7 +812,11 @@ fn extract_functional_location(
     row: &[calamine::Data],
     header_to_index: &HashMap<String, usize>,
 ) -> Result<FunctionalLocation, Error> {
-    let functional_location_possible_headers = ["functional_location", "Functional Location"];
+    let functional_location_possible_headers = [
+        "Functional Loc.",
+        "functional_location",
+        "Functional Location",
+    ];
 
     let functional_location_data =
         get_data_from_headers(row, header_to_index, &functional_location_possible_headers);
@@ -785,11 +825,15 @@ fn extract_functional_location(
 
     match string {
         Some(s) => match s {
-            calamine::Data::String(s) => Ok(FunctionalLocation { string: s }),
+            calamine::Data::String(s) => {
+                let asset = Asset::new_from_string(&s[0..2]);
+                Ok(FunctionalLocation { string: s, asset })
+            }
             _ => Err(Error::Msg("Could not parse functional location as string")),
         },
         None => Ok(FunctionalLocation {
             string: "None".to_string(),
+            asset: Asset::Unknown,
         }),
     }
 }
@@ -1144,9 +1188,15 @@ mod tests {
     fn test_load_data_file() {
         let file_path = Path::new("test_data/export.XLSX");
         let number_of_periods = 26;
+        let number_of_tactical_periods = 4;
         let number_of_days = 56;
 
-        let scheduling_environment = load_data_file(file_path, number_of_periods, number_of_days);
+        let scheduling_environment = load_data_file(
+            file_path,
+            number_of_periods,
+            number_of_tactical_periods,
+            number_of_days,
+        );
 
         assert_eq!(
             scheduling_environment
@@ -1156,7 +1206,12 @@ mod tests {
             number_of_periods as usize
         );
 
-        let scheduling_environment = load_data_file(file_path, number_of_periods, number_of_days);
+        let scheduling_environment = load_data_file(
+            file_path,
+            number_of_periods,
+            number_of_tactical_periods,
+            number_of_days,
+        );
 
         let number_of_work_orders = scheduling_environment
             .as_ref()

@@ -4,7 +4,8 @@ use std::fmt::Write;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
-use tracing::{trace, info, instrument};
+use serde::Serialize;
+use tracing::{error, info, instrument, trace};
 use colored::*;
 
 use priority_queue::PriorityQueue;
@@ -16,6 +17,8 @@ use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulin
 use crate::agents::traits::LargeNeighborHoodSearch;
 use crate::models::time_environment::period::Period;
 use shared_messages::resources::Resources;
+
+use self::algorithm::calculate_period_difference;
 
 #[derive(Debug, Clone)]
 pub struct StrategicAlgorithm {
@@ -42,14 +45,15 @@ impl StrategicAlgorithm {
         self.periods = periods;
     }
 
-    pub fn tactical_work_orders(&self) -> Vec<(u32, Period)> {
-        let periods = &self.periods.clone()[0..4];
+    pub fn tactical_work_orders(&self, tactical_periods: Vec<Period>) -> Vec<(u32, Period)> {
+        
+        
         let mut tactical_work_orders: Vec<(u32, Period)> = vec![];
 
         for (work_order_number, optimized_work_order) in &self.optimized_work_orders.inner {
             match optimized_work_order.get_scheduled_period() {
                 Some(period) => {
-                    if periods.contains(&period) {
+                    if tactical_periods.contains(&period) {
                         tactical_work_orders.push((*work_order_number, period));
                     }
                 }
@@ -188,7 +192,7 @@ impl OptimizedWorkOrders {
 
 }
 
-#[derive(Debug, PartialEq, Clone, Default)]
+#[derive(Debug, PartialEq, Clone, Default, Serialize)]
 pub struct OptimizedWorkOrder {
     scheduled_period: Option<Period>,
     locked_in_period: Option<Period>,
@@ -277,17 +281,76 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
 
     type Error = AgentError;
     
+    #[instrument(level = "trace", skip_all)]
     fn calculate_objective_value(&mut self) {
-        // TODO remove this
-        self.objective_value;
+        let mut period_penalty_contribution: f64 = 0.0;
+        let mut excess_penalty_contribution: f64 = 0.0;
+
+        for (work_order_number, optimized_work_order) in &self.optimized_work_orders.inner {
+            let optimized_period = match &optimized_work_order.scheduled_period {
+                Some(optimized_period) => optimized_period.clone(),
+                None => {
+                    error!("Work order number {} does not have a scheduled period", work_order_number);
+                    panic!("There are no periods in the system")
+                }
+            };
+
+            let work_order_latest_allowed_finish_period =
+                optimized_work_order.get_latest_period().clone();
+
+            let period_difference = calculate_period_difference(
+                optimized_period,
+                work_order_latest_allowed_finish_period,
+            );
+            let period_penalty = std::cmp::max(period_difference, 0) as f64
+                * self
+                    .optimized_work_orders
+                    .inner
+                    .get(work_order_number)
+                    .unwrap()
+                    .get_weight() as f64;
+
+            period_penalty_contribution += period_penalty;
+        }
+
+        for (resource, periods) in &self.resources_capacities().inner {
+            for (period, capacity) in periods {
+                let loading = self
+                    .resources_loadings()
+                    .inner
+                    .get(resource)
+                    .unwrap()
+                    .get(period)
+                    .unwrap();
+                if *loading > *capacity {
+                    excess_penalty_contribution += loading - capacity;
+                }
+            }
+        }
+
+        self.objective_value =
+            period_penalty_contribution + 10000000000.0 * excess_penalty_contribution;
     }
 
     #[instrument(level = "trace", skip_all)]
     fn schedule(&mut self) {
-        self.schedule_normal_work_orders();
+        while !self.priority_queues.normal.is_empty() {
+            for period in self.periods.clone() {
+                let (work_order_number, weight) = match self.priority_queues.normal.pop() {
+                    Some((work_order_number, weight)) => (work_order_number, weight),
+                    None => {
+                        break;
+                    }
+                };
 
-        self.schedule_forced_work_orders();
+                let inf_work_order_number =
+                    self.schedule_normal_work_order(work_order_number, &period);
 
+                if let Some(work_order_number) = inf_work_order_number {
+                    self.priority_queues.normal.push(work_order_number, weight);
+                }
+            }
+        }
     }
     
     #[instrument(level = "trace", skip_all)]
