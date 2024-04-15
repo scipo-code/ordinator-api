@@ -11,27 +11,6 @@ use crate::models::time_environment::period::Period;
 /// practice to have so many different
 impl StrategicAlgorithm {
     #[instrument(level = "trace", skip_all)]
-    pub fn schedule_normal_work_orders(&mut self) {
-        while !self.priority_queues.normal.is_empty() {
-            for period in self.periods.clone() {
-                let (work_order_number, weight) = match self.priority_queues.normal.pop() {
-                    Some((work_order_number, weight)) => (work_order_number, weight),
-                    None => {
-                        break;
-                    }
-                };
-
-                let inf_work_order_number =
-                    self.schedule_normal_work_order(work_order_number, &period);
-
-                if let Some(work_order_number) = inf_work_order_number {
-                    self.priority_queues.normal.push(work_order_number, weight);
-                }
-            }
-        }
-    }
-
-    #[instrument(level = "trace", skip_all)]
     pub fn schedule_forced_work_orders(&mut self) {
         let mut work_order_numbers: Vec<u32> = vec![];
         for (work_order_number, opt_work_order) in self.optimized_work_orders().iter() {
@@ -151,59 +130,8 @@ impl StrategicAlgorithm {
 
         for work_order_key in sampled_work_order_keys {
             self.unschedule(*work_order_key);
-
             self.populate_priority_queues();
         }
-    }
-
-    #[instrument(level = "trace", skip_all)]
-    pub fn calculate_objective(&mut self) {
-        let mut period_penalty_contribution: f64 = 0.0;
-        let mut excess_penalty_contribution: f64 = 0.0;
-
-        for (work_order_number, optimized_work_order) in &self.optimized_work_orders.inner {
-            let optimized_period = match &optimized_work_order.scheduled_period {
-                Some(optimized_period) => optimized_period.clone(),
-                None => {
-                    panic!("There are no periods in the system")
-                }
-            };
-
-            let work_order_latest_allowed_finish_period =
-                optimized_work_order.get_latest_period().clone();
-
-            let period_difference = calculate_period_difference(
-                optimized_period,
-                work_order_latest_allowed_finish_period,
-            );
-            let period_penalty = std::cmp::max(period_difference, 0) as f64
-                * self
-                    .optimized_work_orders
-                    .inner
-                    .get(work_order_number)
-                    .unwrap()
-                    .get_weight() as f64;
-
-            period_penalty_contribution += period_penalty;
-        }
-
-        for (resource, periods) in &self.resources_capacities().inner {
-            for (period, capacity) in periods {
-                let loading = self
-                    .resources_loadings()
-                    .inner
-                    .get(resource)
-                    .unwrap()
-                    .get(period)
-                    .unwrap();
-                if *loading > *capacity {
-                    excess_penalty_contribution += loading - capacity;
-                }
-            }
-        }
-
-        self.objective_value =
-            period_penalty_contribution + 10000000000.0 * excess_penalty_contribution;
     }
 
     #[instrument(level = "trace", skip_all)]
@@ -231,7 +159,7 @@ impl StrategicAlgorithm {
     }
 }
 
-fn calculate_period_difference(scheduled_period: Period, latest_period: Option<Period>) -> i64 {
+pub fn calculate_period_difference(scheduled_period: Period, latest_period: Option<Period>) -> i64 {
     let scheduled_period_date = scheduled_period.end_date().to_owned();
     let latest_period_date = match latest_period.clone() {
         Some(period) => period.end_date().to_owned(),

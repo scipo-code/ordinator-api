@@ -6,9 +6,9 @@ use shared_messages::{
     resources::Resources,
     tactical::{
         tactical_resources_message::TacticalResourceMessage,
-        tactical_status_message::TacticalStatusMessage, TacticalRequest,
+        tactical_status_message::TacticalStatusMessage, TacticalRequest, TacticalRequestMessage,
     },
-    SystemMessages,
+    Asset, SystemMessages, TomlResources,
 };
 use strum::IntoEnumIterator;
 
@@ -17,9 +17,10 @@ use super::orchestrator;
 #[derive(Subcommand, Debug)]
 pub enum TacticalCommands {
     /// Get the status of the tactical agent
-    Status,
+    Status { asset: Asset },
     /// Get the objectives of the tactical agent
     Resources {
+        asset: Asset,
         #[clap(subcommand)]
         resource_commands: ResourceCommands,
     },
@@ -28,19 +29,29 @@ pub enum TacticalCommands {
     /// Access the days of the tactical agent
     Days,
     /// Test the feasibility of the tactical schedule
-    Test,
+    Test { asset: Asset },
 }
 
 impl TacticalCommands {
     pub fn execute(&self, client: &Client) -> shared_messages::SystemMessages {
         match self {
-            TacticalCommands::Status => {
+            TacticalCommands::Status { asset } => {
                 dbg!("TacticalAgent Status Message");
 
-                SystemMessages::Tactical(TacticalRequest::Status(TacticalStatusMessage::General))
+                let tactical_request = TacticalRequest {
+                    asset: asset.clone(),
+                    tactical_request_message: TacticalRequestMessage::Status(
+                        TacticalStatusMessage::General,
+                    ),
+                };
+
+                SystemMessages::Tactical(tactical_request)
             }
 
-            TacticalCommands::Resources { resource_commands } => match resource_commands {
+            TacticalCommands::Resources {
+                asset,
+                resource_commands,
+            } => match resource_commands {
                 ResourceCommands::Capacity {
                     days_end,
                     select_resources,
@@ -50,7 +61,13 @@ impl TacticalCommands {
                         select_resources: select_resources.clone(),
                     };
 
-                    let tactical_request = TacticalRequest::Resources(tactical_resources_message);
+                    let tactical_request_request =
+                        TacticalRequestMessage::Resources(tactical_resources_message);
+
+                    let tactical_request = TacticalRequest {
+                        asset: asset.clone(),
+                        tactical_request_message: tactical_request_request,
+                    };
 
                     SystemMessages::Tactical(tactical_request)
                 }
@@ -63,7 +80,13 @@ impl TacticalCommands {
                         select_resources: select_resources.clone(),
                     };
 
-                    let tactical_request = TacticalRequest::Resources(tactical_resources_message);
+                    let tactical_request_message =
+                        TacticalRequestMessage::Resources(tactical_resources_message);
+
+                    let tactical_request = TacticalRequest {
+                        asset: asset.clone(),
+                        tactical_request_message,
+                    };
 
                     SystemMessages::Tactical(tactical_request)
                 }
@@ -77,18 +100,27 @@ impl TacticalCommands {
                             resources: select_resources.clone(),
                         };
 
-                    let tactical_request = TacticalRequest::Resources(tactical_resources_message);
+                    let tactical_request_message =
+                        TacticalRequestMessage::Resources(tactical_resources_message);
 
+                    let tactical_request = TacticalRequest {
+                        asset: asset.clone(),
+                        tactical_request_message,
+                    };
                     SystemMessages::Tactical(tactical_request)
                 }
-                ResourceCommands::SetCapacityPolicyDefault => {
-                    let resources = generate_manual_resources(client);
+                ResourceCommands::LoadCapacityFile { toml_path } => {
+                    let resources = generate_manual_resources(client, toml_path.clone());
 
                     let tactical_resources_message =
                         TacticalResourceMessage::new_set_resources(resources);
 
-                    let tactical_request = TacticalRequest::Resources(tactical_resources_message);
-
+                    let tactical_request_message =
+                        TacticalRequestMessage::Resources(tactical_resources_message);
+                    let tactical_request = TacticalRequest {
+                        asset: asset.clone(),
+                        tactical_request_message,
+                    };
                     SystemMessages::Tactical(tactical_request)
                 }
             },
@@ -98,9 +130,13 @@ impl TacticalCommands {
             TacticalCommands::Days => {
                 todo!()
             }
-            TacticalCommands::Test => {
-                let tactical_request = TacticalRequest::Test;
+            TacticalCommands::Test { asset } => {
+                let tactical_request_message = TacticalRequestMessage::Test;
 
+                let tactical_request = TacticalRequest {
+                    asset: asset.clone(),
+                    tactical_request_message,
+                };
                 SystemMessages::Tactical(tactical_request)
             }
         }
@@ -121,58 +157,66 @@ pub enum ResourceCommands {
         days_end: u32,
         select_resources: Option<Vec<Resources>>,
     },
-    /// Set a default capacity (USED FOR TESTING)
-    SetCapacityPolicyDefault,
+    /// Set a capacity based on a file
+    LoadCapacityFile { toml_path: String },
 }
 
 /// I will need to generate the manual resources for the tactical agent.
-fn generate_manual_resources(client: &Client) -> HashMap<Resources, HashMap<String, f64>> {
+fn generate_manual_resources(
+    client: &Client,
+    toml_path: String,
+) -> HashMap<Resources, HashMap<String, f64>> {
     let periods: Vec<String> = orchestrator::tactical_days(client);
+    let contents = std::fs::read_to_string(toml_path).unwrap();
+
+    let config: TomlResources = toml::de::from_str(&contents).unwrap();
+
+    let hours_per_day = 6.0;
 
     let gradual_reduction = |i: usize| -> f64 {
         match i {
             0..=13 => 1.0,
-            14..=27 => 0.8,
-            _ => 0.6,
+            14..=27 => 1.0,
+            _ => 1.0,
         }
     };
 
     let resource_specific = |resource: &Resources| -> f64 {
         match resource {
-            Resources::Medic => 0.0, //50.0,
-            Resources::MtnCran => 5.0,
-            Resources::MtnElec => 12.0,
-            Resources::MtnInst => 12.0,
-            Resources::MtnLagg => 0.0, //300.0,
-            Resources::MtnMech => 25.0,
-            Resources::MtnPain => 0.0,  //300.0,
-            Resources::MtnPipf => 0.0,  //300.0,
-            Resources::MtnRigg => 14.0, //300.0,
-            Resources::MtnRope => 0.0,  //300.0,
-            Resources::MtnRous => 0.0,  //300.0,
-            Resources::MtnSat => 0.0,   //300.0,
-            Resources::MtnScaf => 14.0, //300.0,
-            Resources::MtnTele => 12.0,
-            Resources::MtnTurb => 6.0,
-            Resources::InpSite => 21.0,
-            Resources::Prodlabo => 0.0, //300.0,
-            Resources::Prodtech => 13.0,
-            Resources::VenAcco => 0.0,  //300.0,
-            Resources::VenComm => 0.0,  //300.0,
-            Resources::VenCran => 0.0,  //300.0,
-            Resources::VenElec => 0.0,  //300.0,
-            Resources::VenHvac => 0.0,  //300.0,
-            Resources::VenInsp => 0.0,  //300.0,
-            Resources::VenInst => 0.0,  //300.0,
-            Resources::VenMech => 0.0,  //300.0,
-            Resources::VenMete => 0.0,  //300.0,
-            Resources::VenRope => 0.0,  //300.0,
-            Resources::VenScaf => 0.0,  //300.0,
-            Resources::VenSubs => 0.0,  //300.0,
-            Resources::QaqcElec => 0.0, //300.0,
-            Resources::QaqcMech => 0.0, //300.0,
-            Resources::QaqcPain => 0.0, //300.0,
-            Resources::WellSupv => 0.0, //300.0,
+            Resources::Medic => config.Medic * hours_per_day, //50.0,
+            Resources::MtnCran => config.MtnCran * hours_per_day,
+            Resources::MtnElec => config.MtnElec * hours_per_day,
+            Resources::MtnInst => config.MtnInst * hours_per_day,
+            Resources::MtnLagg => config.MtnLagg * hours_per_day, //300.0,
+            Resources::MtnMech => config.MtnMech * hours_per_day,
+            Resources::MtnPain => config.MtnPain * hours_per_day, //300.0,
+            Resources::MtnPipf => config.MtnPipf * hours_per_day, //300.0,
+            Resources::MtnRigg => config.MtnRigg * hours_per_day, //300.0,
+            Resources::MtnRope => config.MtnRope * hours_per_day, //300.0,
+            Resources::MtnRous => config.MtnRous * hours_per_day, //300.0,
+            Resources::MtnSat => config.MtnSat * hours_per_day,   //300.0,
+            Resources::MtnScaf => config.MtnScaf * hours_per_day, //300.0,
+            Resources::MtnTele => config.MtnTele * hours_per_day,
+            Resources::MtnTurb => config.MtnTurb * hours_per_day,
+            Resources::InpSite => config.InpSite * hours_per_day,
+            Resources::Prodlabo => config.Prodlabo * hours_per_day, //300.0,
+            Resources::Prodtech => config.Prodtech * hours_per_day,
+            Resources::VenAcco => config.VenAcco * hours_per_day, //300.0,
+            Resources::VenComm => config.VenComm * hours_per_day, //300.0,
+            Resources::VenCran => config.VenCran * hours_per_day, //300.0,
+            Resources::VenElec => config.VenElec * hours_per_day, //300.0,
+            Resources::VenHvac => config.VenHvac * hours_per_day, //300.0,
+            Resources::VenInsp => config.VenInsp * hours_per_day, //300.0,
+            Resources::VenInst => config.VenInst * hours_per_day, //300.0,
+            Resources::VenMech => config.VenMech * hours_per_day, //300.0,
+            Resources::VenMete => config.VenMete * hours_per_day, //300.0,
+            Resources::VenRope => config.VenRope * hours_per_day, //300.0,
+            Resources::VenScaf => config.VenScaf * hours_per_day, //300.0,
+            Resources::VenSubs => config.VenSubs * hours_per_day, //300.0,
+            Resources::QaqcElec => config.QaqcElec * hours_per_day, //300.0,
+            Resources::QaqcMech => config.QaqcMech * hours_per_day, //300.0,
+            Resources::QaqcPain => config.QaqcPain * hours_per_day, //300.0,
+            Resources::WellSupv => config.WellSupv * hours_per_day, //300.0,
         }
     };
 
