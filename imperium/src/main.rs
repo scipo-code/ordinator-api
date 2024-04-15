@@ -12,6 +12,7 @@ pub struct Cli {
     command: Commands,
 }
 
+/// Main function of the imperium command line tool
 fn main() {
     let cli = Cli::parse();
 
