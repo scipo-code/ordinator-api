@@ -1,3 +1,5 @@
+use std::fmt;
+
 pub trait LargeNeighborHoodSearch {
     type SchedulingMessage;
     type ResourceMessage;
@@ -42,6 +44,24 @@ impl<T> AlgorithmState<T> {
         match self {
             AlgorithmState::Feasible => None,
             AlgorithmState::Infeasible(infeasible_cases) => Some(infeasible_cases),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub enum ConstraintState<Reason> {
+    Feasible,
+    Infeasible(Reason),
+}
+
+impl<Reason> fmt::Display for ConstraintState<Reason>
+where
+    Reason: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConstraintState::Feasible => write!(f, "FEASIBLE"),
+            ConstraintState::Infeasible(reason) => write!(f, "{}", reason),
         }
     }
 }

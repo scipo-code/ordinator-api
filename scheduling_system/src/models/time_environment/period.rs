@@ -36,6 +36,10 @@ impl Period {
             end_date,
         }
     }
+
+    pub fn contains_date(&self, date: DateTime<Utc>) -> bool {
+        self.start_date <= date && date <= self.end_date
+    }
 }
 
 impl Period {

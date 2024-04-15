@@ -13,14 +13,14 @@ use shared_messages::{
         tactical_time_message::TacticalTimeMessage,
     },
 };
-use std::fmt::Write;
+use std::fmt::{Display, Write};
 use std::{borrow::Cow, cmp::Ordering};
 use std::{collections::HashMap, fmt};
 use strum::IntoEnumIterator;
 use tracing::{debug, error, info, instrument, warn};
 
 use crate::{
-    agents::traits::{AlgorithmState, LargeNeighborHoodSearch, TestAlgorithm},
+    agents::traits::{AlgorithmState, ConstraintState, LargeNeighborHoodSearch, TestAlgorithm},
     models::{
         time_environment::period::Period,
         work_order::{ActivityRelation, WorkOrder},
@@ -189,6 +189,12 @@ impl Day {
 
     pub fn date(&self) -> &DateTime<Utc> {
         &self.date
+    }
+}
+
+impl Display for Day {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.date.date().naive_local())
     }
 }
 
@@ -834,7 +840,7 @@ impl TestAlgorithm for TacticalAlgorithm {
                     let sch_load = self.loading(&resource, day);
                     if (*agg_load - sch_load).abs() >= 0.00001 {
                         error!(agg_load = ?agg_load, sch_load = ?sch_load, resource = ?resource, day = ?day);
-                        return ConstraintState::Infeasible;
+                        return ConstraintState::Infeasible(format!("Loads does not match on: day {}\nresource: {}\nscheduled load: {}\naggregated_load: {}", day, resource, sch_load, agg_load));
                     }
                 }
             }
@@ -845,7 +851,7 @@ impl TestAlgorithm for TacticalAlgorithm {
             .infeasible_cases_mut()
             .unwrap()
             .earliest_start_day = (|| {
-            for (_work_order_number, optimized_work_order) in self.optimized_work_orders.clone() {
+            for (work_order_number, optimized_work_order) in self.optimized_work_orders.clone() {
                 let start_date_from_period = optimized_work_order.scheduled_period.start_date();
 
                 if let Some(operation_solutions) = optimized_work_order.operation_solutions {
@@ -865,7 +871,10 @@ impl TestAlgorithm for TacticalAlgorithm {
                     for start_day in start_days {
                         if start_day.date().date_naive() < start_date_from_period.date_naive() {
                             error!(start_day = ?start_day.date, start_date_from_period = ?start_date_from_period);
-                            return ConstraintState::Infeasible;
+                            return ConstraintState::Infeasible(format!(
+                                "work order: {} is outside of its earliest start day: {}",
+                                work_order_number, start_date_from_period
+                            ));
                         }
                     }
                 }
@@ -877,9 +886,9 @@ impl TestAlgorithm for TacticalAlgorithm {
             .infeasible_cases_mut()
             .unwrap()
             .all_scheduled = (|| {
-            for optimized_work_order in self.optimized_work_orders.clone().values() {
+            for (work_order_number, optimized_work_order) in self.optimized_work_orders.clone() {
                 if optimized_work_order.operation_solutions.is_none() {
-                    return ConstraintState::Infeasible;
+                    return ConstraintState::Infeasible(work_order_number.to_string());
                 }
             }
             ConstraintState::Feasible
@@ -895,7 +904,10 @@ impl TestAlgorithm for TacticalAlgorithm {
                     .contains(&optimized_work_order.scheduled_period)
                 {
                     error!(work_order_number = ?_work_order_number, scheduled_period = ?optimized_work_order.scheduled_period, tactical_periods = ?self.tactical_periods, "Tactical period does not contain the scheduled period of the tactical work order");
-                    return ConstraintState::Infeasible;
+                    return ConstraintState::Infeasible(format!(
+                        "work order: {} has a wrong scheduled period {}",
+                        _work_order_number, optimized_work_order.scheduled_period
+                    ));
                 }
             }
             ConstraintState::Feasible
@@ -917,34 +929,19 @@ impl TestAlgorithm for TacticalAlgorithm {
 
 #[derive(Clone)]
 pub struct TacticalInfeasibleCases {
-    pub aggregated_load: ConstraintState,
-    pub earliest_start_day: ConstraintState,
-    pub all_scheduled: ConstraintState,
-    pub respect_period_id: ConstraintState,
+    pub aggregated_load: ConstraintState<String>,
+    pub earliest_start_day: ConstraintState<String>,
+    pub all_scheduled: ConstraintState<String>,
+    pub respect_period_id: ConstraintState<String>,
 }
 
 impl Default for TacticalInfeasibleCases {
     fn default() -> Self {
         TacticalInfeasibleCases {
-            aggregated_load: ConstraintState::Infeasible,
-            earliest_start_day: ConstraintState::Infeasible,
-            all_scheduled: ConstraintState::Infeasible,
-            respect_period_id: ConstraintState::Infeasible,
-        }
-    }
-}
-
-#[derive(Clone, PartialEq)]
-pub enum ConstraintState {
-    Feasible,
-    Infeasible,
-}
-
-impl fmt::Display for ConstraintState {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ConstraintState::Feasible => write!(f, "FEASIBLE"),
-            ConstraintState::Infeasible => write!(f, "INFEASIBLE"),
+            aggregated_load: ConstraintState::Infeasible("Infeasible".to_owned()),
+            earliest_start_day: ConstraintState::Infeasible("Infeasible".to_owned()),
+            all_scheduled: ConstraintState::Infeasible("Infeasible".to_owned()),
+            respect_period_id: ConstraintState::Infeasible("Infeasible".to_owned()),
         }
     }
 }

@@ -35,6 +35,9 @@ pub enum StrategicCommands {
         #[clap(subcommand)]
         resource_commands: ResourceCommands,
     },
+    Test {
+        asset: Asset,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -294,6 +297,14 @@ impl StrategicCommands {
                     SystemMessages::Strategic(strategic_request)
                 }
             },
+            StrategicCommands::Test { asset } => {
+                let strategic_request = StrategicRequest {
+                    asset: asset.clone(),
+                    strategic_request_message: StrategicRequestMessage::Test,
+                };
+
+                SystemMessages::Strategic(strategic_request)
+            }
         }
     }
 }
