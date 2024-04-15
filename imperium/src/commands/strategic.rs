@@ -4,29 +4,34 @@ use clap::Args;
 use clap::Subcommand;
 use reqwest::blocking::Client;
 use shared_messages::resources::Resources;
-use shared_messages::strategic::strategic_resources_message;
 use shared_messages::strategic::strategic_resources_message::StrategicResourceMessage;
 use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
 use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
 use shared_messages::strategic::StrategicRequest;
+use shared_messages::strategic::StrategicRequestMessage;
+use shared_messages::Asset;
 use shared_messages::SystemMessages;
+use shared_messages::TomlResources;
 use strum::IntoEnumIterator;
 
 #[derive(Subcommand, Debug)]
 pub enum StrategicCommands {
     /// overview of the strategic agent
     Status {
+        asset: Asset,
         #[clap(subcommand)]
         status_commands: Option<StatusCommands>,
     },
     /// Scheduling commands
     Scheduling {
+        asset: Asset,
         #[clap(subcommand)]
         scheduling_commands: SchedulingCommands,
     },
     /// Resources commands
     Resources {
+        asset: Asset,
         #[clap(subcommand)]
         resource_commands: ResourceCommands,
     },
@@ -61,7 +66,7 @@ pub enum ResourceCommands {
     /// Set the capacity policy of a resource (used for operation)
     SetCapacityPolicy { resource: String, capacity: u32 },
     /// Set the capacity policy to default (used for testing)
-    SetCapacityPolicyDefault,
+    LoadCapacityFile { toml_path: String },
 }
 
 #[derive(Subcommand, Debug)]
@@ -90,22 +95,39 @@ impl StrategicCommands {
     pub fn execute(&self, client: &Client) -> SystemMessages {
         match self {
             StrategicCommands::Status {
-                status_commands: subcommand,
-            } => match subcommand {
+                asset,
+                status_commands,
+            } => match status_commands {
                 Some(StatusCommands::WorkOrders { period }) => {
                     let strategic_status_message: StrategicStatusMessage =
                         StrategicStatusMessage::new_period(period.to_string());
 
-                    SystemMessages::Strategic(StrategicRequest::Status(strategic_status_message))
+                    let strategic_request = StrategicRequest {
+                        asset: asset.clone(),
+                        strategic_request_message: StrategicRequestMessage::Status(
+                            strategic_status_message,
+                        ),
+                    };
+
+                    SystemMessages::Strategic(strategic_request)
                 }
                 None => {
                     let strategic_status_message: StrategicStatusMessage =
                         StrategicStatusMessage::General;
 
-                    SystemMessages::Strategic(StrategicRequest::Status(strategic_status_message))
+                    let strategic_request_message =
+                        StrategicRequestMessage::Status(strategic_status_message);
+
+                    let strategic_request = StrategicRequest {
+                        asset: asset.clone(),
+                        strategic_request_message,
+                    };
+
+                    SystemMessages::Strategic(strategic_request)
                 }
             },
             StrategicCommands::Scheduling {
+                asset,
                 scheduling_commands: subcommand,
             } => match subcommand {
                 SchedulingCommands::Schedule(schedule) => {
@@ -115,8 +137,13 @@ impl StrategicCommands {
                     let strategic_scheduling_message: StrategicSchedulingMessage =
                         StrategicSchedulingMessage::Schedule(schedule_single_work_order);
 
-                    let strategic_request =
-                        StrategicRequest::Scheduling(strategic_scheduling_message);
+                    let strategic_request_message =
+                        StrategicRequestMessage::Scheduling(strategic_scheduling_message);
+
+                    let strategic_request = StrategicRequest {
+                        asset: asset.clone(),
+                        strategic_request_message,
+                    };
 
                     SystemMessages::Strategic(strategic_request)
                 }
@@ -130,13 +157,19 @@ impl StrategicCommands {
                     let strategic_scheduling_message: StrategicSchedulingMessage =
                         StrategicSchedulingMessage::ExcludeFromPeriod(exclude_single_work_order);
 
-                    let strategic_request =
-                        StrategicRequest::Scheduling(strategic_scheduling_message);
+                    let strategic_request_message =
+                        StrategicRequestMessage::Scheduling(strategic_scheduling_message);
+
+                    let strategic_request = StrategicRequest {
+                        asset: asset.clone(),
+                        strategic_request_message,
+                    };
 
                     SystemMessages::Strategic(strategic_request)
                 }
             },
             StrategicCommands::Resources {
+                asset,
                 resource_commands: subcommand,
             } => match subcommand {
                 ResourceCommands::Loading {
@@ -159,8 +192,13 @@ impl StrategicCommands {
                         select_resources: resources,
                     };
 
-                    let strategic_request =
-                        StrategicRequest::Resources(strategic_resources_message);
+                    let strategic_request_message =
+                        StrategicRequestMessage::Resources(strategic_resources_message);
+
+                    let strategic_request = StrategicRequest {
+                        asset: asset.clone(),
+                        strategic_request_message,
+                    };
 
                     SystemMessages::Strategic(strategic_request)
                 }
@@ -184,8 +222,13 @@ impl StrategicCommands {
                         select_resources: resources,
                     };
 
-                    let strategic_request =
-                        StrategicRequest::Resources(strategic_resources_message);
+                    let strategic_request_message =
+                        StrategicRequestMessage::Resources(strategic_resources_message);
+
+                    let strategic_request = StrategicRequest {
+                        asset: asset.clone(),
+                        strategic_request_message,
+                    };
 
                     SystemMessages::Strategic(strategic_request)
                 }
@@ -211,8 +254,13 @@ impl StrategicCommands {
                             resources,
                         };
 
-                    let strategic_request =
-                        StrategicRequest::Resources(strategic_resources_message);
+                    let strategic_request_message =
+                        StrategicRequestMessage::Resources(strategic_resources_message);
+
+                    let strategic_request = StrategicRequest {
+                        asset: asset.clone(),
+                        strategic_request_message,
+                    };
 
                     SystemMessages::Strategic(strategic_request)
                 }
@@ -229,14 +277,19 @@ impl StrategicCommands {
                 } => {
                     todo!()
                 }
-                ResourceCommands::SetCapacityPolicyDefault => {
-                    let resources = generate_manual_resources(client);
+                ResourceCommands::LoadCapacityFile { toml_path } => {
+                    let resources = generate_manual_resources(client, toml_path.clone());
 
                     let strategic_resources_message =
                         StrategicResourceMessage::new_set_resources(resources);
 
-                    let strategic_request =
-                        StrategicRequest::Resources(strategic_resources_message);
+                    let strategic_request_message =
+                        StrategicRequestMessage::Resources(strategic_resources_message);
+
+                    let strategic_request = StrategicRequest {
+                        asset: asset.clone(),
+                        strategic_request_message,
+                    };
 
                     SystemMessages::Strategic(strategic_request)
                 }
@@ -245,13 +298,23 @@ impl StrategicCommands {
     }
 }
 
-fn generate_manual_resources(client: &Client) -> HashMap<Resources, HashMap<String, f64>> {
+fn generate_manual_resources(
+    client: &Client,
+    toml_path: String,
+) -> HashMap<Resources, HashMap<String, f64>> {
     let periods: Vec<String> = crate::commands::orchestrator::strategic_periods(client);
+    let contents = std::fs::read_to_string(toml_path).unwrap();
+    let config: TomlResources = toml::from_str(&contents).unwrap();
+
+    let hours_per_day = 6.0;
+    let days_in_period = 13.0;
 
     let gradual_reduction = |i: usize| -> f64 {
         if i == 0 {
             1.0
         } else if i == 1 {
+            1.0
+        } else if i == 2 {
             0.8
         } else {
             0.6
@@ -260,40 +323,40 @@ fn generate_manual_resources(client: &Client) -> HashMap<Resources, HashMap<Stri
 
     let resource_specific = |resource: &Resources| -> f64 {
         match resource {
-            Resources::Medic => 0.0, //50.0,
-            Resources::MtnCran => 70.0,
-            Resources::MtnElec => 170.0,
-            Resources::MtnInst => 170.0,
-            Resources::MtnLagg => 0.0, //300.0,
-            Resources::MtnMech => 350.0,
-            Resources::MtnPain => 0.0,   //300.0,
-            Resources::MtnPipf => 0.0,   //300.0,
-            Resources::MtnRigg => 200.0, //300.0,
-            Resources::MtnRope => 0.0,   //300.0,
-            Resources::MtnRous => 0.0,   //300.0,
-            Resources::MtnSat => 0.0,    //300.0,
-            Resources::MtnScaf => 200.0, //300.0,
-            Resources::MtnTele => 170.0,
-            Resources::MtnTurb => 80.0,
-            Resources::InpSite => 300.0,
-            Resources::Prodlabo => 0.0, //300.0,
-            Resources::Prodtech => 180.0,
-            Resources::VenAcco => 0.0,  //300.0,
-            Resources::VenComm => 0.0,  //300.0,
-            Resources::VenCran => 0.0,  //300.0,
-            Resources::VenElec => 0.0,  //300.0,
-            Resources::VenHvac => 0.0,  //300.0,
-            Resources::VenInsp => 0.0,  //300.0,
-            Resources::VenInst => 0.0,  //300.0,
-            Resources::VenMech => 0.0,  //300.0,
-            Resources::VenMete => 0.0,  //300.0,
-            Resources::VenRope => 0.0,  //300.0,
-            Resources::VenScaf => 0.0,  //300.0,
-            Resources::VenSubs => 0.0,  //300.0,
-            Resources::QaqcElec => 0.0, //300.0,
-            Resources::QaqcMech => 0.0, //300.0,
-            Resources::QaqcPain => 0.0, //300.0,
-            Resources::WellSupv => 0.0, //300.0,
+            Resources::Medic => config.Medic * hours_per_day * days_in_period,
+            Resources::MtnCran => config.MtnCran * hours_per_day * days_in_period,
+            Resources::MtnElec => config.MtnElec * hours_per_day * days_in_period,
+            Resources::MtnInst => config.MtnInst * hours_per_day * days_in_period,
+            Resources::MtnLagg => config.MtnLagg * hours_per_day * days_in_period,
+            Resources::MtnMech => config.MtnMech * hours_per_day * days_in_period,
+            Resources::MtnPain => config.MtnPain * hours_per_day * days_in_period,
+            Resources::MtnPipf => config.MtnPipf * hours_per_day * days_in_period,
+            Resources::MtnRigg => config.MtnRigg * hours_per_day * days_in_period,
+            Resources::MtnRope => config.MtnRope * hours_per_day * days_in_period,
+            Resources::MtnRous => config.MtnRous * hours_per_day * days_in_period,
+            Resources::MtnSat => config.MtnSat * hours_per_day * days_in_period,
+            Resources::MtnScaf => config.MtnScaf * hours_per_day * days_in_period,
+            Resources::MtnTele => config.MtnTele * hours_per_day * days_in_period,
+            Resources::MtnTurb => config.MtnTurb * hours_per_day * days_in_period,
+            Resources::InpSite => config.InpSite * hours_per_day * days_in_period,
+            Resources::Prodlabo => config.Prodlabo * hours_per_day * days_in_period,
+            Resources::Prodtech => config.Prodtech * hours_per_day * days_in_period,
+            Resources::VenAcco => config.VenAcco * hours_per_day * days_in_period,
+            Resources::VenComm => config.VenComm * hours_per_day * days_in_period,
+            Resources::VenCran => config.VenCran * hours_per_day * days_in_period,
+            Resources::VenElec => config.VenElec * hours_per_day * days_in_period,
+            Resources::VenHvac => config.VenHvac * hours_per_day * days_in_period,
+            Resources::VenInsp => config.VenInsp * hours_per_day * days_in_period,
+            Resources::VenInst => config.VenInst * hours_per_day * days_in_period,
+            Resources::VenMech => config.VenMech * hours_per_day * days_in_period,
+            Resources::VenMete => config.VenMete * hours_per_day * days_in_period,
+            Resources::VenRope => config.VenRope * hours_per_day * days_in_period,
+            Resources::VenScaf => config.VenScaf * hours_per_day * days_in_period,
+            Resources::VenSubs => config.VenSubs * hours_per_day * days_in_period,
+            Resources::QaqcElec => config.QaqcElec * hours_per_day * days_in_period,
+            Resources::QaqcMech => config.QaqcMech * hours_per_day * days_in_period,
+            Resources::QaqcPain => config.QaqcPain * hours_per_day * days_in_period,
+            Resources::WellSupv => config.WellSupv * hours_per_day * days_in_period,
         }
     };
 

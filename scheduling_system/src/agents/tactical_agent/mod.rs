@@ -4,7 +4,8 @@ pub mod tactical_algorithm;
 use actix::prelude::*;
 use shared_messages::agent_error::AgentError;
 use shared_messages::resources::Id;
-use shared_messages::tactical::TacticalRequest;
+use shared_messages::tactical::TacticalRequestMessage;
+use shared_messages::{Asset, SolutionExportMessage};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{info, instrument, warn};
@@ -12,17 +13,19 @@ use tracing::{info, instrument, warn};
 use crate::agents::strategic_agent::ScheduleIteration;
 use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
 use crate::agents::SetAddr;
+use crate::models::time_environment::period::Period;
 use crate::models::SchedulingEnvironment;
 
 use super::strategic_agent::StrategicAgent;
 use super::supervisor_agent::SupervisorAgent;
 use super::traits::{AlgorithmState, LargeNeighborHoodSearch, TestAlgorithm};
-use super::SendState;
+use super::StateLink;
 
 #[allow(dead_code)]
 pub struct TacticalAgent {
+    asset: Asset,
     id: i32,
-    time_horizon: u32,
+    time_horizon: Vec<Period>,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     tactical_algorithm: TacticalAlgorithm,
     strategic_addr: Addr<StrategicAgent>,
@@ -31,15 +34,17 @@ pub struct TacticalAgent {
 
 impl TacticalAgent {
     pub fn new(
+        asset: Asset,
         id: i32,
-        days: u32,
+        time_horizon: Vec<Period>,
         strategic_addr: Addr<StrategicAgent>,
         tactical_algorithm: TacticalAlgorithm,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     ) -> Self {
         TacticalAgent {
+            asset,
             id,
-            time_horizon: days,
+            time_horizon,
             scheduling_environment: scheduling_environment.clone(),
             tactical_algorithm,
             strategic_addr,
@@ -47,7 +52,7 @@ impl TacticalAgent {
         }
     }
 
-    pub fn time_horizon(&self) -> &u32 {
+    pub fn time_horizon(&self) -> &Vec<Period> {
         &self.time_horizon
     }
 }
@@ -84,6 +89,26 @@ impl Handler<ScheduleIteration> for TacticalAgent {
         {
             self.tactical_algorithm = temporary_schedule;
 
+            self.supervisor_addrs.iter().for_each(|(id, addr)| {
+                let mut work_orders_to_supervisor = vec![];
+                self.tactical_algorithm
+                    .optimized_work_orders()
+                    .iter()
+                    .for_each(|(work_order_number, optimized_work_order)| {
+                        if id.2.as_ref().unwrap() == &optimized_work_order.main_work_center {
+                            work_orders_to_supervisor.push((
+                                *work_order_number,
+                                optimized_work_order
+                                    .operation_solutions
+                                    .as_ref()
+                                    .unwrap()
+                                    .clone(),
+                            ))
+                        }
+                    });
+
+                addr.do_send(StateLink::Tactical(work_orders_to_supervisor));
+            });
             info!(tactical_objective_value = %self.tactical_algorithm.get_objective_value());
         };
 
@@ -91,27 +116,29 @@ impl Handler<ScheduleIteration> for TacticalAgent {
     }
 }
 
-impl Handler<TacticalRequest> for TacticalAgent {
+impl Handler<TacticalRequestMessage> for TacticalAgent {
     type Result = Result<String, AgentError>;
 
     #[instrument(level = "info", skip_all)]
     fn handle(
         &mut self,
-        tactical_request: TacticalRequest,
+        tactical_request: TacticalRequestMessage,
         _ctx: &mut Context<Self>,
     ) -> Self::Result {
         match tactical_request {
-            TacticalRequest::Status(_tactical_status_message) => self.tactical_algorithm.status(),
-            TacticalRequest::Scheduling(_tactical_scheduling_message) => {
+            TacticalRequestMessage::Status(_tactical_status_message) => {
+                self.tactical_algorithm.status()
+            }
+            TacticalRequestMessage::Scheduling(_tactical_scheduling_message) => {
                 todo!()
             }
-            TacticalRequest::Resources(tactical_resources_message) => self
+            TacticalRequestMessage::Resources(tactical_resources_message) => self
                 .tactical_algorithm
                 .update_resources_state(tactical_resources_message),
-            TacticalRequest::Days(_tactical_time_message) => {
+            TacticalRequestMessage::Days(_tactical_time_message) => {
                 todo!()
             }
-            TacticalRequest::Test => {
+            TacticalRequestMessage::Test => {
                 let algorithm_state = self.tactical_algorithm.determine_algorithm_state();
 
                 match algorithm_state {
@@ -123,38 +150,39 @@ impl Handler<TacticalRequest> for TacticalAgent {
                         "Tactical Schedule is Infesible: \n 
                            aggregated_load: {}\n
                            all_scheduled: {}\n
-                           earliest_start_day: {}\n",
+                           earliest_start_day: {}\n
+                           respect_period_id: {}\n",
                         infeasible_cases.aggregated_load,
                         infeasible_cases.all_scheduled,
-                        infeasible_cases.earliest_start_day
+                        infeasible_cases.earliest_start_day,
+                        infeasible_cases.respect_period_id,
                     )
                     .to_string()),
-
                 }
             }
         }
     }
 }
 
-impl Handler<SendState> for TacticalAgent {
+impl Handler<StateLink> for TacticalAgent {
     type Result = ();
 
-    fn handle(&mut self, msg: SendState, _ctx: &mut Context<Self>) {
+    fn handle(&mut self, msg: StateLink, _ctx: &mut Context<Self>) {
         let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
         match msg {
-            SendState::Strategic(strategic_state) => {
+            StateLink::Strategic(strategic_state) => {
                 let work_orders = scheduling_environment_guard.work_orders().clone();
                 drop(scheduling_environment_guard);
                 self.tactical_algorithm
                     .update_state_based_on_strategic(&work_orders, strategic_state);
             }
-            SendState::Tactical => {
+            StateLink::Tactical(_) => {
                 todo!()
             }
-            SendState::Supervisor => {
+            StateLink::Supervisor => {
                 todo!()
             }
-            SendState::Operational => {
+            StateLink::Operational => {
                 todo!()
             }
         }
@@ -174,5 +202,25 @@ impl Handler<SetAddr> for TacticalAgent {
                 todo!()
             }
         }
+    }
+}
+
+impl Handler<SolutionExportMessage> for TacticalAgent {
+    type Result = String;
+
+    fn handle(&mut self, _msg: SolutionExportMessage, _ctx: &mut Context<Self>) -> Self::Result {
+        let mut tactical_solution = HashMap::new();
+        for (work_order_number, optimized_work_order) in
+            self.tactical_algorithm.optimized_work_orders()
+        {
+            let mut tactical_operation_solution = HashMap::new();
+            for (activity, operation) in optimized_work_order.operation_solutions.as_ref().unwrap()
+            {
+                tactical_operation_solution
+                    .insert(activity, operation.scheduled.first().unwrap().0.date());
+            }
+            tactical_solution.insert(work_order_number, tactical_operation_solution);
+        }
+        serde_json::to_string(&tactical_solution).unwrap()
     }
 }
