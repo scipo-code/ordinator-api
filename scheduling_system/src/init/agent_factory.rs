@@ -220,16 +220,20 @@ fn create_optimized_work_orders(
         };
 
         if work_order.status_codes().awsc {
-            let scheduled_period = periods
+            let mut scheduled_period = periods
                 .iter()
                 .find(|period| {
                     period.start_date() <= &work_order.order_dates().basic_start_date
                         && &work_order.order_dates().basic_start_date <= period.end_date()
                 })
                 .cloned();
+
             let locked_in_period = match scheduled_period {
                 Some(ref period) => Some(period.clone()),
-                None => periods.last().cloned(),
+                None => {
+                    scheduled_period = periods.last().cloned();
+                    periods.last().cloned()
+                }
             };
 
             optimized_work_orders.insert(
@@ -243,6 +247,7 @@ fn create_optimized_work_orders(
                     work_order.work_load().clone(),
                 ),
             );
+            continue;
         }
 
         if work_order.unloading_point().present {
@@ -278,6 +283,7 @@ fn create_optimized_work_orders(
             ),
         );
     }
+
     OptimizedWorkOrders::new(optimized_work_orders)
 }
 

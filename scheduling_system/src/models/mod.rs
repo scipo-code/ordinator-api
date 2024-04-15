@@ -37,7 +37,7 @@ impl SchedulingEnvironment {
     }
 
     pub fn tactical_days(&self) -> &Vec<Day> {
-        &self.time_environment.tactical_days()
+        self.time_environment.tactical_days()
     }
 
     pub fn tactical_periods(&self) -> &Vec<Period> {

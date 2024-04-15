@@ -26,10 +26,15 @@ pub async fn http_to_scheduling_system(
                     .await
             };
 
-            let http_response = HttpResponse::Ok()
-                .insert_header(header::ContentType::plaintext())
-                .body(response);
-            Ok(http_response)
+            match response {
+                Ok(response) => {
+                    let http_response = HttpResponse::Ok()
+                        .insert_header(header::ContentType::plaintext())
+                        .body(response);
+                    Ok(http_response)
+                }
+                Err(err) => Ok(HttpResponse::BadRequest().json(err)),
+            }
         }
         SystemMessages::Strategic(strategic_request) => {
             let strategic_agent_addr = match orchestrator
@@ -63,14 +68,21 @@ pub async fn http_to_scheduling_system(
             }
         }
         SystemMessages::Tactical(tactical_request) => {
-            let tactical_agent_addr = orchestrator
+            let agent_registry_for_asset = match orchestrator
                 .lock()
                 .unwrap()
                 .agent_registries
                 .get(&tactical_request.asset)
-                .unwrap()
-                .tactical_agent_addr();
-            let response = tactical_agent_addr
+            {
+                Some(asset) => asset.tactical_agent_addr(),
+                None => {
+                    warn!("Tactical agent not created for the asset");
+                    return Ok(HttpResponse::BadRequest()
+                        .json("TACTICAL: TACTICAL AGENT NOT INITIALIZED FOR THE ASSET"));
+                }
+            };
+
+            let response = agent_registry_for_asset
                 .send(tactical_request.tactical_request_message)
                 .await;
 
@@ -134,7 +146,7 @@ pub async fn http_to_scheduling_system(
 
 impl Orchestrator {
     #[instrument(level = "info", skip_all)]
-    async fn handle(&mut self, msg: OrchestratorRequest) -> String {
+    async fn handle(&mut self, msg: OrchestratorRequest) -> Result<String, String> {
         match msg {
             OrchestratorRequest::GetAgentStatus => {
                 let mut buffer = String::new();
@@ -190,7 +202,7 @@ impl Orchestrator {
                     }
                 }
 
-                buffer
+                Ok(buffer)
             }
             OrchestratorRequest::GetWorkOrderStatus(work_order_number, level_of_detail) => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
@@ -199,11 +211,11 @@ impl Orchestrator {
 
                 if let Some(work_order) = cloned_work_orders.inner.get(&work_order_number) {
                     match level_of_detail {
-                        LevelOfDetail::Normal => work_order.to_string_normal(),
-                        LevelOfDetail::Verbose => work_order.to_string_verbose(),
+                        LevelOfDetail::Normal => Ok(work_order.to_string_normal()),
+                        LevelOfDetail::Verbose => Ok(work_order.to_string_verbose()),
                     }
                 } else {
-                    "Work order not found".to_string()
+                    Ok("Work order not found".to_string())
                 }
             }
             OrchestratorRequest::GetWorkOrdersState(level_of_detail) => {
@@ -212,8 +224,8 @@ impl Orchestrator {
                 let cloned_work_orders = scheduling_environment_guard.clone_work_orders();
 
                 match level_of_detail {
-                    LevelOfDetail::Normal => cloned_work_orders.to_string(),
-                    LevelOfDetail::Verbose => "Not implemented".to_string(),
+                    LevelOfDetail::Normal => Ok(cloned_work_orders.to_string()),
+                    LevelOfDetail::Verbose => Ok("Not implemented".to_string()),
                 }
             }
             OrchestratorRequest::GetPeriods => {
@@ -227,7 +239,7 @@ impl Orchestrator {
                     .collect::<Vec<String>>()
                     .join(",");
 
-                periods_string
+                Ok(periods_string)
             }
             OrchestratorRequest::GetDays => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
@@ -240,7 +252,7 @@ impl Orchestrator {
                     .collect::<Vec<String>>()
                     .join(",");
 
-                days_string
+                Ok(days_string)
             }
             OrchestratorRequest::CreateSupervisorAgent(asset, id_string) => {
                 let tactical_agent_addr = self
@@ -259,7 +271,7 @@ impl Orchestrator {
                     .get_mut(&asset)
                     .unwrap()
                     .add_supervisor_agent(id_string.clone(), supervisor_agent_addr.clone());
-                format!("Supervisor agent created with id {}", id_string)
+                Ok(format!("Supervisor agent created with id {}", id_string))
             }
             OrchestratorRequest::DeleteSupervisorAgent(asset, id_string) => {
                 let id = self
@@ -282,7 +294,7 @@ impl Orchestrator {
                     .supervisor_agent_addrs
                     .remove(&id);
 
-                format!("Supervisor agent deleted with id {}", id)
+                Ok(format!("Supervisor agent deleted with id {}", id))
             }
             OrchestratorRequest::CreateOperationalAgent(asset, id_string) => {
                 let supervisor_agent_addr = self
@@ -300,7 +312,7 @@ impl Orchestrator {
                     .unwrap()
                     .add_operational_agent(id_string.clone(), operational_agent_addr.clone());
 
-                format!("Operational agent created with id {}", id_string)
+                Ok(format!("Operational agent created with id {}", id_string))
             }
             OrchestratorRequest::DeleteOperationalAgent(asset, id_string) => {
                 let id = self
@@ -323,7 +335,7 @@ impl Orchestrator {
                     .operational_agent_addrs
                     .remove(&id);
 
-                format!("Operational agent deleted  with id {}", id_string)
+                Ok(format!("Operational agent deleted  with id {}", id_string))
             }
             OrchestratorRequest::SetLogLevel(log_level) => {
                 dbg!();
@@ -334,7 +346,7 @@ impl Orchestrator {
                     })
                     .unwrap();
 
-                format!("Log level {}", log_level.to_level_string())
+                Ok(format!("Log level {}", log_level.to_level_string()))
             }
             OrchestratorRequest::SetProfiling(log_level) => {
                 dbg!();
@@ -345,13 +357,17 @@ impl Orchestrator {
                     })
                     .unwrap();
 
-                format!("Profiling level {}", log_level.to_level_string())
+                Ok(format!("Profiling level {}", log_level.to_level_string()))
             }
             OrchestratorRequest::Export(asset) => {
-                let strategic_agent_solution = self
-                    .agent_registries
-                    .get(&asset)
-                    .unwrap()
+                let agent_registry_for_asset = match self.agent_registries.get(&asset) {
+                    Some(agent_registry) => agent_registry,
+                    None => {
+                        return Err(format!("Agent registry not found for the asset {}", asset));
+                    }
+                };
+
+                let strategic_agent_solution = agent_registry_for_asset
                     .strategic_agent_addr
                     .send(shared_messages::SolutionExportMessage {})
                     .await;
@@ -364,11 +380,11 @@ impl Orchestrator {
                     .send(shared_messages::SolutionExportMessage {})
                     .await;
 
-                format!(
+                Ok(format!(
                     "{{\"strategic_agent_solution\": {}, \"tactical_agent_solution\": {}}}",
                     strategic_agent_solution.unwrap(),
                     tactical_agent_solution.unwrap()
-                )
+                ))
             }
         }
     }
