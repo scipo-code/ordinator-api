@@ -291,7 +291,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 Some(optimized_period) => optimized_period.clone(),
                 None => {
                     error!("Work order number {} does not have a scheduled period", work_order_number);
-                    panic!("There are no periods in the system")
+                    panic!("Work order number {} does not have a scheduled period", work_order_number);
                 }
             };
 

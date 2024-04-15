@@ -36,6 +36,7 @@ pub enum StrategicRequestMessage {
     Scheduling(StrategicSchedulingMessage),
     Resources(StrategicResourceMessage),
     Periods(StrategicTimeMessage),
+    Test,
 }
 
 impl Message for StrategicRequestMessage {
@@ -72,6 +73,10 @@ impl fmt::Display for StrategicRequestMessage {
             }
             StrategicRequestMessage::Periods(period_message) => {
                 write!(f, "period_message: {:?}", period_message)?;
+                Ok(())
+            }
+            StrategicRequestMessage::Test => {
+                write!(f, "test")?;
                 Ok(())
             }
         }
