@@ -4,7 +4,9 @@ use tracing::instrument;
 
 use super::StrategicAlgorithm;
 use crate::agents::strategic_agent::strategic_algorithm::OptimizedWorkOrder;
-use crate::agents::traits::LargeNeighborHoodSearch;
+use crate::agents::traits::{
+    AlgorithmState, ConstraintState, LargeNeighborHoodSearch, TestAlgorithm,
+};
 use crate::models::time_environment::period::Period;
 
 /// Okay I think that this impl block should be refactored into something different. It is not BadRequest
@@ -170,6 +172,7 @@ pub fn calculate_period_difference(scheduled_period: Period, latest_period: Opti
     let days = duration.num_days();
     days / 7
 }
+
 
 #[cfg(test)]
 mod tests {
