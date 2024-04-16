@@ -7,7 +7,7 @@ use std::path::Path;
 use tracing::{debug, event, info};
 
 use crate::agents::tactical_agent::tactical_algorithm::Day;
-use crate::models::time_environment::period::Period;
+use crate::models::time_environment::period::{self, Period};
 use crate::models::time_environment::TimeEnvironment;
 use crate::models::work_order::system_condition::SystemCondition;
 
@@ -722,20 +722,23 @@ fn extract_unloading_point(
     };
 
     let (start_week, _end_week, present) = extract_weeks(&unloading_point_string);
-    let start_date = week_to_date(start_week, true);
 
     let unloading_point = if present {
         UnloadingPoint {
-            string: unloading_point_string,
+            string: unloading_point_string.clone(),
             present,
             period: {
                 Some(
-                    match periods
-                        .iter()
-                        .find(|period| period.start_date() == &start_date)
-                    {
+                    match periods.iter().find(|&period| {
+                        period.start_week == start_week || period.end_week == start_week
+                    }) {
                         Some(period) => period.clone(),
-                        None => periods.last().unwrap().clone(),
+                        None => {
+                            panic!(
+                                "Unloading cannot be present and not have a period. {:?}",
+                                row
+                            );
+                        }
                     }
                     .clone(),
                 )

@@ -1,15 +1,15 @@
 use actix::prelude::*;
-use actix_rt::time;
 use shared_messages::Asset;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::Mutex;
 
 use crate::agents::operational_agent::{OperationalAgent, OperationalAgentBuilder};
-use crate::agents::strategic_agent::strategic_algorithm::OptimizedWorkOrder;
+use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::{
+    AlgorithmResources, OptimizedWorkOrder, OptimizedWorkOrders,
+};
 use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
-use crate::agents::strategic_agent::strategic_algorithm::{self, OptimizedWorkOrders};
 use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::supervisor_agent::SupervisorAgent;
 use crate::agents::tactical_agent::tactical_algorithm::{self, Day, TacticalAlgorithm};
@@ -251,12 +251,18 @@ fn create_optimized_work_orders(
         }
 
         if work_order.unloading_point().present {
-            let period = work_order.unloading_point().period.clone();
+            let mut scheduled_period = work_order.unloading_point().period.clone();
+            let mut locked_period = scheduled_period.clone();
+
+            if scheduled_period.as_ref().unwrap() == &periods[1] {
+                locked_period = None;
+                scheduled_period = periods.last().cloned();
+            }
             optimized_work_orders.insert(
                 *work_order_number,
                 OptimizedWorkOrder::new(
-                    period.clone(),
-                    period,
+                    scheduled_period.clone(),
+                    locked_period,
                     excluded_periods.clone(),
                     None,
                     work_order.work_order_weight(),
@@ -290,7 +296,7 @@ fn create_optimized_work_orders(
 fn initialize_strategic_resources(
     scheduling_environment: &SchedulingEnvironment,
     start_value: f64,
-) -> strategic_algorithm::AlgorithmResources {
+) -> AlgorithmResources {
     let mut resource_capacity: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
     for resource in scheduling_environment
         .worker_environment()
@@ -303,7 +309,7 @@ fn initialize_strategic_resources(
         }
         resource_capacity.insert(resource.clone(), periods);
     }
-    strategic_algorithm::AlgorithmResources::new(resource_capacity)
+    AlgorithmResources::new(resource_capacity)
 }
 
 fn initialize_tactical_resources(

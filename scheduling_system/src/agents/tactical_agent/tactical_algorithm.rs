@@ -50,26 +50,6 @@ pub struct OptimizedTacticalWorkOrder {
     pub scheduled_period: Period,
 }
 
-impl OptimizedTacticalWorkOrder {
-    pub fn new(
-        main_work_center: MainResources,
-        operation_parameters: HashMap<u32, OperationParameters>,
-        weight: u32,
-        relations: Vec<ActivityRelation>,
-        operation_solutions: Option<HashMap<u32, OperationSolution>>,
-        scheduled_period: Period,
-    ) -> Self {
-        OptimizedTacticalWorkOrder {
-            main_work_center,
-            operation_parameters,
-            weight,
-            relations,
-            operation_solutions,
-            scheduled_period,
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct AlgorithmResources {
     resources: HashMap<Resources, HashMap<Day, f64>>,
@@ -78,18 +58,6 @@ pub struct AlgorithmResources {
 impl AlgorithmResources {
     pub fn new(resources: HashMap<Resources, HashMap<Day, f64>>) -> Self {
         AlgorithmResources { resources }
-    }
-
-    pub fn new_from_data(resources: Vec<Resources>, tactical_days: Vec<Day>, load: f64) -> Self {
-        let mut resource_capacity: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
-        for resource in resources {
-            let mut days = HashMap::new();
-            for day in tactical_days.iter() {
-                days.insert(day.clone(), load);
-            }
-            resource_capacity.insert(resource, days);
-        }
-        AlgorithmResources::new(resource_capacity)
     }
 
     fn to_string(&self, number_of_periods: u32) -> String {
@@ -131,7 +99,7 @@ impl AlgorithmResources {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Debug)]
 pub struct OperationParameters {
     work_order_number: u32,
     number: u32,
@@ -139,26 +107,6 @@ pub struct OperationParameters {
     operating_time: f64,
     work_remaining: f64,
     resource: Resources,
-}
-
-impl OperationParameters {
-    pub fn new(
-        work_order_number: u32,
-        number: u32,
-        duration: u32,
-        operating_time: f64,
-        work_remaining: f64,
-        resource: Resources,
-    ) -> Self {
-        OperationParameters {
-            work_order_number,
-            number,
-            duration,
-            operating_time,
-            work_remaining,
-            resource,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -194,7 +142,28 @@ impl Day {
 
 impl Display for Day {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.date.date().naive_local())
+        write!(f, "{}", self.date.date_naive())
+    }
+}
+
+impl Display for OperationParameters {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "OperationParameters:\n
+        work_order_number: {}\n
+        number: {}\n
+        duration: {}\n
+        operating_time: {}\n
+        work_remaining: {}\n
+        resource: {}",
+            self.work_order_number,
+            self.number,
+            self.duration,
+            self.operating_time,
+            self.work_remaining,
+            self.resource
+        )
     }
 }
 
@@ -494,7 +463,6 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             sorted_activities.sort();
 
             for activity in sorted_activities {
-                // optimized_work_order.operation_parameters.iter() {
                 let operation_parameters = optimized_work_order
                     .operation_parameters
                     .get(activity)
@@ -505,11 +473,14 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 let current_day_peek = match current_day.peek() {
                     Some(day) => day,
                     None => {
-                        info!(
-                            "Work order {} did not fit in the tactical schedule",
-                            current_work_order_number
+                        warn!(
+                            current_work_order_number = &current_work_order_number,
+                            operation_parameters = ?operation_parameters,
+                            optimized_work_order = ?optimized_work_order.scheduled_period,
+                            operation_solutions = ?operation_solutions,
+                            "Work order did not fit in the tactical schedule"
                         );
-                        panic!("Operation left the window set by the tactical days, either the work order and very large or there is a bug");
+                        break;
                     }
                 };
 
@@ -536,11 +507,14 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     let day = match current_day.peek() {
                         Some(day) => (*day).clone(),
                         None => {
-                            info!(
-                                "Work order {} did not fit in the tactical schedule",
-                                current_work_order_number
+                            warn!(
+                                current_work_order_number = &current_work_order_number,
+                                operation_parameters = ?operation_parameters,
+                                optimized_work_order = ?optimized_work_order.scheduled_period,
+                                operation_solutions = ?operation_solutions,
+                                "Work order did not fit in the tactical schedule"
                             );
-                            panic!("Operation left the window set by the tactical days, either the work order and very large or there is a bug");
+                            break;
                         }
                     };
                     activity_load.push((day, load));
@@ -958,10 +932,10 @@ pub mod tests {
         agents::{
             tactical_agent::tactical_algorithm::OperationSolution, traits::LargeNeighborHoodSearch,
         },
-        models::time_environment::period::Period,
+        models::{time_environment::period::Period, work_order::ActivityRelation},
     };
 
-    use super::{Day, OperationParameters, OptimizedTacticalWorkOrder};
+    use super::{AlgorithmResources, Day, OperationParameters, OptimizedTacticalWorkOrder};
 
     #[test]
     fn test_determine_load_1() {
@@ -1202,5 +1176,62 @@ pub mod tests {
             .date_naive();
 
         assert!(scheduled_date >= third_period.start_date().date_naive());
+    }
+    impl OptimizedTacticalWorkOrder {
+        pub fn new(
+            main_work_center: MainResources,
+            operation_parameters: HashMap<u32, OperationParameters>,
+            weight: u32,
+            relations: Vec<ActivityRelation>,
+            operation_solutions: Option<HashMap<u32, OperationSolution>>,
+            scheduled_period: Period,
+        ) -> Self {
+            OptimizedTacticalWorkOrder {
+                main_work_center,
+                operation_parameters,
+                weight,
+                relations,
+                operation_solutions,
+                scheduled_period,
+            }
+        }
+    }
+
+    impl OperationParameters {
+        pub fn new(
+            work_order_number: u32,
+            number: u32,
+            duration: u32,
+            operating_time: f64,
+            work_remaining: f64,
+            resource: Resources,
+        ) -> Self {
+            OperationParameters {
+                work_order_number,
+                number,
+                duration,
+                operating_time,
+                work_remaining,
+                resource,
+            }
+        }
+    }
+
+    impl AlgorithmResources {
+        pub fn new_from_data(
+            resources: Vec<Resources>,
+            tactical_days: Vec<Day>,
+            load: f64,
+        ) -> Self {
+            let mut resource_capacity: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
+            for resource in resources {
+                let mut days = HashMap::new();
+                for day in tactical_days.iter() {
+                    days.insert(day.clone(), load);
+                }
+                resource_capacity.insert(resource, days);
+            }
+            AlgorithmResources::new(resource_capacity)
+        }
     }
 }

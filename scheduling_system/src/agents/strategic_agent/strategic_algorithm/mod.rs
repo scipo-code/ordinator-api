@@ -1,12 +1,10 @@
-mod algorithm;
-use std::fmt::Write;
+pub mod optimized_work_orders;
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
-use std::hash::{Hash, Hasher};
-use serde::Serialize;
+use std::hash::{Hash};
 use tracing::{error, info, instrument, trace};
-use colored::*;
+use rand::prelude::SliceRandom;
 
 use priority_queue::PriorityQueue;
 use shared_messages::agent_error::AgentError;
@@ -14,11 +12,14 @@ use shared_messages::strategic::strategic_periods_message::StrategicTimeMessage;
 use shared_messages::strategic::strategic_resources_message::StrategicResourceMessage;
 use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
 
+use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::AlgorithmResources;
 use crate::agents::traits::LargeNeighborHoodSearch;
 use crate::models::time_environment::period::Period;
 use shared_messages::resources::Resources;
 
-use self::algorithm::calculate_period_difference;
+use self::optimized_work_orders::{OptimizedWorkOrder, OptimizedWorkOrders};
+
+
 
 #[derive(Debug, Clone)]
 pub struct StrategicAlgorithm {
@@ -66,191 +67,169 @@ impl StrategicAlgorithm {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct AlgorithmResources {
-    pub inner: HashMap<Resources, HashMap<Period, f64>>
-}
-
-impl AlgorithmResources {
-    pub fn new(resources: HashMap<Resources, HashMap<Period, f64>>) -> Self {
-        Self {
-            inner: resources
-        }
-    }
-
-    fn to_string(&self, number_of_periods: u32) -> String{
-        let mut string = String::new();
-        let mut periods = self.inner.values()
-            .flat_map(|inner_map| inner_map.keys())
-            .collect::<Vec<_>>();
-        periods.sort();
-        periods.dedup();
-
-        write!(string, "{:<12}", "Resource").ok();
-        for (nr_period, period) in periods.iter().enumerate().take(number_of_periods as usize) {
-            if nr_period == 0 {
-                write!(string, "{:>12}", period.period_string().red()).ok();
-            } else if nr_period == 1 || nr_period == 2 {
-                write!(string, "{:>12}", period.period_string().green()).ok();
-            } else {
-                write!(string, "{:>12}", period.period_string()).ok();
+impl StrategicAlgorithm {
+    #[instrument(level = "trace", skip_all)]
+    pub fn schedule_forced_work_orders(&mut self) {
+        let mut work_order_numbers: Vec<u32> = vec![];
+        for (work_order_number, opt_work_order) in self.optimized_work_orders().iter() {
+            if opt_work_order.get_locked_in_period().is_some() {
+                work_order_numbers.push(*work_order_number);
             }
         }
-        writeln!(string).ok();
-        
-        for (resource, inner_map) in self.inner.iter() {
-            write!(string, "{:<12}", resource.variant_name()).unwrap();
-            for (nr_period, period) in periods.iter().enumerate().take(number_of_periods as usize) {
-                let value = inner_map.get(period).unwrap_or(&0.0);
-                if nr_period == 0 {
-                    write!(string, "{:>12}", value.round().to_string().red()).ok();
-                } else if nr_period == 1 || nr_period == 2 {
-                    write!(string, "{:>12}", value.round().to_string().green()).ok();
-                } else {
-                    write!(string, "{:>12}", value.round()).ok();
+
+        for work_order_number in work_order_numbers {
+            self.schedule_forced_work_order(work_order_number);
+        }
+        self.calculate_objective_value();
+        // info!(strategic_objective_value = %self.objective_value());
+    }
+
+    #[instrument(level = "trace", skip_all)]
+    pub fn schedule_normal_work_order(
+        &mut self,
+        work_order_number: u32,
+        period: &Period,
+    ) -> Option<u32> {
+        let optimized_work_order = self
+            .optimized_work_orders
+            .inner
+            .get(&work_order_number)
+            .unwrap()
+            .clone();
+
+        if period != self.periods().last().unwrap() {
+            for (resource, resource_needed) in optimized_work_order.get_work_load().clone().iter() {
+                let resource_capacity: &f64 = self
+                    .resources_capacity
+                    .inner
+                    .get(&resource.clone())
+                    .unwrap()
+                    .get(&period.clone())
+                    .unwrap();
+
+                let resource_loading: &f64 = self
+                    .resources_loading
+                    .inner
+                    .get(&resource.clone())
+                    .unwrap()
+                    .get(&period.clone())
+                    .unwrap();
+                if *resource_needed > *resource_capacity - *resource_loading {
+                    return Some(work_order_number);
+                }
+
+                if optimized_work_order.get_excluded_periods().contains(period) {
+                    return Some(work_order_number);
+                }
+
+                if self.period_locks.contains(period) {
+                    return Some(work_order_number);
                 }
             }
-            writeln!(string).ok();
         }
-        string
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct OptimizedWorkOrders {
-    inner: HashMap<u32, OptimizedWorkOrder>,
-}
-
-impl Hash for OptimizedWorkOrders {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        // Hash the length of the HashMap to ensure different lengths produce different hashes
-        self.inner.len().hash(state);
-
-        // Iterate over the HashMap and hash each key-value pair
-        for (key, value) in &self.inner {
-            key.hash(state);
-            value.hash(state);
+        match self.optimized_work_orders.inner.get_mut(&work_order_number) {
+            Some(optimized_work_order) => {
+                optimized_work_order.set_scheduled_period(Some(period.clone()));
+            }
+            None => {
+                panic!(
+                    "The work order is not found in the optimized work orders. Should have been
+                initialized"
+                )
+            }
         }
-    }
-}
-
-impl Hash for OptimizedWorkOrder {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        // Hash the length of the HashMap to ensure different lengths produce different hashes
-        self.scheduled_period.hash(state);
-        self.locked_in_period.hash(state);
-        for period in &self.excluded_periods {
-            period.hash(state);
-        }
-    }
-}
-
-impl OptimizedWorkOrders {
-    pub fn new(inner: HashMap<u32, OptimizedWorkOrder>) -> Self {
-        Self { inner }
+        self.update_loadings(period.clone(), &optimized_work_order);
+        None
     }
 
     #[instrument(level = "trace", skip_all)]
-    pub fn set_scheduled_period(&mut self, work_order_number: u32, period: Period) {
-        let optimized_work_order = match self.inner.get_mut(&work_order_number) {
-            Some(optimized_work_order) => optimized_work_order,
-            None => panic!(
-                "Work order number {} not found in optimized work orders",
-                work_order_number
-            ),
-        };
-        optimized_work_order.scheduled_period = Some(period);
+    pub fn schedule_forced_work_order(&mut self, work_order_number: u32) {
+        if let Some(work_order_number) = self.is_scheduled(work_order_number) {
+            self.unschedule(work_order_number);
+        }
+
+        let period_internal = self
+            .optimized_work_orders
+            .get_locked_in_period(work_order_number);
+
+        self.optimized_work_orders
+            .set_scheduled_period(work_order_number, period_internal.clone());
+
+        let work_order = self
+            .optimized_work_orders
+            .inner
+            .get(&work_order_number)
+            .unwrap()
+            .clone();
+
+        self.update_loadings(period_internal, &work_order);
     }
+
     #[instrument(level = "trace", skip_all)]
-    pub fn get_locked_in_period(&self, work_order_number: u32) -> Period {
-        let option_period = match self.inner.get(&work_order_number) {
-            Some(optimized_work_order) => optimized_work_order.locked_in_period.clone(),
-            None => panic!(
-                "Work order number {} not found in optimized work orders",
-                work_order_number
-            ),
-        };
-        match option_period {
-            Some(period) => period,
-            None => panic!("Work order number {} does not have a locked in period, but it is being called by the optimized_work_orders.schedule_forced_work_order", work_order_number)
+    pub fn unschedule_random_work_orders(
+        &mut self,
+        number_of_work_orders: usize,
+        rng: &mut impl rand::Rng,
+    ) {
+        let optimized_work_orders = self.optimized_work_orders();
+
+        let mut filtered_keys: Vec<_> = optimized_work_orders
+            .iter()
+            .filter(|(&_key, value)| value.get_locked_in_period().is_none())
+            .map(|(&key, _)| key)
+            .collect();
+
+        filtered_keys.sort();
+
+        let sampled_work_order_keys = filtered_keys
+            .choose_multiple(rng, number_of_work_orders)
+            .collect::<Vec<_>>()
+            .clone();
+
+        for work_order_key in sampled_work_order_keys {
+            self.unschedule(*work_order_key);
+            self.populate_priority_queues();
         }
     }
 
     #[instrument(level = "trace", skip_all)]
-    pub fn set_locked_in_period(&mut self, work_order_number: u32, period: Period) {
-
-        let optimized_work_order = match self.inner.get_mut(&work_order_number) {
-            Some(optimized_work_order) => optimized_work_order,
-            None => panic!(
-                "Work order number {} not found in optimized work orders",
-                work_order_number
-            ),
-        };
-        optimized_work_order.locked_in_period = Some(period);
+    fn is_scheduled(&self, work_order_number: u32) -> Option<u32> {
+        self.optimized_work_orders
+            .inner
+            .get(&work_order_number)
+            .and_then(|optimized_work_order| {
+                optimized_work_order
+                    .scheduled_period
+                    .as_ref()
+                    .map(|_| work_order_number)
+            })
     }
 
-
-}
-
-#[derive(Debug, PartialEq, Clone, Default, Serialize)]
-pub struct OptimizedWorkOrder {
-    scheduled_period: Option<Period>,
-    locked_in_period: Option<Period>,
-    excluded_periods: HashSet<Period>,
-    latest_period: Option<Period>,
-    weight: u32,
-    work_load: HashMap<Resources, f64>,
-}
-
-impl OptimizedWorkOrder {
-    pub fn new(
-        scheduled_period: Option<Period>,
-        locked_in_period: Option<Period>,
-        excluded_periods: HashSet<Period>,
-        latest_period: Option<Period>,
-        weight: u32,
-        work_load: HashMap<Resources, f64>,
-    ) -> Self {
-        Self {
-            scheduled_period,
-            locked_in_period,
-            excluded_periods,
-            latest_period,
-            weight,
-            work_load,
+    #[instrument(level = "trace", skip_all)]
+    fn update_loadings(&mut self, period_input: Period, work_order: &OptimizedWorkOrder) {
+        for (resource, periods) in self.resources_loading.inner.iter_mut() {
+            for (period, loading) in periods {
+                if *period == period_input {
+                    *loading += work_order.get_work_load().get(resource).unwrap_or(&0.0);
+                }
+            }
         }
     }
-
-    pub fn get_scheduled_period(&self) -> Option<Period> {
-        self.scheduled_period.clone()
-    }
-
-    pub fn get_locked_in_period(&self) -> Option<Period> {
-        self.locked_in_period.clone()
-    }
-
-    pub fn get_excluded_periods(&self) -> &HashSet<Period> {
-        &self.excluded_periods
-    }
-
-    pub fn get_latest_period(&self) -> Option<Period> {
-        self.latest_period.clone()
-    }
-
-    pub fn get_work_load(&self) -> &HashMap<Resources, f64> {
-        &self.work_load
-    }
-
-    pub fn get_weight(&self) -> u32 {
-        self.weight
-    }
-
-    /// This is a huge no-no! I think that this will lets us violate the invariant that we have
-    /// created between scheduled work and the loadings. We should test for this
-    pub fn set_scheduled_period(&mut self, period: Option<Period>) {
-        self.scheduled_period = period;
-    }
 }
+
+pub fn calculate_period_difference(scheduled_period: Period, latest_period: Option<Period>) -> i64 {
+    let scheduled_period_date = scheduled_period.end_date().to_owned();
+    let latest_period_date = match latest_period.clone() {
+        Some(period) => period.end_date().to_owned(),
+        None => scheduled_period_date,
+    };
+
+    let duration = scheduled_period_date.signed_duration_since(latest_period_date);
+    let days = duration.num_days();
+    days / 7
+}
+
+
 
 impl Display for StrategicAlgorithm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -383,8 +362,8 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
         &mut self,
         strategic_resources_message: StrategicResourceMessage,
     ) -> Result<String, AgentError> 
- {
-    tracing::info!("update_resources_state called");
+    {
+    //tracing::info!("update_resources_state called");
         match strategic_resources_message {
             StrategicResourceMessage::SetResources(manual_resources) => {
                 let mut count = 0;
@@ -442,6 +421,9 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
             }
         }
     }
+
+
+
     #[allow(dead_code)]
     fn update_time_state(&mut self, _time_message: StrategicTimeMessage) -> Result<String, AgentError> 
         { todo!() }
@@ -634,9 +616,6 @@ impl StrategicAlgorithm {
     pub fn periods(&self) -> &Vec<Period> {
         &self.periods
     }
-
-
-
 }
 
 
@@ -802,4 +781,712 @@ mod tests {
         self.inner.insert(work_order_number, optimized_work_order);
     }
     }
+
+
+    use chrono::{Duration, TimeZone, Utc};
+    use rand::{rngs::StdRng, SeedableRng};
+    use std::collections::{HashSet};
+
+    use crate::agents::strategic_agent::strategic_algorithm::{
+        AlgorithmResources, 
+    };
+    use shared_messages::resources::Resources;
+
+    #[test]
+    fn test_schedule_work_order() {
+        let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 7, 0, 0).unwrap();
+        let end_date = start_date + chrono::Duration::days(13);
+
+        let period = Period::new(1, start_date, end_date);
+
+        let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
+
+        let optimized_work_order =
+            OptimizedWorkOrder::new(None, None, HashSet::new(), None, 1000, HashMap::new());
+
+        optimized_work_orders.insert_optimized_work_order(2200002020, optimized_work_order);
+
+        let mut resource_capacity = HashMap::new();
+        let mut resource_loadings = HashMap::new();
+
+        let mut period_hash_map_150 = HashMap::new();
+        let mut period_hash_map_0 = HashMap::new();
+
+        period_hash_map_150.insert(period.clone(), 150.0);
+        period_hash_map_0.insert(period.clone(), 0.0);
+
+        resource_capacity.insert(Resources::MtnMech, period_hash_map_150.clone());
+        resource_capacity.insert(Resources::MtnElec, period_hash_map_150.clone());
+        resource_capacity.insert(Resources::Prodtech, period_hash_map_150.clone());
+
+        resource_loadings.insert(Resources::MtnMech, period_hash_map_0.clone());
+        resource_loadings.insert(Resources::MtnElec, period_hash_map_0.clone());
+        resource_loadings.insert(Resources::Prodtech, period_hash_map_0.clone());
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
+            0.0,
+            AlgorithmResources::new(resource_capacity),
+            AlgorithmResources::new(resource_loadings),
+            PriorityQueues::new(),
+            optimized_work_orders,
+            HashSet::new(),
+            vec![period.clone()],
+        );
+
+        scheduler_agent_algorithm.schedule_normal_work_order(2200002020, &period);
+
+        assert_eq!(
+            scheduler_agent_algorithm
+                .optimized_work_orders
+                .inner
+                .get(&2200002020)
+                .unwrap()
+                .scheduled_period,
+            Some(period.clone())
+        );
+    }
+
+    #[test]
+    fn test_schedule_work_order_with_work_load() {
+        let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 7, 0, 0).unwrap();
+        let end_date = start_date + chrono::Duration::days(13);
+
+        let period = Period::new(1, start_date, end_date);
+
+        let mut work_load = HashMap::new();
+
+        work_load.insert(Resources::MtnMech, 100.0);
+
+        let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
+
+        let optimized_work_order =
+            OptimizedWorkOrder::new(None, None, HashSet::new(), None, 1000, work_load);
+
+        optimized_work_orders
+            .inner
+            .insert(2200002020, optimized_work_order);
+
+        let mut resource_capacity = HashMap::new();
+        let mut resource_loadings = HashMap::new();
+
+        let mut period_hash_map_0 = HashMap::new();
+
+        period_hash_map_0.insert(period.clone(), 0.0);
+
+        resource_capacity.insert(Resources::MtnMech, period_hash_map_0.clone());
+        resource_loadings.insert(Resources::MtnMech, period_hash_map_0.clone());
+
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
+            0.0,
+            AlgorithmResources::new(resource_capacity),
+            AlgorithmResources::new(resource_loadings),
+            PriorityQueues::new(),
+            optimized_work_orders,
+            HashSet::new(),
+            vec![period.clone()],
+        );
+        scheduler_agent_algorithm.schedule_normal_work_order(2200002020, &period);
+
+        assert_eq!(
+            scheduler_agent_algorithm
+                .optimized_work_orders
+                .inner
+                .get(&2200002020)
+                .unwrap()
+                .get_scheduled_period(),
+            scheduler_agent_algorithm.periods().last().cloned()
+        );
+    }
+
+    #[test]
+    fn test_update_loadings() {
+        let mut work_load = HashMap::new();
+
+        work_load.insert(Resources::MtnMech, 20.0);
+        work_load.insert(Resources::MtnElec, 40.0);
+        work_load.insert(Resources::Prodtech, 60.0);
+
+        let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 7, 0, 0).unwrap();
+        let end_date = start_date + chrono::Duration::days(13);
+
+        let period = Period::new(1, start_date, end_date);
+
+        let mut resource_capacity = HashMap::new();
+        let mut resource_loadings = HashMap::new();
+
+        let mut period_hash_map_150 = HashMap::new();
+        let mut period_hash_map_0 = HashMap::new();
+
+        period_hash_map_150.insert(period.clone(), 150.0);
+        period_hash_map_0.insert(period.clone(), 0.0);
+
+        resource_capacity.insert(Resources::MtnMech, period_hash_map_150.clone());
+        resource_capacity.insert(Resources::MtnElec, period_hash_map_150.clone());
+        resource_capacity.insert(Resources::Prodtech, period_hash_map_150.clone());
+
+        resource_loadings.insert(Resources::MtnMech, period_hash_map_0.clone());
+        resource_loadings.insert(Resources::MtnElec, period_hash_map_0.clone());
+        resource_loadings.insert(Resources::Prodtech, period_hash_map_0.clone());
+
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
+            0.0,
+            AlgorithmResources::new(resource_capacity),
+            AlgorithmResources::new(resource_loadings),
+            PriorityQueues::new(),
+            OptimizedWorkOrders::new(HashMap::new()),
+            HashSet::new(),
+            vec![],
+        );
+
+        let work_order = OptimizedWorkOrder::new(
+            Some(period.clone()),
+            Some(period.clone()),
+            HashSet::new(),
+            None,
+            1000,
+            work_load,
+        );
+
+        scheduler_agent_algorithm.update_loadings(period.clone(), &work_order);
+
+        assert_eq!(
+            scheduler_agent_algorithm
+                .resources_loading
+                .inner
+                .get(&Resources::MtnMech)
+                .unwrap()
+                .get(&period.clone()),
+            Some(20.0).as_ref()
+        );
+        assert_eq!(
+            scheduler_agent_algorithm
+                .resources_loading
+                .inner
+                .get(&Resources::MtnElec)
+                .unwrap()
+                .get(&period.clone()),
+            Some(40.0).as_ref()
+        );
+        assert_eq!(
+            scheduler_agent_algorithm
+                .resources_loading
+                .inner
+                .get(&Resources::Prodtech)
+                .unwrap()
+                .get(&period.clone()),
+            Some(60.0).as_ref()
+        );
+
+        assert_eq!(
+            scheduler_agent_algorithm
+                .resources_loading
+                .inner
+                .get(&Resources::MtnScaf),
+            None
+        );
+    }
+
+    /// This test fails as we cannot schedule with the unloading point queue if we do not have a
+    /// period lock in the OptimizedWorkOrders. What should I do about it? I am not sure about it?
+    /// In general I have an issue with the way that the static data is handled in the program and
+    /// the way that the dynamic data is handled in the program. What should I do about it? I am not
+    /// sure
+    #[test]
+    fn test_unschedule_work_order() {
+        let mut work_load = HashMap::new();
+
+        work_load.insert(Resources::MtnMech, 20.0);
+        work_load.insert(Resources::MtnElec, 40.0);
+        work_load.insert(Resources::Prodtech, 60.0);
+
+        let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 0, 0, 0).unwrap();
+        let end_date = start_date
+            + chrono::Duration::days(13)
+            + chrono::Duration::hours(23)
+            + chrono::Duration::minutes(59)
+            + chrono::Duration::seconds(59);
+        let period_1 = Period::new(0, start_date, end_date);
+        let period_2 = Period::new(0, start_date, end_date) + Duration::weeks(2);
+        let period_3 = Period::new(0, start_date, end_date) + Duration::weeks(4);
+
+        let periods: Vec<Period> = vec![period_1.clone(), period_2.clone(), period_3.clone()];
+        let resources = vec![Resources::MtnMech, Resources::MtnElec, Resources::Prodtech];
+        // Again, this is not completely correct. There is an invariant here that is not being
+        // upheld correctly. What should we do about that?
+        let mut resource_capacity: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
+        let mut resource_loadings: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
+
+        for resource in resources.iter() {
+            let capacity_map = resource_capacity.entry(resource.clone()).or_default();
+            let loading_map = resource_loadings.entry(resource.clone()).or_default();
+
+            for period in periods.iter() {
+                capacity_map.insert(period.clone(), 150.0);
+                loading_map.insert(period.clone(), 0.0);
+            }
+        }
+
+        let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
+
+        let optimized_work_order = OptimizedWorkOrder::new(
+            None,
+            Some(period_1.clone()),
+            HashSet::new(),
+            None,
+            1000,
+            work_load,
+        );
+
+        optimized_work_orders
+            .inner
+            .insert(2200002020, optimized_work_order);
+
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
+            0.0,
+            AlgorithmResources::new(resource_capacity),
+            AlgorithmResources::new(resource_loadings),
+            PriorityQueues::new(),
+            optimized_work_orders,
+            HashSet::new(),
+            periods,
+        );
+
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::MtnMech)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            0.0
+        );
+        scheduler_agent_algorithm.schedule_normal_work_order(2200002020, &period_1);
+
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::MtnMech)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            20.0
+        );
+
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::MtnElec)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            40.0
+        );
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::Prodtech)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            60.0
+        );
+
+        scheduler_agent_algorithm.unschedule(2200002020);
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::MtnMech)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            0.0
+        );
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::MtnElec)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            0.0
+        );
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::Prodtech)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            0.0
+        );
+
+        scheduler_agent_algorithm.schedule_forced_work_order(2200002020);
+
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::MtnMech)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            20.0
+        );
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::MtnElec)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            40.0
+        );
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::Prodtech)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            60.0
+        );
+
+        scheduler_agent_algorithm
+            .optimized_work_orders
+            .set_locked_in_period(2200002020, period_2.clone());
+        scheduler_agent_algorithm.schedule_forced_work_order(2200002020);
+
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::MtnMech)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            0.0
+        );
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::MtnElec)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            0.0
+        );
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::Prodtech)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            0.0
+        );
+
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::MtnMech)
+                .unwrap()
+                .get(&period_2)
+                .unwrap(),
+            20.0
+        );
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::MtnElec)
+                .unwrap()
+                .get(&period_2)
+                .unwrap(),
+            40.0
+        );
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::Prodtech)
+                .unwrap()
+                .get(&period_2)
+                .unwrap(),
+            60.0
+        );
+
+        scheduler_agent_algorithm.unschedule(2200002020);
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::MtnMech)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            0.0
+        );
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::MtnElec)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            0.0
+        );
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::Prodtech)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            0.0
+        );
+
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::MtnMech)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            0.0
+        );
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::MtnElec)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            0.0
+        );
+        assert_eq!(
+            *scheduler_agent_algorithm
+                .resources_loadings()
+                .inner
+                .get(&Resources::Prodtech)
+                .unwrap()
+                .get(&period_1)
+                .unwrap(),
+            0.0
+        );
+    }
+
+    #[test]
+    fn test_unschedule_random_work_orders() {
+        let mut work_load_1 = HashMap::new();
+        let mut work_load_2 = HashMap::new();
+        let mut work_load_3 = HashMap::new();
+
+        work_load_1.insert(Resources::MtnMech, 10.0);
+        work_load_1.insert(Resources::MtnElec, 10.0);
+        work_load_1.insert(Resources::Prodtech, 10.0);
+
+        work_load_2.insert(Resources::MtnMech, 20.0);
+        work_load_2.insert(Resources::MtnElec, 20.0);
+        work_load_2.insert(Resources::Prodtech, 20.0);
+
+        work_load_3.insert(Resources::MtnMech, 30.0);
+        work_load_3.insert(Resources::MtnElec, 30.0);
+        work_load_3.insert(Resources::Prodtech, 30.0);
+
+        let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
+
+        let optimized_work_order_1 = OptimizedWorkOrder::new(
+            Some(Period::new_from_string("2023-W47-48").unwrap()),
+            None,
+            HashSet::new(),
+            None,
+            1000,
+            work_load_1,
+        );
+
+        let optimized_work_order_2 = OptimizedWorkOrder::new(
+            Some(Period::new_from_string("2023-W47-48").unwrap()),
+            None,
+            HashSet::new(),
+            None,
+            1000,
+            work_load_2,
+        );
+
+        let optimized_work_order_3 = OptimizedWorkOrder::new(
+            Some(Period::new_from_string("2023-W49-50").unwrap()),
+            None,
+            HashSet::new(),
+            None,
+            1000,
+            work_load_3,
+        );
+
+        optimized_work_orders
+            .inner
+            .insert(2200000001, optimized_work_order_1);
+        optimized_work_orders
+            .inner
+            .insert(2200000002, optimized_work_order_2);
+        optimized_work_orders
+            .inner
+            .insert(2200000003, optimized_work_order_3);
+
+        let periods: Vec<Period> = vec![
+            Period::new_from_string("2023-W47-48").unwrap(),
+            Period::new_from_string("2023-W49-50").unwrap(),
+        ];
+
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
+            0.0,
+            AlgorithmResources::default(),
+            AlgorithmResources::default(),
+            PriorityQueues::new(),
+            optimized_work_orders,
+            HashSet::new(),
+            periods,
+        );
+
+        let seed: [u8; 32] = [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+            25, 26, 27, 28, 29, 30, 31, 32,
+        ];
+
+        let mut rng = StdRng::from_seed(seed);
+
+        scheduler_agent_algorithm.unschedule_random_work_orders(2, &mut rng);
+
+        assert_eq!(
+            scheduler_agent_algorithm
+                .optimized_work_orders
+                .inner
+                .get(&2200000001)
+                .unwrap()
+                .scheduled_period,
+            Some(Period::new_from_string("2023-W47-48").unwrap())
+        );
+
+        assert_eq!(
+            scheduler_agent_algorithm
+                .optimized_work_orders
+                .inner
+                .get(&2200000002)
+                .unwrap()
+                .scheduled_period,
+            None
+        );
+
+        assert_eq!(
+            scheduler_agent_algorithm
+                .optimized_work_orders
+                .inner
+                .get(&2200000003)
+                .unwrap()
+                .scheduled_period,
+            None
+        );
+    }
+
+    #[test]
+    fn test_calculate_period_difference() {
+        let period_1 = Period::new_from_string("2023-W47-48");
+        let period_2 = Period::new_from_string("2023-W49-50");
+
+        let difference = calculate_period_difference(period_1.unwrap(), Some(period_2.unwrap()));
+
+        assert_eq!(difference, -2);
+    }
+
+    #[test]
+    fn test_choose_multiple() {
+        for _ in 0..19 {
+            let seed: [u8; 32] = [
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+                24, 25, 26, 27, 28, 29, 30, 31, 32,
+            ];
+
+            let mut rng = StdRng::from_seed(seed);
+
+            assert_eq!(
+                [1, 2, 3].choose_multiple(&mut rng, 2).collect::<Vec<_>>(),
+                [&3, &2]
+            );
+        }
+    }
+
+    #[test]
+    fn test_unschedule_work_order_none_in_scheduled_period() {
+        let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
+
+        let optimized_work_order = OptimizedWorkOrder::new(
+            Period::new_from_string("2023-W47-48").ok(),
+            None,
+            HashSet::new(),
+            None,
+            1000,
+            HashMap::new(),
+        );
+
+        optimized_work_orders
+            .inner
+            .insert(2100000001, optimized_work_order);
+
+        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
+            0.0,
+            AlgorithmResources::default(),
+            AlgorithmResources::default(),
+            PriorityQueues::new(),
+            optimized_work_orders,
+            HashSet::new(),
+            vec![Period::new_from_string("2023-W47-48").unwrap()],
+        );
+
+        scheduler_agent_algorithm.unschedule(2100000001);
+        assert_eq!(
+            scheduler_agent_algorithm
+                .optimized_work_orders
+                .inner
+                .get(&2100000001)
+                .unwrap()
+                .scheduled_period,
+            None
+        );
+    }
+
+    #[test]
+    fn test_period_clone_equality() {
+        let period_1 = Period::new_from_string("2023-W47-48").unwrap();
+        let period_2 = Period::new_from_string("2023-W47-48").unwrap();
+
+        assert_eq!(period_1, period_2);
+        assert_eq!(period_1, period_1.clone());
+    }
+
+    impl StrategicAlgorithm {
+        pub fn set_optimized_work_order(
+            &mut self,
+            work_order_number: u32,
+            optimized_work_order: OptimizedWorkOrder,
+        ) {
+            self.optimized_work_orders
+                .inner
+                .insert(work_order_number, optimized_work_order);
+        }
+    }
+
 }

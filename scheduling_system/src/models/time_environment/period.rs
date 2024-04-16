@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, Duration, NaiveDate, Utc};
+use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc, Weekday};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 use std::ops::{Add, Sub};
@@ -9,6 +9,8 @@ pub struct Period {
     period_string: String,
     start_date: DateTime<Utc>,
     end_date: DateTime<Utc>,
+    pub start_week: u32,
+    pub end_week: u32,
 }
 
 impl Period {
@@ -18,22 +20,23 @@ impl Period {
         if is_last_three_days_of_year(start_date.naive_utc().date()) {
             year += 1;
         }
-        let period_string = format!(
-            "{}-W{}-{}",
-            year,
-            start_date.iso_week().week(),
-            if end_date.iso_week().week() == 1 {
-                52
-            } else {
-                end_date.iso_week().week()
-            }
-        );
+
+        let start_week: u32 = start_date.iso_week().week();
+        let end_week: u32 = if end_date.iso_week().week() == 1 {
+            52
+        } else {
+            end_date.iso_week().week()
+        };
+
+        let period_string = format!("{}-W{}-{}", year, start_week, end_week,);
 
         Period {
             id,
             period_string,
             start_date,
             end_date,
+            start_week,
+            end_week,
         }
     }
 
@@ -57,6 +60,63 @@ impl Period {
 
     pub fn id(&self) -> &i32 {
         &self.id
+    }
+
+    pub fn new_from_string(period_string: &str) -> Result<Period, &'static str> {
+        // Parse the string
+        let parts: Vec<&str> = period_string.split('-').collect();
+        if parts.len() != 3 {
+            return Err("Invalid period string format");
+        }
+
+        // Parse year and weeks
+        let mut year = parts[0].parse::<i32>().map_err(|_| "Invalid year")?;
+
+        let start_week = if parts[1].len() == 2 {
+            parts[1][1..2]
+                .parse::<u32>()
+                .map_err(|_| "Invalid start week")?
+        } else {
+            parts[1][1..3]
+                .parse::<u32>()
+                .map_err(|_| "Invalid start week")?
+        };
+        let mut end_week = parts[2].parse::<u32>().map_err(|_| "Invalid end week")?;
+
+        // Convert week number to a DateTime<Utc>
+
+        let local = NaiveDate::from_isoywd_opt(year, start_week, chrono::Weekday::Mon).unwrap();
+        let local_datetime = local.and_hms_opt(0, 0, 0).unwrap();
+        let start_date = Utc.from_local_datetime(&local_datetime);
+
+        let end_date = if end_week == 52
+            || (end_week == 53 && NaiveDate::from_isoywd_opt(year, 53, Weekday::Mon).is_some())
+        {
+            // Last moment of week 52 or 53
+            let local = NaiveDate::from_isoywd_opt(year, end_week, Weekday::Sun).unwrap();
+            let local_datetime = local.and_hms_opt(23, 59, 59);
+            Utc.from_local_datetime(&local_datetime.unwrap()).unwrap()
+        } else {
+            // Handle rollover to the next year
+            if end_week > 52 {
+                end_week = 1;
+                year += 1;
+            }
+            // Moment just before the start of the next week
+            let local = NaiveDate::from_isoywd_opt(year, end_week + 1, Weekday::Mon).unwrap();
+            let local_datetime = local.and_hms_opt(0, 0, 0);
+            Utc.from_local_datetime(&local_datetime.unwrap()).unwrap() - Duration::seconds(1)
+        };
+
+        // Create Period
+        Ok(Period {
+            id: 0, // Assuming default value for id, modify as needed
+            period_string: period_string.to_string(),
+            start_date: start_date.unwrap(),
+            end_date,
+            start_week,
+            end_week,
+        })
     }
 }
 
@@ -258,61 +318,6 @@ mod tests {
                 Utc.with_ymd_and_hms(2021, 1, 1, 0, 0, 0).unwrap(),
                 Utc.with_ymd_and_hms(2021, 1, 14, 23, 59, 59).unwrap(),
             )
-        }
-
-        pub fn new_from_string(period_string: &str) -> Result<Period, &'static str> {
-            // Parse the string
-            let parts: Vec<&str> = period_string.split('-').collect();
-            if parts.len() != 3 {
-                return Err("Invalid period string format");
-            }
-
-            // Parse year and weeks
-            let mut year = parts[0].parse::<i32>().map_err(|_| "Invalid year")?;
-
-            let start_week = if parts[1].len() == 2 {
-                parts[1][1..2]
-                    .parse::<u32>()
-                    .map_err(|_| "Invalid start week")?
-            } else {
-                parts[1][1..3]
-                    .parse::<u32>()
-                    .map_err(|_| "Invalid start week")?
-            };
-            let mut end_week = parts[2].parse::<u32>().map_err(|_| "Invalid end week")?;
-
-            // Convert week number to a DateTime<Utc>
-
-            let local = NaiveDate::from_isoywd_opt(year, start_week, chrono::Weekday::Mon).unwrap();
-            let local_datetime = local.and_hms_opt(0, 0, 0).unwrap();
-            let start_date = Utc.from_local_datetime(&local_datetime);
-
-            let end_date = if end_week == 52
-                || (end_week == 53 && NaiveDate::from_isoywd_opt(year, 53, Weekday::Mon).is_some())
-            {
-                // Last moment of week 52 or 53
-                let local = NaiveDate::from_isoywd_opt(year, end_week, Weekday::Sun).unwrap();
-                let local_datetime = local.and_hms_opt(23, 59, 59);
-                Utc.from_local_datetime(&local_datetime.unwrap()).unwrap()
-            } else {
-                // Handle rollover to the next year
-                if end_week > 52 {
-                    end_week = 1;
-                    year += 1;
-                }
-                // Moment just before the start of the next week
-                let local = NaiveDate::from_isoywd_opt(year, end_week + 1, Weekday::Mon).unwrap();
-                let local_datetime = local.and_hms_opt(0, 0, 0);
-                Utc.from_local_datetime(&local_datetime.unwrap()).unwrap() - Duration::seconds(1)
-            };
-
-            // Create Period
-            Ok(Period {
-                id: 0, // Assuming default value for id, modify as needed
-                period_string: period_string.to_string(),
-                start_date: start_date.unwrap(),
-                end_date,
-            })
         }
     }
 }

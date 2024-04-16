@@ -324,7 +324,7 @@ fn generate_manual_resources(
         if i == 0 {
             1.0
         } else if i == 1 {
-            1.0
+            0.9
         } else if i == 2 {
             0.8
         } else {
