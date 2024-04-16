@@ -755,45 +755,6 @@ fn extract_unloading_point(
     Ok(unloading_point)
 }
 
-fn week_to_date(week_number: u32, start_of_week: bool) -> DateTime<Utc> {
-    let today_date = chrono::Local::now().naive_local();
-    let current_year = today_date.year();
-    let current_week = today_date.iso_week().week();
-
-    // Determine the target year based on the week number and current date
-    let target_year = if week_number >= current_week {
-        current_year
-    } else {
-        current_year + 1
-    };
-
-    // Compute the date corresponding to the start of the target week (Monday)
-    let new_year_date = NaiveDate::from_ymd_opt(target_year, 1, 1); // January 1st of the target year
-    let first_week_day = new_year_date.unwrap().weekday();
-    let offset: Duration = if first_week_day.num_days_from_sunday()
-        <= Weekday::Mon.num_days_from_sunday()
-    {
-        Duration::days(
-            (Weekday::Mon.num_days_from_sunday() - first_week_day.num_days_from_sunday()) as i64,
-        )
-    } else {
-        Duration::days(
-            (7 - (first_week_day.num_days_from_sunday() - Weekday::Mon.num_days_from_sunday()))
-                as i64,
-        )
-    };
-
-    let start_date = new_year_date.unwrap() + offset + Duration::weeks(week_number as i64 - 1);
-    let time = NaiveTime::from_hms_opt(0, 0, 0);
-    let naive_datetime = start_date.and_time(time.unwrap());
-    let start_datetime = Utc.from_utc_datetime(&naive_datetime);
-    if start_of_week {
-        start_datetime
-    } else {
-        start_datetime + Duration::days(6)
-    }
-}
-
 fn extract_weeks(input_string: &str) -> (u32, u32, bool) {
     let re = regex::Regex::new(r"W(\d+)-?W?(\d+)?").unwrap();
     let captures = re.captures(input_string);
