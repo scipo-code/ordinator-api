@@ -173,7 +173,7 @@ impl Display for Period {
 mod tests {
 
     use super::*;
-    use chrono::{TimeZone, Utc, Weekday};
+    use chrono::{TimeZone, Utc};
 
     #[test]
     fn test_period_add_duration_1() {

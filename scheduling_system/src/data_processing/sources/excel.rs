@@ -7,7 +7,7 @@ use std::path::Path;
 use tracing::{debug, event, info};
 
 use crate::agents::tactical_agent::tactical_algorithm::Day;
-use crate::models::time_environment::period::{self, Period};
+use crate::models::time_environment::period::Period;
 use crate::models::time_environment::TimeEnvironment;
 use crate::models::work_order::system_condition::SystemCondition;
 
@@ -25,7 +25,6 @@ use crate::models::worker_environment::WorkerEnvironment;
 use crate::models::{SchedulingEnvironment, WorkOrders};
 use chrono::{
     naive, DateTime, Datelike, Days, Duration, NaiveDate, NaiveTime, TimeZone, Timelike, Utc,
-    Weekday,
 };
 use shared_messages::resources::{MainResources, Resources};
 
