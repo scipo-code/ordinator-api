@@ -4,14 +4,17 @@ pub mod strategic_algorithm;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborHoodSearch;
 use crate::models::SchedulingEnvironment;
+use crate::models::time_environment::period::Period;
 
 use actix::prelude::*;
 use shared_messages::agent_error::AgentError;
+use shared_messages::resources::Resources;
 use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
 use shared_messages::strategic::StrategicRequestMessage;
 use shared_messages::Asset;
 use shared_messages::SolutionExportMessage;
 use shared_messages::StatusMessage;
+use strum::IntoEnumIterator;
 use tracing::info;
 
 use std::collections::HashMap;
@@ -23,6 +26,9 @@ use tracing::warn;
 
 use crate::agents::tactical_agent::TacticalAgent;
 
+use self::strategic_algorithm::optimized_work_orders::AlgorithmResources;
+
+use super::LoadOperation;
 use super::traits::AlgorithmState;
 use super::traits::ConstraintState;
 use super::traits::TestAlgorithm;
@@ -43,7 +49,7 @@ impl Actor for StrategicAgent {
 
     fn started(&mut self, ctx: &mut Context<Self>) {
         self.strategic_agent_algorithm.populate_priority_queues();
-        warn!("StrategicAgent has started for asset: {}", self.asset);
+        info!("StrategicAgent has started for asset: {}", self.asset);
         ctx.notify(ScheduleIteration {})
     }
 
@@ -353,6 +359,7 @@ impl TestAlgorithm for StrategicAgent {
                     != optimized_work_order.get_scheduled_period()
                 && !periods[0..=1].contains(work_order.unloading_point().period.as_ref().unwrap())
                 && !work_order.status_codes().awsc
+                && !work_order.status_codes().sch
             {
                 error!(
                     work_order_number = ?work_order_number,
@@ -418,6 +425,21 @@ impl TestAlgorithm for StrategicAgent {
             }
             strategic_state.infeasible_cases_mut().unwrap().respect_sch = ConstraintState::Feasible;
         }
+
+
+            let aggregated_period_load = AlgorithmResources::new(HashMap::new());
+            for period in self.strategic_agent_algorithm.periods() {
+                for (work_order_number, optimized_work_order) in self.strategic_agent_algorithm.optimized_work_orders() {
+                    if optimized_work_order.scheduled_period.unwrap() == period.clone() {
+                        let work_load = optimized_work_order.work_load;
+                        for resource in Resources::iter() {
+                            let load = work_load.get(&resource).unwrap();
+                            aggregated_period_load.update_load(resource, period, load, LoadOperation::Add);
+                        }
+                    }
+                }
+            }
+        
 
         strategic_state
     }

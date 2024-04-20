@@ -42,3 +42,8 @@ pub enum StateLink {
 impl Message for StateLink {
     type Result = ();
 }
+
+pub enum LoadOperation {
+    Add,
+    Sub,
+}

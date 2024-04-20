@@ -194,24 +194,38 @@ fn create_optimized_work_orders(
         };
         let unloading_point_period = work_order.unloading_point().period.clone();
 
-        let optimized_work_order_builder = if work_order.status_codes().sch
-            && periods[0..=1].contains(&unloading_point_period.clone().unwrap())
-        {
-            match unloading_point_period {
-                Some(unloading_period) => optimized_work_order_builder
-                    .forced_period(default_period.cloned(), unloading_period),
-                None => match periods
+        let optimized_work_order_builder = if work_order.status_codes().sch {
+            if unloading_point_period.is_some()
+                && periods[0..=1].contains(&unloading_point_period.clone().unwrap())
+            {
+                match unloading_point_period {
+                    Some(unloading_period) => optimized_work_order_builder
+                        .forced_period(default_period.cloned(), unloading_period),
+                    None => match periods
+                        .iter()
+                        .find(|period| {
+                            period.start_date() <= &work_order.order_dates().basic_start_date
+                                && &work_order.order_dates().basic_start_date <= period.end_date()
+                        })
+                        .cloned()
+                    {
+                        Some(locked_in_period) => optimized_work_order_builder
+                            .forced_period(default_period.cloned(), locked_in_period),
+                        None => {
+                            optimized_work_order_builder.default_period(default_period.cloned())
+                        }
+                    },
+                }
+            } else {
+                let scheduled_period = periods[0..=1]
                     .iter()
-                    .find(|period| {
-                        period.start_date() <= &work_order.order_dates().basic_start_date
-                            && &work_order.order_dates().basic_start_date <= period.end_date()
-                    })
-                    .cloned()
-                {
-                    Some(locked_in_period) => optimized_work_order_builder
-                        .forced_period(default_period.cloned(), locked_in_period),
-                    None => optimized_work_order_builder.default_period(default_period.cloned()),
-                },
+                    .find(|period| period.contains_date(work_order.order_dates().basic_start_date));
+                match scheduled_period {
+                    Some(period) => optimized_work_order_builder
+                        .forced_period(Some(period.clone()), period.clone()),
+                    None => optimized_work_order_builder
+                        .forced_period(Some(periods[0].clone()), periods[0].clone()),
+                }
             }
         } else if work_order.status_codes().awsc {
             let scheduled_period = periods
