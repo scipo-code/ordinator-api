@@ -725,7 +725,6 @@ fn extract_unloading_point(
     let unloading_point = if present {
         UnloadingPoint {
             string: unloading_point_string.clone(),
-            present,
             period: {
                 Some(
                     match periods.iter().find(|&period| {
@@ -746,7 +745,6 @@ fn extract_unloading_point(
     } else {
         UnloadingPoint {
             string: unloading_point_string,
-            present,
             period: None,
         }
     };

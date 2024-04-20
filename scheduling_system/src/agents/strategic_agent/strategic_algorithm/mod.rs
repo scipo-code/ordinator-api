@@ -621,9 +621,17 @@ impl StrategicAlgorithm {
 
 #[cfg(test)]
 mod tests {
-    use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
-
     use super::*;
+    use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
+    use chrono::{Duration, TimeZone, Utc};
+    use rand::{rngs::StdRng, SeedableRng};
+    use std::collections::{HashSet};
+
+    use crate::agents::strategic_agent::strategic_algorithm::{
+        AlgorithmResources, 
+    };
+    use shared_messages::resources::Resources;
+
 
     use std::collections::HashMap;
 
@@ -781,16 +789,27 @@ mod tests {
         self.inner.insert(work_order_number, optimized_work_order);
     }
     }
+    impl OptimizedWorkOrder {
 
-
-    use chrono::{Duration, TimeZone, Utc};
-    use rand::{rngs::StdRng, SeedableRng};
-    use std::collections::{HashSet};
-
-    use crate::agents::strategic_agent::strategic_algorithm::{
-        AlgorithmResources, 
-    };
-    use shared_messages::resources::Resources;
+        pub fn new(
+            scheduled_period: Option<Period>,
+            locked_in_period: Option<Period>,
+            excluded_periods: HashSet<Period>,
+            latest_period: Option<Period>,
+            weight: u32,
+            work_load: HashMap<Resources, f64>,
+        ) -> Self {
+            Self {
+                scheduled_period,
+                locked_in_period,
+                excluded_periods,
+                latest_period,
+                weight,
+                work_load,
+            }
+        }
+        
+    }
 
     #[test]
     fn test_schedule_work_order() {

@@ -60,6 +60,26 @@ impl Display for MaterialStatus {
     }
 }
 
+impl Display for StatusCodes {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}{}{}{}{}{}{}",
+            self.material_status,
+            if self.pcnf { "PCNF" } else { "" },
+            if self.awsc { "AWSC" } else { "" },
+            if self.well { "WELL" } else { "" },
+            if self.sch { "SCH" } else { "" },
+            if self.sece { "SECE" } else { "" },
+            if self.unloading_point {
+                "UNLOADING POINT"
+            } else {
+                ""
+            }
+        )
+    }
+}
+
 impl StatusCodes {
     #[cfg(test)]
     pub fn new_default() -> Self {

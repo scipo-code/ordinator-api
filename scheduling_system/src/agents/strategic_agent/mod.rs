@@ -348,11 +348,21 @@ impl TestAlgorithm for StrategicAgent {
                 .unwrap();
             let periods = scheduling_environment.periods();
 
-            if work_order.unloading_point().present
+            if work_order.unloading_point().period.is_some()
                 && work_order.unloading_point().period
                     != optimized_work_order.get_scheduled_period()
-                && !periods[0..1].contains(work_order.unloading_point().period.as_ref().unwrap())
+                && !periods[0..=1].contains(work_order.unloading_point().period.as_ref().unwrap())
+                && !work_order.status_codes().awsc
             {
+                error!(
+                    work_order_number = ?work_order_number,
+                    work_order_unloading_point = ?work_order.unloading_point(),
+                    work_order_status_codes = ?work_order.status_codes(),
+                    work_order_dates = ?work_order.order_dates().basic_start_date,
+                    periods = ?periods[0..=1],
+                    optimized_work_order_scheduled_period = ?optimized_work_order.get_scheduled_period(),
+                    optimized_work_order_locked_in_period = ?optimized_work_order.get_locked_in_period(),
+                );
                 strategic_state
                     .infeasible_cases_mut()
                     .unwrap()
@@ -362,8 +372,51 @@ impl TestAlgorithm for StrategicAgent {
                     work_order.unloading_point().period.as_ref().unwrap(),
                     optimized_work_order.get_scheduled_period().unwrap(),
                     optimized_work_order.get_locked_in_period().unwrap(),
-                ))
+                ));
+                break;
             }
+            strategic_state
+                .infeasible_cases_mut()
+                .unwrap()
+                .respect_unloading = ConstraintState::Feasible;
+        }
+
+        for (work_order_number, optimized_work_order) in
+            self.strategic_agent_algorithm.optimized_work_orders()
+        {
+            let work_order = scheduling_environment
+                .work_orders()
+                .inner
+                .get(work_order_number)
+                .unwrap();
+            let periods = scheduling_environment.periods();
+
+            if work_order.status_codes().sch
+                && !periods[0..=1].contains(&optimized_work_order.get_scheduled_period().unwrap())
+            {
+                error!(
+                    work_order_number = ?work_order_number,
+                    work_order_unloading_point = ?work_order.unloading_point(),
+                    work_order_status_codes = ?work_order.status_codes(),
+                    work_order_dates = ?work_order.order_dates().basic_start_date,
+                    periods = ?periods[0..=1],
+                    optimized_work_order_scheduled_period = ?optimized_work_order.get_scheduled_period(),
+                    optimized_work_order_locked_in_period = ?optimized_work_order.get_locked_in_period(),
+                );
+                strategic_state
+                    .infeasible_cases_mut()
+                    .unwrap()
+                    .respect_sch = ConstraintState::Infeasible(format!(
+                    "\t\t\nWork order number: {}\t\t\nwith scheduled period: {}\t\t\nwith locked period: {}\t\t\n work order status codes: {}\t\t\n work order unloading point: {}",
+                    work_order_number,
+                    optimized_work_order.get_scheduled_period().unwrap(),
+                    optimized_work_order.get_locked_in_period().unwrap(),
+                    work_order.status_codes(),
+                    work_order.unloading_point().period.as_ref().unwrap(),
+                ));
+                break;
+            }
+            strategic_state.infeasible_cases_mut().unwrap().respect_sch = ConstraintState::Feasible;
         }
 
         strategic_state

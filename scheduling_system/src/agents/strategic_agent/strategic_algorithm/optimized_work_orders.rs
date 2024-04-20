@@ -90,23 +90,82 @@ pub struct OptimizedWorkOrder {
     pub work_load: HashMap<Resources, f64>,
 }
 
-impl OptimizedWorkOrder {
-    pub fn new(
-        scheduled_period: Option<Period>,
-        locked_in_period: Option<Period>,
-        excluded_periods: HashSet<Period>,
-        latest_period: Option<Period>,
-        weight: u32,
-        work_load: HashMap<Resources, f64>,
-    ) -> Self {
+#[derive(Debug)]
+pub struct OptimizedWorkOrderBuilder {
+    pub scheduled_period: Option<Period>,
+    pub locked_in_period: Option<Period>,
+    pub excluded_periods: HashSet<Period>,
+    pub latest_period: Option<Period>,
+    pub weight: u32,
+    pub work_load: HashMap<Resources, f64>,
+}
+
+impl OptimizedWorkOrderBuilder {
+    pub fn new() -> Self {
         Self {
-            scheduled_period,
-            locked_in_period,
-            excluded_periods,
-            latest_period,
-            weight,
-            work_load,
+            scheduled_period: None,
+            locked_in_period: None,
+            excluded_periods: HashSet::new(),
+            latest_period: None,
+            weight: 0,
+            work_load: HashMap::new(),
         }
+    }
+    pub fn with_excluded_periods(mut self, excluded_periods: HashSet<Period>) -> Self {
+        self.excluded_periods = excluded_periods;
+        self
+    }
+
+    pub fn with_latest_period(mut self, latest_period: Option<Period>) -> Self {
+        self.latest_period = latest_period;
+        self
+    }
+
+    pub fn with_weight(mut self, weight: u32) -> Self {
+        self.weight = weight;
+        self
+    }
+
+    pub fn with_work_load(mut self, work_load: HashMap<Resources, f64>) -> Self {
+        self.work_load = work_load;
+        self
+    }
+
+    pub fn with_vendor(mut self, last_period: Option<Period>) -> Self {
+        self.scheduled_period = last_period;
+        self
+    }
+
+    pub fn default_period(mut self, default_period: Option<Period>) -> Self {
+        self.scheduled_period = default_period;
+        self
+    }
+
+    pub fn forced_period(
+        mut self,
+        default_period: Option<Period>,
+        locked_in_period: Period,
+    ) -> Self {
+        self.scheduled_period = default_period;
+        self.locked_in_period = Some(locked_in_period);
+        self
+    }
+
+    pub fn build(self) -> OptimizedWorkOrder {
+        OptimizedWorkOrder {
+            scheduled_period: self.scheduled_period,
+            locked_in_period: self.locked_in_period,
+            excluded_periods: self.excluded_periods,
+            latest_period: self.latest_period,
+            weight: self.weight,
+            work_load: self.work_load,
+        }
+    }
+}
+
+impl OptimizedWorkOrder {
+    pub fn builder() -> OptimizedWorkOrderBuilder {
+        OptimizedWorkOrderBuilder::new()
     }
 
     pub fn get_scheduled_period(&self) -> Option<Period> {
