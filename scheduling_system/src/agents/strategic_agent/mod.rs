@@ -35,8 +35,6 @@ use super::traits::TestAlgorithm;
 use super::SetAddr;
 use super::StateLink;
 
-/// This is the primary struct for the scheduler agent.
-#[allow(dead_code)]
 pub struct StrategicAgent {
     asset: Asset,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
@@ -227,14 +225,14 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                     ),
                     AlgorithmState::Infeasible(infeasible_cases) => Ok(format!(
                         "Strategic Schedule is Infesible: \n\
-                            \trespect_awsc: {}\n\
-                            \trespect_unloading: {}\n\
-                            \trespect_sch: {}\n\
-                            \trespect_aggregated_load: {}\n",
-                        &infeasible_cases.respect_awsc,
-                        &infeasible_cases.respect_unloading,
-                        &infeasible_cases.respect_sch,
-                        &infeasible_cases.respect_aggregated_load
+                            \t{:30}{:>20}\n\
+                            \t{:30}{:>20}\n\
+                            \t{:30}{:>20}\n\
+                            \t{:30}{:>20}\n",
+                        "respect_awsc: ",&infeasible_cases.respect_awsc,
+                        "respect_unloading: ",&infeasible_cases.respect_unloading,
+                        "respect_sch: ",&infeasible_cases.respect_sch,
+                        "respect_aggregated_load: ",&infeasible_cases.respect_aggregated_load
                     )),
                 }
             }
@@ -441,21 +439,23 @@ impl TestAlgorithm for StrategicAgent {
             }
         }
 
-        if aggregated_strategic_load.inner != self.strategic_agent_algorithm.resources_loadings().inner {
-            
-            for (resource, periods) in aggregated_strategic_load.inner {
-                for (period, load) in periods {
-                    match self.strategic_agent_algorithm.resources_loadings().inner.get(&resource).unwrap().get(&period) {
-                        Some(resource_load) if *resource_load == load => continue,
-                        Some(resource_load) => {
-                            strategic_state.infeasible_cases_mut().unwrap().respect_aggregated_load = ConstraintState::Infeasible(format!("resource = {}, period = {}, aggregated_load = {}, resource_load = {}", resource, period, load, resource_load));
-                            error!(resource = %resource, period = %period, aggregated_load = %load, resource_load = %resource_load);
-                        }
-                        None => panic!("aggregated load and resource loading are not identically shaped"),
+        let mut feasible: bool = true;
+        for (resource, periods) in aggregated_strategic_load.inner {
+            for (period, load) in periods {
+                match self.strategic_agent_algorithm.resources_loadings().inner.get(&resource).unwrap().get(&period) {
+                    Some(resource_load) if (*resource_load - load).abs() < 0.005 => continue,
+                    Some(resource_load) => {
+                        strategic_state.infeasible_cases_mut().unwrap().respect_aggregated_load = ConstraintState::Infeasible(format!("resource = {}, period = {}, aggregated_load = {:.3e}, resource_load = {:.3e}", resource, period, load, resource_load));
+                        error!(resource = %resource, period = %period, aggregated_load = %load, resource_load = %resource_load);
+                        feasible = false
                     }
+                    None => panic!("aggregated load and resource loading are not identically shaped"),
                 }
             }
-        }            
+        }
+        if feasible {
+            strategic_state.infeasible_cases_mut().unwrap().respect_aggregated_load = ConstraintState::Feasible
+        }
         
         strategic_state
     }

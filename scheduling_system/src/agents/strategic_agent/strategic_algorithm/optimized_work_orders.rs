@@ -43,6 +43,13 @@ impl OptimizedWorkOrders {
         Self { inner }
     }
 
+    pub fn insert_optimized_work_order(
+        &mut self,
+        work_order_number: u32,
+        optimized_work_order: OptimizedWorkOrder,
+    ) {
+        self.inner.insert(work_order_number, optimized_work_order);
+    }
     #[instrument(level = "trace", skip_all)]
     pub fn set_scheduled_period(&mut self, work_order_number: u32, period: Period) {
         let optimized_work_order = match self.inner.get_mut(&work_order_number) {
