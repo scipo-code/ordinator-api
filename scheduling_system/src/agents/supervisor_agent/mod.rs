@@ -5,10 +5,8 @@ use std::{
 
 use actix::prelude::*;
 use shared_messages::{
-    agent_error::AgentError,
-    resources::Id,
-    supervisor::{supervisor_status_message::SupervisorStatusMessage, SupervisorRequestMessage},
-    Asset, StatusMessage, StopMessage,
+    agent_error::AgentError, resources::Id, supervisor::SupervisorRequestMessage, Asset,
+    StatusMessage, StopMessage,
 };
 use tracing::instrument;
 
@@ -22,6 +20,7 @@ use super::{
 
 pub struct SupervisorAgent {
     id: Id,
+    #[allow(dead_code)]
     asset: Asset,
     #[allow(dead_code)]
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,

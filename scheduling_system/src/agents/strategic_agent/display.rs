@@ -1,6 +1,3 @@
-use std::collections::hash_map::RandomState;
-use std::collections::HashMap;
-use std::fmt;
 use std::fmt::Display;
 use std::fmt::Write;
 
@@ -15,21 +12,6 @@ impl Display for StrategicAgent {
             SchedulerAgentAlgorithm: {:?}, \n",
             self.asset, self.strategic_agent_algorithm,
         )
-    }
-}
-
-pub struct DisplayableManualResource(pub HashMap<(String, String), f64, RandomState>);
-
-impl fmt::Display for DisplayableManualResource {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for ((resource, period), capacity) in self.0.iter() {
-            writeln!(
-                f,
-                "Resource: {}, {}, Capacity: {}",
-                resource, period, capacity
-            )?;
-        }
-        Ok(())
     }
 }
 
