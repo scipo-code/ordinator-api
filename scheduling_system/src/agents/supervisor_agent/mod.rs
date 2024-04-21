@@ -8,13 +8,14 @@ use shared_messages::{
     agent_error::AgentError, resources::Id, supervisor::SupervisorRequestMessage, Asset,
     StatusMessage, StopMessage,
 };
-use tracing::instrument;
+use tracing::{error, instrument};
 
 use crate::models::SchedulingEnvironment;
 
 use super::{
     operational_agent::OperationalAgent,
     tactical_agent::{tactical_algorithm::OperationSolution, TacticalAgent},
+    traits::{AlgorithmState, ConstraintState, TestAlgorithm},
     SetAddr, StateLink,
 };
 
@@ -97,7 +98,9 @@ impl Handler<StateLink> for SupervisorAgent {
     fn handle(&mut self, msg: StateLink, _ctx: &mut Self::Context) {
         match msg {
             StateLink::Strategic(_) => {}
-            StateLink::Tactical(_) => {}
+            StateLink::Tactical(tactical_supervisor_link) => {
+                self.assigned_work_orders = tactical_supervisor_link;
+            }
             StateLink::Supervisor => {}
             StateLink::Operational => {}
         }
@@ -129,7 +132,65 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
                     self.assigned_work_orders
                 ))
             }
-            SupervisorRequestMessage::Test => Ok("Test".to_string()),
+            SupervisorRequestMessage::Test => {
+                let mut algorithm_state = self.determine_algorithm_state();
+
+                let supervisor_test_output = format!(
+                    "respect_main_resource_trait: {}",
+                    algorithm_state
+                        .infeasible_cases_mut()
+                        .unwrap()
+                        .respect_main_work_center
+                );
+                Ok(supervisor_test_output)
+            }
         }
+    }
+}
+
+pub struct SupervisorInfeasibleCases {
+    respect_main_work_center: ConstraintState<String>,
+}
+
+impl Default for SupervisorInfeasibleCases {
+    fn default() -> Self {
+        Self {
+            respect_main_work_center: ConstraintState::Infeasible("Infeasible".to_string()),
+        }
+    }
+}
+
+impl TestAlgorithm for SupervisorAgent {
+    type InfeasibleCases = SupervisorInfeasibleCases;
+
+    fn determine_algorithm_state(&self) -> super::traits::AlgorithmState<Self::InfeasibleCases> {
+        let mut supervisor_state = SupervisorInfeasibleCases::default();
+
+        let mut feasible_main_resources: bool = true;
+        let work_orders = self
+            .scheduling_environment
+            .lock()
+            .unwrap()
+            .work_orders()
+            .clone();
+        for (work_order_number, operation_solution) in self.assigned_work_orders.iter() {
+            let work_order_main_resource = work_orders
+                .inner
+                .get(work_order_number)
+                .unwrap()
+                .main_work_center();
+            if work_order_main_resource == self.id.2.as_ref().unwrap() {
+                continue;
+            } else {
+                error!(work_order_number = ?work_order_number, work_order_main_resource = ?work_order_main_resource, supervisor_trait = ?self.id.2.as_ref().unwrap());
+                feasible_main_resources = false;
+                break;
+            }
+        }
+        if feasible_main_resources {
+            supervisor_state.respect_main_work_center = ConstraintState::Feasible;
+        }
+
+        AlgorithmState::Infeasible(supervisor_state)
     }
 }
