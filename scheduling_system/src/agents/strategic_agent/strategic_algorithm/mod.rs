@@ -164,8 +164,6 @@ pub fn create_optimized_work_orders(
             }
         } else if work_order.unloading_point().period.is_some() {
             let locked_in_period = unloading_point_period.clone().unwrap();
-            dbg!(unloading_point_period.as_ref().unwrap());
-            dbg!(&periods[1]);
             if unloading_point_period.as_ref().unwrap() == &periods[1] {
                 optimized_work_order_builder.default_period(default_period.cloned())
             } else {
