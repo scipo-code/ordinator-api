@@ -2,8 +2,8 @@ use clap::Subcommand;
 use shared_messages::{
     resources::MainResources,
     supervisor::{
-        supervisor_status_message::{self, SupervisorStatusMessage},
-        SupervisorRequest, SupervisorRequestMessage,
+        supervisor_status_message::SupervisorStatusMessage, SupervisorRequest,
+        SupervisorRequestMessage,
     },
     Asset, SystemMessages,
 };
