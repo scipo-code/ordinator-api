@@ -25,7 +25,6 @@ use crate::models::worker_environment::WorkerEnvironment;
 use crate::models::{SchedulingEnvironment, WorkOrders};
 use chrono::{
     naive, DateTime, Datelike, Days, Duration, NaiveDate, NaiveTime, TimeZone, Timelike, Utc,
-    Weekday,
 };
 use shared_messages::resources::{MainResources, Resources};
 
@@ -722,20 +721,22 @@ fn extract_unloading_point(
     };
 
     let (start_week, _end_week, present) = extract_weeks(&unloading_point_string);
-    let start_date = week_to_date(start_week, true);
 
     let unloading_point = if present {
         UnloadingPoint {
-            string: unloading_point_string,
-            present,
+            string: unloading_point_string.clone(),
             period: {
                 Some(
-                    match periods
-                        .iter()
-                        .find(|period| period.start_date() == &start_date)
-                    {
+                    match periods.iter().find(|&period| {
+                        period.start_week == start_week || period.end_week == start_week
+                    }) {
                         Some(period) => period.clone(),
-                        None => periods.last().unwrap().clone(),
+                        None => {
+                            panic!(
+                                "Unloading cannot be present and not have a period. {:?}",
+                                row
+                            );
+                        }
                     }
                     .clone(),
                 )
@@ -744,51 +745,11 @@ fn extract_unloading_point(
     } else {
         UnloadingPoint {
             string: unloading_point_string,
-            present,
             period: None,
         }
     };
 
     Ok(unloading_point)
-}
-
-fn week_to_date(week_number: u32, start_of_week: bool) -> DateTime<Utc> {
-    let today_date = chrono::Local::now().naive_local();
-    let current_year = today_date.year();
-    let current_week = today_date.iso_week().week();
-
-    // Determine the target year based on the week number and current date
-    let target_year = if week_number >= current_week {
-        current_year
-    } else {
-        current_year + 1
-    };
-
-    // Compute the date corresponding to the start of the target week (Monday)
-    let new_year_date = NaiveDate::from_ymd_opt(target_year, 1, 1); // January 1st of the target year
-    let first_week_day = new_year_date.unwrap().weekday();
-    let offset: Duration = if first_week_day.num_days_from_sunday()
-        <= Weekday::Mon.num_days_from_sunday()
-    {
-        Duration::days(
-            (Weekday::Mon.num_days_from_sunday() - first_week_day.num_days_from_sunday()) as i64,
-        )
-    } else {
-        Duration::days(
-            (7 - (first_week_day.num_days_from_sunday() - Weekday::Mon.num_days_from_sunday()))
-                as i64,
-        )
-    };
-
-    let start_date = new_year_date.unwrap() + offset + Duration::weeks(week_number as i64 - 1);
-    let time = NaiveTime::from_hms_opt(0, 0, 0);
-    let naive_datetime = start_date.and_time(time.unwrap());
-    let start_datetime = Utc.from_utc_datetime(&naive_datetime);
-    if start_of_week {
-        start_datetime
-    } else {
-        start_datetime + Duration::days(6)
-    }
 }
 
 fn extract_weeks(input_string: &str) -> (u32, u32, bool) {
