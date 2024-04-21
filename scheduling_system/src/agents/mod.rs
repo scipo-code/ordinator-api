@@ -9,10 +9,7 @@ use self::{
     operational_agent::OperationalAgent,
     strategic_agent::StrategicAgent,
     supervisor_agent::SupervisorAgent,
-    tactical_agent::{
-        tactical_algorithm::{Day, OperationSolution},
-        TacticalAgent,
-    },
+    tactical_agent::{tactical_algorithm::OperationSolution, TacticalAgent},
 };
 
 pub mod operational_agent;
@@ -44,4 +41,9 @@ pub enum StateLink {
 
 impl Message for StateLink {
     type Result = ();
+}
+
+pub enum LoadOperation {
+    Add,
+    Sub,
 }

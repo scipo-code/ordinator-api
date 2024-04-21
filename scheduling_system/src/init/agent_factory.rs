@@ -1,15 +1,15 @@
 use actix::prelude::*;
-use actix_rt::time;
 use shared_messages::Asset;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::Mutex;
 
 use crate::agents::operational_agent::{OperationalAgent, OperationalAgentBuilder};
-use crate::agents::strategic_agent::strategic_algorithm::OptimizedWorkOrder;
+use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::{
+    OptimizedWorkOrders, StrategicResources,
+};
 use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
-use crate::agents::strategic_agent::strategic_algorithm::{self, OptimizedWorkOrders};
 use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::supervisor_agent::SupervisorAgent;
 use crate::agents::tactical_agent::tactical_algorithm::{self, Day, TacticalAlgorithm};
@@ -17,7 +17,6 @@ use crate::agents::tactical_agent::TacticalAgent;
 use crate::agents::traits::LargeNeighborHoodSearch;
 use crate::models::time_environment::period::Period;
 use crate::models::SchedulingEnvironment;
-use crate::models::WorkOrders;
 use shared_messages::resources::{Id, Resources};
 
 pub struct AgentFactory {
@@ -42,8 +41,6 @@ impl AgentFactory {
             .lock()
             .unwrap()
             .clone_strategic_periods();
-        let optimized_work_orders: OptimizedWorkOrders =
-            create_optimized_work_orders(&mut cloned_work_orders, &cloned_periods, &asset);
 
         let locked_scheduling_environment = self.scheduling_environment.lock().unwrap();
 
@@ -52,19 +49,24 @@ impl AgentFactory {
         // period_locks.insert(locked_scheduling_environment.periods()[0].clone());
         // period_locks.insert(locked_scheduling_environment.get_periods()[1].clone());
 
-        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
+        let mut strategic_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             initialize_strategic_resources(&locked_scheduling_environment, 0.0),
             initialize_strategic_resources(&locked_scheduling_environment, 0.0),
             PriorityQueues::new(),
-            optimized_work_orders,
+            OptimizedWorkOrders::new(HashMap::new()),
             period_locks,
             locked_scheduling_environment.clone_strategic_periods(),
         );
 
+        strategic_agent_algorithm.create_optimized_work_orders(
+            &mut cloned_work_orders,
+            &cloned_periods,
+            &asset,
+        );
         drop(locked_scheduling_environment);
 
-        scheduler_agent_algorithm.calculate_objective_value();
+        strategic_agent_algorithm.calculate_objective_value();
 
         let (sender, receiver) = std::sync::mpsc::channel();
 
@@ -74,7 +76,7 @@ impl AgentFactory {
             let strategic_addr = StrategicAgent::new(
                 asset,
                 arc_scheduling_environment,
-                scheduler_agent_algorithm,
+                strategic_agent_algorithm,
                 None,
             )
             .start();
@@ -150,147 +152,124 @@ impl AgentFactory {
     }
 }
 
-/// This function should be used by the scheduling environment. It should not be used by the
-/// algorithm itself.
-fn create_optimized_work_orders(
-    work_orders: &mut WorkOrders,
-    periods: &[Period],
-    asset: &Asset,
-) -> OptimizedWorkOrders {
-    let mut optimized_work_orders: HashMap<u32, OptimizedWorkOrder> = HashMap::new();
+// fn create_optimized_work_orders(
+//     &mut self,
+//     work_orders: &mut WorkOrders,
+//     periods: &[Period],
+//     asset: &Asset,
+// ) -> OptimizedWorkOrders {
+//     let mut optimized_work_orders: HashMap<u32, OptimizedWorkOrder> = HashMap::new();
+//     let default_period = periods.last();
 
-    let last_period = periods.last();
-    for (work_order_number, work_order) in &mut work_orders.inner {
-        if &work_order.functional_location().asset != asset {
-            continue;
-        }
+//     for (work_order_number, work_order) in &mut work_orders.inner {
+//         if &work_order.functional_location().asset != asset {
+//             continue;
+//         }
 
-        let default_period = periods.last();
+//         let optimized_work_order_builder = OptimizedWorkOrder::builder()
+//             .with_work_load(work_order.work_load().clone())
+//             .with_weight(work_order.work_order_weight());
 
-        let mut excluded_periods: HashSet<Period> = HashSet::new();
+//         let mut excluded_periods: HashSet<Period> = HashSet::new();
 
-        for (i, period) in periods.iter().enumerate() {
-            if period < &work_order.order_dates_mut().earliest_allowed_start_period
-                || (work_order.is_vendor() && i <= 3)
-                || (work_order.revision().shutdown && i <= 3)
-            {
-                excluded_periods.insert(period.clone());
-            }
-        }
+//         for (i, period) in periods.iter().enumerate() {
+//             if period < &work_order.order_dates_mut().earliest_allowed_start_period
+//                 || (work_order.is_vendor() && i <= 3)
+//                 || (work_order.revision().shutdown && i <= 3)
+//             {
+//                 excluded_periods.insert(period.clone());
+//             }
+//         }
 
-        if work_order.is_vendor() {
-            optimized_work_orders.insert(
-                *work_order_number,
-                OptimizedWorkOrder::new(
-                    periods.last().cloned(),
-                    periods.last().cloned(),
-                    excluded_periods.clone(),
-                    None,
-                    work_order.work_order_weight(),
-                    work_order.work_load().clone(),
-                ),
-            );
-        }
+//         let optimized_work_order_builder = optimized_work_order_builder
+//             .with_excluded_periods(excluded_periods.clone())
+//             .with_latest_period(Some(
+//                 work_order
+//                     .order_dates_mut()
+//                     .latest_allowed_finish_period
+//                     .clone(),
+//             ));
 
-        if work_order.status_codes().sch {
-            let unloading_period = work_order.unloading_point().period.clone();
-            let scheduled_period = match unloading_period {
-                Some(period) => Some(period),
-                None => periods
-                    .iter()
-                    .find(|period| {
-                        period.start_date() <= &work_order.order_dates().basic_start_date
-                            && &work_order.order_dates().basic_start_date <= period.end_date()
-                    })
-                    .cloned(),
-            };
+//         let optimized_work_order_builder = if work_order.is_vendor() {
+//             optimized_work_order_builder.with_vendor(default_period.cloned())
+//         } else {
+//             optimized_work_order_builder
+//         };
+//         let unloading_point_period = work_order.unloading_point().period.clone();
 
-            optimized_work_orders.insert(
-                *work_order_number,
-                OptimizedWorkOrder::new(
-                    default_period.cloned(),
-                    scheduled_period.clone(),
-                    excluded_periods.clone(),
-                    None,
-                    work_order.work_order_weight(),
-                    work_order.work_load().clone(),
-                ),
-            );
-            continue;
-        };
+//         let optimized_work_order_builder = if work_order.status_codes().sch {
+//             if unloading_point_period.is_some()
+//                 && periods[0..=1].contains(&unloading_point_period.clone().unwrap())
+//             {
+//                 match unloading_point_period {
+//                     Some(unloading_period) => optimized_work_order_builder
+//                         .forced_period(default_period.cloned(), unloading_period),
+//                     None => match periods
+//                         .iter()
+//                         .find(|period| {
+//                             period.start_date() <= &work_order.order_dates().basic_start_date
+//                                 && &work_order.order_dates().basic_start_date <= period.end_date()
+//                         })
+//                         .cloned()
+//                     {
+//                         Some(locked_in_period) => optimized_work_order_builder
+//                             .forced_period(default_period.cloned(), locked_in_period),
+//                         None => {
+//                             optimized_work_order_builder.default_period(default_period.cloned())
+//                         }
+//                     },
+//                 }
+//             } else {
+//                 let scheduled_period = periods[0..=1]
+//                     .iter()
+//                     .find(|period| period.contains_date(work_order.order_dates().basic_start_date));
+//                 match scheduled_period {
+//                     Some(period) => optimized_work_order_builder
+//                         .forced_period(Some(period.clone()), period.clone()),
+//                     None => optimized_work_order_builder
+//                         .forced_period(Some(periods[0].clone()), periods[0].clone()),
+//                 }
+//             }
+//         } else if work_order.status_codes().awsc {
+//             let scheduled_period = periods
+//                 .iter()
+//                 .find(|period| {
+//                     period.start_date() <= &work_order.order_dates().basic_start_date
+//                         && &work_order.order_dates().basic_start_date <= period.end_date()
+//                 })
+//                 .cloned();
+//             match scheduled_period {
+//                 Some(locked_in_period) => optimized_work_order_builder
+//                     .forced_period(Some(locked_in_period.clone()), locked_in_period),
+//                 None => match unloading_point_period {
+//                     Some(unloading_period) => optimized_work_order_builder
+//                         .forced_period(default_period.cloned(), unloading_period),
+//                     None => optimized_work_order_builder.default_period(default_period.cloned()),
+//                 },
+//             }
+//         } else if work_order.unloading_point().period.is_some() {
+//             let locked_in_period = unloading_point_period.clone().unwrap();
+//             dbg!(unloading_point_period.as_ref().unwrap());
+//             dbg!(&periods[1]);
+//             if unloading_point_period.as_ref().unwrap() == &periods[1] {
+//                 optimized_work_order_builder.default_period(default_period.cloned())
+//             } else {
+//                 optimized_work_order_builder.forced_period(unloading_point_period, locked_in_period)
+//             }
+//         } else {
+//             optimized_work_order_builder.default_period(default_period.cloned())
+//         };
 
-        if work_order.status_codes().awsc {
-            let mut scheduled_period = periods
-                .iter()
-                .find(|period| {
-                    period.start_date() <= &work_order.order_dates().basic_start_date
-                        && &work_order.order_dates().basic_start_date <= period.end_date()
-                })
-                .cloned();
+//         optimized_work_orders.insert(*work_order_number, optimized_work_order_builder.build());
+//     }
 
-            let locked_in_period = match scheduled_period {
-                Some(ref period) => Some(period.clone()),
-                None => {
-                    scheduled_period = periods.last().cloned();
-                    periods.last().cloned()
-                }
-            };
-
-            optimized_work_orders.insert(
-                *work_order_number,
-                OptimizedWorkOrder::new(
-                    scheduled_period,
-                    locked_in_period,
-                    excluded_periods.clone(),
-                    None,
-                    work_order.work_order_weight(),
-                    work_order.work_load().clone(),
-                ),
-            );
-            continue;
-        }
-
-        if work_order.unloading_point().present {
-            let period = work_order.unloading_point().period.clone();
-            optimized_work_orders.insert(
-                *work_order_number,
-                OptimizedWorkOrder::new(
-                    period.clone(),
-                    period,
-                    excluded_periods.clone(),
-                    None,
-                    work_order.work_order_weight(),
-                    work_order.work_load().clone(),
-                ),
-            );
-            continue;
-        }
-
-        optimized_work_orders.insert(
-            *work_order_number,
-            OptimizedWorkOrder::new(
-                last_period.cloned(),
-                None,
-                excluded_periods,
-                Some(
-                    work_order
-                        .order_dates_mut()
-                        .latest_allowed_finish_period
-                        .clone(),
-                ),
-                work_order.work_order_weight(),
-                work_order.work_load().clone(),
-            ),
-        );
-    }
-
-    OptimizedWorkOrders::new(optimized_work_orders)
-}
+//     OptimizedWorkOrders::new(optimized_work_orders)
+// }
 
 fn initialize_strategic_resources(
     scheduling_environment: &SchedulingEnvironment,
     start_value: f64,
-) -> strategic_algorithm::AlgorithmResources {
+) -> StrategicResources {
     let mut resource_capacity: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
     for resource in scheduling_environment
         .worker_environment()
@@ -303,7 +282,7 @@ fn initialize_strategic_resources(
         }
         resource_capacity.insert(resource.clone(), periods);
     }
-    strategic_algorithm::AlgorithmResources::new(resource_capacity)
+    StrategicResources::new(resource_capacity)
 }
 
 fn initialize_tactical_resources(
