@@ -6,7 +6,7 @@ use std::sync::Mutex;
 
 use crate::agents::operational_agent::{OperationalAgent, OperationalAgentBuilder};
 use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::{
-    AlgorithmResources, OptimizedWorkOrder, OptimizedWorkOrders,
+    OptimizedWorkOrder, OptimizedWorkOrders, StrategicResources,
 };
 use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
@@ -266,7 +266,7 @@ fn create_optimized_work_orders(
 fn initialize_strategic_resources(
     scheduling_environment: &SchedulingEnvironment,
     start_value: f64,
-) -> AlgorithmResources {
+) -> StrategicResources {
     let mut resource_capacity: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
     for resource in scheduling_environment
         .worker_environment()
@@ -279,7 +279,7 @@ fn initialize_strategic_resources(
         }
         resource_capacity.insert(resource.clone(), periods);
     }
-    AlgorithmResources::new(resource_capacity)
+    StrategicResources::new(resource_capacity)
 }
 
 fn initialize_tactical_resources(

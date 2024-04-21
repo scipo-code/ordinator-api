@@ -1,10 +1,12 @@
 use colored::*;
 use serde::Serialize;
 use shared_messages::resources::Resources;
+use std::collections::hash_map::Entry;
 use std::fmt::Write;
 use std::{collections::HashMap, collections::HashSet, hash::Hash, hash::Hasher};
 use tracing::instrument;
 
+use crate::agents::LoadOperation;
 use crate::models::time_environment::period::Period;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -168,45 +170,64 @@ impl OptimizedWorkOrder {
         OptimizedWorkOrderBuilder::new()
     }
 
-    pub fn get_scheduled_period(&self) -> Option<Period> {
-        self.scheduled_period.clone()
+    pub fn scheduled_period_mut(&mut self) -> &mut Option<Period> {
+        &mut self.scheduled_period
     }
 
-    pub fn get_locked_in_period(&self) -> Option<Period> {
-        self.locked_in_period.clone()
-    }
-
-    pub fn get_excluded_periods(&self) -> &HashSet<Period> {
+    pub fn excluded_periods(&self) -> &HashSet<Period> {
         &self.excluded_periods
     }
 
-    pub fn get_latest_period(&self) -> Option<Period> {
-        self.latest_period.clone()
+    pub fn latest_period(&self) -> &Option<Period> {
+        &self.latest_period
     }
 
-    pub fn get_work_load(&self) -> &HashMap<Resources, f64> {
-        &self.work_load
-    }
-
-    pub fn get_weight(&self) -> u32 {
+    pub fn weight(&self) -> u32 {
         self.weight
     }
 
-    /// This is a huge no-no! I think that this will lets us violate the invariant that we have
-    /// created between scheduled work and the loadings. We should test for this
     pub fn set_scheduled_period(&mut self, period: Option<Period>) {
         self.scheduled_period = period;
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct AlgorithmResources {
+pub struct StrategicResources {
     pub inner: HashMap<Resources, HashMap<Period, f64>>,
 }
 
-impl AlgorithmResources {
+impl StrategicResources {
     pub fn new(resources: HashMap<Resources, HashMap<Period, f64>>) -> Self {
         Self { inner: resources }
+    }
+
+    pub fn update_load(
+        &mut self,
+        resource: &Resources,
+        period: &Period,
+        load: f64,
+        load_operation: LoadOperation,
+    ) {
+        let resource_entry = self.inner.entry(resource.clone());
+        let periods = match resource_entry {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(entry) => entry.insert(HashMap::new()),
+        };
+
+        match periods.entry(period.clone()) {
+            Entry::Occupied(mut entry) => match load_operation {
+                LoadOperation::Add => *entry.get_mut() += load,
+                LoadOperation::Sub => *entry.get_mut() -= load,
+            },
+            Entry::Vacant(entry) => match load_operation {
+                LoadOperation::Add => {
+                    entry.insert(load);
+                }
+                LoadOperation::Sub => {
+                    entry.insert(load);
+                }
+            },
+        };
     }
 
     pub fn to_string(&self, number_of_periods: u32) -> String {

@@ -2,7 +2,7 @@ pub mod optimized_work_orders;
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
-use std::hash::{Hash};
+use std::hash::Hash;
 use tracing::{error, info, instrument, trace};
 use rand::prelude::SliceRandom;
 
@@ -12,20 +12,20 @@ use shared_messages::strategic::strategic_periods_message::StrategicTimeMessage;
 use shared_messages::strategic::strategic_resources_message::StrategicResourceMessage;
 use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
 
-use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::AlgorithmResources;
+use crate::agents::LoadOperation;
 use crate::agents::traits::LargeNeighborHoodSearch;
 use crate::models::time_environment::period::Period;
 use shared_messages::resources::Resources;
 
-use self::optimized_work_orders::{OptimizedWorkOrder, OptimizedWorkOrders};
+use self::optimized_work_orders::{OptimizedWorkOrder, OptimizedWorkOrders, StrategicResources};
 
 
 
 #[derive(Debug, Clone)]
 pub struct StrategicAlgorithm {
     objective_value: f64,
-    resources_capacity: AlgorithmResources,
-    resources_loading: AlgorithmResources,
+    resources_capacity: StrategicResources,
+    resources_loading: StrategicResources,
     priority_queues: PriorityQueues<u32, u32>,
     optimized_work_orders: OptimizedWorkOrders,
     period_locks: HashSet<Period>,
@@ -52,7 +52,7 @@ impl StrategicAlgorithm {
         let mut tactical_work_orders: Vec<(u32, Period)> = vec![];
 
         for (work_order_number, optimized_work_order) in &self.optimized_work_orders.inner {
-            match optimized_work_order.get_scheduled_period() {
+            match optimized_work_order.scheduled_period.clone() {
                 Some(period) => {
                     if tactical_periods.contains(&period) {
                         tactical_work_orders.push((*work_order_number, period));
@@ -72,7 +72,7 @@ impl StrategicAlgorithm {
     pub fn schedule_forced_work_orders(&mut self) {
         let mut work_order_numbers: Vec<u32> = vec![];
         for (work_order_number, opt_work_order) in self.optimized_work_orders().iter() {
-            if opt_work_order.get_locked_in_period().is_some() {
+            if opt_work_order.locked_in_period.is_some() {
                 work_order_numbers.push(*work_order_number);
             }
         }
@@ -81,7 +81,6 @@ impl StrategicAlgorithm {
             self.schedule_forced_work_order(work_order_number);
         }
         self.calculate_objective_value();
-        // info!(strategic_objective_value = %self.objective_value());
     }
 
     #[instrument(level = "trace", skip_all)]
@@ -98,7 +97,7 @@ impl StrategicAlgorithm {
             .clone();
 
         if period != self.periods().last().unwrap() {
-            for (resource, resource_needed) in optimized_work_order.get_work_load().clone().iter() {
+            for (resource, resource_needed) in optimized_work_order.work_load.iter() {
                 let resource_capacity: &f64 = self
                     .resources_capacity
                     .inner
@@ -114,11 +113,11 @@ impl StrategicAlgorithm {
                     .unwrap()
                     .get(&period.clone())
                     .unwrap();
-                if *resource_needed > *resource_capacity - *resource_loading {
+                if *resource_needed > resource_capacity - resource_loading {
                     return Some(work_order_number);
                 }
 
-                if optimized_work_order.get_excluded_periods().contains(period) {
+                if optimized_work_order.excluded_periods().contains(period) {
                     return Some(work_order_number);
                 }
 
@@ -138,7 +137,7 @@ impl StrategicAlgorithm {
                 )
             }
         }
-        self.update_loadings(period.clone(), &optimized_work_order);
+        self.update_loadings(work_order_number, period, LoadOperation::Add);
         None
     }
 
@@ -148,21 +147,14 @@ impl StrategicAlgorithm {
             self.unschedule(work_order_number);
         }
 
-        let period_internal = self
+        let target_period = self
             .optimized_work_orders
             .get_locked_in_period(work_order_number);
 
         self.optimized_work_orders
-            .set_scheduled_period(work_order_number, period_internal.clone());
+            .set_scheduled_period(work_order_number, target_period.clone());
 
-        let work_order = self
-            .optimized_work_orders
-            .inner
-            .get(&work_order_number)
-            .unwrap()
-            .clone();
-
-        self.update_loadings(period_internal, &work_order);
+        self.update_loadings(work_order_number, &target_period, LoadOperation::Add);
     }
 
     #[instrument(level = "trace", skip_all)]
@@ -175,7 +167,7 @@ impl StrategicAlgorithm {
 
         let mut filtered_keys: Vec<_> = optimized_work_orders
             .iter()
-            .filter(|(&_key, value)| value.get_locked_in_period().is_none())
+            .filter(|(&_key, value)| value.locked_in_period.is_none())
             .map(|(&key, _)| key)
             .collect();
 
@@ -192,7 +184,6 @@ impl StrategicAlgorithm {
         }
     }
 
-    #[instrument(level = "trace", skip_all)]
     fn is_scheduled(&self, work_order_number: u32) -> Option<u32> {
         self.optimized_work_orders
             .inner
@@ -205,12 +196,15 @@ impl StrategicAlgorithm {
             })
     }
 
-    #[instrument(level = "trace", skip_all)]
-    fn update_loadings(&mut self, period_input: Period, work_order: &OptimizedWorkOrder) {
+    fn update_loadings(&mut self, work_order_number: u32, target_period: &Period, load_operation: LoadOperation) {
+        let work_load = self.optimized_work_orders.inner.get(&work_order_number).unwrap().work_load.clone();
         for (resource, periods) in self.resources_loading.inner.iter_mut() {
             for (period, loading) in periods {
-                if *period == period_input {
-                    *loading += work_order.get_work_load().get(resource).unwrap_or(&0.0);
+                if period == target_period {
+                    match load_operation {
+                        LoadOperation::Add => *loading += work_load.get(resource).unwrap_or(&0.0),
+                        LoadOperation::Sub => *loading -= work_load.get(resource).unwrap_or(&0.0),
+                    }
                 }
             }
         }
@@ -275,7 +269,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
             };
 
             let work_order_latest_allowed_finish_period =
-                optimized_work_order.get_latest_period().clone();
+                optimized_work_order.latest_period().clone();
 
             let period_difference = calculate_period_difference(
                 optimized_period,
@@ -287,7 +281,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                     .inner
                     .get(work_order_number)
                     .unwrap()
-                    .get_weight() as f64;
+                    .weight() as f64;
 
             period_penalty_contribution += period_penalty;
         }
@@ -341,17 +335,9 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
             .get_mut(&work_order_number)
             .unwrap();
 
-        match optimized_work_order.get_scheduled_period() {
-            Some(_) => {
-                for (resource, periods_loading) in self.resources_loading.inner.iter_mut() {
-                    let period = optimized_work_order.get_scheduled_period().unwrap();
-                    let loading = periods_loading.get_mut(&period).unwrap();
-                    let work_load_for_resource = optimized_work_order.get_work_load().get(resource);
-                    if let Some(work_load_for_resource) = work_load_for_resource {
-                        *loading -= work_load_for_resource;
-                    }
-                }
-                optimized_work_order.set_scheduled_period(None);
+        match optimized_work_order.scheduled_period_mut().take() {
+            Some(target_period) => {
+                self.update_loadings(work_order_number, &target_period, LoadOperation::Sub);
             }
             None => panic!(),
         }
@@ -416,7 +402,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                     }
                 }
 
-                let algorithm_resources = AlgorithmResources::new(percentage_loading );
+                let algorithm_resources = StrategicResources::new(percentage_loading );
                 Ok(algorithm_resources.to_string(periods_end))
             }
         }
@@ -542,13 +528,51 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
 }
 
 impl StrategicAlgorithm {
+    pub fn new(
+        objective_value: f64,
+        resources_capacity: StrategicResources,
+        resources_loading: StrategicResources,
+        priority_queues: PriorityQueues<u32, u32>,
+        optimized_work_orders: OptimizedWorkOrders,
+        period_locks: HashSet<Period>,
+        periods: Vec<Period>,
+    ) -> Self {
+        StrategicAlgorithm {
+            objective_value,
+            resources_capacity,
+            resources_loading,
+            priority_queues,
+            optimized_work_orders,
+            periods,
+            period_locks,
+            
+        }
+    }
+
+    pub fn optimized_work_orders(&self) -> &HashMap<u32, OptimizedWorkOrder> {
+        &self.optimized_work_orders.inner
+    }
+
+    pub fn resources_loadings(&self) -> &StrategicResources {
+        &self.resources_loading
+    }
+
+    pub fn resources_capacities(&self) -> &StrategicResources {
+        &self.resources_capacity
+    }
+
+
+    pub fn periods(&self) -> &Vec<Period> {
+        &self.periods
+    }
+
     pub fn populate_priority_queues(&mut self) {
         for (key, work_order) in self.optimized_work_orders.inner.iter() {
             trace!("Work order {} has been added to the normal queue", key);
             if work_order.scheduled_period.is_none() {
                 self.priority_queues
                     .normal
-                    .push(*key, work_order.get_weight());
+                    .push(*key, work_order.weight());
             }
         }
     }
@@ -576,60 +600,13 @@ impl PriorityQueues<u32, u32> {
     }
 }
 
-// The backlog should not be in the algorithm, it should be in the agent under the 
-// SchedulingEnvironment. I should remove it immediately 
-impl StrategicAlgorithm {
-    pub fn new(
-        objective_value: f64,
-        resources_capacity: AlgorithmResources,
-        resources_loading: AlgorithmResources,
-        priority_queues: PriorityQueues<u32, u32>,
-        optimized_work_orders: OptimizedWorkOrders,
-        period_locks: HashSet<Period>,
-        periods: Vec<Period>,
-    ) -> Self {
-        StrategicAlgorithm {
-            objective_value,
-            resources_capacity,
-            resources_loading,
-            priority_queues,
-            optimized_work_orders,
-            periods,
-            period_locks,
-            
-        }
-    }
-
-    pub fn optimized_work_orders(&self) -> &HashMap<u32, OptimizedWorkOrder> {
-        &self.optimized_work_orders.inner
-    }
-
-    pub fn resources_loadings(&self) -> &AlgorithmResources {
-        &self.resources_loading
-    }
-
-    pub fn resources_capacities(&self) -> &AlgorithmResources {
-        &self.resources_capacity
-    }
-
-
-    pub fn periods(&self) -> &Vec<Period> {
-        &self.periods
-    }
-}
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
     use chrono::{Duration, TimeZone, Utc};
     use rand::{rngs::StdRng, SeedableRng};
-    use std::collections::{HashSet};
 
-    use crate::agents::strategic_agent::strategic_algorithm::{
-        AlgorithmResources, 
-    };
     use shared_messages::resources::Resources;
 
 
@@ -680,14 +657,14 @@ mod tests {
                 hash_map_periods_150.clone()
         );
 
-        let resource_capacity = AlgorithmResources {
+        let resource_capacity = StrategicResources {
             inner: manual_resource_capacity.clone(),
         };
 
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             resource_capacity,
-            AlgorithmResources::default(),
+            StrategicResources::default(),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             HashSet::new(),
@@ -772,7 +749,7 @@ mod tests {
 
 
 
-    impl AlgorithmResources {
+    impl StrategicResources {
         pub fn default() -> Self {
             Self {
                 inner: HashMap::new()
@@ -843,8 +820,8 @@ mod tests {
         resource_loadings.insert(Resources::Prodtech, period_hash_map_0.clone());
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
-            AlgorithmResources::new(resource_capacity),
-            AlgorithmResources::new(resource_loadings),
+            StrategicResources::new(resource_capacity),
+            StrategicResources::new(resource_loadings),
             PriorityQueues::new(),
             optimized_work_orders,
             HashSet::new(),
@@ -896,8 +873,8 @@ mod tests {
 
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
-            AlgorithmResources::new(resource_capacity),
-            AlgorithmResources::new(resource_loadings),
+            StrategicResources::new(resource_capacity),
+            StrategicResources::new(resource_loadings),
             PriorityQueues::new(),
             optimized_work_orders,
             HashSet::new(),
@@ -910,8 +887,9 @@ mod tests {
                 .optimized_work_orders
                 .inner
                 .get(&2200002020)
+                .as_ref()
                 .unwrap()
-                .get_scheduled_period(),
+                .scheduled_period,
             scheduler_agent_algorithm.periods().last().cloned()
         );
     }
@@ -946,16 +924,18 @@ mod tests {
         resource_loadings.insert(Resources::MtnElec, period_hash_map_0.clone());
         resource_loadings.insert(Resources::Prodtech, period_hash_map_0.clone());
 
-        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
+        let mut strategic_agent_algorithm = StrategicAlgorithm::new(
             0.0,
-            AlgorithmResources::new(resource_capacity),
-            AlgorithmResources::new(resource_loadings),
+            StrategicResources::new(resource_capacity),
+            StrategicResources::new(resource_loadings),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             HashSet::new(),
             vec![],
         );
 
+        let work_order_number = 2100000001;
+        
         let work_order = OptimizedWorkOrder::new(
             Some(period.clone()),
             Some(period.clone()),
@@ -965,10 +945,11 @@ mod tests {
             work_load,
         );
 
-        scheduler_agent_algorithm.update_loadings(period.clone(), &work_order);
+        strategic_agent_algorithm.optimized_work_orders.inner.insert(work_order_number, work_order);
+        strategic_agent_algorithm.update_loadings(work_order_number, &period, LoadOperation::Sub);
 
         assert_eq!(
-            scheduler_agent_algorithm
+            strategic_agent_algorithm
                 .resources_loading
                 .inner
                 .get(&Resources::MtnMech)
@@ -977,7 +958,7 @@ mod tests {
             Some(20.0).as_ref()
         );
         assert_eq!(
-            scheduler_agent_algorithm
+            strategic_agent_algorithm
                 .resources_loading
                 .inner
                 .get(&Resources::MtnElec)
@@ -986,7 +967,7 @@ mod tests {
             Some(40.0).as_ref()
         );
         assert_eq!(
-            scheduler_agent_algorithm
+            strategic_agent_algorithm
                 .resources_loading
                 .inner
                 .get(&Resources::Prodtech)
@@ -996,7 +977,7 @@ mod tests {
         );
 
         assert_eq!(
-            scheduler_agent_algorithm
+            strategic_agent_algorithm
                 .resources_loading
                 .inner
                 .get(&Resources::MtnScaf),
@@ -1004,11 +985,6 @@ mod tests {
         );
     }
 
-    /// This test fails as we cannot schedule with the unloading point queue if we do not have a
-    /// period lock in the OptimizedWorkOrders. What should I do about it? I am not sure about it?
-    /// In general I have an issue with the way that the static data is handled in the program and
-    /// the way that the dynamic data is handled in the program. What should I do about it? I am not
-    /// sure
     #[test]
     fn test_unschedule_work_order() {
         let mut work_load = HashMap::new();
@@ -1061,8 +1037,8 @@ mod tests {
 
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
-            AlgorithmResources::new(resource_capacity),
-            AlgorithmResources::new(resource_loadings),
+            StrategicResources::new(resource_capacity),
+            StrategicResources::new(resource_loadings),
             PriorityQueues::new(),
             optimized_work_orders,
             HashSet::new(),
@@ -1373,8 +1349,8 @@ mod tests {
 
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
-            AlgorithmResources::default(),
-            AlgorithmResources::default(),
+            StrategicResources::default(),
+            StrategicResources::default(),
             PriorityQueues::new(),
             optimized_work_orders,
             HashSet::new(),
@@ -1467,8 +1443,8 @@ mod tests {
 
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
-            AlgorithmResources::default(),
-            AlgorithmResources::default(),
+            StrategicResources::default(),
+            StrategicResources::default(),
             PriorityQueues::new(),
             optimized_work_orders,
             HashSet::new(),

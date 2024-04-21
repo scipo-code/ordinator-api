@@ -20,7 +20,10 @@ use strum::IntoEnumIterator;
 use tracing::{debug, error, info, instrument, warn};
 
 use crate::{
-    agents::traits::{AlgorithmState, ConstraintState, LargeNeighborHoodSearch, TestAlgorithm},
+    agents::{
+        traits::{AlgorithmState, ConstraintState, LargeNeighborHoodSearch, TestAlgorithm},
+        LoadOperation,
+    },
     models::{
         time_environment::period::Period,
         work_order::{ActivityRelation, WorkOrder},
@@ -683,11 +686,6 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 enum LoopState {
     Unscheduled,
     Scheduled,
-}
-
-enum LoadOperation {
-    Add,
-    Sub,
 }
 
 impl TacticalAlgorithm {

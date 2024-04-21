@@ -4,7 +4,6 @@ pub mod strategic_algorithm;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborHoodSearch;
 use crate::models::SchedulingEnvironment;
-use crate::models::time_environment::period::Period;
 
 use actix::prelude::*;
 use shared_messages::agent_error::AgentError;
@@ -26,7 +25,8 @@ use tracing::warn;
 
 use crate::agents::tactical_agent::TacticalAgent;
 
-use self::strategic_algorithm::optimized_work_orders::AlgorithmResources;
+
+use self::strategic_algorithm::optimized_work_orders::StrategicResources;
 
 use super::LoadOperation;
 use super::traits::AlgorithmState;
@@ -150,7 +150,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                         let number_of_strategic_work_orders = optimized_work_orders.len();
                         let mut scheduled_count = 0;
                         for optimized_work_order in optimized_work_orders.values() {
-                            if optimized_work_order.get_scheduled_period().is_some() {
+                            if optimized_work_order.scheduled_period.is_some() {
                                 scheduled_count += 1;
                             }
                         }
@@ -179,7 +179,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
 
                         let work_orders_by_period: Vec<u32> = work_orders
                             .iter()
-                            .filter(|(_, opt_wo)| match opt_wo.get_scheduled_period() {
+                            .filter(|(_, opt_wo)| match opt_wo.scheduled_period.clone() {
                                 Some(scheduled_period) => {
                                     scheduled_period.period_string() == period
                                 }
@@ -282,7 +282,8 @@ impl Handler<SolutionExportMessage> for StrategicAgent {
             strategic_solution.insert(
                 *work_order_number,
                 optimized_work_order
-                    .get_scheduled_period()
+                    .scheduled_period
+                    .as_ref()
                     .unwrap()
                     .period_string(),
             );
@@ -303,7 +304,7 @@ impl TestAlgorithm for StrategicAgent {
         for (work_order_number, optimized_work_order) in
             self.strategic_agent_algorithm.optimized_work_orders()
         {
-            let scheduled_period = optimized_work_order.get_scheduled_period();
+            let scheduled_period = optimized_work_order.scheduled_period.clone();
             let work_order = scheduling_environment
                 .work_orders()
                 .inner
@@ -356,7 +357,7 @@ impl TestAlgorithm for StrategicAgent {
 
             if work_order.unloading_point().period.is_some()
                 && work_order.unloading_point().period
-                    != optimized_work_order.get_scheduled_period()
+                    != optimized_work_order.scheduled_period
                 && !periods[0..=1].contains(work_order.unloading_point().period.as_ref().unwrap())
                 && !work_order.status_codes().awsc
                 && !work_order.status_codes().sch
@@ -367,8 +368,8 @@ impl TestAlgorithm for StrategicAgent {
                     work_order_status_codes = ?work_order.status_codes(),
                     work_order_dates = ?work_order.order_dates().basic_start_date,
                     periods = ?periods[0..=1],
-                    optimized_work_order_scheduled_period = ?optimized_work_order.get_scheduled_period(),
-                    optimized_work_order_locked_in_period = ?optimized_work_order.get_locked_in_period(),
+                    optimized_work_order_scheduled_period = ?optimized_work_order.scheduled_period,
+                    optimized_work_order_locked_in_period = ?optimized_work_order.locked_in_period,
                 );
                 strategic_state
                     .infeasible_cases_mut()
@@ -377,8 +378,8 @@ impl TestAlgorithm for StrategicAgent {
                     "\t\t\nWork order number: {}\t\t\nwith unloading period: {}\t\t\nwith scheduled period: {}\t\t\nwith locked period: {}",
                     work_order_number,
                     work_order.unloading_point().period.as_ref().unwrap(),
-                    optimized_work_order.get_scheduled_period().unwrap(),
-                    optimized_work_order.get_locked_in_period().unwrap(),
+                    optimized_work_order.scheduled_period.clone().unwrap(),
+                    optimized_work_order.locked_in_period.clone().unwrap(),
                 ));
                 break;
             }
@@ -399,7 +400,7 @@ impl TestAlgorithm for StrategicAgent {
             let periods = scheduling_environment.periods();
 
             if work_order.status_codes().sch
-                && !periods[0..=1].contains(&optimized_work_order.get_scheduled_period().unwrap())
+                && !periods[0..=1].contains(&optimized_work_order.scheduled_period.as_ref().unwrap())
             {
                 error!(
                     work_order_number = ?work_order_number,
@@ -407,8 +408,8 @@ impl TestAlgorithm for StrategicAgent {
                     work_order_status_codes = ?work_order.status_codes(),
                     work_order_dates = ?work_order.order_dates().basic_start_date,
                     periods = ?periods[0..=1],
-                    optimized_work_order_scheduled_period = ?optimized_work_order.get_scheduled_period(),
-                    optimized_work_order_locked_in_period = ?optimized_work_order.get_locked_in_period(),
+                    optimized_work_order_scheduled_period = ?optimized_work_order.scheduled_period,
+                    optimized_work_order_locked_in_period = ?optimized_work_order.locked_in_period,
                 );
                 strategic_state
                     .infeasible_cases_mut()
@@ -416,8 +417,8 @@ impl TestAlgorithm for StrategicAgent {
                     .respect_sch = ConstraintState::Infeasible(format!(
                     "\t\t\nWork order number: {}\t\t\nwith scheduled period: {}\t\t\nwith locked period: {}\t\t\n work order status codes: {}\t\t\n work order unloading point: {}",
                     work_order_number,
-                    optimized_work_order.get_scheduled_period().unwrap(),
-                    optimized_work_order.get_locked_in_period().unwrap(),
+                    optimized_work_order.scheduled_period.as_ref().unwrap(),
+                    optimized_work_order.locked_in_period.as_ref().unwrap(),
                     work_order.status_codes(),
                     work_order.unloading_point().period.as_ref().unwrap(),
                 ));
@@ -427,20 +428,35 @@ impl TestAlgorithm for StrategicAgent {
         }
 
 
-            let aggregated_period_load = AlgorithmResources::new(HashMap::new());
-            for period in self.strategic_agent_algorithm.periods() {
-                for (work_order_number, optimized_work_order) in self.strategic_agent_algorithm.optimized_work_orders() {
-                    if optimized_work_order.scheduled_period.unwrap() == period.clone() {
-                        let work_load = optimized_work_order.work_load;
-                        for resource in Resources::iter() {
-                            let load = work_load.get(&resource).unwrap();
-                            aggregated_period_load.update_load(resource, period, load, LoadOperation::Add);
-                        }
+        let mut aggregated_strategic_load = StrategicResources::new(HashMap::new());
+        for period in self.strategic_agent_algorithm.periods() {
+            for (_work_order_number, optimized_work_order) in self.strategic_agent_algorithm.optimized_work_orders() {
+                if optimized_work_order.scheduled_period.as_ref().unwrap() == &period.clone() {
+                    let work_load = &optimized_work_order.work_load;
+                    for resource in Resources::iter() {
+                        let load = work_load.get(&resource).unwrap_or(&0.0);
+                        aggregated_strategic_load.update_load(&resource, period, *load, LoadOperation::Add);
                     }
                 }
             }
-        
+        }
 
+        if aggregated_strategic_load.inner != self.strategic_agent_algorithm.resources_loadings().inner {
+            
+            for (resource, periods) in aggregated_strategic_load.inner {
+                for (period, load) in periods {
+                    match self.strategic_agent_algorithm.resources_loadings().inner.get(&resource).unwrap().get(&period) {
+                        Some(resource_load) if *resource_load == load => continue,
+                        Some(resource_load) => {
+                            strategic_state.infeasible_cases_mut().unwrap().respect_aggregated_load = ConstraintState::Infeasible(format!("resource = {}, period = {}, aggregated_load = {}, resource_load = {}", resource, period, load, resource_load));
+                            error!(resource = %resource, period = %period, aggregated_load = %load, resource_load = %resource_load);
+                        }
+                        None => panic!("aggregated load and resource loading are not identically shaped"),
+                    }
+                }
+            }
+        }            
+        
         strategic_state
     }
 }
@@ -478,7 +494,7 @@ mod tests {
     use super::{strategic_algorithm::PriorityQueues, *};
     use shared_messages::resources::Resources;
 
-    use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::AlgorithmResources;
+    use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::StrategicResources;
     use crate::models::time_environment::period::Period;
     use crate::models::work_order::operation::Operation;
     use crate::models::{work_order::*, WorkOrders};
@@ -524,8 +540,8 @@ mod tests {
 
         let scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
-            AlgorithmResources::new(resource_capacity),
-            AlgorithmResources::new(resource_loadings),
+            StrategicResources::new(resource_capacity),
+            StrategicResources::new(resource_loadings),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             HashSet::new(),
@@ -620,8 +636,8 @@ mod tests {
         let optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
-            AlgorithmResources::default(),
-            AlgorithmResources::default(),
+            StrategicResources::default(),
+            StrategicResources::default(),
             PriorityQueues::new(),
             optimized_work_orders,
             HashSet::new(),
@@ -649,7 +665,7 @@ mod tests {
                 .get(&2200002020)
                 .as_ref()
                 .unwrap()
-                .get_locked_in_period()
+                .locked_in_period
                 .as_ref()
                 .unwrap()
                 .period_string(),
@@ -707,8 +723,8 @@ mod tests {
 
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
-            AlgorithmResources::new(capacities),
-            AlgorithmResources::new(loadings),
+            StrategicResources::new(capacities),
+            StrategicResources::new(loadings),
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             HashSet::new(),
@@ -734,14 +750,14 @@ mod tests {
             scheduler_agent_algorithm
                 .optimized_work_order(&2100023841)
                 .unwrap()
-                .get_locked_in_period(),
+                .locked_in_period,
             Some(Period::new_from_string("2023-W49-50").unwrap())
         );
         assert_eq!(
             scheduler_agent_algorithm
                 .optimized_work_order(&2100023841)
                 .unwrap()
-                .get_scheduled_period(),
+                .scheduled_period,
             None
         );
         // assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("VEN_MECH".to_string(), "2023-W49-50".to_string()), 16.0);
@@ -765,8 +781,8 @@ mod tests {
 
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
-            AlgorithmResources::default(),
-            AlgorithmResources::default(),
+            StrategicResources::default(),
+            StrategicResources::default(),
             PriorityQueues::new(),
             optimized_work_orders,
             HashSet::new(),
@@ -821,7 +837,4 @@ mod tests {
             })
         }
     }
-
-    #[test]
-    fn test_handler_message_to_frontend() {}
 }

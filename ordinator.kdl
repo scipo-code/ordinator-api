@@ -7,7 +7,7 @@ env {
 layout {
 	pane split_direction="vertical" {
 		pane size="20%" split_direction="horizontal" {
-			pane split_direction="vertical" {
+			pane size="30%" split_direction="vertical" {
 				pane size="15%" name="Ordinator watch" close_on_exit=true {	
 		  			command "cargo"
 		      		args "watch" "-s" "./profiling_and_benchmarking/clear_profiling.sh" "-s" "./logs/clear_logging.sh" "-w" "scheduling_system/" "-w" "shared_messages/" "-x" "run --bin scheduling_system -- $ORDINATOR_INPUT "
@@ -24,12 +24,16 @@ layout {
 				command "btm"
 			}
 		}
-		pane size="80%" split_direction="horizontal" {
+		pane size="30%" {
+			command "helix"
+			args "."
+			cwd "$ORDINATOR_PATH"
+		}
+		pane size="50%" split_direction="horizontal" {
 			pane split_direction="vertical" {
 				pane name="Orchestrator" {
 					cwd "$ORDINATOR_PATH"
 				}
-			
 				pane name="Strategic" {
 					cwd "$ORDINATOR_PATH"
 				}
@@ -37,9 +41,7 @@ layout {
 					cwd "$ORDINATOR_PATH"
 				}
 			}
-			pane {
-				pane name="Imperium" cwd="$ORDINATOR_PATH"
-			}
+			pane name="Imperium" cwd="$ORDINATOR_PATH"
 		}
 	}
 }
