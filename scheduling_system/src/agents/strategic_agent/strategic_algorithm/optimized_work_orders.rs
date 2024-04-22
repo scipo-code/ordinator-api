@@ -140,8 +140,13 @@ impl OptimizedWorkOrderBuilder {
         self
     }
 
-    pub fn with_vendor(mut self, last_period: Option<Period>) -> Self {
+    pub fn with_vendor(
+        mut self,
+        last_period: Option<Period>,
+        unloading_period: Option<Period>,
+    ) -> Self {
         self.scheduled_period = last_period;
+        self.locked_in_period = unloading_period;
         self
     }
 
