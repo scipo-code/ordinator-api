@@ -39,6 +39,20 @@ pub enum MainResources {
     Unknown,
 }
 
+impl MainResources {
+    pub fn is_fmc(&self) -> bool {
+        match self {
+            Self::MtnRope => true,
+            Self::MtnScaf => true,
+            Self::MtnRigg => true,
+            Self::MtnLagg => true,
+            Self::MtnPipf => true,
+            Self::MtnPain => true,
+            _ => false,
+        }
+    }
+}
+
 /// This enum holds all the resources that are available needed to schedule work order.
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Serialize, Deserialize, EnumIter, clap::ValueEnum)]
 pub enum Resources {
