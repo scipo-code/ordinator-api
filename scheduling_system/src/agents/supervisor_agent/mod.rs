@@ -173,7 +173,7 @@ impl TestAlgorithm for SupervisorAgent {
             .unwrap()
             .work_orders()
             .clone();
-        for (work_order_number, operation_solution) in self.assigned_work_orders.iter() {
+        for (work_order_number, _operation_solution) in self.assigned_work_orders.iter() {
             let work_order_main_resource = work_orders
                 .inner
                 .get(work_order_number)

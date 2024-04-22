@@ -105,12 +105,13 @@ pub fn create_optimized_work_orders(
                     .clone(),
             ));
 
+        let unloading_point_period = work_order.unloading_point().period.clone();
+
         let optimized_work_order_builder = if work_order.is_vendor() {
-            optimized_work_order_builder.with_vendor(default_period.cloned())
+            optimized_work_order_builder.with_vendor(default_period.cloned(), unloading_point_period.clone())
         } else {
             optimized_work_order_builder
         };
-        let unloading_point_period = work_order.unloading_point().period.clone();
 
         let optimized_work_order_builder = if work_order.status_codes().sch {
             if unloading_point_period.is_some()
@@ -170,7 +171,11 @@ pub fn create_optimized_work_orders(
                 optimized_work_order_builder.forced_period(unloading_point_period, locked_in_period)
             }
         } else {
-            optimized_work_order_builder.default_period(default_period.cloned())
+            if work_order.main_work_center().is_fmc() {
+                optimized_work_order_builder.forced_period(default_period.cloned(), default_period.cloned().unwrap())
+            } else {
+                optimized_work_order_builder.default_period(default_period.cloned())
+            }
         };
         let optimized_work_order = optimized_work_order_builder.build();
 
