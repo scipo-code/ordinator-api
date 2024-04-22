@@ -29,7 +29,7 @@ pub async fn http_to_scheduling_system(
             match response {
                 Ok(response) => {
                     let http_response = HttpResponse::Ok()
-                        .insert_header(header::ContentType::plaintext())
+                        .insert_header(header::ContentType::json())
                         .body(response);
                     Ok(http_response)
                 }
@@ -58,7 +58,7 @@ pub async fn http_to_scheduling_system(
                 Ok(response) => match response {
                     Ok(response) => {
                         let http_response = HttpResponse::Ok()
-                            .insert_header(header::ContentType::plaintext())
+                            .insert_header(header::ContentType::json())
                             .body(response);
                         Ok(http_response)
                     }
@@ -90,7 +90,7 @@ pub async fn http_to_scheduling_system(
                 Ok(response) => match response {
                     Ok(response) => {
                         let http_response = HttpResponse::Ok()
-                            .insert_header(header::ContentType::plaintext())
+                            .insert_header(header::ContentType::json())
                             .body(response);
                         Ok(http_response)
                     }
@@ -128,7 +128,7 @@ pub async fn http_to_scheduling_system(
                 Ok(response) => match response {
                     Ok(response) => {
                         let http_response = HttpResponse::Ok()
-                            .insert_header(header::ContentType::plaintext())
+                            .insert_header(header::ContentType::json())
                             .body(response);
                         Ok(http_response)
                     }
