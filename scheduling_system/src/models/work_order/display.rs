@@ -15,7 +15,7 @@ impl fmt::Display for WorkOrder {
             Revision: {}\n
             ---------------------\n",
             self.work_order_number,
-            self.work_order_analytic.order_weight,
+            self.work_order_analytic.work_order_weight,
             self.work_order_analytic.work_load,
             self.operations.len(),
             self.work_order_analytic.vendor,

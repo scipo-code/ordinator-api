@@ -152,120 +152,6 @@ impl AgentFactory {
     }
 }
 
-// fn create_optimized_work_orders(
-//     &mut self,
-//     work_orders: &mut WorkOrders,
-//     periods: &[Period],
-//     asset: &Asset,
-// ) -> OptimizedWorkOrders {
-//     let mut optimized_work_orders: HashMap<u32, OptimizedWorkOrder> = HashMap::new();
-//     let default_period = periods.last();
-
-//     for (work_order_number, work_order) in &mut work_orders.inner {
-//         if &work_order.functional_location().asset != asset {
-//             continue;
-//         }
-
-//         let optimized_work_order_builder = OptimizedWorkOrder::builder()
-//             .with_work_load(work_order.work_load().clone())
-//             .with_weight(work_order.work_order_weight());
-
-//         let mut excluded_periods: HashSet<Period> = HashSet::new();
-
-//         for (i, period) in periods.iter().enumerate() {
-//             if period < &work_order.order_dates_mut().earliest_allowed_start_period
-//                 || (work_order.is_vendor() && i <= 3)
-//                 || (work_order.revision().shutdown && i <= 3)
-//             {
-//                 excluded_periods.insert(period.clone());
-//             }
-//         }
-
-//         let optimized_work_order_builder = optimized_work_order_builder
-//             .with_excluded_periods(excluded_periods.clone())
-//             .with_latest_period(Some(
-//                 work_order
-//                     .order_dates_mut()
-//                     .latest_allowed_finish_period
-//                     .clone(),
-//             ));
-
-//         let optimized_work_order_builder = if work_order.is_vendor() {
-//             optimized_work_order_builder.with_vendor(default_period.cloned())
-//         } else {
-//             optimized_work_order_builder
-//         };
-//         let unloading_point_period = work_order.unloading_point().period.clone();
-
-//         let optimized_work_order_builder = if work_order.status_codes().sch {
-//             if unloading_point_period.is_some()
-//                 && periods[0..=1].contains(&unloading_point_period.clone().unwrap())
-//             {
-//                 match unloading_point_period {
-//                     Some(unloading_period) => optimized_work_order_builder
-//                         .forced_period(default_period.cloned(), unloading_period),
-//                     None => match periods
-//                         .iter()
-//                         .find(|period| {
-//                             period.start_date() <= &work_order.order_dates().basic_start_date
-//                                 && &work_order.order_dates().basic_start_date <= period.end_date()
-//                         })
-//                         .cloned()
-//                     {
-//                         Some(locked_in_period) => optimized_work_order_builder
-//                             .forced_period(default_period.cloned(), locked_in_period),
-//                         None => {
-//                             optimized_work_order_builder.default_period(default_period.cloned())
-//                         }
-//                     },
-//                 }
-//             } else {
-//                 let scheduled_period = periods[0..=1]
-//                     .iter()
-//                     .find(|period| period.contains_date(work_order.order_dates().basic_start_date));
-//                 match scheduled_period {
-//                     Some(period) => optimized_work_order_builder
-//                         .forced_period(Some(period.clone()), period.clone()),
-//                     None => optimized_work_order_builder
-//                         .forced_period(Some(periods[0].clone()), periods[0].clone()),
-//                 }
-//             }
-//         } else if work_order.status_codes().awsc {
-//             let scheduled_period = periods
-//                 .iter()
-//                 .find(|period| {
-//                     period.start_date() <= &work_order.order_dates().basic_start_date
-//                         && &work_order.order_dates().basic_start_date <= period.end_date()
-//                 })
-//                 .cloned();
-//             match scheduled_period {
-//                 Some(locked_in_period) => optimized_work_order_builder
-//                     .forced_period(Some(locked_in_period.clone()), locked_in_period),
-//                 None => match unloading_point_period {
-//                     Some(unloading_period) => optimized_work_order_builder
-//                         .forced_period(default_period.cloned(), unloading_period),
-//                     None => optimized_work_order_builder.default_period(default_period.cloned()),
-//                 },
-//             }
-//         } else if work_order.unloading_point().period.is_some() {
-//             let locked_in_period = unloading_point_period.clone().unwrap();
-//             dbg!(unloading_point_period.as_ref().unwrap());
-//             dbg!(&periods[1]);
-//             if unloading_point_period.as_ref().unwrap() == &periods[1] {
-//                 optimized_work_order_builder.default_period(default_period.cloned())
-//             } else {
-//                 optimized_work_order_builder.forced_period(unloading_point_period, locked_in_period)
-//             }
-//         } else {
-//             optimized_work_order_builder.default_period(default_period.cloned())
-//         };
-
-//         optimized_work_orders.insert(*work_order_number, optimized_work_order_builder.build());
-//     }
-
-//     OptimizedWorkOrders::new(optimized_work_orders)
-// }
-
 fn initialize_strategic_resources(
     scheduling_environment: &SchedulingEnvironment,
     start_value: f64,
@@ -288,7 +174,7 @@ fn initialize_strategic_resources(
 fn initialize_tactical_resources(
     scheduling_environment: &SchedulingEnvironment,
     start_value: f64,
-) -> tactical_algorithm::AlgorithmResources {
+) -> tactical_algorithm::TacticalResources {
     let mut resource_capacity: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
     for resource in scheduling_environment
         .worker_environment()
@@ -301,5 +187,5 @@ fn initialize_tactical_resources(
         }
         resource_capacity.insert(resource.clone(), days);
     }
-    tactical_algorithm::AlgorithmResources::new(resource_capacity)
+    tactical_algorithm::TacticalResources::new(resource_capacity)
 }
