@@ -44,7 +44,7 @@ pub struct WorkOrder {
     operations: HashMap<u32, Operation>,
     relations: Vec<ActivityRelation>,
     work_order_analytic: WorkOrderAnalytic,
-    order_dates: WorkOrderDates,
+    pub order_dates: WorkOrderDates,
     work_order_info: WorkOrderInfo,
 }
 
@@ -83,7 +83,7 @@ impl WorkOrderInfo {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrderAnalytic {
-    order_weight: u32,
+    work_order_weight: u32,
     work_order_work: f64,
     work_load: HashMap<Resources, f64>,
     fixed: bool,
@@ -93,7 +93,7 @@ pub struct WorkOrderAnalytic {
 
 impl WorkOrderAnalytic {
     pub fn new(
-        order_weight: u32,
+        work_order_weight: u32,
         work_order_work: f64,
         work_load: HashMap<Resources, f64>,
         fixed: bool,
@@ -101,7 +101,7 @@ impl WorkOrderAnalytic {
         status_codes: StatusCodes,
     ) -> Self {
         WorkOrderAnalytic {
-            order_weight,
+            work_order_weight,
             work_order_work,
             work_load,
             fixed,
@@ -181,7 +181,7 @@ impl WorkOrder {
     }
 
     pub fn work_order_weight(&self) -> u32 {
-        self.work_order_analytic.order_weight
+        self.work_order_analytic.work_order_weight
     }
 
     pub fn is_vendor(&self) -> bool {
@@ -237,84 +237,85 @@ impl WorkOrder {
 
     pub fn initialize_weight(&mut self) {
         let parameters: WeightParam = WeightParam::read_config().unwrap();
-        self.work_order_analytic.order_weight = 0;
+        self.work_order_analytic.work_order_weight = 0;
 
         match &self.work_order_info.work_order_type {
             WorkOrderType::Wdf(wdf_priority) => match wdf_priority {
                 WDFPriority::One => {
-                    self.work_order_analytic.order_weight +=
+                    self.work_order_analytic.work_order_weight +=
                         parameters.wdf_priority_map["1"] * parameters.order_type_weights["WDF"]
                 }
                 WDFPriority::Two => {
-                    self.work_order_analytic.order_weight +=
+                    self.work_order_analytic.work_order_weight +=
                         parameters.wdf_priority_map["2"] * parameters.order_type_weights["WDF"]
                 }
                 WDFPriority::Three => {
-                    self.work_order_analytic.order_weight +=
+                    self.work_order_analytic.work_order_weight +=
                         parameters.wdf_priority_map["3"] * parameters.order_type_weights["WDF"]
                 }
                 WDFPriority::Four => {
-                    self.work_order_analytic.order_weight +=
+                    self.work_order_analytic.work_order_weight +=
                         parameters.wdf_priority_map["4"] * parameters.order_type_weights["WDF"]
                 }
             },
             WorkOrderType::Wgn(wgn_priority) => match wgn_priority {
                 WGNPriority::One => {
-                    self.work_order_analytic.order_weight +=
+                    self.work_order_analytic.work_order_weight +=
                         parameters.wgn_priority_map["1"] * parameters.order_type_weights["WGN"]
                 }
                 WGNPriority::Two => {
-                    self.work_order_analytic.order_weight +=
+                    self.work_order_analytic.work_order_weight +=
                         parameters.wgn_priority_map["2"] * parameters.order_type_weights["WGN"]
                 }
                 WGNPriority::Three => {
-                    self.work_order_analytic.order_weight +=
+                    self.work_order_analytic.work_order_weight +=
                         parameters.wgn_priority_map["3"] * parameters.order_type_weights["WGN"]
                 }
                 WGNPriority::Four => {
-                    self.work_order_analytic.order_weight +=
+                    self.work_order_analytic.work_order_weight +=
                         parameters.wgn_priority_map["4"] * parameters.order_type_weights["WGN"]
                 }
             },
             WorkOrderType::Wpm(wpm_priority) => match wpm_priority {
                 WPMPriority::A => {
-                    self.work_order_analytic.order_weight +=
+                    self.work_order_analytic.work_order_weight +=
                         parameters.wpm_priority_map["A"] * parameters.order_type_weights["WPM"]
                 }
                 WPMPriority::B => {
-                    self.work_order_analytic.order_weight +=
+                    self.work_order_analytic.work_order_weight +=
                         parameters.wpm_priority_map["B"] * parameters.order_type_weights["WPM"]
                 }
                 WPMPriority::C => {
-                    self.work_order_analytic.order_weight +=
+                    self.work_order_analytic.work_order_weight +=
                         parameters.wpm_priority_map["C"] * parameters.order_type_weights["WPM"]
                 }
                 WPMPriority::D => {
-                    self.work_order_analytic.order_weight +=
+                    self.work_order_analytic.work_order_weight +=
                         parameters.wpm_priority_map["D"] * parameters.order_type_weights["WPM"]
                 }
             },
             WorkOrderType::Wro(_) => (),
             WorkOrderType::Other => {
-                self.work_order_analytic.order_weight += parameters.order_type_weights["Other"]
+                self.work_order_analytic.work_order_weight += parameters.order_type_weights["Other"]
             }
         };
 
         if self.work_order_analytic.status_codes.awsc {
-            self.work_order_analytic.order_weight += parameters.status_weights["AWSC"];
+            self.work_order_analytic.work_order_weight += parameters.status_weights["AWSC"];
         }
 
         if self.work_order_analytic.status_codes.sece {
-            self.work_order_analytic.order_weight += parameters.status_weights["SECE"];
+            self.work_order_analytic.work_order_weight += parameters.status_weights["SECE"];
         }
 
         if self.work_order_analytic.status_codes.pcnf
             && self.work_order_analytic.status_codes.material_status == MaterialStatus::Nmat
             || self.work_order_analytic.status_codes.material_status == MaterialStatus::Smat
         {
-            self.work_order_analytic.order_weight += parameters.status_weights["PCNF_NMAT_SMAT"];
+            self.work_order_analytic.work_order_weight +=
+                parameters.status_weights["PCNF_NMAT_SMAT"];
         }
-        self.work_order_analytic.order_weight *=
+        self.work_order_analytic.work_order_weight *=
             self.work_order_analytic.work_order_work.round() as u32;
 
         // TODO Implement for VIS and ABC

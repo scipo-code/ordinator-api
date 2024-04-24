@@ -8,6 +8,7 @@ use tracing::instrument;
 
 use crate::agents::LoadOperation;
 use crate::models::time_environment::period::Period;
+use crate::models::work_order::WorkOrder;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct OptimizedWorkOrders {
@@ -120,48 +121,118 @@ impl OptimizedWorkOrderBuilder {
             work_load: HashMap::new(),
         }
     }
-    pub fn with_excluded_periods(mut self, excluded_periods: HashSet<Period>) -> Self {
-        self.excluded_periods = excluded_periods;
-        self
-    }
 
-    pub fn with_latest_period(mut self, latest_period: Option<Period>) -> Self {
-        self.latest_period = latest_period;
-        self
-    }
+    pub fn build_from_work_order(mut self, work_order: &WorkOrder, periods: &[Period]) -> Self {
+        let mut excluded_periods: HashSet<Period> = HashSet::new();
+        self.scheduled_period = periods.last().cloned();
+        for (i, period) in periods.iter().enumerate() {
+            if *period < work_order.order_dates.earliest_allowed_start_period
+                || (work_order.is_vendor() && i <= 3)
+                || (work_order.revision().shutdown && i <= 3)
+            {
+                excluded_periods.insert(period.clone());
+            }
+        }
+        self.excluded_periods = excluded_periods.clone();
 
-    pub fn with_weight(mut self, weight: u32) -> Self {
-        self.weight = weight;
-        self
-    }
+        self.weight = work_order.work_order_weight();
 
-    pub fn with_work_load(mut self, work_load: HashMap<Resources, f64>) -> Self {
-        self.work_load = work_load;
-        self
-    }
+        self.work_load = work_order.work_load().clone();
 
-    pub fn with_vendor(
-        mut self,
-        last_period: Option<Period>,
-        unloading_period: Option<Period>,
-    ) -> Self {
-        self.scheduled_period = last_period;
-        self.locked_in_period = unloading_period;
-        self
-    }
+        self.latest_period = Some(work_order.order_dates.latest_allowed_finish_period.clone());
 
-    pub fn default_period(mut self, default_period: Option<Period>) -> Self {
-        self.scheduled_period = default_period;
-        self
-    }
+        let unloading_point_period = work_order.unloading_point().period.clone();
 
-    pub fn forced_period(
-        mut self,
-        default_period: Option<Period>,
-        locked_in_period: Period,
-    ) -> Self {
-        self.scheduled_period = default_period;
-        self.locked_in_period = Some(locked_in_period);
+        if work_order.is_vendor()
+            && (unloading_point_period.is_some() || work_order.status_codes().awsc)
+        {
+            match unloading_point_period {
+                Some(unloading_point_period) => {
+                    self.locked_in_period = Some(unloading_point_period.clone());
+                    self.scheduled_period = Some(unloading_point_period.clone());
+                }
+                None => {
+                    let scheduled_period = periods
+                        .iter()
+                        .find(|period| {
+                            period.contains_date(work_order.order_dates().basic_start_date)
+                        })
+                        .cloned();
+
+                    match scheduled_period {
+                        Some(scheduled_period) => {
+                            self.locked_in_period = Some(scheduled_period.clone());
+                            self.scheduled_period = Some(scheduled_period.clone());
+                        }
+                        None => {
+                            self.scheduled_period = periods.last().cloned();
+                        }
+                    }
+                }
+            }
+            return self;
+        }
+
+        if work_order.is_vendor() {
+            self.locked_in_period = periods.last().cloned();
+            self.scheduled_period = periods.last().cloned();
+            return self;
+        };
+
+        if work_order.status_codes().sch {
+            if unloading_point_period.is_some()
+                && periods[0..=1].contains(&unloading_point_period.clone().unwrap())
+            {
+                self.locked_in_period = unloading_point_period.clone();
+                self.scheduled_period = unloading_point_period.clone();
+            } else {
+                let scheduled_period = periods[0..=1]
+                    .iter()
+                    .find(|period| period.contains_date(work_order.order_dates().basic_start_date));
+                match scheduled_period {
+                    Some(scheduled_period) => {
+                        self.locked_in_period = Some(scheduled_period.clone());
+                        self.scheduled_period = Some(scheduled_period.clone());
+                    }
+                    None => {
+                        self.scheduled_period = periods.last().cloned();
+                    }
+                }
+            }
+            return self;
+        }
+
+        if work_order.status_codes().awsc {
+            let scheduled_period = periods
+                .iter()
+                .find(|period| period.contains_date(work_order.order_dates().basic_start_date));
+
+            match scheduled_period {
+                Some(locked_in_period) => {
+                    self.locked_in_period = Some(locked_in_period.clone());
+                    self.scheduled_period = Some(locked_in_period.clone());
+                }
+                None => {
+                    self.scheduled_period = periods.last().cloned();
+                }
+            }
+            return self;
+        }
+
+        if work_order.unloading_point().period.is_some() {
+            let locked_in_period = unloading_point_period.clone().unwrap();
+            if !periods[0..=1].contains(unloading_point_period.as_ref().unwrap()) {
+                self.locked_in_period = Some(locked_in_period.clone());
+                self.scheduled_period = Some(locked_in_period.clone());
+            }
+            return self;
+        }
+
+        if work_order.main_work_center().is_fmc() {
+            self.locked_in_period = periods.last().cloned();
+            self.scheduled_period = periods.last().cloned();
+        }
+        self.scheduled_period = periods.last().cloned();
         self
     }
 
@@ -264,7 +335,12 @@ impl StrategicResources {
         }
         writeln!(string).ok();
 
-        for (resource, inner_map) in self.inner.iter() {
+        let mut sorted_resources: Vec<&Resources> = self.inner.keys().collect();
+
+        sorted_resources
+            .sort_by(|resource_a, resource_b| resource_a.to_string().cmp(&resource_b.to_string()));
+        for resource in sorted_resources {
+            let inner_map = self.inner.get(resource).unwrap();
             write!(string, "{:<12}", resource.variant_name()).unwrap();
             for (nr_period, period) in periods.iter().enumerate().take(number_of_periods as usize) {
                 let value = inner_map.get(period).unwrap_or(&0.0);
@@ -279,5 +355,15 @@ impl StrategicResources {
             writeln!(string).ok();
         }
         string
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    pub fn test_optimized_work_order_builder() {
+        let optimized_work_order_builder = OptimizedWorkOrder::builder();
+
+        // optimized_work_order_builder.
     }
 }

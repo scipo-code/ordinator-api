@@ -315,17 +315,20 @@ impl TestAlgorithm for StrategicAgent {
             let awsc = work_order.status_codes().awsc;
 
             match scheduled_period {
-                Some(period) => {
+                Some(scheduled_period) => {
                     if awsc
-                        && !period.contains_date(basic_start_of_first_activity)
+                        && !scheduled_period.contains_date(basic_start_of_first_activity)
                         && &basic_start_of_first_activity > first_period.start_date()
                     {
                         strategic_state.infeasible_cases_mut().unwrap().respect_awsc =
                             ConstraintState::Infeasible(format!(
-                                "Work order {} does not respect AWSC. Period: {}, basic_start_date: {}",
+                                "Work order {} does not respect AWSC. Period: {}, basic start date: {}, status codes: {}, unloading_point: {:?}, vendor: {}",
                                 work_order_number,
-                                period,
+                                scheduled_period,
                                 basic_start_of_first_activity,
+                                work_order.status_codes(),
+                                work_order.unloading_point().period,
+                                if work_order.is_vendor() { "VEN" } else { "   " },
                             ));
                         break;
                     }
@@ -413,12 +416,12 @@ impl TestAlgorithm for StrategicAgent {
                     .infeasible_cases_mut()
                     .unwrap()
                     .respect_sch = ConstraintState::Infeasible(format!(
-                    "\t\t\nWork order number: {}\t\t\nwith scheduled period: {}\t\t\nwith locked period: {}\t\t\n work order status codes: {}\t\t\n work order unloading point: {}",
+                    "\t\t\nWork order number: {}\t\t\nwith scheduled period: {}\t\t\nwith locked period: {:?}\t\t\n work order status codes: {}\t\t\n work order unloading point: {:?}",
                     work_order_number,
                     optimized_work_order.scheduled_period.as_ref().unwrap(),
-                    optimized_work_order.locked_in_period.as_ref().unwrap(),
+                    optimized_work_order.locked_in_period.as_ref(),
                     work_order.status_codes(),
-                    work_order.unloading_point().period.as_ref().unwrap(),
+                    work_order.unloading_point().period.as_ref(),
                 ));
                 break;
             }

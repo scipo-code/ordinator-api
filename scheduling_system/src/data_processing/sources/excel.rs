@@ -315,7 +315,7 @@ fn create_new_operation(
         _ => 0,
     };
 
-    let operating_time = 8.0;
+    let operating_time = 6.0;
 
     let operation_info = OperationInfo::new(
         match row
