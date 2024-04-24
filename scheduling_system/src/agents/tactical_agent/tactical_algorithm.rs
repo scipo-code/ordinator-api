@@ -36,8 +36,8 @@ pub struct TacticalAlgorithm {
     tactical_periods: Vec<Period>,
     number_of_orders: u32,
     optimized_work_orders: HashMap<u32, OptimizedTacticalWorkOrder>,
-    capacity: AlgorithmResources,
-    loading: AlgorithmResources,
+    capacity: TacticalResources,
+    loading: TacticalResources,
     priority_queue: PriorityQueue<u32, u32>,
     tactical_days: Vec<Day>,
 }
@@ -54,13 +54,13 @@ pub struct OptimizedTacticalWorkOrder {
 }
 
 #[derive(Debug, Clone)]
-pub struct AlgorithmResources {
+pub struct TacticalResources {
     resources: HashMap<Resources, HashMap<Day, f64>>,
 }
 
-impl AlgorithmResources {
+impl TacticalResources {
     pub fn new(resources: HashMap<Resources, HashMap<Day, f64>>) -> Self {
-        AlgorithmResources { resources }
+        TacticalResources { resources }
     }
 
     fn to_string(&self, number_of_periods: u32) -> String {
@@ -84,8 +84,13 @@ impl AlgorithmResources {
         }
         writeln!(string).ok();
 
-        for (resource, inner_map) in self.resources.iter() {
-            write!(string, "{:<12}", resource.variant_name()).unwrap();
+        let mut sorted_resources: Vec<_> = self.resources.iter().collect();
+        sorted_resources.sort_by(|resource_a, resource_b| {
+            resource_a.0.to_string().cmp(&resource_b.0.to_string())
+        });
+        for resource in sorted_resources {
+            let inner_map = self.resources.get(resource.0).unwrap();
+            write!(string, "{:<12}", resource.0.variant_name()).unwrap();
             for (nr_day, day) in days.iter().enumerate().take(number_of_periods as usize) {
                 let value = inner_map.get(day).unwrap();
                 match nr_day {
@@ -174,8 +179,8 @@ impl TacticalAlgorithm {
     pub fn new(
         tactical_days: Vec<Day>,
         time_horizon: Vec<Period>,
-        capacity: AlgorithmResources,
-        loading: AlgorithmResources,
+        capacity: TacticalResources,
+        loading: TacticalResources,
     ) -> Self {
         TacticalAlgorithm {
             objective_value: f64::INFINITY,
@@ -476,7 +481,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 let current_day_peek = match current_day.peek() {
                     Some(day) => day,
                     None => {
-                        warn!(
+                        debug!(
                             current_work_order_number = &current_work_order_number,
                             operation_parameters = ?operation_parameters,
                             optimized_work_order = ?optimized_work_order.scheduled_period,
@@ -510,7 +515,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     let day = match current_day.peek() {
                         Some(day) => (*day).clone(),
                         None => {
-                            warn!(
+                            debug!(
                                 current_work_order_number = &current_work_order_number,
                                 operation_parameters = ?operation_parameters,
                                 optimized_work_order = ?optimized_work_order.scheduled_period,
@@ -676,7 +681,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     }
                 }
 
-                let algorithm_resources = AlgorithmResources::new(percentage_loading);
+                let algorithm_resources = TacticalResources::new(percentage_loading);
                 Ok(algorithm_resources.to_string(days_end))
             }
         }
@@ -933,15 +938,15 @@ pub mod tests {
         models::{time_environment::period::Period, work_order::ActivityRelation},
     };
 
-    use super::{AlgorithmResources, Day, OperationParameters, OptimizedTacticalWorkOrder};
+    use super::{Day, OperationParameters, OptimizedTacticalWorkOrder, TacticalResources};
 
     #[test]
     fn test_determine_load_1() {
         let tactical_algorithm = super::TacticalAlgorithm::new(
             vec![],
             vec![],
-            super::AlgorithmResources::new(HashMap::new()),
-            super::AlgorithmResources::new(HashMap::new()),
+            super::TacticalResources::new(HashMap::new()),
+            super::TacticalResources::new(HashMap::new()),
         );
 
         let remaining_capacity = 3.0;
@@ -959,8 +964,8 @@ pub mod tests {
         let tactical_algorithm = super::TacticalAlgorithm::new(
             vec![],
             vec![],
-            super::AlgorithmResources::new(HashMap::new()),
-            super::AlgorithmResources::new(HashMap::new()),
+            super::TacticalResources::new(HashMap::new()),
+            super::TacticalResources::new(HashMap::new()),
         );
 
         let remaining_capacity = 3.0;
@@ -990,8 +995,8 @@ pub mod tests {
         let mut tactical_algorithm = super::TacticalAlgorithm::new(
             tactical_days(56),
             vec![first_period.clone()],
-            super::AlgorithmResources::new(HashMap::new()),
-            super::AlgorithmResources::new(HashMap::new()),
+            super::TacticalResources::new(HashMap::new()),
+            super::TacticalResources::new(HashMap::new()),
         );
 
         let operation_parameter =
@@ -1049,12 +1054,12 @@ pub mod tests {
                 second_period.clone(),
                 third_period.clone(),
             ],
-            super::AlgorithmResources::new_from_data(
+            super::TacticalResources::new_from_data(
                 Resources::iter().collect(),
                 tactical_days(56),
                 0.0,
             ),
-            super::AlgorithmResources::new_from_data(
+            super::TacticalResources::new_from_data(
                 Resources::iter().collect(),
                 tactical_days(56),
                 0.0,
@@ -1124,12 +1129,12 @@ pub mod tests {
                 second_period.clone(),
                 third_period.clone(),
             ],
-            super::AlgorithmResources::new_from_data(
+            super::TacticalResources::new_from_data(
                 Resources::iter().collect(),
                 tactical_days(56),
                 100.0,
             ),
-            super::AlgorithmResources::new_from_data(
+            super::TacticalResources::new_from_data(
                 Resources::iter().collect(),
                 tactical_days(56),
                 0.0,
@@ -1215,7 +1220,7 @@ pub mod tests {
         }
     }
 
-    impl AlgorithmResources {
+    impl TacticalResources {
         pub fn new_from_data(
             resources: Vec<Resources>,
             tactical_days: Vec<Day>,
@@ -1229,7 +1234,7 @@ pub mod tests {
                 }
                 resource_capacity.insert(resource, days);
             }
-            AlgorithmResources::new(resource_capacity)
+            TacticalResources::new(resource_capacity)
         }
     }
 }

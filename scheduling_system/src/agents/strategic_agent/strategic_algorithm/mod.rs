@@ -74,111 +74,13 @@ pub fn create_optimized_work_orders(
     periods: &[Period],
     asset: &Asset,
 ) {
-    let default_period = periods.last();
-
-    for (work_order_number, work_order) in &mut work_orders.inner {
+    for (work_order_number, work_order) in work_orders.inner.iter() {
         if &work_order.functional_location().asset != asset {
             continue;
         }
 
-        let optimized_work_order_builder = OptimizedWorkOrder::builder()
-            .with_work_load(work_order.work_load().clone())
-            .with_weight(work_order.work_order_weight());
-
-        let mut excluded_periods: HashSet<Period> = HashSet::new();
-
-        for (i, period) in periods.iter().enumerate() {
-            if period < &work_order.order_dates_mut().earliest_allowed_start_period
-                || (work_order.is_vendor() && i <= 3)
-                || (work_order.revision().shutdown && i <= 3)
-            {
-                excluded_periods.insert(period.clone());
-            }
-        }
-
-        let optimized_work_order_builder = optimized_work_order_builder
-            .with_excluded_periods(excluded_periods.clone())
-            .with_latest_period(Some(
-                work_order
-                    .order_dates_mut()
-                    .latest_allowed_finish_period
-                    .clone(),
-            ));
-
-        let unloading_point_period = work_order.unloading_point().period.clone();
-
-        let optimized_work_order_builder = if work_order.is_vendor() {
-            optimized_work_order_builder.with_vendor(default_period.cloned(), unloading_point_period.clone())
-        } else {
-            optimized_work_order_builder
-        };
-
-        let optimized_work_order_builder = if work_order.status_codes().sch {
-            if unloading_point_period.is_some()
-                && periods[0..=1].contains(&unloading_point_period.clone().unwrap())
-            {
-                match unloading_point_period {
-                    Some(unloading_period) => optimized_work_order_builder
-                        .forced_period(default_period.cloned(), unloading_period),
-                    None => match periods
-                        .iter()
-                        .find(|period| {
-                            period.start_date() <= &work_order.order_dates().basic_start_date
-                                && &work_order.order_dates().basic_start_date <= period.end_date()
-                        })
-                        .cloned()
-                    {
-                        Some(locked_in_period) => optimized_work_order_builder
-                            .forced_period(default_period.cloned(), locked_in_period),
-                        None => {
-                            optimized_work_order_builder.default_period(default_period.cloned())
-                        }
-                    },
-                }
-            } else {
-                let scheduled_period = periods[0..=1]
-                    .iter()
-                    .find(|period| period.contains_date(work_order.order_dates().basic_start_date));
-                match scheduled_period {
-                    Some(period) => optimized_work_order_builder
-                        .forced_period(Some(period.clone()), period.clone()),
-                    None => optimized_work_order_builder
-                        .forced_period(Some(periods[0].clone()), periods[0].clone()),
-                }
-            }
-        } else if work_order.status_codes().awsc {
-            let scheduled_period = periods
-                .iter()
-                .find(|period| {
-                    period.start_date() <= &work_order.order_dates().basic_start_date
-                        && &work_order.order_dates().basic_start_date <= period.end_date()
-                })
-                .cloned();
-            match scheduled_period {
-                Some(locked_in_period) => optimized_work_order_builder
-                    .forced_period(Some(locked_in_period.clone()), locked_in_period),
-                None => match unloading_point_period {
-                    Some(unloading_period) => optimized_work_order_builder
-                        .forced_period(default_period.cloned(), unloading_period),
-                    None => optimized_work_order_builder.default_period(default_period.cloned()),
-                },
-            }
-        } else if work_order.unloading_point().period.is_some() {
-            let locked_in_period = unloading_point_period.clone().unwrap();
-            if unloading_point_period.as_ref().unwrap() == &periods[1] {
-                optimized_work_order_builder.default_period(default_period.cloned())
-            } else {
-                optimized_work_order_builder.forced_period(unloading_point_period, locked_in_period)
-            }
-        } else {
-            if work_order.main_work_center().is_fmc() {
-                optimized_work_order_builder.forced_period(default_period.cloned(), default_period.cloned().unwrap())
-            } else {
-                optimized_work_order_builder.default_period(default_period.cloned())
-            }
-        };
-        let optimized_work_order = optimized_work_order_builder.build();
-
+        let optimized_work_order = OptimizedWorkOrder::builder().build_from_work_order(work_order, periods).build();
+        
         let scheduled_period = optimized_work_order.scheduled_period.clone().unwrap();
         self.optimized_work_orders.insert_optimized_work_order(*work_order_number, optimized_work_order);
 
@@ -1058,7 +960,7 @@ mod tests {
         );
 
         strategic_agent_algorithm.optimized_work_orders.inner.insert(work_order_number, work_order);
-        strategic_agent_algorithm.update_loadings(work_order_number, &period, LoadOperation::Sub);
+        strategic_agent_algorithm.update_loadings(work_order_number, &period, LoadOperation::Add);
 
         assert_eq!(
             strategic_agent_algorithm
@@ -1594,6 +1496,14 @@ mod tests {
                 .inner
                 .insert(work_order_number, optimized_work_order);
         }
+    }
+
+    #[test]
+    fn test_strategic_optimized_work_order_builder() {
+        // let OptimizedWorkOrderBuilder::new();
+
+
+        
     }
 
 }

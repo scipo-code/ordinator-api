@@ -1,3 +1,4 @@
+pub mod algorithm;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -21,14 +22,10 @@ use super::{
 
 pub struct SupervisorAgent {
     id: Id,
-    #[allow(dead_code)]
     asset: Asset,
-    #[allow(dead_code)]
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     assigned_work_orders: Vec<(u32, HashMap<u32, OperationSolution>)>,
-    #[allow(dead_code)]
     tactical_agent_addr: Addr<TacticalAgent>,
-    #[allow(dead_code)]
     operational_agent_addrs: HashMap<Id, Addr<OperationalAgent>>,
 }
 

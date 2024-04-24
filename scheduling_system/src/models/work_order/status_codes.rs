@@ -64,7 +64,7 @@ impl Display for StatusCodes {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{}{}{}{}{}{}{}",
+            " | {} | {} | {} | {} | {} | {} | {} |",
             self.material_status,
             if self.pcnf { "PCNF" } else { "" },
             if self.awsc { "AWSC" } else { "" },

@@ -61,13 +61,13 @@ pub enum ResourceCommands {
     },
     /// Set the capacity of a resource
     SetCapacity {
-        resource: String,
+        resource: Resources,
         period: String,
-        capacity: u32,
+        capacity: f64,
     },
 
     /// Set the capacity policy of a resource (used for operation)
-    SetCapacityPolicy { resource: String, capacity: u32 },
+    SetCapacityPolicy { resource: Resources, capacity: f64 },
     /// Set the capacity policy to default (used for testing)
     LoadCapacityFile { toml_path: String },
 }
@@ -268,11 +268,29 @@ impl StrategicCommands {
                     SystemMessages::Strategic(strategic_request)
                 }
                 ResourceCommands::SetCapacity {
-                    resource: _,
-                    period: _,
-                    capacity: _,
+                    resource,
+                    period,
+                    capacity,
                 } => {
-                    todo!()
+                    let mut resources = HashMap::new();
+
+                    let mut periods: HashMap<String, f64> = HashMap::new();
+
+                    periods.insert(period.clone(), *capacity);
+                    resources.insert(resource.clone(), periods);
+
+                    let strategic_resources_message =
+                        StrategicResourceMessage::new_set_resources(resources);
+
+                    let strategic_request_message =
+                        StrategicRequestMessage::Resources(strategic_resources_message);
+
+                    let strategic_request = StrategicRequest {
+                        asset: asset.clone(),
+                        strategic_request_message,
+                    };
+
+                    SystemMessages::Strategic(strategic_request)
                 }
                 ResourceCommands::SetCapacityPolicy {
                     resource: _,
