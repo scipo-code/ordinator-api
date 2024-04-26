@@ -111,6 +111,17 @@ impl WorkOrders {
     }
 }
 
+impl FromIterator<(u32, WorkOrder)> for WorkOrders {
+    fn from_iter<T: IntoIterator<Item = (u32, WorkOrder)>>(iter: T) -> Self {
+        let mut work_orders = HashMap::new();
+
+        for (work_order_number, work_order) in iter {
+            work_orders.insert(work_order_number, work_order);
+        }
+        WorkOrders { inner: work_orders }
+    }
+}
+
 impl fmt::Display for SchedulingEnvironment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let workers = match self.worker_environment().get_crew().as_ref() {
@@ -141,7 +152,14 @@ impl fmt::Display for WorkOrders {
             "The Work Orders are currently comprised of \n  work_orders: {}",
             self.inner.len()
         )?;
-        for (_, work_order) in self.inner.iter() {
+        for (i, work_order) in self.inner.values().enumerate() {
+            if i % 10 == 0 {
+                writeln!(
+                f,
+                "                          |EARL-PERIOD| SCH|AWSC|SECE|REVISION|TYPE|PRIO|VEN*| MAT|  Unloading|Asset|",
+            )
+            .unwrap();
+            };
             write!(f, "{}", work_order.to_string_normal())?;
         }
         Ok(())

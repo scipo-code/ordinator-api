@@ -30,31 +30,36 @@ impl WorkOrder {
         let mut message = String::new();
         writeln!(
             message,
-            "                          |EARL-PERIOD|AWSC|SECE|REVISION|TYPE|PRIO|VEN*| MAT|",
-        )
-        .unwrap();
-        writeln!(
-            message,
-            "Work order: {}    |{:>11}|{:<}|{:<}|{:>8}|{:>4}|{:>4}|{:>4}|{:?}|",
+            "Work order: {}    |{:>11}|{:<}|{:<}|{:<}|{:>8}|{:>4}|{:>4}|{:>4}|{:>7}|{:>11}|{:>5}|",
             self.work_order_number(),
             self.order_dates()
                 .earliest_allowed_start_period
                 .period_string(),
+            if self.status_codes().sch {
+                " SCH"
+            } else {
+                "    "
+            },
             if self.status_codes().awsc {
                 "AWSC"
             } else {
-                "----"
+                "    "
             },
             if self.status_codes().sece {
                 "SECE"
             } else {
-                "----"
+                "    "
             },
             self.work_order_info.revision.string,
             self.work_order_info.work_order_type.get_type_string(),
             self.work_order_info.priority.get_priority_string(),
-            if self.is_vendor() { "VEN" } else { "----" },
+            if self.is_vendor() { "VEN" } else { "    " },
             self.work_order_analytic.status_codes.material_status,
+            match &self.work_order_info.unloading_point.period {
+                Some(period) => period.period_string(),
+                None => "".to_string(),
+            },
+            self.work_order_info.functional_location.asset,
         )
         .unwrap();
 

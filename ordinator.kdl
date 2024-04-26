@@ -1,23 +1,28 @@
 env {
 	RUST_BACKTRACE 0
 	RUST_LOG "info"
-	ORDINATOR_INPUT "scheduling_system/test_data/input-ordinator-hd-hb-2024-04-11.xlsx" 
+	ORDINATOR_INPUT "scheduling_system/test_data/input-ordinator-complete-2024-04-10.xlsx" 
 }
 
 layout {
 	pane split_direction="vertical" {
 		pane size="20%" split_direction="horizontal" {
 			pane size="30%" split_direction="vertical" {
-				pane size="15%" name="Ordinator watch" close_on_exit=true {	
+				pane size="15%" name="Ordinator watch" {	
 		  			command "cargo"
-		      		args "watch" "-s" "./profiling_and_benchmarking/clear_profiling.sh" "-s" "./logs/clear_logging.sh" "-w" "scheduling_system/" "-w" "shared_messages/" "-x" "run --bin scheduling_system -- $ORDINATOR_INPUT "
+		      		args "watch" "-p" "scheduling_system" "-p" "shared_messages" "-x" "run --bin scheduling_system -- $ORDINATOR_INPUT "
 	    	  		cwd "$ORDINATOR_PATH"
 	    		}
-		    	pane size="5%" name="Imperium watch"{
+		    	pane size="3%" name="Imperium watch"{
 	    	  		command "cargo"
 	      			args "watch" "-w" "imperium/" "-w" "shared_messages/"  "-x" "build --release --bin imperium"
 	      			cwd "$ORDINATOR_PATH"
-		    	}		
+		    	}
+		    	pane size="2%" name="clear logs" {
+		    		command "cargo"
+		    		args "watch" "-s" "./logging/clear_logging.sh" "-p" "scheduling_system"		
+					cwd "$ORDINATOR_PATH"
+		    	}
 			}
 			pane name="Bottom" borderless=true {
 				cwd "$ORDINATOR_PATH"
