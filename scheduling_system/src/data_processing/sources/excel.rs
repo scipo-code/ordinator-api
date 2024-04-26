@@ -684,7 +684,7 @@ fn extract_revision(
         .cloned()
     {
         Some(calamine::Data::String(s)) => s,
-        Some(calamine::Data::Empty) => String::from("No Value provided in the input data"),
+        Some(calamine::Data::Empty) => String::from("Empty"),
         _ => {
             dbg!(row);
             return Err(Error::Msg("Could not parse revision as string"));
@@ -720,52 +720,24 @@ fn extract_unloading_point(
         _ => return Err(Error::Msg("Could not parse unloading point as string")),
     };
 
-    let (start_week, _end_week, present) = extract_weeks(&unloading_point_string);
+    let start_week = extract_weeks(&unloading_point_string);
 
-    let unloading_point = if present {
-        UnloadingPoint {
-            string: unloading_point_string.clone(),
-            period: {
-                Some(
-                    match periods.iter().find(|&period| {
-                        period.start_week == start_week || period.end_week == start_week
-                    }) {
-                        Some(period) => period.clone(),
-                        None => {
-                            panic!(
-                                "Unloading cannot be present and not have a period. {:?}",
-                                row
-                            );
-                        }
-                    }
-                    .clone(),
-                )
-            },
-        }
-    } else {
-        UnloadingPoint {
-            string: unloading_point_string,
-            period: None,
-        }
-    };
-
-    Ok(unloading_point)
+    Ok(UnloadingPoint {
+        string: unloading_point_string.clone(),
+        period: periods
+            .iter()
+            .find(|&period| period.start_week == start_week || period.end_week == start_week)
+            .cloned(),
+    })
 }
 
-fn extract_weeks(input_string: &str) -> (u32, u32, bool) {
+fn extract_weeks(input_string: &str) -> u32 {
     let re = regex::Regex::new(r"W(\d+)-?W?(\d+)?").unwrap();
     let captures = re.captures(input_string);
     if let Some(cap) = captures {
-        let start_week = cap[1].parse::<u32>().unwrap_or(0);
-
-        if let Some(end_week_match) = cap.get(2) {
-            let end_week = end_week_match.as_str().parse::<u32>().unwrap_or(0);
-            (start_week, end_week, true)
-        } else {
-            (start_week, 0, true)
-        }
+        cap[1].parse::<u32>().unwrap_or(0)
     } else {
-        (0, 0, false)
+        0
     }
 }
 

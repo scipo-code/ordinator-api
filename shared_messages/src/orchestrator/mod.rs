@@ -6,7 +6,7 @@ use crate::{resources::Id, Asset, LevelOfDetail, LogLevel};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum OrchestratorRequest {
     GetWorkOrderStatus(u32, LevelOfDetail),
-    GetWorkOrdersState(LevelOfDetail),
+    GetWorkOrdersState(Asset, LevelOfDetail),
     GetPeriods,
     GetDays,
     GetAgentStatus,

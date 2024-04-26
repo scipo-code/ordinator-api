@@ -45,14 +45,14 @@ pub struct WorkOrder {
     relations: Vec<ActivityRelation>,
     work_order_analytic: WorkOrderAnalytic,
     pub order_dates: WorkOrderDates,
-    work_order_info: WorkOrderInfo,
+    pub work_order_info: WorkOrderInfo,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrderInfo {
     priority: Priority,
     work_order_type: WorkOrderType,
-    functional_location: FunctionalLocation,
+    pub functional_location: FunctionalLocation,
     order_text: OrderText,
     unloading_point: UnloadingPoint,
     revision: Revision,

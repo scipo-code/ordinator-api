@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use shared_messages::{LevelOfDetail, LogLevel};
+use shared_messages::{Asset, LevelOfDetail, LogLevel};
 
 /// The StatusCommands are mostly important for the scheduling environment.
 #[derive(Subcommand, Debug)]
@@ -24,7 +24,10 @@ pub enum StatusCommands {
 #[derive(Subcommand, Debug)]
 pub enum WorkOrders {
     /// Get the aggregated state of all work orders
-    WorkOrderState { level_of_detail: LevelOfDetail },
+    WorkOrderState {
+        asset: Asset,
+        level_of_detail: LevelOfDetail,
+    },
 
     /// Get all details of a specific work order
     WorkOrder {

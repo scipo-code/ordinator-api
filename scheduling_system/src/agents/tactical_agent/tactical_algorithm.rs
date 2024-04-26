@@ -528,10 +528,24 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     activity_load.push((day, load));
 
                     current_day.next();
+
+                    let peek_next_day = current_day.peek();
+                    let current_day = match peek_next_day {
+                        Some(next_day) => next_day,
+                        None => {
+                            error!(
+                                current_work_order_number = &current_work_order_number,
+                                operation_parameters = ?operation_parameters,
+                                optimized_work_order = ?optimized_work_order.scheduled_period,
+                                operation_solutions = ?operation_solutions,
+                                "Work order did not fit in the tactical schedule"
+                            );
+                            // break should schedule what is possible and cut the rest out.
+                            break;
+                        }
+                    };
                     if start_day_index <= 12
-                        && self
-                            .remaining_capacity(&resource, current_day.peek().unwrap())
-                            .is_none()
+                        && self.remaining_capacity(&resource, current_day).is_none()
                     {
                         start_day_index += 1;
                         loop_state = LoopState::Unscheduled;
