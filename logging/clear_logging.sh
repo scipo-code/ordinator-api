@@ -1,3 +1,4 @@
 #!/bin/bash 
 
-rm logging/logs/*.log.*
+rm ./logging/logs/ordinator.log.*
+
