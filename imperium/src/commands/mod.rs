@@ -62,9 +62,14 @@ pub fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
     match &cli.command {
         Commands::Status { status_commands } => match status_commands {
             StatusCommands::WorkOrders { work_orders } => match work_orders {
-                WorkOrders::WorkOrderState { level_of_detail } => {
-                    let orchestrator_request =
-                        OrchestratorRequest::GetWorkOrdersState(level_of_detail.clone());
+                WorkOrders::WorkOrderState {
+                    asset,
+                    level_of_detail,
+                } => {
+                    let orchestrator_request = OrchestratorRequest::GetWorkOrdersState(
+                        asset.clone(),
+                        level_of_detail.clone(),
+                    );
                     SystemMessages::Orchestrator(orchestrator_request)
                 }
                 WorkOrders::WorkOrder {

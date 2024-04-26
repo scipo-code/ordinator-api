@@ -8,6 +8,7 @@ use tracing::{instrument, warn};
 use tracing_subscriber::EnvFilter;
 
 use crate::agents::orchestrator::Orchestrator;
+use crate::models::WorkOrders;
 
 #[allow(clippy::await_holding_lock)]
 #[instrument(level = "info", skip_all)]
@@ -218,13 +219,13 @@ impl Orchestrator {
                     Ok("Work order not found".to_string())
                 }
             }
-            OrchestratorRequest::GetWorkOrdersState(level_of_detail) => {
+            OrchestratorRequest::GetWorkOrdersState(asset, level_of_detail) => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
-                let cloned_work_orders = scheduling_environment_guard.clone_work_orders();
-
+                let cloned_work_orders:WorkOrders = scheduling_environment_guard.clone_work_orders();
+                let work_orders: WorkOrders = cloned_work_orders.inner.into_iter().filter(|wo| wo.1.work_order_info.functional_location.asset == asset).collect();
                 match level_of_detail {
-                    LevelOfDetail::Normal => Ok(cloned_work_orders.to_string()),
+                    LevelOfDetail::Normal => Ok(work_orders.to_string()),
                     LevelOfDetail::Verbose => Ok("Not implemented".to_string()),
                 }
             }
