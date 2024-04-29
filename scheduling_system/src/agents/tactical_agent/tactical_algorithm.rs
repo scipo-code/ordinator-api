@@ -533,14 +533,14 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     let current_day = match peek_next_day {
                         Some(next_day) => next_day,
                         None => {
-                            error!(
+                            debug!(
                                 current_work_order_number = &current_work_order_number,
                                 operation_parameters = ?operation_parameters,
                                 optimized_work_order = ?optimized_work_order.scheduled_period,
                                 operation_solutions = ?operation_solutions,
                                 "Work order did not fit in the tactical schedule"
                             );
-                            // break should schedule what is possible and cut the rest out.
+                            // brak should schedule what is possible and cut the rest out.
                             break;
                         }
                     };

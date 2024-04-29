@@ -25,13 +25,12 @@ use tracing::warn;
 
 use crate::agents::tactical_agent::TacticalAgent;
 
-
 use self::strategic_algorithm::optimized_work_orders::StrategicResources;
 
-use super::LoadOperation;
 use super::traits::AlgorithmState;
 use super::traits::ConstraintState;
 use super::traits::TestAlgorithm;
+use super::LoadOperation;
 use super::SetAddr;
 use super::StateLink;
 
@@ -192,12 +191,24 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                     }
                 }
             }
-            StrategicRequestMessage::Scheduling(scheduling_message) => self
+            StrategicRequestMessage::Scheduling(scheduling_message) => {
+                let scheduling_output = self
+                    .strategic_agent_algorithm
+                    .update_scheduling_state(scheduling_message);
+
+                self.strategic_agent_algorithm.calculate_objective_value();
+                info!(strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
+                scheduling_output
+            }
+            StrategicRequestMessage::Resources(resources_message) => {
+                let resources_output = self
                 .strategic_agent_algorithm
-                .update_scheduling_state(scheduling_message),
-            StrategicRequestMessage::Resources(resources_message) => self
-                .strategic_agent_algorithm
-                .update_resources_state(resources_message),
+                .update_resources_state(resources_message);
+
+                self.strategic_agent_algorithm.calculate_objective_value();
+                info!(strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
+                resources_output
+                }
             StrategicRequestMessage::Periods(periods_message) => {
                 let mut scheduling_env_lock = self.scheduling_environment.lock().unwrap();
 
@@ -229,10 +240,14 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                             \t{:30}{:>20}\n\
                             \t{:30}{:>20}\n\
                             \t{:30}{:>20}\n",
-                        "respect_awsc: ",&infeasible_cases.respect_awsc,
-                        "respect_unloading: ",&infeasible_cases.respect_unloading,
-                        "respect_sch: ",&infeasible_cases.respect_sch,
-                        "respect_aggregated_load: ",&infeasible_cases.respect_aggregated_load
+                        "respect_awsc: ",
+                        &infeasible_cases.respect_awsc,
+                        "respect_unloading: ",
+                        &infeasible_cases.respect_unloading,
+                        "respect_sch: ",
+                        &infeasible_cases.respect_sch,
+                        "respect_aggregated_load: ",
+                        &infeasible_cases.respect_aggregated_load
                     )),
                 }
             }
@@ -357,8 +372,7 @@ impl TestAlgorithm for StrategicAgent {
             let periods = scheduling_environment.periods();
 
             if work_order.unloading_point().period.is_some()
-                && work_order.unloading_point().period
-                    != optimized_work_order.scheduled_period
+                && work_order.unloading_point().period != optimized_work_order.scheduled_period
                 && !periods[0..=1].contains(work_order.unloading_point().period.as_ref().unwrap())
                 && !work_order.status_codes().awsc
                 && !work_order.status_codes().sch
@@ -401,7 +415,8 @@ impl TestAlgorithm for StrategicAgent {
             let periods = scheduling_environment.periods();
 
             if work_order.status_codes().sch
-                && !periods[0..=1].contains(&optimized_work_order.scheduled_period.as_ref().unwrap())
+                && !periods[0..=1]
+                    .contains(&optimized_work_order.scheduled_period.as_ref().unwrap())
             {
                 error!(
                     work_order_number = ?work_order_number,
@@ -428,15 +443,21 @@ impl TestAlgorithm for StrategicAgent {
             strategic_state.infeasible_cases_mut().unwrap().respect_sch = ConstraintState::Feasible;
         }
 
-
         let mut aggregated_strategic_load = StrategicResources::new(HashMap::new());
         for period in self.strategic_agent_algorithm.periods() {
-            for (_work_order_number, optimized_work_order) in self.strategic_agent_algorithm.optimized_work_orders() {
+            for (_work_order_number, optimized_work_order) in
+                self.strategic_agent_algorithm.optimized_work_orders()
+            {
                 if optimized_work_order.scheduled_period.as_ref().unwrap() == &period.clone() {
                     let work_load = &optimized_work_order.work_load;
                     for resource in Resources::iter() {
                         let load = work_load.get(&resource).unwrap_or(&0.0);
-                        aggregated_strategic_load.update_load(&resource, period, *load, LoadOperation::Add);
+                        aggregated_strategic_load.update_load(
+                            &resource,
+                            period,
+                            *load,
+                            LoadOperation::Add,
+                        );
                     }
                 }
             }
@@ -445,21 +466,33 @@ impl TestAlgorithm for StrategicAgent {
         let mut feasible: bool = true;
         for (resource, periods) in aggregated_strategic_load.inner {
             for (period, load) in periods {
-                match self.strategic_agent_algorithm.resources_loadings().inner.get(&resource).unwrap().get(&period) {
+                match self
+                    .strategic_agent_algorithm
+                    .resources_loadings()
+                    .inner
+                    .get(&resource)
+                    .unwrap()
+                    .get(&period)
+                {
                     Some(resource_load) if (*resource_load - load).abs() < 0.005 => continue,
                     Some(resource_load) => {
                         strategic_state.infeasible_cases_mut().unwrap().respect_aggregated_load = ConstraintState::Infeasible(format!("resource = {}, period = {}, aggregated_load = {:.3e}, resource_load = {:.3e}", resource, period, load, resource_load));
                         error!(resource = %resource, period = %period, aggregated_load = %load, resource_load = %resource_load);
                         feasible = false
                     }
-                    None => panic!("aggregated load and resource loading are not identically shaped"),
+                    None => {
+                        panic!("aggregated load and resource loading are not identically shaped")
+                    }
                 }
             }
         }
         if feasible {
-            strategic_state.infeasible_cases_mut().unwrap().respect_aggregated_load = ConstraintState::Feasible
+            strategic_state
+                .infeasible_cases_mut()
+                .unwrap()
+                .respect_aggregated_load = ConstraintState::Feasible
         }
-        
+
         strategic_state
     }
 }
