@@ -1,65 +1,40 @@
+import sys
+import json
 import pandas as pd
 import matplotlib.pyplot as plt
-import json
-from datetime import datetime
-from dotenv import load_dotenv
-import os
+import numpy as np
 
-def parse_log_file(file_path, field_name):
-    data = []
+def read_input():
+    # Read all lines from stdin and join them into a single string
+    input_data = sys.stdin.read()
+    # Convert the JSON string into a Python object
+    return json.loads(input_data)
 
-    with open(file_path, 'r') as file:
-        for line in file:
-            try:
-                json_obj = json.loads(line)
-                objective_value = float(json_obj['fields'][field_name])
-                timestamp = json_obj['timestamp']
-                data.append({'timestamp': timestamp, field_name: objective_value})
-            except json.JSONDecodeError:
-                None
-                #print(f"Error decoding JSON for line: {line}")
-            except KeyError:
-                None
-                #print(f"Missing expected key in JSON object: {line}")
+def main():
+    # Read data from stdin
+    data = read_input()
 
-    return pd.DataFrame(data)
+    # Convert the data into a DataFrame
+    df = pd.DataFrame(data)
 
-load_dotenv()
-today = datetime.now().date()
-# Path to your log file
-file_path = str(os.getenv("ORDINATOR_LOG_DIR")) + "/ordinator.log." + str(today)
+    # Convert timestamp strings to datetime and strategic objective values to float
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df['fields_strategic_objective_value'] = df['fields_strategic_objective_value'].astype(float)
 
-# Parse the log file
-strategic_dataframe = parse_log_file(file_path, 'strategic_objective_value')
-tactical_dataframe = parse_log_file(file_path, 'tactical_objective_value')
+    # Plotting
+    plt.figure(figsize=(10, 5))
+    plt.plot(df['timestamp'][110:], np.log(df['fields_strategic_objective_value'][110:]), linestyle='-')
+    plt.yscale('linear')
+    plt.title('Objective value over time')
+    plt.xlabel('Time')
+    plt.ylabel('Objective Value')
+    plt.grid(True)
+    plt.xticks(rotation=45)
+    plt.tight_layout()  # Adjust layout to make room for the rotated x-axis labels
 
+    plt.savefig("visualization/objective.png")
+    # Show the plot
+    plt.show()
 
-# Convert 'Timestamp' to datetime for plotting
-strategic_dataframe['timestamp'] = pd.to_datetime(strategic_dataframe['timestamp'])
-tactical_dataframe['timestamp'] = pd.to_datetime(tactical_dataframe['timestamp'])
-
-
-# Plotting
-plt.figure(figsize=(10, 12))
-
-
-plt.subplot(2, 1, 1)
-plt.plot(tactical_dataframe['timestamp'], tactical_dataframe['tactical_objective_value'])
-plt.title('Tactical Objective Value Over Time')
-plt.xlabel('timestamp')
-plt.ylabel('Tactical Objective Value')
-plt.xticks(rotation=45)
-plt.tight_layout()
-
-plt.subplot(2, 1, 2)
-plt.plot(strategic_dataframe['timestamp'], strategic_dataframe['strategic_objective_value'])
-plt.title('Strategic Objective Value Over Time')
-plt.xlabel('timestamp')
-plt.ylabel('Strategic Objective Value')
-plt.xticks(rotation=45)
-plt.tight_layout()
-
-plt.savefig('visualization/images/objective_value.png')
-plt.show()
-
-
+if __name__ == "__main__":
+    main()

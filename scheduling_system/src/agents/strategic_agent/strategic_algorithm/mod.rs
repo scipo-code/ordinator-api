@@ -324,7 +324,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
         }
 
         self.objective_value =
-            period_penalty_contribution + 10000000000.0 * excess_penalty_contribution;
+            period_penalty_contribution + 10000000.0 * excess_penalty_contribution;
     }
 
     #[instrument(level = "trace", skip_all)]
