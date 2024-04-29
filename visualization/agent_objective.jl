@@ -2,42 +2,33 @@ using JSON
 using DataFrames
 using Dates
 using Plots
+using DotEnv
 
 # Function to parse log file
-function parse_log_file(file_path)
+function parse_log_file(json_data::Vector{Any})
     data = []
-    open(file_path, "r") do file
-        for line in eachline(file)
-            try
-                json_obj = JSON.parse(line)
-                tactical_objective_value = parse(Float64, json_obj["fields"]["tactical_objective_value"])
-                timestamp = DateTime(json_obj["timestamp"])
-                push!(data, (Timestamp = timestamp, Tactical_Objective_Value = tactical_objective_value))
-            catch e
-                if isa(e, JSON.ParserError)
-                    println("Error decoding JSON for line: $line")
-                elseif isa(e, KeyError)
-                    println("Missing expected key in JSON object: $line")
-                end
-            end
-        end
+
+    for entry in json_data
+        print(entry)
+        obj = entry["fields_strategic_objective_value"]
+        println(obj)
+        strategic_objective_value = parse(Float64, obj)
+        timestamp = DateTime(entry["timestamp"])
+        push!(data, (Timestamp = timestamp, Strategic_Objective_Value = strategic_objective_value))
     end
     DataFrame(data)
 end
 
+input_data = read(stdin, String)
+
+json_data = JSON.parse(input_data)
 # Current day
-today = Dates.day(now())
-
-# Path to your log file
-ENV["ORDINATOR_LOG_DIR"] = "/path/to/logs" # Replace with actual path or load from .env
-file_path = ENV["ORDINATOR_LOG_DIR"] * "/ordinator.log.$today"
-
-# Parse the log file
-df = parse_log_file(file_path)
-
+println(typeof(json_data))
+df = parse_log_file(json_data)
+print(df)
 # Plotting
-plot(df.Timestamp, df.Tactical_Objective_Value, seriestype = :line, marker = :circle,
-     title = "Tactical Objective Value Over Time",
-     xlabel = "Timestamp", ylabel = "Tactical Objective Value", legend = false)
+plot(df.Timestamp, df.Strategic_Objective_Value, seriestype = :line, marker = :circle,
+     title = "Strategic Objective Value Over Time",
+     xlabel = "Timestamp", ylabel = "Strategic Objective Value", legend = false)
 xticks = range(minimum(df.Timestamp), stop = maximum(df.Timestamp), length = 10)
 plot!(xticks = xticks, xrotation = 45)
