@@ -4,10 +4,10 @@ use clap::Args;
 use clap::Subcommand;
 use reqwest::blocking::Client;
 use shared_messages::resources::Resources;
-use shared_messages::strategic::strategic_resources_message::StrategicResourceMessage;
-use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
-use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
-use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
+use shared_messages::strategic::strategic_request_resources_message::StrategicResourceMessage;
+use shared_messages::strategic::strategic_request_scheduling_message::SingleWorkOrder;
+use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingMessage;
+use shared_messages::strategic::strategic_request_status_message::StrategicStatusMessage;
 use shared_messages::strategic::StrategicRequest;
 use shared_messages::strategic::StrategicRequestMessage;
 use shared_messages::Asset;
@@ -102,7 +102,7 @@ impl StrategicCommands {
                 status_commands,
             } => match status_commands {
                 Some(StatusCommands::WorkOrders { period }) => {
-                    let strategic_status_message: StrategicStatusMessage =
+                    let strategic_status_message =
                         StrategicStatusMessage::new_period(period.to_string());
 
                     let strategic_request = StrategicRequest {

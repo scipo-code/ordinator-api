@@ -357,13 +357,3 @@ impl StrategicResources {
         string
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    pub fn test_optimized_work_order_builder() {
-        let optimized_work_order_builder = OptimizedWorkOrder::builder();
-
-        // optimized_work_order_builder.
-    }
-}
