@@ -3,9 +3,9 @@ pub mod supervisor_status_message;
 use actix::Message;
 use serde::{Deserialize, Serialize};
 
-use crate::{agent_error::AgentError, resources::MainResources, Asset};
-
 use self::supervisor_status_message::SupervisorStatusMessage;
+use crate::models::worker_environment::resources::MainResources;
+use crate::{agent_error::AgentError, Asset};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SupervisorRequest {

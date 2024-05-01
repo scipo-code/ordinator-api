@@ -6,12 +6,14 @@ use std::{
 
 use actix::prelude::*;
 use shared_messages::{
-    agent_error::AgentError, resources::Id, supervisor::SupervisorRequestMessage, Asset,
-    StatusMessage, StopMessage,
+    agent_error::AgentError, supervisor::SupervisorRequestMessage, Asset, StatusMessage,
+    StopMessage,
 };
+
+use shared_messages::models::worker_environment::resources::Id;
 use tracing::{error, instrument};
 
-use crate::models::SchedulingEnvironment;
+use shared_messages::models::SchedulingEnvironment;
 
 use super::{
     operational_agent::OperationalAgent,

@@ -5,9 +5,9 @@ use std::{
 
 use actix::prelude::*;
 use chrono::{DateTime, Utc};
-use shared_messages::{resources::Id, StatusMessage, StopMessage};
+use shared_messages::{models::worker_environment::resources::Id, StatusMessage, StopMessage};
 
-use crate::models::{work_order::operation::Operation, SchedulingEnvironment};
+use shared_messages::models::{work_order::operation::Operation, SchedulingEnvironment};
 
 use super::{supervisor_agent::SupervisorAgent, SetAddr};
 

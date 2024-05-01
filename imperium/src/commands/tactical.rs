@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use clap::Subcommand;
 use reqwest::blocking::Client;
 use shared_messages::{
-    resources::Resources,
+    models::worker_environment::resources::Resources,
     tactical::{
         tactical_resources_message::TacticalResourceMessage,
         tactical_status_message::TacticalStatusMessage, TacticalRequest, TacticalRequestMessage,
@@ -221,7 +221,7 @@ fn generate_manual_resources(
     };
 
     let mut resources_hash_map = HashMap::new();
-    for resource in shared_messages::resources::Resources::iter() {
+    for resource in shared_messages::models::worker_environment::resources::Resources::iter() {
         let mut periods_hash_map = HashMap::new();
         for (i, period) in periods.clone().iter().enumerate() {
             periods_hash_map.insert(

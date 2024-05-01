@@ -1,7 +1,7 @@
-use crate::agents::tactical_agent::tactical_algorithm::Day;
-
+use self::day::Day;
 use self::period::Period;
 
+pub mod day;
 pub mod period;
 
 pub struct TimeEnvironment {

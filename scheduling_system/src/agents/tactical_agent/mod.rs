@@ -3,7 +3,7 @@ pub mod tactical_algorithm;
 
 use actix::prelude::*;
 use shared_messages::agent_error::AgentError;
-use shared_messages::resources::Id;
+use shared_messages::models::worker_environment::resources::Id;
 use shared_messages::tactical::TacticalRequestMessage;
 use shared_messages::{Asset, SolutionExportMessage};
 use std::collections::HashMap;
@@ -13,8 +13,8 @@ use tracing::{info, instrument, warn};
 use crate::agents::strategic_agent::ScheduleIteration;
 use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
 use crate::agents::SetAddr;
-use crate::models::time_environment::period::Period;
-use crate::models::SchedulingEnvironment;
+use shared_messages::models::time_environment::period::Period;
+use shared_messages::models::SchedulingEnvironment;
 
 use super::strategic_agent::StrategicAgent;
 use super::supervisor_agent::SupervisorAgent;
