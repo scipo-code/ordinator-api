@@ -178,6 +178,7 @@ impl Default for Period {
         )
     }
 }
+
 #[cfg(test)]
 mod tests {
 

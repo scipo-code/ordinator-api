@@ -10,6 +10,8 @@ use shared_messages::agent_error::AgentError;
 use shared_messages::models::worker_environment::resources::Resources;
 use shared_messages::strategic::strategic_request_status_message::StrategicStatusMessage;
 use shared_messages::strategic::strategic_response_status::StrategicResponseStatus;
+use shared_messages::strategic::strategic_response_status::WorkOrderResponse;
+use shared_messages::strategic::strategic_response_status::WorkOrdersInPeriod;
 use shared_messages::strategic::StrategicRequestMessage;
 use shared_messages::Asset;
 use shared_messages::SolutionExportMessage;
@@ -154,7 +156,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                         Ok(serde_json::to_string(&strategic_response_status).unwrap())
                     }
                     StrategicStatusMessage::Period(period) => {
-                        let work_orders = self.strategic_agent_algorithm.optimized_work_orders();
+                        let optimized_work_orders = self.strategic_agent_algorithm.optimized_work_orders();
 
                         if !self
                             .strategic_agent_algorithm
@@ -169,7 +171,9 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                             ));
                         }
 
-                        let work_orders_by_period: Vec<u32> = work_orders
+
+
+                        let work_orders_by_period: HashMap<u32, WorkOrderResponse> = optimized_work_orders
                             .iter()
                             .filter(|(_, opt_wo)| match opt_wo.scheduled_period.clone() {
                                 Some(scheduled_period) => {
@@ -177,11 +181,27 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                                 }
                                 None => false,
                             })
-                            .map(|(work_order_number, _)| *work_order_number)
+                            .map(|(work_order_number, optimized_work_order )| {
+                                let work_order = self.scheduling_environment.lock().unwrap().work_orders().inner.get(&work_order_number).unwrap().clone();
+                                let work_order_response = WorkOrderResponse::new(
+                                    work_order.order_dates.earliest_allowed_start_period.clone(),
+                                    work_order.work_order_analytic.status_codes.awsc.clone(),
+                                    work_order.work_order_analytic.status_codes.sece.clone(),
+                                    work_order.work_order_info.revision.clone(),
+                                    work_order.work_order_info.work_order_type.clone(),
+                                    work_order.work_order_info.priority.clone(),
+                                    work_order.work_order_analytic.vendor.clone(),
+                                    work_order.work_order_analytic.status_codes.material_status.clone(),
+                                );
+                                (*work_order_number, work_order_response)
+                            
+                            })
                             .collect();
-                        let message =
-                            self.format_selected_work_orders(work_orders_by_period, Some(period));
 
+
+                        let work_orders_in_period = WorkOrdersInPeriod::new(work_orders_by_period);
+
+                        let message = serde_json::to_string(&work_orders_in_period).unwrap();
                         Ok(message)
                     }
                 }
