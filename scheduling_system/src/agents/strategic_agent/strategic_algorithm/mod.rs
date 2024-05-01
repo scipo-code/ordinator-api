@@ -9,9 +9,9 @@ use rand::prelude::SliceRandom;
 
 use priority_queue::PriorityQueue;
 use shared_messages::agent_error::AgentError;
-use shared_messages::strategic::strategic_periods_message::StrategicTimeMessage;
-use shared_messages::strategic::strategic_resources_message::StrategicResourceMessage;
-use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
+use shared_messages::strategic::strategic_request_periods_message::StrategicTimeMessage;
+use shared_messages::strategic::strategic_request_resources_message::StrategicResourceMessage;
+use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingMessage;
 
 use crate::agents::LoadOperation;
 use crate::agents::traits::LargeNeighborHoodSearch;
@@ -625,7 +625,7 @@ impl PriorityQueues<u32, u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
+    use shared_messages::strategic::strategic_request_scheduling_message::SingleWorkOrder;
     use chrono::{Duration, TimeZone, Utc};
     use rand::{rngs::StdRng, SeedableRng};
 
