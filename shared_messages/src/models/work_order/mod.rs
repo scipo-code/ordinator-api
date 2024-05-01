@@ -40,22 +40,22 @@ use super::time_environment::period::Period;
 pub struct WorkOrder {
     work_order_number: u32,
     main_work_center: MainResources,
-    operations: HashMap<u32, Operation>,
+    pub operations: HashMap<u32, Operation>,
     relations: Vec<ActivityRelation>,
-    work_order_analytic: WorkOrderAnalytic,
+    pub work_order_analytic: WorkOrderAnalytic,
     pub order_dates: WorkOrderDates,
     pub work_order_info: WorkOrderInfo,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrderInfo {
-    priority: Priority,
-    work_order_type: WorkOrderType,
+    pub priority: Priority,
+    pub work_order_type: WorkOrderType,
     pub functional_location: FunctionalLocation,
-    order_text: OrderText,
-    unloading_point: UnloadingPoint,
-    revision: Revision,
-    system_condition: SystemCondition,
+    pub order_text: OrderText,
+    pub unloading_point: UnloadingPoint,
+    pub revision: Revision,
+    pub system_condition: SystemCondition,
 }
 
 impl WorkOrderInfo {
@@ -82,12 +82,12 @@ impl WorkOrderInfo {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrderAnalytic {
-    work_order_weight: u32,
-    work_order_work: f64,
-    work_load: HashMap<Resources, f64>,
-    fixed: bool,
-    vendor: bool,
-    status_codes: StatusCodes,
+    pub work_order_weight: u32,
+    pub work_order_work: f64,
+    pub work_load: HashMap<Resources, f64>,
+    pub fixed: bool,
+    pub vendor: bool,
+    pub status_codes: StatusCodes,
 }
 
 impl WorkOrderAnalytic {

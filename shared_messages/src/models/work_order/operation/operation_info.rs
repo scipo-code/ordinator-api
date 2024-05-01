@@ -25,12 +25,15 @@ impl OperationInfo {
             operating_time,
         }
     }
+
     pub fn work_remaining(&self) -> f64 {
         self.work_remaining
     }
+
     pub fn number(&self) -> u32 {
         self.number
     }
+
     pub fn operating_time(&self) -> f64 {
         self.operating_time
     }
