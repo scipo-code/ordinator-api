@@ -6,7 +6,10 @@ use rand::seq::SliceRandom;
 use serde::Serialize;
 use shared_messages::{
     agent_error::AgentError,
-    resources::{MainResources, Resources},
+    models::{
+        time_environment::day::Day,
+        worker_environment::resources::{MainResources, Resources},
+    },
     tactical::{
         tactical_resources_message::TacticalResourceMessage,
         tactical_scheduling_message::TacticalSchedulingMessage,
@@ -19,16 +22,15 @@ use std::{collections::HashMap, fmt};
 use strum::IntoEnumIterator;
 use tracing::{debug, error, info, instrument, warn};
 
-use crate::{
-    agents::{
-        traits::{AlgorithmState, ConstraintState, LargeNeighborHoodSearch, TestAlgorithm},
-        LoadOperation,
-    },
-    models::{
-        time_environment::period::Period,
-        work_order::{ActivityRelation, WorkOrder},
-        WorkOrders,
-    },
+use crate::agents::{
+    traits::{AlgorithmState, ConstraintState, LargeNeighborHoodSearch, TestAlgorithm},
+    LoadOperation,
+};
+
+use shared_messages::models::{
+    time_environment::period::Period,
+    work_order::{ActivityRelation, WorkOrder},
+    WorkOrders,
 };
 #[derive(Clone)]
 pub struct TacticalAlgorithm {
@@ -76,9 +78,14 @@ impl TacticalResources {
         write!(string, "{:<12}", "Resource").ok();
         for (nr_day, day) in days.iter().enumerate().take(number_of_periods as usize) {
             match nr_day {
-                0..=13 => write!(string, "{:>12}", day.date.date_naive().to_string().red()).ok(),
-                14..=27 => write!(string, "{:>12}", day.date.date_naive().to_string().green()).ok(),
-                _ => write!(string, "{:>12}", day.date.date_naive().to_string()).ok(),
+                0..=13 => write!(string, "{:>12}", day.date().date_naive().to_string().red()).ok(),
+                14..=27 => write!(
+                    string,
+                    "{:>12}",
+                    day.date().date_naive().to_string().green()
+                )
+                .ok(),
+                _ => write!(string, "{:>12}", day.date().date_naive().to_string()).ok(),
             }
             .unwrap()
         }
@@ -129,28 +136,6 @@ impl OperationSolution {
             scheduled,
             resource,
         }
-    }
-}
-
-#[derive(Eq, PartialEq, Hash, Clone, PartialOrd, Ord, Debug, Serialize)]
-pub struct Day {
-    day_index: usize,
-    date: DateTime<Utc>,
-}
-
-impl Day {
-    pub fn new(day_index: usize, date: DateTime<Utc>) -> Self {
-        Day { day_index, date }
-    }
-
-    pub fn date(&self) -> &DateTime<Utc> {
-        &self.date
-    }
-}
-
-impl Display for Day {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.date.date_naive())
     }
 }
 
@@ -377,7 +362,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 .last()
                 .unwrap()
                 .0
-                .date
+                .date()
                 .date_naive();
 
             let day_difference = last_day - period_start_date;
@@ -446,8 +431,9 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             let allowed_starting_days: Vec<&Day> = all_days
                 .iter()
                 .filter(|date| {
-                    optimized_work_order.scheduled_period.start_date() <= &date.date
-                        && &date.date <= optimized_work_order.scheduled_period.end_date()
+                    optimized_work_order
+                        .scheduled_period
+                        .contains_date(*date.date())
                 })
                 .collect();
 
@@ -455,7 +441,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
             let allowed_days: Vec<_> = all_days
                 .iter_mut()
-                .filter(|date| start_day.date <= date.date)
+                .filter(|date| start_day.date() <= date.date())
                 .collect();
 
             let mut operation_solutions = HashMap::<u32, OperationSolution>::new();
@@ -558,7 +544,8 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             }
             debug!(
                 "Tactical Work Order {} has been scheduled starting on day {}",
-                current_work_order_number, start_day.day_index
+                current_work_order_number,
+                start_day.day_index()
             );
             self.update_loadings(&operation_solutions, LoadOperation::Add);
             loop_state = LoopState::Scheduled;
@@ -861,7 +848,7 @@ impl TestAlgorithm for TacticalAlgorithm {
 
                     for start_day in start_days {
                         if start_day.date().date_naive() < start_date_from_period.date_naive() {
-                            error!(start_day = ?start_day.date, start_date_from_period = ?start_date_from_period);
+                            error!(start_day = ?start_day.date(), start_date_from_period = ?start_date_from_period);
                             return ConstraintState::Infeasible(format!(
                                 "work order: {} is outside of its earliest start day: {}",
                                 work_order_number, start_date_from_period
@@ -942,17 +929,15 @@ pub mod tests {
     use std::collections::HashMap;
 
     use chrono::{Days, Duration};
-    use shared_messages::resources::{MainResources, Resources};
+    use shared_messages::models::worker_environment::resources::{MainResources, Resources};
     use strum::IntoEnumIterator;
 
-    use crate::{
-        agents::{
-            tactical_agent::tactical_algorithm::OperationSolution, traits::LargeNeighborHoodSearch,
-        },
-        models::{time_environment::period::Period, work_order::ActivityRelation},
+    use crate::agents::{
+        tactical_agent::tactical_algorithm::OperationSolution, traits::LargeNeighborHoodSearch,
     };
 
     use super::{Day, OperationParameters, OptimizedTacticalWorkOrder, TacticalResources};
+    use shared_messages::models::{time_environment::period::Period, work_order::ActivityRelation};
 
     #[test]
     fn test_determine_load_1() {
@@ -1114,7 +1099,7 @@ pub mod tests {
             .first()
             .unwrap()
             .0
-            .date
+            .date()
             .date_naive();
 
         assert!(scheduled_date >= third_period.start_date().date_naive());
@@ -1189,7 +1174,7 @@ pub mod tests {
             .first()
             .unwrap()
             .0
-            .date
+            .date()
             .date_naive();
 
         assert!(scheduled_date >= third_period.start_date().date_naive());

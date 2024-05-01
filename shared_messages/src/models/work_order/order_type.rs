@@ -53,7 +53,6 @@ impl WorkOrderType {
 }
 
 impl WDFPriority {
-    #[cfg(test)]
     pub fn new(priority: u32) -> Self {
         match priority {
             1 => Self::One,

@@ -4,7 +4,7 @@ use std::path::Path;
 use tracing::info;
 
 use crate::data_processing::sources;
-use crate::models::SchedulingEnvironment;
+use shared_messages::models::SchedulingEnvironment;
 
 pub fn initialize_scheduling_environment(
     number_of_strategic_periods: u32,

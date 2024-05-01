@@ -1,5 +1,6 @@
 pub mod availability;
 pub mod crew;
+pub mod resources;
 pub mod worker;
 
 use std::{collections::HashSet, fs};
@@ -8,7 +9,7 @@ use strum::IntoEnumIterator;
 
 use crate::models::worker_environment::crew::Crew;
 
-use shared_messages::resources::Resources;
+use crate::models::worker_environment::resources::Resources;
 pub struct WorkerEnvironment {
     crew: Option<Crew>,
     work_centers: HashSet<Resources>,

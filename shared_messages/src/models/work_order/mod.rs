@@ -10,13 +10,6 @@ pub mod status_codes;
 pub mod system_condition;
 pub mod unloading_point;
 
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use shared_messages::resources::MainResources;
-use std::collections::HashMap;
-use std::env;
-use std::fs;
-
 use crate::models::work_order::functional_location::FunctionalLocation;
 use crate::models::work_order::operation::Operation;
 use crate::models::work_order::order_dates::WorkOrderDates;
@@ -27,13 +20,19 @@ use crate::models::work_order::revision::Revision;
 use crate::models::work_order::status_codes::StatusCodes;
 use crate::models::work_order::system_condition::SystemCondition;
 use crate::models::work_order::unloading_point::UnloadingPoint;
+use crate::models::worker_environment::resources::MainResources;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::env;
+use std::fs;
 // use crate::models::work_order::optimized_work_order::OptimizedWorkOrder;
 use crate::models::work_order::{
     order_type::{WDFPriority, WGNPriority, WPMPriority},
     status_codes::MaterialStatus,
 };
 
-use shared_messages::resources::Resources;
+use crate::models::worker_environment::resources::Resources;
 
 use super::time_environment::period::Period;
 
@@ -204,23 +203,23 @@ pub enum ActivityRelation {
     Postpone(DateTime<Utc>),
 }
 
-#[derive(Serialize, Deserialize)]
-struct WeightParam {
-    wdf_priority_map: std::collections::HashMap<String, u32>,
-    wgn_priority_map: std::collections::HashMap<String, u32>,
-    wpm_priority_map: std::collections::HashMap<String, u32>,
-    vis_priority_map: std::collections::HashMap<String, u32>,
-    order_type_weights: std::collections::HashMap<String, u32>,
-    status_weights: std::collections::HashMap<String, u32>,
+#[derive(serde::Deserialize, Debug)]
+pub struct WeightParams {
+    order_type_weights: HashMap<String, u32>,
+    status_weights: HashMap<String, u32>,
+    vis_priority_map: HashMap<String, u32>,
+    wdf_priority_map: HashMap<String, u32>,
+    wgn_priority_map: HashMap<String, u32>,
+    wpm_priority_map: HashMap<String, u32>,
 }
 
-impl WeightParam {
-    fn read_config() -> Result<Self, Box<dyn std::error::Error>> {
+impl WeightParams {
+    pub fn read_config() -> Result<Self, Box<dyn std::error::Error>> {
         let default_path = "scheduling_system/parameters/work_order_weight_parameters.json";
         let config_path = env::var("CONFIG_PATH").unwrap_or_else(|_| default_path.to_string());
         let config_contents = fs::read_to_string(config_path).expect("Could not read config file");
 
-        let config: WeightParam = serde_json::from_str(&config_contents)?;
+        let config: WeightParams = serde_json::from_str(&config_contents)?;
 
         Ok(config)
     }
@@ -236,7 +235,7 @@ impl WorkOrder {
     }
 
     pub fn initialize_weight(&mut self) {
-        let parameters: WeightParam = WeightParam::read_config().unwrap();
+        let parameters: WeightParams = WeightParams::read_config().unwrap();
         self.work_order_analytic.work_order_weight = 0;
 
         match &self.work_order_info.work_order_type {
@@ -365,11 +364,55 @@ impl WorkOrder {
     }
 }
 
+impl Default for WorkOrder {
+    fn default() -> Self {
+        let mut operations = HashMap::new();
+
+        let operation_0010 = Operation::builder(10, Resources::Prodtech, 10.0).build();
+        let operation_0020 = Operation::builder(20, Resources::MtnMech, 20.0).build();
+        let operation_0030 = Operation::builder(30, Resources::MtnMech, 30.0).build();
+        let operation_0040 = Operation::builder(40, Resources::Prodtech, 40.0).build();
+
+        operations.insert(10, operation_0010);
+        operations.insert(20, operation_0020);
+        operations.insert(30, operation_0030);
+        operations.insert(40, operation_0040);
+
+        let work_order_analytic = WorkOrderAnalytic::new(
+            1000,
+            100.0,
+            HashMap::new(),
+            false,
+            false,
+            StatusCodes::default(),
+        );
+
+        let work_order_info = WorkOrderInfo::new(
+            Priority::new_int(1),
+            WorkOrderType::Wdf(WDFPriority::new(1)),
+            FunctionalLocation::default(),
+            OrderText::default(),
+            UnloadingPoint::default(),
+            Revision::default(),
+            SystemCondition::Unknown,
+        );
+
+        WorkOrder::new(
+            2100000001,
+            MainResources::MtnMech,
+            operations,
+            Vec::new(),
+            work_order_analytic,
+            WorkOrderDates::new_test(),
+            work_order_info,
+        )
+    }
+}
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 
-    use shared_messages::resources::{MainResources, Resources};
+    use crate::models::worker_environment::resources::{MainResources, Resources};
 
     use super::{
         functional_location::FunctionalLocation,
@@ -411,14 +454,10 @@ mod tests {
         pub fn new_test() -> Self {
             let mut operations = HashMap::new();
 
-            let operation_0010 =
-                Operation::new_test(10, Resources::new_from_string("PRODTECH".to_string()), 10.0);
-            let operation_0020 =
-                Operation::new_test(20, Resources::new_from_string("MTN-MECH".to_string()), 20.0);
-            let operation_0030 =
-                Operation::new_test(30, Resources::new_from_string("MTN-MECH".to_string()), 30.0);
-            let operation_0040 =
-                Operation::new_test(40, Resources::new_from_string("PRODTECH".to_string()), 40.0);
+            let operation_0010 = Operation::builder(10, Resources::Prodtech, 10.0).build();
+            let operation_0020 = Operation::builder(20, Resources::MtnMech, 20.0).build();
+            let operation_0030 = Operation::builder(30, Resources::MtnMech, 30.0).build();
+            let operation_0040 = Operation::builder(40, Resources::Prodtech, 40.0).build();
 
             operations.insert(10, operation_0010);
             operations.insert(20, operation_0020);
@@ -431,66 +470,21 @@ mod tests {
                 HashMap::new(),
                 false,
                 false,
-                StatusCodes::new_default(),
+                StatusCodes::default(),
             );
 
             let work_order_info = WorkOrderInfo::new(
                 Priority::new_int(1),
                 WorkOrderType::Wdf(WDFPriority::new(1)),
-                FunctionalLocation::new_default(),
-                OrderText::new_default(),
-                UnloadingPoint::new_default(),
-                Revision::new_default(),
+                FunctionalLocation::default(),
+                OrderText::default(),
+                UnloadingPoint::default(),
+                Revision::default(),
                 SystemCondition::Unknown,
             );
 
             WorkOrder::new(
                 2100023841,
-                MainResources::MtnMech,
-                operations,
-                Vec::new(),
-                work_order_analytic,
-                WorkOrderDates::new_test(),
-                work_order_info,
-            )
-        }
-    }
-
-    impl Default for WorkOrder {
-        fn default() -> Self {
-            let mut operations = HashMap::new();
-
-            let operation_0010 = Operation::new_test(10, Resources::Prodtech, 10.0);
-            let operation_0020 = Operation::new_test(20, Resources::MtnMech, 20.0);
-            let operation_0030 = Operation::new_test(30, Resources::MtnMech, 30.0);
-            let operation_0040 = Operation::new_test(40, Resources::Prodtech, 40.0);
-
-            operations.insert(10, operation_0010);
-            operations.insert(20, operation_0020);
-            operations.insert(30, operation_0030);
-            operations.insert(40, operation_0040);
-
-            let work_order_analytic = WorkOrderAnalytic::new(
-                1000,
-                100.0,
-                HashMap::new(),
-                false,
-                false,
-                StatusCodes::new_default(),
-            );
-
-            let work_order_info = WorkOrderInfo::new(
-                Priority::new_int(1),
-                WorkOrderType::Wdf(WDFPriority::new(1)),
-                FunctionalLocation::new_default(),
-                OrderText::new_default(),
-                UnloadingPoint::new_default(),
-                Revision::new_default(),
-                SystemCondition::Unknown,
-            );
-
-            WorkOrder::new(
-                2100000001,
                 MainResources::MtnMech,
                 operations,
                 Vec::new(),

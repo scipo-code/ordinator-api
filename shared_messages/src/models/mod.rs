@@ -5,7 +5,7 @@ pub mod worker_environment;
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::agents::tactical_agent::tactical_algorithm::Day;
+use crate::models::time_environment::day::Day;
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::WorkOrder;
 use crate::models::worker_environment::WorkerEnvironment;

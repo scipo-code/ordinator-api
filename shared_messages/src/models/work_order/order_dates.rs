@@ -22,15 +22,14 @@ pub struct WorkOrderDates {
 }
 
 impl WorkOrderDates {
-    #[cfg(test)]
     pub fn new_test() -> Self {
         use chrono::TimeZone;
 
         Self {
             earliest_allowed_start_date: Utc.with_ymd_and_hms(2023, 10, 20, 0, 0, 0).unwrap(),
             latest_allowed_finish_date: Utc.with_ymd_and_hms(2023, 12, 20, 0, 0, 0).unwrap(),
-            earliest_allowed_start_period: Period::new_test(),
-            latest_allowed_finish_period: Period::new_test(),
+            earliest_allowed_start_period: Period::default(),
+            latest_allowed_finish_period: Period::default(),
             basic_start_date: Utc.with_ymd_and_hms(2023, 11, 20, 0, 0, 0).unwrap(),
             basic_finish_date: Utc.with_ymd_and_hms(2023, 11, 20, 0, 0, 0).unwrap(),
             duration: Duration::seconds(0),

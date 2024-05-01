@@ -15,9 +15,10 @@ use shared_messages::strategic::strategic_request_scheduling_message::StrategicS
 
 use crate::agents::LoadOperation;
 use crate::agents::traits::LargeNeighborHoodSearch;
-use crate::models::WorkOrders;
-use crate::models::time_environment::period::Period;
-use shared_messages::resources::Resources;
+use shared_messages::models::WorkOrders;
+use shared_messages::models::time_environment::period::Period;
+
+use shared_messages::models::worker_environment::resources::Resources;
 
 use self::optimized_work_orders::{OptimizedWorkOrder, OptimizedWorkOrders, StrategicResources};
 
@@ -629,20 +630,18 @@ mod tests {
     use chrono::{Duration, TimeZone, Utc};
     use rand::{rngs::StdRng, SeedableRng};
 
-    use shared_messages::resources::Resources;
+    use shared_messages::models::worker_environment::resources::Resources;
 
+    use crate::agents::strategic_agent::strategic_algorithm::{
+            OptimizedWorkOrders, PriorityQueues, StrategicAlgorithm,
+        };
 
     use std::collections::HashMap;
 
-    use crate::{
-        agents::strategic_agent::strategic_algorithm::{
-            OptimizedWorkOrders, PriorityQueues, StrategicAlgorithm,
-        },
-        models::{
-            work_order::WorkOrder,
-            
+    use shared_messages::models::{
+        work_order::WorkOrder,
             WorkOrders,
-        },
+        
     };
 
     #[test]
