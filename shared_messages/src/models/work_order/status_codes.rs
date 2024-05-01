@@ -80,9 +80,8 @@ impl Display for StatusCodes {
     }
 }
 
-impl StatusCodes {
-    #[cfg(test)]
-    pub fn new_default() -> Self {
+impl Default for StatusCodes {
+    fn default() -> Self {
         StatusCodes {
             material_status: MaterialStatus::Unknown,
             pcnf: false,

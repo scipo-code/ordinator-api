@@ -1,14 +1,14 @@
 use colored::*;
 use serde::Serialize;
-use shared_messages::resources::Resources;
+use shared_messages::models::worker_environment::resources::Resources;
 use std::collections::hash_map::Entry;
 use std::fmt::Write;
 use std::{collections::HashMap, collections::HashSet, hash::Hash, hash::Hasher};
 use tracing::instrument;
 
 use crate::agents::LoadOperation;
-use crate::models::time_environment::period::Period;
-use crate::models::work_order::WorkOrder;
+use shared_messages::models::time_environment::period::Period;
+use shared_messages::models::work_order::WorkOrder;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct OptimizedWorkOrders {

@@ -3,13 +3,12 @@ pub mod strategic_algorithm;
 
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborHoodSearch;
-use crate::models::SchedulingEnvironment;
+use shared_messages::models::SchedulingEnvironment;
 
 use actix::prelude::*;
 use shared_messages::agent_error::AgentError;
-use shared_messages::resources::Resources;
+use shared_messages::models::worker_environment::resources::Resources;
 use shared_messages::strategic::strategic_request_status_message::StrategicStatusMessage;
-use shared_messages::strategic::strategic_response_status;
 use shared_messages::strategic::strategic_response_status::StrategicResponseStatus;
 use shared_messages::strategic::StrategicRequestMessage;
 use shared_messages::Asset;
@@ -138,8 +137,6 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
             StrategicRequestMessage::Status(strategic_status_message) => {
                 match strategic_status_message {
                     StrategicStatusMessage::General => {
-                        let scheduling_status =
-                            self.scheduling_environment.lock().unwrap().to_string();
                         let strategic_objective =
                             self.strategic_agent_algorithm.objective_value();
 
@@ -147,12 +144,6 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                             self.strategic_agent_algorithm.optimized_work_orders();
 
                         let number_of_strategic_work_orders = optimized_work_orders.len();
-                        let mut scheduled_count = 0;
-                        for optimized_work_order in optimized_work_orders.values() {
-                            if optimized_work_order.scheduled_period.is_some() {
-                                scheduled_count += 1;
-                            }
-                        }
 
                         let asset = &self.asset;
 
@@ -532,13 +523,15 @@ mod tests {
     use std::collections::HashSet;
 
     use super::{strategic_algorithm::PriorityQueues, *};
-    use shared_messages::resources::Resources;
+    use shared_messages::models::worker_environment::resources::Resources;
 
     use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::StrategicResources;
-    use crate::models::time_environment::period::Period;
-    use crate::models::work_order::operation::Operation;
-    use crate::models::{work_order::*, WorkOrders};
+    use shared_messages::models::work_order::operation::Operation;
+    use shared_messages::models::WorkOrders;
+    use shared_messages::models::work_order::*;
 
+
+    use shared_messages::models::time_environment::period::Period;
     #[actix_rt::test]
     async fn test_scheduler_agent_handle() {
         let mut work_orders = WorkOrders::new();
@@ -645,11 +638,11 @@ mod tests {
     fn test_extract_state_to_scheduler_overview() {
         let mut operations: HashMap<u32, Operation> = HashMap::new();
 
-        let operation_1 = Operation::new_test(10, Resources::MtnMech, 1.0);
+        let operation_1 = Operation::builder(10, Resources::MtnMech, 1.0).build();
 
-        let operation_2 = Operation::new_test(20, Resources::MtnMech, 1.0);
+        let operation_2 = Operation::builder(20, Resources::MtnMech, 1.0).build();
 
-        let operation_3 = Operation::new_test(30, Resources::MtnMech, 1.0);
+        let operation_3 = Operation::builder(30, Resources::MtnMech, 1.0).build();
 
         operations.insert(10, operation_1);
         operations.insert(20, operation_2);

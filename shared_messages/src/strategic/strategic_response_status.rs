@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
+use crate::models::time_environment::period::Period;
+use crate::models::work_order::{
+    order_type::WorkOrderType, priority::Priority, revision::Revision, status_codes::MaterialStatus,
+};
+use crate::Asset;
 use serde::{Deserialize, Serialize};
-
-use crate::{period::Period, Asset};
 
 #[derive(Serialize, Deserialize)]
 pub struct StrategicResponseStatus {
@@ -30,18 +33,15 @@ impl StrategicResponseStatus {
 
 pub struct WorkOrdersInPeriod {
     work_orders: HashMap<u32, WorkOrderResponse>,
-
-
 }
 
 pub struct WorkOrderResponse {
     earliest_period: Period,
-    awsc: Awsc,
-    sece: Sece,
+    awsc: bool,
+    sece: bool,
     revision: Revision,
-    work_order_type:, WorkOrderType,
-    priority: WorkOrderPriority,
-    vendor: Ven,
+    work_order_type: WorkOrderType,
+    priority: Priority,
+    vendor: bool,
     material: MaterialStatus,
 }
-

@@ -8,7 +8,7 @@ use tracing::{instrument, warn};
 use tracing_subscriber::EnvFilter;
 
 use crate::agents::orchestrator::Orchestrator;
-use crate::models::WorkOrders;
+use shared_messages::models::WorkOrders;
 
 #[allow(clippy::await_holding_lock)]
 #[instrument(level = "info", skip_all)]

@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
-#[derive(Clone)]
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct OrderText {
     pub order_system_status: String,
     pub order_user_status: String,
@@ -13,9 +11,8 @@ pub struct OrderText {
     pub notes_2: u32,
 }
 
-impl OrderText {
-    #[cfg(test)]
-    pub fn new_default() -> Self {
+impl Default for OrderText {
+    fn default() -> Self {
         OrderText {
             order_system_status: String::from(""),
             order_user_status: String::from(""),
@@ -26,5 +23,4 @@ impl OrderText {
             notes_2: 0,
         }
     }
-
 }

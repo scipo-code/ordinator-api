@@ -16,7 +16,6 @@ impl Priority {
 }
 
 impl Priority {
-    #[cfg(test)]
     pub fn new_int(priority: u32) -> Self {
         Self::IntValue(priority)
     }

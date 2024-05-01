@@ -1,38 +1,40 @@
 use calamine::{Data, Error, Reader, Xlsx};
 use core::fmt;
 use regex::Regex;
+use shared_messages::models::time_environment::day::Day;
 use shared_messages::Asset;
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::{debug, event, info};
 
-use crate::agents::tactical_agent::tactical_algorithm::Day;
-use crate::models::time_environment::period::Period;
-use crate::models::time_environment::TimeEnvironment;
-use crate::models::work_order::system_condition::SystemCondition;
+use shared_messages::models::time_environment::period::Period;
+use shared_messages::models::time_environment::TimeEnvironment;
+use shared_messages::models::work_order::system_condition::SystemCondition;
 
-use crate::models::work_order::functional_location::FunctionalLocation;
-use crate::models::work_order::order_dates::WorkOrderDates;
-use crate::models::work_order::order_text::OrderText;
-use crate::models::work_order::order_type::{WDFPriority, WGNPriority, WPMPriority};
-use crate::models::work_order::order_type::{WROPriority, WorkOrderType};
-use crate::models::work_order::priority::Priority;
-use crate::models::work_order::revision::Revision;
-use crate::models::work_order::status_codes::{MaterialStatus, StatusCodes};
-use crate::models::work_order::unloading_point::UnloadingPoint;
-use crate::models::work_order::{ActivityRelation, WorkOrder, WorkOrderAnalytic, WorkOrderInfo};
-use crate::models::worker_environment::WorkerEnvironment;
-use crate::models::{SchedulingEnvironment, WorkOrders};
 use chrono::{
     naive, DateTime, Datelike, Days, Duration, NaiveDate, NaiveTime, TimeZone, Timelike, Utc,
 };
-use shared_messages::resources::{MainResources, Resources};
+use shared_messages::models::work_order::functional_location::FunctionalLocation;
+use shared_messages::models::work_order::order_dates::WorkOrderDates;
+use shared_messages::models::work_order::order_text::OrderText;
+use shared_messages::models::work_order::order_type::{WDFPriority, WGNPriority, WPMPriority};
+use shared_messages::models::work_order::order_type::{WROPriority, WorkOrderType};
+use shared_messages::models::work_order::priority::Priority;
+use shared_messages::models::work_order::revision::Revision;
+use shared_messages::models::work_order::status_codes::{MaterialStatus, StatusCodes};
+use shared_messages::models::work_order::unloading_point::UnloadingPoint;
+use shared_messages::models::work_order::{
+    ActivityRelation, WorkOrder, WorkOrderAnalytic, WorkOrderInfo,
+};
+use shared_messages::models::worker_environment::resources::{MainResources, Resources};
+use shared_messages::models::worker_environment::WorkerEnvironment;
+use shared_messages::models::{SchedulingEnvironment, WorkOrders};
 
 extern crate regex;
 
-use crate::models::work_order::operation::operation_analytic::OperationAnalytic;
-use crate::models::work_order::operation::operation_info::OperationInfo;
-use crate::models::work_order::operation::{Operation, OperationDates};
+use shared_messages::models::work_order::operation::operation_analytic::OperationAnalytic;
+use shared_messages::models::work_order::operation::operation_info::OperationInfo;
+use shared_messages::models::work_order::operation::{Operation, OperationDates};
 
 #[derive(Debug)]
 struct ExcelLoadError(String);
@@ -423,8 +425,8 @@ fn create_new_operation(
     };
 
     let operation_dates = OperationDates::new(
-        default_future_date,
-        default_future_date,
+        Day::new(0, Utc::now()),
+        Day::new(0, Utc::now()),
         earliest_start_datetime,
         earliest_finish_datetime,
     );
