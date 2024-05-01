@@ -3,22 +3,22 @@ use std::fmt::{self, Display};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub enum StatusRequestMessage {
+pub enum StrategicStatusMessage {
     General,
     Period(String),
 }
 
-impl StatusRequestMessage {
+impl StrategicStatusMessage {
     pub fn new_period(period: String) -> Self {
         Self::Period(period)
     }
 }
 
-impl Display for StatusRequestMessage {
+impl Display for StrategicStatusMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            StatusRequestMessage::General => write!(f, "general"),
-            StatusRequestMessage::Period(period) => write!(f, "period: {}", period),
+            StrategicStatusMessage::General => write!(f, "general"),
+            StrategicStatusMessage::Period(period) => write!(f, "period: {}", period),
         }
     }
 }

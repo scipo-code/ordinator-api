@@ -10,4 +10,5 @@ serde = { version = "1.0", features = ["derive"] }
 actix = "0"
 strum = "0"
 strum_macros = "0"
+chrono = "0"
 clap = { version = "4", features = ["derive"] }

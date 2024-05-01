@@ -1,7 +1,12 @@
-pub mod strategic_periods_message;
-pub mod strategic_resources_message;
-pub mod strategic_scheduling_message;
-pub mod strategic_status_message;
+pub mod strategic_request_periods_message;
+pub mod strategic_request_resources_message;
+pub mod strategic_request_scheduling_message;
+pub mod strategic_request_status_message;
+
+pub mod strategic_response_periods;
+pub mod strategic_response_resources;
+pub mod strategic_response_scheduling;
+pub mod strategic_response_status;
 
 use std::fmt::{self};
 
@@ -11,10 +16,14 @@ use serde::{Deserialize, Serialize};
 use crate::{agent_error::AgentError, Asset};
 
 use self::{
-    strategic_periods_message::StrategicTimeMessage,
-    strategic_resources_message::{ManualResource, StrategicResourceMessage},
-    strategic_scheduling_message::StrategicSchedulingMessage,
-    strategic_status_message::StrategicStatusMessage,
+    strategic_request_periods_message::StrategicTimeMessage,
+    strategic_request_resources_message::{ManualResource, StrategicResourceMessage},
+    strategic_request_scheduling_message::StrategicSchedulingMessage,
+    strategic_request_status_message::StrategicStatusMessage,
+    strategic_response_periods::StrategicResponsePeriods,
+    strategic_response_resources::StrategicResponseResources,
+    strategic_response_scheduling::StrategicResponseScheduling,
+    strategic_response_status::StrategicResponseStatus,
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -41,6 +50,18 @@ pub enum StrategicRequestMessage {
 
 impl Message for StrategicRequestMessage {
     type Result = Result<String, AgentError>;
+}
+
+pub struct StrategicResponse {
+    asset: Asset,
+    strategic_response_message: StrategicResponseMessage,
+}
+
+pub enum StrategicResponseMessage {
+    Status(StrategicResponseStatus),
+    Scheduling(StrategicResponseScheduling),
+    Resources(StrategicResponseResources),
+    Periods(StrategicResponsePeriods),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
