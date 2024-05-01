@@ -30,11 +30,18 @@ impl StrategicResponseStatus {
         }
     }
 }
-
+#[derive(Serialize)]
 pub struct WorkOrdersInPeriod {
     work_orders: HashMap<u32, WorkOrderResponse>,
 }
 
+impl WorkOrdersInPeriod {
+    pub fn new(work_orders: HashMap<u32, WorkOrderResponse>) -> Self {
+        Self { work_orders }
+    }
+}
+
+#[derive(Serialize)]
 pub struct WorkOrderResponse {
     earliest_period: Period,
     awsc: bool,
@@ -44,4 +51,28 @@ pub struct WorkOrderResponse {
     priority: Priority,
     vendor: bool,
     material: MaterialStatus,
+}
+
+impl WorkOrderResponse {
+    pub fn new(
+        earliest_period: Period,
+        awsc: bool,
+        sece: bool,
+        revision: Revision,
+        work_order_type: WorkOrderType,
+        priority: Priority,
+        vendor: bool,
+        material: MaterialStatus,
+    ) -> Self {
+        Self {
+            earliest_period,
+            awsc,
+            sece,
+            revision,
+            work_order_type,
+            priority,
+            vendor,
+            material,
+        }
+    }
 }
