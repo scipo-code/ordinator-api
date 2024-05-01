@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use actix::{Addr, Message};
-use shared_messages::resources::Id;
+use shared_messages::models::worker_environment::resources::Id;
 
-use crate::models::time_environment::period::Period;
+use shared_messages::models::time_environment::period::Period;
 
 use self::{
     operational_agent::OperationalAgent,

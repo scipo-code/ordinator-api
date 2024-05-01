@@ -169,6 +169,15 @@ impl Display for Period {
     }
 }
 
+impl Default for Period {
+    fn default() -> Self {
+        Period::new(
+            0,
+            Utc.with_ymd_and_hms(2021, 1, 1, 0, 0, 0).unwrap(),
+            Utc.with_ymd_and_hms(2021, 1, 14, 23, 59, 59).unwrap(),
+        )
+    }
+}
 #[cfg(test)]
 mod tests {
 
@@ -309,15 +318,5 @@ mod tests {
         );
 
         assert_eq!(new_period.period_string, "2025-W1-2".to_string());
-    }
-
-    impl Period {
-        pub fn new_test() -> Self {
-            Period::new(
-                0,
-                Utc.with_ymd_and_hms(2021, 1, 1, 0, 0, 0).unwrap(),
-                Utc.with_ymd_and_hms(2021, 1, 14, 23, 59, 59).unwrap(),
-            )
-        }
     }
 }

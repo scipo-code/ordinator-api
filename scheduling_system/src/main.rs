@@ -2,7 +2,6 @@ mod agents;
 mod api;
 mod data_processing;
 mod init;
-mod models;
 
 use std::{
     io,

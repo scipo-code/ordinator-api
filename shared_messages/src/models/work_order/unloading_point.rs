@@ -7,9 +7,8 @@ pub struct UnloadingPoint {
     pub period: Option<Period>,
 }
 
-impl UnloadingPoint {
-    #[cfg(test)]
-    pub fn new_default() -> Self {
+impl Default for UnloadingPoint {
+    fn default() -> Self {
         UnloadingPoint {
             string: String::from(""),
             period: None,

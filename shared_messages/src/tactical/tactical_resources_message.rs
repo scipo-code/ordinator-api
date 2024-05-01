@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::resources::Resources;
+use crate::models::worker_environment::resources::Resources;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum TacticalResourceMessage {

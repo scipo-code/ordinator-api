@@ -1,6 +1,7 @@
 use actix::prelude::*;
-use shared_messages::resources;
-use shared_messages::resources::Id;
+use shared_messages::models::worker_environment::resources;
+use shared_messages::models::worker_environment::resources::Id;
+use shared_messages::models::worker_environment::resources::Resources;
 use shared_messages::Asset;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -14,7 +15,7 @@ use crate::agents::tactical_agent::TacticalAgent;
 use crate::init::agent_factory;
 use crate::init::agent_factory::AgentFactory;
 use crate::init::logging::LogHandles;
-use crate::models::SchedulingEnvironment;
+use shared_messages::models::SchedulingEnvironment;
 
 pub struct Orchestrator {
     pub scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
@@ -66,7 +67,7 @@ impl ActorRegistry {
 
     pub fn supervisor_agent_addr_by_resource(
         &self,
-        resource: &shared_messages::resources::Resources,
+        resource: &shared_messages::models::worker_environment::resources::Resources,
     ) -> Addr<SupervisorAgent> {
         let matching_supervisor = self.supervisor_agent_addrs.iter().find_map(|(id, addr)| {
             if id.1.contains(resource) {
@@ -82,7 +83,7 @@ impl ActorRegistry {
                 .supervisor_agent_addrs
                 .iter()
                 .find_map(|(id, addr)| {
-                    if id.1.contains(&resources::Resources::MtnMech) {
+                    if id.1.contains(&Resources::MtnMech) {
                         Some(addr)
                     } else {
                         None
@@ -157,6 +158,3 @@ impl Orchestrator {
         self.agent_registries.insert(asset, agent_registry);
     }
 }
-
-#[cfg(test)]
-mod tests {}

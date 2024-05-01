@@ -1,7 +1,9 @@
 use clap::Subcommand;
 use reqwest::blocking::Client;
 use shared_messages::Asset;
-use shared_messages::{orchestrator::OrchestratorRequest, resources::Id, SystemMessages};
+use shared_messages::{
+    models::worker_environment::resources::Id, orchestrator::OrchestratorRequest, SystemMessages,
+};
 
 #[derive(Subcommand, Debug)]
 pub enum OrchestratorCommands {
@@ -31,7 +33,7 @@ pub enum SupervisorAgentCommands {
     Create {
         asset: Asset,
         id: String,
-        resource: shared_messages::resources::MainResources,
+        resource: shared_messages::models::worker_environment::resources::MainResources,
     },
 
     /// Delete a SupervisorAgent
@@ -43,7 +45,7 @@ pub enum OperationalAgentCommands {
     Create {
         asset: Asset,
         id: String,
-        resource: Vec<shared_messages::resources::Resources>,
+        resource: Vec<shared_messages::models::worker_environment::resources::Resources>,
     },
 
     /// Delete an OperationalAgent
@@ -102,9 +104,9 @@ impl OrchestratorCommands {
             }
             OrchestratorCommands::LoadDefaultWorkCrew { asset } => {
                 let supervisor_resources = [
-                    shared_messages::resources::MainResources::MtnMech,
-                    shared_messages::resources::MainResources::MtnElec,
-                    shared_messages::resources::MainResources::MtnScaf,
+                    shared_messages::models::worker_environment::resources::MainResources::MtnMech,
+                    shared_messages::models::worker_environment::resources::MainResources::MtnElec,
+                    shared_messages::models::worker_environment::resources::MainResources::MtnScaf,
                 ];
 
                 for (i, resource) in supervisor_resources.iter().enumerate() {
@@ -118,10 +120,10 @@ impl OrchestratorCommands {
                 }
 
                 let operational_resources = [
-                    shared_messages::resources::Resources::MtnMech,
-                    shared_messages::resources::Resources::MtnElec,
-                    shared_messages::resources::Resources::MtnScaf,
-                    shared_messages::resources::Resources::MtnCran,
+                    shared_messages::models::worker_environment::resources::Resources::MtnMech,
+                    shared_messages::models::worker_environment::resources::Resources::MtnElec,
+                    shared_messages::models::worker_environment::resources::Resources::MtnScaf,
+                    shared_messages::models::worker_environment::resources::Resources::MtnCran,
                 ];
 
                 let number_of_each_resource = [4, 2, 3, 2];

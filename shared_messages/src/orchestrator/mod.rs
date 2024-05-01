@@ -1,7 +1,8 @@
 use actix::Message;
 use serde::{Deserialize, Serialize};
 
-use crate::{resources::Id, Asset, LevelOfDetail, LogLevel};
+use crate::models::worker_environment::resources::Id;
+use crate::{Asset, LevelOfDetail, LogLevel};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum OrchestratorRequest {
