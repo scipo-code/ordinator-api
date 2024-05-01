@@ -8,7 +8,9 @@ use crate::models::SchedulingEnvironment;
 use actix::prelude::*;
 use shared_messages::agent_error::AgentError;
 use shared_messages::resources::Resources;
-use shared_messages::strategic::strategic_status_message::StrategicStatusMessage;
+use shared_messages::strategic::strategic_request_status_message::StrategicStatusMessage;
+use shared_messages::strategic::strategic_response_status;
+use shared_messages::strategic::strategic_response_status::StrategicResponseStatus;
 use shared_messages::strategic::StrategicRequestMessage;
 use shared_messages::Asset;
 use shared_messages::SolutionExportMessage;
@@ -139,7 +141,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                         let scheduling_status =
                             self.scheduling_environment.lock().unwrap().to_string();
                         let strategic_objective =
-                            self.strategic_agent_algorithm.objective_value().to_string();
+                            self.strategic_agent_algorithm.objective_value();
 
                         let optimized_work_orders =
                             self.strategic_agent_algorithm.optimized_work_orders();
@@ -152,11 +154,13 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                             }
                         }
 
-                        let scheduling_status = format!(
-                    "{}\nWith objectives: \n  strategic objective of: {}\n    {} of {} work orders scheduled",
-                    scheduling_status, strategic_objective, scheduled_count, number_of_strategic_work_orders
-                    );
-                        Ok(scheduling_status)
+                        let asset = &self.asset;
+
+                        let number_of_periods = self.strategic_agent_algorithm.periods().len();
+
+                        let strategic_response_status = StrategicResponseStatus::new(asset.clone(), strategic_objective, number_of_strategic_work_orders, number_of_periods);
+
+                        Ok(serde_json::to_string(&strategic_response_status).unwrap())
                     }
                     StrategicStatusMessage::Period(period) => {
                         let work_orders = self.strategic_agent_algorithm.optimized_work_orders();
@@ -519,8 +523,8 @@ impl Default for StrategicInfeasibleCases {
 mod tests {
 
     use chrono::{TimeZone, Utc};
-    use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
-    use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
+    use shared_messages::strategic::strategic_request_scheduling_message::SingleWorkOrder;
+    use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingMessage;
     use tests::strategic_algorithm::optimized_work_orders::OptimizedWorkOrder;
     use tests::strategic_algorithm::optimized_work_orders::OptimizedWorkOrders;
 
