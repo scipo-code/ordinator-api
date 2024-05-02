@@ -1,7 +1,9 @@
 use actix_web::http::header;
 use actix_web::{web, HttpRequest, HttpResponse, Result};
+use shared_messages::strategic::strategic_response_status::{WorkOrderResponse, WorkOrdersStatus};
 use shared_messages::LevelOfDetail;
 use shared_messages::{orchestrator::OrchestratorRequest, SystemMessages};
+use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::{Arc, Mutex};
 use tracing::{instrument, warn};
@@ -224,10 +226,27 @@ impl Orchestrator {
 
                 let cloned_work_orders:WorkOrders = scheduling_environment_guard.clone_work_orders();
                 let work_orders: WorkOrders = cloned_work_orders.inner.into_iter().filter(|wo| wo.1.work_order_info.functional_location.asset == asset).collect();
-                match level_of_detail {
-                    LevelOfDetail::Normal => Ok(work_orders.to_string()),
-                    LevelOfDetail::Verbose => Ok("Not implemented".to_string()),
-                }
+
+                let work_order_responses: HashMap<u32, WorkOrderResponse> = work_orders.inner.iter().map(|(work_order_number, work_order)| {
+                    let work_order_response = WorkOrderResponse::new(
+                        work_order.order_dates.earliest_allowed_start_period.clone(),
+                        work_order.work_order_analytic.status_codes.awsc.clone(),
+                        work_order.work_order_analytic.status_codes.sece.clone(),
+                        work_order.work_order_info.revision.clone(),
+                        work_order.work_order_info.work_order_type.clone(),
+                        work_order.work_order_info.priority.clone(),
+                        work_order.work_order_analytic.vendor.clone(),
+                        work_order.work_order_analytic.status_codes.material_status.clone(),
+                    );
+                    (*work_order_number, work_order_response)
+                
+                }).collect();
+
+
+                let work_orders_status = WorkOrdersStatus::new(work_order_responses);
+
+                let message = serde_json::to_string(&work_orders_status).unwrap();
+                Ok(message)
             }
             OrchestratorRequest::GetPeriods => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();

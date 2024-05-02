@@ -11,7 +11,7 @@ use shared_messages::models::worker_environment::resources::Resources;
 use shared_messages::strategic::strategic_request_status_message::StrategicStatusMessage;
 use shared_messages::strategic::strategic_response_status::StrategicResponseStatus;
 use shared_messages::strategic::strategic_response_status::WorkOrderResponse;
-use shared_messages::strategic::strategic_response_status::WorkOrdersInPeriod;
+use shared_messages::strategic::strategic_response_status::WorkOrdersStatus;
 use shared_messages::strategic::StrategicRequestMessage;
 use shared_messages::Asset;
 use shared_messages::SolutionExportMessage;
@@ -199,7 +199,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                             .collect();
 
 
-                        let work_orders_in_period = WorkOrdersInPeriod::new(work_orders_by_period);
+                        let work_orders_in_period = WorkOrdersStatus::new(work_orders_by_period);
 
                         let message = serde_json::to_string(&work_orders_in_period).unwrap();
                         Ok(message)
