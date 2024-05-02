@@ -1,0 +1,8 @@
+setup.py
+vide/__init__.py
+vide/cli.py
+vide_tool.egg-info/PKG-INFO
+vide_tool.egg-info/SOURCES.txt
+vide_tool.egg-info/dependency_links.txt
+vide_tool.egg-info/entry_points.txt
+vide_tool.egg-info/top_level.txt

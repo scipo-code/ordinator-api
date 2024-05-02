@@ -31,11 +31,11 @@ impl StrategicResponseStatus {
     }
 }
 #[derive(Serialize)]
-pub struct WorkOrdersInPeriod {
+pub struct WorkOrdersStatus {
     work_orders: HashMap<u32, WorkOrderResponse>,
 }
 
-impl WorkOrdersInPeriod {
+impl WorkOrdersStatus {
     pub fn new(work_orders: HashMap<u32, WorkOrderResponse>) -> Self {
         Self { work_orders }
     }
