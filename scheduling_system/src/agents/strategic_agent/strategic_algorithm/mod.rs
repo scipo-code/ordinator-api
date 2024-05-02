@@ -325,7 +325,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
         }
 
         self.objective_value =
-            period_penalty_contribution + 10000000.0 * excess_penalty_contribution;
+            period_penalty_contribution + 1000000000.0 * excess_penalty_contribution;
     }
 
     #[instrument(level = "trace", skip_all)]
@@ -523,8 +523,8 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
 
                         let overwrite = if let Some(locked_in_period) = &optimized_work_order.locked_in_period {
                             if optimized_work_order.excluded_periods.contains(locked_in_period) {
-                                optimized_work_order.scheduled_period = None;
                                 optimized_work_order.locked_in_period = None;
+                                optimized_work_order.scheduled_period = self.periods.iter().last().cloned();
                                 true
                             } else {
                                 false
