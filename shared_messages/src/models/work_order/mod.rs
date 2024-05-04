@@ -24,6 +24,7 @@ use crate::models::worker_environment::resources::MainResources;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::env;
 use std::fs;
 // use crate::models::work_order::optimized_work_order::OptimizedWorkOrder;
@@ -36,12 +37,14 @@ use crate::models::worker_environment::resources::Resources;
 
 use super::time_environment::period::Period;
 
+pub type WorkOrderNumber = u32;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrder {
-    work_order_number: u32,
-    main_work_center: MainResources,
+    pub work_order_number: u32,
+    pub main_work_center: MainResources,
     pub operations: HashMap<u32, Operation>,
-    relations: Vec<ActivityRelation>,
+    pub relations: Vec<ActivityRelation>,
     pub work_order_analytic: WorkOrderAnalytic,
     pub order_dates: WorkOrderDates,
     pub work_order_info: WorkOrderInfo,
@@ -189,10 +192,6 @@ impl WorkOrder {
 
     pub fn relations(&self) -> &Vec<ActivityRelation> {
         &self.relations
-    }
-
-    pub fn main_work_center(&self) -> &MainResources {
-        &self.main_work_center
     }
 }
 
@@ -361,6 +360,18 @@ impl WorkOrder {
             }
             MaterialStatus::Unknown => {}
         }
+    }
+    pub fn find_excluded_periods(&self, periods: &[Period]) -> HashSet<Period> {
+        let mut excluded_periods: HashSet<Period> = HashSet::new();
+        for (i, period) in periods.iter().enumerate() {
+            if *period < self.order_dates.earliest_allowed_start_period
+                || (self.is_vendor() && i <= 3)
+                || (self.revision().shutdown && i <= 3)
+            {
+                excluded_periods.insert(period.clone());
+            }
+        }
+        excluded_periods
     }
 }
 

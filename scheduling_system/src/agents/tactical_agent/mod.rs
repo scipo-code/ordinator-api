@@ -19,7 +19,7 @@ use shared_messages::models::SchedulingEnvironment;
 use super::strategic_agent::StrategicAgent;
 use super::supervisor_agent::SupervisorAgent;
 use super::traits::{AlgorithmState, LargeNeighborHoodSearch, TestAlgorithm};
-use super::StateLink;
+use super::{StateLink, UpdateWorkOrderMessage};
 
 #[allow(dead_code)]
 pub struct TacticalAgent {
@@ -202,6 +202,18 @@ impl Handler<SetAddr> for TacticalAgent {
                 todo!()
             }
         }
+    }
+}
+
+impl Handler<UpdateWorkOrderMessage> for TacticalAgent {
+    type Result = ();
+
+    fn handle(
+        &mut self,
+        update_work_order: UpdateWorkOrderMessage,
+        _ctx: &mut Context<Self>,
+    ) -> Self::Result {
+        todo!();
     }
 }
 

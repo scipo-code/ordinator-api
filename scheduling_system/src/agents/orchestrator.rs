@@ -53,14 +53,6 @@ impl ActorRegistry {
         self.operational_agent_addrs.insert(id, addr);
     }
 
-    pub fn strategic_agent_addr(&self) -> Addr<StrategicAgent> {
-        self.strategic_agent_addr.clone()
-    }
-
-    pub fn tactical_agent_addr(&self) -> Addr<TacticalAgent> {
-        self.tactical_agent_addr.clone()
-    }
-
     pub fn supervisor_agent_addr(&self, id: Id) -> Addr<SupervisorAgent> {
         self.supervisor_agent_addrs.get(&id).unwrap().clone()
     }

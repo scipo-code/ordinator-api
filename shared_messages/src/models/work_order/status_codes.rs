@@ -1,20 +1,49 @@
 use std::fmt::{self, Display};
 
+use clap::{Args, ValueEnum};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Args, Clone, Serialize, Deserialize, Debug)]
 pub struct StatusCodes {
     pub material_status: MaterialStatus,
+    #[arg(short, long)]
     pub pcnf: bool,
+    #[arg(short, long)]
     pub awsc: bool,
+    #[arg(short, long)]
     pub well: bool,
+    #[arg(short, long)]
     pub sch: bool,
+    #[arg(short, long)]
     pub sece: bool,
+    #[arg(short, long)]
     pub unloading_point: bool,
 }
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
+impl StatusCodes {
+    pub fn new(
+        material_status: MaterialStatus,
+        pcnf: bool,
+        awsc: bool,
+        well: bool,
+        sch: bool,
+        sece: bool,
+        unloading_point: bool,
+    ) -> Self {
+        Self {
+            material_status,
+            pcnf,
+            awsc,
+            well,
+            sch,
+            sece,
+            unloading_point,
+        }
+    }
+}
+
+#[derive(ValueEnum, Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub enum MaterialStatus {
     Smat,
     Nmat,
