@@ -1,4 +1,5 @@
 use clap::Subcommand;
+use clap::{self};
 use reqwest::blocking::Client;
 use shared_messages::Asset;
 use shared_messages::{
@@ -7,8 +8,9 @@ use shared_messages::{
 
 #[derive(Subcommand, Debug)]
 pub enum OrchestratorCommands {
-    /// Status of the scheduling environment
-    SchedulingEnvironment,
+    /// Status and changes to the scheduling environment
+    #[clap(subcommand)]
+    SchedulingEnvironment(SchedulingEnvironmentCommands),
 
     /// Status of the agents
     AgentStatus,
@@ -23,6 +25,37 @@ pub enum OrchestratorCommands {
     /// Load a default setup
     LoadDefaultWorkCrew { asset: Asset },
 }
+
+#[derive(Subcommand, Debug)]
+pub enum SchedulingEnvironmentCommands {
+    /// Access the commands to change the work orders (The Orchestrator will ensure that each relevant agent updates its state)
+    WorkOrders {
+        work_order_number: u32,
+        #[clap(subcommand)]
+        work_order_commands: WorkOrderCommands,
+    },
+    /// Access the commands to change the present workers (The Orchestrator will initilize and deinitialize the relevant agents)
+    #[clap(subcommand)]
+    WorkerEnvironment(WorkerEnvironmentCommands),
+    /// Access the commands to change the time environment. Period size, draft periods, time interval for each agent algorithm
+    #[clap(subcommand)]
+    TimeEnvironment(TimeEnvironmentCommands),
+}
+
+#[derive(Subcommand, Debug)]
+pub enum WorkOrderCommands {
+    /// Change the status codes of a work order
+    ModifyStatusCodes(shared_messages::models::work_order::status_codes::StatusCodes),
+
+    /// Change the unloading point of a work order
+    ModifyUnloadingPoint(shared_messages::models::work_order::unloading_point::UnloadingPoint),
+}
+
+#[derive(Subcommand, Debug)]
+pub enum WorkerEnvironmentCommands {}
+
+#[derive(Subcommand, Debug)]
+pub enum TimeEnvironmentCommands {}
 
 #[derive(Subcommand, Debug)]
 pub enum AgentCommands {}
@@ -53,10 +86,34 @@ pub enum OperationalAgentCommands {
 }
 
 impl OrchestratorCommands {
-    pub fn execute(&self, client: &Client) -> SystemMessages {
+    pub fn execute(self, client: &Client) -> SystemMessages {
         match self {
-            OrchestratorCommands::SchedulingEnvironment => {
-                todo!()
+            OrchestratorCommands::SchedulingEnvironment(scheduling_environment_commands) => {
+                match scheduling_environment_commands {
+                    SchedulingEnvironmentCommands::WorkOrders {
+                        work_order_number,
+                        work_order_commands,
+                    } => match work_order_commands {
+                        WorkOrderCommands::ModifyStatusCodes(status_codes_input) => {
+                            let orchestrator_request = OrchestratorRequest::SetWorkOrderState(
+                                work_order_number,
+                                status_codes_input,
+                            );
+                            SystemMessages::Orchestrator(orchestrator_request)
+                        }
+                        WorkOrderCommands::ModifyUnloadingPoint(_unloading_point) => {
+                            todo!()
+                        }
+                    },
+                    SchedulingEnvironmentCommands::WorkerEnvironment(
+                        _worker_environment_commands,
+                    ) => {
+                        todo!()
+                    }
+                    SchedulingEnvironmentCommands::TimeEnvironment(_time_environment_commands) => {
+                        todo!()
+                    }
+                }
             }
             OrchestratorCommands::AgentStatus => {
                 let agent_status = OrchestratorRequest::GetAgentStatus;

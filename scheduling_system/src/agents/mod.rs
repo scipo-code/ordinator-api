@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use actix::{Addr, Message};
-use shared_messages::models::worker_environment::resources::Id;
+use shared_messages::models::{work_order::WorkOrderNumber, worker_environment::resources::Id};
 
 use shared_messages::models::time_environment::period::Period;
 
@@ -33,13 +33,19 @@ impl Message for SetAddr {
 
 #[allow(dead_code)]
 pub enum StateLink {
-    Strategic(Vec<(u32, Period)>),
-    Tactical(Vec<(u32, HashMap<u32, OperationSolution>)>),
+    Strategic(Vec<(WorkOrderNumber, Period)>),
+    Tactical(Vec<(WorkOrderNumber, HashMap<u32, OperationSolution>)>),
     Supervisor,
     Operational,
 }
 
 impl Message for StateLink {
+    type Result = ();
+}
+#[derive(Clone)]
+pub struct UpdateWorkOrderMessage(pub WorkOrderNumber);
+
+impl Message for UpdateWorkOrderMessage {
     type Result = ();
 }
 

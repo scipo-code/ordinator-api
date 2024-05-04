@@ -51,6 +51,7 @@ pub struct WorkOrderResponse {
     priority: Priority,
     vendor: bool,
     material: MaterialStatus,
+    weight: u32,
 }
 
 impl WorkOrderResponse {
@@ -63,6 +64,7 @@ impl WorkOrderResponse {
         priority: Priority,
         vendor: bool,
         material: MaterialStatus,
+        weight: u32,
     ) -> Self {
         Self {
             earliest_period,
@@ -73,6 +75,7 @@ impl WorkOrderResponse {
             priority,
             vendor,
             material,
+            weight,
         }
     }
 }
