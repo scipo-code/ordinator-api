@@ -1099,6 +1099,8 @@ fn extract_order_type_and_priority(
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
     use chrono::{TimeZone, Utc};
 
@@ -1111,8 +1113,8 @@ mod tests {
     #[test]
     fn test_date_to_period() {
         let periods = vec![
-            Period::new_from_string("2023-W1-2").unwrap(),
-            Period::new_from_string("2023-W3-4").unwrap(),
+            Period::from_str("2023-W1-2").unwrap(),
+            Period::from_str("2023-W3-4").unwrap(),
         ];
 
         let date: DateTime<Utc> = Utc.with_ymd_and_hms(2023, 1, 10, 7, 0, 0).unwrap();

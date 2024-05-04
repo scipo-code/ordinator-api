@@ -1,9 +1,11 @@
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc, Weekday};
+use clap::Args;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 use std::ops::{Add, Sub};
+use std::str::FromStr;
 
-#[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Debug, Clone, PartialOrd, Ord)]
+#[derive(Args, Serialize, Deserialize, Eq, PartialEq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub struct Period {
     id: i32,
     period_string: String,
@@ -60,63 +62,6 @@ impl Period {
 
     pub fn id(&self) -> &i32 {
         &self.id
-    }
-
-    pub fn new_from_string(period_string: &str) -> Result<Period, &'static str> {
-        // Parse the string
-        let parts: Vec<&str> = period_string.split('-').collect();
-        if parts.len() != 3 {
-            return Err("Invalid period string format");
-        }
-
-        // Parse year and weeks
-        let mut year = parts[0].parse::<i32>().map_err(|_| "Invalid year")?;
-
-        let start_week = if parts[1].len() == 2 {
-            parts[1][1..2]
-                .parse::<u32>()
-                .map_err(|_| "Invalid start week")?
-        } else {
-            parts[1][1..3]
-                .parse::<u32>()
-                .map_err(|_| "Invalid start week")?
-        };
-        let mut end_week = parts[2].parse::<u32>().map_err(|_| "Invalid end week")?;
-
-        // Convert week number to a DateTime<Utc>
-
-        let local = NaiveDate::from_isoywd_opt(year, start_week, chrono::Weekday::Mon).unwrap();
-        let local_datetime = local.and_hms_opt(0, 0, 0).unwrap();
-        let start_date = Utc.from_local_datetime(&local_datetime);
-
-        let end_date = if end_week == 52
-            || (end_week == 53 && NaiveDate::from_isoywd_opt(year, 53, Weekday::Mon).is_some())
-        {
-            // Last moment of week 52 or 53
-            let local = NaiveDate::from_isoywd_opt(year, end_week, Weekday::Sun).unwrap();
-            let local_datetime = local.and_hms_opt(23, 59, 59);
-            Utc.from_local_datetime(&local_datetime.unwrap()).unwrap()
-        } else {
-            // Handle rollover to the next year
-            if end_week > 52 {
-                end_week = 1;
-                year += 1;
-            }
-            // Moment just before the start of the next week
-            let local = NaiveDate::from_isoywd_opt(year, end_week + 1, Weekday::Mon).unwrap();
-            let local_datetime = local.and_hms_opt(0, 0, 0);
-            Utc.from_local_datetime(&local_datetime.unwrap()).unwrap() - Duration::seconds(1)
-        };
-
-        // Create Period
-        Ok(Period {
-            id: 0, // Assuming default value for id, modify as needed
-            period_string: period_string.to_string(),
-            start_date: start_date.unwrap(),
-            end_date,
-            start_week,
-            end_week,
-        })
     }
 }
 
@@ -179,6 +124,67 @@ impl Default for Period {
     }
 }
 
+impl FromStr for Period {
+    type Err = String;
+
+    fn from_str(period_string: &str) -> Result<Self, Self::Err> {
+        // Parse the string
+        let parts: Vec<&str> = period_string.split('-').collect();
+        if parts.len() != 3 {
+            return Err("Invalid period string format".to_string());
+        }
+
+        // Parse year and weeks
+        let mut year = parts[0].parse::<i32>().map_err(|_| "Invalid year")?;
+
+        let start_week = if parts[1].len() == 2 {
+            parts[1][1..2]
+                .parse::<u32>()
+                .map_err(|_| "Invalid start week")?
+        } else {
+            parts[1][1..3]
+                .parse::<u32>()
+                .map_err(|_| "Invalid start week")?
+        };
+        let mut end_week = parts[2].parse::<u32>().map_err(|_| "Invalid end week")?;
+
+        // Convert week number to a DateTime<Utc>
+
+        let local = NaiveDate::from_isoywd_opt(year, start_week, chrono::Weekday::Mon).unwrap();
+        let local_datetime = local.and_hms_opt(0, 0, 0).unwrap();
+        let start_date = Utc.from_local_datetime(&local_datetime);
+
+        let end_date = if end_week == 52
+            || (end_week == 53 && NaiveDate::from_isoywd_opt(year, 53, Weekday::Mon).is_some())
+        {
+            // Last moment of week 52 or 53
+            let local = NaiveDate::from_isoywd_opt(year, end_week, Weekday::Sun).unwrap();
+            let local_datetime = local.and_hms_opt(23, 59, 59);
+            Utc.from_local_datetime(&local_datetime.unwrap()).unwrap()
+        } else {
+            // Handle rollover to the next year
+            if end_week > 52 {
+                end_week = 1;
+                year += 1;
+            }
+            // Moment just before the start of the next week
+            let local = NaiveDate::from_isoywd_opt(year, end_week + 1, Weekday::Mon).unwrap();
+            let local_datetime = local.and_hms_opt(0, 0, 0);
+            Utc.from_local_datetime(&local_datetime.unwrap()).unwrap() - Duration::seconds(1)
+        };
+
+        // Create Period
+        Ok(Period {
+            id: 0, // Assuming default value for id, modify as needed
+            period_string: period_string.to_string(),
+            start_date: start_date.unwrap(),
+            end_date,
+            start_week,
+            end_week,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -228,14 +234,14 @@ mod tests {
 
     #[test]
     fn test_new_from_string_0() {
-        let period = Period::new_from_string("2021-W01-02");
+        let period = Period::from_str("2021-W01-02");
 
         assert_eq!(period.unwrap().period_string, "2021-W01-02".to_string());
     }
 
     #[test]
     fn test_new_from_string_1() {
-        let period = Period::new_from_string("2023-W49-50");
+        let period = Period::from_str("2023-W49-50");
 
         assert_eq!(
             period.clone().unwrap().period_string,
@@ -253,7 +259,7 @@ mod tests {
 
     #[test]
     fn test_new_from_string_2() {
-        let period = Period::new_from_string("2023-W51-52");
+        let period = Period::from_str("2023-W51-52");
 
         assert_eq!(
             period.clone().unwrap().period_string,
@@ -271,7 +277,7 @@ mod tests {
 
     #[test]
     fn test_new_from_string_3() {
-        let period = Period::new_from_string("2023-W1-2");
+        let period = Period::from_str("2023-W1-2");
 
         assert_eq!(
             period.clone().unwrap().period_string,
@@ -310,7 +316,7 @@ mod tests {
 
     #[test]
     fn test_period_new() {
-        let period = Period::new_from_string("2024-W51-52").unwrap();
+        let period = Period::from_str("2024-W51-52").unwrap();
 
         let new_period = Period::new(
             1,

@@ -123,17 +123,9 @@ impl OptimizedWorkOrderBuilder {
     }
 
     pub fn build_from_work_order(mut self, work_order: &WorkOrder, periods: &[Period]) -> Self {
-        let mut excluded_periods: HashSet<Period> = HashSet::new();
         self.scheduled_period = periods.last().cloned();
-        for (i, period) in periods.iter().enumerate() {
-            if *period < work_order.order_dates.earliest_allowed_start_period
-                || (work_order.is_vendor() && i <= 3)
-                || (work_order.revision().shutdown && i <= 3)
-            {
-                excluded_periods.insert(period.clone());
-            }
-        }
-        self.excluded_periods = excluded_periods.clone();
+
+        self.excluded_periods = work_order.find_excluded_periods(periods);
 
         self.weight = work_order.work_order_weight();
 
@@ -228,7 +220,7 @@ impl OptimizedWorkOrderBuilder {
             return self;
         }
 
-        if work_order.main_work_center().is_fmc() {
+        if work_order.main_work_center.is_fmc() {
             self.locked_in_period = periods.last().cloned();
             self.scheduled_period = periods.last().cloned();
         }
@@ -259,14 +251,6 @@ impl OptimizedWorkOrder {
 
     pub fn excluded_periods(&self) -> &HashSet<Period> {
         &self.excluded_periods
-    }
-
-    pub fn latest_period(&self) -> &Option<Period> {
-        &self.latest_period
-    }
-
-    pub fn weight(&self) -> u32 {
-        self.weight
     }
 
     pub fn set_scheduled_period(&mut self, period: Option<Period>) {

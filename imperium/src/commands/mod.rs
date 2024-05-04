@@ -59,7 +59,7 @@ pub enum Commands {
 }
 
 pub fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
-    match &cli.command {
+    match cli.command {
         Commands::Status { status_commands } => match status_commands {
             StatusCommands::WorkOrders { work_orders } => match work_orders {
                 WorkOrders::WorkOrderState {
@@ -77,7 +77,7 @@ pub fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
                     level_of_detail,
                 } => {
                     let strategic_status_message = OrchestratorRequest::GetWorkOrderStatus(
-                        *work_order_number,
+                        work_order_number,
                         level_of_detail.clone(),
                     );
                     SystemMessages::Orchestrator(strategic_status_message)

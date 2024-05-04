@@ -9,7 +9,7 @@ use shared_messages::{models::worker_environment::resources::Id, StatusMessage, 
 
 use shared_messages::models::{work_order::operation::Operation, SchedulingEnvironment};
 
-use super::{supervisor_agent::SupervisorAgent, SetAddr};
+use super::{supervisor_agent::SupervisorAgent, SetAddr, UpdateWorkOrderMessage};
 
 #[allow(dead_code)]
 pub struct OperationalAgent {
@@ -141,5 +141,18 @@ impl Handler<StopMessage> for OperationalAgent {
 
     fn handle(&mut self, _msg: StopMessage, ctx: &mut Self::Context) -> Self::Result {
         ctx.stop();
+    }
+}
+
+impl Handler<UpdateWorkOrderMessage> for OperationalAgent {
+    type Result = ();
+
+    fn handle(
+        &mut self,
+        _update_work_order: UpdateWorkOrderMessage,
+
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
+        todo!();
     }
 }
