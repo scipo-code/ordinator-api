@@ -19,7 +19,7 @@ use super::{
     operational_agent::OperationalAgent,
     tactical_agent::{tactical_algorithm::OperationSolution, TacticalAgent},
     traits::{AlgorithmState, ConstraintState, TestAlgorithm},
-    SetAddr, StateLink,
+    SetAddr, StateLink, UpdateWorkOrderMessage,
 };
 
 pub struct SupervisorAgent {
@@ -106,6 +106,18 @@ impl Handler<StateLink> for SupervisorAgent {
     }
 }
 
+impl Handler<UpdateWorkOrderMessage> for SupervisorAgent {
+    type Result = ();
+
+    fn handle(
+        &mut self,
+        update_work_order: UpdateWorkOrderMessage,
+        _ctx: &mut Context<Self>,
+    ) -> Self::Result {
+        todo!()
+    }
+}
+
 impl Handler<SupervisorRequestMessage> for SupervisorAgent {
     type Result = Result<String, AgentError>;
 
@@ -177,8 +189,9 @@ impl TestAlgorithm for SupervisorAgent {
                 .inner
                 .get(work_order_number)
                 .unwrap()
-                .main_work_center();
-            if work_order_main_resource == self.id.2.as_ref().unwrap() {
+                .main_work_center
+                .clone();
+            if &work_order_main_resource == self.id.2.as_ref().unwrap() {
                 continue;
             } else {
                 error!(work_order_number = ?work_order_number, work_order_main_resource = ?work_order_main_resource, supervisor_trait = ?self.id.2.as_ref().unwrap());

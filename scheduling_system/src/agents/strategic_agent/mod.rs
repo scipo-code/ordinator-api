@@ -28,6 +28,7 @@ use tracing::warn;
 
 use crate::agents::tactical_agent::TacticalAgent;
 
+use self::strategic_algorithm::optimized_work_orders::OptimizedWorkOrder;
 use self::strategic_algorithm::optimized_work_orders::StrategicResources;
 
 use super::traits::AlgorithmState;
@@ -36,12 +37,13 @@ use super::traits::TestAlgorithm;
 use super::LoadOperation;
 use super::SetAddr;
 use super::StateLink;
+use super::UpdateWorkOrderMessage;
 
 pub struct StrategicAgent {
     asset: Asset,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-    strategic_agent_algorithm: StrategicAlgorithm,
-    tactical_agent_addr: Option<Addr<TacticalAgent>>,
+    pub strategic_agent_algorithm: StrategicAlgorithm,
+    pub tactical_agent_addr: Option<Addr<TacticalAgent>>,
 }
 
 impl Actor for StrategicAgent {
@@ -139,8 +141,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
             StrategicRequestMessage::Status(strategic_status_message) => {
                 match strategic_status_message {
                     StrategicStatusMessage::General => {
-                        let strategic_objective =
-                            self.strategic_agent_algorithm.objective_value();
+                        let strategic_objective = self.strategic_agent_algorithm.objective_value();
 
                         let optimized_work_orders =
                             self.strategic_agent_algorithm.optimized_work_orders();
@@ -151,12 +152,18 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
 
                         let number_of_periods = self.strategic_agent_algorithm.periods().len();
 
-                        let strategic_response_status = StrategicResponseStatus::new(asset.clone(), strategic_objective, number_of_strategic_work_orders, number_of_periods);
+                        let strategic_response_status = StrategicResponseStatus::new(
+                            asset.clone(),
+                            strategic_objective,
+                            number_of_strategic_work_orders,
+                            number_of_periods,
+                        );
 
                         Ok(serde_json::to_string(&strategic_response_status).unwrap())
                     }
                     StrategicStatusMessage::Period(period) => {
-                        let optimized_work_orders = self.strategic_agent_algorithm.optimized_work_orders();
+                        let optimized_work_orders =
+                            self.strategic_agent_algorithm.optimized_work_orders();
 
                         if !self
                             .strategic_agent_algorithm
@@ -171,33 +178,46 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                             ));
                         }
 
-
-
-                        let work_orders_by_period: HashMap<u32, WorkOrderResponse> = optimized_work_orders
-                            .iter()
-                            .filter(|(_, opt_wo)| match opt_wo.scheduled_period.clone() {
-                                Some(scheduled_period) => {
-                                    scheduled_period.period_string() == period
-                                }
-                                None => false,
-                            })
-                            .map(|(work_order_number, optimized_work_order )| {
-                                let work_order = self.scheduling_environment.lock().unwrap().work_orders().inner.get(&work_order_number).unwrap().clone();
-                                let work_order_response = WorkOrderResponse::new(
-                                    work_order.order_dates.earliest_allowed_start_period.clone(),
-                                    work_order.work_order_analytic.status_codes.awsc.clone(),
-                                    work_order.work_order_analytic.status_codes.sece.clone(),
-                                    work_order.work_order_info.revision.clone(),
-                                    work_order.work_order_info.work_order_type.clone(),
-                                    work_order.work_order_info.priority.clone(),
-                                    work_order.work_order_analytic.vendor.clone(),
-                                    work_order.work_order_analytic.status_codes.material_status.clone(),
-                                );
-                                (*work_order_number, work_order_response)
-                            
-                            })
-                            .collect();
-
+                        let work_orders_by_period: HashMap<u32, WorkOrderResponse> =
+                            optimized_work_orders
+                                .iter()
+                                .filter(|(_, opt_wo)| match opt_wo.scheduled_period.clone() {
+                                    Some(scheduled_period) => {
+                                        scheduled_period.period_string() == period
+                                    }
+                                    None => false,
+                                })
+                                .map(|(work_order_number, optimized_work_order)| {
+                                    let work_order = self
+                                        .scheduling_environment
+                                        .lock()
+                                        .unwrap()
+                                        .work_orders()
+                                        .inner
+                                        .get(&work_order_number)
+                                        .unwrap()
+                                        .clone();
+                                    let work_order_response = WorkOrderResponse::new(
+                                        work_order
+                                            .order_dates
+                                            .earliest_allowed_start_period
+                                            .clone(),
+                                        work_order.work_order_analytic.status_codes.awsc.clone(),
+                                        work_order.work_order_analytic.status_codes.sece.clone(),
+                                        work_order.work_order_info.revision.clone(),
+                                        work_order.work_order_info.work_order_type.clone(),
+                                        work_order.work_order_info.priority.clone(),
+                                        work_order.work_order_analytic.vendor.clone(),
+                                        work_order
+                                            .work_order_analytic
+                                            .status_codes
+                                            .material_status
+                                            .clone(),
+                                        work_order.work_order_analytic.work_order_weight,
+                                    );
+                                    (*work_order_number, work_order_response)
+                                })
+                                .collect();
 
                         let work_orders_in_period = WorkOrdersStatus::new(work_orders_by_period);
 
@@ -217,13 +237,13 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
             }
             StrategicRequestMessage::Resources(resources_message) => {
                 let resources_output = self
-                .strategic_agent_algorithm
-                .update_resources_state(resources_message);
+                    .strategic_agent_algorithm
+                    .update_resources_state(resources_message);
 
                 self.strategic_agent_algorithm.calculate_objective_value();
                 info!(strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
                 resources_output
-                }
+            }
             StrategicRequestMessage::Periods(periods_message) => {
                 let mut scheduling_env_lock = self.scheduling_environment.lock().unwrap();
 
@@ -294,6 +314,33 @@ impl Handler<SetAddr> for StrategicAgent {
                 todo!()
             }
         }
+    }
+}
+
+impl Handler<UpdateWorkOrderMessage> for StrategicAgent {
+    type Result = ();
+
+    fn handle(&mut self, update_work_order: UpdateWorkOrderMessage, _ctx: &mut Context<Self>) {
+        let locked_scheduling_environment = self.scheduling_environment.lock().unwrap();
+
+        let periods = locked_scheduling_environment.periods();
+
+        let work_order = locked_scheduling_environment
+            .work_orders()
+            .inner
+            .get(&update_work_order.0)
+            .unwrap();
+
+        let optimized_work_order_builder = OptimizedWorkOrder::builder();
+
+        let optimized_work_order = optimized_work_order_builder
+            .build_from_work_order(work_order, periods)
+            .build();
+
+        self.strategic_agent_algorithm
+            .optimized_work_orders
+            .inner
+            .insert(update_work_order.0, optimized_work_order);
     }
 }
 
@@ -541,15 +588,15 @@ mod tests {
 
     use std::collections::HashMap;
     use std::collections::HashSet;
+    use std::str::FromStr;
 
     use super::{strategic_algorithm::PriorityQueues, *};
     use shared_messages::models::worker_environment::resources::Resources;
 
     use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::StrategicResources;
     use shared_messages::models::work_order::operation::Operation;
-    use shared_messages::models::WorkOrders;
     use shared_messages::models::work_order::*;
-
+    use shared_messages::models::WorkOrders;
 
     use shared_messages::models::time_environment::period::Period;
     #[actix_rt::test]
@@ -589,7 +636,7 @@ mod tests {
         resource_loadings.insert(Resources::MtnElec, period_hash_map_0.clone());
         resource_loadings.insert(Resources::Prodtech, period_hash_map_0.clone());
 
-        let periods: Vec<Period> = vec![Period::new_from_string("2023-W47-48").unwrap()];
+        let periods: Vec<Period> = vec![Period::from_str("2023-W47-48").unwrap()];
 
         let scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
@@ -684,7 +731,7 @@ mod tests {
         let strategic_scheduling_internal =
             StrategicSchedulingMessage::Schedule(schedule_work_order);
 
-        let periods: Vec<Period> = vec![Period::new_from_string("2023-W47-48").unwrap()];
+        let periods: Vec<Period> = vec![Period::from_str("2023-W47-48").unwrap()];
 
         let optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
@@ -758,7 +805,7 @@ mod tests {
 
         work_load.insert(Resources::VenMech, 16.0);
 
-        let periods: Vec<Period> = vec![Period::new_from_string("2023-W49-50").unwrap()];
+        let periods: Vec<Period> = vec![Period::from_str("2023-W49-50").unwrap()];
 
         let mut capacities = HashMap::new();
         let mut loadings = HashMap::new();
@@ -766,9 +813,9 @@ mod tests {
         let mut periods_hash_map_0 = HashMap::new();
         let mut periods_hash_map_16 = HashMap::new();
 
-        periods_hash_map_0.insert(Period::new_from_string("2023-W49-50").unwrap(), 0.0);
+        periods_hash_map_0.insert(Period::from_str("2023-W49-50").unwrap(), 0.0);
 
-        periods_hash_map_16.insert(Period::new_from_string("2023-W49-50").unwrap(), 16.0);
+        periods_hash_map_16.insert(Period::from_str("2023-W49-50").unwrap(), 16.0);
 
         capacities.insert(Resources::VenMech, periods_hash_map_16);
 
@@ -804,7 +851,7 @@ mod tests {
                 .optimized_work_order(&2100023841)
                 .unwrap()
                 .locked_in_period,
-            Some(Period::new_from_string("2023-W49-50").unwrap())
+            Some(Period::from_str("2023-W49-50").unwrap())
         );
         assert_eq!(
             scheduler_agent_algorithm
@@ -822,10 +869,10 @@ mod tests {
         let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
 
         let optimized_work_order = OptimizedWorkOrder::new(
-            Some(Period::new_from_string("2023-W49-50").unwrap()),
-            Some(Period::new_from_string("2023-W49-50").unwrap()),
+            Some(Period::from_str("2023-W49-50").unwrap()),
+            Some(Period::from_str("2023-W49-50").unwrap()),
             HashSet::new(),
-            Some(Period::new_from_string("2023-W47-48").unwrap()),
+            Some(Period::from_str("2023-W47-48").unwrap()),
             1000,
             HashMap::new(),
         );

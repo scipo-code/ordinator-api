@@ -1,9 +1,11 @@
 use crate::models::time_environment::period::Period;
+use clap::{Args, ValueEnum};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Args, Clone, Serialize, Deserialize, Debug)]
 pub struct UnloadingPoint {
     pub string: String,
+
     pub period: Option<Period>,
 }
 

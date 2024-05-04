@@ -1,5 +1,6 @@
 use actix_web::http::header;
 use actix_web::{web, HttpRequest, HttpResponse, Result};
+use shared_messages::models::work_order::status_codes;
 use shared_messages::strategic::strategic_response_status::{WorkOrderResponse, WorkOrdersStatus};
 use shared_messages::LevelOfDetail;
 use shared_messages::{orchestrator::OrchestratorRequest, SystemMessages};
@@ -10,6 +11,7 @@ use tracing::{instrument, warn};
 use tracing_subscriber::EnvFilter;
 
 use crate::agents::orchestrator::Orchestrator;
+use crate::agents::UpdateWorkOrderMessage;
 use shared_messages::models::WorkOrders;
 
 #[allow(clippy::await_holding_lock)]
@@ -46,7 +48,7 @@ pub async fn http_to_scheduling_system(
                 .agent_registries
                 .get(strategic_request.asset())
             {
-                Some(agent_registry) => agent_registry.strategic_agent_addr(),
+                Some(agent_registry) => agent_registry.strategic_agent_addr.clone(),
                 None => {
                     warn!("Strategic agent not created for the asset");
                     return Ok(HttpResponse::BadRequest()
@@ -77,7 +79,7 @@ pub async fn http_to_scheduling_system(
                 .agent_registries
                 .get(&tactical_request.asset)
             {
-                Some(asset) => asset.tactical_agent_addr(),
+                Some(asset) => asset.tactical_agent_addr.clone(),
                 None => {
                     warn!("Tactical agent not created for the asset");
                     return Ok(HttpResponse::BadRequest()
@@ -151,6 +153,28 @@ impl Orchestrator {
     #[instrument(level = "info", skip_all)]
     async fn handle(&mut self, msg: OrchestratorRequest) -> Result<String, String> {
         match msg {
+            OrchestratorRequest::SetWorkOrderState(work_order_number, status_codes) => {
+                match self.scheduling_environment.lock().unwrap().work_orders_mut().inner.get_mut(&work_order_number) {
+                    Some(work_order) => {
+                        work_order.work_order_analytic.status_codes = status_codes;
+                        work_order.initialize_weight();
+                        let asset = work_order.functional_location().asset.clone();
+                        let main_resource = work_order.main_work_center.clone();
+                        
+                        let update_work_order_message = UpdateWorkOrderMessage(work_order_number);
+                        let actor_registry = self.agent_registries.get(&asset).unwrap();
+                        actor_registry.strategic_agent_addr.send(update_work_order_message.clone()).await;
+                        actor_registry.tactical_agent_addr.send(update_work_order_message.clone()).await;
+
+                        actor_registry.supervisor_agent_addrs.iter().find(|id| id.0.2.as_ref().unwrap() == &main_resource).unwrap().1.send(update_work_order_message.clone()).await;
+                        for actor in actor_registry.operational_agent_addrs.values() {
+                            actor.send(update_work_order_message.clone()).await;
+                        };
+                        Ok(format!("Status codes for work order: {} updated correctly", work_order_number))
+                    }
+                    None => Err(format!("Tried to update the status code for work order: {}, but it was not found in the scheduling environment", work_order_number))
+                }
+            }
             OrchestratorRequest::GetAgentStatus => {
                 let mut buffer = String::new();
                 for asset in self.agent_registries.keys() {
@@ -158,12 +182,14 @@ impl Orchestrator {
                         .agent_registries
                         .get(asset)
                         .unwrap()
-                        .strategic_agent_addr();
+                        .strategic_agent_addr
+                        .clone();
                     let tactical_agent_addr = self
                         .agent_registries
                         .get(asset)
                         .unwrap()
-                        .tactical_agent_addr();
+                        .tactical_agent_addr
+                        .clone();
 
                     let strategic_agent_status = strategic_agent_addr
                         .send(shared_messages::StatusMessage {})
@@ -224,24 +250,36 @@ impl Orchestrator {
             OrchestratorRequest::GetWorkOrdersState(asset, level_of_detail) => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
-                let cloned_work_orders:WorkOrders = scheduling_environment_guard.clone_work_orders();
-                let work_orders: WorkOrders = cloned_work_orders.inner.into_iter().filter(|wo| wo.1.work_order_info.functional_location.asset == asset).collect();
+                let cloned_work_orders: WorkOrders =
+                    scheduling_environment_guard.clone_work_orders();
+                let work_orders: WorkOrders = cloned_work_orders
+                    .inner
+                    .into_iter()
+                    .filter(|wo| wo.1.work_order_info.functional_location.asset == asset)
+                    .collect();
 
-                let work_order_responses: HashMap<u32, WorkOrderResponse> = work_orders.inner.iter().map(|(work_order_number, work_order)| {
-                    let work_order_response = WorkOrderResponse::new(
-                        work_order.order_dates.earliest_allowed_start_period.clone(),
-                        work_order.work_order_analytic.status_codes.awsc.clone(),
-                        work_order.work_order_analytic.status_codes.sece.clone(),
-                        work_order.work_order_info.revision.clone(),
-                        work_order.work_order_info.work_order_type.clone(),
-                        work_order.work_order_info.priority.clone(),
-                        work_order.work_order_analytic.vendor.clone(),
-                        work_order.work_order_analytic.status_codes.material_status.clone(),
-                    );
-                    (*work_order_number, work_order_response)
-                
-                }).collect();
-
+                let work_order_responses: HashMap<u32, WorkOrderResponse> = work_orders
+                    .inner
+                    .iter()
+                    .map(|(work_order_number, work_order)| {
+                        let work_order_response = WorkOrderResponse::new(
+                            work_order.order_dates.earliest_allowed_start_period.clone(),
+                            work_order.work_order_analytic.status_codes.awsc.clone(),
+                            work_order.work_order_analytic.status_codes.sece.clone(),
+                            work_order.work_order_info.revision.clone(),
+                            work_order.work_order_info.work_order_type.clone(),
+                            work_order.work_order_info.priority.clone(),
+                            work_order.work_order_analytic.vendor.clone(),
+                            work_order
+                                .work_order_analytic
+                                .status_codes
+                                .material_status
+                                .clone(),
+                            work_order.work_order_analytic.work_order_weight,
+                        );
+                        (*work_order_number, work_order_response)
+                    })
+                    .collect();
 
                 let work_orders_status = WorkOrdersStatus::new(work_order_responses);
 
@@ -279,7 +317,8 @@ impl Orchestrator {
                     .agent_registries
                     .get(&asset)
                     .unwrap()
-                    .tactical_agent_addr();
+                    .tactical_agent_addr
+                    .clone();
 
                 let supervisor_agent_addr = self.agent_factory.build_supervisor_agent(
                     asset.clone(),
@@ -396,7 +435,7 @@ impl Orchestrator {
                     .agent_registries
                     .get(&asset)
                     .unwrap()
-                    .tactical_agent_addr()
+                    .tactical_agent_addr
                     .send(shared_messages::SolutionExportMessage {})
                     .await;
 

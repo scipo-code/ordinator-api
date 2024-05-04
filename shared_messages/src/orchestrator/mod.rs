@@ -1,11 +1,13 @@
 use actix::Message;
 use serde::{Deserialize, Serialize};
 
+use crate::models::work_order::status_codes::StatusCodes;
 use crate::models::worker_environment::resources::Id;
 use crate::{Asset, LevelOfDetail, LogLevel};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum OrchestratorRequest {
+    SetWorkOrderState(u32, StatusCodes),
     GetWorkOrderStatus(u32, LevelOfDetail),
     GetWorkOrdersState(Asset, LevelOfDetail),
     GetPeriods,

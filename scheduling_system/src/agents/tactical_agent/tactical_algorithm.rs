@@ -281,7 +281,7 @@ impl TacticalAlgorithm {
 
     pub fn create_new_optimized_work_order(&mut self, work_order: &WorkOrder, period: Period) {
         let mut optimized_work_order = OptimizedTacticalWorkOrder {
-            main_work_center: work_order.main_work_center().clone(),
+            main_work_center: work_order.main_work_center.clone(),
             operation_parameters: HashMap::new(),
             relations: work_order.relations().clone(),
             weight: work_order.work_order_weight(),
@@ -926,7 +926,7 @@ impl Default for TacticalInfeasibleCases {
 
 #[cfg(test)]
 pub mod tests {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, str::FromStr};
 
     use chrono::{Days, Duration};
     use shared_messages::models::worker_environment::resources::{MainResources, Resources};
@@ -979,7 +979,7 @@ pub mod tests {
 
     #[test]
     fn test_calculate_objective_value() {
-        let first_period = Period::new_from_string("2024-W13-14").unwrap();
+        let first_period = Period::from_str("2024-W13-14").unwrap();
 
         let tactical_days = |number_of_days: u32| -> Vec<Day> {
             let mut days: Vec<Day> = Vec::new();
@@ -1032,7 +1032,7 @@ pub mod tests {
 
     #[test]
     fn test_schedule_1() {
-        let first_period = Period::new_from_string("2024-W13-14").unwrap();
+        let first_period = Period::from_str("2024-W13-14").unwrap();
         let second_period = first_period.clone() + Duration::weeks(2);
         let third_period = second_period.clone() + Duration::weeks(2);
 
@@ -1107,7 +1107,7 @@ pub mod tests {
 
     #[test]
     fn test_schedule_2() {
-        let first_period = Period::new_from_string("2024-W13-14").unwrap();
+        let first_period = Period::from_str("2024-W13-14").unwrap();
         let second_period = first_period.clone() + Duration::weeks(2);
         let third_period = second_period.clone() + Duration::weeks(2);
 

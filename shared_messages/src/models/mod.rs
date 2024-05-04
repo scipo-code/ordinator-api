@@ -74,6 +74,10 @@ impl SchedulingEnvironment {
         &self.work_orders
     }
 
+    pub fn work_orders_mut(&mut self) -> &mut WorkOrders {
+        &mut self.work_orders
+    }
+
     pub fn time_environment(&self) -> &TimeEnvironment {
         &self.time_environment
     }

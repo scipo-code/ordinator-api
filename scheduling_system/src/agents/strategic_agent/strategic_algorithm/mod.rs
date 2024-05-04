@@ -3,6 +3,8 @@ pub mod optimized_work_orders;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
+use std::ops::Index;
+use shared_messages::models::work_order::WorkOrderNumber;
 use shared_messages::Asset;
 use tracing::{error, info, instrument, trace};
 use rand::prelude::SliceRandom;
@@ -30,13 +32,12 @@ pub struct StrategicAlgorithm {
     resources_capacity: StrategicResources,
     resources_loading: StrategicResources,
     priority_queues: PriorityQueues<u32, u32>,
-    optimized_work_orders: OptimizedWorkOrders,
+    pub optimized_work_orders: OptimizedWorkOrders,
     period_locks: HashSet<Period>,
     periods: Vec<Period>,
 }
 
 impl StrategicAlgorithm {
-    #[allow(dead_code)]
     pub fn optimized_work_order(&self, work_order_number: &u32) -> Option<&OptimizedWorkOrder> {
         self.optimized_work_orders.inner.get(work_order_number)
     }
@@ -292,7 +293,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
             };
 
             let work_order_latest_allowed_finish_period =
-                optimized_work_order.latest_period().clone();
+                optimized_work_order.latest_period.clone();
 
             let period_difference = calculate_period_difference(
                 optimized_period,
@@ -304,7 +305,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                     .inner
                     .get(work_order_number)
                     .unwrap()
-                    .weight() as f64;
+                    .weight as f64;
 
             period_penalty_contribution += period_penalty;
         }
@@ -595,7 +596,7 @@ impl StrategicAlgorithm {
             if work_order.scheduled_period.is_none() {
                 self.priority_queues
                     .normal
-                    .push(*key, work_order.weight());
+                    .push(*key, work_order.weight);
             }
         }
     }
@@ -636,7 +637,7 @@ mod tests {
             OptimizedWorkOrders, PriorityQueues, StrategicAlgorithm,
         };
 
-    use std::collections::HashMap;
+    use std::{collections::HashMap, str::FromStr};
 
     use shared_messages::models::{
         work_order::WorkOrder,
@@ -652,7 +653,7 @@ mod tests {
 
         work_orders.insert(work_order.clone());
 
-        let period = Period::new_from_string("2023-W47-48").unwrap();
+        let period = Period::from_str("2023-W47-48").unwrap();
         let periods = vec![period.clone()];
 
         let mut manual_resource_capacity: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
@@ -1319,7 +1320,7 @@ mod tests {
         let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
 
         let optimized_work_order_1 = OptimizedWorkOrder::new(
-            Some(Period::new_from_string("2023-W47-48").unwrap()),
+            Some(Period::from_str("2023-W47-48").unwrap()),
             None,
             HashSet::new(),
             None,
@@ -1328,7 +1329,7 @@ mod tests {
         );
 
         let optimized_work_order_2 = OptimizedWorkOrder::new(
-            Some(Period::new_from_string("2023-W47-48").unwrap()),
+            Some(Period::from_str("2023-W47-48").unwrap()),
             None,
             HashSet::new(),
             None,
@@ -1337,7 +1338,7 @@ mod tests {
         );
 
         let optimized_work_order_3 = OptimizedWorkOrder::new(
-            Some(Period::new_from_string("2023-W49-50").unwrap()),
+            Some(Period::from_str("2023-W49-50").unwrap()),
             None,
             HashSet::new(),
             None,
@@ -1356,8 +1357,8 @@ mod tests {
             .insert(2200000003, optimized_work_order_3);
 
         let periods: Vec<Period> = vec![
-            Period::new_from_string("2023-W47-48").unwrap(),
-            Period::new_from_string("2023-W49-50").unwrap(),
+            Period::from_str("2023-W47-48").unwrap(),
+            Period::from_str("2023-W49-50").unwrap(),
         ];
 
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
@@ -1386,7 +1387,7 @@ mod tests {
                 .get(&2200000001)
                 .unwrap()
                 .scheduled_period,
-            Some(Period::new_from_string("2023-W47-48").unwrap())
+            Some(Period::from_str("2023-W47-48").unwrap())
         );
 
         assert_eq!(
@@ -1412,8 +1413,8 @@ mod tests {
 
     #[test]
     fn test_calculate_period_difference() {
-        let period_1 = Period::new_from_string("2023-W47-48");
-        let period_2 = Period::new_from_string("2023-W49-50");
+        let period_1 = Period::from_str("2023-W47-48");
+        let period_2 = Period::from_str("2023-W49-50");
 
         let difference = calculate_period_difference(period_1.unwrap(), Some(period_2.unwrap()));
 
@@ -1442,7 +1443,7 @@ mod tests {
         let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
 
         let optimized_work_order = OptimizedWorkOrder::new(
-            Period::new_from_string("2023-W47-48").ok(),
+            Period::from_str("2023-W47-48").ok(),
             None,
             HashSet::new(),
             None,
@@ -1461,7 +1462,7 @@ mod tests {
             PriorityQueues::new(),
             optimized_work_orders,
             HashSet::new(),
-            vec![Period::new_from_string("2023-W47-48").unwrap()],
+            vec![Period::from_str("2023-W47-48").unwrap()],
         );
 
         scheduler_agent_algorithm.unschedule(2100000001);
@@ -1478,8 +1479,8 @@ mod tests {
 
     #[test]
     fn test_period_clone_equality() {
-        let period_1 = Period::new_from_string("2023-W47-48").unwrap();
-        let period_2 = Period::new_from_string("2023-W47-48").unwrap();
+        let period_1 = Period::from_str("2023-W47-48").unwrap();
+        let period_2 = Period::from_str("2023-W47-48").unwrap();
 
         assert_eq!(period_1, period_2);
         assert_eq!(period_1, period_1.clone());
