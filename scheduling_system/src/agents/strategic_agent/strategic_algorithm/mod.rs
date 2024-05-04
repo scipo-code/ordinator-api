@@ -3,8 +3,6 @@ pub mod optimized_work_orders;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
-use std::ops::Index;
-use shared_messages::models::work_order::WorkOrderNumber;
 use shared_messages::Asset;
 use tracing::{error, info, instrument, trace};
 use rand::prelude::SliceRandom;
@@ -235,14 +233,10 @@ impl StrategicAlgorithm {
     }
 }
 
-pub fn calculate_period_difference(scheduled_period: Period, latest_period: Option<Period>) -> i64 {
+pub fn calculate_period_difference(scheduled_period: Period, latest_period: Period) -> i64 {
     let scheduled_period_date = scheduled_period.end_date().to_owned();
-    let latest_period_date = match latest_period.clone() {
-        Some(period) => period.end_date().to_owned(),
-        None => scheduled_period_date,
-    };
-
-    let duration = scheduled_period_date.signed_duration_since(latest_period_date);
+    let latest_date = latest_period.end_date();
+    let duration = scheduled_period_date.signed_duration_since(latest_date);
     let days = duration.num_days();
     days / 7
 }
@@ -698,7 +692,7 @@ mod tests {
                 None, 
                 Some(period.clone()), 
                 HashSet::new(),
-                None,
+                periods.first().unwrap().clone(),
                 1000,
                 HashMap::new()
                 );
@@ -786,7 +780,7 @@ mod tests {
             scheduled_period: Option<Period>,
             locked_in_period: Option<Period>,
             excluded_periods: HashSet<Period>,
-            latest_period: Option<Period>,
+            latest_period: Period,
             weight: u32,
             work_load: HashMap<Resources, f64>,
         ) -> Self {
@@ -812,7 +806,7 @@ mod tests {
         let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
 
         let optimized_work_order =
-            OptimizedWorkOrder::new(None, None, HashSet::new(), None, 1000, HashMap::new());
+            OptimizedWorkOrder::new(None, None, HashSet::new(), period.clone(), 1000, HashMap::new());
 
         optimized_work_orders.insert_optimized_work_order(2200002020, optimized_work_order);
 
@@ -1416,7 +1410,7 @@ mod tests {
         let period_1 = Period::from_str("2023-W47-48");
         let period_2 = Period::from_str("2023-W49-50");
 
-        let difference = calculate_period_difference(period_1.unwrap(), Some(period_2.unwrap()));
+        let difference = calculate_period_difference(period_1.unwrap(), period_2.unwrap());
 
         assert_eq!(difference, -2);
     }
