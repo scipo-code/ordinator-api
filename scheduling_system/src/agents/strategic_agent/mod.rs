@@ -214,6 +214,10 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                                             .material_status
                                             .clone(),
                                         work_order.work_order_analytic.work_order_weight,
+                                        optimized_work_order.scheduled_period.unwrap(),
+                                        optimized_work_order.locked_in_period.unwrap(),
+                                        optimized_work_order.excluded_periods,
+                                        optimized_work_order.latest_period,
                                     );
                                     (*work_order_number, work_order_response)
                                 })
@@ -748,7 +752,7 @@ mod tests {
             None,
             Some(periods[0].clone()),
             HashSet::new(),
-            None,
+            periods.first().unwrap().clone(),
             1000,
             HashMap::new(),
         );
@@ -835,7 +839,7 @@ mod tests {
             None,
             Some(periods[0].clone()),
             HashSet::new(),
-            None,
+            periods.first().unwrap().clone(),
             1000,
             work_load,
         );
@@ -872,7 +876,7 @@ mod tests {
             Some(Period::from_str("2023-W49-50").unwrap()),
             Some(Period::from_str("2023-W49-50").unwrap()),
             HashSet::new(),
-            Some(Period::from_str("2023-W47-48").unwrap()),
+            Period::from_str("2023-W47-48").unwrap(),
             1000,
             HashMap::new(),
         );

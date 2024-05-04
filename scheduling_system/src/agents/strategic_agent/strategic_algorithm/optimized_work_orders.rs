@@ -95,7 +95,7 @@ pub struct OptimizedWorkOrder {
     pub scheduled_period: Option<Period>,
     pub locked_in_period: Option<Period>,
     pub excluded_periods: HashSet<Period>,
-    pub latest_period: Option<Period>,
+    pub latest_period: Period,
     pub weight: u32,
     pub work_load: HashMap<Resources, f64>,
 }
@@ -105,7 +105,7 @@ pub struct OptimizedWorkOrderBuilder {
     pub scheduled_period: Option<Period>,
     pub locked_in_period: Option<Period>,
     pub excluded_periods: HashSet<Period>,
-    pub latest_period: Option<Period>,
+    pub latest_period: Period,
     pub weight: u32,
     pub work_load: HashMap<Resources, f64>,
 }
