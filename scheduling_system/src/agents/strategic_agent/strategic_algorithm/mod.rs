@@ -133,6 +133,7 @@ impl StrategicAlgorithm {
                     .unwrap()
                     .get(&period.clone())
                     .unwrap();
+
                 if *resource_needed > resource_capacity - resource_loading {
                     return Some(work_order_number);
                 }
