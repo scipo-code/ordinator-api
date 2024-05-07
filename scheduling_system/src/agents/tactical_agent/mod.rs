@@ -213,7 +213,8 @@ impl Handler<UpdateWorkOrderMessage> for TacticalAgent {
         update_work_order: UpdateWorkOrderMessage,
         _ctx: &mut Context<Self>,
     ) -> Self::Result {
-        todo!();
+        // todo!();
+        warn!("Update 'impl Handler<UpdateWorkOrderMessage> for TacticalAgent'");
     }
 }
 
