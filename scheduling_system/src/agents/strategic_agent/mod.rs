@@ -216,9 +216,10 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                                             .material_status
                                             .clone(),
                                         work_order.work_order_analytic.work_order_weight,
+                                        work_order.work_order_info.unloading_point,
                                         Some(OptimizedWorkOrderResponse::new(
                                             optimized_work_order.scheduled_period.clone().unwrap(),
-                                            optimized_work_order.locked_in_period.clone().unwrap(),
+                                            optimized_work_order.locked_in_period.clone(),
                                             optimized_work_order.excluded_periods.clone(),
                                             optimized_work_order.latest_period.clone(),
                                         )),

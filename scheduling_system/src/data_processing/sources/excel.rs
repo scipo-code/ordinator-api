@@ -5,7 +5,7 @@ use shared_messages::models::time_environment::day::Day;
 use shared_messages::Asset;
 use std::collections::HashMap;
 use std::path::Path;
-use tracing::{debug, event, info};
+use tracing::{debug, event, info, warn};
 
 use shared_messages::models::time_environment::period::Period;
 use shared_messages::models::time_environment::TimeEnvironment;
@@ -126,7 +126,7 @@ fn populate_work_orders<'a>(
 
     for row in sheet.rows().skip(1) {
         let mut work_order_number: u32 = 0;
-        if row[5] == Data::Empty {
+        if row[8] == Data::Empty || row[8] == "" {
             continue;
         }
 
@@ -529,8 +529,15 @@ fn extract_order_dates(
         "Earliest start date",
         "Earl.start date",
     ];
-    let latest_allowed_finish_date_possible_headers = ["Latst Allowd.FinDate"];
-    let basic_start_possible_headers = ["Basic_Start_Date", "Basic Start Date", "Bas. start date"];
+
+    let latest_allowed_finish_date_possible_headers =
+        ["Latst Allowd.FinDate", "Latest Allowed Finish Date"];
+    let basic_start_possible_headers = [
+        "Earliest start date",
+        "Basic_Start_Date",
+        "Basic Start Date",
+        "Bas. start date",
+    ];
     let basic_finish_possible_headers =
         ["Basic_Finish_Date", "Basic Finish Date", "Basic fin. date"];
 
@@ -603,7 +610,7 @@ fn extract_order_dates(
         }
     };
 
-    let basic_start_date = match basic_start_data.cloned() {
+    let basic_start_date_naive = match basic_start_data.cloned() {
         Some(calamine::Data::String(s)) => parse_date(&s),
         Some(calamine::Data::DateTime(datetime)) => {
             let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
@@ -613,10 +620,11 @@ fn extract_order_dates(
         }
         Some(_) => panic!("Could not parse basic_start_data as string"),
         None => panic!("Basic start date is None"),
-    }
-    .and_hms_opt(7, 0, 0)
-    .unwrap()
-    .and_utc();
+    };
+    let basic_start_date = basic_start_date_naive
+        .and_hms_opt(7, 0, 0)
+        .unwrap()
+        .and_utc();
 
     let basic_finish_date = match basic_finish_data.cloned() {
         Some(calamine::Data::String(s)) => parse_date(&s),
@@ -627,7 +635,10 @@ fn extract_order_dates(
                 .unwrap()
         }
         Some(_) => panic!("Could not parse basic finish as string"),
-        None => panic!("Could not parse basic finish as string"),
+        None => {
+            warn!("basic finish date could not be parsed and is not part of the scheduling system. Setting it to Basic Start.");
+            basic_start_date_naive.clone()
+        }
     }
     .and_hms_opt(7, 0, 0)
     .unwrap()
@@ -761,6 +772,7 @@ fn extract_functional_location(
     match string {
         Some(s) => match s {
             calamine::Data::String(s) => {
+                dbg!(s.clone());
                 let asset = Asset::new_from_string(&s[0..2]);
                 Ok(FunctionalLocation { string: s, asset })
             }
