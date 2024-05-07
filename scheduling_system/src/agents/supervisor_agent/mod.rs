@@ -11,7 +11,7 @@ use shared_messages::{
 };
 
 use shared_messages::models::worker_environment::resources::Id;
-use tracing::{error, instrument};
+use tracing::{error, instrument, warn};
 
 use shared_messages::models::SchedulingEnvironment;
 
@@ -94,8 +94,8 @@ impl Handler<StateLink> for SupervisorAgent {
     type Result = ();
 
     #[instrument(level = "trace", skip_all)]
-    fn handle(&mut self, msg: StateLink, _ctx: &mut Self::Context) {
-        match msg {
+    fn handle(&mut self, state_link: StateLink, _ctx: &mut Self::Context) {
+        match state_link {
             StateLink::Strategic(_) => {}
             StateLink::Tactical(tactical_supervisor_link) => {
                 self.assigned_work_orders = tactical_supervisor_link;
@@ -114,7 +114,8 @@ impl Handler<UpdateWorkOrderMessage> for SupervisorAgent {
         update_work_order: UpdateWorkOrderMessage,
         _ctx: &mut Context<Self>,
     ) -> Self::Result {
-        todo!()
+        // todo!()
+        warn!("Updateimpl Handler<UpdateWorkOrderMessage> for SupervisorAgent should be implemented for the supervisor agent");
     }
 }
 

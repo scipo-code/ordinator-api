@@ -3,12 +3,14 @@ pub mod strategic_algorithm;
 
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborHoodSearch;
+use shared_messages::models::work_order;
 use shared_messages::models::SchedulingEnvironment;
 
 use actix::prelude::*;
 use shared_messages::agent_error::AgentError;
 use shared_messages::models::worker_environment::resources::Resources;
 use shared_messages::strategic::strategic_request_status_message::StrategicStatusMessage;
+use shared_messages::strategic::strategic_response_status::OptimizedWorkOrderResponse;
 use shared_messages::strategic::strategic_response_status::StrategicResponseStatus;
 use shared_messages::strategic::strategic_response_status::WorkOrderResponse;
 use shared_messages::strategic::strategic_response_status::WorkOrdersStatus;
@@ -214,10 +216,12 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                                             .material_status
                                             .clone(),
                                         work_order.work_order_analytic.work_order_weight,
-                                        optimized_work_order.scheduled_period.unwrap(),
-                                        optimized_work_order.locked_in_period.unwrap(),
-                                        optimized_work_order.excluded_periods,
-                                        optimized_work_order.latest_period,
+                                        Some(OptimizedWorkOrderResponse::new(
+                                            optimized_work_order.scheduled_period.clone().unwrap(),
+                                            optimized_work_order.locked_in_period.clone().unwrap(),
+                                            optimized_work_order.excluded_periods.clone(),
+                                            optimized_work_order.latest_period.clone(),
+                                        )),
                                     );
                                     (*work_order_number, work_order_response)
                                 })
@@ -327,19 +331,33 @@ impl Handler<UpdateWorkOrderMessage> for StrategicAgent {
     fn handle(&mut self, update_work_order: UpdateWorkOrderMessage, _ctx: &mut Context<Self>) {
         let locked_scheduling_environment = self.scheduling_environment.lock().unwrap();
 
-        let periods = locked_scheduling_environment.periods();
+        let periods = locked_scheduling_environment.periods().clone();
 
         let work_order = locked_scheduling_environment
             .work_orders()
             .inner
             .get(&update_work_order.0)
-            .unwrap();
+            .unwrap()
+            .clone();
 
+        drop(locked_scheduling_environment);
         let optimized_work_order_builder = OptimizedWorkOrder::builder();
 
         let optimized_work_order = optimized_work_order_builder
-            .build_from_work_order(work_order, periods)
+            .build_from_work_order(&work_order, &periods)
             .build();
+        assert!(work_order.work_order_analytic.work_order_weight == optimized_work_order.weight);
+        match work_order
+            .work_order_analytic
+            .status_codes
+            .material_status
+            .period_delay(&periods)
+        {
+            Some(period) => {
+                assert!(&optimized_work_order.excluded_periods.contains(&period));
+            }
+            None => (),
+        }
 
         self.strategic_agent_algorithm
             .optimized_work_orders

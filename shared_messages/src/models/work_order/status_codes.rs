@@ -4,6 +4,8 @@ use clap::{Args, ValueEnum};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+use crate::models::time_environment::period::Period;
+
 #[derive(Args, Clone, Serialize, Deserialize, Debug)]
 pub struct StatusCodes {
     pub material_status: MaterialStatus,
@@ -73,6 +75,17 @@ impl MaterialStatus {
 
         MaterialStatus::Unknown
         // If no patterns match, return the Unknown variant
+    }
+
+    pub fn period_delay(&self, periods: &Vec<Period>) -> Option<Period> {
+        match self {
+            Self::Smat => None,
+            Self::Nmat => None,
+            Self::Cmat => periods.get(1).cloned(),
+            Self::Wmat => periods.get(2).cloned(),
+            Self::Pmat => periods.get(2).cloned(),
+            Self::Unknown => None,
+        }
     }
 }
 

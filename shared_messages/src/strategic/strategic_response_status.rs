@@ -52,10 +52,7 @@ pub struct WorkOrderResponse {
     vendor: bool,
     material: MaterialStatus,
     weight: u32,
-    scheduled_period: Period,
-    locked_in_period: Period,
-    excluded_periods: HashSet<Period>,
-    latest_period: Period,
+    optimized_work_order_response: Option<OptimizedWorkOrderResponse>,
 }
 
 impl WorkOrderResponse {
@@ -69,10 +66,7 @@ impl WorkOrderResponse {
         vendor: bool,
         material: MaterialStatus,
         weight: u32,
-        scheduled_period: Period,
-        locked_in_period: Period,
-        excluded_periods: HashSet<Period>,
-        latest_period: Period,
+        optimized_work_order_response: Option<OptimizedWorkOrderResponse>,
     ) -> Self {
         Self {
             earliest_period,
@@ -84,6 +78,27 @@ impl WorkOrderResponse {
             vendor,
             material,
             weight,
+            optimized_work_order_response,
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct OptimizedWorkOrderResponse {
+    scheduled_period: Period,
+    locked_in_period: Period,
+    excluded_periods: HashSet<Period>,
+    latest_period: Period,
+}
+
+impl OptimizedWorkOrderResponse {
+    pub fn new(
+        scheduled_period: Period,
+        locked_in_period: Period,
+        excluded_periods: HashSet<Period>,
+        latest_period: Period,
+    ) -> Self {
+        Self {
             scheduled_period,
             locked_in_period,
             excluded_periods,
