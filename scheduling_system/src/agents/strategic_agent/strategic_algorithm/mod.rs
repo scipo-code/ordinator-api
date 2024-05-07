@@ -49,8 +49,6 @@ impl StrategicAlgorithm {
     }
 
     pub fn tactical_work_orders(&self, tactical_periods: Vec<Period>) -> Vec<(u32, Period)> {
-        
-        
         let mut tactical_work_orders: Vec<(u32, Period)> = vec![];
 
         for (work_order_number, optimized_work_order) in &self.optimized_work_orders.inner {
@@ -71,7 +69,7 @@ impl StrategicAlgorithm {
 pub fn create_optimized_work_orders(
     &mut self,
     work_orders: &mut WorkOrders,
-    periods: &[Period],
+    periods: &Vec<Period>,
     asset: &Asset,
 ) {
     for (work_order_number, work_order) in work_orders.inner.iter() {
@@ -636,7 +634,6 @@ mod tests {
     use shared_messages::models::{
         work_order::WorkOrder,
             WorkOrders,
-        
     };
 
     #[test]
@@ -656,21 +653,19 @@ mod tests {
 
         hash_map_periods_150.insert(period.clone(), 150.0);
 
+        manual_resource_capacity.insert(
+            Resources::MtnMech,
+            hash_map_periods_150.clone()
+        );
 
         manual_resource_capacity.insert(
-            
-                Resources::MtnMech,
-                hash_map_periods_150.clone()
+            Resources::MtnElec,
+            hash_map_periods_150.clone()
         );
+
         manual_resource_capacity.insert(
-            
-                Resources::MtnElec,
-                hash_map_periods_150.clone()
-        );
-        manual_resource_capacity.insert(
-            
-                Resources::Prodtech,
-                hash_map_periods_150.clone()
+            Resources::Prodtech,
+            hash_map_periods_150.clone()
         );
 
         let resource_capacity = StrategicResources {
@@ -692,7 +687,7 @@ mod tests {
                 None, 
                 Some(period.clone()), 
                 HashSet::new(),
-                periods.first().unwrap().clone(),
+                period.clone(),
                 1000,
                 HashMap::new()
                 );
@@ -721,7 +716,7 @@ mod tests {
                 None,
                 Some(period.clone()),
                 HashSet::new(),
-                None,
+                period.clone(),
                 1000,
                 HashMap::new()
             ))
@@ -863,7 +858,7 @@ mod tests {
         let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
 
         let optimized_work_order =
-            OptimizedWorkOrder::new(None, None, HashSet::new(), None, 1000, work_load);
+            OptimizedWorkOrder::new(None, None, HashSet::new(), period.clone(), 1000, work_load);
 
         optimized_work_orders
             .inner
@@ -948,7 +943,7 @@ mod tests {
             Some(period.clone()),
             Some(period.clone()),
             HashSet::new(),
-            None,
+            period.clone(),
             1000,
             work_load,
         );
@@ -1034,7 +1029,7 @@ mod tests {
             None,
             Some(period_1.clone()),
             HashSet::new(),
-            None,
+            period_1.clone(),
             1000,
             work_load,
         );
@@ -1317,7 +1312,7 @@ mod tests {
             Some(Period::from_str("2023-W47-48").unwrap()),
             None,
             HashSet::new(),
-            None,
+Period::from_str("2023-W49-50").unwrap(),
             1000,
             work_load_1,
         );
@@ -1326,7 +1321,7 @@ mod tests {
             Some(Period::from_str("2023-W47-48").unwrap()),
             None,
             HashSet::new(),
-            None,
+Period::from_str("2023-W49-50").unwrap(),
             1000,
             work_load_2,
         );
@@ -1335,7 +1330,7 @@ mod tests {
             Some(Period::from_str("2023-W49-50").unwrap()),
             None,
             HashSet::new(),
-            None,
+Period::from_str("2023-W49-50").unwrap(),
             1000,
             work_load_3,
         );
@@ -1440,7 +1435,7 @@ mod tests {
             Period::from_str("2023-W47-48").ok(),
             None,
             HashSet::new(),
-            None,
+            Period::from_str("2023-W47-48").unwrap(),
             1000,
             HashMap::new(),
         );

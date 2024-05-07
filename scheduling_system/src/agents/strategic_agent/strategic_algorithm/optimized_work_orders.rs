@@ -3,6 +3,7 @@ use serde::Serialize;
 use shared_messages::models::worker_environment::resources::Resources;
 use std::collections::hash_map::Entry;
 use std::fmt::Write;
+use std::str::FromStr;
 use std::{collections::HashMap, collections::HashSet, hash::Hash, hash::Hasher};
 use tracing::instrument;
 
@@ -116,13 +117,13 @@ impl OptimizedWorkOrderBuilder {
             scheduled_period: None,
             locked_in_period: None,
             excluded_periods: HashSet::new(),
-            latest_period: None,
+            latest_period: Period::from_str("2024-W01-02").unwrap(),
             weight: 0,
             work_load: HashMap::new(),
         }
     }
 
-    pub fn build_from_work_order(mut self, work_order: &WorkOrder, periods: &[Period]) -> Self {
+    pub fn build_from_work_order(mut self, work_order: &WorkOrder, periods: &Vec<Period>) -> Self {
         self.scheduled_period = periods.last().cloned();
 
         self.excluded_periods = work_order.find_excluded_periods(periods);
@@ -131,7 +132,7 @@ impl OptimizedWorkOrderBuilder {
 
         self.work_load = work_order.work_load().clone();
 
-        self.latest_period = Some(work_order.order_dates.latest_allowed_finish_period.clone());
+        self.latest_period = work_order.order_dates.latest_allowed_finish_period.clone();
 
         let unloading_point_period = work_order.unloading_point().period.clone();
 
@@ -219,10 +220,10 @@ impl OptimizedWorkOrderBuilder {
             }
             return self;
         }
-
+        let period = periods.last().cloned();
         if work_order.main_work_center.is_fmc() {
-            self.locked_in_period = periods.last().cloned();
-            self.scheduled_period = periods.last().cloned();
+            self.locked_in_period = period.clone();
+            self.scheduled_period = period.clone();
         }
         self.scheduled_period = periods.last().cloned();
         self
