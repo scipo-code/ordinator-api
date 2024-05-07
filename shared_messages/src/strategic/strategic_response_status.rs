@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::models::time_environment::period::Period;
+use crate::models::work_order::unloading_point::{self, UnloadingPoint};
 use crate::models::work_order::{
     order_type::WorkOrderType, priority::Priority, revision::Revision, status_codes::MaterialStatus,
 };
@@ -52,6 +53,7 @@ pub struct WorkOrderResponse {
     vendor: bool,
     material: MaterialStatus,
     weight: u32,
+    unloading_point: UnloadingPoint,
     optimized_work_order_response: Option<OptimizedWorkOrderResponse>,
 }
 
@@ -66,6 +68,7 @@ impl WorkOrderResponse {
         vendor: bool,
         material: MaterialStatus,
         weight: u32,
+        unloading_point: UnloadingPoint,
         optimized_work_order_response: Option<OptimizedWorkOrderResponse>,
     ) -> Self {
         Self {
@@ -78,6 +81,7 @@ impl WorkOrderResponse {
             vendor,
             material,
             weight,
+            unloading_point,
             optimized_work_order_response,
         }
     }
@@ -86,7 +90,7 @@ impl WorkOrderResponse {
 #[derive(Serialize)]
 pub struct OptimizedWorkOrderResponse {
     scheduled_period: Period,
-    locked_in_period: Period,
+    locked_in_period: Option<Period>,
     excluded_periods: HashSet<Period>,
     latest_period: Period,
 }
@@ -94,7 +98,7 @@ pub struct OptimizedWorkOrderResponse {
 impl OptimizedWorkOrderResponse {
     pub fn new(
         scheduled_period: Period,
-        locked_in_period: Period,
+        locked_in_period: Option<Period>,
         excluded_periods: HashSet<Period>,
         latest_period: Period,
     ) -> Self {
