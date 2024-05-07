@@ -1,6 +1,5 @@
 use actix_web::http::header;
 use actix_web::{web, HttpRequest, HttpResponse, Result};
-use shared_messages::models::work_order::status_codes;
 use shared_messages::strategic::strategic_response_status::{WorkOrderResponse, WorkOrdersStatus};
 use shared_messages::LevelOfDetail;
 use shared_messages::{orchestrator::OrchestratorRequest, SystemMessages};
@@ -14,7 +13,6 @@ use crate::agents::orchestrator::Orchestrator;
 use crate::agents::UpdateWorkOrderMessage;
 use shared_messages::models::WorkOrders;
 
-#[allow(clippy::await_holding_lock)]
 #[instrument(level = "info", skip_all)]
 pub async fn http_to_scheduling_system(
     orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
@@ -22,7 +20,7 @@ pub async fn http_to_scheduling_system(
     payload: web::Json<SystemMessages>,
 ) -> Result<HttpResponse> {
     match payload.0 {
-        SystemMessages::Orchestrator(orchestrator_request) => {
+         SystemMessages::Orchestrator(orchestrator_request) => {
             let response = {
                 orchestrator
                     .lock()
@@ -163,12 +161,12 @@ impl Orchestrator {
                         
                         let update_work_order_message = UpdateWorkOrderMessage(work_order_number);
                         let actor_registry = self.agent_registries.get(&asset).unwrap();
-                        actor_registry.strategic_agent_addr.send(update_work_order_message.clone()).await;
-                        actor_registry.tactical_agent_addr.send(update_work_order_message.clone()).await;
+                        actor_registry.strategic_agent_addr.do_send(update_work_order_message.clone());
+                        actor_registry.tactical_agent_addr.do_send(update_work_order_message.clone());
 
-                        actor_registry.supervisor_agent_addrs.iter().find(|id| id.0.2.as_ref().unwrap() == &main_resource).unwrap().1.send(update_work_order_message.clone()).await;
+                        actor_registry.supervisor_agent_addrs.iter().find(|id| id.0.2.as_ref().unwrap() == &main_resource).unwrap().1.do_send(update_work_order_message.clone());
                         for actor in actor_registry.operational_agent_addrs.values() {
-                            actor.send(update_work_order_message.clone()).await;
+                            actor.do_send(update_work_order_message.clone());
                         };
                         Ok(format!("Status codes for work order: {} updated correctly", work_order_number))
                     }
@@ -276,6 +274,7 @@ impl Orchestrator {
                                 .material_status
                                 .clone(),
                             work_order.work_order_analytic.work_order_weight,
+                            None,
                         );
                         (*work_order_number, work_order_response)
                     })

@@ -59,9 +59,6 @@ def update_excel_with_strategic_output(json_data, excel_file, work_order_col):
     # Save the updated DataFrame back to the Excel file
     df.to_excel(excel_file, index=False)
 
-
-
-
 def main():
 
     # Create an argument parser
@@ -69,7 +66,6 @@ def main():
 
     # Add arguments
     parser.add_argument('filename', type=str, help='the filename to process')
-
 
     time = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
     input_path = parser.parse_args().filename

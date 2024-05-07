@@ -8,6 +8,7 @@ use chrono::{DateTime, Utc};
 use shared_messages::{models::worker_environment::resources::Id, StatusMessage, StopMessage};
 
 use shared_messages::models::{work_order::operation::Operation, SchedulingEnvironment};
+use tracing::warn;
 
 use super::{supervisor_agent::SupervisorAgent, SetAddr, UpdateWorkOrderMessage};
 
@@ -153,6 +154,7 @@ impl Handler<UpdateWorkOrderMessage> for OperationalAgent {
 
         _ctx: &mut Self::Context,
     ) -> Self::Result {
-        todo!();
+        // todo!();
+        warn!("Update 'impl Handler<UpdateWorkOrderMessage> for SupervisorAgent'");
     }
 }

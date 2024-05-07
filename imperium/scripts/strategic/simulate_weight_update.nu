@@ -401,11 +401,9 @@ let work_orders = [
   2100077100
 ]
 
-$work_orders | each { |x| imperium orchestrator scheduling-environment work-orders $x modify-status-codes nmat --sece}
-
+$work_orders | each { |x| imperium orchestrator scheduling-environment work-orders $x modify-status-codes pmat --sece }
 ^sleep 1
 # Replace 'echo Running command' with your command
 imperium strategic resources df loading 12
 # Sleep for 10 seconds using an external shell command
 ^sleep 1
-
