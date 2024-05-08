@@ -181,7 +181,7 @@ impl OperationBuilder {
         self
     }
 
-    pub fn build(mut self) -> Operation {
+    pub fn build(self) -> Operation {
         Operation {
             activity: self.activity,
             resource: self.resource,

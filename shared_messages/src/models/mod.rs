@@ -5,6 +5,9 @@ pub mod worker_environment;
 use std::collections::HashMap;
 use std::fmt;
 
+use serde::Serialize;
+use serde_json::Value;
+
 use crate::models::time_environment::day::Day;
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::WorkOrder;
@@ -12,13 +15,13 @@ use crate::models::worker_environment::WorkerEnvironment;
 
 use self::time_environment::TimeEnvironment;
 
+#[derive(Serialize)]
 pub struct SchedulingEnvironment {
     work_orders: WorkOrders,
     worker_environment: WorkerEnvironment,
     time_environment: TimeEnvironment,
     // material
 }
-
 impl SchedulingEnvironment {
     pub fn new(
         work_orders: WorkOrders,
@@ -93,7 +96,7 @@ impl Default for SchedulingEnvironment {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Serialize, Clone, Debug)]
 pub struct WorkOrders {
     pub inner: HashMap<u32, WorkOrder>,
 }

@@ -1,31 +1,31 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fmt::{self, Formatter};
 
 use crate::models::worker_environment::availability::Availability;
 
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 enum AssignedOrder {
     OrderInt(i32),
     None,
 }
 
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 enum AssignedActivity {
     ActivityInt(i32),
     None,
 }
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 enum AssignedTime {
     TimeFloat(f64),
     None,
 }
 
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct AssignedWork {
     order: AssignedOrder,
     activity: AssignedActivity,
@@ -33,7 +33,7 @@ struct AssignedWork {
 }
 
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Worker {
     name: String,
     id: i32,
