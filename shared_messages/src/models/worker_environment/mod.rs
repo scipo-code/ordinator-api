@@ -5,11 +5,14 @@ pub mod worker;
 
 use std::{collections::HashSet, fs};
 
+use serde::Serialize;
 use strum::IntoEnumIterator;
 
 use crate::models::worker_environment::crew::Crew;
 
 use crate::models::worker_environment::resources::Resources;
+
+#[derive(Serialize)]
 pub struct WorkerEnvironment {
     crew: Option<Crew>,
     work_centers: HashSet<Resources>,
