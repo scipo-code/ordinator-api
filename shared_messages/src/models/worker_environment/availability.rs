@@ -4,8 +4,9 @@ use chrono::{DateTime, Utc};
 use chrono_tz::Europe::Berlin;
 use serde::Deserialize;
 use serde::Deserializer;
+use serde::Serialize;
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Availability {
     #[serde(deserialize_with = "deserialize_datetime")]
     #[allow(dead_code)]

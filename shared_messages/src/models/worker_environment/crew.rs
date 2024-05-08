@@ -1,9 +1,9 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::models::worker_environment::worker::Worker;
 use std::collections::HashMap;
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Crew {
     workers: HashMap<u32, Worker>,
 }

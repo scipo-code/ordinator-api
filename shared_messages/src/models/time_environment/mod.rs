@@ -1,9 +1,12 @@
+use serde::Serialize;
+
 use self::day::Day;
 use self::period::Period;
 
 pub mod day;
 pub mod period;
 
+#[derive(Serialize)]
 pub struct TimeEnvironment {
     pub strategic_periods: Vec<Period>,
     pub tactical_periods: Vec<Period>,

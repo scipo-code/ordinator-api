@@ -15,3 +15,4 @@ chrono = "0"
 chrono-tz = "0"
 regex = "0"
 clap = { version = "4", features = ["derive"] }
+surrealdb = "1.4.2"
