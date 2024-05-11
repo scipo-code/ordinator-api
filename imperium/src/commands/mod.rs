@@ -77,7 +77,7 @@ pub fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
                     level_of_detail,
                 } => {
                     let strategic_status_message = OrchestratorRequest::GetWorkOrderStatus(
-                        work_order_number,
+                        work_order_number.into(),
                         level_of_detail.clone(),
                     );
                     SystemMessages::Orchestrator(strategic_status_message)

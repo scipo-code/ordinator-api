@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use clap::Args;
 use clap::Subcommand;
 use reqwest::blocking::Client;
+use shared_messages::models::work_order::WorkOrderNumber;
 use shared_messages::models::worker_environment::resources::Resources;
 use shared_messages::strategic::strategic_request_resources_message::StrategicResourceMessage;
 use shared_messages::strategic::strategic_request_scheduling_message::SingleWorkOrder;
@@ -134,8 +135,9 @@ impl StrategicCommands {
                 scheduling_commands: subcommand,
             } => match subcommand {
                 SchedulingCommands::Schedule(schedule) => {
+                    let work_order_number = WorkOrderNumber(schedule.work_order);
                     let schedule_single_work_order =
-                        SingleWorkOrder::new(schedule.work_order, schedule.period.clone());
+                        SingleWorkOrder::new(work_order_number, schedule.period.clone());
 
                     let strategic_scheduling_message: StrategicSchedulingMessage =
                         StrategicSchedulingMessage::Schedule(schedule_single_work_order);
@@ -154,8 +156,9 @@ impl StrategicCommands {
                     todo!()
                 }
                 SchedulingCommands::Exclude { work_order, period } => {
+                    let work_order_number = WorkOrderNumber(*work_order);
                     let exclude_single_work_order =
-                        SingleWorkOrder::new(*work_order, period.clone());
+                        SingleWorkOrder::new(work_order_number, period.clone());
 
                     let strategic_scheduling_message: StrategicSchedulingMessage =
                         StrategicSchedulingMessage::ExcludeFromPeriod(exclude_single_work_order);

@@ -169,9 +169,9 @@ impl Orchestrator {
                         for actor in actor_registry.operational_agent_addrs.values() {
                             actor.do_send(update_work_order_message.clone());
                         };
-                        Ok(format!("Status codes for work order: {} updated correctly", work_order_number))
+                        Ok(format!("Status codes for {:?} updated correctly", work_order_number))
                     }
-                    None => Err(format!("Tried to update the status code for work order: {}, but it was not found in the scheduling environment", work_order_number))
+                    None => Err(format!("Tried to update the status code for {:?}, but it was not found in the scheduling environment", work_order_number))
                 }
             }
             OrchestratorRequest::GetAgentStatus => {
@@ -278,7 +278,7 @@ impl Orchestrator {
                     .filter(|wo| wo.1.work_order_info.functional_location.asset == asset)
                     .collect();
 
-                let work_order_responses: HashMap<u32, WorkOrderResponse> = work_orders
+                let work_order_responses: HashMap<WorkOrderNumber, WorkOrderResponse> = work_orders
                     .inner
                     .iter()
                     .map(|(work_order_number, work_order)| {

@@ -5,7 +5,7 @@ pub mod worker_environment;
 use std::collections::HashMap;
 use std::fmt;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::models::time_environment::day::Day;
@@ -14,8 +14,9 @@ use crate::models::work_order::WorkOrder;
 use crate::models::worker_environment::WorkerEnvironment;
 
 use self::time_environment::TimeEnvironment;
+use self::work_order::WorkOrderNumber;
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct SchedulingEnvironment {
     work_orders: WorkOrders,
     worker_environment: WorkerEnvironment,
@@ -96,30 +97,30 @@ impl Default for SchedulingEnvironment {
     }
 }
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrders {
-    pub inner: HashMap<u32, WorkOrder>,
+    pub inner: HashMap<WorkOrderNumber, WorkOrder>,
 }
 
 impl WorkOrders {
     pub fn new() -> Self {
         WorkOrders {
-            inner: HashMap::<u32, WorkOrder>::new(),
+            inner: HashMap::<WorkOrderNumber, WorkOrder>::new(),
         }
     }
 
     pub fn insert(&mut self, work_order: WorkOrder) {
         self.inner
-            .insert(*work_order.work_order_number(), work_order);
+            .insert(work_order.work_order_number.clone(), work_order);
     }
 
-    pub fn new_work_order(&self, order_number: u32) -> bool {
-        !self.inner.contains_key(&order_number)
+    pub fn new_work_order(&self, work_order_number: WorkOrderNumber) -> bool {
+        !self.inner.contains_key(&work_order_number)
     }
 }
 
-impl FromIterator<(u32, WorkOrder)> for WorkOrders {
-    fn from_iter<T: IntoIterator<Item = (u32, WorkOrder)>>(iter: T) -> Self {
+impl FromIterator<(WorkOrderNumber, WorkOrder)> for WorkOrders {
+    fn from_iter<T: IntoIterator<Item = (WorkOrderNumber, WorkOrder)>>(iter: T) -> Self {
         let mut work_orders = HashMap::new();
 
         for (work_order_number, work_order) in iter {

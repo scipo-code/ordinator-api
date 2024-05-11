@@ -236,11 +236,11 @@ pub struct Id(pub String, pub Vec<Resources>, pub Option<MainResources>);
 
 impl Id {
     pub fn new(
-        id: String,
+        id_employee: String,
         resources: Vec<Resources>,
         main_resources: Option<MainResources>,
     ) -> Self {
-        Id(id, resources, main_resources)
+        Id(id_employee, resources, main_resources)
     }
 }
 

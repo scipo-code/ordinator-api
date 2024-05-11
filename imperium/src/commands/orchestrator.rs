@@ -65,24 +65,27 @@ pub enum SupervisorAgentCommands {
     /// Create a new SupervisorAgent
     Create {
         asset: Asset,
-        id: String,
+        id_supervisor: String,
         resource: shared_messages::models::worker_environment::resources::MainResources,
     },
 
     /// Delete a SupervisorAgent
-    Delete { asset: Asset, id: String },
+    Delete { asset: Asset, id_supervisor: String },
 }
 #[derive(Subcommand, Debug)]
 pub enum OperationalAgentCommands {
     /// Create a new OperationalAgent
     Create {
         asset: Asset,
-        id: String,
+        id_operational: String,
         resource: Vec<shared_messages::models::worker_environment::resources::Resources>,
     },
 
     /// Delete an OperationalAgent
-    Delete { asset: Asset, id: String },
+    Delete {
+        asset: Asset,
+        id_operational: String,
+    },
 }
 
 impl OrchestratorCommands {
@@ -96,7 +99,7 @@ impl OrchestratorCommands {
                     } => match work_order_commands {
                         WorkOrderCommands::ModifyStatusCodes(status_codes_input) => {
                             let orchestrator_request = OrchestratorRequest::SetWorkOrderState(
-                                work_order_number,
+                                work_order_number.into(),
                                 status_codes_input,
                             );
                             SystemMessages::Orchestrator(orchestrator_request)
@@ -123,7 +126,7 @@ impl OrchestratorCommands {
                 match supervisor_agent_command {
                     SupervisorAgentCommands::Create {
                         asset,
-                        id,
+                        id_supervisor: id,
                         resource,
                     } => {
                         let create_supervisor_agent = OrchestratorRequest::CreateSupervisorAgent(
@@ -132,7 +135,10 @@ impl OrchestratorCommands {
                         );
                         SystemMessages::Orchestrator(create_supervisor_agent)
                     }
-                    SupervisorAgentCommands::Delete { asset, id } => {
+                    SupervisorAgentCommands::Delete {
+                        asset,
+                        id_supervisor: id,
+                    } => {
                         let delete_supervisor_agent =
                             OrchestratorRequest::DeleteSupervisorAgent(asset.clone(), id.clone());
                         SystemMessages::Orchestrator(delete_supervisor_agent)
@@ -143,7 +149,7 @@ impl OrchestratorCommands {
                 match operational_agent_command {
                     OperationalAgentCommands::Create {
                         asset,
-                        id,
+                        id_operational: id,
                         resource,
                     } => {
                         let create_operational_agent = OrchestratorRequest::CreateOperationalAgent(
@@ -152,7 +158,10 @@ impl OrchestratorCommands {
                         );
                         SystemMessages::Orchestrator(create_operational_agent)
                     }
-                    OperationalAgentCommands::Delete { asset, id } => {
+                    OperationalAgentCommands::Delete {
+                        asset,
+                        id_operational: id,
+                    } => {
                         let delete_operational_agent =
                             OrchestratorRequest::DeleteOperationalAgent(asset.clone(), id.clone());
                         SystemMessages::Orchestrator(delete_operational_agent)
