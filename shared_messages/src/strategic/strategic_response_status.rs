@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::models::time_environment::period::Period;
 use crate::models::work_order::unloading_point::{self, UnloadingPoint};
+use crate::models::work_order::WorkOrderNumber;
 use crate::models::work_order::{
     order_type::WorkOrderType, priority::Priority, revision::Revision, status_codes::MaterialStatus,
 };
@@ -33,11 +34,11 @@ impl StrategicResponseStatus {
 }
 #[derive(Serialize)]
 pub struct WorkOrdersStatus {
-    work_orders: HashMap<u32, WorkOrderResponse>,
+    work_orders: HashMap<WorkOrderNumber, WorkOrderResponse>,
 }
 
 impl WorkOrdersStatus {
-    pub fn new(work_orders: HashMap<u32, WorkOrderResponse>) -> Self {
+    pub fn new(work_orders: HashMap<WorkOrderNumber, WorkOrderResponse>) -> Self {
         Self { work_orders }
     }
 }

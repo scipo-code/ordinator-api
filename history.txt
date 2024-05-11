@@ -1,0 +1,11 @@
+#V2
+help
+q
+exit
+SELECT id,->order.out as bought FROM person WHERE name="Gwenda Stokes" FETCH bought;
+SELECT id,->order.out AS bought,\nmath::sum(->order.*.price) AS total \nFROM person WHERE name="Gwenda Stokes" FETCH bought
+SELECT id FROM product 
+SELECT id FROM product WHERE description CONTAINS "cassette" 
+SELECT id FROM product WHERE description CONTAINS "cassette" FETCH id
+SELECT id FROM product WHERE description CONTAINS "cassette" FETCH id;
+SELECT id FROM product WHERE description CONTAINS "cassette" 

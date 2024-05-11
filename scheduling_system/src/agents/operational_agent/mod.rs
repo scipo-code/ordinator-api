@@ -14,7 +14,7 @@ use super::{supervisor_agent::SupervisorAgent, SetAddr, UpdateWorkOrderMessage};
 
 #[allow(dead_code)]
 pub struct OperationalAgent {
-    id: Id,
+    id_operational: Id,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     operational_algorithm: OperationalAlgorithm,
     capacity: Option<f32>,
@@ -45,13 +45,15 @@ impl Actor for OperationalAgent {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        self.supervisor_agent_addr
-            .do_send(SetAddr::Operational(self.id.clone(), ctx.address()));
+        self.supervisor_agent_addr.do_send(SetAddr::Operational(
+            self.id_operational.clone(),
+            ctx.address(),
+        ));
     }
 }
 
 pub struct OperationalAgentBuilder {
-    id: Id,
+    id_operational: Id,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     operational_algorithm: OperationalAlgorithm,
     capacity: Option<f32>,
@@ -63,12 +65,12 @@ pub struct OperationalAgentBuilder {
 
 impl OperationalAgentBuilder {
     pub fn new(
-        id: Id,
+        id_operational: Id,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         supervisor_agent_addr: Addr<SupervisorAgent>,
     ) -> Self {
         OperationalAgentBuilder {
-            id,
+            id_operational,
             scheduling_environment,
             operational_algorithm: OperationalAlgorithm {
                 objective_value: 0.0,
@@ -107,7 +109,7 @@ impl OperationalAgentBuilder {
 
     pub fn build(self) -> OperationalAgent {
         OperationalAgent {
-            id: self.id,
+            id_operational: self.id_operational,
             scheduling_environment: self.scheduling_environment,
             operational_algorithm: self.operational_algorithm,
             capacity: self.capacity,
@@ -125,8 +127,8 @@ impl Handler<StatusMessage> for OperationalAgent {
     fn handle(&mut self, _msg: StatusMessage, _ctx: &mut Self::Context) -> Self::Result {
         format!(
             "ID: {}, traits: {}, Objective: {}",
-            self.id.0,
-            self.id
+            self.id_operational.0,
+            self.id_operational
                 .1
                 .iter()
                 .map(|resource| resource.to_string())

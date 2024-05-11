@@ -6,8 +6,8 @@ use std::{
 
 use actix::prelude::*;
 use shared_messages::{
-    agent_error::AgentError, supervisor::SupervisorRequestMessage, Asset, StatusMessage,
-    StopMessage,
+    agent_error::AgentError, models::work_order::WorkOrderNumber,
+    supervisor::SupervisorRequestMessage, Asset, StatusMessage, StopMessage,
 };
 
 use shared_messages::models::worker_environment::resources::Id;
@@ -23,10 +23,10 @@ use super::{
 };
 
 pub struct SupervisorAgent {
-    id: Id,
+    id_supervisor: Id,
     asset: Asset,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-    assigned_work_orders: Vec<(u32, HashMap<u32, OperationSolution>)>,
+    assigned_work_orders: Vec<(WorkOrderNumber, HashMap<u32, OperationSolution>)>,
     tactical_agent_addr: Addr<TacticalAgent>,
     operational_agent_addrs: HashMap<Id, Addr<OperationalAgent>>,
 }
@@ -36,20 +36,22 @@ impl Actor for SupervisorAgent {
 
     #[instrument(level = "trace", skip_all)]
     fn started(&mut self, ctx: &mut Self::Context) {
-        self.tactical_agent_addr
-            .do_send(SetAddr::Supervisor(self.id.clone(), ctx.address()));
+        self.tactical_agent_addr.do_send(SetAddr::Supervisor(
+            self.id_supervisor.clone(),
+            ctx.address(),
+        ));
     }
 }
 
 impl SupervisorAgent {
     pub fn new(
-        id: Id,
+        id_supervisor: Id,
         asset: Asset,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         tactical_agent_addr: Addr<TacticalAgent>,
     ) -> SupervisorAgent {
         SupervisorAgent {
-            id,
+            id_supervisor,
             asset,
             scheduling_environment,
             assigned_work_orders: Vec::new(),
@@ -66,7 +68,7 @@ impl Handler<StatusMessage> for SupervisorAgent {
     fn handle(&mut self, _msg: StatusMessage, _ctx: &mut Self::Context) -> Self::Result {
         format!(
             "ID: {}, Work Center: {:?}, Main Work Center: {:?}",
-            self.id.0, self.id.1, self.id.2
+            self.id_supervisor.0, self.id_supervisor.1, self.id_supervisor.2
         )
     }
 }
@@ -192,10 +194,10 @@ impl TestAlgorithm for SupervisorAgent {
                 .unwrap()
                 .main_work_center
                 .clone();
-            if &work_order_main_resource == self.id.2.as_ref().unwrap() {
+            if &work_order_main_resource == self.id_supervisor.2.as_ref().unwrap() {
                 continue;
             } else {
-                error!(work_order_number = ?work_order_number, work_order_main_resource = ?work_order_main_resource, supervisor_trait = ?self.id.2.as_ref().unwrap());
+                error!(work_order_number = ?work_order_number, work_order_main_resource = ?work_order_main_resource, supervisor_trait = ?self.id_supervisor.2.as_ref().unwrap());
                 feasible_main_resources = false;
                 break;
             }

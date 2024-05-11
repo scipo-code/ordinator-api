@@ -37,11 +37,36 @@ use crate::models::worker_environment::resources::Resources;
 
 use super::time_environment::period::Period;
 
-pub type WorkOrderNumber = u32;
+#[derive(Debug, Copy, Clone, PartialOrd, Ord, Hash, PartialEq, Eq)]
+pub struct WorkOrderNumber(pub u32);
 
+impl From<u32> for WorkOrderNumber {
+    fn from(value: u32) -> Self {
+        WorkOrderNumber(value)
+    }
+}
+
+impl Serialize for WorkOrderNumber {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.0.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for WorkOrderNumber {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let work_order_number_primitive = u32::deserialize(deserializer)?;
+        Ok(WorkOrderNumber(work_order_number_primitive))
+    }
+}
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrder {
-    pub work_order_number: u32,
+    pub work_order_number: WorkOrderNumber,
     pub main_work_center: MainResources,
     pub operations: HashMap<u32, Operation>,
     pub relations: Vec<ActivityRelation>,
@@ -115,7 +140,7 @@ impl WorkOrderAnalytic {
 
 impl WorkOrder {
     pub fn new(
-        work_order_number: u32,
+        work_order_number: WorkOrderNumber,
         main_work_center: MainResources,
         operations: HashMap<u32, Operation>,
         relations: Vec<ActivityRelation>,
@@ -142,7 +167,7 @@ impl WorkOrder {
         &self.operations
     }
 
-    pub fn work_order_number(&self) -> &u32 {
+    pub fn work_order_number(&self) -> &WorkOrderNumber {
         &self.work_order_number
     }
 
@@ -409,7 +434,7 @@ impl Default for WorkOrder {
         );
 
         WorkOrder::new(
-            2100000001,
+            WorkOrderNumber(2100000001),
             MainResources::MtnMech,
             operations,
             Vec::new(),
@@ -436,7 +461,7 @@ mod tests {
         status_codes::StatusCodes,
         system_condition::SystemCondition,
         unloading_point::UnloadingPoint,
-        WorkOrder, WorkOrderAnalytic, WorkOrderInfo,
+        WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderNumber,
     };
 
     #[test]
@@ -495,7 +520,7 @@ mod tests {
             );
 
             WorkOrder::new(
-                2100023841,
+                WorkOrderNumber(2100023841),
                 MainResources::MtnMech,
                 operations,
                 Vec::new(),

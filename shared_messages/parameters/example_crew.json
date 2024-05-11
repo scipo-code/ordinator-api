@@ -2,7 +2,7 @@
   "workers": {
     "123": {
       "name": "John Doe",
-      "id": 123,
+      "id_worker": 123,
       "capacity": 8.5,
       "trait_": "MTN-MECH",
       "availabilities": [
@@ -32,7 +32,7 @@
     },
     "124": {
       "name": "John Doe",
-      "id": 123,
+      "id_worker": 123,
       "capacity": 8.5,
       "trait_": "MTN-ELEC",
       "availabilities": [

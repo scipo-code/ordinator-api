@@ -6,7 +6,7 @@ impl fmt::Display for WorkOrder {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Work order number: {} \n
+            "Work order number: {:?} \n
             Work order weight: {} \n
             Work load: {:?} \n
             Number of activities: {} \n
@@ -30,8 +30,8 @@ impl WorkOrder {
         let mut message = String::new();
         writeln!(
             message,
-            "Work order: {}    |{:>11}|{:<}|{:<}|{:<}|{:>8}|{:>4}|{:>4}|{:>4}|{:>7}|{:>11}|{:>5}|",
-            self.work_order_number(),
+            "Work order: {:?}    |{:>11}|{:<}|{:<}|{:<}|{:>8}|{:>4}|{:>4}|{:>4}|{:>7}|{:>11}|{:>5}|",
+            self.work_order_number,
             self.order_dates()
                 .earliest_allowed_start_period
                 .period_string(),
