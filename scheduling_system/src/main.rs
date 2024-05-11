@@ -10,8 +10,12 @@ use std::{
 
 use actix_web::{guard, web, App, HttpServer};
 use agents::orchestrator::Orchestrator;
+use mongodb::options::ClientOptions;
+use mongodb::{
+    bson::{doc, Document},
+    Client,
+};
 use shared_messages::{models::SchedulingEnvironment, Asset};
-use surrealdb::{engine::remote::ws::Ws, opt::IntoResource, Response, Surreal};
 
 use crate::init::logging;
 
@@ -22,14 +26,21 @@ async fn main() -> Result<(), io::Error> {
 
     let log_handles = logging::setup_logging();
 
-    let db = Surreal::new::<Ws>("127.0.0.1:8000").await.unwrap();
+    let ordinator_database = Client::with_uri_str("mongodb://localhost:27017")
+        .await
+        .unwrap();
 
     let scheduling_environment =
         init::model_initializers::initialize_scheduling_environment(52, 4, 120);
 
-    db.create::<Vec<SchedulingEnvironment>>("SchedulingEnvironment")
-        .content(serde_json::to_string(&scheduling_environment).unwrap())
-        .await;
+    let collection = ordinator_database
+        .database("ordinator")
+        .collection::<SchedulingEnvironment>("scheduling_environment");
+
+    collection
+        .insert_one(&scheduling_environment, None)
+        .await
+        .unwrap();
 
     let mutex_scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
 

@@ -24,7 +24,7 @@ use shared_messages::models::work_order::revision::Revision;
 use shared_messages::models::work_order::status_codes::{MaterialStatus, StatusCodes};
 use shared_messages::models::work_order::unloading_point::UnloadingPoint;
 use shared_messages::models::work_order::{
-    ActivityRelation, WorkOrder, WorkOrderAnalytic, WorkOrderInfo,
+    ActivityRelation, WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderNumber,
 };
 use shared_messages::models::worker_environment::resources::{MainResources, Resources};
 use shared_messages::models::worker_environment::WorkerEnvironment;
@@ -125,7 +125,7 @@ fn populate_work_orders<'a>(
         .collect();
 
     for row in sheet.rows().skip(1) {
-        let mut work_order_number: u32 = 0;
+        let mut work_order_number = WorkOrderNumber(0);
         if row[8] == Data::Empty || row[8] == "" {
             continue;
         }
@@ -136,13 +136,13 @@ fn populate_work_orders<'a>(
                 match value {
                     calamine::Data::Empty => continue,
                     calamine::Data::String(s) => match s.parse::<u32>() {
-                        Ok(n) => work_order_number = n,
+                        Ok(n) => work_order_number = WorkOrderNumber(n),
                         Err(e) => {
                             println!("Could not parse work order number as string: {}", e)
                         }
                     },
-                    calamine::Data::Int(s) => work_order_number = *s as u32,
-                    calamine::Data::Float(s) => work_order_number = *s as u32,
+                    calamine::Data::Int(s) => work_order_number = WorkOrderNumber(*s as u32),
+                    calamine::Data::Float(s) => work_order_number = WorkOrderNumber(*s as u32),
                     _ => {
                         todo!("Handle other cases of calamine::Data");
                     }
@@ -216,10 +216,10 @@ fn create_new_work_order(
         )
         .cloned()
     {
-        Some(calamine::Data::Int(n)) => n as u32,
-        Some(calamine::Data::Float(n)) => n as u32,
-        Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(0),
-        _ => 0,
+        Some(calamine::Data::Int(n)) => WorkOrderNumber(n as u32),
+        Some(calamine::Data::Float(n)) => WorkOrderNumber(n as u32),
+        Some(calamine::Data::String(s)) => WorkOrderNumber(s.parse::<u32>().unwrap_or(0)),
+        _ => panic!("Work order number could not be parsed"),
     };
 
     let work_order_analytic = WorkOrderAnalytic::new(
@@ -772,7 +772,6 @@ fn extract_functional_location(
     match string {
         Some(s) => match s {
             calamine::Data::String(s) => {
-                dbg!(s.clone());
                 let asset = Asset::new_from_string(&s[0..2]);
                 Ok(FunctionalLocation { string: s, asset })
             }

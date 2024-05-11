@@ -36,7 +36,7 @@ struct AssignedWork {
 #[derive(Serialize, Deserialize)]
 pub struct Worker {
     name: String,
-    id: i32,
+    id_worker: i32,
     capacity: f64,
     trait_: String,
     availabilities: Vec<Availability>,
@@ -47,7 +47,7 @@ impl Debug for Worker {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Worker")
             .field("name", &self.name)
-            .field("id", &self.id)
+            .field("id", &self.id_worker)
             .field("capacity", &self.capacity)
             .field("trait_", &self.trait_)
             .field("availabilities", &self.availabilities.len())

@@ -4,6 +4,7 @@ pub mod strategic_algorithm;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborHoodSearch;
 use shared_messages::models::work_order;
+use shared_messages::models::work_order::WorkOrderNumber;
 use shared_messages::models::SchedulingEnvironment;
 
 use actix::prelude::*;
@@ -180,7 +181,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                             ));
                         }
 
-                        let work_orders_by_period: HashMap<u32, WorkOrderResponse> =
+                        let work_orders_by_period: HashMap<WorkOrderNumber, WorkOrderResponse> =
                             optimized_work_orders
                                 .iter()
                                 .filter(|(_, opt_wo)| match opt_wo.scheduled_period.clone() {
@@ -422,7 +423,7 @@ impl TestAlgorithm for StrategicAgent {
                     {
                         strategic_state.infeasible_cases_mut().unwrap().respect_awsc =
                             ConstraintState::Infeasible(format!(
-                                "Work order {} does not respect AWSC. Period: {}, basic start date: {}, status codes: {}, unloading_point: {:?}, vendor: {}",
+                                "Work order {:?} does not respect AWSC. Period: {}, basic start date: {}, status codes: {}, unloading_point: {:?}, vendor: {}",
                                 work_order_number,
                                 scheduled_period,
                                 basic_start_of_first_activity,
@@ -436,7 +437,7 @@ impl TestAlgorithm for StrategicAgent {
                 None => {
                     strategic_state.infeasible_cases_mut().unwrap().respect_awsc =
                         ConstraintState::Infeasible(format!(
-                            "Work order {} does not have a period",
+                            "Work order {:?} does not have a period",
                             work_order_number,
                         ));
                     break;
@@ -475,7 +476,7 @@ impl TestAlgorithm for StrategicAgent {
                     .infeasible_cases_mut()
                     .unwrap()
                     .respect_unloading = ConstraintState::Infeasible(format!(
-                    "\t\t\nWork order number: {}\t\t\nwith unloading period: {}\t\t\nwith scheduled period: {}\t\t\nwith locked period: {}",
+                    "\t\t\nWork order number: {:?}\t\t\nwith unloading period: {}\t\t\nwith scheduled period: {}\t\t\nwith locked period: {}",
                     work_order_number,
                     work_order.unloading_point().period.as_ref().unwrap(),
                     optimized_work_order.scheduled_period.clone().unwrap(),
@@ -516,7 +517,7 @@ impl TestAlgorithm for StrategicAgent {
                     .infeasible_cases_mut()
                     .unwrap()
                     .respect_sch = ConstraintState::Infeasible(format!(
-                    "\t\t\nWork order number: {}\t\t\nwith scheduled period: {}\t\t\nwith locked period: {:?}\t\t\n work order status codes: {}\t\t\n work order unloading point: {:?}",
+                    "\t\t\nWork order number: {:?}\t\t\nwith scheduled period: {}\t\t\nwith locked period: {:?}\t\t\n work order status codes: {}\t\t\n work order unloading point: {:?}",
                     work_order_number,
                     optimized_work_order.scheduled_period.as_ref().unwrap(),
                     optimized_work_order.locked_in_period.as_ref(),
@@ -747,9 +748,10 @@ mod tests {
 
     #[test]
     fn test_update_scheduler_state() {
+        let work_order_number = WorkOrderNumber(2200002020);
         let period_string: String = "2023-W47-48".to_string();
 
-        let schedule_work_order = SingleWorkOrder::new(2200002020, period_string);
+        let schedule_work_order = SingleWorkOrder::new(work_order_number, period_string);
 
         let strategic_scheduling_internal =
             StrategicSchedulingMessage::Schedule(schedule_work_order);
@@ -776,7 +778,7 @@ mod tests {
             HashMap::new(),
         );
 
-        scheduler_agent_algorithm.set_optimized_work_order(2200002020, optimized_work_order);
+        scheduler_agent_algorithm.set_optimized_work_order(work_order_number, optimized_work_order);
 
         scheduler_agent_algorithm
             .update_scheduling_state(strategic_scheduling_internal)
@@ -785,7 +787,7 @@ mod tests {
         assert_eq!(
             scheduler_agent_algorithm
                 .optimized_work_orders()
-                .get(&2200002020)
+                .get(&work_order_number)
                 .as_ref()
                 .unwrap()
                 .locked_in_period
@@ -798,8 +800,9 @@ mod tests {
 
     #[test]
     fn test_input_scheduler_message_from() {
+        let work_order_number = WorkOrderNumber(2100023841);
         let schedule_single_work_order =
-            SingleWorkOrder::new(2100023841, "2023-W49-50".to_string());
+            SingleWorkOrder::new(work_order_number, "2023-W49-50".to_string());
 
         let strategic_scheduling_message =
             StrategicSchedulingMessage::Schedule(schedule_single_work_order);
@@ -807,17 +810,17 @@ mod tests {
         assert_eq!(
             match strategic_scheduling_message {
                 StrategicSchedulingMessage::Schedule(ref schedule_single_work_order) => {
-                    schedule_single_work_order.get_work_order_number()
+                    schedule_single_work_order.work_order_number.0
                 }
                 _ => panic!("wrong message type"),
             },
-            2100023841
+            work_order_number.0
         );
 
         assert_eq!(
             match strategic_scheduling_message {
                 StrategicSchedulingMessage::Schedule(ref schedule_single_work_order) => {
-                    schedule_single_work_order.get_period_string()
+                    schedule_single_work_order.period_string()
                 }
                 _ => panic!("wrong message type"),
             },
@@ -863,7 +866,7 @@ mod tests {
             work_load,
         );
 
-        scheduler_agent_algorithm.set_optimized_work_order(2100023841, optimized_work_order);
+        scheduler_agent_algorithm.set_optimized_work_order(work_order_number, optimized_work_order);
 
         scheduler_agent_algorithm
             .update_scheduling_state(strategic_scheduling_message)
@@ -871,14 +874,14 @@ mod tests {
 
         assert_eq!(
             scheduler_agent_algorithm
-                .optimized_work_order(&2100023841)
+                .optimized_work_order(&work_order_number)
                 .unwrap()
                 .locked_in_period,
             Some(Period::from_str("2023-W49-50").unwrap())
         );
         assert_eq!(
             scheduler_agent_algorithm
-                .optimized_work_order(&2100023841)
+                .optimized_work_order(&work_order_number)
                 .unwrap()
                 .scheduled_period,
             None
@@ -900,7 +903,8 @@ mod tests {
             HashMap::new(),
         );
 
-        optimized_work_orders.insert_optimized_work_order(2100023841, optimized_work_order);
+        optimized_work_orders
+            .insert_optimized_work_order(WorkOrderNumber(2100023841), optimized_work_order);
 
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,

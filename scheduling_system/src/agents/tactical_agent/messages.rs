@@ -15,7 +15,7 @@ impl Handler<StatusMessage> for TacticalAgent {
     fn handle(&mut self, _msg: StatusMessage, _ctx: &mut Self::Context) -> Self::Result {
         format!(
             "Id: {}, Time horizon: {:?}, Objective: {}",
-            self.id,
+            self.id_tactical,
             self.time_horizon(),
             self.tactical_algorithm.get_objective_value()
         )

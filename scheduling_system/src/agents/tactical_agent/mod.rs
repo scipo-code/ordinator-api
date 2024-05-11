@@ -24,7 +24,7 @@ use super::{StateLink, UpdateWorkOrderMessage};
 #[allow(dead_code)]
 pub struct TacticalAgent {
     asset: Asset,
-    id: i32,
+    id_tactical: i32,
     time_horizon: Vec<Period>,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     tactical_algorithm: TacticalAlgorithm,
@@ -35,7 +35,7 @@ pub struct TacticalAgent {
 impl TacticalAgent {
     pub fn new(
         asset: Asset,
-        id: i32,
+        id_tactical: i32,
         time_horizon: Vec<Period>,
         strategic_addr: Addr<StrategicAgent>,
         tactical_algorithm: TacticalAlgorithm,
@@ -43,7 +43,7 @@ impl TacticalAgent {
     ) -> Self {
         TacticalAgent {
             asset,
-            id,
+            id_tactical,
             time_horizon,
             scheduling_environment: scheduling_environment.clone(),
             tactical_algorithm,
@@ -63,7 +63,7 @@ impl Actor for TacticalAgent {
     fn started(&mut self, ctx: &mut Context<Self>) {
         warn!(
             "TacticalAgent {} has started, sending Its address to the StrategicAgent",
-            self.id
+            self.id_tactical
         );
         self.strategic_addr
             .do_send(SetAddr::Tactical(ctx.address()));

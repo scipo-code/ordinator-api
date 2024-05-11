@@ -9,11 +9,11 @@ use tracing::instrument;
 
 use crate::agents::LoadOperation;
 use shared_messages::models::time_environment::period::Period;
-use shared_messages::models::work_order::WorkOrder;
+use shared_messages::models::work_order::{WorkOrder, WorkOrderNumber};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct OptimizedWorkOrders {
-    pub inner: HashMap<u32, OptimizedWorkOrder>,
+    pub inner: HashMap<WorkOrderNumber, OptimizedWorkOrder>,
 }
 
 impl Hash for OptimizedWorkOrders {
@@ -41,49 +41,49 @@ impl Hash for OptimizedWorkOrder {
 }
 
 impl OptimizedWorkOrders {
-    pub fn new(inner: HashMap<u32, OptimizedWorkOrder>) -> Self {
+    pub fn new(inner: HashMap<WorkOrderNumber, OptimizedWorkOrder>) -> Self {
         Self { inner }
     }
 
     pub fn insert_optimized_work_order(
         &mut self,
-        work_order_number: u32,
+        work_order_number: WorkOrderNumber,
         optimized_work_order: OptimizedWorkOrder,
     ) {
         self.inner.insert(work_order_number, optimized_work_order);
     }
     #[instrument(level = "trace", skip_all)]
-    pub fn set_scheduled_period(&mut self, work_order_number: u32, period: Period) {
+    pub fn set_scheduled_period(&mut self, work_order_number: WorkOrderNumber, period: Period) {
         let optimized_work_order = match self.inner.get_mut(&work_order_number) {
             Some(optimized_work_order) => optimized_work_order,
             None => panic!(
-                "Work order number {} not found in optimized work orders",
+                "Work order number {:?} not found in optimized work orders",
                 work_order_number
             ),
         };
         optimized_work_order.scheduled_period = Some(period);
     }
     #[instrument(level = "trace", skip_all)]
-    pub fn get_locked_in_period(&self, work_order_number: u32) -> Period {
+    pub fn get_locked_in_period(&self, work_order_number: WorkOrderNumber) -> Period {
         let option_period = match self.inner.get(&work_order_number) {
             Some(optimized_work_order) => optimized_work_order.locked_in_period.clone(),
             None => panic!(
-                "Work order number {} not found in optimized work orders",
+                "Work order number {:?} not found in optimized work orders",
                 work_order_number
             ),
         };
         match option_period {
             Some(period) => period,
-            None => panic!("Work order number {} does not have a locked in period, but it is being called by the optimized_work_orders.schedule_forced_work_order", work_order_number)
+            None => panic!("Work order number {:?} does not have a locked in period, but it is being called by the optimized_work_orders.schedule_forced_work_order", work_order_number)
         }
     }
 
     #[instrument(level = "trace", skip_all)]
-    pub fn set_locked_in_period(&mut self, work_order_number: u32, period: Period) {
+    pub fn set_locked_in_period(&mut self, work_order_number: WorkOrderNumber, period: Period) {
         let optimized_work_order = match self.inner.get_mut(&work_order_number) {
             Some(optimized_work_order) => optimized_work_order,
             None => panic!(
-                "Work order number {} not found in optimized work orders",
+                "Work order number {:?} not found in optimized work orders",
                 work_order_number
             ),
         };
