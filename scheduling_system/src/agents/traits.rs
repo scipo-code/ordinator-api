@@ -1,5 +1,7 @@
 use std::fmt;
 
+use shared_messages::models::work_order::WorkOrderNumber;
+
 pub trait LargeNeighborHoodSearch {
     type SchedulingMessage;
     type ResourceMessage;
@@ -11,7 +13,7 @@ pub trait LargeNeighborHoodSearch {
 
     fn schedule(&mut self);
 
-    fn unschedule(&mut self, message: u32);
+    fn unschedule(&mut self, message: WorkOrderNumber);
 
     fn update_scheduling_state(
         &mut self,

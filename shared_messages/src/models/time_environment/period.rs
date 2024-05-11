@@ -7,7 +7,7 @@ use std::str::FromStr;
 
 #[derive(Args, Serialize, Deserialize, Eq, PartialEq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub struct Period {
-    id: i32,
+    id_internal: i32,
     period_string: String,
     start_date: DateTime<Utc>,
     end_date: DateTime<Utc>,
@@ -33,7 +33,7 @@ impl Period {
         let period_string = format!("{}-W{}-{}", year, start_week, end_week,);
 
         Period {
-            id,
+            id_internal: id,
             period_string,
             start_date,
             end_date,
@@ -61,7 +61,7 @@ impl Period {
     }
 
     pub fn id(&self) -> &i32 {
-        &self.id
+        &self.id_internal
     }
 }
 
@@ -69,7 +69,7 @@ impl Add<Duration> for Period {
     type Output = Self;
 
     fn add(self, rhs: Duration) -> Self::Output {
-        let id = self.id + 1;
+        let id = self.id_internal + 1;
         let start_date = self.start_date + rhs;
         let end_date = self.end_date + rhs;
         Period::new(id, start_date, end_date)
@@ -80,7 +80,7 @@ impl Sub<Duration> for Period {
     type Output = Period;
 
     fn sub(self, rhs: Duration) -> Self::Output {
-        let id = self.id - 1;
+        let id = self.id_internal - 1;
         let start_date = self.start_date - rhs;
         let end_date = self.end_date - rhs;
         Period::new(id, start_date, end_date)
@@ -91,7 +91,7 @@ impl Add<Duration> for &Period {
     type Output = Period;
 
     fn add(self, rhs: Duration) -> Self::Output {
-        let id = self.id - 1;
+        let id = self.id_internal - 1;
         let start_date = self.start_date + rhs;
         let end_date = self.end_date + rhs;
         Period::new(id, start_date, end_date)
@@ -175,7 +175,7 @@ impl FromStr for Period {
 
         // Create Period
         Ok(Period {
-            id: 0, // Assuming default value for id, modify as needed
+            id_internal: 0, // Assuming default value for id, modify as needed
             period_string: period_string.to_string(),
             start_date: start_date.unwrap(),
             end_date,
@@ -206,7 +206,7 @@ mod tests {
         let new_period = period + duration_to_add;
 
         // Assert that the new period has the expected values
-        assert_eq!(new_period.id, initial_id + 1);
+        assert_eq!(new_period.id_internal, initial_id + 1);
         assert_eq!(new_period.start_date, initial_start_date + duration_to_add);
         assert_eq!(new_period.end_date, initial_end_date + duration_to_add);
     }
@@ -226,7 +226,7 @@ mod tests {
         let new_period = period + duration_to_add;
 
         // Assert that the new period has the expected values
-        assert_eq!(new_period.id, initial_id + 1);
+        assert_eq!(new_period.id_internal, initial_id + 1);
         assert_eq!(new_period.start_date, initial_start_date + duration_to_add);
         assert_eq!(new_period.end_date, initial_end_date + duration_to_add);
         assert_eq!(new_period.period_string, "2024-W1-2".to_string());
