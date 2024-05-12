@@ -11,7 +11,7 @@ actix = "0"
 serde_json = "1"
 strum = "0"
 strum_macros = "0"
-chrono = "0"
+chrono = { version = "0", features = ["serde"] }
 chrono-tz = "0"
 regex = "0"
 clap = { version = "4", features = ["derive"] }
