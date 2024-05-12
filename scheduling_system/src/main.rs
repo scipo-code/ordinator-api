@@ -10,12 +10,13 @@ use std::{
 
 use actix_web::{guard, web, App, HttpServer};
 use agents::orchestrator::Orchestrator;
-use mongodb::options::ClientOptions;
 use mongodb::{
     bson::{doc, Document},
     Client,
 };
+use mongodb::{options::ClientOptions, results::InsertOneResult};
 use shared_messages::{models::SchedulingEnvironment, Asset};
+use tracing::info;
 
 use crate::init::logging;
 
@@ -30,17 +31,31 @@ async fn main() -> Result<(), io::Error> {
         .await
         .unwrap();
 
-    let scheduling_environment =
-        init::model_initializers::initialize_scheduling_environment(52, 4, 120);
-
-    let collection = ordinator_database
+    let scheduling_environment = match ordinator_database
         .database("ordinator")
-        .collection::<SchedulingEnvironment>("scheduling_environment");
-
-    collection
-        .insert_one(&scheduling_environment, None)
+        .collection("scheduling_environment")
+        .find_one(None, None)
         .await
-        .unwrap();
+        .unwrap()
+    {
+        Some(scheduling_environment) => {
+            info!("SchedulingEnvironment loaded from mongodb");
+            scheduling_environment
+        }
+        None => {
+            let scheduling_environment =
+                init::model_initializers::initialize_scheduling_environment(52, 4, 120);
+            let collection = ordinator_database
+                .database("ordinator")
+                .collection::<SchedulingEnvironment>("scheduling_environment");
+            collection
+                .insert_one(&scheduling_environment, None)
+                .await
+                .unwrap();
+            info!("SchedulingEnvironment created from excel data");
+            scheduling_environment
+        }
+    };
 
     let mutex_scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
 

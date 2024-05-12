@@ -35,6 +35,8 @@ use crate::models::work_order::{
 
 use crate::models::worker_environment::resources::Resources;
 
+use self::operation::ActivityNumber;
+
 use super::time_environment::period::Period;
 
 #[derive(Debug, Copy, Clone, PartialOrd, Ord, Hash, PartialEq, Eq)]
@@ -60,7 +62,8 @@ impl<'de> Deserialize<'de> for WorkOrderNumber {
     where
         D: serde::Deserializer<'de>,
     {
-        let work_order_number_primitive = u32::deserialize(deserializer)?;
+        let work_order_number_string = String::deserialize(deserializer).unwrap();
+        let work_order_number_primitive = work_order_number_string.parse::<u32>().unwrap();
         Ok(WorkOrderNumber(work_order_number_primitive))
     }
 }
@@ -68,7 +71,7 @@ impl<'de> Deserialize<'de> for WorkOrderNumber {
 pub struct WorkOrder {
     pub work_order_number: WorkOrderNumber,
     pub main_work_center: MainResources,
-    pub operations: HashMap<u32, Operation>,
+    pub operations: HashMap<ActivityNumber, Operation>,
     pub relations: Vec<ActivityRelation>,
     pub work_order_analytic: WorkOrderAnalytic,
     pub order_dates: WorkOrderDates,
@@ -142,7 +145,7 @@ impl WorkOrder {
     pub fn new(
         work_order_number: WorkOrderNumber,
         main_work_center: MainResources,
-        operations: HashMap<u32, Operation>,
+        operations: HashMap<ActivityNumber, Operation>,
         relations: Vec<ActivityRelation>,
         work_order_analytic: WorkOrderAnalytic,
         order_dates: WorkOrderDates,
@@ -163,7 +166,7 @@ impl WorkOrder {
         &self.work_order_info.functional_location
     }
 
-    pub fn operations(&self) -> &HashMap<u32, Operation> {
+    pub fn operations(&self) -> &HashMap<ActivityNumber, Operation> {
         &self.operations
     }
 
@@ -172,7 +175,8 @@ impl WorkOrder {
     }
 
     pub fn insert_operation(&mut self, operation: Operation) {
-        self.operations.insert(operation.activity(), operation);
+        self.operations
+            .insert(operation.activity.clone(), operation);
     }
 
     pub fn unloading_point(&self) -> &UnloadingPoint {
@@ -409,10 +413,10 @@ impl Default for WorkOrder {
         let operation_0030 = Operation::builder(30, Resources::MtnMech, 30.0).build();
         let operation_0040 = Operation::builder(40, Resources::Prodtech, 40.0).build();
 
-        operations.insert(10, operation_0010);
-        operations.insert(20, operation_0020);
-        operations.insert(30, operation_0030);
-        operations.insert(40, operation_0040);
+        operations.insert(ActivityNumber(10), operation_0010);
+        operations.insert(ActivityNumber(20), operation_0020);
+        operations.insert(ActivityNumber(30), operation_0030);
+        operations.insert(ActivityNumber(40), operation_0040);
 
         let work_order_analytic = WorkOrderAnalytic::new(
             1000,
@@ -452,7 +456,7 @@ mod tests {
 
     use super::{
         functional_location::FunctionalLocation,
-        operation::Operation,
+        operation::{ActivityNumber, Operation},
         order_dates::WorkOrderDates,
         order_text::OrderText,
         order_type::{WDFPriority, WorkOrderType},
@@ -495,10 +499,10 @@ mod tests {
             let operation_0030 = Operation::builder(30, Resources::MtnMech, 30.0).build();
             let operation_0040 = Operation::builder(40, Resources::Prodtech, 40.0).build();
 
-            operations.insert(10, operation_0010);
-            operations.insert(20, operation_0020);
-            operations.insert(30, operation_0030);
-            operations.insert(40, operation_0040);
+            operations.insert(ActivityNumber(10), operation_0010);
+            operations.insert(ActivityNumber(20), operation_0020);
+            operations.insert(ActivityNumber(30), operation_0030);
+            operations.insert(ActivityNumber(40), operation_0040);
 
             let work_order_analytic = WorkOrderAnalytic::new(
                 1000,
