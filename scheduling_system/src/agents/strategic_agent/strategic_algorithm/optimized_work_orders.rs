@@ -7,7 +7,6 @@ use std::str::FromStr;
 use std::{collections::HashMap, collections::HashSet, hash::Hash, hash::Hasher};
 use tracing::instrument;
 
-use crate::agents::LoadOperation;
 use shared_messages::models::time_environment::period::Period;
 use shared_messages::models::work_order::{WorkOrder, WorkOrderNumber};
 
@@ -256,89 +255,5 @@ impl OptimizedWorkOrder {
 
     pub fn set_scheduled_period(&mut self, period: Option<Period>) {
         self.scheduled_period = period;
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct StrategicResources {
-    pub inner: HashMap<Resources, HashMap<Period, f64>>,
-}
-
-impl StrategicResources {
-    pub fn new(resources: HashMap<Resources, HashMap<Period, f64>>) -> Self {
-        Self { inner: resources }
-    }
-
-    pub fn update_load(
-        &mut self,
-        resource: &Resources,
-        period: &Period,
-        load: f64,
-        load_operation: LoadOperation,
-    ) {
-        let resource_entry = self.inner.entry(resource.clone());
-        let periods = match resource_entry {
-            Entry::Occupied(entry) => entry.into_mut(),
-            Entry::Vacant(entry) => entry.insert(HashMap::new()),
-        };
-
-        match periods.entry(period.clone()) {
-            Entry::Occupied(mut entry) => match load_operation {
-                LoadOperation::Add => *entry.get_mut() += load,
-                LoadOperation::Sub => *entry.get_mut() -= load,
-            },
-            Entry::Vacant(entry) => match load_operation {
-                LoadOperation::Add => {
-                    entry.insert(load);
-                }
-                LoadOperation::Sub => {
-                    entry.insert(load);
-                }
-            },
-        };
-    }
-
-    pub fn to_string(&self, number_of_periods: u32) -> String {
-        let mut string = String::new();
-        let mut periods = self
-            .inner
-            .values()
-            .flat_map(|inner_map| inner_map.keys())
-            .collect::<Vec<_>>();
-        periods.sort();
-        periods.dedup();
-
-        write!(string, "{:<12}", "Resource").ok();
-        for (nr_period, period) in periods.iter().enumerate().take(number_of_periods as usize) {
-            if nr_period == 0 {
-                write!(string, "{:>12}", period.period_string().red()).ok();
-            } else if nr_period == 1 || nr_period == 2 {
-                write!(string, "{:>12}", period.period_string().green()).ok();
-            } else {
-                write!(string, "{:>12}", period.period_string()).ok();
-            }
-        }
-        writeln!(string).ok();
-
-        let mut sorted_resources: Vec<&Resources> = self.inner.keys().collect();
-
-        sorted_resources
-            .sort_by(|resource_a, resource_b| resource_a.to_string().cmp(&resource_b.to_string()));
-        for resource in sorted_resources {
-            let inner_map = self.inner.get(resource).unwrap();
-            write!(string, "{:<12}", resource.variant_name()).unwrap();
-            for (nr_period, period) in periods.iter().enumerate().take(number_of_periods as usize) {
-                let value = inner_map.get(period).unwrap_or(&0.0);
-                if nr_period == 0 {
-                    write!(string, "{:>12}", value.round().to_string().red()).ok();
-                } else if nr_period == 1 || nr_period == 2 {
-                    write!(string, "{:>12}", value.round().to_string().green()).ok();
-                } else {
-                    write!(string, "{:>12}", value.round()).ok();
-                }
-            }
-            writeln!(string).ok();
-        }
-        string
     }
 }

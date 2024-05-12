@@ -9,7 +9,7 @@ use shared_messages::{
     agent_error::AgentError,
     models::work_order::{operation::ActivityNumber, WorkOrderNumber},
     supervisor::SupervisorRequestMessage,
-    Asset, StatusMessage, StopMessage,
+    AlgorithmState, Asset, ConstraintState, StatusMessage, StopMessage,
 };
 
 use shared_messages::models::worker_environment::resources::Id;
@@ -20,7 +20,7 @@ use shared_messages::models::SchedulingEnvironment;
 use super::{
     operational_agent::OperationalAgent,
     tactical_agent::{tactical_algorithm::OperationSolution, TacticalAgent},
-    traits::{AlgorithmState, ConstraintState, TestAlgorithm},
+    traits::TestAlgorithm,
     SetAddr, StateLink, UpdateWorkOrderMessage,
 };
 
@@ -179,7 +179,7 @@ impl Default for SupervisorInfeasibleCases {
 impl TestAlgorithm for SupervisorAgent {
     type InfeasibleCases = SupervisorInfeasibleCases;
 
-    fn determine_algorithm_state(&self) -> super::traits::AlgorithmState<Self::InfeasibleCases> {
+    fn determine_algorithm_state(&self) -> AlgorithmState<Self::InfeasibleCases> {
         let mut supervisor_state = SupervisorInfeasibleCases::default();
 
         let mut feasible_main_resources: bool = true;

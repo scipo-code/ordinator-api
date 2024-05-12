@@ -1,10 +1,11 @@
 pub mod agent_error;
 pub mod models;
+pub mod operational;
 pub mod orchestrator;
 pub mod strategic;
 pub mod supervisor;
 pub mod tactical;
-use std::fmt::Display;
+use std::fmt::{self, Display};
 
 use actix::prelude::*;
 use clap::{Subcommand, ValueEnum};
@@ -182,4 +183,41 @@ pub struct TomlResources {
     pub qaqcmech: f64,
     pub qaqcpain: f64,
     pub wellsupv: f64,
+}
+
+#[derive(Serialize)]
+pub enum AlgorithmState<T> {
+    Feasible,
+    Infeasible(T),
+}
+
+impl<T> AlgorithmState<T> {
+    pub fn infeasible_cases_mut(&mut self) -> Option<&mut T> {
+        match self {
+            AlgorithmState::Feasible => None,
+            AlgorithmState::Infeasible(infeasible_cases) => Some(infeasible_cases),
+        }
+    }
+}
+
+#[derive(Clone, Serialize, PartialEq)]
+pub enum ConstraintState<Reason> {
+    Feasible,
+    Infeasible(Reason),
+}
+
+impl<Reason> fmt::Display for ConstraintState<Reason>
+where
+    Reason: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConstraintState::Feasible => write!(f, "FEASIBLE"),
+            ConstraintState::Infeasible(reason) => write!(f, "{}", reason),
+        }
+    }
+}
+pub enum LoadOperation {
+    Add,
+    Sub,
 }

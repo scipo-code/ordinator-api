@@ -1,0 +1,20 @@
+use serde::{Deserialize, Serialize};
+
+use crate::models::{time_environment::period::Period, worker_environment::resources::Id};
+
+#[derive(Serialize, Deserialize)]
+pub struct TacticalResponseStatus {
+    id: i32,
+    objective: f64,
+    time_horizon: Vec<Period>,
+}
+
+impl TacticalResponseStatus {
+    pub fn new(id: i32, objective: f64, time_horizon: Vec<Period>) -> Self {
+        Self {
+            id,
+            objective,
+            time_horizon,
+        }
+    }
+}
