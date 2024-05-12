@@ -49,8 +49,3 @@ pub struct UpdateWorkOrderMessage(pub WorkOrderNumber);
 impl Message for UpdateWorkOrderMessage {
     type Result = ();
 }
-
-pub enum LoadOperation {
-    Add,
-    Sub,
-}

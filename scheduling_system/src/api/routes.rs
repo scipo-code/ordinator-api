@@ -1,6 +1,7 @@
 use actix_web::http::header;
 use actix_web::{web, HttpRequest, HttpResponse, Result};
 use shared_messages::models::work_order::WorkOrderNumber;
+use shared_messages::orchestrator::AgentStatus;
 use shared_messages::strategic::strategic_response_status::{WorkOrderResponse, WorkOrdersStatus};
 use shared_messages::LevelOfDetail;
 use shared_messages::{orchestrator::OrchestratorRequest, SystemMessages};
@@ -58,6 +59,7 @@ pub async fn http_to_scheduling_system(
             let response = strategic_agent_addr
                 .send(strategic_request.strategic_request_message)
                 .await;
+
             match response {
                 Ok(response) => match response {
                     Ok(response) => {
@@ -174,7 +176,7 @@ impl Orchestrator {
                     None => Err(format!("Tried to update the status code for {:?}, but it was not found in the scheduling environment", work_order_number))
                 }
             }
-            OrchestratorRequest::GetAgentStatus => {
+            OrchestratorRequest::AgentStatusRequest => {
                 let mut buffer = String::new();
                 for asset in self.agent_registries.keys() {
                     let strategic_agent_addr = self
@@ -183,6 +185,7 @@ impl Orchestrator {
                         .unwrap()
                         .strategic_agent_addr
                         .clone();
+
                     let tactical_agent_addr = self
                         .agent_registries
                         .get(asset)
@@ -229,8 +232,8 @@ impl Orchestrator {
                         writeln!(buffer, "    {:?}", operational_agent_status).unwrap();
                     }
                 }
-
-                Ok(buffer)
+                let agent_status = AgentStatus::new(strategic_status, tactical_status, supervisor_status, operational_status);
+                Ok(agent_status)
             }
             OrchestratorRequest::GetWorkOrderStatus(work_order_number, level_of_detail) => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
