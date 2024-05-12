@@ -8,7 +8,7 @@ use shared_messages::{
     agent_error::AgentError,
     models::{
         time_environment::day::Day,
-        work_order::WorkOrderNumber,
+        work_order::{operation::ActivityNumber, WorkOrderNumber},
         worker_environment::resources::{MainResources, Resources},
     },
     tactical::{
@@ -46,14 +46,13 @@ pub struct TacticalAlgorithm {
     tactical_days: Vec<Day>,
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Serialize)]
 pub struct OptimizedTacticalWorkOrder {
     pub main_work_center: MainResources,
-    pub operation_parameters: HashMap<u32, OperationParameters>,
+    pub operation_parameters: HashMap<ActivityNumber, OperationParameters>,
     pub weight: u32,
     pub relations: Vec<ActivityRelation>,
-    pub operation_solutions: Option<HashMap<u32, OperationSolution>>,
+    pub operation_solutions: Option<HashMap<ActivityNumber, OperationSolution>>,
     pub scheduled_period: Period,
 }
 
@@ -339,7 +338,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 .start_date()
                 .date_naive();
 
-            let mut activity_keys: Vec<u32> = optimized_work_order
+            let mut activity_keys: Vec<ActivityNumber> = optimized_work_order
                 .operation_solutions
                 .clone()
                 .expect("When calculating the objective value all work order should be scheduled")
@@ -443,7 +442,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 .filter(|date| start_day.date() <= date.date())
                 .collect();
 
-            let mut operation_solutions = HashMap::<u32, OperationSolution>::new();
+            let mut operation_solutions = HashMap::<ActivityNumber, OperationSolution>::new();
 
             let mut current_day = allowed_days.into_iter().peekable();
 
@@ -451,14 +450,14 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 .operation_parameters
                 .keys()
                 .clone()
-                .collect::<Vec<&u32>>();
+                .collect::<Vec<&ActivityNumber>>();
 
             sorted_activities.sort();
 
             for activity in sorted_activities {
                 let operation_parameters = optimized_work_order
                     .operation_parameters
-                    .get(activity)
+                    .get(&activity)
                     .expect("The work order should always have its corresponding parameters");
                 let mut activity_load = Vec::<(Day, f64)>::new();
                 let resource = operation_parameters.resource.clone();
@@ -696,7 +695,7 @@ enum LoopState {
 impl TacticalAlgorithm {
     fn update_loadings(
         &mut self,
-        operation_solutions: &HashMap<u32, OperationSolution>,
+        operation_solutions: &HashMap<ActivityNumber, OperationSolution>,
         load_operation: LoadOperation,
     ) {
         for operation in operation_solutions.values() {
@@ -929,7 +928,7 @@ pub mod tests {
 
     use chrono::{Days, Duration};
     use shared_messages::models::{
-        work_order::WorkOrderNumber,
+        work_order::{operation::ActivityNumber, WorkOrderNumber},
         worker_environment::resources::{MainResources, Resources},
     };
     use strum::IntoEnumIterator;
@@ -1005,7 +1004,7 @@ pub mod tests {
             OperationParameters::new(work_order_number, 1, 1, 1.0, 1.0, Resources::MtnMech);
 
         let mut operation_parameters = HashMap::new();
-        operation_parameters.insert(1, operation_parameter);
+        operation_parameters.insert(ActivityNumber(1), operation_parameter);
 
         let operation_solution = OperationSolution::new(
             vec![(tactical_algorithm.tactical_days[27].clone(), 1.0)],
@@ -1013,7 +1012,7 @@ pub mod tests {
         );
 
         let mut operation_solutions = HashMap::new();
-        operation_solutions.insert(1, operation_solution);
+        operation_solutions.insert(ActivityNumber(1), operation_solution);
 
         let optimized_tactical_work_order = OptimizedTacticalWorkOrder::new(
             MainResources::MtnMech,
@@ -1073,7 +1072,7 @@ pub mod tests {
             OperationParameters::new(work_order_number, 1, 1, 1.0, 1.0, Resources::MtnMech);
 
         let mut operation_parameters = HashMap::new();
-        operation_parameters.insert(1, operation_parameter);
+        operation_parameters.insert(ActivityNumber(1), operation_parameter);
 
         let optimized_tactical_work_order = OptimizedTacticalWorkOrder::new(
             MainResources::MtnMech,
@@ -1097,7 +1096,7 @@ pub mod tests {
             .operation_solutions
             .as_ref()
             .unwrap()
-            .get(&1)
+            .get(&shared_messages::models::work_order::operation::ActivityNumber(1))
             .unwrap()
             .scheduled
             .first()
@@ -1149,7 +1148,7 @@ pub mod tests {
             OperationParameters::new(work_order_number, 1, 1, 1.0, 1.0, Resources::MtnMech);
 
         let mut operation_parameters = HashMap::new();
-        operation_parameters.insert(1, operation_parameter);
+        operation_parameters.insert(ActivityNumber(1), operation_parameter);
 
         let optimized_tactical_work_order = OptimizedTacticalWorkOrder::new(
             MainResources::MtnMech,
@@ -1173,7 +1172,7 @@ pub mod tests {
             .operation_solutions
             .as_ref()
             .unwrap()
-            .get(&1)
+            .get(&ActivityNumber(1))
             .unwrap()
             .scheduled
             .first()
@@ -1187,10 +1186,10 @@ pub mod tests {
     impl OptimizedTacticalWorkOrder {
         pub fn new(
             main_work_center: MainResources,
-            operation_parameters: HashMap<u32, OperationParameters>,
+            operation_parameters: HashMap<ActivityNumber, OperationParameters>,
             weight: u32,
             relations: Vec<ActivityRelation>,
-            operation_solutions: Option<HashMap<u32, OperationSolution>>,
+            operation_solutions: Option<HashMap<ActivityNumber, OperationSolution>>,
             scheduled_period: Period,
         ) -> Self {
             OptimizedTacticalWorkOrder {

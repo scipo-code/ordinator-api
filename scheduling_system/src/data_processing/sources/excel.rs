@@ -34,7 +34,7 @@ extern crate regex;
 
 use shared_messages::models::work_order::operation::operation_analytic::OperationAnalytic;
 use shared_messages::models::work_order::operation::operation_info::OperationInfo;
-use shared_messages::models::work_order::operation::{Operation, OperationDates};
+use shared_messages::models::work_order::operation::{ActivityNumber, Operation, OperationDates};
 
 #[derive(Debug)]
 struct ExcelLoadError(String);
@@ -246,7 +246,7 @@ fn create_new_work_order(
     Ok(WorkOrder::new(
         work_order_number,
         main_work_center,
-        HashMap::<u32, Operation>::new(),
+        HashMap::<ActivityNumber, Operation>::new(),
         Vec::<ActivityRelation>::new(),
         work_order_analytic,
         extract_order_dates(row, header_to_index, periods).expect("Failed to extract OrderDates"),
@@ -311,10 +311,12 @@ fn create_new_operation(
         )
         .cloned()
     {
-        Some(calamine::Data::Int(n)) => n as u32,
-        Some(calamine::Data::Float(n)) => n as u32,
-        Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(0),
-        _ => 0,
+        Some(calamine::Data::Int(n)) => ActivityNumber(n as u32),
+        Some(calamine::Data::Float(n)) => ActivityNumber(n as u32),
+        Some(calamine::Data::String(s)) => ActivityNumber(s.parse::<u32>().unwrap_or(0)),
+        _ => {
+            panic!("Activity number is not present or could not be parsed. That should not happen")
+        }
     };
 
     let operating_time = 6.0;
@@ -1172,7 +1174,7 @@ mod tests {
             .unwrap()
             .work_orders()
             .inner
-            .get(&2100024139)
+            .get(&WorkOrderNumber(2100024139))
             .unwrap()
             .operations()
             .len();
