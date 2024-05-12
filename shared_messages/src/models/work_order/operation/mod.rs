@@ -13,7 +13,7 @@ use std::fmt::Display;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Operation {
-    activity: u32,
+    pub activity: ActivityNumber,
     resource: Resources,
     operation_info: OperationInfo,
     operation_analytic: OperationAnalytic,
@@ -22,7 +22,7 @@ pub struct Operation {
 
 impl Operation {
     pub fn new(
-        activity: u32,
+        activity: ActivityNumber,
         resource: Resources,
         operation_info: OperationInfo,
         operation_analytic: OperationAnalytic,
@@ -45,10 +45,6 @@ impl Operation {
         &self.resource
     }
 
-    pub fn activity(&self) -> u32 {
-        self.activity
-    }
-
     pub fn number(&self) -> u32 {
         self.operation_info.number()
     }
@@ -59,6 +55,30 @@ impl Operation {
 
     pub fn operating_time(&self) -> f64 {
         self.operation_info.operating_time()
+    }
+}
+
+#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
+pub struct ActivityNumber(pub u32);
+
+impl Serialize for ActivityNumber {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.0.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for ActivityNumber {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let activity_number_string = String::deserialize(deserializer).unwrap();
+        let activity_number_primitive = activity_number_string.parse::<u32>().unwrap();
+
+        Ok(ActivityNumber(activity_number_primitive))
     }
 }
 
@@ -90,7 +110,7 @@ impl Display for Operation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(
             f,
-            "    Activity: {:>8}    |{:>11}|{:>14}|{:>8}|{:>6}|",
+            "    Activity: {:>8?}    |{:>11}|{:>14}|{:>8}|{:>6}|",
             self.activity,
             self.resource.to_string(),
             self.operation_info.work_remaining(),
@@ -114,7 +134,7 @@ impl Operation {
         );
 
         OperationBuilder {
-            activity,
+            activity: ActivityNumber(activity),
             resource,
             operation_info,
             operation_analytic,
@@ -124,7 +144,7 @@ impl Operation {
 }
 
 pub struct OperationBuilder {
-    activity: u32,
+    activity: ActivityNumber,
     resource: Resources,
     operation_info: OperationInfo,
     operation_analytic: OperationAnalytic,
@@ -133,7 +153,7 @@ pub struct OperationBuilder {
 
 impl OperationBuilder {
     fn with_activity(mut self, activity: u32) -> Self {
-        self.activity = activity;
+        self.activity = ActivityNumber(activity);
         self
     }
 

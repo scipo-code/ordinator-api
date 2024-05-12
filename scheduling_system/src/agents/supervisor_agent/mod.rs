@@ -6,8 +6,10 @@ use std::{
 
 use actix::prelude::*;
 use shared_messages::{
-    agent_error::AgentError, models::work_order::WorkOrderNumber,
-    supervisor::SupervisorRequestMessage, Asset, StatusMessage, StopMessage,
+    agent_error::AgentError,
+    models::work_order::{operation::ActivityNumber, WorkOrderNumber},
+    supervisor::SupervisorRequestMessage,
+    Asset, StatusMessage, StopMessage,
 };
 
 use shared_messages::models::worker_environment::resources::Id;
@@ -26,7 +28,7 @@ pub struct SupervisorAgent {
     id_supervisor: Id,
     asset: Asset,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-    assigned_work_orders: Vec<(WorkOrderNumber, HashMap<u32, OperationSolution>)>,
+    assigned_work_orders: Vec<(WorkOrderNumber, HashMap<ActivityNumber, OperationSolution>)>,
     tactical_agent_addr: Addr<TacticalAgent>,
     operational_agent_addrs: HashMap<Id, Addr<OperationalAgent>>,
 }
