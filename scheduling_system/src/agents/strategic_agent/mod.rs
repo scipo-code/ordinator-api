@@ -3,7 +3,6 @@ pub mod strategic_algorithm;
 
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborHoodSearch;
-use shared_messages::models::work_order;
 use shared_messages::models::work_order::WorkOrderNumber;
 use shared_messages::models::SchedulingEnvironment;
 
@@ -11,14 +10,21 @@ use actix::prelude::*;
 use shared_messages::agent_error::AgentError;
 use shared_messages::models::worker_environment::resources::Resources;
 use shared_messages::strategic::strategic_request_status_message::StrategicStatusMessage;
+use shared_messages::strategic::strategic_response_periods::StrategicResponsePeriods;
+use shared_messages::strategic::strategic_response_scheduling::StrategicResponseScheduling;
 use shared_messages::strategic::strategic_response_status::OptimizedWorkOrderResponse;
 use shared_messages::strategic::strategic_response_status::StrategicResponseStatus;
 use shared_messages::strategic::strategic_response_status::WorkOrderResponse;
 use shared_messages::strategic::strategic_response_status::WorkOrdersStatus;
+use shared_messages::strategic::StrategicInfeasibleCases;
 use shared_messages::strategic::StrategicRequestMessage;
+use shared_messages::strategic::StrategicResources;
+use shared_messages::strategic::StrategicResponseMessage;
+use shared_messages::AlgorithmState;
 use shared_messages::Asset;
+use shared_messages::ConstraintState;
+use shared_messages::LoadOperation;
 use shared_messages::SolutionExportMessage;
-use shared_messages::StatusMessage;
 use strum::IntoEnumIterator;
 use tracing::info;
 
@@ -32,12 +38,8 @@ use tracing::warn;
 use crate::agents::tactical_agent::TacticalAgent;
 
 use self::strategic_algorithm::optimized_work_orders::OptimizedWorkOrder;
-use self::strategic_algorithm::optimized_work_orders::StrategicResources;
 
-use super::traits::AlgorithmState;
-use super::traits::ConstraintState;
 use super::traits::TestAlgorithm;
-use super::LoadOperation;
 use super::SetAddr;
 use super::StateLink;
 use super::UpdateWorkOrderMessage;
@@ -132,7 +134,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 }
 
 impl Handler<StrategicRequestMessage> for StrategicAgent {
-    type Result = Result<String, AgentError>;
+    type Result = Result<StrategicResponseMessage, AgentError>;
 
     #[instrument(level = "info", skip_all)]
     fn handle(
@@ -162,7 +164,9 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                             number_of_periods,
                         );
 
-                        Ok(serde_json::to_string(&strategic_response_status).unwrap())
+                        let strategic_response_message =
+                            StrategicResponseMessage::Status(strategic_response_status);
+                        Ok(strategic_response_message)
                     }
                     StrategicStatusMessage::Period(period) => {
                         let optimized_work_orders =
@@ -231,19 +235,23 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
 
                         let work_orders_in_period = WorkOrdersStatus::new(work_orders_by_period);
 
-                        let message = serde_json::to_string(&work_orders_in_period).unwrap();
-                        Ok(message)
+                        let strategic_response_message =
+                            StrategicResponseMessage::WorkOrder(work_orders_in_period);
+
+                        Ok(strategic_response_message)
                     }
                 }
             }
             StrategicRequestMessage::Scheduling(scheduling_message) => {
-                let scheduling_output = self
+                let scheduling_output: Result<StrategicResponseScheduling, AgentError> = self
                     .strategic_agent_algorithm
                     .update_scheduling_state(scheduling_message);
 
                 self.strategic_agent_algorithm.calculate_objective_value();
                 info!(strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
-                scheduling_output
+                Ok(StrategicResponseMessage::Scheduling(
+                    scheduling_output.unwrap(),
+                ))
             }
             StrategicRequestMessage::Resources(resources_message) => {
                 let resources_output = self
@@ -252,7 +260,9 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
 
                 self.strategic_agent_algorithm.calculate_objective_value();
                 info!(strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
-                resources_output
+                Ok(StrategicResponseMessage::Resources(
+                    resources_output.unwrap(),
+                ))
             }
             StrategicRequestMessage::Periods(periods_message) => {
                 let mut scheduling_env_lock = self.scheduling_environment.lock().unwrap();
@@ -269,45 +279,17 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                     }
                 }
                 self.strategic_agent_algorithm.set_periods(periods.to_vec());
-                Ok("Periods updated".to_string())
+                let strategic_response_periods = StrategicResponsePeriods::new(periods.clone());
+                Ok(StrategicResponseMessage::Periods(
+                    strategic_response_periods,
+                ))
             }
             StrategicRequestMessage::Test => {
                 let algorithm_state = self.determine_algorithm_state();
 
-                match algorithm_state {
-                    AlgorithmState::Feasible => Ok(
-                        "Strategic Schedule is Feasible (Additional tests may be needed)"
-                            .to_string(),
-                    ),
-                    AlgorithmState::Infeasible(infeasible_cases) => Ok(format!(
-                        "Strategic Schedule is Infesible: \n\
-                            \t{:30}{:>20}\n\
-                            \t{:30}{:>20}\n\
-                            \t{:30}{:>20}\n\
-                            \t{:30}{:>20}\n",
-                        "respect_awsc: ",
-                        &infeasible_cases.respect_awsc,
-                        "respect_unloading: ",
-                        &infeasible_cases.respect_unloading,
-                        "respect_sch: ",
-                        &infeasible_cases.respect_sch,
-                        "respect_aggregated_load: ",
-                        &infeasible_cases.respect_aggregated_load
-                    )),
-                }
+                Ok(StrategicResponseMessage::Test(algorithm_state))
             }
         }
-    }
-}
-
-impl Handler<StatusMessage> for StrategicAgent {
-    type Result = String;
-
-    fn handle(&mut self, _msg: StatusMessage, _ctx: &mut Self::Context) -> Self::Result {
-        format!(
-            "Objective: {}",
-            self.strategic_agent_algorithm.objective_value()
-        )
     }
 }
 
@@ -583,24 +565,6 @@ impl TestAlgorithm for StrategicAgent {
     }
 }
 
-pub struct StrategicInfeasibleCases {
-    respect_awsc: ConstraintState<String>,
-    respect_unloading: ConstraintState<String>,
-    respect_sch: ConstraintState<String>,
-    respect_aggregated_load: ConstraintState<String>,
-}
-
-impl Default for StrategicInfeasibleCases {
-    fn default() -> Self {
-        StrategicInfeasibleCases {
-            respect_awsc: ConstraintState::Infeasible("Infeasible".to_string()),
-            respect_unloading: ConstraintState::Infeasible("Infeasible".to_string()),
-            respect_sch: ConstraintState::Infeasible("Infeasible".to_string()),
-            respect_aggregated_load: ConstraintState::Infeasible("Infeasible".to_string()),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -617,7 +581,6 @@ mod tests {
     use super::{strategic_algorithm::PriorityQueues, *};
     use shared_messages::models::worker_environment::resources::Resources;
 
-    use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::StrategicResources;
     use shared_messages::models::work_order::operation::Operation;
     use shared_messages::models::work_order::*;
     use shared_messages::models::WorkOrders;

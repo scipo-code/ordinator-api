@@ -4,8 +4,9 @@ pub mod tactical_algorithm;
 use actix::prelude::*;
 use shared_messages::agent_error::AgentError;
 use shared_messages::models::worker_environment::resources::Id;
-use shared_messages::tactical::TacticalRequestMessage;
-use shared_messages::{Asset, SolutionExportMessage};
+use shared_messages::tactical::tactical_response_status::TacticalResponseStatus;
+use shared_messages::tactical::{TacticalRequestMessage, TacticalResponseMessage};
+use shared_messages::{AlgorithmState, Asset, SolutionExportMessage};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{info, instrument, warn};
@@ -18,7 +19,7 @@ use shared_messages::models::SchedulingEnvironment;
 
 use super::strategic_agent::StrategicAgent;
 use super::supervisor_agent::SupervisorAgent;
-use super::traits::{AlgorithmState, LargeNeighborHoodSearch, TestAlgorithm};
+use super::traits::{LargeNeighborHoodSearch, TestAlgorithm};
 use super::{StateLink, UpdateWorkOrderMessage};
 
 #[allow(dead_code)]
@@ -54,6 +55,14 @@ impl TacticalAgent {
 
     pub fn time_horizon(&self) -> &Vec<Period> {
         &self.time_horizon
+    }
+
+    pub fn status(&self) -> Result<TacticalResponseStatus, AgentError> {
+        Ok(TacticalResponseStatus::new(
+            self.id_tactical,
+            *self.tactical_algorithm.get_objective_value(),
+            self.time_horizon,
+        ))
     }
 }
 
@@ -117,7 +126,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
 }
 
 impl Handler<TacticalRequestMessage> for TacticalAgent {
-    type Result = Result<String, AgentError>;
+    type Result = Result<TacticalResponseMessage, AgentError>;
 
     #[instrument(level = "info", skip_all)]
     fn handle(
@@ -127,38 +136,25 @@ impl Handler<TacticalRequestMessage> for TacticalAgent {
     ) -> Self::Result {
         match tactical_request {
             TacticalRequestMessage::Status(_tactical_status_message) => {
-                self.tactical_algorithm.status()
+                let status_message = self.status().unwrap();
+                Ok(TacticalResponseMessage::Status(status_message))
             }
             TacticalRequestMessage::Scheduling(_tactical_scheduling_message) => {
                 todo!()
             }
-            TacticalRequestMessage::Resources(tactical_resources_message) => self
-                .tactical_algorithm
-                .update_resources_state(tactical_resources_message),
+            TacticalRequestMessage::Resources(tactical_resources_message) => {
+                let resource_response = self
+                    .tactical_algorithm
+                    .update_resources_state(tactical_resources_message)
+                    .unwrap();
+                Ok(TacticalResponseMessage::Resources(resource_response))
+            }
             TacticalRequestMessage::Days(_tactical_time_message) => {
                 todo!()
             }
             TacticalRequestMessage::Test => {
                 let algorithm_state = self.tactical_algorithm.determine_algorithm_state();
-
-                match algorithm_state {
-                    AlgorithmState::Feasible => Ok(
-                        "Tactical Schedule is Feasible (Additional tests may be needed)"
-                            .to_string(),
-                    ),
-                    AlgorithmState::Infeasible(infeasible_cases) => Ok(format!(
-                        "Tactical Schedule is Infesible: \n 
-                           aggregated_load: {}\n
-                           all_scheduled: {}\n
-                           earliest_start_day: {}\n
-                           respect_period_id: {}\n",
-                        infeasible_cases.aggregated_load,
-                        infeasible_cases.all_scheduled,
-                        infeasible_cases.earliest_start_day,
-                        infeasible_cases.respect_period_id,
-                    )
-                    .to_string()),
-                }
+                Ok(TacticalResponseMessage::Test(algorithm_state))
             }
         }
     }

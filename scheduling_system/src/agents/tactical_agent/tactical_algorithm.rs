@@ -13,20 +13,26 @@ use shared_messages::{
     },
     tactical::{
         tactical_resources_message::TacticalResourceMessage,
+        tactical_response_resources::{self, TacticalResponseResources},
+        tactical_response_scheduling::TacticalResponseScheduling,
+        tactical_response_status::TacticalResponseStatus,
+        tactical_response_time::TacticalResponseTime,
         tactical_scheduling_message::TacticalSchedulingMessage,
         tactical_time_message::TacticalTimeMessage,
+        TacticalInfeasibleCases, TacticalResources,
     },
+    AlgorithmState, ConstraintState, LoadOperation,
 };
-use std::fmt::{Display, Write};
+use std::{
+    any::Any,
+    fmt::{Display, Write},
+};
 use std::{borrow::Cow, cmp::Ordering};
 use std::{collections::HashMap, fmt};
 use strum::IntoEnumIterator;
 use tracing::{debug, error, info, instrument, warn};
 
-use crate::agents::{
-    traits::{AlgorithmState, ConstraintState, LargeNeighborHoodSearch, TestAlgorithm},
-    LoadOperation,
-};
+use crate::agents::traits::{LargeNeighborHoodSearch, TestAlgorithm};
 
 use shared_messages::models::{
     time_environment::period::Period,
@@ -36,14 +42,14 @@ use shared_messages::models::{
 
 #[derive(Clone)]
 pub struct TacticalAlgorithm {
-    objective_value: f64,
-    tactical_periods: Vec<Period>,
-    number_of_orders: u32,
-    optimized_work_orders: HashMap<WorkOrderNumber, OptimizedTacticalWorkOrder>,
-    capacity: TacticalResources,
-    loading: TacticalResources,
-    priority_queue: PriorityQueue<WorkOrderNumber, u32>,
-    tactical_days: Vec<Day>,
+    pub objective_value: f64,
+    pub tactical_periods: Vec<Period>,
+    pub number_of_orders: u32,
+    pub optimized_work_orders: HashMap<WorkOrderNumber, OptimizedTacticalWorkOrder>,
+    pub capacity: TacticalResources,
+    pub loading: TacticalResources,
+    pub priority_queue: PriorityQueue<WorkOrderNumber, u32>,
+    pub tactical_days: Vec<Day>,
 }
 
 #[derive(Clone, Serialize)]
@@ -54,64 +60,6 @@ pub struct OptimizedTacticalWorkOrder {
     pub relations: Vec<ActivityRelation>,
     pub operation_solutions: Option<HashMap<ActivityNumber, OperationSolution>>,
     pub scheduled_period: Period,
-}
-
-#[derive(Debug, Clone)]
-pub struct TacticalResources {
-    resources: HashMap<Resources, HashMap<Day, f64>>,
-}
-
-impl TacticalResources {
-    pub fn new(resources: HashMap<Resources, HashMap<Day, f64>>) -> Self {
-        TacticalResources { resources }
-    }
-
-    fn to_string(&self, number_of_periods: u32) -> String {
-        let mut string = String::new();
-        let mut days = self
-            .resources
-            .values()
-            .flat_map(|inner_map| inner_map.keys())
-            .collect::<Vec<_>>();
-        days.sort();
-        days.dedup();
-
-        write!(string, "{:<12}", "Resource").ok();
-        for (nr_day, day) in days.iter().enumerate().take(number_of_periods as usize) {
-            match nr_day {
-                0..=13 => write!(string, "{:>12}", day.date().date_naive().to_string().red()).ok(),
-                14..=27 => write!(
-                    string,
-                    "{:>12}",
-                    day.date().date_naive().to_string().green()
-                )
-                .ok(),
-                _ => write!(string, "{:>12}", day.date().date_naive().to_string()).ok(),
-            }
-            .unwrap()
-        }
-        writeln!(string).ok();
-
-        let mut sorted_resources: Vec<_> = self.resources.iter().collect();
-        sorted_resources.sort_by(|resource_a, resource_b| {
-            resource_a.0.to_string().cmp(&resource_b.0.to_string())
-        });
-        for resource in sorted_resources {
-            let inner_map = self.resources.get(resource.0).unwrap();
-            write!(string, "{:<12}", resource.0.variant_name()).unwrap();
-            for (nr_day, day) in days.iter().enumerate().take(number_of_periods as usize) {
-                let value = inner_map.get(day).unwrap();
-                match nr_day {
-                    0..=13 => write!(string, "{:>12}", value.round().to_string().red()).ok(),
-                    14..=27 => write!(string, "{:>12}", value.round().to_string().green()).ok(),
-                    _ => write!(string, "{:>12}", value.round()).ok(),
-                }
-                .unwrap();
-            }
-            writeln!(string).ok();
-        }
-        string
-    }
 }
 
 #[allow(dead_code)]
@@ -325,8 +273,11 @@ impl TacticalAlgorithm {
 
 impl LargeNeighborHoodSearch for TacticalAlgorithm {
     type SchedulingMessage = TacticalSchedulingMessage;
+    type SchedulingResponse = TacticalResponseScheduling;
     type ResourceMessage = TacticalResourceMessage;
+    type ResourceResponse = TacticalResponseResources;
     type TimeMessage = TacticalTimeMessage;
+    type TimeResponse = TacticalResponseTime;
     type Error = AgentError;
 
     fn calculate_objective_value(&mut self) {
@@ -592,27 +543,28 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
     fn update_scheduling_state(
         &mut self,
         _scheduling_message: Self::SchedulingMessage,
-    ) -> Result<String, Self::Error> {
-        Ok("".to_string())
+    ) -> Result<Self::SchedulingResponse, Self::Error> {
+        Ok(TacticalResponseScheduling {})
         // This is where the algorithm will update the scheduling state.
     }
 
     fn update_time_state(
         &mut self,
         _time_message: Self::TimeMessage,
-    ) -> Result<String, Self::Error> {
+    ) -> Result<Self::TimeResponse, Self::Error> {
         // This is where the algorithm will update the time state.
-        Ok("".to_string())
+        Ok(TacticalResponseTime {})
     }
 
     #[instrument(level = "info", skip(self))]
     fn update_resources_state(
         &mut self,
         resource_message: Self::ResourceMessage,
-    ) -> Result<String, Self::Error> {
+    ) -> Result<Self::ResourceResponse, Self::Error> {
         match resource_message {
             TacticalResourceMessage::SetResources(resources) => {
                 // The resources should be initialized together with the Agent itself
+                let mut count = 0;
                 for (resource, days) in resources {
                     for (day, capacity) in days {
                         let day: Day = match self
@@ -620,7 +572,10 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                             .iter()
                             .find(|d| d.date().to_string() == day)
                         {
-                            Some(day) => day.clone(),
+                            Some(day) => {
+                                count += 1;
+                                day.clone()
+                            }
                             None => {
                                 return Err(AgentError::StateUpdateError(
                                     "Day not found in the tactical days".to_string(),
@@ -631,7 +586,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                         *self.capacity_mut(&resource, &day) = capacity;
                     }
                 }
-                Ok("Resources have been updated".to_string())
+                Ok(TacticalResponseResources::UpdatedResources(count))
             }
             TacticalResourceMessage::GetLoadings {
                 days_end,
@@ -641,7 +596,8 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
                 let days_end: u32 = days_end.parse().unwrap();
                 info!(loadings = ?loadings);
-                Ok(loadings.to_string(days_end))
+                let tactical_response_resources = TacticalResponseResources::Loading(loadings);
+                Ok(tactical_response_resources)
             }
             TacticalResourceMessage::GetCapacities {
                 days_end,
@@ -651,7 +607,9 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
                 let days_end: u32 = days_end.parse().unwrap();
 
-                Ok(capacities.to_string(days_end))
+                let tactical_response_resources = TacticalResponseResources::Capacity(capacities);
+
+                Ok(tactical_response_resources)
             }
             TacticalResourceMessage::GetPercentageLoadings {
                 days_end,
@@ -681,7 +639,9 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 }
 
                 let algorithm_resources = TacticalResources::new(percentage_loading);
-                Ok(algorithm_resources.to_string(days_end))
+                let tactical_response_resources =
+                    TacticalResponseResources::Percentage(algorithm_resources);
+                Ok(tactical_response_resources)
             }
         }
     }
@@ -757,17 +717,6 @@ impl TacticalAlgorithm {
 
     pub fn optimized_work_orders(&self) -> &HashMap<WorkOrderNumber, OptimizedTacticalWorkOrder> {
         &self.optimized_work_orders
-    }
-}
-
-impl TacticalAlgorithm {
-    pub fn status(&self) -> Result<String, AgentError> {
-        Ok(format!(
-            "Objective: {}\n
-            Time horizon: {:?} days\n
-            Number of work orders: {}",
-            self.objective_value, self.tactical_periods, self.number_of_orders,
-        ))
     }
 }
 
@@ -899,25 +848,6 @@ impl TestAlgorithm for TacticalAlgorithm {
             AlgorithmState::Feasible
         } else {
             algorithm_state
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct TacticalInfeasibleCases {
-    pub aggregated_load: ConstraintState<String>,
-    pub earliest_start_day: ConstraintState<String>,
-    pub all_scheduled: ConstraintState<String>,
-    pub respect_period_id: ConstraintState<String>,
-}
-
-impl Default for TacticalInfeasibleCases {
-    fn default() -> Self {
-        TacticalInfeasibleCases {
-            aggregated_load: ConstraintState::Infeasible("Infeasible".to_owned()),
-            earliest_start_day: ConstraintState::Infeasible("Infeasible".to_owned()),
-            all_scheduled: ConstraintState::Infeasible("Infeasible".to_owned()),
-            respect_period_id: ConstraintState::Infeasible("Infeasible".to_owned()),
         }
     }
 }
@@ -1220,24 +1150,6 @@ pub mod tests {
                 work_remaining,
                 resource,
             }
-        }
-    }
-
-    impl TacticalResources {
-        pub fn new_from_data(
-            resources: Vec<Resources>,
-            tactical_days: Vec<Day>,
-            load: f64,
-        ) -> Self {
-            let mut resource_capacity: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
-            for resource in resources {
-                let mut days = HashMap::new();
-                for day in tactical_days.iter() {
-                    days.insert(day.clone(), load);
-                }
-                resource_capacity.insert(resource, days);
-            }
-            TacticalResources::new(resource_capacity)
         }
     }
 }
