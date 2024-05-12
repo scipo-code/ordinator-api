@@ -4,7 +4,11 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
 use shared_messages::models::work_order::WorkOrderNumber;
-use shared_messages::Asset;
+use shared_messages::strategic::strategic_response_periods::StrategicResponsePeriods;
+use shared_messages::strategic::strategic_response_resources::{self, StrategicResponseResources};
+use shared_messages::strategic::strategic_response_scheduling::StrategicResponseScheduling;
+use shared_messages::strategic::{StrategicResources, StrategicResponseMessage};
+use shared_messages::{Asset, LoadOperation};
 use tracing::{error, info, instrument, trace};
 use rand::prelude::SliceRandom;
 
@@ -14,14 +18,13 @@ use shared_messages::strategic::strategic_request_periods_message::StrategicTime
 use shared_messages::strategic::strategic_request_resources_message::StrategicResourceMessage;
 use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingMessage;
 
-use crate::agents::LoadOperation;
 use crate::agents::traits::LargeNeighborHoodSearch;
 use shared_messages::models::WorkOrders;
 use shared_messages::models::time_environment::period::Period;
 
 use shared_messages::models::worker_environment::resources::Resources;
 
-use self::optimized_work_orders::{OptimizedWorkOrder, OptimizedWorkOrders, StrategicResources};
+use self::optimized_work_orders::{OptimizedWorkOrder, OptimizedWorkOrders};
 
 
 
@@ -267,8 +270,11 @@ impl Display for StrategicAlgorithm {
 impl LargeNeighborHoodSearch for StrategicAlgorithm {
 
     type SchedulingMessage = StrategicSchedulingMessage;
+    type SchedulingResponse = StrategicResponseScheduling;
     type ResourceMessage = StrategicResourceMessage;
+    type ResourceResponse = StrategicResponseResources;
     type TimeMessage = StrategicTimeMessage;
+    type TimeResponse = StrategicResponsePeriods;
 
     type Error = AgentError;
     
@@ -364,8 +370,8 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
     #[instrument(skip_all, level = "info")]
     fn update_resources_state(
         &mut self,
-        strategic_resources_message: StrategicResourceMessage,
-    ) -> Result<String, AgentError> 
+        strategic_resources_message: Self::ResourceMessage,
+    ) -> Result<Self::ResourceResponse, AgentError> 
     {
     //tracing::info!("update_resources_state called");
         match strategic_resources_message {
@@ -382,8 +388,11 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                         count += 1;
                     }
                 }
+                
                 let response_message = format!("{} resources-period pairs updated correctly", count);
-                Ok(response_message)
+
+                Ok(StrategicResponseResources::UpdatedResources(count))
+
             }
             StrategicResourceMessage::GetLoadings {
                 periods_end,
@@ -392,16 +401,17 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 let loading = self.resources_loadings();
 
                 let periods_end: u32 = periods_end.parse().unwrap();
-
-                Ok(loading.to_string(periods_end))
+                let strategic_response_resources = StrategicResponseResources::Loading(*loading);
+                Ok(strategic_response_resources)
             }
             StrategicResourceMessage::GetCapacities { periods_end, select_resources: _ } => 
             {         
                 let capacities = self.resources_capacities();
 
                 let periods_end: u32 = periods_end.parse().unwrap();
-
-                Ok(capacities.to_string(periods_end))
+                
+                let strategic_response_resources = StrategicResponseResources::Loading(*capacities);
+                Ok(strategic_response_resources)
             }
             StrategicResourceMessage::GetPercentageLoadings { periods_end, resources: _ } => {
                 let periods_end: u32 = periods_end.parse().unwrap();
@@ -421,22 +431,20 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 }
 
                 let algorithm_resources = StrategicResources::new(percentage_loading );
-                Ok(algorithm_resources.to_string(periods_end))
+                Ok(StrategicResponseResources::Loading(algorithm_resources))
             }
         }
     }
 
-
-
     #[allow(dead_code)]
-    fn update_time_state(&mut self, _time_message: StrategicTimeMessage) -> Result<String, AgentError> 
+    fn update_time_state(&mut self, _time_message: Self::TimeMessage) -> Result<Self::TimeResponse, AgentError> 
         { todo!() }
 
     #[instrument(level = "info", skip_all)]
     fn update_scheduling_state(
         &mut self,
         strategic_scheduling_message: StrategicSchedulingMessage,
-    ) -> Result<String, AgentError>
+    ) -> Result<Self::SchedulingResponse, AgentError>
 {
         match strategic_scheduling_message {
             StrategicSchedulingMessage::Schedule(schedule_work_order) => {
@@ -454,17 +462,15 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                         self.optimized_work_orders
                             .set_locked_in_period(*work_order_number, period.clone());
              
-                        Ok(format!(
-                            "{:?} has been scheduled for period {}",
-                            work_order_number,
-                            period.period_string()
-                        ))
+                        Ok(StrategicResponseScheduling::new(vec![*work_order_number], vec![period]))
                     }
                     None => Err(AgentError::StateUpdateError("Could not update strategic scheduling state".to_string())),
                 }
             }
             StrategicSchedulingMessage::ScheduleMultiple(schedule_work_orders) => {
                 let mut output_string = String::new();
+                let mut work_orders: Vec<WorkOrderNumber> = vec![];
+                let mut periods: Vec<Period> = vec![];
                 for schedule_work_order in schedule_work_orders {
                     let work_order_number = schedule_work_order.work_order_number();
                     let period = self
@@ -480,12 +486,8 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                             self.optimized_work_orders
                                 .set_locked_in_period(*work_order_number, period.clone());
 
-                            output_string += &format!(
-                                "{:?} has been scheduled for period {}",
-                                work_order_number,
-                                period.clone().period_string()
-                            )
-                            .to_string();
+                            work_orders.push(*work_order_number);
+                            periods.push(period);
                         }
                         None => {
                    
@@ -494,7 +496,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                     }
                 }
         
-                Ok(output_string.to_string())
+                Ok(StrategicResponseScheduling::new(work_orders, periods))
                  
             }
             StrategicSchedulingMessage::ExcludeFromPeriod(exclude_from_period) => {
@@ -532,11 +534,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                             info!("{:?} has been excluded from period {} and the locked in period has been removed", work_order_number, period.period_string());
                         }
                             
-                        Ok(format!(
-                            "{:?} has been excluded from period {}",
-                            work_order_number,
-                            period.period_string()
-                        ))
+                        Ok(StrategicResponseScheduling::new(vec![*work_order_number], vec![*period]))
                     }
                     None => Err(AgentError::StateUpdateError("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.".to_string())),
                 }
@@ -756,24 +754,7 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_invariant_of_scheduled_period() {
-        //todo!()
-    }
-
-
-
-    impl StrategicResources {
-        pub fn default() -> Self {
-            Self {
-                inner: HashMap::new()
-            }
-        }
-    }
-
-    
     impl OptimizedWorkOrder {
-
         pub fn new(
             scheduled_period: Option<Period>,
             locked_in_period: Option<Period>,
@@ -791,7 +772,6 @@ mod tests {
                 work_load,
             }
         }
-        
     }
 
     #[test]

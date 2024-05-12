@@ -1,6 +1,7 @@
 use clap::Subcommand;
 use clap::{self};
 use reqwest::blocking::Client;
+use shared_messages::models::worker_environment::resources;
 use shared_messages::Asset;
 use shared_messages::{
     models::worker_environment::resources::Id, orchestrator::OrchestratorRequest, SystemMessages,
@@ -119,7 +120,7 @@ impl OrchestratorCommands {
                 }
             }
             OrchestratorCommands::AgentStatus => {
-                let agent_status = OrchestratorRequest::GetAgentStatus;
+                let agent_status = OrchestratorRequest::AgentStatusRequest;
                 SystemMessages::Orchestrator(agent_status)
             }
             OrchestratorCommands::SupervisorAgent(supervisor_agent_command) => {
@@ -170,9 +171,9 @@ impl OrchestratorCommands {
             }
             OrchestratorCommands::LoadDefaultWorkCrew { asset } => {
                 let supervisor_resources = [
-                    shared_messages::models::worker_environment::resources::MainResources::MtnMech,
-                    shared_messages::models::worker_environment::resources::MainResources::MtnElec,
-                    shared_messages::models::worker_environment::resources::MainResources::MtnScaf,
+                    resources::MainResources::MtnMech,
+                    resources::MainResources::MtnElec,
+                    resources::MainResources::MtnScaf,
                 ];
 
                 for (i, resource) in supervisor_resources.iter().enumerate() {
@@ -186,10 +187,10 @@ impl OrchestratorCommands {
                 }
 
                 let operational_resources = [
-                    shared_messages::models::worker_environment::resources::Resources::MtnMech,
-                    shared_messages::models::worker_environment::resources::Resources::MtnElec,
-                    shared_messages::models::worker_environment::resources::Resources::MtnScaf,
-                    shared_messages::models::worker_environment::resources::Resources::MtnCran,
+                    resources::Resources::MtnMech,
+                    resources::Resources::MtnElec,
+                    resources::Resources::MtnScaf,
+                    resources::Resources::MtnCran,
                 ];
 
                 let number_of_each_resource = [4, 2, 3, 2];
@@ -211,7 +212,7 @@ impl OrchestratorCommands {
                     }
                 }
 
-                SystemMessages::Orchestrator(OrchestratorRequest::GetAgentStatus)
+                SystemMessages::Orchestrator(OrchestratorRequest::AgentStatusRequest)
             }
         }
     }
