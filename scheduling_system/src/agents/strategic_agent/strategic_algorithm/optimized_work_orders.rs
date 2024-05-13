@@ -1,8 +1,5 @@
-use colored::*;
 use serde::Serialize;
 use shared_messages::models::worker_environment::resources::Resources;
-use std::collections::hash_map::Entry;
-use std::fmt::Write;
 use std::str::FromStr;
 use std::{collections::HashMap, collections::HashSet, hash::Hash, hash::Hasher};
 use tracing::instrument;

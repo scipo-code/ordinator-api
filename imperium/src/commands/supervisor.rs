@@ -27,7 +27,7 @@ impl SupervisorCommands {
     pub fn execute(&self) -> SystemMessages {
         match self {
             SupervisorCommands::Status { asset, supervisor } => {
-                let supervisor_status_message = SupervisorStatusMessage {};
+                let supervisor_status_message = SupervisorStatusMessage::General;
 
                 let supervisor_request_message =
                     SupervisorRequestMessage::Status(supervisor_status_message);
