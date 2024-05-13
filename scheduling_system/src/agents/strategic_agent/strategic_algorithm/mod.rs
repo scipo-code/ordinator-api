@@ -378,8 +378,8 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
             StrategicResourceMessage::SetResources(manual_resources) => {
                 let mut count = 0;
                 for (resource, periods) in manual_resources {
-                    for (period_string, capacity) in periods {
-                        let period = self.periods.iter().find(|period| period.period_string() == period_string).expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
+                    for (period_imperium, capacity) in periods {
+                        let period = self.periods.iter().find(|period| **period == period_imperium).expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
                         self.resources_capacity
                             .inner
                             .get_mut(&resource.clone())
@@ -392,7 +392,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 Ok(StrategicResponseResources::UpdatedResources(count))
             }
             StrategicResourceMessage::GetLoadings {
-                periods_end,
+                periods_end: _,
                 select_resources: _,
             } => {
                 let loading = self.resources_loadings();
@@ -400,14 +400,14 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 let strategic_response_resources = StrategicResponseResources::Loading(loading.clone());
                 Ok(strategic_response_resources)
             }
-            StrategicResourceMessage::GetCapacities { periods_end, select_resources: _ } => 
+            StrategicResourceMessage::GetCapacities { periods_end: _, select_resources: _ } => 
             {         
                 let capacities = self.resources_capacities();
 
                 let strategic_response_resources = StrategicResponseResources::Loading(capacities.clone());
                 Ok(strategic_response_resources)
             }
-            StrategicResourceMessage::GetPercentageLoadings { periods_end, resources: _ } => {
+            StrategicResourceMessage::GetPercentageLoadings { periods_end:_, resources: _ } => {
                 let capacities = self.resources_capacities();
                 let loadings = self.resources_loadings();
 

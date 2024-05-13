@@ -1,6 +1,8 @@
 use clap::Subcommand;
 use clap::{self};
 use reqwest::blocking::Client;
+use shared_messages::models::time_environment::day::Day;
+use shared_messages::models::time_environment::period::Period;
 use shared_messages::models::worker_environment::resources;
 use shared_messages::Asset;
 use shared_messages::{
@@ -218,31 +220,24 @@ impl OrchestratorCommands {
     }
 }
 
-pub fn strategic_periods(client: &Client) -> Vec<String> {
+pub fn strategic_periods(client: &Client) -> Vec<Period> {
     let orchestrator_request = OrchestratorRequest::GetPeriods;
 
     let system_message = SystemMessages::Orchestrator(orchestrator_request);
 
-    let strategic_periods = crate::send_http(client, system_message);
+    let strategic_periods_string = crate::send_http(client, system_message);
+
+    let strategic_periods: Vec<Period> = serde_json::from_str(&strategic_periods_string).unwrap();
     strategic_periods
-        .to_string()
-        .replace('\"', "")
-        .split(',')
-        .map(|s| s.to_string())
-        .collect::<Vec<String>>()
 }
 
-pub fn tactical_days(client: &Client) -> Vec<String> {
+pub fn tactical_days(client: &Client) -> Vec<Day> {
     let orchestrator_request = OrchestratorRequest::GetDays;
 
     let system_message = SystemMessages::Orchestrator(orchestrator_request);
 
-    let tactical_days = crate::send_http(client, system_message);
+    let tactical_days_string = crate::send_http(client, system_message);
 
+    let tactical_days: Vec<Day> = serde_json::from_str(&tactical_days_string).unwrap();
     tactical_days
-        .to_string()
-        .replace('\"', "")
-        .split(',')
-        .map(|s| s.to_string())
-        .collect::<Vec<String>>()
 }

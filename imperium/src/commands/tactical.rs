@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use clap::Subcommand;
 use reqwest::blocking::Client;
 use shared_messages::{
-    models::worker_environment::resources::Resources,
+    models::{time_environment::day::Day, worker_environment::resources::Resources},
     tactical::{
         tactical_resources_message::TacticalResourceMessage,
         tactical_status_message::TacticalStatusMessage, TacticalRequest, TacticalRequestMessage,
@@ -165,8 +165,8 @@ pub enum ResourceCommands {
 fn generate_manual_resources(
     client: &Client,
     toml_path: String,
-) -> HashMap<Resources, HashMap<String, f64>> {
-    let periods: Vec<String> = orchestrator::tactical_days(client);
+) -> HashMap<Resources, HashMap<Day, f64>> {
+    let days: Vec<Day> = orchestrator::tactical_days(client);
     let contents = std::fs::read_to_string(toml_path).unwrap();
 
     let config: TomlResources = toml::de::from_str(&contents).unwrap();
@@ -220,18 +220,16 @@ fn generate_manual_resources(
         }
     };
 
-    let mut resources_hash_map = HashMap::new();
+    let mut resources: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
     for resource in shared_messages::models::worker_environment::resources::Resources::iter() {
-        let mut periods_hash_map = HashMap::new();
-        for (i, period) in periods.clone().iter().enumerate() {
-            periods_hash_map.insert(
-                period.to_string(),
+        let mut capacity = HashMap::new();
+        for (i, day) in days.clone().iter().enumerate() {
+            capacity.insert(
+                day.clone(),
                 resource_specific(&resource) * gradual_reduction(i),
             );
         }
-        resources_hash_map.insert(resource, periods_hash_map);
+        resources.insert(resource, capacity);
     }
-    resources_hash_map
+    resources
 }
-
-// What will the goal be for now.

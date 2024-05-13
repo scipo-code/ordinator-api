@@ -9,8 +9,8 @@ use shared_messages::{
     agent_error::AgentError,
     models::worker_environment::resources::Id,
     operational::{
-        operational_response_status::{self, OperationalResponseStatus},
-        OperationalRequestMessage, OperationalResponseMessage,
+        operational_response_status::OperationalResponseStatus, OperationalRequestMessage,
+        OperationalResponseMessage,
     },
     StatusMessage, StopMessage,
 };
@@ -27,7 +27,7 @@ pub struct OperationalAgent {
     operational_algorithm: OperationalAlgorithm,
     capacity: Option<f32>,
     availability: Option<Vec<Availability>>,
-    assigned: Option<Vec<AssignedWork>>,
+    assigned: Vec<AssignedWork>,
     backup_activities: Option<HashMap<u32, Operation>>,
     supervisor_agent_addr: Addr<SupervisorAgent>,
 }
@@ -66,7 +66,7 @@ pub struct OperationalAgentBuilder {
     operational_algorithm: OperationalAlgorithm,
     capacity: Option<f32>,
     availability: Option<Vec<Availability>>,
-    assigned: Option<Vec<AssignedWork>>,
+    assigned: Vec<AssignedWork>,
     backup_activities: Option<HashMap<u32, Operation>>,
     supervisor_agent_addr: Addr<SupervisorAgent>,
 }
@@ -85,7 +85,7 @@ impl OperationalAgentBuilder {
             },
             capacity: None,
             availability: None,
-            assigned: None,
+            assigned: vec![],
             backup_activities: None,
             supervisor_agent_addr,
         }
@@ -105,7 +105,7 @@ impl OperationalAgentBuilder {
 
     #[allow(dead_code)]
     pub fn with_assigned(mut self, assigned: Vec<AssignedWork>) -> Self {
-        self.assigned = Some(assigned);
+        self.assigned = assigned;
         self
     }
 
@@ -141,7 +141,7 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
             OperationalRequestMessage::Status => {
                 let operational_response_status = OperationalResponseStatus::new(
                     self.id_operational.clone(),
-                    self.assigned.as_ref().unwrap().len(),
+                    self.assigned.len(),
                     self.operational_algorithm.objective_value,
                 );
                 Ok(OperationalResponseMessage::Status(

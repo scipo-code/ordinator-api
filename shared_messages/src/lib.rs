@@ -185,7 +185,7 @@ pub struct TomlResources {
     pub wellsupv: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub enum AlgorithmState<T> {
     Feasible,
     Infeasible(T),
@@ -200,7 +200,7 @@ impl<T> AlgorithmState<T> {
     }
 }
 
-#[derive(Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub enum ConstraintState<Reason> {
     Feasible,
     Infeasible(Reason),

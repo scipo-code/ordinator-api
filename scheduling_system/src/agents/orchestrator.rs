@@ -1,6 +1,7 @@
 use actix::prelude::*;
 use shared_messages::models::worker_environment::resources;
 use shared_messages::models::worker_environment::resources::Id;
+use shared_messages::models::worker_environment::resources::MainResources;
 use shared_messages::models::worker_environment::resources::Resources;
 use shared_messages::Asset;
 use std::collections::HashMap;
@@ -75,7 +76,7 @@ impl ActorRegistry {
                 .supervisor_agent_addrs
                 .iter()
                 .find_map(|(id, addr)| {
-                    if id.1.contains(&Resources::MtnMech) {
+                    if id.2.as_ref().unwrap() == &MainResources::MtnMech {
                         Some(addr)
                     } else {
                         None
