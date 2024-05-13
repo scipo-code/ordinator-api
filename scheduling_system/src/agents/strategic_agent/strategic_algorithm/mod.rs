@@ -5,9 +5,9 @@ use std::fmt::Display;
 use std::hash::Hash;
 use shared_messages::models::work_order::WorkOrderNumber;
 use shared_messages::strategic::strategic_response_periods::StrategicResponsePeriods;
-use shared_messages::strategic::strategic_response_resources::{self, StrategicResponseResources};
+use shared_messages::strategic::strategic_response_resources::{StrategicResponseResources};
 use shared_messages::strategic::strategic_response_scheduling::StrategicResponseScheduling;
-use shared_messages::strategic::{StrategicResources, StrategicResponseMessage};
+use shared_messages::strategic::StrategicResources;
 use shared_messages::{Asset, LoadOperation};
 use tracing::{error, info, instrument, trace};
 use rand::prelude::SliceRandom;
@@ -388,11 +388,8 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                         count += 1;
                     }
                 }
-                
-                let response_message = format!("{} resources-period pairs updated correctly", count);
 
                 Ok(StrategicResponseResources::UpdatedResources(count))
-
             }
             StrategicResourceMessage::GetLoadings {
                 periods_end,
@@ -400,21 +397,17 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
             } => {
                 let loading = self.resources_loadings();
 
-                let periods_end: u32 = periods_end.parse().unwrap();
-                let strategic_response_resources = StrategicResponseResources::Loading(*loading);
+                let strategic_response_resources = StrategicResponseResources::Loading(loading.clone());
                 Ok(strategic_response_resources)
             }
             StrategicResourceMessage::GetCapacities { periods_end, select_resources: _ } => 
             {         
                 let capacities = self.resources_capacities();
 
-                let periods_end: u32 = periods_end.parse().unwrap();
-                
-                let strategic_response_resources = StrategicResponseResources::Loading(*capacities);
+                let strategic_response_resources = StrategicResponseResources::Loading(capacities.clone());
                 Ok(strategic_response_resources)
             }
             StrategicResourceMessage::GetPercentageLoadings { periods_end, resources: _ } => {
-                let periods_end: u32 = periods_end.parse().unwrap();
                 let capacities = self.resources_capacities();
                 let loadings = self.resources_loadings();
 
@@ -534,7 +527,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                             info!("{:?} has been excluded from period {} and the locked in period has been removed", work_order_number, period.period_string());
                         }
                             
-                        Ok(StrategicResponseScheduling::new(vec![*work_order_number], vec![*period]))
+                        Ok(StrategicResponseScheduling::new(vec![*work_order_number], vec![period.clone()]))
                     }
                     None => Err(AgentError::StateUpdateError("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.".to_string())),
                 }

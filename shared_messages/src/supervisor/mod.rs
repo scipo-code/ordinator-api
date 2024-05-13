@@ -7,9 +7,14 @@ pub mod supervisor_status_message;
 use actix::Message;
 use serde::{Deserialize, Serialize};
 
+use self::supervisor_response_resources::SupervisorResponseResources;
+use self::supervisor_response_scheduling::SupervisorResponseScheduling;
+use self::supervisor_response_status::SupervisorResponseStatus;
+use self::supervisor_response_time::SupervisorResponseTime;
 use self::supervisor_status_message::SupervisorStatusMessage;
 use crate::models::worker_environment::resources::MainResources;
 use crate::{agent_error::AgentError, Asset};
+use crate::{AlgorithmState, ConstraintState};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SupervisorRequest {
@@ -25,5 +30,36 @@ pub enum SupervisorRequestMessage {
 }
 
 impl Message for SupervisorRequestMessage {
-    type Result = Result<String, AgentError>;
+    type Result = Result<SupervisorResponseMessage, AgentError>;
+}
+
+#[derive(Serialize)]
+pub enum SupervisorResponseMessage {
+    Status(SupervisorResponseStatus),
+    Scheduling(SupervisorResponseScheduling),
+    Resources(SupervisorResponseResources),
+    Time(SupervisorResponseTime),
+    Test(AlgorithmState<SupervisorInfeasibleCases>),
+}
+
+impl SupervisorResponseMessage {
+    pub fn status(self) -> SupervisorResponseStatus {
+        match self {
+            Self::Status(supervisor_response_status) => supervisor_response_status,
+            _ => panic!("The underlying variant of the enum was not a status response"),
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct SupervisorInfeasibleCases {
+    pub respect_main_work_center: ConstraintState<String>,
+}
+
+impl Default for SupervisorInfeasibleCases {
+    fn default() -> Self {
+        Self {
+            respect_main_work_center: ConstraintState::Infeasible("Infeasible".to_string()),
+        }
+    }
 }
