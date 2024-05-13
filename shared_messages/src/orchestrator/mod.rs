@@ -1,11 +1,15 @@
+use std::collections::HashMap;
+
 use actix::Message;
 use serde::{Deserialize, Serialize};
 
+use crate::models::time_environment::day::Day;
+use crate::models::time_environment::period::Period;
 use crate::models::work_order::status_codes::StatusCodes;
 use crate::models::work_order::WorkOrderNumber;
 use crate::models::worker_environment::resources::Id;
 use crate::operational::operational_response_status::OperationalResponseStatus;
-use crate::strategic::strategic_response_status::StrategicResponseStatus;
+use crate::strategic::strategic_response_status::{StrategicResponseStatus, WorkOrdersStatus};
 use crate::supervisor::supervisor_response_status::SupervisorResponseStatus;
 use crate::tactical::tactical_response_status::TacticalResponseStatus;
 use crate::{Asset, LevelOfDetail, LogLevel};
@@ -31,11 +35,29 @@ impl Message for OrchestratorRequest {
     type Result = String;
 }
 
-pub struct AgentStatusResponse {
-    pub asset: Asset,
-    pub agent_status: AgentStatus,
+#[derive(Serialize)]
+pub enum OrchestratorResponse {
+    AgentStatus(AgentStatusResponse),
+    WorkOrderStatus(WorkOrdersStatus),
+    RequestStatus(String),
+    Periods(Vec<Period>),
+    Days(Vec<Day>),
+
+    Export(String),
 }
 
+#[derive(Serialize)]
+pub struct AgentStatusResponse {
+    pub agent_status: HashMap<Asset, AgentStatus>,
+}
+
+impl AgentStatusResponse {
+    pub fn new(agent_status: HashMap<Asset, AgentStatus>) -> Self {
+        Self { agent_status }
+    }
+}
+
+#[derive(Serialize)]
 pub struct AgentStatus {
     pub strategic_status: StrategicResponseStatus,
     pub tactical_status: TacticalResponseStatus,

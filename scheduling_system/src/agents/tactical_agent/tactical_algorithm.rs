@@ -1,6 +1,3 @@
-use chrono::{DateTime, Utc};
-use colored::Colorize;
-
 use priority_queue::PriorityQueue;
 use rand::seq::SliceRandom;
 use serde::Serialize;
@@ -23,11 +20,7 @@ use shared_messages::{
     },
     AlgorithmState, ConstraintState, LoadOperation,
 };
-use std::{
-    any::Any,
-    fmt::{Display, Write},
-};
-use std::{borrow::Cow, cmp::Ordering};
+use std::{borrow::Cow, cmp::Ordering, fmt::Display};
 use std::{collections::HashMap, fmt};
 use strum::IntoEnumIterator;
 use tracing::{debug, error, info, instrument, warn};
