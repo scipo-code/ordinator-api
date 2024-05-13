@@ -1,6 +1,5 @@
 use actix_web::http::header;
 use actix_web::{web, HttpRequest, HttpResponse, Result};
-use serde::Serialize;
 use shared_messages::models::work_order::WorkOrderNumber;
 use shared_messages::operational::operational_response_status::OperationalResponseStatus;
 use shared_messages::operational::{OperationalRequestMessage, OperationalResponseMessage};
@@ -9,14 +8,14 @@ use shared_messages::strategic::strategic_request_status_message::StrategicStatu
 use shared_messages::strategic::strategic_response_status::{WorkOrderResponse, WorkOrdersStatus};
 use shared_messages::strategic::StrategicResponseMessage;
 use shared_messages::supervisor::supervisor_response_status::SupervisorResponseStatus;
-use shared_messages::supervisor::supervisor_status_message::{self, SupervisorStatusMessage};
+use shared_messages::supervisor::supervisor_status_message::SupervisorStatusMessage;
 use shared_messages::supervisor::SupervisorRequestMessage;
+use shared_messages::tactical::tactical_response_resources::TacticalResponseResources;
 use shared_messages::tactical::tactical_status_message::TacticalStatusMessage;
 use shared_messages::tactical::{TacticalRequestMessage, TacticalResponseMessage};
-use shared_messages::{Asset, LevelOfDetail};
+use shared_messages::Asset;
 use shared_messages::{orchestrator::OrchestratorRequest, SystemMessages};
 use std::collections::HashMap;
-use std::fmt::Write;
 use std::sync::{Arc, Mutex};
 use tracing::{instrument, warn};
 use tracing_subscriber::EnvFilter;
@@ -105,10 +104,21 @@ pub async fn http_to_scheduling_system(
             match response {
                 Ok(response) => match response {
                     Ok(response) => {
-                        let http_response = HttpResponse::Ok()
-                            .insert_header(header::ContentType::json())
-                            .body(serde_json::to_string(&response).unwrap());
-                        Ok(http_response)
+                        match response {
+                            TacticalResponseMessage::Resources(resource) => {
+                                match &resource {
+                                    TacticalResponseResources::Capacity(capacity) => {
+                                    dbg!(capacity.clone());  
+                                    let http_response = HttpResponse::Ok()
+                                        .insert_header(header::ContentType::json())
+                                        .body(serde_json::to_string(capacity).unwrap());
+                                    Ok(http_response)
+                                    }
+                                    _ => todo!()
+                                }
+                            }
+                            _ => todo!()
+                        }
                     }
                     Err(_) => Ok(HttpResponse::BadRequest().json("TACTICAL: FAILURE")),
                 },

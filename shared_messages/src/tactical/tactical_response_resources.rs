@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::TacticalResources;
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub enum TacticalResponseResources {
     UpdatedResources(u32),
     Loading(TacticalResources),
