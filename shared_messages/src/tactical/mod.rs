@@ -46,7 +46,7 @@ impl Message for TacticalRequestMessage {
     type Result = Result<TacticalResponseMessage, AgentError>;
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub enum TacticalResponseMessage {
     Status(TacticalResponseStatus),
     Scheduling(TacticalResponseScheduling),
@@ -54,7 +54,7 @@ pub enum TacticalResponseMessage {
     Time(TacticalResponseTime),
     Test(AlgorithmState<TacticalInfeasibleCases>),
 }
-#[derive(Clone, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct TacticalInfeasibleCases {
     pub aggregated_load: ConstraintState<String>,
     pub earliest_start_day: ConstraintState<String>,

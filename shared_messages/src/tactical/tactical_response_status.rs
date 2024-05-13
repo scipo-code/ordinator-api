@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::{time_environment::period::Period, worker_environment::resources::Id};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TacticalResponseStatus {
     id: i32,
     objective: f64,
