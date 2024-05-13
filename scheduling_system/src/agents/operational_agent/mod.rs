@@ -5,7 +5,15 @@ use std::{
 
 use actix::prelude::*;
 use chrono::{DateTime, Utc};
-use shared_messages::{models::worker_environment::resources::Id, StatusMessage, StopMessage};
+use shared_messages::{
+    agent_error::AgentError,
+    models::worker_environment::resources::Id,
+    operational::{
+        operational_response_status::{self, OperationalResponseStatus},
+        OperationalRequestMessage, OperationalResponseMessage,
+    },
+    StatusMessage, StopMessage,
+};
 
 use shared_messages::models::{work_order::operation::Operation, SchedulingEnvironment};
 use tracing::warn;
@@ -25,7 +33,7 @@ pub struct OperationalAgent {
 }
 
 struct OperationalAlgorithm {
-    objective_value: f32,
+    objective_value: f64,
 }
 
 #[allow(dead_code)]
@@ -117,6 +125,29 @@ impl OperationalAgentBuilder {
             assigned: self.assigned,
             backup_activities: self.backup_activities,
             supervisor_agent_addr: self.supervisor_agent_addr,
+        }
+    }
+}
+
+impl Handler<OperationalRequestMessage> for OperationalAgent {
+    type Result = Result<OperationalResponseMessage, AgentError>;
+
+    fn handle(
+        &mut self,
+        request: OperationalRequestMessage,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
+        match request {
+            OperationalRequestMessage::Status => {
+                let operational_response_status = OperationalResponseStatus::new(
+                    self.id_operational.clone(),
+                    self.assigned.as_ref().unwrap().len(),
+                    self.operational_algorithm.objective_value,
+                );
+                Ok(OperationalResponseMessage::Status(
+                    operational_response_status,
+                ))
+            }
         }
     }
 }

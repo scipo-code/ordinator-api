@@ -8,7 +8,10 @@ use actix::prelude::*;
 use shared_messages::{
     agent_error::AgentError,
     models::work_order::{operation::ActivityNumber, WorkOrderNumber},
-    supervisor::SupervisorRequestMessage,
+    supervisor::{
+        supervisor_response_status::SupervisorResponseStatus, SupervisorInfeasibleCases,
+        SupervisorRequestMessage, SupervisorResponseMessage,
+    },
     AlgorithmState, Asset, ConstraintState, StatusMessage, StopMessage,
 };
 
@@ -16,6 +19,8 @@ use shared_messages::models::worker_environment::resources::Id;
 use tracing::{error, instrument, warn};
 
 use shared_messages::models::SchedulingEnvironment;
+
+use self::algorithm::SupervisorAlgorithm;
 
 use super::{
     operational_agent::OperationalAgent,
@@ -29,6 +34,7 @@ pub struct SupervisorAgent {
     asset: Asset,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     assigned_work_orders: Vec<(WorkOrderNumber, HashMap<ActivityNumber, OperationSolution>)>,
+    pub supervisor_algorithm: SupervisorAlgorithm,
     tactical_agent_addr: Addr<TacticalAgent>,
     operational_agent_addrs: HashMap<Id, Addr<OperationalAgent>>,
 }
@@ -57,6 +63,7 @@ impl SupervisorAgent {
             asset,
             scheduling_environment,
             assigned_work_orders: Vec::new(),
+            supervisor_algorithm: SupervisorAlgorithm::new(),
             tactical_agent_addr,
             operational_agent_addrs: HashMap::new(),
         }
@@ -124,7 +131,7 @@ impl Handler<UpdateWorkOrderMessage> for SupervisorAgent {
 }
 
 impl Handler<SupervisorRequestMessage> for SupervisorAgent {
-    type Result = Result<String, AgentError>;
+    type Result = Result<SupervisorResponseMessage, AgentError>;
 
     #[instrument(level = "trace", skip_all)]
     fn handle(
@@ -143,39 +150,22 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
                     "Received SupervisorStatusMessage: {:?}",
                     supervisor_status_message
                 );
-                Ok(format!(
-                    "Received SupervisorStatusMessage: {:?}",
-                    self.assigned_work_orders
-                ))
+                let supervisor_status = SupervisorResponseStatus::new(
+                    self.id_supervisor.clone().2.unwrap(),
+                    self.supervisor_algorithm.objective_value,
+                );
+
+                Ok(SupervisorResponseMessage::Status(supervisor_status))
             }
             SupervisorRequestMessage::Test => {
                 let mut algorithm_state = self.determine_algorithm_state();
 
-                let supervisor_test_output = format!(
-                    "respect_main_resource_trait: {}",
-                    algorithm_state
-                        .infeasible_cases_mut()
-                        .unwrap()
-                        .respect_main_work_center
-                );
-                Ok(supervisor_test_output)
+                let supervisor_test = SupervisorResponseMessage::Test(algorithm_state);
+                Ok(supervisor_test)
             }
         }
     }
 }
-
-pub struct SupervisorInfeasibleCases {
-    respect_main_work_center: ConstraintState<String>,
-}
-
-impl Default for SupervisorInfeasibleCases {
-    fn default() -> Self {
-        Self {
-            respect_main_work_center: ConstraintState::Infeasible("Infeasible".to_string()),
-        }
-    }
-}
-
 impl TestAlgorithm for SupervisorAgent {
     type InfeasibleCases = SupervisorInfeasibleCases;
 

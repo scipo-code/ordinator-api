@@ -1,7 +1,11 @@
-use std::ops::DerefMut;
+use std::{collections::HashMap, ops::DerefMut};
 
 use shared_messages::{
     agent_error::AgentError,
+    models::{
+        work_order::{operation::ActivityNumber, WorkOrderNumber},
+        worker_environment::resources::Id,
+    },
     supervisor::{
         supervisor_response_resources::SupervisorResponseResources,
         supervisor_response_scheduling::SupervisorResponseScheduling,
@@ -16,6 +20,20 @@ use super::SupervisorAgent;
 pub struct SupervisorSchedulingMessage;
 pub struct SupervisorResourceMessage;
 pub struct SupervisorTimeMessage;
+
+pub struct SupervisorAlgorithm {
+    pub objective_value: f64,
+    pub assigned_activities_by_agent: HashMap<Id, Vec<(WorkOrderNumber, ActivityNumber)>>,
+}
+
+impl SupervisorAlgorithm {
+    pub fn new() -> Self {
+        Self {
+            objective_value: f64::INFINITY,
+            assigned_activities_by_agent: HashMap::new(),
+        }
+    }
+}
 
 impl LargeNeighborHoodSearch for SupervisorAgent {
     type SchedulingMessage = SupervisorSchedulingMessage;

@@ -61,7 +61,7 @@ impl TacticalAgent {
         Ok(TacticalResponseStatus::new(
             self.id_tactical,
             *self.tactical_algorithm.get_objective_value(),
-            self.time_horizon,
+            self.time_horizon.clone(),
         ))
     }
 }
