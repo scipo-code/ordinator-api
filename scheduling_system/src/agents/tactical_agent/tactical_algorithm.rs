@@ -560,11 +560,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 let mut count = 0;
                 for (resource, days) in resources {
                     for (day, capacity) in days {
-                        let day: Day = match self
-                            .tactical_days
-                            .iter()
-                            .find(|d| d.date().to_string() == day)
-                        {
+                        let day: Day = match self.tactical_days.iter().find(|d| **d == day) {
                             Some(day) => {
                                 count += 1;
                                 day.clone()
@@ -587,7 +583,6 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             } => {
                 let loadings = self.loading.clone();
 
-                let days_end: u32 = days_end.parse().unwrap();
                 info!(loadings = ?loadings);
                 let tactical_response_resources = TacticalResponseResources::Loading(loadings);
                 Ok(tactical_response_resources)
@@ -598,17 +593,14 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             } => {
                 let capacities = self.capacity.clone();
 
-                let days_end: u32 = days_end.parse().unwrap();
-
                 let tactical_response_resources = TacticalResponseResources::Capacity(capacities);
 
                 Ok(tactical_response_resources)
             }
             TacticalResourceMessage::GetPercentageLoadings {
-                days_end,
+                days_end: _,
                 resources: _,
             } => {
-                let days_end: u32 = days_end.parse().unwrap();
                 let capacities = &self.capacity;
                 let loadings = &self.loading;
 

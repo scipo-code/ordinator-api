@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use clap::Args;
 use clap::Subcommand;
 use reqwest::blocking::Client;
+use shared_messages::models::time_environment::period::Period;
 use shared_messages::models::work_order::WorkOrderNumber;
 use shared_messages::models::worker_environment::resources::Resources;
 use shared_messages::strategic::strategic_request_resources_message::StrategicResourceMessage;
@@ -271,29 +272,30 @@ impl StrategicCommands {
                     SystemMessages::Strategic(strategic_request)
                 }
                 ResourceCommands::SetCapacity {
-                    resource,
-                    period,
-                    capacity,
+                    resource: _,
+                    period: _,
+                    capacity: _,
                 } => {
-                    let mut resources = HashMap::new();
+                    todo!()
+                    // let mut resources = HashMap::new();
 
-                    let mut periods: HashMap<String, f64> = HashMap::new();
+                    // let mut periods: HashMap<Period, f64> = HashMap::new();
 
-                    periods.insert(period.clone(), *capacity);
-                    resources.insert(resource.clone(), periods);
+                    // periods.insert(period.clone(), *capacity);
+                    // resources.insert(resource.clone(), periods);
 
-                    let strategic_resources_message =
-                        StrategicResourceMessage::new_set_resources(resources);
+                    // let strategic_resources_message =
+                    //     StrategicResourceMessage::new_set_resources(resources);
 
-                    let strategic_request_message =
-                        StrategicRequestMessage::Resources(strategic_resources_message);
+                    // let strategic_request_message =
+                    //     StrategicRequestMessage::Resources(strategic_resources_message);
 
-                    let strategic_request = StrategicRequest {
-                        asset: asset.clone(),
-                        strategic_request_message,
-                    };
+                    // let strategic_request = StrategicRequest {
+                    //     asset: asset.clone(),
+                    //     strategic_request_message,
+                    // };
 
-                    SystemMessages::Strategic(strategic_request)
+                    // SystemMessages::Strategic(strategic_request)
                 }
                 ResourceCommands::SetCapacityPolicy {
                     resource: _,
@@ -333,8 +335,8 @@ impl StrategicCommands {
 fn generate_manual_resources(
     client: &Client,
     toml_path: String,
-) -> HashMap<Resources, HashMap<String, f64>> {
-    let periods: Vec<String> = crate::commands::orchestrator::strategic_periods(client);
+) -> HashMap<Resources, HashMap<Period, f64>> {
+    let periods: Vec<Period> = crate::commands::orchestrator::strategic_periods(client);
     let contents = std::fs::read_to_string(toml_path).unwrap();
     let config: TomlResources = toml::from_str(&contents).unwrap();
 
@@ -394,10 +396,10 @@ fn generate_manual_resources(
 
     let mut resources_hash_map = HashMap::new();
     for resource in shared_messages::models::worker_environment::resources::Resources::iter() {
-        let mut periods_hash_map = HashMap::new();
+        let mut periods_hash_map = HashMap::<Period, f64>::new();
         for (i, period) in periods.clone().iter().enumerate() {
             periods_hash_map.insert(
-                period.to_string(),
+                period.clone(),
                 resource_specific(&resource) * gradual_reduction(i),
             );
         }

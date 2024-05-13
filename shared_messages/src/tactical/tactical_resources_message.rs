@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::models::worker_environment::resources::Resources;
+use crate::models::{time_environment::day::Day, worker_environment::resources::Resources};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum TacticalResourceMessage {
-    SetResources(HashMap<Resources, HashMap<String, f64>>),
+    SetResources(HashMap<Resources, HashMap<Day, f64>>),
     GetLoadings {
         days_end: String,
         select_resources: Option<Vec<Resources>>,
@@ -22,7 +22,7 @@ pub enum TacticalResourceMessage {
 }
 
 impl TacticalResourceMessage {
-    pub fn new_set_resources(resources: HashMap<Resources, HashMap<String, f64>>) -> Self {
+    pub fn new_set_resources(resources: HashMap<Resources, HashMap<Day, f64>>) -> Self {
         TacticalResourceMessage::SetResources(resources)
     }
 }
