@@ -2,7 +2,7 @@ use actix::prelude::*;
 use shared_messages::models::worker_environment::resources;
 use shared_messages::models::worker_environment::resources::Id;
 use shared_messages::models::worker_environment::resources::MainResources;
-use shared_messages::models::worker_environment::resources::Resources;
+
 use shared_messages::Asset;
 use std::collections::HashMap;
 use std::sync::Arc;

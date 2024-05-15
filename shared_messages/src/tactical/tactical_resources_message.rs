@@ -1,10 +1,8 @@
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 
-use crate::models::{time_environment::day::Day, worker_environment::resources::Resources};
+use crate::models::worker_environment::resources::Resources;
 
-use super::{Days, TacticalResources};
+use super::TacticalResources;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum TacticalResourceMessage {

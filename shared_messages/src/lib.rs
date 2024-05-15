@@ -27,12 +27,15 @@ pub enum SystemMessages {
     Sap,
 }
 
+#[derive(Serialize)]
 pub enum SystemResponses {
     Orchestrator(OrchestratorResponse),
     Strategic(StrategicResponse),
     Tactical(TacticalResponse),
     Supervisor(SupervisorResponse),
     Operational(OperationalResponse),
+    Export,
+    Sap,
 }
 
 impl Message for SystemMessages {

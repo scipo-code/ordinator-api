@@ -33,6 +33,7 @@ impl Message for SupervisorRequestMessage {
     type Result = Result<SupervisorResponseMessage, AgentError>;
 }
 
+#[derive(Serialize)]
 pub struct SupervisorResponse {
     asset: Asset,
     supervisor_response_message: SupervisorResponseMessage,

@@ -29,7 +29,7 @@ pub async fn http_to_scheduling_system(
     orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
     _req: HttpRequest,
     payload: web::Json<SystemMessages>,
-) -> Result<HttpResponse> {
+) -> HttpResponse {
     let system_responses: SystemResponses = match payload.0 {
          SystemMessages::Orchestrator(orchestrator_request) => {
             let response = {
@@ -52,13 +52,13 @@ pub async fn http_to_scheduling_system(
                 Some(agent_registry) => agent_registry.strategic_agent_addr.clone(),
                 None => {
                     warn!("Strategic agent not created for the asset");
-                    return Ok(HttpResponse::BadRequest()
-                        .json("STRATEGIC: STRATEGIC AGENT NOT INITIALIZED FOR THE ASSET"));
+                    return HttpResponse::BadRequest()
+                        .json("STRATEGIC: STRATEGIC AGENT NOT INITIALIZED FOR THE ASSET");
                 }
             };
 
             let response = strategic_agent_addr
-                .send(strategic_request.strategic_request_message)
+                .send(strategic_request.strategic_request_message.clone())
                 .await
                 .unwrap()
                 .unwrap();
@@ -76,8 +76,8 @@ pub async fn http_to_scheduling_system(
                 Some(asset) => asset.tactical_agent_addr.clone(),
                 None => {
                     warn!("Tactical agent not created for the asset");
-                    return Ok(HttpResponse::BadRequest()
-                        .json("TACTICAL: TACTICAL AGENT NOT INITIALIZED FOR THE ASSET"));
+                    return HttpResponse::BadRequest()
+                        .json("TACTICAL: TACTICAL AGENT NOT INITIALIZED FOR THE ASSET");
                 }
             };
 
@@ -101,8 +101,8 @@ pub async fn http_to_scheduling_system(
                 Some(agent_registry) => agent_registry.supervisor_agent_addrs.clone(),
                 None => {
                     warn!("Supervisor agent not created for the asset");
-                    return Ok(HttpResponse::BadRequest()
-                        .json("SUPERVISOR: SUPERVISOR AGENT NOT INITIALIZED FOR THE ASSET"));
+                    return HttpResponse::BadRequest()
+                        .json("SUPERVISOR: SUPERVISOR AGENT NOT INITIALIZED FOR THE ASSET");
                 }
             };
 
@@ -124,96 +124,18 @@ pub async fn http_to_scheduling_system(
 
         }
         SystemMessages::Operational => {
-            Ok(HttpResponse::Ok().json("OPERATIONAL: IMPLEMENT SEND LOGIC"));
+            HttpResponse::Ok().json("OPERATIONAL: IMPLEMENT SEND LOGIC");
             todo!();
             SystemResponses::Operational(shared_messages::operational::OperationalResponse::Status)
-
         }
-        SystemMessages::Sap => Ok(HttpResponse::Ok().json("SAP: IMPLEMENT SEND LOGIC")),
+        SystemMessages::Sap => {
+            HttpResponse::Ok().json("SAP: IMPLEMENT SEND LOGIC");
+
+            SystemResponses::Sap
+        }
     };
 
-    let common_response: HttpResponse = match system_responses {
-        SystemResponses::Orchestrator(orchestrator_response) => {
-
-            match orchestrator_response {
-                OrchestratorResponse::AgentStatus(agent_status) => {
-                  
-                let http_response = HttpResponse::Ok()
-                        .insert_header(header::ContentType::json())
-                        .body(serde_json::to_string(&agent_status).unwrap());
-                    
-                http_response
-                },
-                OrchestratorResponse::RequestStatus(request_status) => todo!(),
-                OrchestratorResponse::WorkOrderStatus(work_order_status) => todo!(),
-                OrchestratorResponse::Periods(periods) => todo!(),
-                OrchestratorResponse::Days(days) => todo!(),
-                OrchestratorResponse::Export(export) => todo!(),
-            }
-
-        },
-        SystemResponses::Strategic(strategic_response) => {
-            match strategic_response {
-                Ok(response) => match response {
-                    Ok(response) => {
-                        let http_response = HttpResponse::Ok()
-                            .insert_header(header::ContentType::json())
-                            .body(serde_json::to_string(&response).unwrap());
-                        Ok(http_response)
-                    }
-                    Err(_) => Ok(HttpResponse::BadRequest().json("STRATEGIC: FAILURE")),
-                },
-                Err(_) => Ok(HttpResponse::BadRequest().json("STRATEGIC: FAILURE")),
-            }
-            
-            HttpResponse::Ok()
-        }
-        SystemResponses::Tactical(tactical_response) => {
-                      
-            match tactical_response {
-                Ok(response) => match response {
-                    Ok(response) => {
-                        match response {
-                            TacticalResponseMessage::Resources(resource) => {
-                                match &resource {
-                                    TacticalResponseResources::Capacity(capacity) => {
-                                    let http_response = HttpResponse::Ok()
-                                        .insert_header(header::ContentType::json())
-                                        .body(serde_json::to_string(capacity).unwrap());
-                                    Ok(http_response)
-                                    }
-                                    _ => todo!()
-                                }
-                            }
-                            _ => todo!()
-                        }
-                    }
-                    Err(_) => Ok(HttpResponse::BadRequest().json("TACTICAL: FAILURE")),
-                },
-                Err(_) => Ok(HttpResponse::BadRequest().json("TACTICAL: FAILURE")),
-            }
-            HttpResponse::Ok()
-        }
-        SystemResponses::Supervisor(supervisor_response) => {
-            
-            match supervisor_response {
-                SupervisorResponse::                
-            }
-                  
-            //         let http_response = HttpResponse::Ok()
-            //         .insert_header(header::ContentType::json())
-            //         .body(serde_json::to_string(&supervisor_response).unwrap());
-            //     Ok(http_response)
-            //     },
-            //     Err(_) => Ok(HttpResponse::BadRequest().json("SUPERVISOR: FAILURE")),
-            // }
-            
-            // HttpResponse::Ok()
-        }
-        SystemResponses::Operational(operational_response) => HttpResponse::Ok(),
-    };
-    common_response.unwrap()
-    
+    HttpResponse::Ok().json(system_responses)
 }
 
 impl Orchestrator {
@@ -576,10 +498,8 @@ impl Orchestrator {
 mod tests {
     use std::collections::HashMap;
 
-    use chrono::{DateTime, Utc, NaiveDate, NaiveDateTime, NaiveTime};
+    use chrono::Utc;
     use shared_messages::{models::{time_environment::day::Day, worker_environment::resources::Resources}, tactical::{Days, TacticalResources}};
-    use serde_json_any_key::*;
-
 
     #[test]
     fn test_day_serialize() {
@@ -594,9 +514,8 @@ mod tests {
 
         hash_map.insert(Resources::MtnMech, Days::new(hash_map_nested.clone()));
         let tactical_resources = TacticalResources::new(hash_map.clone());
-        let json_string = &hash_map.to_json_map().unwrap();
+        serde_json::to_string(&tactical_resources).unwrap();
 
-        assert!(false);
     }
 
 }
