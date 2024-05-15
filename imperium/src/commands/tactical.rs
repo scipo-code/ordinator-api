@@ -6,7 +6,8 @@ use shared_messages::{
     models::{time_environment::day::Day, worker_environment::resources::Resources},
     tactical::{
         tactical_resources_message::TacticalResourceMessage,
-        tactical_status_message::TacticalStatusMessage, TacticalRequest, TacticalRequestMessage,
+        tactical_status_message::TacticalStatusMessage, Days, TacticalRequest,
+        TacticalRequestMessage, TacticalResources,
     },
     Asset, SystemMessages, TomlResources,
 };
@@ -112,8 +113,9 @@ impl TacticalCommands {
                 ResourceCommands::LoadCapacityFile { toml_path } => {
                     let resources = generate_manual_resources(client, toml_path.clone());
 
+                    let tactical_resources = TacticalResources::new(resources);
                     let tactical_resources_message =
-                        TacticalResourceMessage::new_set_resources(resources);
+                        TacticalResourceMessage::new_set_resources(tactical_resources);
 
                     let tactical_request_message =
                         TacticalRequestMessage::Resources(tactical_resources_message);
@@ -162,10 +164,7 @@ pub enum ResourceCommands {
 }
 
 /// I will need to generate the manual resources for the tactical agent.
-fn generate_manual_resources(
-    client: &Client,
-    toml_path: String,
-) -> HashMap<Resources, HashMap<Day, f64>> {
+fn generate_manual_resources(client: &Client, toml_path: String) -> HashMap<Resources, Days> {
     let days: Vec<Day> = orchestrator::tactical_days(client);
     let contents = std::fs::read_to_string(toml_path).unwrap();
 
@@ -220,7 +219,7 @@ fn generate_manual_resources(
         }
     };
 
-    let mut resources: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
+    let mut resources: HashMap<Resources, Days> = HashMap::new();
     for resource in shared_messages::models::worker_environment::resources::Resources::iter() {
         let mut capacity = HashMap::new();
         for (i, day) in days.clone().iter().enumerate() {
@@ -229,7 +228,7 @@ fn generate_manual_resources(
                 resource_specific(&resource) * gradual_reduction(i),
             );
         }
-        resources.insert(resource, capacity);
+        resources.insert(resource, Days::new(capacity));
     }
     resources
 }

@@ -4,6 +4,7 @@ use clap::Parser;
 use commands::Commands;
 use reqwest::blocking::Client;
 use shared_messages::SystemMessages;
+use tracing::error;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -27,7 +28,15 @@ fn main() {
 
 fn send_http(client: &Client, system_message: SystemMessages) -> String {
     let url = "http://localhost:8080/ws";
-    let system_message_json = serde_json::to_string(&system_message).unwrap();
+    let system_message_json_option = serde_json::to_string(&system_message);
+    let system_message_json = match system_message_json_option {
+        Ok(string) => string,
+        Err(string) => {
+            error!("Bad deserialization");
+            "hello".to_string()
+        }
+    };
+
     let res = client
         .post(url)
         .body(system_message_json)

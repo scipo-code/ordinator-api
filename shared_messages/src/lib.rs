@@ -9,11 +9,12 @@ use std::fmt::{self, Display};
 
 use actix::prelude::*;
 use clap::{Subcommand, ValueEnum};
-use orchestrator::OrchestratorRequest;
+use operational::OperationalResponse;
+use orchestrator::{OrchestratorRequest, OrchestratorResponse};
 use serde::{Deserialize, Serialize};
-use strategic::StrategicRequest;
-use supervisor::SupervisorRequest;
-use tactical::TacticalRequest;
+use strategic::{StrategicRequest, StrategicResponse};
+use supervisor::{SupervisorRequest, SupervisorResponse};
+use tactical::{TacticalRequest, TacticalResponse};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "message_type")]
@@ -24,6 +25,14 @@ pub enum SystemMessages {
     Supervisor(SupervisorRequest),
     Operational,
     Sap,
+}
+
+pub enum SystemResponses {
+    Orchestrator(OrchestratorResponse),
+    Strategic(StrategicResponse),
+    Tactical(TacticalResponse),
+    Supervisor(SupervisorResponse),
+    Operational(OperationalResponse),
 }
 
 impl Message for SystemMessages {

@@ -16,7 +16,7 @@ use shared_messages::{
         tactical_response_time::TacticalResponseTime,
         tactical_scheduling_message::TacticalSchedulingMessage,
         tactical_time_message::TacticalTimeMessage,
-        TacticalInfeasibleCases, TacticalResources,
+        Days, TacticalInfeasibleCases, TacticalResources,
     },
     AlgorithmState, ConstraintState, LoadOperation,
 };
@@ -126,13 +126,7 @@ impl TacticalAlgorithm {
     }
 
     pub fn capacity(&self, resource: &Resources, day: &Day) -> f64 {
-        *self
-            .capacity
-            .resources
-            .get(resource)
-            .unwrap()
-            .get(day)
-            .unwrap()
+        *self.capacity.resources.get(resource).unwrap().get(day)
     }
 
     pub fn capacity_mut(&mut self, resource: &Resources, day: &Day) -> &mut f64 {
@@ -141,17 +135,10 @@ impl TacticalAlgorithm {
             .get_mut(resource)
             .unwrap()
             .get_mut(day)
-            .unwrap()
     }
 
     pub fn loading(&self, resource: &Resources, day: &Day) -> f64 {
-        *self
-            .loading
-            .resources
-            .get(resource)
-            .unwrap()
-            .get(day)
-            .unwrap()
+        *self.loading.resources.get(resource).unwrap().get(day)
     }
 
     pub fn loading_mut(&mut self, resource: &Resources, day: &Day) -> &mut f64 {
@@ -160,7 +147,6 @@ impl TacticalAlgorithm {
             .get_mut(resource)
             .unwrap()
             .get_mut(day)
-            .unwrap()
     }
     pub fn update_state_based_on_strategic(
         &mut self,
@@ -558,8 +544,8 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             TacticalResourceMessage::SetResources(resources) => {
                 // The resources should be initialized together with the Agent itself
                 let mut count = 0;
-                for (resource, days) in resources {
-                    for (day, capacity) in days {
+                for (resource, days) in resources.resources {
+                    for (day, capacity) in days.days {
                         let day: Day = match self.tactical_days.iter().find(|d| **d == day) {
                             Some(day) => {
                                 count += 1;
@@ -604,21 +590,21 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 let capacities = &self.capacity;
                 let loadings = &self.loading;
 
-                let mut percentage_loading = HashMap::<Resources, HashMap<Day, f64>>::new();
+                let mut percentage_loading = HashMap::<Resources, Days>::new();
 
                 for (resource, days) in &capacities.resources {
                     if percentage_loading.get(resource).is_none() {
-                        percentage_loading.insert(resource.clone(), HashMap::new());
+                        percentage_loading.insert(resource.clone(), Days::new(HashMap::new()));
                     }
-                    for (day, capacity) in days {
-                        let percentage =
-                            (loadings.resources.get(resource).unwrap().get(day).unwrap()
-                                / capacity
-                                * 100.0)
-                                .round();
+                    for (day, capacity) in &days.days {
+                        let percentage = (loadings.resources.get(resource).unwrap().get(&day)
+                            / capacity
+                            * 100.0)
+                            .round();
                         percentage_loading
                             .get_mut(resource)
                             .unwrap()
+                            .days
                             .insert(day.clone(), percentage);
                     }
                 }
