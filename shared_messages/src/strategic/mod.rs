@@ -64,6 +64,15 @@ pub struct StrategicResponse {
     strategic_response_message: StrategicResponseMessage,
 }
 
+impl StrategicResponse {
+    pub fn new(asset: Asset, strategic_response_message: StrategicResponseMessage) -> Self {
+        Self {
+            asset,
+            strategic_response_message,
+        }
+    }
+}
+
 #[derive(Serialize)]
 pub enum StrategicResponseMessage {
     Status(StrategicResponseStatus),

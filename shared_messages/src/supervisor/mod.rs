@@ -33,6 +33,20 @@ impl Message for SupervisorRequestMessage {
     type Result = Result<SupervisorResponseMessage, AgentError>;
 }
 
+pub struct SupervisorResponse {
+    asset: Asset,
+    supervisor_response_message: SupervisorResponseMessage,
+}
+
+impl SupervisorResponse {
+    pub fn new(asset: Asset, supervisor_response_message: SupervisorResponseMessage) -> Self {
+        Self {
+            asset,
+            supervisor_response_message,
+        }
+    }
+}
+
 #[derive(Serialize)]
 pub enum SupervisorResponseMessage {
     Status(SupervisorResponseStatus),

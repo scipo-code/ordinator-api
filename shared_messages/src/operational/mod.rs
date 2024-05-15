@@ -16,3 +16,7 @@ impl Message for OperationalRequestMessage {
 pub enum OperationalResponseMessage {
     Status(OperationalResponseStatus),
 }
+
+pub enum OperationalResponse {
+    Status,
+}

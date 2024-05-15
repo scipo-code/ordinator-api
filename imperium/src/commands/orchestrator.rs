@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use clap::Subcommand;
 use clap::{self};
 use reqwest::blocking::Client;
@@ -227,8 +229,9 @@ pub fn strategic_periods(client: &Client) -> Vec<Period> {
 
     let strategic_periods_string = crate::send_http(client, system_message);
 
-    let strategic_periods: Vec<Period> = serde_json::from_str(&strategic_periods_string).unwrap();
-    strategic_periods
+    let strategic_periods: HashMap<String, Vec<Period>> =
+        serde_json::from_str(&strategic_periods_string).unwrap();
+    strategic_periods.get("Periods").unwrap().to_owned()
 }
 
 pub fn tactical_days(client: &Client) -> Vec<Day> {
@@ -237,7 +240,7 @@ pub fn tactical_days(client: &Client) -> Vec<Day> {
     let system_message = SystemMessages::Orchestrator(orchestrator_request);
 
     let tactical_days_string = crate::send_http(client, system_message);
-
-    let tactical_days: Vec<Day> = serde_json::from_str(&tactical_days_string).unwrap();
-    tactical_days
+    let tactical_days: HashMap<String, Vec<Day>> =
+        serde_json::from_str(&tactical_days_string).unwrap();
+    tactical_days.get("Days").unwrap().to_owned()
 }
