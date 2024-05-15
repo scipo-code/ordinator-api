@@ -10,8 +10,10 @@ use shared_messages::strategic::strategic_request_resources_message::StrategicRe
 use shared_messages::strategic::strategic_request_scheduling_message::SingleWorkOrder;
 use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingMessage;
 use shared_messages::strategic::strategic_request_status_message::StrategicStatusMessage;
+use shared_messages::strategic::Periods;
 use shared_messages::strategic::StrategicRequest;
 use shared_messages::strategic::StrategicRequestMessage;
+use shared_messages::strategic::StrategicResources;
 use shared_messages::Asset;
 use shared_messages::SystemMessages;
 use shared_messages::TomlResources;
@@ -332,10 +334,7 @@ impl StrategicCommands {
     }
 }
 
-fn generate_manual_resources(
-    client: &Client,
-    toml_path: String,
-) -> HashMap<Resources, HashMap<Period, f64>> {
+fn generate_manual_resources(client: &Client, toml_path: String) -> StrategicResources {
     let periods: Vec<Period> = crate::commands::orchestrator::strategic_periods(client);
     let contents = std::fs::read_to_string(toml_path).unwrap();
     let config: TomlResources = toml::from_str(&contents).unwrap();
@@ -403,7 +402,7 @@ fn generate_manual_resources(
                 resource_specific(&resource) * gradual_reduction(i),
             );
         }
-        resources_hash_map.insert(resource, periods_hash_map);
+        resources_hash_map.insert(resource, Periods(periods_hash_map));
     }
-    resources_hash_map
+    StrategicResources::new(resources_hash_map)
 }
