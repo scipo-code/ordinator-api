@@ -574,7 +574,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 Ok(tactical_response_resources)
             }
             TacticalResourceMessage::GetCapacities {
-                days_end,
+                days_end: _,
                 select_resources: _,
             } => {
                 let capacities = self.capacity.clone();

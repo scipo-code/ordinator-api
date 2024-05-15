@@ -47,6 +47,7 @@ impl Message for TacticalRequestMessage {
     type Result = Result<TacticalResponseMessage, AgentError>;
 }
 
+#[derive(Serialize)]
 pub struct TacticalResponse {
     asset: Asset,
     tactical_response_message: TacticalResponseMessage,
