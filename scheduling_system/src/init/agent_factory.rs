@@ -1,6 +1,6 @@
 use actix::prelude::*;
 use shared_messages::models::time_environment::day::Day;
-use shared_messages::strategic::StrategicResources;
+use shared_messages::strategic::{Periods, StrategicResources};
 use shared_messages::tactical::{Days, TacticalResources};
 use shared_messages::Asset;
 use std::collections::{HashMap, HashSet};
@@ -157,7 +157,7 @@ fn initialize_strategic_resources(
     scheduling_environment: &SchedulingEnvironment,
     start_value: f64,
 ) -> StrategicResources {
-    let mut resource_capacity: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
+    let mut resource_capacity: HashMap<Resources, Periods> = HashMap::new();
     for resource in scheduling_environment
         .worker_environment()
         .get_work_centers()
@@ -167,7 +167,7 @@ fn initialize_strategic_resources(
         for period in scheduling_environment.periods().iter() {
             periods.insert(period.clone(), start_value);
         }
-        resource_capacity.insert(resource.clone(), periods);
+        resource_capacity.insert(resource.clone(), Periods(periods));
     }
     StrategicResources::new(resource_capacity)
 }

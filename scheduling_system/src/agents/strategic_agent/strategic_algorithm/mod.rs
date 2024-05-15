@@ -5,9 +5,9 @@ use std::fmt::Display;
 use std::hash::Hash;
 use shared_messages::models::work_order::WorkOrderNumber;
 use shared_messages::strategic::strategic_response_periods::StrategicResponsePeriods;
-use shared_messages::strategic::strategic_response_resources::{StrategicResponseResources};
+use shared_messages::strategic::strategic_response_resources::StrategicResponseResources;
 use shared_messages::strategic::strategic_response_scheduling::StrategicResponseScheduling;
-use shared_messages::strategic::StrategicResources;
+use shared_messages::strategic::{Periods, StrategicResources};
 use shared_messages::{Asset, LoadOperation};
 use tracing::{error, info, instrument, trace};
 use rand::prelude::SliceRandom;
@@ -127,6 +127,7 @@ impl StrategicAlgorithm {
                     .inner
                     .get(&resource.clone())
                     .unwrap()
+                    .0
                     .get(&period.clone())
                     .unwrap();
 
@@ -135,6 +136,7 @@ impl StrategicAlgorithm {
                     .inner
                     .get(&resource.clone())
                     .unwrap()
+                    .0
                     .get(&period.clone())
                     .unwrap();
 
@@ -224,7 +226,7 @@ impl StrategicAlgorithm {
     fn update_loadings(&mut self, work_order_number: WorkOrderNumber, target_period: &Period, load_operation: LoadOperation) {
         let work_load = self.optimized_work_orders.inner.get(&work_order_number).unwrap().work_load.clone();
         for (resource, periods) in self.resources_loading.inner.iter_mut() {
-            for (period, loading) in periods {
+            for (period, loading) in &mut periods.0 {
                 if period == target_period {
                     match load_operation {
                         LoadOperation::Add => *loading += work_load.get(resource).unwrap_or(&0.0),
@@ -311,14 +313,9 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
         }
 
         for (resource, periods) in &self.resources_capacities().inner {
-            for (period, capacity) in periods {
+            for (period, capacity) in &periods.0 {
                 let loading = self
-                    .resources_loadings()
-                    .inner
-                    .get(resource)
-                    .unwrap()
-                    .get(period)
-                    .unwrap();
+                    .resources_loading(resource, period);
                 if *loading > *capacity {
                     excess_penalty_contribution += loading - capacity;
                 }
@@ -384,6 +381,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                             .inner
                             .get_mut(&resource.clone())
                             .expect("The resource was not found in the self.resources_capacity vector. Somehow a message was sent form the frontend without the resource being initialized correctly.")
+                            .0
                             .insert(period.clone(), capacity);
                         count += 1;
                     }
@@ -411,15 +409,15 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 let capacities = self.resources_capacities();
                 let loadings = self.resources_loadings();
 
-                let mut percentage_loading = HashMap::<Resources, HashMap<Period, f64>>::new();
+                let mut percentage_loading = HashMap::<Resources, Periods>::new();
 
                 for (resource, periods) in &capacities.inner {
                     if percentage_loading.get(resource).is_none() {
-                        percentage_loading.insert(resource.clone(), HashMap::<Period, f64>::new());
+                        percentage_loading.insert(resource.clone(), Periods(HashMap::<Period, f64>::new()));
                     }
-                    for (period, capacity) in periods {
-                        let percentage: f64 = (loadings.inner.get(resource).unwrap().get(period).unwrap() / capacity * 100.0).round();
-                        percentage_loading.get_mut(resource).unwrap().insert(period.clone(), percentage);
+                    for (period, capacity) in &periods.0 {
+                        let percentage: f64 = (loadings.inner.get(resource).unwrap().0.get(&period).unwrap() / capacity * 100.0).round();
+                        percentage_loading.get_mut(resource).unwrap().0.insert(period.clone(), percentage);
                     }
                 }
 
@@ -566,6 +564,10 @@ impl StrategicAlgorithm {
         &self.resources_loading
     }
 
+    pub fn resources_loading(&self, resource: &Resources, period: &Period) -> &f64 {
+        &self.resources_loading.inner.get(resource).unwrap().0.get(period).unwrap()
+    }
+
     pub fn resources_capacities(&self) -> &StrategicResources {
         &self.resources_capacity
     }
@@ -641,11 +643,11 @@ mod tests {
         let period = Period::from_str("2023-W47-48").unwrap();
         let periods = vec![period.clone()];
 
-        let mut manual_resource_capacity: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
+        let mut manual_resource_capacity: HashMap<Resources, Periods> = HashMap::new();
 
-        let mut hash_map_periods_150 = HashMap::new();
+        let mut hash_map_periods_150 = Periods(HashMap::new());
 
-        hash_map_periods_150.insert(period.clone(), 150.0);
+        hash_map_periods_150.0.insert(period.clone(), 150.0);
 
         manual_resource_capacity.insert(
             Resources::MtnMech,
@@ -697,6 +699,7 @@ mod tests {
             scheduler_agent_algorithm.resources_capacity.inner
                 .get(&Resources::MtnMech)
                 .unwrap()
+                .0
                 .get(&period)
             ,
             Some(&150.0)
@@ -723,6 +726,7 @@ mod tests {
             scheduler_agent_algorithm.resources_capacity.inner
                 .get(&Resources::MtnMech)
                 .unwrap()
+                .0
                 .get(&period)
             ,
             Some(&300.0)
@@ -785,8 +789,8 @@ mod tests {
         let mut resource_capacity = HashMap::new();
         let mut resource_loadings = HashMap::new();
 
-        let mut period_hash_map_150 = HashMap::new();
-        let mut period_hash_map_0 = HashMap::new();
+        let mut period_hash_map_150 = Periods(HashMap::new());
+        let mut period_hash_map_0 = Periods(HashMap::new());
 
         period_hash_map_150.insert(period.clone(), 150.0);
         period_hash_map_0.insert(period.clone(), 0.0);
@@ -845,7 +849,7 @@ mod tests {
         let mut resource_capacity = HashMap::new();
         let mut resource_loadings = HashMap::new();
 
-        let mut period_hash_map_0 = HashMap::new();
+        let mut period_hash_map_0 = Periods(HashMap::new());
 
         period_hash_map_0.insert(period.clone(), 0.0);
 
@@ -891,8 +895,8 @@ mod tests {
         let mut resource_capacity = HashMap::new();
         let mut resource_loadings = HashMap::new();
 
-        let mut period_hash_map_150 = HashMap::new();
-        let mut period_hash_map_0 = HashMap::new();
+        let mut period_hash_map_150 = Periods(HashMap::new());
+        let mut period_hash_map_0 = Periods(HashMap::new());
 
         period_hash_map_150.insert(period.clone(), 150.0);
         period_hash_map_0.insert(period.clone(), 0.0);
@@ -930,39 +934,27 @@ mod tests {
         strategic_agent_algorithm.update_loadings(work_order_number, &period, LoadOperation::Add);
 
         assert_eq!(
-            strategic_agent_algorithm
-                .resources_loading
-                .inner
-                .get(&Resources::MtnMech)
-                .unwrap()
-                .get(&period.clone()),
-            Some(20.0).as_ref()
+            *strategic_agent_algorithm
+                .resources_loading(&Resources::MtnMech, &period),
+            20.0
         );
         assert_eq!(
-            strategic_agent_algorithm
-                .resources_loading
-                .inner
-                .get(&Resources::MtnElec)
-                .unwrap()
-                .get(&period.clone()),
-            Some(40.0).as_ref()
+            *strategic_agent_algorithm
+                .resources_loading(&Resources::MtnElec, &period),
+            40.0
         );
         assert_eq!(
-            strategic_agent_algorithm
-                .resources_loading
-                .inner
-                .get(&Resources::Prodtech)
-                .unwrap()
-                .get(&period.clone()),
-            Some(60.0).as_ref()
+            *strategic_agent_algorithm
+                .resources_loading(&Resources::Prodtech, &period),
+            60.0
         );
 
-        assert_eq!(
+        assert!(
             strategic_agent_algorithm
                 .resources_loading
                 .inner
-                .get(&Resources::MtnScaf),
-            None
+                .get(&Resources::MtnScaf).is_none(),
+                
         );
     }
 
@@ -989,8 +981,8 @@ mod tests {
         let resources = vec![Resources::MtnMech, Resources::MtnElec, Resources::Prodtech];
         // Again, this is not completely correct. There is an invariant here that is not being
         // upheld correctly. What should we do about that?
-        let mut resource_capacity: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
-        let mut resource_loadings: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
+        let mut resource_capacity: HashMap<Resources, Periods> = HashMap::new();
+        let mut resource_loadings: HashMap<Resources, Periods> = HashMap::new();
 
         for resource in resources.iter() {
             let capacity_map = resource_capacity.entry(resource.clone()).or_default();
@@ -1029,77 +1021,42 @@ mod tests {
 
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::MtnMech)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::MtnMech, &period_1),
             0.0
         );
         scheduler_agent_algorithm.schedule_normal_work_order(work_order_number, &period_1);
 
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::MtnMech)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::MtnMech, &period_1),
             20.0
         );
 
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::MtnElec)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::MtnElec, &period_1),
             40.0
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::Prodtech)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::Prodtech, &period_1),
             60.0
         );
 
         scheduler_agent_algorithm.unschedule(work_order_number);
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::MtnMech)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::MtnMech, &period_1),
             0.0
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::MtnElec)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::MtnElec, &period_1),
             0.0
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::Prodtech)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::Prodtech, &period_1),
             0.0
         );
 
@@ -1107,32 +1064,17 @@ mod tests {
 
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::MtnMech)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::MtnMech, &period_1),
             20.0
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::MtnElec)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::MtnElec, &period_1),
             40.0
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::Prodtech)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::Prodtech, &period_1),
             60.0
         );
 
@@ -1143,126 +1085,66 @@ mod tests {
 
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::MtnMech)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::MtnMech, &period_1),
             0.0
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::MtnElec)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::MtnElec, &period_1),
             0.0
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::Prodtech)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::Prodtech, &period_1),
             0.0
         );
 
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::MtnMech)
-                .unwrap()
-                .get(&period_2)
-                .unwrap(),
+                .resources_loading(&Resources::MtnMech, &period_2),
             20.0
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::MtnElec)
-                .unwrap()
-                .get(&period_2)
-                .unwrap(),
+                .resources_loading(&Resources::MtnElec, &period_2),
             40.0
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::Prodtech)
-                .unwrap()
-                .get(&period_2)
-                .unwrap(),
+                .resources_loading(&Resources::Prodtech, &period_2),
             60.0
         );
 
         scheduler_agent_algorithm.unschedule(work_order_number);
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::MtnMech)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::MtnMech, &period_1),
             0.0
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::MtnElec)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::MtnElec, &period_1),
             0.0
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::Prodtech)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::Prodtech, &period_1),
             0.0
         );
 
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::MtnMech)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::MtnMech, &period_1),
             0.0
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::MtnElec)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::MtnElec, &period_1),
             0.0
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .resources_loadings()
-                .inner
-                .get(&Resources::Prodtech)
-                .unwrap()
-                .get(&period_1)
-                .unwrap(),
+                .resources_loading(&Resources::Prodtech, &period_1),
             0.0
         );
     }

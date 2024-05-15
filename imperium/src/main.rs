@@ -31,7 +31,7 @@ fn send_http(client: &Client, system_message: SystemMessages) -> String {
     let system_message_json_option = serde_json::to_string(&system_message);
     let system_message_json = match system_message_json_option {
         Ok(string) => string,
-        Err(string) => {
+        Err(_) => {
             error!("Bad deserialization");
             "hello".to_string()
         }

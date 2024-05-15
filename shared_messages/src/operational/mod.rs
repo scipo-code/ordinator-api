@@ -1,4 +1,5 @@
 use actix::Message;
+use serde::Serialize;
 
 use crate::agent_error::AgentError;
 
@@ -17,6 +18,7 @@ pub enum OperationalResponseMessage {
     Status(OperationalResponseStatus),
 }
 
+#[derive(Serialize)]
 pub enum OperationalResponse {
     Status,
 }

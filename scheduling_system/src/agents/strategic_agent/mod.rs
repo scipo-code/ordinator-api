@@ -533,13 +533,14 @@ impl TestAlgorithm for StrategicAgent {
 
         let mut feasible: bool = true;
         for (resource, periods) in aggregated_strategic_load.inner {
-            for (period, load) in periods {
+            for (period, load) in periods.0 {
                 match self
                     .strategic_agent_algorithm
                     .resources_loadings()
                     .inner
                     .get(&resource)
                     .unwrap()
+                    .0
                     .get(&period)
                 {
                     Some(resource_load) if (*resource_load - load).abs() < 0.005 => continue,
@@ -571,6 +572,7 @@ mod tests {
     use chrono::{TimeZone, Utc};
     use shared_messages::strategic::strategic_request_scheduling_message::SingleWorkOrder;
     use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingMessage;
+    use shared_messages::strategic::Periods;
     use tests::strategic_algorithm::optimized_work_orders::OptimizedWorkOrder;
     use tests::strategic_algorithm::optimized_work_orders::OptimizedWorkOrders;
 
@@ -607,21 +609,21 @@ mod tests {
             + chrono::Duration::seconds(59);
         let period = Period::new(1, start_date, end_date);
 
-        let mut resource_capacity: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
-        let mut resource_loadings: HashMap<Resources, HashMap<Period, f64>> = HashMap::new();
+        let mut resource_capacity: HashMap<Resources, Periods> = HashMap::new();
+        let mut resource_loadings: HashMap<Resources, Periods> = HashMap::new();
 
         let mut period_hash_map_150 = HashMap::new();
         let mut period_hash_map_0 = HashMap::new();
         period_hash_map_150.insert(period.clone(), 150.0);
         period_hash_map_0.insert(period.clone(), 0.0);
 
-        resource_capacity.insert(Resources::MtnMech, period_hash_map_150.clone());
-        resource_capacity.insert(Resources::MtnElec, period_hash_map_150.clone());
-        resource_capacity.insert(Resources::Prodtech, period_hash_map_150.clone());
+        resource_capacity.insert(Resources::MtnMech, Periods(period_hash_map_150.clone()));
+        resource_capacity.insert(Resources::MtnElec, Periods(period_hash_map_150.clone()));
+        resource_capacity.insert(Resources::Prodtech, Periods(period_hash_map_150.clone()));
 
-        resource_loadings.insert(Resources::MtnMech, period_hash_map_0.clone());
-        resource_loadings.insert(Resources::MtnElec, period_hash_map_0.clone());
-        resource_loadings.insert(Resources::Prodtech, period_hash_map_0.clone());
+        resource_loadings.insert(Resources::MtnMech, Periods(period_hash_map_0.clone()));
+        resource_loadings.insert(Resources::MtnElec, Periods(period_hash_map_0.clone()));
+        resource_loadings.insert(Resources::Prodtech, Periods(period_hash_map_0.clone()));
 
         let periods: Vec<Period> = vec![Period::from_str("2023-W47-48").unwrap()];
 
@@ -664,6 +666,7 @@ mod tests {
                 .manual_resources_capacity
                 .get(&Resources::MtnMech)
                 .unwrap()
+                .0
                 .get(&period)
                 .unwrap(),
             150.0
@@ -673,6 +676,7 @@ mod tests {
                 .manual_resources_capacity
                 .get(&Resources::MtnElec)
                 .unwrap()
+                .0
                 .get(&period)
                 .unwrap(),
             150.0
@@ -682,6 +686,7 @@ mod tests {
                 .manual_resources_capacity
                 .get(&Resources::Prodtech)
                 .unwrap()
+                .0
                 .get(&period)
                 .unwrap(),
             150.0
@@ -806,9 +811,9 @@ mod tests {
 
         periods_hash_map_16.insert(Period::from_str("2023-W49-50").unwrap(), 16.0);
 
-        capacities.insert(Resources::VenMech, periods_hash_map_16);
+        capacities.insert(Resources::VenMech, Periods(periods_hash_map_16));
 
-        loadings.insert(Resources::VenMech, periods_hash_map_0);
+        loadings.insert(Resources::VenMech, Periods(periods_hash_map_0));
 
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
@@ -893,8 +898,8 @@ mod tests {
 
     pub struct TestResponse {
         pub objective_value: f64,
-        pub manual_resources_capacity: HashMap<Resources, HashMap<Period, f64>>,
-        pub manual_resources_loading: HashMap<Resources, HashMap<Period, f64>>,
+        pub manual_resources_capacity: HashMap<Resources, Periods>,
+        pub manual_resources_loading: HashMap<Resources, Periods>,
         pub priority_queues: PriorityQueues<u32, u32>,
         pub optimized_work_orders: OptimizedWorkOrders,
         pub periods: Vec<Period>,
