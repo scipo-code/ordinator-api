@@ -16,6 +16,7 @@ use crate::{
 };
 use actix::Message;
 use serde::{Deserialize, Serialize};
+use serde_json_any_key::*;
 use std::fmt::Write;
 
 use self::{
@@ -46,6 +47,20 @@ impl Message for TacticalRequestMessage {
     type Result = Result<TacticalResponseMessage, AgentError>;
 }
 
+pub struct TacticalResponse {
+    asset: Asset,
+    tactical_response_message: TacticalResponseMessage,
+}
+
+impl TacticalResponse {
+    pub fn new(asset: Asset, tactical_response_message: TacticalResponseMessage) -> Self {
+        Self {
+            asset,
+            tactical_response_message,
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub enum TacticalResponseMessage {
     Status(TacticalResponseStatus),
@@ -72,66 +87,88 @@ impl Default for TacticalInfeasibleCases {
         }
     }
 }
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TacticalResources {
-    pub resources: HashMap<Resources, HashMap<Day, f64>>,
+    #[serde(with = "any_key_map")]
+    pub resources: HashMap<Resources, Days>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Days {
+    #[serde(with = "any_key_map")]
+    pub days: HashMap<Day, f64>,
+}
+
+impl Days {
+    pub fn new(days: HashMap<Day, f64>) -> Self {
+        Self { days }
+    }
+
+    pub fn get(&self, day: &Day) -> &f64 {
+        self.days.get(day).unwrap()
+    }
+
+    pub fn get_mut(&mut self, day: &Day) -> &mut f64 {
+        self.days.get_mut(day).unwrap()
+    }
 }
 
 impl TacticalResources {
-    pub fn new(resources: HashMap<Resources, HashMap<Day, f64>>) -> Self {
+    pub fn new(resources: HashMap<Resources, Days>) -> Self {
         TacticalResources { resources }
     }
 
-    fn to_string(&self, number_of_periods: u32) -> String {
-        let mut string = String::new();
-        let mut days = self
-            .resources
-            .values()
-            .flat_map(|inner_map| inner_map.keys())
-            .collect::<Vec<_>>();
-        days.sort();
-        days.dedup();
+    // fn to_string(&self, number_of_periods: u32) -> String {
+    //     let mut string = String::new();
+    //     let mut days = self
+    //         .resources
+    //         .values()
+    //         .flat_map(|inner_map| inner_map.keys())
+    //         .collect::<Vec<_>>();
+    //     days.sort();
+    //     days.dedup();
 
-        write!(string, "{:<12}", "Resource").ok();
-        for (nr_day, day) in days.iter().enumerate().take(number_of_periods as usize) {
-            match nr_day {
-                0..=13 => write!(string, "{:>12}", day.date().date_naive().to_string()).ok(),
-                14..=27 => write!(string, "{:>12}", day.date().date_naive().to_string()).ok(),
-                _ => write!(string, "{:>12}", day.date().date_naive().to_string()).ok(),
-            }
-            .unwrap()
-        }
-        writeln!(string).ok();
+    //     write!(string, "{:<12}", "Resource").ok();
+    //     for (nr_day, day) in days.iter().enumerate().take(number_of_periods as usize) {
+    //         match nr_day {
+    //             0..=13 => write!(string, "{:>12}", day.date().date_naive().to_string()).ok(),
+    //             14..=27 => write!(string, "{:>12}", day.date().date_naive().to_string()).ok(),
+    //             _ => write!(string, "{:>12}", day.date().date_naive().to_string()).ok(),
+    //         }
+    //         .unwrap()
+    //     }
+    //     writeln!(string).ok();
 
-        let mut sorted_resources: Vec<_> = self.resources.iter().collect();
-        sorted_resources.sort_by(|resource_a, resource_b| {
-            resource_a.0.to_string().cmp(&resource_b.0.to_string())
-        });
-        for resource in sorted_resources {
-            let inner_map = self.resources.get(resource.0).unwrap();
-            write!(string, "{:<12}", resource.0.variant_name()).unwrap();
-            for (nr_day, day) in days.iter().enumerate().take(number_of_periods as usize) {
-                let value = inner_map.get(day).unwrap();
-                match nr_day {
-                    0..=13 => write!(string, "{:>12}", value.round().to_string()).ok(),
-                    14..=27 => write!(string, "{:>12}", value.round().to_string()).ok(),
-                    _ => write!(string, "{:>12}", value.round()).ok(),
-                }
-                .unwrap();
-            }
-            writeln!(string).ok();
-        }
-        string
-    }
+    //     let mut sorted_resources: Vec<_> = self.resources.iter().collect();
+    //     sorted_resources.sort_by(|resource_a, resource_b| {
+    //         resource_a.0.to_string().cmp(&resource_b.0.to_string())
+    //     });
+    //     for resource in sorted_resources {
+    //         let inner_map = self.resources.get(resource.0).unwrap();
+    //         write!(string, "{:<12}", resource.0.variant_name()).unwrap();
+    //         for (nr_day, day) in days.iter().enumerate().take(number_of_periods as usize) {
+    //             let value = inner_map.get(day).unwrap();
+    //             match nr_day {
+    //                 0..=13 => write!(string, "{:>12}", value.round().to_string()).ok(),
+    //                 14..=27 => write!(string, "{:>12}", value.round().to_string()).ok(),
+    //                 _ => write!(string, "{:>12}", value.round()).ok(),
+    //             }
+    //             .unwrap();
+    //         }
+    //         writeln!(string).ok();
+    // }
+    // string
+    // }
 
     pub fn new_from_data(resources: Vec<Resources>, tactical_days: Vec<Day>, load: f64) -> Self {
-        let mut resource_capacity: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
+        let mut resource_capacity: HashMap<Resources, Days> = HashMap::new();
         for resource in resources {
             let mut days = HashMap::new();
             for day in tactical_days.iter() {
                 days.insert(day.clone(), load);
             }
-            resource_capacity.insert(resource, days);
+
+            resource_capacity.insert(resource, Days { days });
         }
         TacticalResources::new(resource_capacity)
     }
