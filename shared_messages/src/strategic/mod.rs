@@ -15,6 +15,7 @@ use std::{
 
 use actix::Message;
 use serde::{Deserialize, Serialize};
+use serde_json_any_key::any_key_map;
 
 use crate::{
     agent_error::AgentError,
@@ -59,6 +60,7 @@ impl Message for StrategicRequestMessage {
     type Result = Result<StrategicResponseMessage, AgentError>;
 }
 
+#[derive(Serialize)]
 pub struct StrategicResponse {
     asset: Asset,
     strategic_response_message: StrategicResponseMessage,
@@ -159,11 +161,21 @@ impl Default for StrategicInfeasibleCases {
 }
 #[derive(Default, Serialize, Debug, Clone)]
 pub struct StrategicResources {
-    pub inner: HashMap<Resources, HashMap<Period, f64>>,
+    #[serde(with = "any_key_map")]
+    pub inner: HashMap<Resources, Periods>,
+}
+
+#[derive(Serialize, Default, Debug, Clone)]
+pub struct Periods(pub HashMap<Period, f64>);
+
+impl Periods {
+    pub fn insert(&mut self, period: Period, load: f64) {
+        self.0.insert(period, load);
+    }
 }
 
 impl StrategicResources {
-    pub fn new(resources: HashMap<Resources, HashMap<Period, f64>>) -> Self {
+    pub fn new(resources: HashMap<Resources, Periods>) -> Self {
         Self { inner: resources }
     }
 
@@ -177,10 +189,10 @@ impl StrategicResources {
         let resource_entry = self.inner.entry(resource.clone());
         let periods = match resource_entry {
             Entry::Occupied(entry) => entry.into_mut(),
-            Entry::Vacant(entry) => entry.insert(HashMap::new()),
+            Entry::Vacant(entry) => entry.insert(Periods(HashMap::new())),
         };
 
-        match periods.entry(period.clone()) {
+        match periods.0.entry(period.clone()) {
             Entry::Occupied(mut entry) => match load_operation {
                 LoadOperation::Add => *entry.get_mut() += load,
                 LoadOperation::Sub => *entry.get_mut() -= load,
@@ -201,7 +213,7 @@ impl StrategicResources {
         let mut periods = self
             .inner
             .values()
-            .flat_map(|inner_map| inner_map.keys())
+            .flat_map(|inner_map| inner_map.0.keys())
             .collect::<Vec<_>>();
         periods.sort();
         periods.dedup();
@@ -226,7 +238,7 @@ impl StrategicResources {
             let inner_map = self.inner.get(resource).unwrap();
             write!(string, "{:<12}", resource.variant_name()).unwrap();
             for (nr_period, period) in periods.iter().enumerate().take(number_of_periods as usize) {
-                let value = inner_map.get(period).unwrap_or(&0.0);
+                let value = inner_map.0.get(period).unwrap_or(&0.0);
                 if nr_period == 0 {
                     write!(string, "{:>12}", value.round().to_string()).ok();
                 } else if nr_period == 1 || nr_period == 2 {
