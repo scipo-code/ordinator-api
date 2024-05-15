@@ -1,7 +1,7 @@
 use actix::prelude::*;
 use shared_messages::models::time_environment::day::Day;
 use shared_messages::strategic::StrategicResources;
-use shared_messages::tactical::TacticalResources;
+use shared_messages::tactical::{Days, TacticalResources};
 use shared_messages::Asset;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -176,7 +176,7 @@ fn initialize_tactical_resources(
     scheduling_environment: &SchedulingEnvironment,
     start_value: f64,
 ) -> TacticalResources {
-    let mut resource_capacity: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
+    let mut resource_capacity: HashMap<Resources, Days> = HashMap::new();
     for resource in scheduling_environment
         .worker_environment()
         .get_work_centers()
@@ -186,7 +186,7 @@ fn initialize_tactical_resources(
         for day in scheduling_environment.tactical_days().iter() {
             days.insert(day.clone(), start_value);
         }
-        resource_capacity.insert(resource.clone(), days);
+        resource_capacity.insert(resource.clone(), Days::new(days));
     }
     TacticalResources::new(resource_capacity)
 }
