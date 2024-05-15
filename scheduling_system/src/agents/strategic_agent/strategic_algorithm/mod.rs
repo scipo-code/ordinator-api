@@ -374,8 +374,8 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
         match strategic_resources_message {
             StrategicResourceMessage::SetResources(manual_resources) => {
                 let mut count = 0;
-                for (resource, periods) in manual_resources {
-                    for (period_imperium, capacity) in periods {
+                for (resource, periods) in manual_resources.inner {
+                    for (period_imperium, capacity) in periods.0 {
                         let period = self.periods.iter().find(|period| **period == period_imperium).expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
                         self.resources_capacity
                             .inner

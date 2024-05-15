@@ -152,6 +152,7 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
                 );
                 let supervisor_status = SupervisorResponseStatus::new(
                     self.id_supervisor.clone().2.unwrap(),
+                    self.assigned_work_orders.len(),
                     self.supervisor_algorithm.objective_value,
                 );
 
