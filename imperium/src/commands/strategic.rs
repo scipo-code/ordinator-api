@@ -371,11 +371,9 @@ fn generate_manual_resources(client: &Client, toml_path: String) -> StrategicRes
                 )
                 .or_insert(Periods(HashMap::new()));
 
-            *resource_periods
-                .0
-                .entry(period.clone())
-                .or_insert_with(|| operational_agent.hours_per_day * gradual_reduction(i)) +=
-                operational_agent.hours_per_day * gradual_reduction(i)
+            *resource_periods.0.entry(period.clone()).or_insert_with(|| {
+                operational_agent.hours_per_day * days_in_period * gradual_reduction(i)
+            }) += operational_agent.hours_per_day * days_in_period * gradual_reduction(i)
         }
     }
     StrategicResources::new(resources_hash_map)
