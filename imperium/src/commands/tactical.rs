@@ -168,7 +168,7 @@ fn generate_manual_resources(client: &Client, toml_path: String) -> HashMap<Reso
     let days: Vec<Day> = orchestrator::tactical_days(client);
     let contents = std::fs::read_to_string(toml_path).unwrap();
 
-    let config: TomlResources = toml::de::from_str(&contents).unwrap();
+    let config: TomlAgents = toml::de::from_str(&contents).unwrap();
 
     let hours_per_day = 6.0;
 

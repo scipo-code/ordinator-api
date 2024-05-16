@@ -16,6 +16,8 @@ use shared_messages::strategic::StrategicRequestMessage;
 use shared_messages::strategic::StrategicResources;
 use shared_messages::Asset;
 use shared_messages::SystemMessages;
+use shared_messages::TomlAgents;
+use shared_messages::TomlOperational;
 use shared_messages::TomlResources;
 use strum::IntoEnumIterator;
 
@@ -337,7 +339,8 @@ impl StrategicCommands {
 fn generate_manual_resources(client: &Client, toml_path: String) -> StrategicResources {
     let periods: Vec<Period> = crate::commands::orchestrator::strategic_periods(client);
     let contents = std::fs::read_to_string(toml_path).unwrap();
-    let config: TomlResources = toml::from_str(&contents).unwrap();
+
+    let config: TomlAgents = toml::from_str(&contents).unwrap();
 
     let hours_per_day = 6.0;
     let days_in_period = 13.0;
@@ -354,55 +357,69 @@ fn generate_manual_resources(client: &Client, toml_path: String) -> StrategicRes
         }
     };
 
-    let resource_specific = |resource: &Resources| -> f64 {
-        match resource {
-            Resources::Medic => config.medic * hours_per_day * days_in_period,
-            Resources::MtnCran => config.mtncran * hours_per_day * days_in_period,
-            Resources::MtnElec => config.mtnelec * hours_per_day * days_in_period,
-            Resources::MtnInst => config.mtninst * hours_per_day * days_in_period,
-            Resources::MtnLagg => config.mtnlagg * hours_per_day * days_in_period,
-            Resources::MtnMech => config.mtnmech * hours_per_day * days_in_period,
-            Resources::MtnPain => config.mtnpain * hours_per_day * days_in_period,
-            Resources::MtnPipf => config.mtnpipf * hours_per_day * days_in_period,
-            Resources::MtnRigg => config.mtnrigg * hours_per_day * days_in_period,
-            Resources::MtnRope => config.mtnrope * hours_per_day * days_in_period,
-            Resources::MtnRous => config.mtnrous * hours_per_day * days_in_period,
-            Resources::MtnSat => config.mtnsat * hours_per_day * days_in_period,
-            Resources::MtnScaf => config.mtnscaf * hours_per_day * days_in_period,
-            Resources::MtnTele => config.mtntele * hours_per_day * days_in_period,
-            Resources::MtnTurb => config.mtnturb * hours_per_day * days_in_period,
-            Resources::InpSite => config.inpsite * hours_per_day * days_in_period,
-            Resources::Prodlabo => config.prodlabo * hours_per_day * days_in_period,
-            Resources::Prodtech => config.prodtech * hours_per_day * days_in_period,
-            Resources::VenAcco => config.venacco * hours_per_day * days_in_period,
-            Resources::VenComm => config.vencomm * hours_per_day * days_in_period,
-            Resources::VenCran => config.vencran * hours_per_day * days_in_period,
-            Resources::VenElec => config.venelec * hours_per_day * days_in_period,
-            Resources::VenHvac => config.venhvac * hours_per_day * days_in_period,
-            Resources::VenInsp => config.veninsp * hours_per_day * days_in_period,
-            Resources::VenInst => config.veninst * hours_per_day * days_in_period,
-            Resources::VenMech => config.venmech * hours_per_day * days_in_period,
-            Resources::VenMete => config.venmete * hours_per_day * days_in_period,
-            Resources::VenRope => config.venrope * hours_per_day * days_in_period,
-            Resources::VenScaf => config.venscaf * hours_per_day * days_in_period,
-            Resources::VenSubs => config.vensubs * hours_per_day * days_in_period,
-            Resources::QaqcElec => config.qaqcelec * hours_per_day * days_in_period,
-            Resources::QaqcMech => config.qaqcmech * hours_per_day * days_in_period,
-            Resources::QaqcPain => config.qaqcpain * hours_per_day * days_in_period,
-            Resources::WellSupv => config.wellsupv * hours_per_day * days_in_period,
-        }
-    };
-
-    let mut resources_hash_map = HashMap::new();
-    for resource in shared_messages::models::worker_environment::resources::Resources::iter() {
-        let mut periods_hash_map = HashMap::<Period, f64>::new();
+    let mut resources_hash_map = HashMap::<Resources, Periods>::new();
+    for operational_agent in config.operational {
         for (i, period) in periods.clone().iter().enumerate() {
-            periods_hash_map.insert(
-                period.clone(),
-                resource_specific(&resource) * gradual_reduction(i),
-            );
+            let resource_periods = resources_hash_map
+                .entry(
+                    operational_agent
+                        .resources
+                        .resources
+                        .first()
+                        .cloned()
+                        .unwrap(),
+                )
+                .or_insert(Periods(HashMap::new()));
+
+            *resource_periods
+                .0
+                .entry(period.clone())
+                .or_insert_with(|| operational_agent.hours_per_day * gradual_reduction(i)) +=
+                operational_agent.hours_per_day * gradual_reduction(i)
         }
-        resources_hash_map.insert(resource, Periods(periods_hash_map));
     }
     StrategicResources::new(resources_hash_map)
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashMap;
+
+    use serde::{Deserialize, Serialize};
+    #[derive(Debug, Deserialize)]
+    struct Config {
+        test_structs: Vec<TestStruct>,
+    }
+
+    #[derive(Deserialize, Debug)]
+    struct InnerStruct {
+        start: u32,
+        end: u32,
+    }
+
+    #[derive(Deserialize, Debug)]
+    struct TestStruct {
+        field_a: String,
+        field_b: String,
+        inner: InnerStruct,
+    }
+
+    #[test]
+    fn test_toml_deserialization() {
+        let raw_string = r#"
+            [[test_structs]]
+            field_a = "Hello"
+            field_b = "There"
+            inner.start = 2
+            inner.end = 2
+            
+            [[test_structs]]
+            field_a = "Well"
+            field_b = "Hello"
+            inner = {start = 2, end = 3}
+        "#;
+
+        let decoded: Config = toml::from_str(raw_string).unwrap();
+        println!("{:?}", decoded);
+    }
 }
