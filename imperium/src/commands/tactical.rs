@@ -9,7 +9,7 @@ use shared_messages::{
         tactical_status_message::TacticalStatusMessage, Days, TacticalRequest,
         TacticalRequestMessage, TacticalResources,
     },
-    Asset, SystemMessages, TomlResources,
+    Asset, SystemMessages, TomlAgents, TomlResources,
 };
 use strum::IntoEnumIterator;
 
@@ -113,7 +113,7 @@ impl TacticalCommands {
                 ResourceCommands::LoadCapacityFile { toml_path } => {
                     let resources = generate_manual_resources(client, toml_path.clone());
 
-                    let tactical_resources = TacticalResources::new(resources);
+                    let tactical_resources = resources;
                     let tactical_resources_message =
                         TacticalResourceMessage::new_set_resources(tactical_resources);
 
@@ -164,11 +164,11 @@ pub enum ResourceCommands {
 }
 
 /// I will need to generate the manual resources for the tactical agent.
-fn generate_manual_resources(client: &Client, toml_path: String) -> HashMap<Resources, Days> {
+fn generate_manual_resources(client: &Client, toml_path: String) -> TacticalResources {
     let days: Vec<Day> = orchestrator::tactical_days(client);
     let contents = std::fs::read_to_string(toml_path).unwrap();
 
-    let config: TomlAgents = toml::de::from_str(&contents).unwrap();
+    let config: TomlAgents = toml::from_str(&contents).unwrap();
 
     let hours_per_day = 6.0;
 
@@ -180,55 +180,26 @@ fn generate_manual_resources(client: &Client, toml_path: String) -> HashMap<Reso
         }
     };
 
-    let resource_specific = |resource: &Resources| -> f64 {
-        match resource {
-            Resources::Medic => config.medic * hours_per_day, //50.0,
-            Resources::MtnCran => config.mtncran * hours_per_day,
-            Resources::MtnElec => config.mtnelec * hours_per_day,
-            Resources::MtnInst => config.mtninst * hours_per_day,
-            Resources::MtnLagg => config.mtnlagg * hours_per_day, //300.0,
-            Resources::MtnMech => config.mtnmech * hours_per_day,
-            Resources::MtnPain => config.mtnpain * hours_per_day, //300.0,
-            Resources::MtnPipf => config.mtnpipf * hours_per_day, //300.0,
-            Resources::MtnRigg => config.mtnrigg * hours_per_day, //300.0,
-            Resources::MtnRope => config.mtnrope * hours_per_day, //300.0,
-            Resources::MtnRous => config.mtnrous * hours_per_day, //300.0,
-            Resources::MtnSat => config.mtnsat * hours_per_day,   //300.0,
-            Resources::MtnScaf => config.mtnscaf * hours_per_day, //300.0,
-            Resources::MtnTele => config.mtntele * hours_per_day,
-            Resources::MtnTurb => config.mtnturb * hours_per_day,
-            Resources::InpSite => config.inpsite * hours_per_day,
-            Resources::Prodlabo => config.prodlabo * hours_per_day, //300.0,
-            Resources::Prodtech => config.prodtech * hours_per_day,
-            Resources::VenAcco => config.venacco * hours_per_day, //300.0,
-            Resources::VenComm => config.vencomm * hours_per_day, //300.0,
-            Resources::VenCran => config.vencran * hours_per_day, //300.0,
-            Resources::VenElec => config.venelec * hours_per_day, //300.0,
-            Resources::VenHvac => config.venhvac * hours_per_day, //300.0,
-            Resources::VenInsp => config.veninsp * hours_per_day, //300.0,
-            Resources::VenInst => config.veninst * hours_per_day, //300.0,
-            Resources::VenMech => config.venmech * hours_per_day, //300.0,
-            Resources::VenMete => config.venmete * hours_per_day, //300.0,
-            Resources::VenRope => config.venrope * hours_per_day, //300.0,
-            Resources::VenScaf => config.venscaf * hours_per_day, //300.0,
-            Resources::VenSubs => config.vensubs * hours_per_day, //300.0,
-            Resources::QaqcElec => config.qaqcelec * hours_per_day, //300.0,
-            Resources::QaqcMech => config.qaqcmech * hours_per_day, //300.0,
-            Resources::QaqcPain => config.qaqcpain * hours_per_day, //300.0,
-            Resources::WellSupv => config.wellsupv * hours_per_day, //300.0,
-        }
-    };
-
-    let mut resources: HashMap<Resources, Days> = HashMap::new();
-    for resource in shared_messages::models::worker_environment::resources::Resources::iter() {
-        let mut capacity = HashMap::new();
+    let mut resources_hash_map = HashMap::<Resources, Days>::new();
+    for operational_agent in config.operational {
         for (i, day) in days.clone().iter().enumerate() {
-            capacity.insert(
-                day.clone(),
-                resource_specific(&resource) * gradual_reduction(i),
-            );
+            let resource_periods = resources_hash_map
+                .entry(
+                    operational_agent
+                        .resources
+                        .resources
+                        .first()
+                        .cloned()
+                        .unwrap(),
+                )
+                .or_insert(Days::new(HashMap::new()));
+
+            *resource_periods
+                .days
+                .entry(day.clone())
+                .or_insert_with(|| operational_agent.hours_per_day * gradual_reduction(i)) +=
+                operational_agent.hours_per_day * gradual_reduction(i)
         }
-        resources.insert(resource, Days::new(capacity));
     }
-    resources
+    TacticalResources::new(resources_hash_map)
 }

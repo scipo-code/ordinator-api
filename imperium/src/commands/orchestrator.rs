@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::path::Path;
 
 use clap::Subcommand;
 use clap::{self};
@@ -10,7 +9,7 @@ use shared_messages::models::worker_environment::resources;
 use shared_messages::{
     models::worker_environment::resources::Id, orchestrator::OrchestratorRequest, SystemMessages,
 };
-use shared_messages::{Asset, TomlResources};
+use shared_messages::{Asset, TomlAgents, TomlResources};
 
 #[derive(Subcommand, Debug)]
 pub enum OrchestratorCommands {
@@ -194,33 +193,17 @@ impl OrchestratorCommands {
                     crate::send_http(client, message);
                 }
 
-                let operational_resources = [
-                    resources::Resources::MtnMech,
-                    resources::Resources::MtnElec,
-                    resources::Resources::MtnScaf,
-                    resources::Resources::MtnCran,
-                ];
-
                 let contents = std::fs::read_to_string(resource_toml).unwrap();
-                let config: TomlResources = toml::from_str(&contents).unwrap();
+                let config: TomlAgents = toml::from_str(&contents).unwrap();
 
-                let number_of_each_resource = [4, 2, 3, 2];
-                let mut counter = 0;
-                for i in 0..4 {
-                    for _j in 0..number_of_each_resource[i] {
-                        counter += 1;
-                        let create_operational_agent: OrchestratorRequest =
-                            OrchestratorRequest::CreateOperationalAgent(
-                                asset.clone(),
-                                Id::new(
-                                    format!("L111001{}", counter),
-                                    vec![operational_resources[i].clone()],
-                                    None,
-                                ),
-                            );
-                        let message = SystemMessages::Orchestrator(create_operational_agent);
-                        crate::send_http(client, message);
-                    }
+                for agent in config.operational {
+                    let create_operational_agent: OrchestratorRequest =
+                        OrchestratorRequest::CreateOperationalAgent(
+                            asset.clone(),
+                            Id::new(agent.id, agent.resources.resources, None),
+                        );
+                    let message = SystemMessages::Orchestrator(create_operational_agent);
+                    crate::send_http(client, message);
                 }
 
                 SystemMessages::Orchestrator(OrchestratorRequest::AgentStatusRequest)
