@@ -16,3 +16,4 @@ chrono-tz = "0"
 regex = "0"
 clap = { version = "4", features = ["derive"] }
 serde_json_any_key = "2"
+toml = "0.8"

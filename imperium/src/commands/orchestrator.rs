@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::Path;
 
 use clap::Subcommand;
 use clap::{self};
@@ -6,10 +7,10 @@ use reqwest::blocking::Client;
 use shared_messages::models::time_environment::day::Day;
 use shared_messages::models::time_environment::period::Period;
 use shared_messages::models::worker_environment::resources;
-use shared_messages::Asset;
 use shared_messages::{
     models::worker_environment::resources::Id, orchestrator::OrchestratorRequest, SystemMessages,
 };
+use shared_messages::{Asset, TomlResources};
 
 #[derive(Subcommand, Debug)]
 pub enum OrchestratorCommands {
@@ -28,7 +29,7 @@ pub enum OrchestratorCommands {
     OperationalAgent(OperationalAgentCommands),
 
     /// Load a default setup
-    LoadDefaultWorkCrew { asset: Asset },
+    InitializeCrewFromFile { asset: Asset, resource_toml: String },
 }
 
 #[derive(Subcommand, Debug)]
@@ -173,7 +174,10 @@ impl OrchestratorCommands {
                     }
                 }
             }
-            OrchestratorCommands::LoadDefaultWorkCrew { asset } => {
+            OrchestratorCommands::InitializeCrewFromFile {
+                asset,
+                resource_toml,
+            } => {
                 let supervisor_resources = [
                     resources::MainResources::MtnMech,
                     resources::MainResources::MtnElec,
@@ -196,6 +200,9 @@ impl OrchestratorCommands {
                     resources::Resources::MtnScaf,
                     resources::Resources::MtnCran,
                 ];
+
+                let contents = std::fs::read_to_string(resource_toml).unwrap();
+                let config: TomlResources = toml::from_str(&contents).unwrap();
 
                 let number_of_each_resource = [4, 2, 3, 2];
                 let mut counter = 0;
