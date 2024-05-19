@@ -18,7 +18,10 @@ use shared_messages::{
 use shared_messages::models::{work_order::operation::Operation, SchedulingEnvironment};
 use tracing::warn;
 
-use super::{supervisor_agent::SupervisorAgent, SetAddr, UpdateWorkOrderMessage};
+use super::{
+    supervisor_agent::SupervisorAgent, tactical_agent::tactical_algorithm::OperationSolution,
+    SetAddr, UpdateWorkOrderMessage,
+};
 
 #[allow(dead_code)]
 pub struct OperationalAgent {
@@ -57,6 +60,14 @@ impl Actor for OperationalAgent {
             self.id_operational.clone(),
             ctx.address(),
         ));
+    }
+}
+
+impl Handler<OperationSolution> for OperationalAgent {
+    type Result = bool;
+
+    fn handle(&mut self, msg: OperationSolution, ctx: &mut Self::Context) -> Self::Result {
+        todo!()
     }
 }
 

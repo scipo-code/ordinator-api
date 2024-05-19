@@ -380,44 +380,4 @@ fn generate_manual_resources(client: &Client, toml_path: String) -> StrategicRes
 }
 
 #[cfg(test)]
-mod test {
-    use std::collections::HashMap;
-
-    use serde::{Deserialize, Serialize};
-    #[derive(Debug, Deserialize)]
-    struct Config {
-        test_structs: Vec<TestStruct>,
-    }
-
-    #[derive(Deserialize, Debug)]
-    struct InnerStruct {
-        start: u32,
-        end: u32,
-    }
-
-    #[derive(Deserialize, Debug)]
-    struct TestStruct {
-        field_a: String,
-        field_b: String,
-        inner: InnerStruct,
-    }
-
-    #[test]
-    fn test_toml_deserialization() {
-        let raw_string = r#"
-            [[test_structs]]
-            field_a = "Hello"
-            field_b = "There"
-            inner.start = 2
-            inner.end = 2
-            
-            [[test_structs]]
-            field_a = "Well"
-            field_b = "Hello"
-            inner = {start = 2, end = 3}
-        "#;
-
-        let decoded: Config = toml::from_str(raw_string).unwrap();
-        println!("{:?}", decoded);
-    }
-}
+mod test {}

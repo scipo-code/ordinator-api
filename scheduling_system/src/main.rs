@@ -3,6 +3,7 @@ mod api;
 mod data_processing;
 mod init;
 
+use futures_util::{io::AsyncWriteExt, AsyncReadExt};
 use std::{
     io,
     sync::{Arc, Mutex},
@@ -11,12 +12,20 @@ use std::{
 use actix_web::{guard, web, App, HttpServer};
 use agents::orchestrator::Orchestrator;
 use mongodb::{
-    bson::{doc, Document},
-    Client,
+    bson::{self, doc, Document},
+    options::GridFsBucketOptions,
+    Client, GridFsBucket, GridFsDownloadStream,
 };
 use mongodb::{options::ClientOptions, results::InsertOneResult};
-use shared_messages::{models::SchedulingEnvironment, Asset};
-use tracing::info;
+use shared_messages::{
+    models::{
+        time_environment::TimeEnvironment,
+        worker_environment::{self, WorkerEnvironment},
+        SchedulingEnvironment, WorkOrders,
+    },
+    Asset,
+};
+use tracing::{info, Instrument};
 
 use crate::init::logging;
 
@@ -27,35 +36,46 @@ async fn main() -> Result<(), io::Error> {
 
     let log_handles = logging::setup_logging();
 
-    let ordinator_database = Client::with_uri_str("mongodb://localhost:27017")
+    let mongodb_client = Client::with_uri_str("mongodb://localhost:27017")
         .await
         .unwrap();
 
-    let scheduling_environment = match ordinator_database
+    // let scheduling_environment: SchedulingEnvironment = match mongodb_client
+    //     .database("ordinator").gridfs_bucket(GridFsBucketOptions)
+    //     .open_download_stream(, , )
+    //     .collection::("fs")
+    //     .find_one(None, None)
+    //     .await
+    //     .unwrap()
+    // {
+    //     Some(scheduling_environment) => {
+    //         info!("SchedulingEnvironment loaded from mongodb");
+    //         // retrieve_scheduling_environment(mongodb_client).await
+    //         panic!();
+    //     }
+    //     None => {
+    //         let scheduling_environment =
+    //             init::model_initializers::initialize_scheduling_environment(52, 4, 120);
+    //         store_scheduling_environment(mongodb_client, &scheduling_environment).await;
+    //         scheduling_environment
+    //     }
+    // };
+    let scheduling_environment =
+        init::model_initializers::initialize_scheduling_environment(52, 4, 120);
+
+    let grib_fs_bucket = mongodb_client
         .database("ordinator")
-        .collection("scheduling_environment")
-        .find_one(None, None)
-        .await
-        .unwrap()
-    {
-        Some(scheduling_environment) => {
-            info!("SchedulingEnvironment loaded from mongodb");
-            scheduling_environment
-        }
-        None => {
-            let scheduling_environment =
-                init::model_initializers::initialize_scheduling_environment(52, 4, 120);
-            let collection = ordinator_database
-                .database("ordinator")
-                .collection::<SchedulingEnvironment>("scheduling_environment");
-            collection
-                .insert_one(&scheduling_environment, None)
-                .await
-                .unwrap();
-            info!("SchedulingEnvironment created from excel data");
-            scheduling_environment
-        }
-    };
+        .gridfs_bucket(GridFsBucketOptions::default());
+
+    let bson = bson::to_vec(&scheduling_environment).unwrap();
+
+    let file_id = bson::oid::ObjectId::new();
+
+    grib_fs_bucket.open_upload_stream_with_id(
+        bson::Bson::ObjectId(file_id),
+        "scheduling_environment",
+        None,
+    );
 
     let mutex_scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
 
@@ -79,3 +99,39 @@ async fn main() -> Result<(), io::Error> {
     .run()
     .await
 }
+
+async fn store_scheduling_environment(
+    client: Client,
+    scheduling_environment: &SchedulingEnvironment,
+) {
+    let db = client.database("ordinator");
+
+    let grid_fs_bucket = db.gridfs_bucket(GridFsBucketOptions::default());
+
+    let mut upload_stream: mongodb::GridFsUploadStream =
+        grid_fs_bucket.open_upload_stream("data/scheduling_environment.dat", None);
+
+    let bincode_scheduling_environment = bincode::serialize(&scheduling_environment).unwrap();
+
+    dbg!(&bincode_scheduling_environment);
+    upload_stream
+        .write_all(&bincode_scheduling_environment)
+        .await
+        .unwrap();
+    upload_stream.close().await;
+
+    info!("SchedulingEnvironment created from excel data");
+}
+
+// async fn retrieve_scheduling_environment(client: Client) -> SchedulingEnvironment {
+//     let db = client.database("ordinator");
+
+//     let grid_fs_bucket = db.gridfs_bucket(GridFsBucketOptions::default());
+
+//     let scheduling_environment_id = db.collection("fs");
+
+//     let buffer = String::new();
+//     let download_stream: GridFsDownloadStream = grid_fs_bucket.open_download_stream();
+
+//     download_stream.read_to_string()
+// }

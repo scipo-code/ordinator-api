@@ -1,5 +1,6 @@
 use std::{collections::HashMap, ops::DerefMut};
 
+use actix::{dev::Request, Addr};
 use shared_messages::{
     agent_error::AgentError,
     models::{
@@ -13,7 +14,10 @@ use shared_messages::{
     },
 };
 
-use crate::agents::traits::LargeNeighborHoodSearch;
+use crate::agents::{
+    operational_agent::OperationalAgent, tactical_agent::tactical_algorithm::OperationSolution,
+    traits::LargeNeighborHoodSearch,
+};
 
 use super::SupervisorAgent;
 
@@ -33,6 +37,10 @@ impl SupervisorAlgorithm {
             assigned_activities_by_agent: HashMap::new(),
         }
     }
+
+    pub(crate) fn clone(&self) -> SupervisorAlgorithm {
+        todo!()
+    }
 }
 
 impl LargeNeighborHoodSearch for SupervisorAgent {
@@ -50,13 +58,7 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
     }
 
     fn schedule(&mut self) {
-        for (work_order_number, operations) in &self.assigned_work_orders {
-            for (activity_number, operation) in operations {
-                if operation.resource == *self.id_supervisor.1.first().unwrap() {
-                    // self.operational_agent_addrs;
-                }
-            }
-        }
+        todo!();
     }
 
     fn unschedule(&mut self, message: shared_messages::models::work_order::WorkOrderNumber) {
