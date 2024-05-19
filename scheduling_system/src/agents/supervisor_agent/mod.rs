@@ -24,6 +24,7 @@ use self::algorithm::SupervisorAlgorithm;
 
 use super::{
     operational_agent::OperationalAgent,
+    strategic_agent::ScheduleIteration,
     tactical_agent::{tactical_algorithm::OperationSolution, TacticalAgent},
     traits::TestAlgorithm,
     SetAddr, StateLink, UpdateWorkOrderMessage,
@@ -48,6 +49,35 @@ impl Actor for SupervisorAgent {
             self.id_supervisor.clone(),
             ctx.address(),
         ));
+    }
+}
+
+impl Handler<ScheduleIteration> for SupervisorAgent {
+    type Result = ();
+
+    fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
+        for (work_order_number, operations) in &self.assigned_work_orders {
+            // Sync here
+
+            let mut all_messages: Vec<Request<OperationalAgent, OperationSolution>> = vec![];
+            for (activity_number, operation_solution) in operations {
+                // send a message to each relevant agent
+                for (id, operational_addr) in self.operational_agent_addrs {
+                    if id.1.contains(&operation_solution.resource) {
+                        all_messages.push(operational_addr.send(operation_solution.clone()));
+                    }
+                    // self.operational_agent_addrs;
+                }
+            }
+
+            let responses = async {
+                tokio::join!(all_messages);
+            }
+            .into_actor(self);
+            ctx.wait(responses);
+        }
+
+        ctx.notify(ScheduleIteration {});
     }
 }
 
