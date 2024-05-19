@@ -20,7 +20,7 @@ pub enum OrchestratorCommands {
     /// Status of the agents
     AgentStatus,
 
-    /// Access the Superviser agent factory
+    /// Access the Supervisor agent factory
     #[clap(subcommand)]
     SupervisorAgent(SupervisorAgentCommands),
     /// Access the Operational agent factory
@@ -177,22 +177,6 @@ impl OrchestratorCommands {
                 asset,
                 resource_toml,
             } => {
-                let supervisor_resources = [
-                    resources::MainResources::MtnMech,
-                    resources::MainResources::MtnElec,
-                    resources::MainResources::MtnScaf,
-                ];
-
-                for (i, resource) in supervisor_resources.iter().enumerate() {
-                    let create_supervisor_agent: OrchestratorRequest =
-                        OrchestratorRequest::CreateSupervisorAgent(
-                            asset.clone(),
-                            Id::new(format!("L111000{}", i), vec![], Some(resource.clone())),
-                        );
-                    let message = SystemMessages::Orchestrator(create_supervisor_agent);
-                    crate::send_http(client, message);
-                }
-
                 let contents = std::fs::read_to_string(resource_toml).unwrap();
                 let config: TomlAgents = toml::from_str(&contents).unwrap();
 

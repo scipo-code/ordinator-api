@@ -1,3 +1,4 @@
+use actix::Message;
 use priority_queue::PriorityQueue;
 use rand::seq::SliceRandom;
 use serde::Serialize;
@@ -79,6 +80,10 @@ impl OperationSolution {
             resource,
         }
     }
+}
+
+impl Message for OperationSolution {
+    type Result = bool;
 }
 
 impl Display for OperationParameters {

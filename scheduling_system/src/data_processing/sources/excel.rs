@@ -124,31 +124,39 @@ fn populate_work_orders<'a>(
         .map(|(index, header)| (header.clone(), index))
         .collect();
 
+    let mut counter = 0;
     for row in sheet.rows().skip(1) {
-        let mut work_order_number = WorkOrderNumber(0);
-        if row[8] == Data::Empty || row[8] == "" {
+        let work_order_column = 5;
+        if row[work_order_column] == Data::Empty || row[work_order_column] == "" {
+            counter += 1;
             continue;
         }
-
-        if let Some(&index) = header_to_index.get("Order") {
-            if index < row.len() {
-                let value = &row[index];
-                match value {
+        info!("processed {} WorkOrder", counter);
+        let work_order_number: WorkOrderNumber = match header_to_index.get("Order") {
+            Some(column_index) => {
+                let work_order_string = &row[*column_index];
+                match &work_order_string {
                     calamine::Data::Empty => continue,
                     calamine::Data::String(s) => match s.parse::<u32>() {
-                        Ok(n) => work_order_number = WorkOrderNumber(n),
+                        Ok(n) => WorkOrderNumber(n),
                         Err(e) => {
-                            println!("Could not parse work order number as string: {}", e)
+                            dbg!(
+                                "Could not parse work order number as string: {}, ",
+                                e,
+                                work_order_string
+                            );
+                            panic!("WorkOrderNumber could not be extracted from the inputted excel file");
                         }
                     },
-                    calamine::Data::Int(s) => work_order_number = WorkOrderNumber(*s as u32),
-                    calamine::Data::Float(s) => work_order_number = WorkOrderNumber(*s as u32),
+                    calamine::Data::Int(s) => WorkOrderNumber(*s as u32),
+                    calamine::Data::Float(s) => WorkOrderNumber(*s as u32),
                     _ => {
                         todo!("Handle other cases of calamine::Data");
                     }
                 }
             }
-        }
+            None => panic!("Input excel data have rows without a WorkOrderNumber"),
+        };
 
         if work_orders.new_work_order(work_order_number) {
             work_orders.insert(
