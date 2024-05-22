@@ -8,13 +8,13 @@ use super::TimePeriod;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "scheduling_message_type")]
-pub enum StrategicSchedulingMessage {
+pub enum StrategicSchedulingRequest {
     Schedule(SingleWorkOrder),
     ScheduleMultiple(Vec<SingleWorkOrder>),
     ExcludeFromPeriod(SingleWorkOrder),
 }
 
-impl StrategicSchedulingMessage {
+impl StrategicSchedulingRequest {
     pub fn new_single_work_order(
         work_order_number: WorkOrderNumber,
         period_string: String,
@@ -76,7 +76,7 @@ where
     Ok(set)
 }
 
-impl StrategicSchedulingMessage {
+impl StrategicSchedulingRequest {
     pub fn new_schedule_test() -> Self {
         let schedule_single_work_order =
             SingleWorkOrder::new(WorkOrderNumber(2200002020), "2023-W47-48".to_string());

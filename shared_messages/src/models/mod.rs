@@ -14,6 +14,7 @@ use crate::models::work_order::WorkOrder;
 use crate::models::worker_environment::WorkerEnvironment;
 
 use self::time_environment::TimeEnvironment;
+use self::work_order::operation::{ActivityNumber, Operation};
 use self::work_order::WorkOrderNumber;
 
 #[derive(Deserialize, Serialize)]
@@ -34,6 +35,14 @@ impl SchedulingEnvironment {
             worker_environment,
             time_environment,
         }
+    }
+
+    pub fn operation(
+        &self,
+        work_order_number: &WorkOrderNumber,
+        activity_number: &ActivityNumber,
+    ) -> &Operation {
+        self.work_orders.inner.get(work_order_number).expect("WorkOrder not found in SchedulinEnvironment. User is responsible for calling this method with the right arguments").operations.get(activity_number).expect("ActivityNumber is not present in the WorkOrder")
     }
 
     pub fn clone_strategic_periods(&self) -> Vec<Period> {

@@ -49,6 +49,7 @@ impl Actor for SupervisorAgent {
             self.id_supervisor.clone(),
             ctx.address(),
         ));
+        ctx.notify(ScheduleIteration {});
     }
 }
 
@@ -62,7 +63,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
             let mut all_messages: Vec<Request<OperationalAgent, OperationSolution>> = vec![];
             for (activity_number, operation_solution) in operations {
                 // send a message to each relevant agent
-                for (id, operational_addr) in self.operational_agent_addrs {
+                for (id, operational_addr) in &self.operational_agent_addrs {
                     if id.1.contains(&operation_solution.resource) {
                         all_messages.push(operational_addr.send(operation_solution.clone()));
                     }
@@ -70,11 +71,10 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
                 }
             }
 
-            let responses = async {
-                tokio::join!(all_messages);
+            dbg!("About to daily schedule {}", work_order_number);
+            for message in all_messages {
+                ctx.wait(message.into_actor(self).map(|_, _, _| ()))
             }
-            .into_actor(self);
-            ctx.wait(responses);
         }
 
         ctx.notify(ScheduleIteration {});

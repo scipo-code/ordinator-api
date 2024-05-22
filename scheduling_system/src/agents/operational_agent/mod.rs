@@ -1,3 +1,4 @@
+pub mod algorithm;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -7,16 +8,21 @@ use actix::prelude::*;
 use chrono::{DateTime, Utc};
 use shared_messages::{
     agent_error::AgentError,
-    models::worker_environment::resources::Id,
+    models::{
+        work_order::{operation::ActivityNumber, WorkOrderNumber},
+        worker_environment::resources::Id,
+    },
     operational::{
-        operational_response_status::OperationalResponseStatus, OperationalRequestMessage,
+        operational_response_status::OperationalStatusResponse, OperationalRequestMessage,
         OperationalResponseMessage,
     },
     StatusMessage, StopMessage,
 };
 
 use shared_messages::models::{work_order::operation::Operation, SchedulingEnvironment};
-use tracing::warn;
+use tracing::{info, warn};
+
+use self::algorithm::OperationalAlgorithm;
 
 use super::{
     supervisor_agent::SupervisorAgent, tactical_agent::tactical_algorithm::OperationSolution,
@@ -35,10 +41,6 @@ pub struct OperationalAgent {
     supervisor_agent_addr: Addr<SupervisorAgent>,
 }
 
-struct OperationalAlgorithm {
-    objective_value: f64,
-}
-
 #[allow(dead_code)]
 pub struct Availability {
     start: DateTime<Utc>,
@@ -47,10 +49,12 @@ pub struct Availability {
 
 #[allow(dead_code)]
 pub struct AssignedWork {
-    work: u32,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
+    work: f64,
+    assigned: bool,
+    operation_solution: OperationSolution,
 }
+
+type Assigned = bool;
 
 impl Actor for OperationalAgent {
     type Context = Context<Self>;
@@ -66,8 +70,29 @@ impl Actor for OperationalAgent {
 impl Handler<OperationSolution> for OperationalAgent {
     type Result = bool;
 
-    fn handle(&mut self, msg: OperationSolution, ctx: &mut Self::Context) -> Self::Result {
-        todo!()
+    fn handle(
+        &mut self,
+        operation_solution: OperationSolution,
+        ctx: &mut Self::Context,
+    ) -> Self::Result {
+        let scheduling_environment = self.scheduling_environment.lock().unwrap();
+
+        let assigned = AssignedWork {
+            work: scheduling_environment
+                .operation(
+                    &operation_solution.work_order_number,
+                    &operation_solution.activity_number,
+                )
+                .work_remaining(),
+            assigned: false,
+            operation_solution: operation_solution.clone(),
+        };
+
+        self.assigned.push(assigned);
+
+        self.operational_algorithm.initilize_operation(assigned);
+        info!(id = ?self.id_operational, operation = ?operation_solution);
+        true
     }
 }
 
@@ -91,9 +116,7 @@ impl OperationalAgentBuilder {
         OperationalAgentBuilder {
             id_operational,
             scheduling_environment,
-            operational_algorithm: OperationalAlgorithm {
-                objective_value: 0.0,
-            },
+            operational_algorithm: OperationalAlgorithm::new(),
             capacity: None,
             availability: None,
             assigned: vec![],
@@ -150,7 +173,7 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
     ) -> Self::Result {
         match request {
             OperationalRequestMessage::Status => {
-                let operational_response_status = OperationalResponseStatus::new(
+                let operational_response_status = OperationalStatusResponse::new(
                     self.id_operational.clone(),
                     self.assigned.len(),
                     self.operational_algorithm.objective_value,

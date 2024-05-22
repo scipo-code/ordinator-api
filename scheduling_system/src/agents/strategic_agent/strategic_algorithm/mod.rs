@@ -14,9 +14,9 @@ use rand::prelude::SliceRandom;
 
 use priority_queue::PriorityQueue;
 use shared_messages::agent_error::AgentError;
-use shared_messages::strategic::strategic_request_periods_message::StrategicTimeMessage;
-use shared_messages::strategic::strategic_request_resources_message::StrategicResourceMessage;
-use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingMessage;
+use shared_messages::strategic::strategic_request_periods_message::StrategicTimeRequest;
+use shared_messages::strategic::strategic_request_resources_message::StrategicResourceRequest;
+use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
 
 use crate::agents::traits::LargeNeighborHoodSearch;
 use shared_messages::models::WorkOrders;
@@ -271,11 +271,11 @@ impl Display for StrategicAlgorithm {
 
 impl LargeNeighborHoodSearch for StrategicAlgorithm {
 
-    type SchedulingMessage = StrategicSchedulingMessage;
+    type SchedulingRequest = StrategicSchedulingRequest;
     type SchedulingResponse = StrategicResponseScheduling;
-    type ResourceMessage = StrategicResourceMessage;
+    type ResourceRequest = StrategicResourceRequest;
     type ResourceResponse = StrategicResponseResources;
-    type TimeMessage = StrategicTimeMessage;
+    type TimeRequest = StrategicTimeRequest;
     type TimeResponse = StrategicResponsePeriods;
 
     type Error = AgentError;
@@ -367,12 +367,12 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
     #[instrument(skip_all, level = "info")]
     fn update_resources_state(
         &mut self,
-        strategic_resources_message: Self::ResourceMessage,
+        strategic_resources_message: Self::ResourceRequest,
     ) -> Result<Self::ResourceResponse, AgentError> 
     {
     //tracing::info!("update_resources_state called");
         match strategic_resources_message {
-            StrategicResourceMessage::SetResources(manual_resources) => {
+            StrategicResourceRequest::SetResources(manual_resources) => {
                 let mut count = 0;
                 for (resource, periods) in manual_resources.inner {
                     for (period_imperium, capacity) in periods.0 {
@@ -389,7 +389,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
 
                 Ok(StrategicResponseResources::UpdatedResources(count))
             }
-            StrategicResourceMessage::GetLoadings {
+            StrategicResourceRequest::GetLoadings {
                 periods_end: _,
                 select_resources: _,
             } => {
@@ -398,14 +398,14 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 let strategic_response_resources = StrategicResponseResources::Loading(loading.clone());
                 Ok(strategic_response_resources)
             }
-            StrategicResourceMessage::GetCapacities { periods_end: _, select_resources: _ } => 
+            StrategicResourceRequest::GetCapacities { periods_end: _, select_resources: _ } => 
             {         
                 let capacities = self.resources_capacities();
 
                 let strategic_response_resources = StrategicResponseResources::Loading(capacities.clone());
                 Ok(strategic_response_resources)
             }
-            StrategicResourceMessage::GetPercentageLoadings { periods_end:_, resources: _ } => {
+            StrategicResourceRequest::GetPercentageLoadings { periods_end:_, resources: _ } => {
                 let capacities = self.resources_capacities();
                 let loadings = self.resources_loadings();
 
@@ -428,17 +428,17 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
     }
 
     #[allow(dead_code)]
-    fn update_time_state(&mut self, _time_message: Self::TimeMessage) -> Result<Self::TimeResponse, AgentError> 
+    fn update_time_state(&mut self, _time_message: Self::TimeRequest) -> Result<Self::TimeResponse, AgentError> 
         { todo!() }
 
     #[instrument(level = "info", skip_all)]
     fn update_scheduling_state(
         &mut self,
-        strategic_scheduling_message: StrategicSchedulingMessage,
+        strategic_scheduling_message: StrategicSchedulingRequest,
     ) -> Result<Self::SchedulingResponse, AgentError>
 {
         match strategic_scheduling_message {
-            StrategicSchedulingMessage::Schedule(schedule_work_order) => {
+            StrategicSchedulingRequest::Schedule(schedule_work_order) => {
                 let work_order_number = schedule_work_order.work_order_number();
                 let period = self
                     .periods
@@ -458,7 +458,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                     None => Err(AgentError::StateUpdateError("Could not update strategic scheduling state".to_string())),
                 }
             }
-            StrategicSchedulingMessage::ScheduleMultiple(schedule_work_orders) => {
+            StrategicSchedulingRequest::ScheduleMultiple(schedule_work_orders) => {
                 let mut output_string = String::new();
                 let mut work_orders: Vec<WorkOrderNumber> = vec![];
                 let mut periods: Vec<Period> = vec![];
@@ -490,7 +490,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 Ok(StrategicResponseScheduling::new(work_orders, periods))
                  
             }
-            StrategicSchedulingMessage::ExcludeFromPeriod(exclude_from_period) => {
+            StrategicSchedulingRequest::ExcludeFromPeriod(exclude_from_period) => {
                 let work_order_number = exclude_from_period.work_order_number();
                 let period = self.periods.iter().find(|period| {
                     period.period_string() == exclude_from_period.period_string().clone()
@@ -690,10 +690,10 @@ mod tests {
 
         scheduler_agent_algorithm.set_optimized_work_order(work_order_number, optimized_work_order);
 
-        let strategic_scheduling_message = StrategicSchedulingMessage::Schedule(
+        let strategic_scheduling_message = StrategicSchedulingRequest::Schedule(
             SingleWorkOrder::new(work_order_number, "2023-W47-48".to_string()),
         );
-        let strategic_resources_message = StrategicResourceMessage::new_test();
+        let strategic_resources_message = StrategicResourceRequest::new_test();
 
         assert_eq!(
             scheduler_agent_algorithm.resources_capacity.inner
