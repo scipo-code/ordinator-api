@@ -21,9 +21,9 @@ use crate::agents::{
 
 use super::SupervisorAgent;
 
-pub struct SupervisorSchedulingMessage;
-pub struct SupervisorResourceMessage;
-pub struct SupervisorTimeMessage;
+pub struct SupervisorSchedulingRequest;
+pub struct SupervisorResourceRequest;
+pub struct SupervisorTimeRequest;
 
 pub struct SupervisorAlgorithm {
     pub objective_value: f64,
@@ -44,11 +44,11 @@ impl SupervisorAlgorithm {
 }
 
 impl LargeNeighborHoodSearch for SupervisorAgent {
-    type SchedulingMessage = SupervisorSchedulingMessage;
+    type SchedulingRequest = SupervisorSchedulingRequest;
     type SchedulingResponse = SupervisorResponseScheduling;
-    type ResourceMessage = SupervisorResourceMessage;
+    type ResourceRequest = SupervisorResourceRequest;
     type ResourceResponse = SupervisorResponseResources;
-    type TimeMessage = SupervisorTimeMessage;
+    type TimeRequest = SupervisorTimeRequest;
     type TimeResponse = SupervisorResponseTime;
 
     type Error = AgentError;
@@ -67,21 +67,21 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
 
     fn update_scheduling_state(
         &mut self,
-        message: Self::SchedulingMessage,
+        message: Self::SchedulingRequest,
     ) -> Result<Self::SchedulingResponse, Self::Error> {
         todo!()
     }
 
     fn update_time_state(
         &mut self,
-        message: Self::TimeMessage,
+        message: Self::TimeRequest,
     ) -> Result<Self::TimeResponse, Self::Error> {
         todo!()
     }
 
     fn update_resources_state(
         &mut self,
-        message: Self::ResourceMessage,
+        message: Self::ResourceRequest,
     ) -> Result<Self::ResourceResponse, Self::Error> {
         todo!()
     }
