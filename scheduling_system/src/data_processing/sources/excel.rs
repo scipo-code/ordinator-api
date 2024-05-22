@@ -266,7 +266,7 @@ fn create_new_operation(
     row: &[calamine::Data],
     header_to_index: &HashMap<String, usize>,
 ) -> Result<Operation, Error> {
-    let default_future_date = Utc.with_ymd_and_hms(2026, 1, 1, 7, 0, 0).unwrap();
+    let _default_future_date = Utc.with_ymd_and_hms(2026, 1, 1, 7, 0, 0).unwrap();
 
     let work_possible_headers = ["Remaining Work", "Work_Remaining", "Work_Planned", "Work"];
     let earliest_start_date_headers = [

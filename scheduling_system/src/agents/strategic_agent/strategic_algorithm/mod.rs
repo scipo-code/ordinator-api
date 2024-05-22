@@ -459,7 +459,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 }
             }
             StrategicSchedulingRequest::ScheduleMultiple(schedule_work_orders) => {
-                let mut output_string = String::new();
+                let _output_string = String::new();
                 let mut work_orders: Vec<WorkOrderNumber> = vec![];
                 let mut periods: Vec<Period> = vec![];
                 for schedule_work_order in schedule_work_orders {
