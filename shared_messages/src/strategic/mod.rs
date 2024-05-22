@@ -24,9 +24,9 @@ use crate::{
 };
 
 use self::{
-    strategic_request_periods_message::StrategicTimeMessage,
-    strategic_request_resources_message::{ManualResource, StrategicResourceMessage},
-    strategic_request_scheduling_message::{StrategicSchedulingMessage, WorkOrderStatusInPeriod},
+    strategic_request_periods_message::StrategicTimeRequest,
+    strategic_request_resources_message::{ManualResource, StrategicResourceRequest},
+    strategic_request_scheduling_message::{StrategicSchedulingRequest, WorkOrderStatusInPeriod},
     strategic_request_status_message::StrategicStatusMessage,
     strategic_response_periods::StrategicResponsePeriods,
     strategic_response_resources::StrategicResponseResources,
@@ -50,9 +50,9 @@ impl StrategicRequest {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum StrategicRequestMessage {
     Status(StrategicStatusMessage),
-    Scheduling(StrategicSchedulingMessage),
-    Resources(StrategicResourceMessage),
-    Periods(StrategicTimeMessage),
+    Scheduling(StrategicSchedulingRequest),
+    Resources(StrategicResourceRequest),
+    Periods(StrategicTimeRequest),
     Test,
 }
 

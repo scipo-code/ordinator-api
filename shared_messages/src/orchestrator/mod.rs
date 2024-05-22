@@ -8,7 +8,7 @@ use crate::models::time_environment::period::Period;
 use crate::models::work_order::status_codes::StatusCodes;
 use crate::models::work_order::WorkOrderNumber;
 use crate::models::worker_environment::resources::Id;
-use crate::operational::operational_response_status::OperationalResponseStatus;
+use crate::operational::operational_response_status::OperationalStatusResponse;
 use crate::strategic::strategic_response_status::{StrategicResponseStatus, WorkOrdersStatus};
 use crate::supervisor::supervisor_response_status::SupervisorResponseStatus;
 use crate::tactical::tactical_response_status::TacticalResponseStatus;
@@ -62,7 +62,7 @@ pub struct AgentStatus {
     pub strategic_status: StrategicResponseStatus,
     pub tactical_status: TacticalResponseStatus,
     pub supervisor_status: Vec<SupervisorResponseStatus>,
-    pub operational_status: Vec<OperationalResponseStatus>,
+    pub operational_status: Vec<OperationalStatusResponse>,
 }
 
 impl AgentStatus {
@@ -70,7 +70,7 @@ impl AgentStatus {
         strategic_status: StrategicResponseStatus,
         tactical_status: TacticalResponseStatus,
         supervisor_status: Vec<SupervisorResponseStatus>,
-        operational_status: Vec<OperationalResponseStatus>,
+        operational_status: Vec<OperationalStatusResponse>,
     ) -> Self {
         Self {
             strategic_status,

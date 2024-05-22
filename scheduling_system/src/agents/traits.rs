@@ -3,11 +3,11 @@ use std::fmt;
 use shared_messages::{models::work_order::WorkOrderNumber, AlgorithmState};
 
 pub trait LargeNeighborHoodSearch {
-    type SchedulingMessage;
+    type SchedulingRequest;
     type SchedulingResponse;
-    type ResourceMessage;
+    type ResourceRequest;
     type ResourceResponse;
-    type TimeMessage;
+    type TimeRequest;
     type TimeResponse;
 
     type Error;
@@ -20,17 +20,17 @@ pub trait LargeNeighborHoodSearch {
 
     fn update_scheduling_state(
         &mut self,
-        message: Self::SchedulingMessage,
+        message: Self::SchedulingRequest,
     ) -> Result<Self::SchedulingResponse, Self::Error>;
 
     fn update_time_state(
         &mut self,
-        message: Self::TimeMessage,
+        message: Self::TimeRequest,
     ) -> Result<Self::TimeResponse, Self::Error>;
 
     fn update_resources_state(
         &mut self,
-        message: Self::ResourceMessage,
+        message: Self::ResourceRequest,
     ) -> Result<Self::ResourceResponse, Self::Error>;
 }
 

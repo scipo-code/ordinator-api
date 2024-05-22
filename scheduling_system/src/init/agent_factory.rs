@@ -129,13 +129,22 @@ impl AgentFactory {
         id_supervisor: Id,
         tactical_agent_addr: Addr<TacticalAgent>,
     ) -> Addr<SupervisorAgent> {
-        let supervisor_agent = SupervisorAgent::new(
-            id_supervisor,
-            asset,
-            self.scheduling_environment.clone(),
-            tactical_agent_addr,
-        );
-        supervisor_agent.start()
+        let (sender, receiver) = std::sync::mpsc::channel::<Addr<SupervisorAgent>>();
+
+        let scheduling_environment = Arc::clone(&self.scheduling_environment);
+
+        Arbiter::new().spawn_fn(move || {
+            let supervisor_addr = SupervisorAgent::new(
+                id_supervisor,
+                asset,
+                scheduling_environment,
+                tactical_agent_addr,
+            )
+            .start();
+            sender.send(supervisor_addr).unwrap();
+        });
+
+        receiver.recv().unwrap()
     }
 
     pub fn build_operational_agent(

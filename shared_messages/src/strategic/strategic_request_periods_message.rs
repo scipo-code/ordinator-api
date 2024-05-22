@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "scheduler_message_type")]
-pub struct StrategicTimeMessage {
+pub struct StrategicTimeRequest {
     pub periods: Vec<i32>,
 }
 

@@ -6,7 +6,7 @@ use shared_messages::{
     agent_error::AgentError,
     models::{
         time_environment::day::Day,
-        work_order::{operation::ActivityNumber, WorkOrderNumber},
+        work_order::{self, operation::ActivityNumber, WorkOrderNumber},
         worker_environment::resources::{MainResources, Resources},
     },
     tactical::{
@@ -71,13 +71,22 @@ pub struct OperationParameters {
 pub struct OperationSolution {
     pub scheduled: Vec<(Day, f64)>,
     pub resource: Resources,
+    pub work_order_number: WorkOrderNumber,
+    pub activity_number: ActivityNumber,
 }
 
 impl OperationSolution {
-    pub fn new(scheduled: Vec<(Day, f64)>, resource: Resources) -> OperationSolution {
+    pub fn new(
+        scheduled: Vec<(Day, f64)>,
+        resource: Resources,
+        work_order_number: WorkOrderNumber,
+        activity_number: ActivityNumber,
+    ) -> OperationSolution {
         OperationSolution {
             scheduled,
             resource,
+            work_order_number,
+            activity_number,
         }
     }
 }
@@ -472,7 +481,12 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     };
                 }
 
-                let operation_solution = OperationSolution::new(activity_load, resource);
+                let operation_solution = OperationSolution::new(
+                    activity_load,
+                    resource,
+                    current_work_order_number,
+                    activity.clone(),
+                );
                 operation_solutions.insert(*activity, operation_solution);
             }
             debug!(

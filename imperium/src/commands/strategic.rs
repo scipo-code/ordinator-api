@@ -6,9 +6,9 @@ use reqwest::blocking::Client;
 use shared_messages::models::time_environment::period::Period;
 use shared_messages::models::work_order::WorkOrderNumber;
 use shared_messages::models::worker_environment::resources::Resources;
-use shared_messages::strategic::strategic_request_resources_message::StrategicResourceMessage;
+use shared_messages::strategic::strategic_request_resources_message::StrategicResourceRequest;
 use shared_messages::strategic::strategic_request_scheduling_message::SingleWorkOrder;
-use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingMessage;
+use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
 use shared_messages::strategic::strategic_request_status_message::StrategicStatusMessage;
 use shared_messages::strategic::Periods;
 use shared_messages::strategic::StrategicRequest;
@@ -144,8 +144,8 @@ impl StrategicCommands {
                     let schedule_single_work_order =
                         SingleWorkOrder::new(work_order_number, schedule.period.clone());
 
-                    let strategic_scheduling_message: StrategicSchedulingMessage =
-                        StrategicSchedulingMessage::Schedule(schedule_single_work_order);
+                    let strategic_scheduling_message: StrategicSchedulingRequest =
+                        StrategicSchedulingRequest::Schedule(schedule_single_work_order);
 
                     let strategic_request_message =
                         StrategicRequestMessage::Scheduling(strategic_scheduling_message);
@@ -165,8 +165,8 @@ impl StrategicCommands {
                     let exclude_single_work_order =
                         SingleWorkOrder::new(work_order_number, period.clone());
 
-                    let strategic_scheduling_message: StrategicSchedulingMessage =
-                        StrategicSchedulingMessage::ExcludeFromPeriod(exclude_single_work_order);
+                    let strategic_scheduling_message: StrategicSchedulingRequest =
+                        StrategicSchedulingRequest::ExcludeFromPeriod(exclude_single_work_order);
 
                     let strategic_request_message =
                         StrategicRequestMessage::Scheduling(strategic_scheduling_message);
@@ -198,7 +198,7 @@ impl StrategicCommands {
                         None => None,
                     };
 
-                    let strategic_resources_message = StrategicResourceMessage::GetLoadings {
+                    let strategic_resources_message = StrategicResourceRequest::GetLoadings {
                         periods_end: periods_end.to_string(),
                         select_resources: resources,
                     };
@@ -228,7 +228,7 @@ impl StrategicCommands {
                         None => None,
                     };
 
-                    let strategic_resources_message = StrategicResourceMessage::GetCapacities {
+                    let strategic_resources_message = StrategicResourceRequest::GetCapacities {
                         periods_end: periods_end.to_string(),
                         select_resources: resources,
                     };
@@ -260,7 +260,7 @@ impl StrategicCommands {
                     };
 
                     let strategic_resources_message =
-                        StrategicResourceMessage::GetPercentageLoadings {
+                        StrategicResourceRequest::GetPercentageLoadings {
                             periods_end: periods_end.to_string(),
                             resources,
                         };
@@ -311,7 +311,7 @@ impl StrategicCommands {
                     let resources = generate_manual_resources(client, toml_path.clone());
 
                     let strategic_resources_message =
-                        StrategicResourceMessage::new_set_resources(resources);
+                        StrategicResourceRequest::new_set_resources(resources);
 
                     let strategic_request_message =
                         StrategicRequestMessage::Resources(strategic_resources_message);
