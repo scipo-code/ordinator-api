@@ -1,1 +1,3 @@
-pub enum OperationalStatusRequest {}
+pub enum OperationalStatusRequest {
+    General,
+}

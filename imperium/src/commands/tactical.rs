@@ -5,7 +5,7 @@ use reqwest::blocking::Client;
 use shared_messages::{
     models::{time_environment::day::Day, worker_environment::resources::Resources},
     tactical::{
-        tactical_resources_message::TacticalResourceMessage,
+        tactical_resources_message::TacticalResourceRequest,
         tactical_status_message::TacticalStatusMessage, Days, TacticalRequest,
         TacticalRequestMessage, TacticalResources,
     },
@@ -57,7 +57,7 @@ impl TacticalCommands {
                     days_end,
                     select_resources,
                 } => {
-                    let tactical_resources_message = TacticalResourceMessage::GetCapacities {
+                    let tactical_resources_message = TacticalResourceRequest::GetCapacities {
                         days_end: days_end.to_string(),
                         select_resources: select_resources.clone(),
                     };
@@ -76,7 +76,7 @@ impl TacticalCommands {
                     days_end,
                     select_resources,
                 } => {
-                    let tactical_resources_message = TacticalResourceMessage::GetLoadings {
+                    let tactical_resources_message = TacticalResourceRequest::GetLoadings {
                         days_end: days_end.to_string(),
                         select_resources: select_resources.clone(),
                     };
@@ -96,7 +96,7 @@ impl TacticalCommands {
                     select_resources,
                 } => {
                     let tactical_resources_message =
-                        TacticalResourceMessage::GetPercentageLoadings {
+                        TacticalResourceRequest::GetPercentageLoadings {
                             days_end: days_end.to_string(),
                             resources: select_resources.clone(),
                         };
@@ -115,7 +115,7 @@ impl TacticalCommands {
 
                     let tactical_resources = resources;
                     let tactical_resources_message =
-                        TacticalResourceMessage::new_set_resources(tactical_resources);
+                        TacticalResourceRequest::new_set_resources(tactical_resources);
 
                     let tactical_request_message =
                         TacticalRequestMessage::Resources(tactical_resources_message);

@@ -61,27 +61,27 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
         todo!();
     }
 
-    fn unschedule(&mut self, message: shared_messages::models::work_order::WorkOrderNumber) {
+    fn unschedule(&mut self, _message: shared_messages::models::work_order::WorkOrderNumber) {
         todo!()
     }
 
     fn update_scheduling_state(
         &mut self,
-        message: Self::SchedulingRequest,
+        _message: Self::SchedulingRequest,
     ) -> Result<Self::SchedulingResponse, Self::Error> {
         todo!()
     }
 
     fn update_time_state(
         &mut self,
-        message: Self::TimeRequest,
+        _message: Self::TimeRequest,
     ) -> Result<Self::TimeResponse, Self::Error> {
         todo!()
     }
 
     fn update_resources_state(
         &mut self,
-        message: Self::ResourceRequest,
+        _message: Self::ResourceRequest,
     ) -> Result<Self::ResourceResponse, Self::Error> {
         todo!()
     }

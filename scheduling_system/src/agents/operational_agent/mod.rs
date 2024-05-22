@@ -1,6 +1,6 @@
 pub mod algorithm;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
 };
 
@@ -36,7 +36,7 @@ pub struct OperationalAgent {
     operational_algorithm: OperationalAlgorithm,
     capacity: Option<f32>,
     availability: Option<Vec<Availability>>,
-    assigned: Vec<AssignedWork>,
+    assigned: HashSet<(Assigned, WorkOrderNumber, ActivityNumber)>,
     backup_activities: Option<HashMap<u32, Operation>>,
     supervisor_agent_addr: Addr<SupervisorAgent>,
 }
@@ -88,9 +88,14 @@ impl Handler<OperationSolution> for OperationalAgent {
             operation_solution: operation_solution.clone(),
         };
 
-        self.assigned.push(assigned);
+        self.assigned.insert((
+            false,
+            operation_solution.work_order_number,
+            operation_solution.activity_number,
+        ));
 
-        self.operational_algorithm.initilize_operation(assigned);
+        self.operational_algorithm
+            .insert_optimized_operation(assigned);
         info!(id = ?self.id_operational, operation = ?operation_solution);
         true
     }
@@ -102,7 +107,7 @@ pub struct OperationalAgentBuilder {
     operational_algorithm: OperationalAlgorithm,
     capacity: Option<f32>,
     availability: Option<Vec<Availability>>,
-    assigned: Vec<AssignedWork>,
+    assigned: HashSet<(Assigned, WorkOrderNumber, ActivityNumber)>,
     backup_activities: Option<HashMap<u32, Operation>>,
     supervisor_agent_addr: Addr<SupervisorAgent>,
 }
@@ -119,7 +124,7 @@ impl OperationalAgentBuilder {
             operational_algorithm: OperationalAlgorithm::new(),
             capacity: None,
             availability: None,
-            assigned: vec![],
+            assigned: HashSet::new(),
             backup_activities: None,
             supervisor_agent_addr,
         }
@@ -138,7 +143,10 @@ impl OperationalAgentBuilder {
     }
 
     #[allow(dead_code)]
-    pub fn with_assigned(mut self, assigned: Vec<AssignedWork>) -> Self {
+    pub fn with_assigned(
+        mut self,
+        assigned: HashSet<(Assigned, WorkOrderNumber, ActivityNumber)>,
+    ) -> Self {
         self.assigned = assigned;
         self
     }
@@ -172,7 +180,7 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
         _ctx: &mut Self::Context,
     ) -> Self::Result {
         match request {
-            OperationalRequestMessage::Status => {
+            OperationalRequestMessage::Status(_) => {
                 let operational_response_status = OperationalStatusResponse::new(
                     self.id_operational.clone(),
                     self.assigned.len(),
@@ -182,6 +190,9 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
                     operational_response_status,
                 ))
             }
+            OperationalRequestMessage::Scheduling(_) => todo!(),
+            OperationalRequestMessage::Resource(_) => todo!(),
+            OperationalRequestMessage::Time(_) => todo!(),
         }
     }
 }
