@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::models::time_environment::period::Period;
-use crate::models::work_order::unloading_point::{self, UnloadingPoint};
+use crate::models::work_order::unloading_point::{UnloadingPoint};
 use crate::models::work_order::WorkOrderNumber;
 use crate::models::work_order::{
     order_type::WorkOrderType, priority::Priority, revision::Revision, status_codes::MaterialStatus,

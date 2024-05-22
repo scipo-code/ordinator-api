@@ -856,7 +856,7 @@ pub mod tests {
         tactical_agent::tactical_algorithm::OperationSolution, traits::LargeNeighborHoodSearch,
     };
 
-    use super::{Day, OperationParameters, OptimizedTacticalWorkOrder, TacticalResources};
+    use super::{Day, OperationParameters, OptimizedTacticalWorkOrder};
     use shared_messages::models::{time_environment::period::Period, work_order::ActivityRelation};
 
     #[test]
