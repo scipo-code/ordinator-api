@@ -7,7 +7,7 @@ use crate::models::{
 };
 
 use crate::models::worker_environment::resources::Resources;
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
