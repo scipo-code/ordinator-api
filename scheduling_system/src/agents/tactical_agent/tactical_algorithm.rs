@@ -10,14 +10,14 @@ use shared_messages::{
         worker_environment::resources::{MainResources, Resources},
     },
     tactical::{
-        tactical_resources_message::TacticalResourceMessage,
-        tactical_response_resources::{self, TacticalResponseResources},
+        tactical_resources_message::TacticalResourceRequest,
+        tactical_response_resources::TacticalResponseResources,
         tactical_response_scheduling::TacticalResponseScheduling,
         tactical_response_status::TacticalResponseStatus,
         tactical_response_time::TacticalResponseTime,
-        tactical_scheduling_message::TacticalSchedulingMessage,
-        tactical_time_message::TacticalTimeMessage,
-        Days, TacticalInfeasibleCases, TacticalResources,
+        tactical_scheduling_message::TacticalSchedulingRequest,
+        tactical_time_message::TacticalTimeRequest, Days, TacticalInfeasibleCases,
+        TacticalResources,
     },
     AlgorithmState, ConstraintState, LoadOperation,
 };
@@ -265,11 +265,11 @@ impl TacticalAlgorithm {
 }
 
 impl LargeNeighborHoodSearch for TacticalAlgorithm {
-    type SchedulingMessage = TacticalSchedulingMessage;
+    type SchedulingRequest = TacticalSchedulingRequest;
     type SchedulingResponse = TacticalResponseScheduling;
-    type ResourceMessage = TacticalResourceMessage;
+    type ResourceRequest = TacticalResourceRequest;
     type ResourceResponse = TacticalResponseResources;
-    type TimeMessage = TacticalTimeMessage;
+    type TimeRequest = TacticalTimeRequest;
     type TimeResponse = TacticalResponseTime;
     type Error = AgentError;
 
@@ -540,7 +540,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
     fn update_scheduling_state(
         &mut self,
-        _scheduling_message: Self::SchedulingMessage,
+        _scheduling_message: Self::SchedulingRequest,
     ) -> Result<Self::SchedulingResponse, Self::Error> {
         Ok(TacticalResponseScheduling {})
         // This is where the algorithm will update the scheduling state.
@@ -548,7 +548,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
     fn update_time_state(
         &mut self,
-        _time_message: Self::TimeMessage,
+        _time_message: Self::TimeRequest,
     ) -> Result<Self::TimeResponse, Self::Error> {
         // This is where the algorithm will update the time state.
         Ok(TacticalResponseTime {})
@@ -557,10 +557,10 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
     #[instrument(level = "info", skip(self))]
     fn update_resources_state(
         &mut self,
-        resource_message: Self::ResourceMessage,
+        resource_message: Self::ResourceRequest,
     ) -> Result<Self::ResourceResponse, Self::Error> {
         match resource_message {
-            TacticalResourceMessage::SetResources(resources) => {
+            TacticalResourceRequest::SetResources(resources) => {
                 // The resources should be initialized together with the Agent itself
                 let mut count = 0;
                 for (resource, days) in resources.resources {
@@ -582,7 +582,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 }
                 Ok(TacticalResponseResources::UpdatedResources(count))
             }
-            TacticalResourceMessage::GetLoadings {
+            TacticalResourceRequest::GetLoadings {
                 days_end,
                 select_resources: _,
             } => {
@@ -592,7 +592,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 let tactical_response_resources = TacticalResponseResources::Loading(loadings);
                 Ok(tactical_response_resources)
             }
-            TacticalResourceMessage::GetCapacities {
+            TacticalResourceRequest::GetCapacities {
                 days_end: _,
                 select_resources: _,
             } => {
@@ -602,7 +602,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
                 Ok(tactical_response_resources)
             }
-            TacticalResourceMessage::GetPercentageLoadings {
+            TacticalResourceRequest::GetPercentageLoadings {
                 days_end: _,
                 resources: _,
             } => {
@@ -901,6 +901,7 @@ pub mod tests {
     #[test]
     fn test_calculate_objective_value() {
         let work_order_number = WorkOrderNumber(2100000001);
+        let activity_number = ActivityNumber(1);
         let first_period = Period::from_str("2024-W13-14").unwrap();
 
         let tactical_days = |number_of_days: u32| -> Vec<Day> {
@@ -924,11 +925,13 @@ pub mod tests {
             OperationParameters::new(work_order_number, 1, 1, 1.0, 1.0, Resources::MtnMech);
 
         let mut operation_parameters = HashMap::new();
-        operation_parameters.insert(ActivityNumber(1), operation_parameter);
+        operation_parameters.insert(activity_number, operation_parameter);
 
         let operation_solution = OperationSolution::new(
             vec![(tactical_algorithm.tactical_days[27].clone(), 1.0)],
             Resources::MtnMech,
+            work_order_number,
+            activity_number,
         );
 
         let mut operation_solutions = HashMap::new();
