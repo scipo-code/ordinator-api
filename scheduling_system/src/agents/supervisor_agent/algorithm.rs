@@ -1,6 +1,6 @@
-use std::{collections::HashMap, ops::DerefMut};
+use std::{collections::HashMap};
 
-use actix::{dev::Request, Addr};
+
 use shared_messages::{
     agent_error::AgentError,
     models::{
@@ -15,7 +15,6 @@ use shared_messages::{
 };
 
 use crate::agents::{
-    operational_agent::OperationalAgent, tactical_agent::tactical_algorithm::OperationSolution,
     traits::LargeNeighborHoodSearch,
 };
 

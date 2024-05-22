@@ -3,7 +3,7 @@ mod api;
 mod data_processing;
 mod init;
 
-use futures_util::{io::AsyncWriteExt, AsyncReadExt};
+use futures_util::{io::AsyncWriteExt};
 use std::{
     io,
     sync::{Arc, Mutex},
@@ -12,20 +12,18 @@ use std::{
 use actix_web::{guard, web, App, HttpServer};
 use agents::orchestrator::Orchestrator;
 use mongodb::{
-    bson::{self, doc, Document},
+    bson::{self, doc},
     options::GridFsBucketOptions,
-    Client, GridFsBucket, GridFsDownloadStream,
+    Client,
 };
-use mongodb::{options::ClientOptions, results::InsertOneResult};
+
 use shared_messages::{
     models::{
-        time_environment::TimeEnvironment,
-        worker_environment::{self, WorkerEnvironment},
-        SchedulingEnvironment, WorkOrders,
+        SchedulingEnvironment,
     },
     Asset,
 };
-use tracing::{info, Instrument};
+use tracing::{info};
 
 use crate::init::logging;
 
@@ -67,7 +65,7 @@ async fn main() -> Result<(), io::Error> {
         .database("ordinator")
         .gridfs_bucket(GridFsBucketOptions::default());
 
-    let bson = bson::to_vec(&scheduling_environment).unwrap();
+    let _bson = bson::to_vec(&scheduling_environment).unwrap();
 
     let file_id = bson::oid::ObjectId::new();
 

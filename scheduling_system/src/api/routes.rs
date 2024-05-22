@@ -1,4 +1,4 @@
-use actix_web::http::header;
+
 use actix_web::{web, HttpRequest, HttpResponse, Result};
 use shared_messages::models::work_order::WorkOrderNumber;
 use shared_messages::operational::operational_request_status::OperationalStatusRequest;
@@ -11,7 +11,7 @@ use shared_messages::strategic::{StrategicResponse, StrategicResponseMessage};
 use shared_messages::supervisor::supervisor_response_status::SupervisorResponseStatus;
 use shared_messages::supervisor::supervisor_status_message::SupervisorStatusMessage;
 use shared_messages::supervisor::{SupervisorRequestMessage, SupervisorResponse};
-use shared_messages::tactical::tactical_response_resources::TacticalResponseResources;
+
 use shared_messages::tactical::tactical_status_message::TacticalStatusMessage;
 use shared_messages::tactical::{TacticalRequestMessage, TacticalResponse, TacticalResponseMessage};
 use shared_messages::{Asset, SystemResponses};
@@ -166,7 +166,7 @@ impl Orchestrator {
                 }
             }
             OrchestratorRequest::AgentStatusRequest => {
-                let mut buffer = String::new();
+                let _buffer = String::new();
 
                 let mut agent_status_by_asset = HashMap::<Asset, AgentStatus>::new();
                 for asset in self.agent_registries.keys() {
@@ -231,7 +231,7 @@ impl Orchestrator {
                         let operational_agent_response =
                             addr.send(OperationalRequestMessage::Status(OperationalStatusRequest::General)).await.unwrap().unwrap();
 
-                        let operational_agent_status = if let OperationalResponseMessage::Status(status) = operational_agent_response {
+                        let _operational_agent_status = if let OperationalResponseMessage::Status(status) = operational_agent_response {
                             operational_statai.push(status) 
                         } else {
                             panic!()
@@ -244,7 +244,7 @@ impl Orchestrator {
                 let orchestrator_response = OrchestratorResponse::AgentStatus(orchestrator_response_status);
                 Ok(orchestrator_response)
             }
-            OrchestratorRequest::GetWorkOrderStatus(work_order_number, level_of_detail) => {
+            OrchestratorRequest::GetWorkOrderStatus(work_order_number, _level_of_detail) => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
                 let cloned_work_orders: WorkOrders =
@@ -289,7 +289,7 @@ impl Orchestrator {
                 let orchestrator_response = OrchestratorResponse::WorkOrderStatus(work_orders_status);
                 Ok(orchestrator_response)
             }
-            OrchestratorRequest::GetWorkOrdersState(asset, level_of_detail) => {
+            OrchestratorRequest::GetWorkOrdersState(asset, _level_of_detail) => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
                 let cloned_work_orders: WorkOrders =
