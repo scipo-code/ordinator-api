@@ -6,14 +6,13 @@ use shared_messages::{
     agent_error::AgentError,
     models::{
         time_environment::day::Day,
-        work_order::{self, operation::ActivityNumber, WorkOrderNumber},
+        work_order::{operation::ActivityNumber, WorkOrderNumber},
         worker_environment::resources::{MainResources, Resources},
     },
     tactical::{
         tactical_resources_message::TacticalResourceRequest,
         tactical_response_resources::TacticalResponseResources,
         tactical_response_scheduling::TacticalResponseScheduling,
-        tactical_response_status::TacticalResponseStatus,
         tactical_response_time::TacticalResponseTime,
         tactical_scheduling_message::TacticalSchedulingRequest,
         tactical_time_message::TacticalTimeRequest, Days, TacticalInfeasibleCases,
@@ -583,7 +582,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 Ok(TacticalResponseResources::UpdatedResources(count))
             }
             TacticalResourceRequest::GetLoadings {
-                days_end,
+                days_end: _,
                 select_resources: _,
             } => {
                 let loadings = self.loading.clone();

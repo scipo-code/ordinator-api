@@ -38,7 +38,7 @@ impl OperationalAlgorithm {
         }
     }
 
-    pub fn insert_optimized_operation(&mut self, assigned_operation: AssignedWork) {}
+    pub fn insert_optimized_operation(&mut self, _assigned_operation: AssignedWork) {}
 }
 
 pub struct OperationalSolution {
@@ -76,27 +76,27 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         todo!()
     }
 
-    fn unschedule(&mut self, message: WorkOrderNumber) {
+    fn unschedule(&mut self, _message: WorkOrderNumber) {
         todo!()
     }
 
     fn update_scheduling_state(
         &mut self,
-        message: Self::SchedulingRequest,
+        _message: Self::SchedulingRequest,
     ) -> Result<Self::SchedulingResponse, Self::Error> {
         todo!()
     }
 
     fn update_time_state(
         &mut self,
-        message: Self::TimeRequest,
+        _message: Self::TimeRequest,
     ) -> Result<Self::TimeResponse, Self::Error> {
         todo!()
     }
 
     fn update_resources_state(
         &mut self,
-        message: Self::ResourceRequest,
+        _message: Self::ResourceRequest,
     ) -> Result<Self::ResourceResponse, Self::Error> {
         todo!()
     }
