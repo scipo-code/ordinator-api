@@ -17,8 +17,8 @@ use shared_messages::strategic::StrategicResources;
 use shared_messages::Asset;
 use shared_messages::SystemMessages;
 use shared_messages::TomlAgents;
-use shared_messages::TomlOperational;
-use shared_messages::TomlResources;
+
+
 use strum::IntoEnumIterator;
 
 #[derive(Subcommand, Debug)]
@@ -342,7 +342,7 @@ fn generate_manual_resources(client: &Client, toml_path: String) -> StrategicRes
 
     let config: TomlAgents = toml::from_str(&contents).unwrap();
 
-    let hours_per_day = 6.0;
+    let _hours_per_day = 6.0;
     let days_in_period = 13.0;
 
     let gradual_reduction = |i: usize| -> f64 {
