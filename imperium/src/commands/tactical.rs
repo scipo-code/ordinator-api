@@ -9,7 +9,7 @@ use shared_messages::{
         tactical_status_message::TacticalStatusMessage, Days, TacticalRequest,
         TacticalRequestMessage, TacticalResources,
     },
-    Asset, SystemMessages, TomlAgents, TomlResources,
+    Asset, SystemMessages, TomlAgents,
 };
 use strum::IntoEnumIterator;
 
@@ -170,7 +170,7 @@ fn generate_manual_resources(client: &Client, toml_path: String) -> TacticalReso
 
     let config: TomlAgents = toml::from_str(&contents).unwrap();
 
-    let hours_per_day = 6.0;
+    let _hours_per_day = 6.0;
 
     let gradual_reduction = |i: usize| -> f64 {
         match i {

@@ -5,11 +5,11 @@ use clap::{self};
 use reqwest::blocking::Client;
 use shared_messages::models::time_environment::day::Day;
 use shared_messages::models::time_environment::period::Period;
-use shared_messages::models::worker_environment::resources;
+
 use shared_messages::{
     models::worker_environment::resources::Id, orchestrator::OrchestratorRequest, SystemMessages,
 };
-use shared_messages::{Asset, TomlAgents, TomlResources};
+use shared_messages::{Asset, TomlAgents};
 
 #[derive(Subcommand, Debug)]
 pub enum OrchestratorCommands {
