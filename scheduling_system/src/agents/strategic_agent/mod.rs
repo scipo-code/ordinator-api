@@ -571,7 +571,7 @@ mod tests {
 
     use chrono::{TimeZone, Utc};
     use shared_messages::strategic::strategic_request_scheduling_message::SingleWorkOrder;
-    use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingMessage;
+    use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
     use shared_messages::strategic::Periods;
     use tests::strategic_algorithm::optimized_work_orders::OptimizedWorkOrder;
     use tests::strategic_algorithm::optimized_work_orders::OptimizedWorkOrders;
@@ -722,7 +722,7 @@ mod tests {
         let schedule_work_order = SingleWorkOrder::new(work_order_number, period_string);
 
         let strategic_scheduling_internal =
-            StrategicSchedulingMessage::Schedule(schedule_work_order);
+            StrategicSchedulingRequest::Schedule(schedule_work_order);
 
         let periods: Vec<Period> = vec![Period::from_str("2023-W47-48").unwrap()];
 
@@ -773,11 +773,11 @@ mod tests {
             SingleWorkOrder::new(work_order_number, "2023-W49-50".to_string());
 
         let strategic_scheduling_message =
-            StrategicSchedulingMessage::Schedule(schedule_single_work_order);
+            StrategicSchedulingRequest::Schedule(schedule_single_work_order);
 
         assert_eq!(
             match strategic_scheduling_message {
-                StrategicSchedulingMessage::Schedule(ref schedule_single_work_order) => {
+                StrategicSchedulingRequest::Schedule(ref schedule_single_work_order) => {
                     schedule_single_work_order.work_order_number.0
                 }
                 _ => panic!("wrong message type"),
@@ -787,7 +787,7 @@ mod tests {
 
         assert_eq!(
             match strategic_scheduling_message {
-                StrategicSchedulingMessage::Schedule(ref schedule_single_work_order) => {
+                StrategicSchedulingRequest::Schedule(ref schedule_single_work_order) => {
                     schedule_single_work_order.period_string()
                 }
                 _ => panic!("wrong message type"),

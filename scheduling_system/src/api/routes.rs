@@ -1,7 +1,7 @@
 use actix_web::http::header;
 use actix_web::{web, HttpRequest, HttpResponse, Result};
 use shared_messages::models::work_order::WorkOrderNumber;
-use shared_messages::operational::operational_response_status::OperationalResponseStatus;
+use shared_messages::operational::operational_response_status::OperationalStatusResponse;
 use shared_messages::operational::{OperationalRequestMessage, OperationalResponseMessage};
 use shared_messages::orchestrator::{AgentStatus, AgentStatusResponse, OrchestratorResponse};
 use shared_messages::strategic::strategic_request_status_message::StrategicStatusMessage;
@@ -219,7 +219,7 @@ impl Orchestrator {
                         supervisor_statai.push(supervisor_agent_status);
                     }
 
-                    let mut operational_statai: Vec<OperationalResponseStatus> = vec![];
+                    let mut operational_statai: Vec<OperationalStatusResponse> = vec![];
                     for (_id, addr) in self
                         .agent_registries
                         .get(asset)
