@@ -19,10 +19,12 @@ use shared_messages::{
 
 use crate::agents::traits::LargeNeighborHoodSearch;
 
+use super::AssignedWork;
+
 pub struct OperationalAlgorithm {
     pub objective_value: f64,
-    pub time_window:
-        HashMap<(WorkOrderNumber, ActivityNumber, DateTime<Utc>), OperationalParameters>,
+    pub operational_solution: HashMap<(WorkOrderNumber, ActivityNumber), OperationalSolution>,
+    pub operational_parameters: HashMap<(WorkOrderNumber, ActivityNumber), OperationalParameters>,
     pub availability: Option<Availability>,
 }
 
@@ -30,13 +32,23 @@ impl OperationalAlgorithm {
     pub fn new() -> Self {
         Self {
             objective_value: f64::INFINITY,
-            time_window: HashMap::new(),
+            operational_solution: HashMap::new(),
+            operational_parameters: HashMap::new(),
             availability: None,
         }
     }
+
+    pub fn insert_optimized_operation(&mut self, assigned_operation: AssignedWork) {}
+}
+
+pub struct OperationalSolution {
+    start: DateTime<Utc>,
+    finish: DateTime<Utc>,
 }
 
 pub struct OperationalParameters {
+    work: f64,
+    preparation: f64,
     start_window: DateTime<Utc>,
     end_window: DateTime<Utc>,
 }
