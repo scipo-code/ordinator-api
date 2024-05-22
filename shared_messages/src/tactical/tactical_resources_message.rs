@@ -5,7 +5,7 @@ use crate::models::worker_environment::resources::Resources;
 use super::TacticalResources;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum TacticalResourceMessage {
+pub enum TacticalResourceRequest {
     SetResources(TacticalResources),
     GetLoadings {
         days_end: String,
@@ -21,8 +21,8 @@ pub enum TacticalResourceMessage {
     },
 }
 
-impl TacticalResourceMessage {
+impl TacticalResourceRequest {
     pub fn new_set_resources(resources: TacticalResources) -> Self {
-        TacticalResourceMessage::SetResources(resources)
+        TacticalResourceRequest::SetResources(resources)
     }
 }

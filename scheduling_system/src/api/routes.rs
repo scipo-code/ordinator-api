@@ -1,6 +1,7 @@
 use actix_web::http::header;
 use actix_web::{web, HttpRequest, HttpResponse, Result};
 use shared_messages::models::work_order::WorkOrderNumber;
+use shared_messages::operational::operational_request_status::OperationalStatusRequest;
 use shared_messages::operational::operational_response_status::OperationalStatusResponse;
 use shared_messages::operational::{OperationalRequestMessage, OperationalResponseMessage};
 use shared_messages::orchestrator::{AgentStatus, AgentStatusResponse, OrchestratorResponse};
@@ -228,7 +229,7 @@ impl Orchestrator {
                         .iter()
                     {
                         let operational_agent_response =
-                            addr.send(OperationalRequestMessage::Status).await.unwrap().unwrap();
+                            addr.send(OperationalRequestMessage::Status(OperationalStatusRequest::General)).await.unwrap().unwrap();
 
                         let operational_agent_status = if let OperationalResponseMessage::Status(status) = operational_agent_response {
                             operational_statai.push(status) 
