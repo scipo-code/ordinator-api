@@ -26,7 +26,7 @@ use crate::{
 use self::{
     strategic_request_periods_message::StrategicTimeRequest,
     strategic_request_resources_message::{ManualResource, StrategicResourceRequest},
-    strategic_request_scheduling_message::{StrategicSchedulingRequest, WorkOrderStatusInPeriod},
+    strategic_request_scheduling_message::{StrategicSchedulingRequest},
     strategic_request_status_message::StrategicStatusMessage,
     strategic_response_periods::StrategicResponsePeriods,
     strategic_response_resources::StrategicResponseResources,
