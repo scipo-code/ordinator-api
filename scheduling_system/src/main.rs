@@ -3,7 +3,7 @@ mod api;
 mod data_processing;
 mod init;
 
-use futures_util::{io::AsyncWriteExt};
+use futures_util::io::AsyncWriteExt;
 use std::{
     io,
     sync::{Arc, Mutex},
@@ -17,13 +17,8 @@ use mongodb::{
     Client,
 };
 
-use shared_messages::{
-    models::{
-        SchedulingEnvironment,
-    },
-    Asset,
-};
-use tracing::{info};
+use shared_messages::{models::SchedulingEnvironment, Asset};
+use tracing::info;
 
 use crate::init::logging;
 

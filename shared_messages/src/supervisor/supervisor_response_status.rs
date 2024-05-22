@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::models::worker_environment::resources::{Id, MainResources};
+use crate::models::worker_environment::resources::{MainResources};
 
 #[derive(Serialize)]
 pub struct SupervisorResponseStatus {
