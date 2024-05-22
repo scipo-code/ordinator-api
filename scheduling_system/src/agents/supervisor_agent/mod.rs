@@ -61,7 +61,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
             // Sync here
 
             let mut all_messages: Vec<Request<OperationalAgent, OperationSolution>> = vec![];
-            for (activity_number, operation_solution) in operations {
+            for (_activity_number, operation_solution) in operations {
                 // send a message to each relevant agent
                 for (id, operational_addr) in &self.operational_agent_addrs {
                     if id.1.contains(&operation_solution.resource) {
@@ -152,7 +152,7 @@ impl Handler<UpdateWorkOrderMessage> for SupervisorAgent {
 
     fn handle(
         &mut self,
-        update_work_order: UpdateWorkOrderMessage,
+        _update_work_order: UpdateWorkOrderMessage,
         _ctx: &mut Context<Self>,
     ) -> Self::Result {
         // todo!()
@@ -189,7 +189,7 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
                 Ok(SupervisorResponseMessage::Status(supervisor_status))
             }
             SupervisorRequestMessage::Test => {
-                let mut algorithm_state = self.determine_algorithm_state();
+                let algorithm_state = self.determine_algorithm_state();
 
                 let supervisor_test = SupervisorResponseMessage::Test(algorithm_state);
                 Ok(supervisor_test)

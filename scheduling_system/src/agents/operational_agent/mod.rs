@@ -73,7 +73,7 @@ impl Handler<OperationSolution> for OperationalAgent {
     fn handle(
         &mut self,
         operation_solution: OperationSolution,
-        ctx: &mut Self::Context,
+        _ctx: &mut Self::Context,
     ) -> Self::Result {
         let scheduling_environment = self.scheduling_environment.lock().unwrap();
 

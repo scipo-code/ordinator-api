@@ -1,5 +1,5 @@
 use actix::prelude::*;
-use shared_messages::models::time_environment::day::Day;
+
 use shared_messages::strategic::{Periods, StrategicResources};
 use shared_messages::tactical::{Days, TacticalResources};
 use shared_messages::Asset;
@@ -13,10 +13,10 @@ use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::supervisor_agent::SupervisorAgent;
-use crate::agents::tactical_agent::tactical_algorithm::{self, TacticalAlgorithm};
+use crate::agents::tactical_agent::tactical_algorithm::{TacticalAlgorithm};
 use crate::agents::tactical_agent::TacticalAgent;
 use crate::agents::traits::LargeNeighborHoodSearch;
-use shared_messages::models::time_environment::period::Period;
+
 use shared_messages::models::worker_environment::resources::{Id, Resources};
 use shared_messages::models::SchedulingEnvironment;
 

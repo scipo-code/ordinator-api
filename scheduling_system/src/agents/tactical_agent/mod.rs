@@ -6,7 +6,7 @@ use shared_messages::agent_error::AgentError;
 use shared_messages::models::worker_environment::resources::Id;
 use shared_messages::tactical::tactical_response_status::TacticalResponseStatus;
 use shared_messages::tactical::{TacticalRequestMessage, TacticalResponseMessage};
-use shared_messages::{AlgorithmState, Asset, SolutionExportMessage};
+use shared_messages::{Asset, SolutionExportMessage};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{info, instrument, warn};
@@ -206,7 +206,7 @@ impl Handler<UpdateWorkOrderMessage> for TacticalAgent {
 
     fn handle(
         &mut self,
-        update_work_order: UpdateWorkOrderMessage,
+        _update_work_order: UpdateWorkOrderMessage,
         _ctx: &mut Context<Self>,
     ) -> Self::Result {
         // todo!();
