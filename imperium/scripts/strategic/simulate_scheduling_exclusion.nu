@@ -403,11 +403,14 @@ let work_orders = [
   2300000809,
 ]
 
+./imperium/scripts/initialize.sh
+
+^sleep 180
 $work_orders | each { |x| imperium strategic scheduling df exclude $x 2024-W25-26 }
 
-^sleep 1
-# Replace 'echo Running command' with your command
-imperium strategic resources df loading 12
-# Sleep for 10 seconds using an external shell command
-^sleep 1
+^sleep 180
+$work_orders | each { |x| imperium strategic scheduling df exclude $x 2024-W27-28 }
+
+^sleep 180
+$work_orders | each { |x| imperium strategic scheduling df exclude $x 2024-W29-30 }
 

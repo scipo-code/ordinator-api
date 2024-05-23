@@ -1,10 +1,10 @@
-cd $env.FILE_PWD
+./imperium/scripts/initialize.sh
 
-imperium strategic resources df load-capacity-file ./resource_configurations/low_resources.toml
+^sleep 180
+imperium strategic resources df load-capacity-file imperium/scripts/strategic/resource_configurations/low_resources.toml
 
-^sleep 60
-imperium strategic resources df load-capacity-file ./resource_configurations/base_resources.toml
+^sleep 180
+imperium strategic resources df load-capacity-file imperium/scripts/strategic/resource_configurations/base_resources.toml
 
-^sleep 60
-imperium strategic resources df load-capacity-file ./resource_configurations/high_resources.toml
-
+^sleep 180
+imperium strategic resources df load-capacity-file imperium/scripts/strategic/resource_configurations/high_resources.toml
