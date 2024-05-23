@@ -617,6 +617,7 @@ mod tests {
     use shared_messages::strategic::strategic_request_scheduling_message::SingleWorkOrder;
     use chrono::{Duration, TimeZone, Utc};
     use rand::{rngs::StdRng, SeedableRng};
+    use proptest::prelude::*;
 
     use shared_messages::models::worker_environment::resources::Resources;
 
@@ -1354,6 +1355,19 @@ Period::from_str("2023-W49-50").unwrap(),
         // let OptimizedWorkOrderBuilder::new();
 
 
+        
+    }
+
+
+    proptest! {
+            
+    #[test]
+    fn test_reverse(period in ".*") {
+        let reversed = reverse(&s);
+        // Check that reversing twice yields the original string
+        prop_assert_eq!(s, reverse(&reversed));
+    }
+        
         
     }
 
