@@ -14,10 +14,8 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Deploy to server
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       run: |
-        ssh -i $SSH_PRIVATE_KEY cbrje@login1.gbar.dtu.dk
+        ssh -i ${{ secrets.SSH_PRIVATE_KEY }} cbrje@login1.gbar.dtu.dk
           cd /zhome/6b/5/127255/ordinator
           git pull main
           zellij -l ordinator.kdl
