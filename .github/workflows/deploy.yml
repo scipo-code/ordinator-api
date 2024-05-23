@@ -1,28 +1,28 @@
 name: Deploy to remote server
 on:
   push:
-  branches:
-    - main
+    branches:
+      - main
  
 jobs:
   deploy:
-  runs-on: ubuntu-latest
-  steps:
-  - name: Checkout code
-    uses: actions/checkout@v4
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
    
-  - name: Setup SSH Key
-    uses: webfactory/ssh-agent@v0.5.0
-    with:
-    ssh-private-key: ${{ secrets.DEPLOY_KEY }}
+    - name: Setup SSH Key
+      uses: webfactory/ssh-agent@v0.5.0
+      with:
+      ssh-private-key: ${{ secrets.DEPLOY_KEY }}
    
-  - name: Deploy code
-    uses: appleboy/ssh-action@master
-    with:
-    host: login1.gbar.dtu.dk
-    username: cbrje
-    key: ${{ secrets.SSH_PRIVATE_KEY }}
-    script: |
-      cd /zhome/6b/5/127255/ordinator
-      git pull origin main
-      zellij -l /zhome/6b/5/127255/ordinator/ordinator.kdl
+    - name: Deploy code
+      uses: appleboy/ssh-action@master
+      with:
+      host: login1.gbar.dtu.dk
+      username: cbrje
+      key: ${{ secrets.SSH_PRIVATE_KEY }}
+      script: |
+        cd /zhome/6b/5/127255/ordinator
+        git pull origin main
+        zellij -l /zhome/6b/5/127255/ordinator/ordinator.kdl
