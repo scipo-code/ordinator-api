@@ -34,7 +34,8 @@ jobs:
     - name: Print Environment Variables for Debugging
       run: |
         echo "SERVER_HOST: ${{ secrets.SERVER_HOST }}"
-        echo "SERVER_USER: ${{ secrets.SERVER_USER }}"    - name: Trigger deployment script on server
+        echo "SERVER_USER: ${{ secrets.SERVER_USER }}"
+    - name: Trigger deployment script on server
       env:
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         SERVER_HOST: ${{ secrets.SEVER_HOST }}
