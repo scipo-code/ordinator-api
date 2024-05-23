@@ -101,3 +101,31 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         todo!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use proptest::prelude::*;
+
+    fn reverse(s: &str) -> String {
+        s.chars().rev().collect()
+    }
+
+    proptest! {
+        #[test]
+        fn test_reverse(s in ".*") {
+            let reversed = reverse(&s);
+            // Check that reversing twice yields the original string
+            prop_assert_eq!(s, reverse(&reversed));
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_with_custom_strategy(vec in prop::collection::vec(0..100i32, 0..100)) {
+            let reversed: Vec<i32> = vec.iter().rev().cloned().collect();
+            let double_reversed: Vec<i32> = reversed.iter().rev().cloned().collect();
+
+            prop_assert_eq!(vec, double_reversed);
+        }
+    }
+}

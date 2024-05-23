@@ -77,7 +77,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
             }
         }
 
-        ctx.notify(ScheduleIteration {});
+        // ctx.notify(ScheduleIteration {});
     }
 }
 
