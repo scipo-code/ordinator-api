@@ -23,6 +23,7 @@ jobs:
    #   - name: Run tests
    #     run: cargo test
 
+  # Remember to test later on
   deploy:
     runs-on: ubuntu-latest
     # needs: build-and-test
