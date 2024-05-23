@@ -4,6 +4,7 @@ on:
       - main
 
 jobs:
+   # Tests are excluded until setup is working correctly 
    # build-and-test:
    #   runs-on: ubuntu-latest
 
