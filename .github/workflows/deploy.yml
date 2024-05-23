@@ -26,3 +26,21 @@ jobs:
         cd /zhome/6b/5/127255/ordinator
         git pull origin main
         zellij -l /zhome/6b/5/127255/ordinator/ordinator.kdl
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Deploy to server
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      run: |
+        ssh -i $SSH_PRIVATE_KEY cbrje@login1.gbar.dtu.dk
+          cd /zhome/6b/5/127255/ordinator
+          git pull main
+          zellij -l ordinator.kdl
+        EOF
