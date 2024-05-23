@@ -8,11 +8,9 @@ jobs:
   deploy:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
     - name: Deploy to server
       run: |
         ssh -i ${{ secrets.SSH_PRIVATE_KEY }} cbrje@login1.gbar.dtu.dk
