@@ -9,17 +9,17 @@ use crate::models::time_environment::period::Period;
 #[derive(Args, Clone, Serialize, Deserialize, Debug)]
 pub struct StatusCodes {
     pub material_status: MaterialStatus,
-    #[arg(short, long)]
+    #[arg(long)]
     pub pcnf: bool,
-    #[arg(short, long)]
+    #[arg(long)]
     pub awsc: bool,
-    #[arg(short, long)]
+    #[arg(long)]
     pub well: bool,
-    #[arg(short, long)]
+    #[arg(long)]
     pub sch: bool,
-    #[arg(short, long)]
+    #[arg(long)]
     pub sece: bool,
-    #[arg(short, long)]
+    #[arg(long)]
     pub unloading_point: bool,
 }
 
