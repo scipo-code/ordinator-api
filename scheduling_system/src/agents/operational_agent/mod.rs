@@ -1,11 +1,10 @@
 pub mod algorithm;
 use std::{
-    collections::{HashMap, HashSet},
-    sync::{Arc, Mutex},
+    collections::{HashMap, HashSet}, ops::RangeBounds, sync::{Arc, Mutex}
 };
 
 use actix::prelude::*;
-use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
+use chrono::{DateTime, Duration, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use shared_messages::{
     agent_error::AgentError,
     models::{
@@ -42,6 +41,7 @@ pub struct OperationalAgent {
     availability: Option<Vec<Availability>>,
     assigned: HashSet<(Assigned, WorkOrderNumber, ActivityNumber)>,
     backup_activities: Option<HashMap<u32, Operation>>,
+    shift: (NaiveTime, NaiveTime),
     supervisor_agent_addr: Addr<SupervisorAgent>,
 }
 
@@ -62,15 +62,17 @@ type Assigned = bool;
 impl OperationalAgent {
     fn determine_start_and_finish_times(&self, days: Vec<(Day, f64)>) -> (DateTime<Utc>, DateTime<Utc>) {
         if days.len() == 1 {
-            (NaiveDateTime::new(days.first().unwarp().0.date().date_naive(), self.shift.0) , NaiveDateTime::new(days.last().unwarp().0.date().date_naive(), self.shift.1))
-            
-            
+            let start_of_time_window = Utc.from_utc_datetime(&NaiveDateTime::new(days.first().unwrap().0.date().date_naive(), self.shift.0));
+            let end_of_time_window = Utc.from_utc_datetime(&NaiveDateTime::new(days.last().unwrap().0.date().date_naive(), self.shift.1)); 
+            (start_of_time_window, end_of_time_window)
         } else {
 
             let start_day = days[0].0.date().date_naive(); 
             let end_day = days.last().unwrap().0.date().date_naive();
-            let start_time = NaiveDateTime::new(start_day, self.shift.1 - Duration::hours(days[0].1));
-            let end_time = NaiveDateTime::new(end_day, self.shift.0 + Duration::hours(days.last().unwrap().1));
+            let start_datetime = NaiveDateTime::new(start_day, self.shift.1 - Duration::seconds(3600 * days[0].1.round() as i64));
+            let end_datetime = NaiveDateTime::new(end_day, self.shift.0 + Duration::seconds(3600 * days.last().unwrap().1.round() as i64));
+
+            (Utc.from_utc_datetime(&start_datetime), Utc.from_utc_datetime(&end_datetime))
             
         }
     }
