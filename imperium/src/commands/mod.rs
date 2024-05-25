@@ -22,6 +22,7 @@ use self::supervisor::SupervisorCommands;
 
 #[derive(Subcommand)]
 pub enum Commands {
+    #[command(visible_alias = "hint")]
     Status {
         #[clap(subcommand)]
         status_commands: StatusCommands,

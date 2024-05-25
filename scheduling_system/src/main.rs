@@ -22,7 +22,7 @@ use tracing::info;
 
 use crate::init::logging;
 
-///This is the entry point of the application
+///This is the entry point of the application. We
 #[actix_web::main]
 async fn main() -> Result<(), io::Error> {
     dotenv::dotenv().ok();
