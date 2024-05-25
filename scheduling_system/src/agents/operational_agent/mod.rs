@@ -5,12 +5,11 @@ use std::{
 };
 
 use actix::prelude::*;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use shared_messages::{
     agent_error::AgentError,
     models::{
-        work_order::{operation::ActivityNumber, WorkOrderNumber},
-        worker_environment::resources::Id,
+        time_environment::day::Day, work_order::{operation::ActivityNumber, WorkOrderNumber}, worker_environment::resources::Id
     },
     operational::{
         operational_response_status::OperationalStatusResponse, OperationalRequestMessage,
@@ -21,6 +20,11 @@ use shared_messages::{
 
 use shared_messages::models::{work_order::operation::Operation, SchedulingEnvironment};
 use tracing::{info, warn};
+
+use crate::agents::{
+    operational_agent::algorithm::OperationalParameters,
+    tactical_agent::tactical_algorithm::OperationParameters,
+};
 
 use self::algorithm::OperationalAlgorithm;
 
@@ -55,6 +59,22 @@ pub struct AssignedWork {
 }
 
 type Assigned = bool;
+impl OperationalAgent {
+    fn determine_start_and_finish_times(&self, days: Vec<(Day, f64)>) -> (DateTime<Utc>, DateTime<Utc>) {
+        if days.len() == 1 {
+            (NaiveDateTime::new(days.first().unwarp().0.date().date_naive(), self.shift.0) , NaiveDateTime::new(days.last().unwarp().0.date().date_naive(), self.shift.1))
+            
+            
+        } else {
+
+            let start_day = days[0].0.date().date_naive(); 
+            let end_day = days.last().unwrap().0.date().date_naive();
+            let start_time = NaiveDateTime::new(start_day, self.shift.1 - Duration::hours(days[0].1));
+            let end_time = NaiveDateTime::new(end_day, self.shift.0 + Duration::hours(days.last().unwrap().1));
+            
+        }
+    }
+}
 
 impl Actor for OperationalAgent {
     type Context = Context<Self>;
@@ -77,16 +97,21 @@ impl Handler<OperationSolution> for OperationalAgent {
     ) -> Self::Result {
         let scheduling_environment = self.scheduling_environment.lock().unwrap();
 
-        let assigned = AssignedWork {
-            work: scheduling_environment
+        let operation = 
+            scheduling_environment
                 .operation(
                     &operation_solution.work_order_number,
                     &operation_solution.activity_number,
-                )
-                .work_remaining(),
-            assigned: false,
+                );
+
+        let operational_parameter = OperationalParameters::new(
+            operation.work_remaining(),
+            operation.preparation,
+            
             operation_solution: operation_solution.clone(),
-        };
+        );
+
+        
 
         self.assigned.insert((
             false,
@@ -94,12 +119,15 @@ impl Handler<OperationSolution> for OperationalAgent {
             operation_solution.activity_number,
         ));
 
+        let operation_parameters = OperationalParameters::new();
+
         self.operational_algorithm
             .insert_optimized_operation(assigned);
         info!(id = ?self.id_operational, operation = ?operation_solution);
         true
     }
 }
+
 
 pub struct OperationalAgentBuilder {
     id_operational: Id,
@@ -236,3 +264,5 @@ impl Handler<UpdateWorkOrderMessage> for OperationalAgent {
         warn!("Update 'impl Handler<UpdateWorkOrderMessage> for SupervisorAgent'");
     }
 }
+
+
