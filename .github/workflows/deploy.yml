@@ -17,11 +17,11 @@ jobs:
         mkdir -p ~/.ssh
         echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
-      
+        ssh-keyscan -H login1.gbar.dtu.dk >> ~/.ssh/known_hosts      
     
     - name: Deploy to server
       run: |
-        ssh -i ~/.ssh/id_rsa cbrje@login1.gbar.dtu.dk << 'EOF'
+        ssh -t -i ~/.ssh/id_rsa cbrje@login1.gbar.dtu.dk << 'EOF'
           cd /zhome/6b/5/127255/ordinator
           git pull main
           zellij -l ordinator.kdl
