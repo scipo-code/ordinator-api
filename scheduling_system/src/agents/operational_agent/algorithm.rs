@@ -53,6 +53,22 @@ pub struct OperationalParameters {
     end_window: DateTime<Utc>,
 }
 
+impl OperationalParameters {
+    pub fn new(
+        work: f64,
+        preparation: f64,
+        start_window: DateTime<Utc>,
+        end_window: DateTime<Utc>,
+    ) -> Self {
+        Self {
+            work,
+            preparation,
+            start_window,
+            end_window,
+        }
+    }
+}
+
 impl LargeNeighborHoodSearch for OperationalAlgorithm {
     type SchedulingRequest = OperationalSchedulingRequest;
 
@@ -73,7 +89,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
     }
 
     fn schedule(&mut self) {
-        todo!()
+        self.operational_solution
     }
 
     fn unschedule(&mut self, _message: WorkOrderNumber) {
