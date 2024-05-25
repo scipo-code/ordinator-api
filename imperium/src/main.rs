@@ -1,14 +1,17 @@
 pub mod commands;
 
-use clap::Parser;
+use clap::{Args, Command, CommandFactory, Parser, Subcommand, ValueHint};
+use clap_complete::{generate, Generator, Shell};
 use commands::Commands;
 use reqwest::blocking::Client;
 use shared_messages::SystemMessages;
 use tracing::error;
 
 #[derive(Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(name = "imperium", author, version, about, long_about = None)]
 pub struct Cli {
+    #[arg(long = "generate", value_enum)]
+    generator: Option<Shell>,
     #[command(subcommand)]
     command: Commands,
 }
@@ -16,6 +19,14 @@ pub struct Cli {
 /// Main function of the imperium command line tool
 fn main() {
     let cli = Cli::parse();
+
+    if let Some(generator) = cli.generator {
+        let mut cmd = Cli::command();
+        eprintln!("Generating completion file for {generator:?}...");
+        print_completions(generator, &mut cmd);
+    } else {
+        println!("");
+    }
 
     let client = reqwest::blocking::Client::new();
 
@@ -51,4 +62,8 @@ fn send_http(client: &Client, system_message: SystemMessages) -> String {
         eprintln!("Failed to send request: {:?}", res.status());
     }
     res.text().unwrap()
+}
+
+fn print_completions<G: Generator>(gen: G, cmd: &mut Command) {
+    generate(gen, cmd, cmd.get_name().to_string(), &mut std::io::stdout());
 }
