@@ -20,6 +20,8 @@ pub struct Operation {
     operation_dates: OperationDates,
 }
 
+type Work = f64;
+
 impl Operation {
     pub fn new(
         activity: ActivityNumber,
@@ -121,7 +123,11 @@ impl Display for Operation {
 }
 
 impl Operation {
-    pub fn builder(activity: u32, resource: Resources, work_remaining: f64) -> OperationBuilder {
+    pub fn builder(
+        activity: ActivityNumber,
+        resource: Resources,
+        work_remaining: Work,
+    ) -> OperationBuilder {
         let operation_info = OperationInfo::new(1, work_remaining, 0.0, 0.0, 6.0);
 
         let operation_analytic = OperationAnalytic::new(1.0, 6);

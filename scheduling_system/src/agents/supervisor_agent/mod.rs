@@ -77,7 +77,8 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
             }
         }
 
-        // ctx.notify(ScheduleIteration {});
+        ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(5)).into_actor(self));
+        ctx.notify(ScheduleIteration {});
     }
 }
 
