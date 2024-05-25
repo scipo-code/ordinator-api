@@ -89,7 +89,8 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
     }
 
     fn schedule(&mut self) {
-        self.operational_solution
+        todo!()
+        // self.operational_solution
     }
 
     fn unschedule(&mut self, _message: WorkOrderNumber) {
