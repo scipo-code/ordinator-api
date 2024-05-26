@@ -19,7 +19,7 @@ use shared_messages::{
 
 use crate::agents::traits::LargeNeighborHoodSearch;
 
-use super::AssignedWork;
+use super::Assigned;
 
 pub struct OperationalAlgorithm {
     pub objective_value: f64,
@@ -38,12 +38,37 @@ impl OperationalAlgorithm {
         }
     }
 
-    pub fn insert_optimized_operation(&mut self, _assigned_operation: AssignedWork) {}
+    pub fn insert_optimized_operation(
+        &mut self,
+        work_order_number: WorkOrderNumber,
+        activity_number: ActivityNumber,
+        operational_parameters: OperationalParameters,
+        operational_solution: OperationalSolution,
+    ) {
+        self.operational_parameters
+            .insert((work_order_number, activity_number), operational_parameters);
+        self.operational_solution
+            .insert((work_order_number, activity_number), operational_solution);
+    }
 }
 
 pub struct OperationalSolution {
-    start: DateTime<Utc>,
-    finish: DateTime<Utc>,
+    assigned: Assigned,
+    assignments: Vec<Assignment>,
+}
+
+pub struct Assignment {
+    pub start: DateTime<Utc>,
+    pub finish: DateTime<Utc>,
+}
+
+impl OperationalSolution {
+    pub fn new(assigned: Assigned, assignments: Vec<Assignment>) -> Self {
+        Self {
+            assigned,
+            assignments,
+        }
+    }
 }
 
 pub struct OperationalParameters {

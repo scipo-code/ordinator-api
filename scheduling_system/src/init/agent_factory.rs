@@ -1,5 +1,6 @@
 use actix::prelude::*;
 
+use chrono::NaiveTime;
 use shared_messages::strategic::{Periods, StrategicResources};
 use shared_messages::tactical::{Days, TacticalResources};
 use shared_messages::Asset;
@@ -13,7 +14,7 @@ use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::supervisor_agent::SupervisorAgent;
-use crate::agents::tactical_agent::tactical_algorithm::{TacticalAlgorithm};
+use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
 use crate::agents::tactical_agent::TacticalAgent;
 use crate::agents::traits::LargeNeighborHoodSearch;
 
@@ -150,11 +151,13 @@ impl AgentFactory {
     pub fn build_operational_agent(
         &self,
         id_operational: Id,
+        shift: (NaiveTime, NaiveTime),
         supervisor_agent_addr: Addr<SupervisorAgent>,
     ) -> Addr<OperationalAgent> {
         let operational_agent = OperationalAgentBuilder::new(
             id_operational,
             self.scheduling_environment.clone(),
+            shift,
             supervisor_agent_addr,
         )
         .build();

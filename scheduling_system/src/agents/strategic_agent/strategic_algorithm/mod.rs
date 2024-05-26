@@ -311,18 +311,17 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
 
             period_penalty_contribution += period_penalty;
         }
-
+        
         for (resource, periods) in &self.resources_capacities().inner {
             for (period, capacity) in &periods.0 {
                 let loading = self
                     .resources_loading(resource, period);
-                if *loading > *capacity {
-                    excess_penalty_contribution += loading - capacity;
-                }
+
+                excess_penalty_contribution += (loading - capacity).max(0.0)
             }
         }
 
-        self.objective_value =
+        self.objective_value = 
             period_penalty_contribution + 1000000000.0 * excess_penalty_contribution;
     }
 
@@ -588,6 +587,10 @@ impl StrategicAlgorithm {
         }
     }
 
+}
+
+fn calculate_excess_penalty(loading: &f64, capacity: &f64) -> f64 {
+        (loading - capacity).max(0.0)
 }
 
 #[derive(Debug, Clone)]
@@ -1358,17 +1361,5 @@ Period::from_str("2023-W49-50").unwrap(),
         
     }
 
-
-    proptest! {
-            
-    #[test]
-    fn test_reverse(period in ".*") {
-        let reversed = reverse(&s);
-        // Check that reversing twice yields the original string
-        prop_assert_eq!(s, reverse(&reversed));
-    }
-        
-        
-    }
 
 }

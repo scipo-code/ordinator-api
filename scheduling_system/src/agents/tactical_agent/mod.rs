@@ -104,7 +104,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
                     .optimized_work_orders()
                     .iter()
                     .for_each(|(work_order_number, optimized_work_order)| {
-                        if id.2.as_ref().unwrap() == &optimized_work_order.main_work_center {
+                        if id.3.as_ref().unwrap() == &optimized_work_order.main_work_center {
                             work_orders_to_supervisor.push((
                                 *work_order_number,
                                 optimized_work_order
