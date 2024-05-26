@@ -5,7 +5,7 @@ pub struct OperationInfo {
     number: u32,
     work_remaining: f64,
     work_performed: f64,
-    work_adjusted: f64,
+    work: f64,
     operating_time: f64,
 }
 
@@ -14,14 +14,14 @@ impl OperationInfo {
         number: u32,
         work_remaining: f64,
         work_performed: f64,
-        work_adjusted: f64,
+        work: f64,
         operating_time: f64,
     ) -> Self {
         OperationInfo {
             number,
             work_remaining,
             work_performed,
-            work_adjusted,
+            work,
             operating_time,
         }
     }

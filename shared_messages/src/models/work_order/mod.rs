@@ -408,10 +408,14 @@ impl Default for WorkOrder {
     fn default() -> Self {
         let mut operations = HashMap::new();
 
-        let operation_0010 = Operation::builder(10, Resources::Prodtech, 10.0).build();
-        let operation_0020 = Operation::builder(20, Resources::MtnMech, 20.0).build();
-        let operation_0030 = Operation::builder(30, Resources::MtnMech, 30.0).build();
-        let operation_0040 = Operation::builder(40, Resources::Prodtech, 40.0).build();
+        let operation_0010 =
+            Operation::builder(ActivityNumber(10), Resources::Prodtech, 10.0).build();
+        let operation_0020 =
+            Operation::builder(ActivityNumber(20), Resources::MtnMech, 20.0).build();
+        let operation_0030 =
+            Operation::builder(ActivityNumber(30), Resources::MtnMech, 30.0).build();
+        let operation_0040 =
+            Operation::builder(ActivityNumber(40), Resources::Prodtech, 40.0).build();
 
         operations.insert(ActivityNumber(10), operation_0010);
         operations.insert(ActivityNumber(20), operation_0020);
@@ -494,10 +498,14 @@ mod tests {
         pub fn new_test() -> Self {
             let mut operations = HashMap::new();
 
-            let operation_0010 = Operation::builder(10, Resources::Prodtech, 10.0).build();
-            let operation_0020 = Operation::builder(20, Resources::MtnMech, 20.0).build();
-            let operation_0030 = Operation::builder(30, Resources::MtnMech, 30.0).build();
-            let operation_0040 = Operation::builder(40, Resources::Prodtech, 40.0).build();
+            let operation_0010 =
+                Operation::builder(ActivityNumber(10), Resources::Prodtech, 10.0).build();
+            let operation_0020 =
+                Operation::builder(ActivityNumber(20), Resources::MtnMech, 20.0).build();
+            let operation_0030 =
+                Operation::builder(ActivityNumber(30), Resources::MtnMech, 30.0).build();
+            let operation_0040 =
+                Operation::builder(ActivityNumber(40), Resources::Prodtech, 40.0).build();
 
             operations.insert(ActivityNumber(10), operation_0010);
             operations.insert(ActivityNumber(20), operation_0020);

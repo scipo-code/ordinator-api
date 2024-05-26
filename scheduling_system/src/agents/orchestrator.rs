@@ -3,6 +3,7 @@ use shared_messages::models::worker_environment::resources;
 use shared_messages::models::worker_environment::resources::Id;
 use shared_messages::models::worker_environment::resources::MainResources;
 
+use shared_messages::models::worker_environment::resources::Shift;
 use shared_messages::Asset;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -63,7 +64,7 @@ impl ActorRegistry {
         resource: &shared_messages::models::worker_environment::resources::Resources,
     ) -> Addr<SupervisorAgent> {
         let matching_supervisor = self.supervisor_agent_addrs.iter().find_map(|(id, addr)| {
-            if id.1.contains(resource) {
+            if id.2.contains(resource) {
                 Some(addr)
             } else {
                 None
@@ -76,7 +77,7 @@ impl ActorRegistry {
                 .supervisor_agent_addrs
                 .iter()
                 .find_map(|(id, addr)| {
-                    if id.2.as_ref().unwrap() == &MainResources::MtnMech {
+                    if id.3.as_ref().unwrap() == &MainResources::MtnMech {
                         Some(addr)
                     } else {
                         None
@@ -135,7 +136,12 @@ impl Orchestrator {
 
         let mut supervisor_addrs = HashMap::<Id, Addr<SupervisorAgent>>::new();
         for main_resource in resources::MainResources::iter() {
-            let id = Id::new("default".to_string(), vec![], Some(main_resource));
+            let id = Id::new(
+                "default".to_string(),
+                Shift::Day.generate_time_intervals(),
+                vec![],
+                Some(main_resource),
+            );
             let supervisor_addr = self.agent_factory.build_supervisor_agent(
                 asset.clone(),
                 id.clone(),

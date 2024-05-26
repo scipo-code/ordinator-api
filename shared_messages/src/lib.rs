@@ -9,7 +9,10 @@ use std::fmt::{self, Display};
 
 use actix::prelude::*;
 use clap::{Subcommand, ValueEnum};
-use models::worker_environment::{availability::Availability, resources::Resources};
+use models::worker_environment::{
+    availability::Availability,
+    resources::{Resources, Shift},
+};
 use operational::OperationalResponse;
 use orchestrator::{OrchestratorRequest, OrchestratorResponse};
 use serde::{Deserialize, Serialize};
@@ -203,15 +206,16 @@ pub struct TomlAgents {
     pub operational: Vec<TomlOperational>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct TomlOperational {
     pub id: String,
     pub resources: SeqResources,
+    pub shift: Shift,
     pub hours_per_day: f64,
     pub availability: Availability,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct SeqResources {
     pub resources: Vec<Resources>,
 }

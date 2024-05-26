@@ -1,6 +1,8 @@
 pub mod algorithm;
 use std::{
-    collections::{HashMap, HashSet}, ops::RangeBounds, sync::{Arc, Mutex}
+    collections::{HashMap, HashSet},
+    ops::RangeBounds,
+    sync::{Arc, Mutex},
 };
 
 use actix::prelude::*;
@@ -8,7 +10,9 @@ use chrono::{DateTime, Duration, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use shared_messages::{
     agent_error::AgentError,
     models::{
-        time_environment::day::Day, work_order::{operation::ActivityNumber, WorkOrderNumber}, worker_environment::resources::Id
+        time_environment::day::Day,
+        work_order::{operation::ActivityNumber, WorkOrderNumber},
+        worker_environment::resources::Id,
     },
     operational::{
         operational_response_status::OperationalStatusResponse, OperationalRequestMessage,
@@ -21,7 +25,7 @@ use shared_messages::models::{work_order::operation::Operation, SchedulingEnviro
 use tracing::{info, warn};
 
 use crate::agents::{
-    operational_agent::algorithm::OperationalParameters,
+    operational_agent::algorithm::{OperationalParameters, OperationalSolution},
     tactical_agent::tactical_algorithm::OperationParameters,
 };
 
@@ -60,20 +64,36 @@ pub struct AssignedWork {
 
 type Assigned = bool;
 impl OperationalAgent {
-    fn determine_start_and_finish_times(&self, days: Vec<(Day, f64)>) -> (DateTime<Utc>, DateTime<Utc>) {
+    fn determine_start_and_finish_times(
+        &self,
+        days: &Vec<(Day, f64)>,
+    ) -> (DateTime<Utc>, DateTime<Utc>) {
         if days.len() == 1 {
-            let start_of_time_window = Utc.from_utc_datetime(&NaiveDateTime::new(days.first().unwrap().0.date().date_naive(), self.shift.0));
-            let end_of_time_window = Utc.from_utc_datetime(&NaiveDateTime::new(days.last().unwrap().0.date().date_naive(), self.shift.1)); 
+            let start_of_time_window = Utc.from_utc_datetime(&NaiveDateTime::new(
+                days.first().unwrap().0.date().date_naive(),
+                self.shift.0,
+            ));
+            let end_of_time_window = Utc.from_utc_datetime(&NaiveDateTime::new(
+                days.last().unwrap().0.date().date_naive(),
+                self.shift.1,
+            ));
             (start_of_time_window, end_of_time_window)
         } else {
-
-            let start_day = days[0].0.date().date_naive(); 
+            let start_day = days[0].0.date().date_naive();
             let end_day = days.last().unwrap().0.date().date_naive();
-            let start_datetime = NaiveDateTime::new(start_day, self.shift.1 - Duration::seconds(3600 * days[0].1.round() as i64));
-            let end_datetime = NaiveDateTime::new(end_day, self.shift.0 + Duration::seconds(3600 * days.last().unwrap().1.round() as i64));
+            let start_datetime = NaiveDateTime::new(
+                start_day,
+                self.shift.1 - Duration::seconds(3600 * days[0].1.round() as i64),
+            );
+            let end_datetime = NaiveDateTime::new(
+                end_day,
+                self.shift.0 + Duration::seconds(3600 * days.last().unwrap().1.round() as i64),
+            );
 
-            (Utc.from_utc_datetime(&start_datetime), Utc.from_utc_datetime(&end_datetime))
-            
+            (
+                Utc.from_utc_datetime(&start_datetime),
+                Utc.from_utc_datetime(&end_datetime),
+            )
         }
     }
 }
@@ -99,21 +119,20 @@ impl Handler<OperationSolution> for OperationalAgent {
     ) -> Self::Result {
         let scheduling_environment = self.scheduling_environment.lock().unwrap();
 
-        let operation = 
-            scheduling_environment
-                .operation(
-                    &operation_solution.work_order_number,
-                    &operation_solution.activity_number,
-                );
+        let operation: &Operation = scheduling_environment.operation(
+            &operation_solution.work_order_number,
+            &operation_solution.activity_number,
+        );
+
+        let (start_datetime, end_datetime) =
+            self.determine_start_and_finish_times(&operation_solution.scheduled);
 
         let operational_parameter = OperationalParameters::new(
             operation.work_remaining(),
-            operation.preparation,
-            
-            operation_solution: operation_solution.clone(),
+            operation.operation_analytic.preparation_time,
+            start_datetime,
+            end_datetime,
         );
-
-        
 
         self.assigned.insert((
             false,
@@ -121,15 +140,18 @@ impl Handler<OperationSolution> for OperationalAgent {
             operation_solution.activity_number,
         ));
 
-        let operation_parameters = OperationalParameters::new();
+        let operational_solution = OperationalSolution::new(false, Vec::new());
 
-        self.operational_algorithm
-            .insert_optimized_operation(assigned);
+        self.operational_algorithm.insert_optimized_operation(
+            operation_solution.work_order_number,
+            operation_solution.activity_number,
+            operational_parameter,
+            operational_solution,
+        );
         info!(id = ?self.id_operational, operation = ?operation_solution);
         true
     }
 }
-
 
 pub struct OperationalAgentBuilder {
     id_operational: Id,
@@ -139,6 +161,7 @@ pub struct OperationalAgentBuilder {
     availability: Option<Vec<Availability>>,
     assigned: HashSet<(Assigned, WorkOrderNumber, ActivityNumber)>,
     backup_activities: Option<HashMap<u32, Operation>>,
+    shift: (NaiveTime, NaiveTime),
     supervisor_agent_addr: Addr<SupervisorAgent>,
 }
 
@@ -146,6 +169,7 @@ impl OperationalAgentBuilder {
     pub fn new(
         id_operational: Id,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
+        shift: (NaiveTime, NaiveTime),
         supervisor_agent_addr: Addr<SupervisorAgent>,
     ) -> Self {
         OperationalAgentBuilder {
@@ -156,6 +180,7 @@ impl OperationalAgentBuilder {
             availability: None,
             assigned: HashSet::new(),
             backup_activities: None,
+            shift,
             supervisor_agent_addr,
         }
     }
@@ -196,6 +221,7 @@ impl OperationalAgentBuilder {
             availability: self.availability,
             assigned: self.assigned,
             backup_activities: self.backup_activities,
+            shift: self.shift,
             supervisor_agent_addr: self.supervisor_agent_addr,
         }
     }
@@ -235,7 +261,7 @@ impl Handler<StatusMessage> for OperationalAgent {
             "ID: {}, traits: {}, Objective: {}",
             self.id_operational.0,
             self.id_operational
-                .1
+                .2
                 .iter()
                 .map(|resource| resource.to_string())
                 .collect::<Vec<String>>()
@@ -266,5 +292,3 @@ impl Handler<UpdateWorkOrderMessage> for OperationalAgent {
         warn!("Update 'impl Handler<UpdateWorkOrderMessage> for SupervisorAgent'");
     }
 }
-
-

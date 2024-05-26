@@ -109,7 +109,7 @@ pub async fn http_to_scheduling_system(
 
             let supervisor_agent_addr = supervisor_agent_addrs
                 .iter()
-                .find(|(id, _)| id.2.as_ref().unwrap() == &supervisor_request.main_work_center)
+                .find(|(id, _)| id.3.as_ref().unwrap() == &supervisor_request.main_work_center)
                 .unwrap()
                 .1;
 
@@ -156,7 +156,7 @@ impl Orchestrator {
                         actor_registry.strategic_agent_addr.do_send(update_work_order_message.clone());
                         actor_registry.tactical_agent_addr.do_send(update_work_order_message.clone());
 
-                        actor_registry.supervisor_agent_addrs.iter().find(|id| id.0.2.as_ref().unwrap() == &main_resource).unwrap().1.do_send(update_work_order_message.clone());
+                        actor_registry.supervisor_agent_addrs.iter().find(|id| id.0.3.as_ref().unwrap() == &main_resource).unwrap().1.do_send(update_work_order_message.clone());
                         for actor in actor_registry.operational_agent_addrs.values() {
                             actor.do_send(update_work_order_message.clone());
                         };
@@ -394,23 +394,23 @@ impl Orchestrator {
                 let orchestrator_response = OrchestratorResponse::RequestStatus(response_string);
                 Ok(orchestrator_response)
             }
-            OrchestratorRequest::CreateOperationalAgent(asset, id_string) => {
+            OrchestratorRequest::CreateOperationalAgent(asset, id) => {
                 let supervisor_agent_addr = self
                     .agent_registries
                     .get(&asset)
                     .unwrap()
-                    .supervisor_agent_addr_by_resource(&id_string.1[0].clone());
+                    .supervisor_agent_addr_by_resource(&id.2[0].clone());
 
                 let operational_agent_addr = self
                     .agent_factory
-                    .build_operational_agent(id_string.clone(), supervisor_agent_addr);
+                    .build_operational_agent(id.clone(), id.1, supervisor_agent_addr);
 
                 self.agent_registries
                     .get_mut(&asset)
                     .unwrap()
-                    .add_operational_agent(id_string.clone(), operational_agent_addr.clone());
+                    .add_operational_agent(id.clone(), operational_agent_addr.clone());
 
-                let response_string = format!("Operational agent created with id {}", id_string);
+                let response_string = format!("Operational agent created with id {}", id);
                 let orchestrator_response = OrchestratorResponse::RequestStatus(response_string);
                 Ok(orchestrator_response)
             }
