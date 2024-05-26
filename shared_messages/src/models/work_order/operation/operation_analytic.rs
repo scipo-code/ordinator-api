@@ -3,8 +3,8 @@ use serde::Serialize;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct OperationAnalytic {
-    preparation_time: f64,
-    duration: u32,
+    pub preparation_time: f64,
+    pub duration: u32,
 }
 
 impl OperationAnalytic {
