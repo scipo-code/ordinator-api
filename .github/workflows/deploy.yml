@@ -21,7 +21,7 @@ jobs:
         ssh-keyscan -H login1.gbar.dtu.dk >> ~/.ssh/known_hosts2      
     
     - name: Setup SSH agent
-      uses: webfactory/ssh-agent@v0.9
+      uses: webfactory/ssh-agent@v0.9.0
       with:
         ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
