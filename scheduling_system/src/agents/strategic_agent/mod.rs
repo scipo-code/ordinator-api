@@ -570,6 +570,7 @@ impl TestAlgorithm for StrategicAgent {
 mod tests {
 
     use chrono::{TimeZone, Utc};
+    use shared_messages::models::work_order::operation::ActivityNumber;
     use shared_messages::strategic::strategic_request_scheduling_message::SingleWorkOrder;
     use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
     use shared_messages::strategic::Periods;
@@ -697,11 +698,11 @@ mod tests {
     fn test_extract_state_to_scheduler_overview() {
         let mut operations: HashMap<u32, Operation> = HashMap::new();
 
-        let operation_1 = Operation::builder(10, Resources::MtnMech, 1.0).build();
+        let operation_1 = Operation::builder(ActivityNumber(10), Resources::MtnMech, 1.0).build();
 
-        let operation_2 = Operation::builder(20, Resources::MtnMech, 1.0).build();
+        let operation_2 = Operation::builder(ActivityNumber(20), Resources::MtnMech, 1.0).build();
 
-        let operation_3 = Operation::builder(30, Resources::MtnMech, 1.0).build();
+        let operation_3 = Operation::builder(ActivityNumber(30), Resources::MtnMech, 1.0).build();
 
         operations.insert(10, operation_1);
         operations.insert(20, operation_2);

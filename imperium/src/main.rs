@@ -1,6 +1,6 @@
 pub mod commands;
 
-use clap::{Args, Command, CommandFactory, Parser, Subcommand, ValueHint};
+use clap::{Command, CommandFactory, Parser};
 use clap_complete::{generate, Generator, Shell};
 use commands::Commands;
 use reqwest::blocking::Client;
@@ -47,6 +47,8 @@ fn send_http(client: &Client, system_message: SystemMessages) -> String {
             "hello".to_string()
         }
     };
+
+    dbg!(&system_message_json);
 
     let res = client
         .post(url)

@@ -14,10 +14,10 @@ use std::fmt::Display;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Operation {
     pub activity: ActivityNumber,
-    resource: Resources,
-    operation_info: OperationInfo,
-    operation_analytic: OperationAnalytic,
-    operation_dates: OperationDates,
+    pub resource: Resources,
+    pub operation_info: OperationInfo,
+    pub operation_analytic: OperationAnalytic,
+    pub operation_dates: OperationDates,
 }
 
 type Work = f64;
@@ -99,6 +99,7 @@ impl OperationDates {
         earliest_start_datetime: DateTime<Utc>,
         earliest_finish_datetime: DateTime<Utc>,
     ) -> Self {
+        assert!(possible_start < target_finish);
         OperationDates {
             possible_start,
             target_finish,
@@ -140,7 +141,7 @@ impl Operation {
         );
 
         OperationBuilder {
-            activity: ActivityNumber(activity),
+            activity,
             resource,
             operation_info,
             operation_analytic,

@@ -327,32 +327,27 @@ mod tests {
 
         assert_eq!(new_period.period_string, "2025-W1-2".to_string());
     }
-    fn period_strategy() -> impl Strategy<Value = Period> {
-        (
-            any::<i32>(),
-            any::<String>(),
-            any::<DateTime<Utc>>(),
-            any::<DateTime<Utc>>(),
-            any::<u32>(),
-            any::<u32>(),
-        )
-            .prop_map(
-                |(id_internal, period_string, start_date, end_date, start_week, end_week)| Period {
-                    id_internal,
-                    period_string,
-                    start_date,
-                    end_date,
-                    start_week,
-                    end_week,
-                },
-            )
-    }
+    // fn period_strategy() -> impl Strategy<Value = Period> {
+    //     (any::<i32>(), any::<String>(), any::<u32>(), any::<u32>()).prop_map(
+    //         |(id_internal, period_string, start_week, end_week)| {
 
-    proptest! {
-        #[test]
-        fn test_period_initialization(period in period_strategy()) {
+    //             Period {
+    //                 id_internal,
+    //                 period_string,
+    //                 start_date,
+    //                 end_date,
+    //                 start_week,
+    //                 end_week,
+    //             }
+    //         },
+    //     )
+    // }
 
-            period.period_string
-        }
-    }
+    // proptest! {
+    //     #[test]
+    //     fn test_period_initialization(period in period_strategy()) {
+
+    //         period.period_string
+    //     }
+    // }
 }

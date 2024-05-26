@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use chrono::NaiveTime;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
@@ -232,15 +233,42 @@ impl Display for Resources {
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug)]
-pub struct Id(pub String, pub Vec<Resources>, pub Option<MainResources>);
+pub struct Id(
+    pub String,
+    pub (NaiveTime, NaiveTime),
+    pub Vec<Resources>,
+    pub Option<MainResources>,
+);
 
 impl Id {
     pub fn new(
         id_employee: String,
+        shift: (NaiveTime, NaiveTime),
         resources: Vec<Resources>,
         main_resources: Option<MainResources>,
     ) -> Self {
-        Id(id_employee, resources, main_resources)
+        Id(id_employee, shift, resources, main_resources)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, EnumIter, clap::ValueEnum)]
+pub enum Shift {
+    Day,
+    Night,
+}
+
+impl Shift {
+    pub fn generate_time_intervals(&self) -> (NaiveTime, NaiveTime) {
+        match self {
+            Shift::Day => (
+                NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
+                NaiveTime::from_hms_opt(19, 0, 0).unwrap(),
+            ),
+            Shift::Night => (
+                NaiveTime::from_hms_opt(19, 0, 0).unwrap(),
+                NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
+            ),
+        }
     }
 }
 
