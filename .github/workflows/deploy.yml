@@ -18,8 +18,13 @@ jobs:
         chmod 700 ~/.ssh
         echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/gbar
         chmod 600 ~/.ssh/gbar
-        ssh-keyscan -H login1.gbar.dtu.dk >> ~/.ssh/known_hosts      
+        ssh-keyscan -H login1.gbar.dtu.dk >> ~/.ssh/known_hosts2      
     
+    - name: Setup SSH agent
+      uses: webfactory/ssh-agent@v0.9
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
     - name: Deploy to server
       run: |
         ssh -t -v -i ~/.ssh/gbar cbrje@login1.gbar.dtu.dk << 'EOF'
