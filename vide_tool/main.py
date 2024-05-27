@@ -42,112 +42,141 @@ def main():
     ENV = settings.env
     DATA_PATH = settings.data_path
 
-    EBAN_URL_FILE_NAME = "e1p_010_eban"
-    EBAN_NEEDED_COLUMNS = "banfn,bnfpo,loekz,statu,frgzu,ernam,afnam,txz01,matnr,werks,menge,lpein,lfdat,frgdt,ebeln,ebelp,frgrl,waers,banpr,rlwrt,blckd,blckt,yybuyer,preis"
-    EKPO_URL_FILE_NAME = "e1p_010_ekpo"
-    EKPO_NEEDED_COLUMNS = "ebeln,ebelp,loekz,statu,txz01,matnr,werks,menge,anfnr,banfn,bnfpo,afnam,netpr,peinh"
-    EKKN_URL_FILE_NAME = "e1p_010_ekkn"
-    EKKN_NEEDED_COLUMNS = "ebeln,ebelp,loekz,menge,kostl,aufnr,ps_psp_pnr"
-    EKET_URL_FILE_NAME = "e1p_010_eket"
-    EKET_NEEDED_COLUMNS = "ebeln,ebelp,etenr,eindt,lpein,menge,banfn,bnfpo"
-    EKBE_URL_FILE_NAME = "e1p_010_ekbe"
-    EKBE_NEEDED_COLUMNS = "ebeln,ebelp,vgabe,bwart,menge,waers,cpudt,matnr,werks,bldat,ernam,belnr"
-    EKKO_URL_FILE_NAME = "e1p_010_ekko"
-    EKKO_NEEDED_COLUMNS = "ebeln,bukrs,loekz,statu,ernam,waers,frgzu,frgrl,rlwrt,yybuyer,bedat"
-    EBKN_URL_FILE_NAME = "e1p_010_ebkn"
-    EBKN_NEEDED_COLUMNS = "banfn,bnfpo,loekz,ernam,menge,kostl,aufnr,ps_psp_pnr"
-    WBS_URL_FILE_NAME = "e1p_010_prps"
-    WBS_NEEDED_COLUMNS = "pspnr,posid,ernam,werks,kostl,matnr"
-    IGG_URL_FILE_NAME = "e1p_010_ybw_adrp"
-    IGG_NEEDED_COLUMNS = "bname,name_text"
+
+    AFIH_URL_FILE_NAME = "e1p_010_afih"
+    AFIH_NEEDED_COLUMNS = "mandt,aufnr,artpr,priok,equnr,bautl,iloan,iloai,anlzu,iwerk,apgrp,gewrk,aning,gauzt,gaueh,inspk,datan,warpl,abnum,wapos,laufn,obknr,revnr,addat,aduhr,sermat"
+  
+    AFKO_URL_FILE_NAME = "e1p_010_afko"
+    AFKO_NEEDED_COLUMNS = "aufnr,gltrp,gstrp,ftrms,gltrs,gstrs,gstri,getri,gltri,ftrmi,ftrmp,plnbez,stlbez,aufpl,aufnt,aufpt,gluzp,gsuzp"
+  
+    AFRU_URL_FILE_NAME = "e1p_010_afru"
+    AFRU_NEEDED_COLUMNS = "mandt,rueck,rmzhl,arbid,werks,iserh,zeier,ismnw,ismne,idaur,idaue,anzma,pernr,aufpl,aufnr,vornr,ofmnw,ofmne,odaur,odaue,smeng"
+  
+    AFVC_URL_FILE_NAME = "e1p_010_afvc"
+    AFVC_NEEDED_COLUMNS = "mandt,aufpl,aplzl,plnfl,vornr,steus,arbid,ltxa1,anzma,anzzl,prznt,larnt,rueck,rmzhl,objnr,spanz,bedid,anlzu,nprio,pspnr,scope,no_disp,arbii,werki,wempf,ablad,sched_end,pernr,oio_hold,tplnr"
+  
+    AFVV_URL_FILE_NAME = "e1p_010_afvv"
+    AFVV_NEEDED_COLUMNS = "mandt,aufpl,aplzl,meinh,dauno,daune,daumi,daume,einsa,einse,arbei,arbeh,mgvrg,ismnw,puffr,pufgs,ntanf,ntanz,ntend,ntenz,bearz,ofmnw,aufkt"
+  
     AUFK_URL_FILE_NAME = "e1p_010_aufk"
-    AUFK_NEEDED_COLUMNS = "aufnr,ernam,ktext,bukrs,werks,waers,loekz,kostl,objnr"
-    IHPA_URL_FILE_NAME = "e1p_010_ihpa"
-    IHPA_NEEDED_COLUMNS = "objnr,parvw,counter,parnr"
-
-    ##### Data Formatting
-    ## EBAN : Main table : all PR/PO links
-    print("## Fetch EBAN data")
-    eban_data = pd.DataFrame.from_dict(__get_data_from_API(EBAN_URL_FILE_NAME, EBAN_NEEDED_COLUMNS)).astype(str)
-    eban_data.drop('links', axis=1, inplace=True)
-    eban_formatted_data = sap_formatter.format_eban(eban_data)
-
-    ## EKET : POs general 
-    print("## Fetch EKET data")
-    eket_data = pd.DataFrame.from_dict(__get_data_from_API(EKET_URL_FILE_NAME, EKET_NEEDED_COLUMNS)).astype(str)
-    eket_data.drop('links', axis=1, inplace=True)
-    eket_formatted_data = sap_formatter.format_eket(eket_data)
-
-    ## EKKO : POs Header
-    print("## Fetch EKKO data")
-    ekko_data = pd.DataFrame.from_dict(__get_data_from_API(EKKO_URL_FILE_NAME, EKKO_NEEDED_COLUMNS)).astype(str)
-    ekko_data.drop('links', axis=1, inplace=True)
-    ekko_buyer_data = ekko_data.copy()
-    ekko_formatted_data = sap_formatter.format_ekko(ekko_data)
-
-    ## EKKO : POs buyers
-    print("## Fetch EKKO Buyer data")
-    ekko_buyer_formatted_data = sap_formatter.format_ekko_buyer(ekko_buyer_data)
-
-    ## EKPO : Item of POs
-    print("## Fetch EKPO data")
-    ekpo_data = pd.DataFrame.from_dict(__get_data_from_API(EKPO_URL_FILE_NAME, EKPO_NEEDED_COLUMNS)).astype(str)
-    ekpo_data.drop('links', axis=1, inplace=True)
-    ekpo_formatted_data = sap_formatter.format_ekpo(ekpo_data)
-
-    ## EKBE : Status of POs
-    print("## Fetch EKBE data")
-    ekbe_data = pd.DataFrame.from_dict(__get_data_from_API(EKBE_URL_FILE_NAME, EKBE_NEEDED_COLUMNS)).astype(str)
-    ekbe_data.drop('links', axis=1, inplace=True)
-    ekbe_formatted_data = sap_formatter.format_ekbe(ekbe_data)
-
-    ## EBKN : general data about WOs
-    ## WBS : general data about WBS : WO/WBS links -> real name : PRPS
-    print("## Fetch EKBN data")
-    ebkn_data = pd.DataFrame.from_dict(__get_data_from_API(EBKN_URL_FILE_NAME, EBKN_NEEDED_COLUMNS)).astype(str)
-    ebkn_data.drop('links', axis=1, inplace=True)
-    wbs_data = pd.DataFrame.from_dict(__get_data_from_API(WBS_URL_FILE_NAME, WBS_NEEDED_COLUMNS)).astype(str)
-    wbs_data.drop('links', axis=1, inplace=True)
-    ebkn_formatted_data = sap_formatter.format_ebkn_wbs(ebkn_data, wbs_data)
-
-    ## AUFK : WOs description
+    AUFK_NEEDED_COLUMNS = "mandt,aufnr,auart,autyp,refnr,erdat,aenam,ktext,ltext,werks,kostv,stort,sowrk,astnr,phas0,phas1,phas2,phas3,idat1,user4,user9,objnr,pspel,erfzeit,aezeit,yyawsc,yyhours,zzgstrp,zzgltrp,zz_olafd,zz_lafd,zz_easd,vaplz"
+  
+    AUFM_URL_FILE_NAME = "e1p_010_aufm"
+    AUFM_NEEDED_COLUMNS = "mandt,mblnr,mjahr,zeile,ablad,aufnr"
+  
+    IFLOT_URL_FILE_NAME = "e1p_010_iflot"
+    IFLOT_NEEDED_COLUMNS = "mandt,tplnr,tplkz,fltyp,tplma,ernam,iwerk,ingrp"
+  
+    IFLOTX_URL_FILE_NAME = "e1p_010_iflotx"
+    IFLOTX_NEEDED_COLUMNS = "mandt,tplnr,spras,pltxt"
+  
+    ILOA_URL_FILE_NAME = "e1p_010_iloa"
+    ILOA_NEEDED_COLUMNS = "mandt,iloan,tplnr,abckz,swerk,stort,beber"
+  
+    T352R_URL_FILE_NAME = "e1p_010_t352r"
+    T352R_NEEDED_COLUMNS = "mandt,iwerk,revnr,revtx,tplnr,aufnr,objnr,revty"
+  
+    TJ02T_URL_FILE_NAME = "e1p_010_tj02t"
+    TJ02T_NEEDED_COLUMNS = "istat,spras,txt30"
+  
+    TJ30T_URL_FILE_NAME = "e1p_010_tj30t"
+    TJ30T_NEEDED_COLUMNS = "mandt,stsma,estat,spras,txt04,txt30"
+  
+    TJ02_URL_FILE_NAME = "e1p_010_tj02"
+    TJ02_NEEDED_COLUMNS = "istat"
+  
+    TJ20_URL_FILE_NAME = "e1p_010_tj20"
+    TJ20_NEEDED_COLUMNS = "mandt,stsma"
+  
+    TJ30_URL_FILE_NAME = "e1p_010_tj30"
+    TJ30_NEEDED_COLUMNS = "mandt,stsma,estat"
+    
+    
+    print("## Fetch AFIH data")
+    afih_data = pd.DataFrame.from_dict(__get_data_from_API(AFIH_URL_FILE_NAME, AFIH_NEEDED_COLUMNS)).astype(str)
+    afih_data.drop('links', axis=1, inplace=True)
+    afih_formatted_data = sap_formatter.format_afih(afih_data)
+    print("## Fetch AFKO data")
+    afko_data = pd.DataFrame.from_dict(__get_data_from_API(AFKO_URL_FILE_NAME, AFKO_NEEDED_COLUMNS)).astype(str)
+    afko_data.drop('links', axis=1, inplace=True)
+    afko_formatted_data = sap_formatter.format_afko(afko_data)
+    print("## Fetch AFRU data")
+    afru_data = pd.DataFrame.from_dict(__get_data_from_API(AFRU_URL_FILE_NAME, AFRU_NEEDED_COLUMNS)).astype(str)
+    afru_data.drop('links', axis=1, inplace=True)
+    afru_formatted_data = sap_formatter.format_afru(afru_data)
+    print("## Fetch AFVC data")
+    afvc_data = pd.DataFrame.from_dict(__get_data_from_API(AFVC_URL_FILE_NAME, AFVC_NEEDED_COLUMNS)).astype(str)
+    afvc_data.drop('links', axis=1, inplace=True)
+    afvc_formatted_data = sap_formatter.format_afvc(afvc_data)
+    print("## Fetch AFVV data")
+    afvv_data = pd.DataFrame.from_dict(__get_data_from_API(AFVV_URL_FILE_NAME, AFVV_NEEDED_COLUMNS)).astype(str)
+    afvv_data.drop('links', axis=1, inplace=True)
+    afvv_formatted_data = sap_formatter.format_afvv(afvv_data)
     print("## Fetch AUFK data")
     aufk_data = pd.DataFrame.from_dict(__get_data_from_API(AUFK_URL_FILE_NAME, AUFK_NEEDED_COLUMNS)).astype(str)
     aufk_data.drop('links', axis=1, inplace=True)
     aufk_formatted_data = sap_formatter.format_aufk(aufk_data)
+    print("## Fetch AUFM data")
+    aufm_data = pd.DataFrame.from_dict(__get_data_from_API(AUFM_URL_FILE_NAME, AUFM_NEEDED_COLUMNS)).astype(str)
+    aufm_data.drop('links', axis=1, inplace=True)
+    aufm_formatted_data = sap_formatter.format_aufm(aufm_data)
+    print("## Fetch IFLOT data")
+    iflot_data = pd.DataFrame.from_dict(__get_data_from_API(IFLOT_URL_FILE_NAME, IFLOT_NEEDED_COLUMNS)).astype(str)
+    eiflotdata.drop('links', axis=1, inplace=True)
+    ebiflotormatted_data = sap_formatter.format_iflot(iflot_data)
+    print("## Fetch IFLOTX data")
+    iflotx_data = pd.DataFrame.from_dict(__get_data_from_API(IFLOTX_URL_FILE_NAME, IFLOTX_NEEDED_COLUMNS)).astype(str)
+    ebiflotxata.drop('links', axis=1, inplace=True)
+    ebaniflotxmatted_data = sap_formatter.format_iflotx(iflotx_data)
+    print("## Fetch ILOA data")
+    iloa_data = pd.DataFrame.from_dict(__get_data_from_API(ILOA_URL_FILE_NAME, ILOA_NEEDED_COLUMNS)).astype(str)
+    iloa_data.drop('links', axis=1, inplace=True)
+    iloa_formatted_data = sap_formatter.format_iloa(iloa_data)
+    print("## Fetch T352R data")
+    t352r_data = pd.DataFrame.from_dict(__get_data_from_API(T352R_URL_FILE_NAME, T352R_NEEDED_COLUMNS)).astype(str)
+    et352rdata.drop('links', axis=1, inplace=True)
+    ebt352rormatted_data = sap_formatter.format_t352r(t352r_data)
+    print("## Fetch TJ02T data")
+    tj02t_data = pd.DataFrame.from_dict(__get_data_from_API(TJ02T_URL_FILE_NAME, TJ02T_NEEDED_COLUMNS)).astype(str)
+    etj02tdata.drop('links', axis=1, inplace=True)
+    ebtj02tormatted_data = sap_formatter.format_tj02t(tj02t_data)
+    print("## Fetch TJ30T data")
+    tj30t_data = pd.DataFrame.from_dict(__get_data_from_API(TJ30T_URL_FILE_NAME, TJ30T_NEEDED_COLUMNS)).astype(str)
+    etj30tdata.drop('links', axis=1, inplace=True)
+    ebtj30tormatted_data = sap_formatter.format_tj30t(tj30t_data)
+    print("## Fetch TJ02 data")
+    tj02_data = pd.DataFrame.from_dict(__get_data_from_API(TJ02_URL_FILE_NAME, TJ02_NEEDED_COLUMNS)).astype(str)
+    tj02_data.drop('links', axis=1, inplace=True)
+    tj02_formatted_data = sap_formatter.format_tj02(tj02_data)
+    print("## Fetch TJ20 data")
+    tj20_data = pd.DataFrame.from_dict(__get_data_from_API(TJ20_URL_FILE_NAME, TJ20_NEEDED_COLUMNS)).astype(str)
+    tj20_data.drop('links', axis=1, inplace=True)
+    tj20_formatted_data = sap_formatter.format_tj20(tj20_data)
+    print("## Fetch TJ30 data")
+    tj30_data = pd.DataFrame.from_dict(__get_data_from_API(TJ30_URL_FILE_NAME, TJ30_NEEDED_COLUMNS)).astype(str)
+    tj30_data.drop('links', axis=1, inplace=True)
+    tj30_formatted_data = sap_formatter.format_tj30(tj30_data)
 
-    ## EKKN : Cost centers
-    print("## Fetch EKKN data")
-    ekkn_data = pd.DataFrame.from_dict(__get_data_from_API(EKKN_URL_FILE_NAME, EKKN_NEEDED_COLUMNS)).astype(str)
-    ekkn_data.drop('links', axis=1, inplace=True)
-    ekkn_formatted_data = sap_formatter.format_ekkn(ekkn_data)
-
-    ## IHPA : Partners 
-    print("## Fetch IHPA data")
-    ihpa_data = pd.DataFrame.from_dict(__get_data_from_API(IHPA_URL_FILE_NAME, IHPA_NEEDED_COLUMNS)).astype(str)
-    ihpa_data.drop('links', axis=1, inplace=True)
-    ihpa_formatted_data = sap_formatter.format_ihpa(ihpa_data)
-
-    ## YBW_ADRP : Links IGGs of buyer to personal data (name)
-    print("## Fetch YBW_ADRP data")
-    igg_data = pd.DataFrame.from_dict(__get_data_from_API(IGG_URL_FILE_NAME, IGG_NEEDED_COLUMNS)).astype(str)
-    igg_data.drop('links', axis=1, inplace=True)
-    igg_formatted_data = sap_formatter.format_igg(igg_data)
-
-    # Merging the data
+    
     print("## Merge all tables")
     merged_data = sap_formatter.merge_data(
-        eban_formatted_data,
-        ekpo_formatted_data,
-        eket_formatted_data,
-        ekkn_formatted_data,
-        ekbe_formatted_data,
-        ekko_formatted_data,
-        ebkn_formatted_data,
-        ekko_buyer_formatted_data,
-        igg_formatted_data,
+        afih_formatted_data,
+        afko_formatted_data,
+        afru_formatted_data,
+        afvc_formatted_data,
+        afvv_formatted_data,
         aufk_formatted_data,
-        ihpa_formatted_data
+        aufm_formatted_data,
+        iflot_formatted_data,
+        iflotx_formatted_data,
+        iloa_formatted_data,
+        t352r_formatted_data,
+        tj02t_formatted_data,
+        tj30t_formatted_data,
+        tj02_formatted_data,
+        tj20_formatted_data,
+        tj30_formatted_data,
+        tj30_formatted_data,
     )
     
     # Processing the data & sort it
