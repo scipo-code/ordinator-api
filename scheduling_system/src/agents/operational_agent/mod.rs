@@ -25,7 +25,7 @@ use shared_messages::models::{work_order::operation::Operation, SchedulingEnviro
 use tracing::{info, warn};
 
 use crate::agents::{
-    operational_agent::algorithm::{OperationalParameters, OperationalSolution},
+    operational_agent::algorithm::{OperationalParameter, OperationalSolution},
     tactical_agent::tactical_algorithm::OperationParameters,
 };
 
@@ -36,7 +36,6 @@ use super::{
     SetAddr, UpdateWorkOrderMessage,
 };
 
-#[allow(dead_code)]
 pub struct OperationalAgent {
     id_operational: Id,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
@@ -49,13 +48,11 @@ pub struct OperationalAgent {
     supervisor_agent_addr: Addr<SupervisorAgent>,
 }
 
-#[allow(dead_code)]
 pub struct Availability {
     start: DateTime<Utc>,
     end: DateTime<Utc>,
 }
 
-#[allow(dead_code)]
 pub struct AssignedWork {
     work: f64,
     assigned: bool,
@@ -127,7 +124,7 @@ impl Handler<OperationSolution> for OperationalAgent {
         let (start_datetime, end_datetime) =
             self.determine_start_and_finish_times(&operation_solution.scheduled);
 
-        let operational_parameter = OperationalParameters::new(
+        let operational_parameter = OperationalParameter::new(
             operation.work_remaining(),
             operation.operation_analytic.preparation_time,
             start_datetime,
