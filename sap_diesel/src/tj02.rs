@@ -1,0 +1,1 @@
+ISTAT:CHAR
