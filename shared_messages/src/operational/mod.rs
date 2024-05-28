@@ -1,4 +1,5 @@
 use actix::Message;
+use chrono::{DateTime, NaiveTime, Utc};
 use serde::Serialize;
 
 use crate::agent_error::AgentError;
@@ -44,4 +45,21 @@ pub enum OperationalResponseMessage {
 #[derive(Serialize)]
 pub enum OperationalResponse {
     Status,
+}
+
+pub struct TimeInterval {
+    start: NaiveTime,
+    end: NaiveTime,
+}
+
+impl TimeInterval {
+    pub fn contains(&self, date_time: DateTime<Utc>) -> bool {
+        let time = date_time.time();
+
+        if self.start <= time && time <= self.end {
+            true
+        } else {
+            false
+        }
+    }
 }
