@@ -5,7 +5,7 @@ members = [
     "scheduling_system",
     "shared_messages",
     "imperium"
-]
+, "sap_diesel"]
 
 [profile.release]
 debug = true
