@@ -18,9 +18,6 @@ use shared_messages::Asset;
 use shared_messages::SystemMessages;
 use shared_messages::TomlAgents;
 
-
-use strum::IntoEnumIterator;
-
 #[derive(Subcommand, Debug)]
 pub enum StrategicCommands {
     /// overview of the strategic agent

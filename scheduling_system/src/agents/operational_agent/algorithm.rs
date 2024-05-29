@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use shared_messages::{
     agent_error::AgentError,
     models::{
@@ -19,29 +19,28 @@ use shared_messages::{
 
 use crate::agents::traits::LargeNeighborHoodSearch;
 
-use super::Assigned;
+use super::{Assigned, OperationalConfiguration};
 
 pub struct OperationalAlgorithm {
     pub objective_value: f64,
-    pub operational_solution: Vec<(WorkOrderNumber, ActivityNumber, OperationalSolution)>,
+    pub operational_solutions: OperationalSolutions,
     pub operational_parameters: HashMap<(WorkOrderNumber, ActivityNumber), OperationalParameter>,
     pub availability: Availability,
     pub shift_interval: TimeInterval,
     pub break_interval: TimeInterval,
-    pub toolbox_interval: TimeInterval, 
+    pub toolbox_interval: TimeInterval,
 }
 
-
 impl OperationalAlgorithm {
-    pub fn new(availability: Availability, shift_interval: TimeInterval, break_interval: TimeInterval, toolbox_interval: TimeInterval) -> Self {
+    pub fn new(operational_configuration: OperationalConfiguration) -> Self {
         Self {
             objective_value: f64::INFINITY,
-            operational_solution: vec![],
+            operational_solutions: OperationalSolutions(Vec::new()),
             operational_parameters: HashMap::new(),
-            availability,
-            shift_interval,
-            break_interval,
-            toolbox_interval,
+            availability: operational_configuration.availability,
+            shift_interval: operational_configuration.shift_interval,
+            break_interval: operational_configuration.break_interval,
+            toolbox_interval: operational_configuration.toolbox_interval,
         }
     }
 
@@ -57,9 +56,64 @@ impl OperationalAlgorithm {
     }
 }
 
+pub struct OperationalSolutions(
+    Vec<(WorkOrderNumber, ActivityNumber, Option<OperationalSolution>)>,
+);
+
+impl OperationalSolutions {
+    fn try_insert(
+        &mut self,
+        work_order_number: WorkOrderNumber,
+        activity_number: ActivityNumber,
+        assignments: Vec<Assignment>,
+    ) {
+        for (index, operation_solution) in self.0.windows(2).enumerate() {
+            let finish_time_solution_window = match &operation_solution[0].2 {
+                Some(operational_solution) => operational_solution.finish_time(),
+                None => break,
+            };
+
+            let start_time_solution_window = match &operation_solution[1].2 {
+                Some(operational_solution) => operational_solution.start_time(),
+                None => break,
+            };
+
+            if finish_time_solution_window < assignments.first().unwrap().start
+                && assignments.last().unwrap().finish < start_time_solution_window
+            {
+                let operational_solution = OperationalSolution {
+                    assigned: false,
+                    assignments,
+                };
+
+                self.0.insert(
+                    index + 1,
+                    (
+                        work_order_number,
+                        activity_number,
+                        Some(operational_solution),
+                    ),
+                );
+                break;
+            }
+        }
+        self.0.push((work_order_number, activity_number, None));
+    }
+}
+
 pub struct OperationalSolution {
     assigned: Assigned,
     assignments: Vec<Assignment>,
+}
+
+impl OperationalSolution {
+    fn start_time(&self) -> DateTime<Utc> {
+        self.assignments.first().unwrap().start
+    }
+
+    fn finish_time(&self) -> DateTime<Utc> {
+        self.assignments.last().unwrap().finish
+    }
 }
 
 pub struct Assignment {
@@ -91,11 +145,10 @@ impl OperationalParameter {
         start_window: DateTime<Utc>,
         end_window: DateTime<Utc>,
     ) -> Self {
-            let combined_time =
-                3600.0 * (work + preparation);
-            let seconds_time = combined_time.trunc() as i64;
-            let nano_time = combined_time.fract() as u32;
-            let operation_time_delta = TimeDelta::new(seconds_time, nano_time).unwrap();
+        let combined_time = 3600.0 * (work + preparation);
+        let seconds_time = combined_time.trunc() as i64;
+        let nano_time = combined_time.fract() as u32;
+        let operation_time_delta = TimeDelta::new(seconds_time, nano_time).unwrap();
         Self {
             work,
             preparation,
@@ -105,8 +158,6 @@ impl OperationalParameter {
         }
     }
 }
-
-type OperationalSolutions = Vec<(WorkOrderNumber, ActivityNumber, OperationalSolution)>;
 
 impl LargeNeighborHoodSearch for OperationalAlgorithm {
     type SchedulingRequest = OperationalSchedulingRequest;
@@ -130,23 +181,28 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
     }
 
     fn schedule(&mut self) {
-        let old_objective = self.objective_value.clone();
+        // let old_objective = self.objective_value.clone();
 
-        let operational_solutions = self.operational_solution;
         for (operation_id, operational_parameter) in &self.operational_parameters {
-            let mut time_start = operational_parameter.start_window;
+            let start_time_option = determine_first_available_start_time(
+                operational_parameter,
+                &self.operational_solutions,
+            );
 
+            match start_time_option {
+                Some(start_time) => {
+                    let assignments = self.determine_assignment(start_time, operational_parameter);
+                    self.operational_solutions.try_insert(
+                        operation_id.0,
+                        operation_id.1,
+                        assignments,
+                    );
+                }
+                None => continue,
+            };
 
-            match determine_first_available_time_slot(
-                operatonal_parameter,
-                operational_solutions,
-            ) {
-                Some(start_time) => self.schedule_operation(
-                    start_time,
-                    operational_parameter,
-                ),
-                None => return operation_id,
-            }
+            // If the operation does not fit in the schedule it should be scheduled in the next round of the LNS optimization.
+            // The operational agent is different in that there can be no penalty.
         }
         // self.operational_solution
     }
@@ -178,53 +234,107 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 }
 
 impl OperationalAlgorithm {
-    fn schedule_operation(
-        &mut self,
+    fn determine_assignment(
+        &self,
         start_time: DateTime<Utc>,
         operational_parameter: &OperationalParameter,
-    ) {
-
+    ) -> Vec<Assignment> {
+        let mut assigned_work: Vec<Assignment> = vec![];
         let mut remaining_combined_work = operational_parameter.operation_time_delta.clone();
-        while remaining_combined_work != 0 {
-            
+        while !remaining_combined_work.is_zero() {
+            let mut current_time = start_time;
 
-            let overlap: Option<PossibleOverlaps> = if self.break_interval.contains(start_time) {
-                Some(PossibleOverlaps::Break)
-            } else if self.shift_interval.contains(start_time) {
-                Some(PossibleOverlaps::OffShift)
-            } else if self.toolbox_interval.contains(start_time) {
-                Some(PossibleOverlaps::Toolbox)
-            } else {
-                None
+            if self.break_interval.contains(current_time) {
+                current_time += self.break_interval.end - current_time.time();
+            } else if self.shift_interval.contains(current_time) {
+                current_time += self.toolbox_interval.end - current_time.time();
+            } else if self.toolbox_interval.contains(current_time) {
+                current_time += self.shift_interval.end - current_time.time();
             };
-            
-            
-            
-            let end_time = start_time
-            Assignment { start_time, 
 
+            let next_event = self.next_event(current_time);
+
+            if next_event.0 < remaining_combined_work {
+                assigned_work.push(Assignment {
+                    start: current_time,
+                    finish: current_time + next_event.0,
+                });
+                current_time += next_event.0 + next_event.1.time_delta();
+                remaining_combined_work -= next_event.0;
+            } else if next_event.0 >= remaining_combined_work {
+                assigned_work.push(Assignment {
+                    start: current_time,
+                    finish: current_time + remaining_combined_work,
+                });
+                current_time += next_event.0;
+                remaining_combined_work = TimeDelta::zero();
+            }
         }
+        assigned_work
+    }
 
+    fn next_event(&self, current_time: DateTime<Utc>) -> (TimeDelta, OperationalEvents) {
+        let break_diff = (
+            self.break_interval.start - current_time.time(),
+            OperationalEvents::Break(self.break_interval.clone()),
+        );
+        let toolbox_diff = (
+            self.toolbox_interval.start - current_time.time(),
+            OperationalEvents::Toolbox(self.toolbox_interval.clone()),
+        );
+        let off_shift_diff = (
+            self.shift_interval.start - current_time.time(),
+            OperationalEvents::OffShift(self.shift_interval.clone()),
+        );
 
-        
+        vec![break_diff, toolbox_diff, off_shift_diff]
+            .iter()
+            .filter(|&diff_event| diff_event.0.num_seconds() >= 0)
+            .min_by_key(|&diff_event| diff_event.0.num_seconds())
+            .cloned()
+            .unwrap()
     }
 }
 
-enum PossibleOverlaps {
-    Break,
-    Toolbox,
-    OffShift,
+#[derive(Clone)]
+enum OperationalEvents {
+    Break(TimeInterval),
+    Toolbox(TimeInterval),
+    OffShift(TimeInterval),
 }
 
-fn determine_first_available_time_slot(
-    operational_parameter: OperationalParameter,
-    operational_solutions: OperationalSolutions,
-) -> Option<DateTime<Utc>> {
-    for operational_solution in operational_solutions.windows(2) {
-        let start_of_interval = operational_solution[0].2.assignments.last().unwrap().finish;
-        let end_of_interval = operational_solution[1].2.assignments.first().unwrap().start;
+enum OperationalOperationState {
+    Feasible,
+    Infeasible((WorkOrderNumber, ActivityNumber)),
+}
 
-        if operational_parameter.end_window.min(end_of_interval) - operational_parameter.start_window.max(start_of_interval)
+impl OperationalEvents {
+    fn time_delta(&self) -> TimeDelta {
+        match self {
+            Self::Break(time_interval) => time_interval.end - time_interval.start,
+            Self::Toolbox(time_interval) => time_interval.end - time_interval.start,
+            Self::OffShift(time_interval) => time_interval.end - time_interval.start,
+        }
+    }
+}
+
+fn determine_first_available_start_time(
+    operational_parameter: &OperationalParameter,
+    operational_solutions: &OperationalSolutions,
+) -> Option<DateTime<Utc>> {
+    for operational_solution in operational_solutions.0.windows(2) {
+        let start_of_interval = match &operational_solution[0].2 {
+            Some(operational_solution) => operational_solution.assignments.last().unwrap().finish,
+            None => break,
+        };
+
+        let end_of_interval = match &operational_solution[1].2 {
+            Some(operational_solution) => operational_solution.assignments.first().unwrap().start,
+            None => continue,
+        };
+
+        if operational_parameter.end_window.min(end_of_interval)
+            - operational_parameter.start_window.max(start_of_interval)
             > operational_parameter.operation_time_delta
         {
             return Some(operational_parameter.start_window.max(start_of_interval));

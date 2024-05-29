@@ -1,6 +1,6 @@
 use actix::prelude::*;
 
-use chrono::NaiveTime;
+use shared_messages::operational::OperationalConfiguration;
 use shared_messages::strategic::{Periods, StrategicResources};
 use shared_messages::tactical::{Days, TacticalResources};
 use shared_messages::Asset;
@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use crate::agents::operational_agent::algorithm::OperationalAlgorithm;
 use crate::agents::operational_agent::{OperationalAgent, OperationalAgentBuilder};
 use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::OptimizedWorkOrders;
 use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
@@ -151,13 +152,16 @@ impl AgentFactory {
     pub fn build_operational_agent(
         &self,
         id_operational: Id,
-        shift: (NaiveTime, NaiveTime),
+        operational_configuration: OperationalConfiguration,
         supervisor_agent_addr: Addr<SupervisorAgent>,
     ) -> Addr<OperationalAgent> {
+        let operational_algorithm = OperationalAlgorithm::new(operational_configuration.clone());
+
         let operational_agent = OperationalAgentBuilder::new(
             id_operational,
             self.scheduling_environment.clone(),
-            shift,
+            operational_configuration,
+            operational_algorithm,
             supervisor_agent_addr,
         )
         .build();

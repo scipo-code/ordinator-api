@@ -64,7 +64,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
             for (_activity_number, operation_solution) in operations {
                 // send a message to each relevant agent
                 for (id, operational_addr) in &self.operational_agent_addrs {
-                    if id.2.contains(&operation_solution.resource) {
+                    if id.1.contains(&operation_solution.resource) {
                         all_messages.push(operational_addr.send(operation_solution.clone()));
                     }
                     // self.operational_agent_addrs;
@@ -182,7 +182,7 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
                     supervisor_status_message
                 );
                 let supervisor_status = SupervisorResponseStatus::new(
-                    self.id_supervisor.clone().3.unwrap(),
+                    self.id_supervisor.clone().2.unwrap(),
                     self.assigned_work_orders.len(),
                     self.supervisor_algorithm.objective_value,
                 );
@@ -218,10 +218,10 @@ impl TestAlgorithm for SupervisorAgent {
                 .unwrap()
                 .main_work_center
                 .clone();
-            if &work_order_main_resource == self.id_supervisor.3.as_ref().unwrap() {
+            if &work_order_main_resource == self.id_supervisor.2.as_ref().unwrap() {
                 continue;
             } else {
-                error!(work_order_number = ?work_order_number, work_order_main_resource = ?work_order_main_resource, supervisor_trait = ?self.id_supervisor.3.as_ref().unwrap());
+                error!(work_order_number = ?work_order_number, work_order_main_resource = ?work_order_main_resource, supervisor_trait = ?self.id_supervisor.2.as_ref().unwrap());
                 feasible_main_resources = false;
                 break;
             }

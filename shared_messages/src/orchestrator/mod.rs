@@ -9,12 +9,13 @@ use crate::models::work_order::status_codes::StatusCodes;
 use crate::models::work_order::WorkOrderNumber;
 use crate::models::worker_environment::resources::Id;
 use crate::operational::operational_response_status::OperationalStatusResponse;
+use crate::operational::OperationalConfiguration;
 use crate::strategic::strategic_response_status::{StrategicResponseStatus, WorkOrdersStatus};
 use crate::supervisor::supervisor_response_status::SupervisorResponseStatus;
 use crate::tactical::tactical_response_status::TacticalResponseStatus;
 use crate::{Asset, LevelOfDetail, LogLevel};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum OrchestratorRequest {
     SetWorkOrderState(WorkOrderNumber, StatusCodes),
     GetWorkOrderStatus(WorkOrderNumber, LevelOfDetail),
@@ -24,7 +25,7 @@ pub enum OrchestratorRequest {
     AgentStatusRequest,
     CreateSupervisorAgent(Asset, Id),
     DeleteSupervisorAgent(Asset, String),
-    CreateOperationalAgent(Asset, Id),
+    CreateOperationalAgent(Asset, Id, OperationalConfiguration),
     DeleteOperationalAgent(Asset, String),
     SetLogLevel(LogLevel),
     SetProfiling(LogLevel),
