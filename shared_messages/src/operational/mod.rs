@@ -1,8 +1,8 @@
 use actix::Message;
 use chrono::{DateTime, NaiveTime, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-use crate::agent_error::AgentError;
+use crate::{agent_error::AgentError, models::worker_environment::availability::Availability};
 
 use self::{
     operational_request_resource::OperationalResourceRequest,
@@ -47,12 +47,48 @@ pub enum OperationalResponse {
     Status,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct OperationalConfiguration {
+    pub availability: Availability,
+    pub break_interval: TimeInterval,
+    pub shift_interval: TimeInterval,
+    pub toolbox_interval: TimeInterval,
+}
+
+impl OperationalConfiguration {
+    pub fn new(
+        availability: Availability,
+        break_interval: TimeInterval,
+        shift_interval: TimeInterval,
+        toolbox_interval: TimeInterval,
+    ) -> Self {
+        Self {
+            availability,
+            break_interval,
+            shift_interval,
+            toolbox_interval,
+        }
+    }
+}
+
+// impl Default for OperationalConfiguration {
+//     fn default() -> Self {
+//         Self {
+//             availability: TomlAvailability { start_date: d, end_date: toml::value::Datetime
+//     }
+// }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TimeInterval {
-    start: NaiveTime,
-    end: NaiveTime,
+    pub start: NaiveTime,
+    pub end: NaiveTime,
 }
 
 impl TimeInterval {
+    pub fn new(start: NaiveTime, end: NaiveTime) -> Self {
+        Self { start, end }
+    }
+
     pub fn contains(&self, date_time: DateTime<Utc>) -> bool {
         let time = date_time.time();
 
