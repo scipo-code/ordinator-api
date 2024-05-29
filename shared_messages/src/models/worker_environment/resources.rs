@@ -233,21 +233,15 @@ impl Display for Resources {
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug)]
-pub struct Id(
-    pub String,
-    pub (NaiveTime, NaiveTime),
-    pub Vec<Resources>,
-    pub Option<MainResources>,
-);
+pub struct Id(pub String, pub Vec<Resources>, pub Option<MainResources>);
 
 impl Id {
     pub fn new(
         id_employee: String,
-        shift: (NaiveTime, NaiveTime),
         resources: Vec<Resources>,
         main_resources: Option<MainResources>,
     ) -> Self {
-        Id(id_employee, shift, resources, main_resources)
+        Id(id_employee, resources, main_resources)
     }
 }
 

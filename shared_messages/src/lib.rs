@@ -9,18 +9,15 @@ use std::fmt::{self, Display};
 
 use actix::prelude::*;
 use clap::{Subcommand, ValueEnum};
-use models::worker_environment::{
-    availability::Availability,
-    resources::{Resources, Shift},
-};
-use operational::OperationalResponse;
+use models::worker_environment::resources::Resources;
+use operational::{OperationalConfiguration, OperationalResponse};
 use orchestrator::{OrchestratorRequest, OrchestratorResponse};
 use serde::{Deserialize, Serialize};
 use strategic::{StrategicRequest, StrategicResponse};
 use supervisor::{SupervisorRequest, SupervisorResponse};
 use tactical::{TacticalRequest, TacticalResponse};
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "message_type")]
 pub enum SystemMessages {
     Orchestrator(OrchestratorRequest),
@@ -210,9 +207,8 @@ pub struct TomlAgents {
 pub struct TomlOperational {
     pub id: String,
     pub resources: SeqResources,
-    pub shift: Shift,
     pub hours_per_day: f64,
-    pub availability: Availability,
+    pub operational_configuration: OperationalConfiguration,
 }
 
 #[derive(Deserialize, Debug)]
@@ -255,4 +251,28 @@ where
 pub enum LoadOperation {
     Add,
     Sub,
+}
+
+#[cfg(test)]
+mod tests {
+    use toml::Table;
+
+    use super::TomlOperational;
+
+    #[test]
+    fn test_toml_operational_parsing() {
+        let toml_operational_string = r#"
+            [[operational]]
+            id = "OP-01-001"
+            resources.resources = ["MTN-ELEC" ]
+            hours_per_day = 6.0
+            shift = "Day"
+            availability.start_date = 2024-05-16T07:00:00Z
+            availability.end_date = 2024-05-30T15:00:00Z
+        "#;
+
+        let toml_operational: TomlOperational = toml_operational_string.parse::<Table>().unwrap();
+
+        assert!(toml_operational.id == "OP-010-001");
+    }
 }

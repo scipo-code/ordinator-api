@@ -1,12 +1,11 @@
 pub mod algorithm;
 use std::{
     collections::{HashMap, HashSet},
-    ops::RangeBounds,
     sync::{Arc, Mutex},
 };
 
 use actix::prelude::*;
-use chrono::{DateTime, Duration, NaiveDateTime, NaiveTime, TimeZone, Utc};
+use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use shared_messages::{
     agent_error::AgentError,
     models::{
@@ -15,8 +14,8 @@ use shared_messages::{
         worker_environment::resources::Id,
     },
     operational::{
-        operational_response_status::OperationalStatusResponse, OperationalRequestMessage,
-        OperationalResponseMessage,
+        operational_response_status::OperationalStatusResponse, OperationalConfiguration,
+        OperationalRequestMessage, OperationalResponseMessage,
     },
     StatusMessage, StopMessage,
 };
@@ -24,10 +23,7 @@ use shared_messages::{
 use shared_messages::models::{work_order::operation::Operation, SchedulingEnvironment};
 use tracing::{info, warn};
 
-use crate::agents::{
-    operational_agent::algorithm::{OperationalParameter, OperationalSolution},
-    tactical_agent::tactical_algorithm::OperationParameters,
-};
+use crate::agents::operational_agent::algorithm::{OperationalParameter, OperationalSolution};
 
 use self::algorithm::OperationalAlgorithm;
 
@@ -41,16 +37,10 @@ pub struct OperationalAgent {
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     operational_algorithm: OperationalAlgorithm,
     capacity: Option<f32>,
-    availability: Option<Vec<Availability>>,
     assigned: HashSet<(Assigned, WorkOrderNumber, ActivityNumber)>,
     backup_activities: Option<HashMap<u32, Operation>>,
-    shift: (NaiveTime, NaiveTime),
+    operational_configuration: OperationalConfiguration,
     supervisor_agent_addr: Addr<SupervisorAgent>,
-}
-
-pub struct Availability {
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
 }
 
 pub struct AssignedWork {
@@ -60,6 +50,7 @@ pub struct AssignedWork {
 }
 
 type Assigned = bool;
+
 impl OperationalAgent {
     fn determine_start_and_finish_times(
         &self,
@@ -68,11 +59,11 @@ impl OperationalAgent {
         if days.len() == 1 {
             let start_of_time_window = Utc.from_utc_datetime(&NaiveDateTime::new(
                 days.first().unwrap().0.date().date_naive(),
-                self.shift.0,
+                self.operational_configuration.shift_interval.start,
             ));
             let end_of_time_window = Utc.from_utc_datetime(&NaiveDateTime::new(
                 days.last().unwrap().0.date().date_naive(),
-                self.shift.1,
+                self.operational_configuration.shift_interval.end,
             ));
             (start_of_time_window, end_of_time_window)
         } else {
@@ -80,11 +71,13 @@ impl OperationalAgent {
             let end_day = days.last().unwrap().0.date().date_naive();
             let start_datetime = NaiveDateTime::new(
                 start_day,
-                self.shift.1 - Duration::seconds(3600 * days[0].1.round() as i64),
+                self.operational_configuration.shift_interval.end
+                    - Duration::seconds(3600 * days[0].1.round() as i64),
             );
             let end_datetime = NaiveDateTime::new(
                 end_day,
-                self.shift.0 + Duration::seconds(3600 * days.last().unwrap().1.round() as i64),
+                self.operational_configuration.shift_interval.start
+                    + Duration::seconds(3600 * days.last().unwrap().1.round() as i64),
             );
 
             (
@@ -155,10 +148,9 @@ pub struct OperationalAgentBuilder {
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     operational_algorithm: OperationalAlgorithm,
     capacity: Option<f32>,
-    availability: Option<Vec<Availability>>,
     assigned: HashSet<(Assigned, WorkOrderNumber, ActivityNumber)>,
     backup_activities: Option<HashMap<u32, Operation>>,
-    shift: (NaiveTime, NaiveTime),
+    operational_configuration: OperationalConfiguration,
     supervisor_agent_addr: Addr<SupervisorAgent>,
 }
 
@@ -166,18 +158,18 @@ impl OperationalAgentBuilder {
     pub fn new(
         id_operational: Id,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-        shift: (NaiveTime, NaiveTime),
+        operational_configuration: OperationalConfiguration,
+        operational_algorithm: OperationalAlgorithm,
         supervisor_agent_addr: Addr<SupervisorAgent>,
     ) -> Self {
         OperationalAgentBuilder {
             id_operational,
             scheduling_environment,
-            operational_algorithm: OperationalAlgorithm::new(),
+            operational_algorithm,
             capacity: None,
-            availability: None,
             assigned: HashSet::new(),
             backup_activities: None,
-            shift,
+            operational_configuration,
             supervisor_agent_addr,
         }
     }
@@ -185,12 +177,6 @@ impl OperationalAgentBuilder {
     #[allow(dead_code)]
     pub fn with_capacity(mut self, capacity: f32) -> Self {
         self.capacity = Some(capacity);
-        self
-    }
-
-    #[allow(dead_code)]
-    pub fn with_availability(mut self, availability: Vec<Availability>) -> Self {
-        self.availability = Some(availability);
         self
     }
 
@@ -215,10 +201,9 @@ impl OperationalAgentBuilder {
             scheduling_environment: self.scheduling_environment,
             operational_algorithm: self.operational_algorithm,
             capacity: self.capacity,
-            availability: self.availability,
             assigned: self.assigned,
             backup_activities: self.backup_activities,
-            shift: self.shift,
+            operational_configuration: self.operational_configuration,
             supervisor_agent_addr: self.supervisor_agent_addr,
         }
     }
@@ -258,7 +243,7 @@ impl Handler<StatusMessage> for OperationalAgent {
             "ID: {}, traits: {}, Objective: {}",
             self.id_operational.0,
             self.id_operational
-                .2
+                .1
                 .iter()
                 .map(|resource| resource.to_string())
                 .collect::<Vec<String>>()

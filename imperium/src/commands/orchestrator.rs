@@ -135,17 +135,12 @@ impl OrchestratorCommands {
                     SupervisorAgentCommands::Create {
                         asset,
                         id_supervisor: id,
-                        shift,
+                        shift: _,
                         resource,
                     } => {
                         let create_supervisor_agent = OrchestratorRequest::CreateSupervisorAgent(
                             asset.clone(),
-                            Id::new(
-                                id.clone(),
-                                shift.generate_time_intervals(),
-                                vec![],
-                                Some(resource.clone()),
-                            ),
+                            Id::new(id.clone(), vec![], Some(resource.clone())),
                         );
                         SystemMessages::Orchestrator(create_supervisor_agent)
                     }
@@ -162,21 +157,18 @@ impl OrchestratorCommands {
             OrchestratorCommands::OperationalAgent(operational_agent_command) => {
                 match operational_agent_command {
                     OperationalAgentCommands::Create {
-                        asset,
-                        id_operational: id,
-                        shift,
-                        resource,
+                        asset: _,
+                        id_operational: _id,
+                        shift: _,
+                        resource: _,
                     } => {
-                        let create_operational_agent = OrchestratorRequest::CreateOperationalAgent(
-                            asset.clone(),
-                            Id::new(
-                                id.clone(),
-                                shift.generate_time_intervals(),
-                                resource.clone(),
-                                None,
-                            ),
-                        );
-                        SystemMessages::Orchestrator(create_operational_agent)
+                        todo!();
+                        // let create_operational_agent = OrchestratorRequest::CreateOperationalAgent(
+                        //     asset.clone(),
+                        //     Id::new(id.clone(), resource.clone(), None),
+                        //     OperationalConfiguration::new(Availability::default, TimeInterval::new(NaiveTime::), TimeInterval::new(), TimeInterval::new()),
+                        // );
+                        // SystemMessages::Orchestrator(create_operational_agent)
                     }
                     OperationalAgentCommands::Delete {
                         asset,
@@ -192,21 +184,15 @@ impl OrchestratorCommands {
                 asset,
                 resource_toml,
             } => {
-                dbg!(&resource_toml);
                 let contents = std::fs::read_to_string(resource_toml).unwrap();
                 let config: TomlAgents = toml::from_str(&contents).unwrap();
 
                 for agent in config.operational {
-                    dbg!(&agent);
                     let create_operational_agent: OrchestratorRequest =
                         OrchestratorRequest::CreateOperationalAgent(
                             asset.clone(),
-                            Id::new(
-                                agent.id,
-                                agent.shift.generate_time_intervals(),
-                                agent.resources.resources,
-                                None,
-                            ),
+                            Id::new(agent.id, agent.resources.resources, None),
+                            agent.operational_configuration,
                         );
                     let message = SystemMessages::Orchestrator(create_operational_agent);
                     crate::send_http(client, message);
