@@ -159,16 +159,6 @@ pub struct OperationBuilder {
 }
 
 impl OperationBuilder {
-    fn with_activity(mut self, activity: u32) -> Self {
-        self.activity = ActivityNumber(activity);
-        self
-    }
-
-    fn with_resource(mut self, resource: Resources) -> Self {
-        self.resource = resource;
-        self
-    }
-
     fn with_operation_info(
         mut self,
         number: u32,

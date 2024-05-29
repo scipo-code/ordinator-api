@@ -190,7 +190,6 @@ mod tests {
 
     use super::*;
     use chrono::{TimeZone, Utc};
-    use proptest::prelude::*;
 
     #[test]
     fn test_period_add_duration_1() {
