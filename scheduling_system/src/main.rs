@@ -29,9 +29,9 @@ async fn main() -> Result<(), io::Error> {
 
     let log_handles = logging::setup_logging();
 
-    let mongodb_client = Client::with_uri_str("mongodb://localhost:27017")
-        .await
-        .unwrap();
+    // let mongodb_client = Client::with_uri_str("mongodb://localhost:27017")
+    //      .await
+    //      .unwrap();
 
     // let scheduling_environment: SchedulingEnvironment = match mongodb_client
     //     .database("ordinator").gridfs_bucket(GridFsBucketOptions)
@@ -56,19 +56,19 @@ async fn main() -> Result<(), io::Error> {
     let scheduling_environment =
         init::model_initializers::initialize_scheduling_environment(52, 4, 120);
 
-    let grib_fs_bucket = mongodb_client
-        .database("ordinator")
-        .gridfs_bucket(GridFsBucketOptions::default());
+    // let grib_fs_bucket = mongodb_client
+    //     .database("ordinator")
+    //     .gridfs_bucket(GridFsBucketOptions::default());
 
-    let _bson = bson::to_vec(&scheduling_environment).unwrap();
+    // let _bson = bson::to_vec(&scheduling_environment).unwrap();
 
-    let file_id = bson::oid::ObjectId::new();
+    // let file_id = bson::oid::ObjectId::new();
 
-    grib_fs_bucket.open_upload_stream_with_id(
-        bson::Bson::ObjectId(file_id),
-        "scheduling_environment",
-        None,
-    );
+    // grib_fs_bucket.open_upload_stream_with_id(
+    //     bson::Bson::ObjectId(file_id),
+    //     "scheduling_environment",
+    //     None,
+    // );
 
     let mutex_scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
 
