@@ -191,13 +191,6 @@ impl OperationBuilder {
         self
     }
 
-    fn with_operation_analytic(mut self) -> Self {
-        let operation_analytic = OperationAnalytic::new(2.0, 0);
-
-        self.operation_analytic = operation_analytic;
-        self
-    }
-
     pub fn build(self) -> Operation {
         Operation {
             activity: self.activity,

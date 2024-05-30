@@ -9,7 +9,6 @@ use shared_messages::{
 };
 
 #[derive(Subcommand, Debug)]
-
 pub enum SupervisorCommands {
     /// Get the status of a SupervisorAgent
     Status {

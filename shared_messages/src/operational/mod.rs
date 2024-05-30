@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     agent_error::AgentError,
     models::worker_environment::availability::{Availability, TomlAvailability},
+    AlgorithmState, ConstraintState,
 };
 
 use self::{
@@ -28,11 +29,33 @@ pub mod operational_request_scheduling;
 pub mod operational_request_status;
 pub mod operational_request_time;
 
+type OperationalId = String;
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct OperationalRequest {
+    pub operational_target: OperationalTarget,
+    pub operational_request_message: OperationalRequestMessage,
+}
+
+impl OperationalRequest {
+    pub fn new(
+        operational_target: OperationalTarget,
+        operational_request_message: OperationalRequestMessage,
+    ) -> Self {
+        Self {
+            operational_target,
+            operational_request_message,
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug)]
 pub enum OperationalRequestMessage {
     Status(OperationalStatusRequest),
     Scheduling(OperationalSchedulingRequest),
     Resource(OperationalResourceRequest),
     Time(OperationalTimeRequest),
+    Test,
 }
 
 impl Message for OperationalRequestMessage {
@@ -43,6 +66,7 @@ pub enum OperationalResponseMessage {
     Scheduling(OperationalSchedulingResponse),
     Resource(OperationalResourceResponse),
     Time(OperationalTimeResponse),
+    Test(AlgorithmState<OperationalInfeasibleCases>),
 }
 
 #[derive(Serialize)]
@@ -126,6 +150,34 @@ impl TimeInterval {
             true
         } else {
             false
+        }
+    }
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug, clap::ValueEnum)]
+pub enum OperationalTarget {
+    #[clap(skip)]
+    Single(OperationalId),
+    All,
+}
+
+pub struct OperationalInfeasibleCases {
+    pub overlap: ConstraintState<String>,
+}
+
+impl OperationalInfeasibleCases {
+    pub fn all_feasible(&self) -> bool {
+        if self.overlap != ConstraintState::Feasible {
+            return false;
+        }
+        true
+    }
+}
+
+impl Default for OperationalInfeasibleCases {
+    fn default() -> Self {
+        Self {
+            overlap: ConstraintState::Undetermined,
         }
     }
 }
