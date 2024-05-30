@@ -1,5 +1,8 @@
 
+use actix::dev::channel::AddressSender;
+use actix::dev::Request;
 use actix_web::{web, HttpRequest, HttpResponse, Result};
+use futures::future::join_all;
 use shared_messages::models::work_order::WorkOrderNumber;
 use shared_messages::models::worker_environment::resources::Id;
 use shared_messages::operational::operational_request_status::OperationalStatusRequest;
@@ -22,6 +25,7 @@ use std::sync::{Arc, Mutex};
 use tracing::{instrument, warn};
 use tracing_subscriber::EnvFilter;
 
+use crate::agents::operational_agent::OperationalAgent;
 use crate::agents::orchestrator::Orchestrator;
 use crate::agents::UpdateWorkOrderMessage;
 use shared_messages::models::WorkOrders;
@@ -131,13 +135,15 @@ pub async fn http_to_scheduling_system(
                     todo!();
                 }
                 OperationalTarget::All => {
-                    for (asset, agent_registry) in orchestrator.lock().unwrap().agent_registries {
-                        agent_registry.operational_agent_addrs.iter().map(|(id, addr)| addr.send(operational_request.operational_request_message)).collect();
+                    let mut operational_test_messages: Vec<Vec<Request<OperationalAgent, OperationalRequestMessage>>> = vec![];
+                    for (asset, agent_registry) in &orchestrator.lock().unwrap().agent_registries {
+                        operational_test_messages.push(agent_registry.operational_agent_addrs.iter().map(|(id, addr)| addr.send(operational_request.operational_request_message.clone())).collect());
                     }
-
-                    let operational_agents = match orchestrator.lock().unwrap().agent_registries.get(k)
+                    let message: Vec<_> = operational_test_messages.iter_mut().flatten().into_iter().collect();
+                    for msg in message {
+                        msg.await;
+                    }
                 }
-
             }
             HttpResponse::Ok().json("OPERATIONAL: IMPLEMENT SEND LOGIC");
             SystemResponses::Operational(shared_messages::operational::OperationalResponse::Status)
