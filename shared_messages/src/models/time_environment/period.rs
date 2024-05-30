@@ -11,6 +11,7 @@ pub struct Period {
     period_string: String,
     start_date: DateTime<Utc>,
     end_date: DateTime<Utc>,
+    pub year: i32,
     pub start_week: u32,
     pub end_week: u32,
 }
@@ -37,6 +38,7 @@ impl Period {
             period_string,
             start_date,
             end_date,
+            year,
             start_week,
             end_week,
         }
@@ -179,6 +181,7 @@ impl FromStr for Period {
             period_string: period_string.to_string(),
             start_date: start_date.unwrap(),
             end_date,
+            year,
             start_week,
             end_week,
         })

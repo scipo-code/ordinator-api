@@ -57,7 +57,7 @@ impl OperationalAlgorithm {
 }
 
 pub struct OperationalSolutions(
-    Vec<(WorkOrderNumber, ActivityNumber, Option<OperationalSolution>)>,
+    pub Vec<(WorkOrderNumber, ActivityNumber, Option<OperationalSolution>)>,
 );
 
 impl OperationalSolutions {
@@ -107,11 +107,11 @@ pub struct OperationalSolution {
 }
 
 impl OperationalSolution {
-    fn start_time(&self) -> DateTime<Utc> {
+    pub fn start_time(&self) -> DateTime<Utc> {
         self.assignments.first().unwrap().start
     }
 
-    fn finish_time(&self) -> DateTime<Utc> {
+    pub fn finish_time(&self) -> DateTime<Utc> {
         self.assignments.last().unwrap().finish
     }
 }

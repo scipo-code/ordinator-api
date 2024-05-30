@@ -18,7 +18,7 @@ use tactical::TacticalCommands;
 
 use crate::Cli;
 
-use self::supervisor::SupervisorCommands;
+use self::{operational::OperationalCommands, supervisor::SupervisorCommands};
 
 #[derive(Subcommand)]
 pub enum Commands {
@@ -47,8 +47,11 @@ pub enum Commands {
         #[clap(subcommand)]
         supervisor_commands: SupervisorCommands,
     },
-    /// Access the opertional agents
-    Operational,
+    /// Access the operational agents
+    Operational {
+        #[clap(subcommand)]
+        operational_commands: OperationalCommands,
+    },
     /// Access the SAP integration (Requires user authorization)
     Sap {
         #[clap(subcommand)]
@@ -108,9 +111,9 @@ pub fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
         Commands::Supervisor {
             supervisor_commands,
         } => supervisor_commands.execute(),
-        Commands::Operational => {
-            todo!()
-        }
+        Commands::Operational {
+            operational_commands,
+        } => operational_commands.execute(),
         Commands::Sap { sap_commands } => sap_commands.execute(),
         Commands::Export { asset } => {
             let orchestrator_request = OrchestratorRequest::Export(asset.clone());

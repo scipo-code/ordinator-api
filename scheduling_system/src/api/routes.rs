@@ -4,7 +4,7 @@ use shared_messages::models::work_order::WorkOrderNumber;
 use shared_messages::models::worker_environment::resources::Id;
 use shared_messages::operational::operational_request_status::OperationalStatusRequest;
 use shared_messages::operational::operational_response_status::OperationalStatusResponse;
-use shared_messages::operational::{OperationalRequestMessage, OperationalResponseMessage};
+use shared_messages::operational::{OperationalRequestMessage, OperationalResponseMessage, OperationalTarget};
 use shared_messages::orchestrator::{AgentStatus, AgentStatusResponse, OrchestratorResponse};
 use shared_messages::strategic::strategic_request_status_message::StrategicStatusMessage;
 use shared_messages::strategic::strategic_response_status::{WorkOrderResponse, WorkOrdersStatus};
@@ -125,9 +125,21 @@ pub async fn http_to_scheduling_system(
             SystemResponses::Supervisor(supervisor_response)
 
         }
-        SystemMessages::Operational => {
+        SystemMessages::Operational(operational_request) => {
+            match operational_request.operational_target {
+                OperationalTarget::Single(id) => {
+                    todo!();
+                }
+                OperationalTarget::All => {
+                    for (asset, agent_registry) in orchestrator.lock().unwrap().agent_registries {
+                        agent_registry.operational_agent_addrs.iter().map(|(id, addr)| addr.send(operational_request.operational_request_message)).collect();
+                    }
+
+                    let operational_agents = match orchestrator.lock().unwrap().agent_registries.get(k)
+                }
+
+            }
             HttpResponse::Ok().json("OPERATIONAL: IMPLEMENT SEND LOGIC");
-            todo!();
             SystemResponses::Operational(shared_messages::operational::OperationalResponse::Status)
         }
         SystemMessages::Sap => {
