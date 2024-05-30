@@ -49,7 +49,7 @@ impl OperationalRequest {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 pub enum OperationalRequestMessage {
     Status(OperationalStatusRequest),
     Scheduling(OperationalSchedulingRequest),
