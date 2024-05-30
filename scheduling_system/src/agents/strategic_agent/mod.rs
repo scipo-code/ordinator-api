@@ -400,7 +400,9 @@ impl TestAlgorithm for StrategicAgent {
             match scheduled_period {
                 Some(scheduled_period) => {
                     if awsc
-                        && !scheduled_period.contains_date(basic_start_of_first_activity)
+                        && !(scheduled_period.contains_date(basic_start_of_first_activity)
+                            || Some(scheduled_period.clone())
+                                == work_order.work_order_info.unloading_point.period)
                         && &basic_start_of_first_activity > first_period.start_date()
                     {
                         strategic_state.infeasible_cases_mut().unwrap().respect_awsc =
@@ -483,8 +485,17 @@ impl TestAlgorithm for StrategicAgent {
             let periods = scheduling_environment.periods();
 
             if work_order.status_codes().sch
-                && !periods[0..=1]
-                    .contains(&optimized_work_order.scheduled_period.as_ref().unwrap())
+                && work_order.work_order_info.unloading_point.period.is_some()
+                && periods[0..=1].contains(
+                    &work_order
+                        .work_order_info
+                        .unloading_point
+                        .period
+                        .as_ref()
+                        .unwrap(),
+                )
+                && optimized_work_order.scheduled_period
+                    != work_order.work_order_info.unloading_point.period
             {
                 error!(
                     work_order_number = ?work_order_number,

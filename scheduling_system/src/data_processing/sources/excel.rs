@@ -743,24 +743,37 @@ fn extract_unloading_point(
         _ => return Err(Error::Msg("Could not parse unloading point as string")),
     };
 
-    let start_week = extract_weeks(&unloading_point_string);
+    let start_year_and_weeks = extract_year_and_weeks(&unloading_point_string);
 
     Ok(UnloadingPoint {
         string: unloading_point_string.clone(),
         period: periods
             .iter()
-            .find(|&period| period.start_week == start_week || period.end_week == start_week)
+            .find(|&period| {
+                if start_year_and_weeks.0.is_some() {
+                    period.year == start_year_and_weeks.0.unwrap() + 2000
+                        && (period.start_week == start_year_and_weeks.1.unwrap_or(0)
+                            || period.end_week == start_year_and_weeks.1.unwrap_or(0))
+                } else {
+                    period.start_week == start_year_and_weeks.1.unwrap_or(0)
+                        || period.end_week == start_year_and_weeks.1.unwrap_or(0)
+                }
+            })
             .cloned(),
     })
 }
 
-fn extract_weeks(input_string: &str) -> u32 {
-    let re = regex::Regex::new(r"W(\d+)-?W?(\d+)?").unwrap();
+fn extract_year_and_weeks(input_string: &str) -> (Option<i32>, Option<u32>, Option<u32>) {
+    let re = regex::Regex::new(r"(\d{2})?-?[W|w](\d+)-?[W|w]?(\d+)").unwrap();
     let captures = re.captures(input_string);
-    if let Some(cap) = captures {
-        cap[1].parse::<u32>().unwrap_or(0)
-    } else {
-        0
+
+    match captures {
+        Some(cap) => (
+            cap.get(1).map_or("", |m| m.as_str()).parse().ok(),
+            cap.get(2).map_or("", |m| m.as_str()).parse().ok(),
+            cap.get(3).map_or("", |m| m.as_str()).parse().ok(),
+        ),
+        None => (None, None, None),
     }
 }
 

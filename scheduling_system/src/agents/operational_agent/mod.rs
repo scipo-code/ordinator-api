@@ -15,13 +15,13 @@ use shared_messages::{
     },
     operational::{
         operational_response_status::OperationalStatusResponse, OperationalConfiguration,
-        OperationalRequestMessage, OperationalResponseMessage,
+        OperationalInfeasibleCases, OperationalRequestMessage, OperationalResponseMessage,
     },
-    StatusMessage, StopMessage,
+    AlgorithmState, ConstraintState, StatusMessage, StopMessage,
 };
 
 use shared_messages::models::{work_order::operation::Operation, SchedulingEnvironment};
-use tracing::{info, warn};
+use tracing::{info, instrument::WithSubscriber, warn, Instrument};
 
 use crate::agents::operational_agent::algorithm::{OperationalParameter, OperationalSolution};
 
@@ -29,7 +29,7 @@ use self::algorithm::OperationalAlgorithm;
 
 use super::{
     supervisor_agent::SupervisorAgent, tactical_agent::tactical_algorithm::OperationSolution,
-    SetAddr, UpdateWorkOrderMessage,
+    traits::TestAlgorithm, SetAddr, UpdateWorkOrderMessage,
 };
 
 pub struct OperationalAgent {
@@ -231,6 +231,62 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
             OperationalRequestMessage::Scheduling(_) => todo!(),
             OperationalRequestMessage::Resource(_) => todo!(),
             OperationalRequestMessage::Time(_) => todo!(),
+            OperationalRequestMessage::Test => {
+                let operational_algorithm_state = self.determine_algorithm_state();
+                Ok(OperationalResponseMessage::Test(
+                    operational_algorithm_state,
+                ))
+            }
+        }
+    }
+}
+
+impl TestAlgorithm for OperationalAgent {
+    type InfeasibleCases = OperationalInfeasibleCases;
+
+    fn determine_algorithm_state(&self) -> shared_messages::AlgorithmState<Self::InfeasibleCases> {
+        let mut operational_infeasible_cases = OperationalInfeasibleCases::default();
+        for (index_1, operational_solution_1) in self
+            .operational_algorithm
+            .operational_solutions
+            .0
+            .iter()
+            .enumerate()
+        {
+            for (index_2, operational_solution_2) in self
+                .operational_algorithm
+                .operational_solutions
+                .0
+                .iter()
+                .enumerate()
+            {
+                if index_1 == index_2
+                    || operational_solution_1.2.is_none()
+                    || operational_solution_2.2.is_none()
+                {
+                    continue;
+                }
+
+                if operational_solution_1.2.as_ref().unwrap().start_time()
+                    > operational_solution_2.2.as_ref().unwrap().finish_time()
+                    && operational_solution_2.2.as_ref().unwrap().finish_time()
+                        > operational_solution_1.2.as_ref().unwrap().start_time()
+                {
+                    operational_infeasible_cases.overlap = ConstraintState::Infeasible(format!(
+                        "{:?} : {:?} is overlapping with {:?} : {:?}",
+                        operational_solution_1.0,
+                        operational_solution_1.1,
+                        operational_solution_2.0,
+                        operational_solution_2.1
+                    ));
+                }
+            }
+        }
+
+        if operational_infeasible_cases.all_feasible() {
+            AlgorithmState::Feasible
+        } else {
+            AlgorithmState::Infeasible(operational_infeasible_cases)
         }
     }
 }

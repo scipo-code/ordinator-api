@@ -10,7 +10,9 @@ use std::fmt::{self, Display};
 use actix::prelude::*;
 use clap::{Subcommand, ValueEnum};
 use models::worker_environment::resources::Resources;
-use operational::{OperationalConfiguration, OperationalResponse, TomlOperationalConfiguration};
+use operational::{
+    OperationalConfiguration, OperationalRequest, OperationalResponse, TomlOperationalConfiguration,
+};
 use orchestrator::{OrchestratorRequest, OrchestratorResponse};
 use serde::{Deserialize, Serialize};
 use strategic::{StrategicRequest, StrategicResponse};
@@ -24,7 +26,7 @@ pub enum SystemMessages {
     Strategic(StrategicRequest),
     Tactical(TacticalRequest),
     Supervisor(SupervisorRequest),
-    Operational,
+    Operational(OperationalRequest),
     Sap,
 }
 
@@ -235,6 +237,7 @@ impl<T> AlgorithmState<T> {
 pub enum ConstraintState<Reason> {
     Feasible,
     Infeasible(Reason),
+    Undetermined,
 }
 
 impl<Reason> fmt::Display for ConstraintState<Reason>
@@ -245,6 +248,7 @@ where
         match self {
             ConstraintState::Feasible => write!(f, "FEASIBLE"),
             ConstraintState::Infeasible(reason) => write!(f, "{}", reason),
+            ConstraintState::Undetermined => write!(f, "Constraint is not determined yet"),
         }
     }
 }
