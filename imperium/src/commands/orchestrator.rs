@@ -192,7 +192,7 @@ impl OrchestratorCommands {
                         OrchestratorRequest::CreateOperationalAgent(
                             asset.clone(),
                             Id::new(agent.id, agent.resources.resources, None),
-                            agent.operational_configuration,
+                            agent.operational_configuration.into(),
                         );
                     let message = SystemMessages::Orchestrator(create_operational_agent);
                     crate::send_http(client, message);

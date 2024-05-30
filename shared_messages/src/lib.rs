@@ -10,7 +10,7 @@ use std::fmt::{self, Display};
 use actix::prelude::*;
 use clap::{Subcommand, ValueEnum};
 use models::worker_environment::resources::Resources;
-use operational::{OperationalConfiguration, OperationalResponse};
+use operational::{OperationalConfiguration, OperationalResponse, TomlOperationalConfiguration};
 use orchestrator::{OrchestratorRequest, OrchestratorResponse};
 use serde::{Deserialize, Serialize};
 use strategic::{StrategicRequest, StrategicResponse};
@@ -206,13 +206,13 @@ pub struct TomlAgents {
 #[derive(Deserialize, Debug)]
 pub struct TomlOperational {
     pub id: String,
-    pub resources: SeqResources,
+    pub resources: TomlResourcesArray,
     pub hours_per_day: f64,
-    pub operational_configuration: OperationalConfiguration,
+    pub operational_configuration: TomlOperationalConfiguration,
 }
 
 #[derive(Deserialize, Debug)]
-pub struct SeqResources {
+pub struct TomlResourcesArray {
     pub resources: Vec<Resources>,
 }
 
@@ -255,7 +255,14 @@ pub enum LoadOperation {
 
 #[cfg(test)]
 mod tests {
-    use toml::Table;
+    use chrono::NaiveTime;
+    use toml::{map::Map, Table, Value};
+
+    use crate::{
+        models::worker_environment::resources::{Resources, Shift},
+        operational::TimeInterval,
+        TomlAgents,
+    };
 
     use super::TomlOperational;
 
@@ -266,13 +273,49 @@ mod tests {
             id = "OP-01-001"
             resources.resources = ["MTN-ELEC" ]
             hours_per_day = 6.0
-            shift = "Day"
-            availability.start_date = 2024-05-16T07:00:00Z
-            availability.end_date = 2024-05-30T15:00:00Z
+            operational_configuration.shift_interval = [07:00:00, 19:00:00]
+            operational_configuration.break_interval = [11:00:00, 12:00:00]
+            operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
+            operational_configuration.availability.start_date = 2024-05-16T07:00:00Z
+            operational_configuration.availability.end_date = 2024-05-30T15:00:00Z
         "#;
 
-        let toml_operational: TomlOperational = toml_operational_string.parse::<Table>().unwrap();
+        let toml_agents: TomlAgents = toml::from_str(&toml_operational_string).unwrap();
 
-        assert!(toml_operational.id == "OP-010-001");
+        assert_eq!(toml_agents.operational[0].id, "OP-01-001".to_string());
+
+        assert_eq!(
+            toml_agents.operational[0].resources.resources,
+            [Resources::MtnElec]
+        );
+
+        assert_eq!(
+            toml_agents.operational[0]
+                .operational_configuration
+                .shift_interval
+                .start
+                .time
+                .unwrap(),
+            toml::value::Time {
+                hour: 7,
+                minute: 0,
+                second: 0,
+                nanosecond: 0
+            }
+        );
+        assert_eq!(
+            toml_agents.operational[0]
+                .operational_configuration
+                .shift_interval
+                .end
+                .time
+                .unwrap(),
+            toml::value::Time {
+                hour: 19,
+                minute: 0,
+                second: 0,
+                nanosecond: 0
+            }
+        );
     }
 }
