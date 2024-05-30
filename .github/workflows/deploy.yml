@@ -28,8 +28,8 @@ jobs:
     - name: Deploy to server
       run: |
         ssh -t -v -i ~/.ssh/gbar cbrje@login1.gbar.dtu.dk << 'EOF'
-          echo "${{ secrets.SECRET_KEY_PASSWORD }}"
-          echo "${{ secrets.DTU_PASSWORD }}"
+          "${{ secrets.SECRET_KEY_PASSWORD }}"
+          "${{ secrets.DTU_PASSWORD }}"
           cd /zhome/6b/5/127255/ordinator
           git pull main
           zellij -l ordinator.kdl
