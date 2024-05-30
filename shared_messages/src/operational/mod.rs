@@ -2,7 +2,10 @@ use actix::Message;
 use chrono::{DateTime, NaiveTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::{agent_error::AgentError, models::worker_environment::availability::Availability};
+use crate::{
+    agent_error::AgentError,
+    models::worker_environment::availability::{Availability, TomlAvailability},
+};
 
 use self::{
     operational_request_resource::OperationalResourceRequest,
@@ -71,17 +74,44 @@ impl OperationalConfiguration {
     }
 }
 
-// impl Default for OperationalConfiguration {
-//     fn default() -> Self {
-//         Self {
-//             availability: TomlAvailability { start_date: d, end_date: toml::value::Datetime
-//     }
-// }
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TomlOperationalConfiguration {
+    pub availability: TomlAvailability,
+    pub break_interval: TomlTimeInterval,
+    pub shift_interval: TomlTimeInterval,
+    pub toolbox_interval: TomlTimeInterval,
+}
+
+impl From<TomlOperationalConfiguration> for OperationalConfiguration {
+    fn from(value: TomlOperationalConfiguration) -> Self {
+        OperationalConfiguration {
+            availability: value.availability.into(),
+            break_interval: value.break_interval.into(),
+            shift_interval: value.shift_interval.into(),
+            toolbox_interval: value.toolbox_interval.into(),
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TimeInterval {
     pub start: NaiveTime,
     pub end: NaiveTime,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct TomlTimeInterval {
+    pub start: toml::value::Datetime,
+    pub end: toml::value::Datetime,
+}
+
+impl From<TomlTimeInterval> for TimeInterval {
+    fn from(value: TomlTimeInterval) -> Self {
+        Self {
+            start: NaiveTime::parse_from_str(&value.start.to_string(), "%H:%M:%S").unwrap(),
+            end: NaiveTime::parse_from_str(&value.end.to_string(), "%H:%M:%S").unwrap(),
+        }
+    }
 }
 
 impl TimeInterval {
