@@ -1,5 +1,3 @@
-
-
 use shared_messages::{models::work_order::WorkOrderNumber, AlgorithmState};
 
 pub trait LargeNeighborHoodSearch {
