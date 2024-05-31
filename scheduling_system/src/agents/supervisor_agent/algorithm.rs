@@ -1,5 +1,4 @@
-use std::{collections::HashMap};
-
+use std::collections::HashMap;
 
 use shared_messages::{
     agent_error::AgentError,
@@ -14,9 +13,7 @@ use shared_messages::{
     },
 };
 
-use crate::agents::{
-    traits::LargeNeighborHoodSearch,
-};
+use crate::agents::traits::LargeNeighborHoodSearch;
 
 use super::SupervisorAgent;
 
@@ -50,6 +47,8 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
     type TimeRequest = SupervisorTimeRequest;
     type TimeResponse = SupervisorResponseTime;
 
+    type SchedulingUnit = (WorkOrderNumber, ActivityNumber);
+
     type Error = AgentError;
 
     fn calculate_objective_value(&mut self) {
@@ -60,7 +59,7 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
         todo!();
     }
 
-    fn unschedule(&mut self, _message: shared_messages::models::work_order::WorkOrderNumber) {
+    fn unschedule(&mut self, _message: Self::SchedulingUnit) {
         todo!()
     }
 

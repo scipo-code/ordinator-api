@@ -1,10 +1,15 @@
+use std::collections::HashMap;
+
 use actix::Message;
-use chrono::{DateTime, NaiveTime, Utc};
+use chrono::{DateTime, NaiveTime, TimeDelta, Timelike, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     agent_error::AgentError,
-    models::worker_environment::availability::{Availability, TomlAvailability},
+    models::worker_environment::{
+        availability::{Availability, TomlAvailability},
+        resources::Id,
+    },
     AlgorithmState, ConstraintState,
 };
 
@@ -61,6 +66,8 @@ pub enum OperationalRequestMessage {
 impl Message for OperationalRequestMessage {
     type Result = Result<OperationalResponseMessage, AgentError>;
 }
+
+#[derive(Serialize)]
 pub enum OperationalResponseMessage {
     Status(OperationalStatusResponse),
     Scheduling(OperationalSchedulingResponse),
@@ -70,8 +77,21 @@ pub enum OperationalResponseMessage {
 }
 
 #[derive(Serialize)]
-pub enum OperationalResponse {
-    Status,
+pub struct OperationalResponse {
+    id: OperationalTarget,
+    operational_response_message: Vec<OperationalResponseMessage>,
+}
+
+impl OperationalResponse {
+    pub fn new(
+        id: OperationalTarget,
+        operational_response_message: Vec<OperationalResponseMessage>,
+    ) -> Self {
+        Self {
+            id,
+            operational_response_message,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -152,6 +172,10 @@ impl TimeInterval {
             false
         }
     }
+
+    pub fn duration(&self) -> TimeDelta {
+        self.end - self.start
+    }
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, clap::ValueEnum)]
@@ -161,13 +185,14 @@ pub enum OperationalTarget {
     All,
 }
 
+#[derive(Serialize)]
 pub struct OperationalInfeasibleCases {
-    pub overlap: ConstraintState<String>,
+    pub operation_overlap: ConstraintState<String>,
 }
 
 impl OperationalInfeasibleCases {
     pub fn all_feasible(&self) -> bool {
-        if self.overlap != ConstraintState::Feasible {
+        if self.operation_overlap != ConstraintState::Feasible {
             return false;
         }
         true
@@ -177,7 +202,7 @@ impl OperationalInfeasibleCases {
 impl Default for OperationalInfeasibleCases {
     fn default() -> Self {
         Self {
-            overlap: ConstraintState::Undetermined,
+            operation_overlap: ConstraintState::Undetermined,
         }
     }
 }
