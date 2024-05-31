@@ -1,4 +1,3 @@
-
 use actix::dev::channel::AddressSender;
 use actix::dev::Request;
 use actix_web::{web, HttpRequest, HttpResponse, Result};
@@ -7,7 +6,7 @@ use shared_messages::models::work_order::WorkOrderNumber;
 use shared_messages::models::worker_environment::resources::Id;
 use shared_messages::operational::operational_request_status::OperationalStatusRequest;
 use shared_messages::operational::operational_response_status::OperationalStatusResponse;
-use shared_messages::operational::{OperationalRequestMessage, OperationalResponseMessage, OperationalTarget};
+use shared_messages::operational::{OperationalInfeasibleCases, OperationalRequestMessage, OperationalResponse, OperationalResponseMessage, OperationalTarget};
 use shared_messages::orchestrator::{AgentStatus, AgentStatusResponse, OrchestratorResponse};
 use shared_messages::strategic::strategic_request_status_message::StrategicStatusMessage;
 use shared_messages::strategic::strategic_response_status::{WorkOrderResponse, WorkOrdersStatus};
@@ -131,25 +130,22 @@ pub async fn http_to_scheduling_system(
         }
         SystemMessages::Operational(operational_request) => {
             match operational_request.operational_target {
-                OperationalTarget::Single(id) => {
+                OperationalTarget::Single(_id) => {
                     todo!();
                 }
                 OperationalTarget::All => {
-                    let mut operational_test_messages: Vec<Vec<Request<OperationalAgent, OperationalRequestMessage>>> = vec![];
-                    for (asset, agent_registry) in &orchestrator.lock().unwrap().agent_registries {
-                        operational_test_messages.push(agent_registry.operational_agent_addrs.iter().map(|(id, addr)| addr.send(operational_request.operational_request_message.clone())).collect());
+                    let mut operational_infeasible_cases: Vec<OperationalResponseMessage> = vec![];
+                    for (_asset, agent_registry) in &orchestrator.lock().unwrap().agent_registries {
+                        for (_id, operational_addr) in &agent_registry.operational_agent_addrs {
+                            operational_infeasible_cases.push(operational_addr.send(operational_request.operational_request_message.clone()).await.unwrap().unwrap());
+                        }
                     }
-                    let message: Vec<_> = operational_test_messages.iter_mut().flatten().into_iter().collect();
-                    for msg in message {
-                        msg.await;
-                    }
+                    let operational_response = OperationalResponse::new(OperationalTarget::All, operational_infeasible_cases);
+                    SystemResponses::Operational(operational_response)
                 }
             }
-            HttpResponse::Ok().json("OPERATIONAL: IMPLEMENT SEND LOGIC");
-            SystemResponses::Operational(shared_messages::operational::OperationalResponse::Status)
         }
         SystemMessages::Sap => {
-            HttpResponse::Ok().json("SAP: IMPLEMENT SEND LOGIC");
 
             SystemResponses::Sap
         }

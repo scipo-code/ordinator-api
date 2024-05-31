@@ -270,6 +270,9 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
     type ResourceResponse = TacticalResponseResources;
     type TimeRequest = TacticalTimeRequest;
     type TimeResponse = TacticalResponseTime;
+
+    type SchedulingUnit = WorkOrderNumber;
+
     type Error = AgentError;
 
     fn calculate_objective_value(&mut self) {
@@ -509,7 +512,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 error!(unscheduled_work_order = ?current_work_order_number);
                 panic!("Unscheduled work order got through the schedule function");
             }
-        } // main loop
+        }
 
         if self
             .optimized_work_orders
@@ -520,7 +523,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
         }
     }
 
-    fn unschedule(&mut self, optimized_work_order_number: WorkOrderNumber) {
+    fn unschedule(&mut self, optimized_work_order_number: Self::SchedulingUnit) {
         let optimized_work_order = self.optimized_work_orders.get_mut(&optimized_work_order_number)
             .expect("A call was made to TacticalAlgorith.unschedule(work_order_number) where the underlying work order was not in a scheduled state");
 

@@ -8,13 +8,15 @@ pub trait LargeNeighborHoodSearch {
     type TimeRequest;
     type TimeResponse;
 
+    type SchedulingUnit;
+
     type Error;
 
     fn calculate_objective_value(&mut self);
 
     fn schedule(&mut self);
 
-    fn unschedule(&mut self, message: WorkOrderNumber);
+    fn unschedule(&mut self, message: Self::SchedulingUnit);
 
     fn update_scheduling_state(
         &mut self,

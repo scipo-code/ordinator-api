@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, TimeDelta, Utc};
+use rand::seq::SliceRandom;
 use shared_messages::{
     agent_error::AgentError,
     models::{
@@ -116,7 +117,9 @@ impl OperationalSolution {
     }
 }
 
+#[derive(Clone)]
 pub struct Assignment {
+    pub event_type: OperationalEvents,
     pub start: DateTime<Utc>,
     pub finish: DateTime<Utc>,
 }
@@ -172,12 +175,56 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
     type TimeResponse = OperationalTimeResponse;
 
+    type SchedulingUnit = (WorkOrderNumber, ActivityNumber);
+
     type Error = AgentError;
 
     fn calculate_objective_value(&mut self) {
         // Here we should determine the objective based on the highest needed skill. Meaning that a MTN-TURB should not bid highly
+
         // on a MTN-MECH job. I think that this will be very interesting to solve.
-        todo!()
+
+        let operational_events: Vec<Assignment> = self
+            .operational_solutions
+            .0
+            .iter()
+            .flat_map(|inner| inner.2.as_ref().unwrap().assignments.iter())
+            .cloned()
+            .collect();
+
+        let mut current_time = self.availability.start_date;
+
+        let mut wrench_time: TimeDelta = TimeDelta::zero();
+        let mut break_time: TimeDelta = TimeDelta::zero();
+        let mut off_shift_time: TimeDelta = TimeDelta::zero();
+        let mut toolbox_time: TimeDelta = TimeDelta::zero();
+        let mut non_productive_time: TimeDelta = TimeDelta::zero();
+
+        for (index, assignment) in operational_events.iter().enumerate() {
+            match &assignment.event_type {
+                OperationalEvents::WrenchTime(time_interval) => {
+                    wrench_time += time_interval.duration();
+                    current_time += time_interval.duration();
+                }
+                OperationalEvents::Break(time_interval) => {
+                    break_time += time_interval.duration();
+                    current_time += time_interval.duration();
+                }
+                OperationalEvents::Toolbox(time_interval) => {
+                    toolbox_time += time_interval.duration();
+                    current_time += time_interval.duration();
+                }
+                OperationalEvents::OffShift(time_interval) => {
+                    off_shift_time += time_interval.duration();
+                    current_time += time_interval.duration();
+                }
+            }
+        }
+        let total_time =
+            (wrench_time + break_time + off_shift_time + toolbox_time + non_productive_time);
+        assert_eq!(total_time, self.availability.duration());
+        self.objective_value = (wrench_time).num_seconds() as f64
+            / (wrench_time + break_time + toolbox_time + non_productive_time).num_seconds() as f64;
     }
 
     fn schedule(&mut self) {
@@ -207,8 +254,17 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         // self.operational_solution
     }
 
-    fn unschedule(&mut self, _message: WorkOrderNumber) {
-        todo!()
+    fn unschedule(&mut self, work_order_and_activity_number: Self::SchedulingUnit) {
+        let unscheduled_operational_solution = self
+            .operational_solutions
+            .0
+            .iter()
+            .find(|operational_solution| {
+                operational_solution.0 == work_order_and_activity_number.0
+                    && operational_solution.1 == work_order_and_activity_number.1
+            })
+            .take();
+        unscheduled_operational_solution.expect("There was nothing in the operational solution");
     }
 
     fn update_scheduling_state(
@@ -241,9 +297,8 @@ impl OperationalAlgorithm {
     ) -> Vec<Assignment> {
         let mut assigned_work: Vec<Assignment> = vec![];
         let mut remaining_combined_work = operational_parameter.operation_time_delta.clone();
+        let mut current_time = start_time;
         while !remaining_combined_work.is_zero() {
-            let mut current_time = start_time;
-
             if self.break_interval.contains(current_time) {
                 current_time += self.break_interval.end - current_time.time();
             } else if self.shift_interval.contains(current_time) {
@@ -256,6 +311,7 @@ impl OperationalAlgorithm {
 
             if next_event.0 < remaining_combined_work {
                 assigned_work.push(Assignment {
+                    event_type: next_event.1.clone(),
                     start: current_time,
                     finish: current_time + next_event.0,
                 });
@@ -263,6 +319,7 @@ impl OperationalAlgorithm {
                 remaining_combined_work -= next_event.0;
             } else if next_event.0 >= remaining_combined_work {
                 assigned_work.push(Assignment {
+                    event_type: next_event.1,
                     start: current_time,
                     finish: current_time + remaining_combined_work,
                 });
@@ -294,10 +351,28 @@ impl OperationalAlgorithm {
             .cloned()
             .unwrap()
     }
+
+    pub fn unschedule_random_work_order_activies(
+        &mut self,
+        rng: &mut impl rand::Rng,
+        number_of_activities: usize,
+    ) {
+        let operational_solutions: Vec<(WorkOrderNumber, ActivityNumber)> = self
+            .operational_solutions
+            .0
+            .choose_multiple(rng, number_of_activities)
+            .map(|operational_solution| (operational_solution.0, operational_solution.1))
+            .collect();
+
+        for operational_solution in operational_solutions {
+            self.unschedule((operational_solution.0, operational_solution.1));
+        }
+    }
 }
 
 #[derive(Clone)]
 enum OperationalEvents {
+    WrenchTime(TimeInterval),
     Break(TimeInterval),
     Toolbox(TimeInterval),
     OffShift(TimeInterval),
@@ -311,6 +386,7 @@ enum OperationalOperationState {
 impl OperationalEvents {
     fn time_delta(&self) -> TimeDelta {
         match self {
+            Self::WrenchTime(time_interval) => time_interval.end - time_interval.start,
             Self::Break(time_interval) => time_interval.end - time_interval.start,
             Self::Toolbox(time_interval) => time_interval.end - time_interval.start,
             Self::OffShift(time_interval) => time_interval.end - time_interval.start,
