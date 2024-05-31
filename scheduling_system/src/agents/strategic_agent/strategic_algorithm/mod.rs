@@ -278,6 +278,8 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
     type TimeRequest = StrategicTimeRequest;
     type TimeResponse = StrategicResponsePeriods;
 
+    type SchedulingUnit = WorkOrderNumber;
+
     type Error = AgentError;
     
     #[instrument(level = "trace", skip_all)]
@@ -347,7 +349,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
     }
     
     #[instrument(level = "trace", skip_all)]
-    fn unschedule(&mut self, work_order_number: WorkOrderNumber) {
+    fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) {
   
         let optimized_work_order: &mut OptimizedWorkOrder = self
             .optimized_work_orders

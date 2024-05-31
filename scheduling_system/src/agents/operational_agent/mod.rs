@@ -86,6 +86,51 @@ impl OperationalAgent {
             )
         }
     }
+
+    fn determine_operation_overlap(
+        &self,
+        operational_infeasible_cases: &mut OperationalInfeasibleCases,
+    ) {
+        for (index_1, operational_solution_1) in self
+            .operational_algorithm
+            .operational_solutions
+            .0
+            .iter()
+            .enumerate()
+        {
+            for (index_2, operational_solution_2) in self
+                .operational_algorithm
+                .operational_solutions
+                .0
+                .iter()
+                .enumerate()
+            {
+                if index_1 == index_2
+                    || operational_solution_1.2.is_none()
+                    || operational_solution_2.2.is_none()
+                {
+                    continue;
+                }
+
+                if operational_solution_1.2.as_ref().unwrap().start_time()
+                    > operational_solution_2.2.as_ref().unwrap().finish_time()
+                    && operational_solution_2.2.as_ref().unwrap().finish_time()
+                        > operational_solution_1.2.as_ref().unwrap().start_time()
+                {
+                    operational_infeasible_cases.operation_overlap =
+                        ConstraintState::Infeasible(format!(
+                            "{:?} : {:?} is overlapping with {:?} : {:?}",
+                            operational_solution_1.0,
+                            operational_solution_1.1,
+                            operational_solution_2.0,
+                            operational_solution_2.1
+                        ));
+                    return;
+                }
+            }
+        }
+        operational_infeasible_cases.operation_overlap = ConstraintState::Feasible;
+    }
 }
 
 impl Actor for OperationalAgent {
@@ -246,42 +291,7 @@ impl TestAlgorithm for OperationalAgent {
 
     fn determine_algorithm_state(&self) -> shared_messages::AlgorithmState<Self::InfeasibleCases> {
         let mut operational_infeasible_cases = OperationalInfeasibleCases::default();
-        for (index_1, operational_solution_1) in self
-            .operational_algorithm
-            .operational_solutions
-            .0
-            .iter()
-            .enumerate()
-        {
-            for (index_2, operational_solution_2) in self
-                .operational_algorithm
-                .operational_solutions
-                .0
-                .iter()
-                .enumerate()
-            {
-                if index_1 == index_2
-                    || operational_solution_1.2.is_none()
-                    || operational_solution_2.2.is_none()
-                {
-                    continue;
-                }
-
-                if operational_solution_1.2.as_ref().unwrap().start_time()
-                    > operational_solution_2.2.as_ref().unwrap().finish_time()
-                    && operational_solution_2.2.as_ref().unwrap().finish_time()
-                        > operational_solution_1.2.as_ref().unwrap().start_time()
-                {
-                    operational_infeasible_cases.overlap = ConstraintState::Infeasible(format!(
-                        "{:?} : {:?} is overlapping with {:?} : {:?}",
-                        operational_solution_1.0,
-                        operational_solution_1.1,
-                        operational_solution_2.0,
-                        operational_solution_2.1
-                    ));
-                }
-            }
-        }
+        self.determine_operation_overlap(&mut operational_infeasible_cases);
 
         if operational_infeasible_cases.all_feasible() {
             AlgorithmState::Feasible

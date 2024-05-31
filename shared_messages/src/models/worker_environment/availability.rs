@@ -1,4 +1,5 @@
 use chrono::DateTime;
+use chrono::TimeDelta;
 use chrono::Utc;
 use serde::Deserialize;
 
@@ -8,6 +9,12 @@ use serde::Serialize;
 pub struct Availability {
     pub start_date: chrono::DateTime<Utc>,
     pub end_date: chrono::DateTime<Utc>,
+}
+
+impl Availability {
+    pub fn duration(&self) -> TimeDelta {
+        self.end_date - self.start_date
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
