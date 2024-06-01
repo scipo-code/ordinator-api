@@ -71,7 +71,6 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
                 }
             }
 
-            dbg!("About to daily schedule {}", work_order_number);
             for message in all_messages {
                 ctx.wait(message.into_actor(self).map(|_, _, _| ()))
             }
@@ -143,7 +142,7 @@ impl Handler<StateLink> for SupervisorAgent {
                 self.assigned_work_orders = tactical_supervisor_link;
             }
             StateLink::Supervisor => {}
-            StateLink::Operational => {}
+            StateLink::Operational(_) => {}
         }
     }
 }
