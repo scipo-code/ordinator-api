@@ -23,13 +23,19 @@ use shared_messages::{
 use shared_messages::models::{work_order::operation::Operation, SchedulingEnvironment};
 use tracing::{info, instrument::WithSubscriber, warn, Instrument};
 
-use crate::agents::operational_agent::algorithm::{OperationalParameter, OperationalSolution};
+use crate::agents::{
+    operational_agent::algorithm::{OperationalParameter, OperationalSolution},
+    StateLink,
+};
 
 use self::algorithm::OperationalAlgorithm;
 
 use super::{
-    supervisor_agent::SupervisorAgent, tactical_agent::tactical_algorithm::OperationSolution,
-    traits::TestAlgorithm, SetAddr, UpdateWorkOrderMessage,
+    strategic_agent::ScheduleIteration,
+    supervisor_agent::SupervisorAgent,
+    tactical_agent::tactical_algorithm::OperationSolution,
+    traits::{LargeNeighborHoodSearch, TestAlgorithm},
+    SetAddr, UpdateWorkOrderMessage,
 };
 
 pub struct OperationalAgent {
@@ -141,6 +147,36 @@ impl Actor for OperationalAgent {
             self.id_operational.clone(),
             ctx.address(),
         ));
+
+        ctx.notify(ScheduleIteration {})
+    }
+}
+
+impl Handler<ScheduleIteration> for OperationalAgent {
+    type Result = ();
+
+    fn handle(&mut self, msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
+        let mut rng = rand::thread_rng();
+
+        let mut temporary_schedule: OperationalAlgorithm = self.operational_algorithm.clone();
+
+        temporary_schedule.unschedule_random_work_order_activies(&mut rng, 15);
+
+        temporary_schedule.schedule();
+
+        temporary_schedule.calculate_objective_value();
+
+        if temporary_schedule.objective_value < self.operational_algorithm.objective_value {
+            self.operational_algorithm = temporary_schedule;
+
+            self.supervisor_agent_addr.do_send(StateLink::Operational((
+                self.operational_algorithm.operational_solutions.clone(),
+                self.operational_algorithm.objective_value,
+            )));
+            info!(operational_objective = %self.operational_algorithm.objective_value);
+        };
+
+        ctx.notify(ScheduleIteration {});
     }
 }
 

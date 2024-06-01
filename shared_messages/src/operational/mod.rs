@@ -176,6 +176,13 @@ impl TimeInterval {
     pub fn duration(&self) -> TimeDelta {
         self.end - self.start
     }
+
+    pub fn invert(&self) -> TimeInterval {
+        TimeInterval {
+            start: self.end,
+            end: self.start,
+        }
+    }
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, clap::ValueEnum)]
@@ -204,5 +211,30 @@ impl Default for OperationalInfeasibleCases {
         Self {
             operation_overlap: ConstraintState::Undetermined,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_time_interval_duration() {
+        let start = NaiveTime::from_hms_opt(19, 00, 00).unwrap();
+        let end = NaiveTime::from_hms_opt(7, 00, 00).unwrap();
+        let time_interval = TimeInterval { start, end };
+        assert_eq!(
+            time_interval.duration(),
+            TimeDelta::new(12 * 3600, 0).unwrap()
+        );
+
+        let start = NaiveTime::from_hms_opt(2, 00, 00).unwrap();
+        let end = NaiveTime::from_hms_opt(7, 00, 00).unwrap();
+        let time_interval = TimeInterval { start, end };
+        assert_eq!(
+            time_interval.duration(),
+            TimeDelta::new(5 * 3600, 0).unwrap()
+        );
     }
 }
