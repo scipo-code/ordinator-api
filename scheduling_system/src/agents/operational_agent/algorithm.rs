@@ -22,9 +22,13 @@ use crate::agents::traits::LargeNeighborHoodSearch;
 
 use super::{Assigned, OperationalConfiguration};
 
+pub type OperationalObjective = f64;
+
+#[derive(Clone)]
 pub struct OperationalAlgorithm {
-    pub objective_value: f64,
+    pub objective_value: OperationalObjective,
     pub operational_solutions: OperationalSolutions,
+    pub operational_non_productive: OperationalSolutions,
     pub operational_parameters: HashMap<(WorkOrderNumber, ActivityNumber), OperationalParameter>,
     pub availability: Availability,
     pub shift_interval: TimeInterval,
@@ -37,6 +41,7 @@ impl OperationalAlgorithm {
         Self {
             objective_value: f64::INFINITY,
             operational_solutions: OperationalSolutions(Vec::new()),
+            operational_non_productive: OperationalSolutions(Vec::new()),
             operational_parameters: HashMap::new(),
             availability: operational_configuration.availability,
             shift_interval: operational_configuration.shift_interval,
@@ -57,6 +62,7 @@ impl OperationalAlgorithm {
     }
 }
 
+#[derive(Clone)]
 pub struct OperationalSolutions(
     pub Vec<(WorkOrderNumber, ActivityNumber, Option<OperationalSolution>)>,
 );
@@ -100,8 +106,36 @@ impl OperationalSolutions {
         }
         self.0.push((work_order_number, activity_number, None));
     }
+
+
+    pub fn containing_operational_solution(&self, time: DateTime<Utc>) -> ContainOrNextOrNone {
+        let containing: Option<OperationalSolution> = self.0.iter().find(|operational_solution| {
+            operational_solution.2.unwrap().contains(time)
+        }).map(|os| {
+            os.2.unwrap()
+        });
+
+        match containing {
+            Some(containing) => ContainOrNextOrNone::Contain(containing),
+            None => {
+                let next: Option<OperationalSolution> = self.0.iter().find(|os| os.2.unwrap().start_time() > time).map(|os| os.2.unwrap());
+                match next {
+                    Some(operational_solution) => ContainOrNextOrNone::Next(operational_solution),
+                    None => ContainOrNextOrNone::None,
+                }
+                
+            }
+        }
+    }
 }
 
+enum ContainOrNextOrNone {
+    Contain(OperationalSolution),
+    Next(OperationalSolution),
+    None,
+}
+
+#[derive(Clone)]
 pub struct OperationalSolution {
     assigned: Assigned,
     assignments: Vec<Assignment>,
@@ -114,6 +148,14 @@ impl OperationalSolution {
 
     pub fn finish_time(&self) -> DateTime<Utc> {
         self.assignments.last().unwrap().finish
+    }
+
+    pub fn contains(&self, time: DateTime<Utc>) -> bool {
+        if self.start_time() <= time && time <= self.finish_time() {
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -133,6 +175,7 @@ impl OperationalSolution {
     }
 }
 
+#[derive(Clone)]
 pub struct OperationalParameter {
     work: f64,
     preparation: f64,
@@ -218,8 +261,13 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                     off_shift_time += time_interval.duration();
                     current_time += time_interval.duration();
                 }
+                OperationalEvents::NonProductiveTime(time_interval) => {
+                    non_productive_time += time_interval.duration();
+                    current_time += time_interval.duration();
+                }
             }
         }
+
         let total_time =
             (wrench_time + break_time + off_shift_time + toolbox_time + non_productive_time);
         assert_eq!(total_time, self.availability.duration());
@@ -250,6 +298,41 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
             // If the operation does not fit in the schedule it should be scheduled in the next round of the LNS optimization.
             // The operational agent is different in that there can be no penalty.
+        }
+
+        // fill the schedule
+        let mut current_time = self.availability.start_date;
+        loop {
+
+            match self.operational_solutions.containing_operational_solution(current_time) {
+                ContainOrNextOrNone::Contain(operational_solution) => {
+                    current_time = operational_solution.finish_time();
+                    
+                }
+                ContainOrNextOrNone::Next(operational_solution) => {
+                    
+                    current_time = operational_solution.start_time().min()
+                }
+                None => {
+                    
+                    let event: OperationalEvents = if self.break_interval.contains(current_time) {
+                        current_time += self.break_interval.duration();
+                        let time_interval = TimeInterval { start: current_time.time(), end: self.break_interval.end };
+                        OperationalEvents::Break(time_interval)
+                    } else if self.shift_interval.invert().contains(current_time) {
+                        current_time += self.shift_interval.invert().duration();
+                        OperationalEvents::OffShift(self.shift_interval.invert())
+                    } else if self.toolbox_interval.contains(current_time) {
+                        current_time += self.break_interval.duration();
+                        OperationalEvents::Toolbox(self.toolbox_interval)
+                    } else {
+                        let start = current_time;
+                        let end = current_time + 
+                        OperationalEvents::NonProductiveTime()
+                    }
+                };
+            }
+
         }
         // self.operational_solution
     }
@@ -376,6 +459,7 @@ enum OperationalEvents {
     Break(TimeInterval),
     Toolbox(TimeInterval),
     OffShift(TimeInterval),
+    NonProductiveTime(TimeInterval),
 }
 
 enum OperationalOperationState {
@@ -390,6 +474,7 @@ impl OperationalEvents {
             Self::Break(time_interval) => time_interval.end - time_interval.start,
             Self::Toolbox(time_interval) => time_interval.end - time_interval.start,
             Self::OffShift(time_interval) => time_interval.end - time_interval.start,
+            Self::NonProductiveTime(time_interval) => time_interval.end - time_interval.start,
         }
     }
 }

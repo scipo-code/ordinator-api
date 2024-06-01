@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use actix::{Addr, Message};
+use operational_agent::algorithm::{OperationalObjective, OperationalSolutions};
 use shared_messages::models::work_order::operation::ActivityNumber;
 use shared_messages::models::{work_order::WorkOrderNumber, worker_environment::resources::Id};
 
@@ -20,7 +21,6 @@ pub mod supervisor_agent;
 pub mod tactical_agent;
 pub mod traits;
 
-#[allow(dead_code)]
 pub enum SetAddr {
     Strategic(Addr<StrategicAgent>),
     Tactical(Addr<TacticalAgent>),
@@ -32,12 +32,11 @@ impl Message for SetAddr {
     type Result = ();
 }
 
-#[allow(dead_code)]
 pub enum StateLink {
     Strategic(Vec<(WorkOrderNumber, Period)>),
     Tactical(Vec<(WorkOrderNumber, HashMap<ActivityNumber, OperationSolution>)>),
     Supervisor,
-    Operational,
+    Operational((OperationalSolutions, OperationalObjective)),
 }
 
 impl Message for StateLink {
