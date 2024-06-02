@@ -519,7 +519,7 @@ impl OperationalAlgorithm {
         );
 
         let off_shift_diff = (
-            self.shift_interval.start - current_time.time(),
+            self.shift_interval.invert().start - current_time.time(),
             OperationalEvents::OffShift(self.shift_interval.clone()),
         );
 

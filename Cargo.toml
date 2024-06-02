@@ -4,8 +4,15 @@ resolver = "2"
 members = [
     "scheduling_system",
     "shared_messages",
-    "imperium"
-, "sap_diesel"]
+    "imperium",
+    "sap_diesel",
+]
+
+
+[profile.dev]
+panic = 'abort'
+debug = true
 
 [profile.release]
 debug = true
+panic = 'abort'
