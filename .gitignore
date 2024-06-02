@@ -11,7 +11,8 @@
 # Visualization
 **.svg
 **.png
-
+**.csv
+**.xlsx#
 # Output of the scheduling_system
 /output/*.xlsx
 /output/*.xlsx
