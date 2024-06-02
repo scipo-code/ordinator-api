@@ -137,10 +137,19 @@ impl From<TomlOperationalConfiguration> for OperationalConfiguration {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone)]
 pub struct TimeInterval {
     pub start: NaiveTime,
     pub end: NaiveTime,
+}
+
+impl Default for TimeInterval {
+    fn default() -> Self {
+        Self {
+            start: NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
+            end: NaiveTime::from_hms_opt(8, 0, 0).unwrap(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -163,10 +172,10 @@ impl TimeInterval {
         Self { start, end }
     }
 
-    pub fn contains(&self, date_time: DateTime<Utc>) -> bool {
+    pub fn contains(&self, date_time: &DateTime<Utc>) -> bool {
         let time = date_time.time();
 
-        if self.start <= time && time <= self.end {
+        if self.start <= time && time < self.end {
             true
         } else {
             false
