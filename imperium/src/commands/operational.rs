@@ -1,9 +1,8 @@
 use clap::Subcommand;
-use serde::{Deserialize, Serialize};
 use shared_messages::{
     operational::{
-        operational_request_status::{self, OperationalStatusRequest},
-        OperationalRequest, OperationalRequestMessage, OperationalTarget,
+        operational_request_status::OperationalStatusRequest, OperationalRequest,
+        OperationalRequestMessage, OperationalTarget,
     },
     SystemMessages,
 };
