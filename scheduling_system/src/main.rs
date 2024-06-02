@@ -118,13 +118,9 @@ async fn store_scheduling_environment(
 
 // async fn retrieve_scheduling_environment(client: Client) -> SchedulingEnvironment {
 //     let db = client.database("ordinator");
-
 //     let grid_fs_bucket = db.gridfs_bucket(GridFsBucketOptions::default());
-
 //     let scheduling_environment_id = db.collection("fs");
-
 //     let buffer = String::new();
 //     let download_stream: GridFsDownloadStream = grid_fs_bucket.open_download_stream();
-
 //     download_stream.read_to_string()
 // }
