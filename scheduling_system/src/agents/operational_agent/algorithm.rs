@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use chrono::{DateTime, TimeDelta, Utc};
+use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
 use rand::seq::SliceRandom;
 use shared_messages::{
     agent_error::AgentError,
@@ -31,7 +31,7 @@ pub struct OperationalAlgorithm {
     pub operational_non_productive: OperationalNonProductive,
     pub operational_parameters: HashMap<(WorkOrderNumber, ActivityNumber), OperationalParameter>,
     pub availability: Availability,
-    pub shift_interval: TimeInterval,
+    pub off_shift_interval: TimeInterval,
     pub break_interval: TimeInterval,
     pub toolbox_interval: TimeInterval,
 }
@@ -39,6 +39,7 @@ pub struct OperationalAlgorithm {
 #[derive(Clone)]
 pub struct OperationalNonProductive(Vec<Assignment>);
 
+#[allow(dead_code)]
 impl OperationalAlgorithm {
     pub fn new(operational_configuration: OperationalConfiguration) -> Self {
         Self {
@@ -47,18 +48,18 @@ impl OperationalAlgorithm {
             operational_non_productive: OperationalNonProductive(Vec::new()),
             operational_parameters: HashMap::new(),
             availability: operational_configuration.availability,
-            shift_interval: operational_configuration.shift_interval,
+            off_shift_interval: operational_configuration.off_shift_interval,
             break_interval: operational_configuration.break_interval,
             toolbox_interval: operational_configuration.toolbox_interval,
         }
     }
 
+    #[allow(dead_code)]
     pub fn insert_optimized_operation(
         &mut self,
         work_order_number: WorkOrderNumber,
         activity_number: ActivityNumber,
         operational_parameters: OperationalParameter,
-        operational_solution: OperationalSolution,
     ) {
         self.operational_parameters
             .insert((work_order_number, activity_number), operational_parameters);
@@ -70,22 +71,31 @@ impl OperationalAlgorithm {
         next_operation: Option<OperationalSolution>,
     ) -> (DateTime<Utc>, OperationalEvents) {
         if self.break_interval.contains(current_time) {
-            let time_interval =
-                self.determine_time_interval_of_function(next_operation, current_time);
+            let time_interval = self.determine_time_interval_of_function(
+                next_operation,
+                current_time,
+                self.break_interval.clone(),
+            );
             let new_current_time = *current_time + time_interval.duration();
             (new_current_time, OperationalEvents::Break(time_interval))
-        } else if self.shift_interval.invert().contains(current_time) {
-            let time_interval =
-                self.determine_time_interval_of_function(next_operation, current_time);
-            let new_current_time = *current_time + self.shift_interval.invert().duration();
+        } else if self.off_shift_interval.contains(current_time) {
+            let time_interval = self.determine_time_interval_of_function(
+                next_operation,
+                current_time,
+                self.off_shift_interval.clone(),
+            );
+            let new_current_time = *current_time + time_interval.duration();
             (
                 new_current_time,
-                OperationalEvents::OffShift(self.shift_interval.invert()),
+                OperationalEvents::OffShift(self.off_shift_interval.clone()),
             )
         } else if self.toolbox_interval.contains(current_time) {
-            let time_interval =
-                self.determine_time_interval_of_function(next_operation, current_time);
-            let new_current_time = *current_time + self.break_interval.duration();
+            let time_interval = self.determine_time_interval_of_function(
+                next_operation,
+                current_time,
+                self.toolbox_interval.clone(),
+            );
+            let new_current_time = *current_time + time_interval.duration();
             (
                 new_current_time,
                 OperationalEvents::Toolbox(self.toolbox_interval.clone()),
@@ -94,45 +104,47 @@ impl OperationalAlgorithm {
             let start = *current_time;
             let (time_until_next_event, next_operational_event) =
                 self.determine_next_event(current_time);
-            let new_current_time = *current_time + time_until_next_event;
-            let time_interval = TimeInterval {
-                start: start.time(),
-                end: new_current_time.time(),
-            };
-            (
-                new_current_time,
-                OperationalEvents::NonProductiveTime(time_interval),
-            )
+            let mut new_current_time = *current_time + time_until_next_event;
+
+            if *current_time == new_current_time {
+                (
+                    new_current_time + next_operational_event.time_delta(),
+                    next_operational_event,
+                )
+            } else {
+                if self.availability.end_date < new_current_time {
+                    new_current_time = self.availability.end_date;
+                }
+                let time_interval = TimeInterval::new(start.time(), new_current_time.time());
+                (
+                    new_current_time,
+                    OperationalEvents::NonProductiveTime(time_interval),
+                )
+            }
         }
     }
 
+    // This function makes sure that the created event is adjusted to fit the schedule if there has been any manual intervention in the
+    // schedule for the OperationalAgent.
     fn determine_time_interval_of_function(
         &mut self,
         next_operation: Option<OperationalSolution>,
         current_time: &DateTime<Utc>,
+        interval: TimeInterval,
     ) -> TimeInterval {
+        // What is this code actually trying to do? I think
         let time_interval: TimeInterval = match next_operation {
             Some(operational_solution) => {
-                let start_of_time_interval = current_time;
                 if operational_solution.start_time().date_naive() == current_time.date_naive() {
-                    TimeInterval {
-                        start: current_time.time(),
-                        end: self
-                            .break_interval
-                            .end
-                            .min(operational_solution.start_time().time()),
-                    }
+                    TimeInterval::new(
+                        current_time.time(),
+                        interval.end.min(operational_solution.start_time().time()),
+                    )
                 } else {
-                    TimeInterval {
-                        start: current_time.time(),
-                        end: self.break_interval.end,
-                    }
+                    TimeInterval::new(current_time.time(), interval.end)
                 }
             }
-            None => TimeInterval {
-                start: current_time.time(),
-                end: self.break_interval.end,
-            },
+            None => TimeInterval::new(current_time.time(), interval.end),
         };
         time_interval
     }
@@ -214,6 +226,7 @@ enum ContainOrNextOrNone {
     None,
 }
 
+#[allow(dead_code)]
 #[derive(Clone)]
 pub struct OperationalSolution {
     assigned: Assigned,
@@ -238,11 +251,25 @@ impl OperationalSolution {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Assignment {
     pub event_type: OperationalEvents,
     pub start: DateTime<Utc>,
     pub finish: DateTime<Utc>,
+}
+
+impl Assignment {
+    pub fn new(event_type: OperationalEvents, start: DateTime<Utc>, finish: DateTime<Utc>) -> Self {
+        assert_eq!(event_type.time_delta(), finish - start);
+        assert!(start < finish);
+        assert_eq!(event_type.start_time(), start.time());
+        assert_eq!(event_type.finish_time(), finish.time());
+        Self {
+            event_type,
+            start,
+            finish,
+        }
+    }
 }
 
 impl OperationalSolution {
@@ -322,7 +349,11 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         let mut toolbox_time: TimeDelta = TimeDelta::zero();
         let mut non_productive_time: TimeDelta = TimeDelta::zero();
 
-        for (index, assignment) in operational_events.iter().enumerate() {
+        let all_events = operational_events
+            .iter()
+            .chain(&self.operational_non_productive.0);
+
+        for (index, assignment) in all_events.clone().enumerate() {
             match &assignment.event_type {
                 OperationalEvents::WrenchTime(time_interval) => {
                     wrench_time += time_interval.duration();
@@ -347,6 +378,15 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             }
         }
 
+        // assert_eq!(current_time, self.availability.end_date);
+
+        equality_between_time_interval_and_assignments(all_events.clone().collect::<Vec<_>>());
+
+        assert!(is_assignments_in_bounds(
+            all_events.clone().collect::<Vec<_>>(),
+            &self.availability
+        ));
+        assert!(no_overlap(all_events.collect::<Vec<_>>()));
         let total_time =
             (wrench_time + break_time + off_shift_time + toolbox_time + non_productive_time);
         assert_eq!(total_time, self.availability.duration());
@@ -365,7 +405,8 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
             match start_time_option {
                 Some(start_time) => {
-                    let assignments = self.determine_assignment(start_time, operational_parameter);
+                    let assignments =
+                        self.determine_wrench_time_assignment(start_time, operational_parameter);
                     self.operational_solutions
                         .try_insert(*operation_id, assignments);
                 }
@@ -398,11 +439,12 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                         &operational_event,
                         &OperationalEvents::WrenchTime(TimeInterval::default())
                     );
-                    let assignment = Assignment {
-                        event_type: operational_event,
-                        start: current_time,
-                        finish: new_current_time,
-                    };
+                    assert_eq!(
+                        operational_event.time_delta(),
+                        new_current_time - current_time
+                    );
+                    let assignment =
+                        Assignment::new(operational_event, current_time, new_current_time);
                     current_time = new_current_time;
                     self.operational_non_productive.0.push(assignment);
                 }
@@ -413,11 +455,12 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                         &operational_event,
                         &OperationalEvents::WrenchTime(TimeInterval::default())
                     );
-                    let assignment = Assignment {
-                        event_type: operational_event,
-                        start: current_time,
-                        finish: new_current_time,
-                    };
+                    assert_eq!(
+                        operational_event.time_delta(),
+                        new_current_time - current_time
+                    );
+                    let assignment =
+                        Assignment::new(operational_event, current_time, new_current_time);
                     current_time = new_current_time;
                     self.operational_non_productive.0.push(assignment);
                 }
@@ -467,7 +510,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 }
 
 impl OperationalAlgorithm {
-    fn determine_assignment(
+    fn determine_wrench_time_assignment(
         &self,
         start_time: DateTime<Utc>,
         operational_parameter: &OperationalParameter,
@@ -478,28 +521,34 @@ impl OperationalAlgorithm {
         while !remaining_combined_work.is_zero() {
             if self.break_interval.contains(&current_time) {
                 current_time += self.break_interval.end - current_time.time();
-            } else if self.shift_interval.contains(&current_time) {
+            } else if self.off_shift_interval.contains(&current_time) {
                 current_time += self.toolbox_interval.end - current_time.time();
             } else if self.toolbox_interval.contains(&current_time) {
-                current_time += self.shift_interval.end - current_time.time();
+                current_time += self.off_shift_interval.end - current_time.time();
             };
 
             let next_event = self.determine_next_event(&current_time);
 
             if next_event.0 < remaining_combined_work {
-                assigned_work.push(Assignment {
-                    event_type: next_event.1.clone(),
-                    start: current_time,
-                    finish: current_time + next_event.0,
-                });
+                assigned_work.push(Assignment::new(
+                    OperationalEvents::WrenchTime(TimeInterval::new(
+                        current_time.time(),
+                        (current_time + next_event.0).time(),
+                    )),
+                    current_time,
+                    current_time + next_event.0,
+                ));
                 current_time += next_event.0 + next_event.1.time_delta();
                 remaining_combined_work -= next_event.0;
             } else if next_event.0 >= remaining_combined_work {
-                assigned_work.push(Assignment {
-                    event_type: next_event.1,
-                    start: current_time,
-                    finish: current_time + remaining_combined_work,
-                });
+                assigned_work.push(Assignment::new(
+                    OperationalEvents::WrenchTime(TimeInterval::new(
+                        current_time.time(),
+                        (current_time + next_event.0).time(),
+                    )),
+                    current_time,
+                    current_time + remaining_combined_work,
+                ));
                 current_time += next_event.0;
                 remaining_combined_work = TimeDelta::zero();
             }
@@ -519,8 +568,8 @@ impl OperationalAlgorithm {
         );
 
         let off_shift_diff = (
-            self.shift_interval.invert().start - current_time.time(),
-            OperationalEvents::OffShift(self.shift_interval.clone()),
+            self.off_shift_interval.start - current_time.time(),
+            OperationalEvents::OffShift(self.off_shift_interval.clone()),
         );
 
         vec![break_diff, toolbox_diff, off_shift_diff]
@@ -550,7 +599,7 @@ impl OperationalAlgorithm {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum OperationalEvents {
+pub enum OperationalEvents {
     WrenchTime(TimeInterval),
     Break(TimeInterval),
     Toolbox(TimeInterval),
@@ -558,19 +607,32 @@ enum OperationalEvents {
     NonProductiveTime(TimeInterval),
 }
 
-enum OperationalOperationState {
-    Feasible,
-    Infeasible((WorkOrderNumber, ActivityNumber)),
-}
-
 impl OperationalEvents {
     fn time_delta(&self) -> TimeDelta {
         match self {
-            Self::WrenchTime(time_interval) => time_interval.end - time_interval.start,
-            Self::Break(time_interval) => time_interval.end - time_interval.start,
-            Self::Toolbox(time_interval) => time_interval.end - time_interval.start,
-            Self::OffShift(time_interval) => time_interval.end - time_interval.start,
-            Self::NonProductiveTime(time_interval) => time_interval.end - time_interval.start,
+            Self::WrenchTime(time_interval) => time_interval.duration(),
+            Self::Break(time_interval) => time_interval.duration(),
+            Self::Toolbox(time_interval) => time_interval.duration(),
+            Self::OffShift(time_interval) => time_interval.duration(),
+            Self::NonProductiveTime(time_interval) => time_interval.duration(),
+        }
+    }
+    fn start_time(&self) -> NaiveTime {
+        match self {
+            Self::WrenchTime(time_interval) => time_interval.start,
+            Self::Break(time_interval) => time_interval.start,
+            Self::Toolbox(time_interval) => time_interval.start,
+            Self::OffShift(time_interval) => time_interval.start,
+            Self::NonProductiveTime(time_interval) => time_interval.start,
+        }
+    }
+    fn finish_time(&self) -> NaiveTime {
+        match self {
+            Self::WrenchTime(time_interval) => time_interval.end,
+            Self::Break(time_interval) => time_interval.end,
+            Self::Toolbox(time_interval) => time_interval.end,
+            Self::OffShift(time_interval) => time_interval.end,
+            Self::NonProductiveTime(time_interval) => time_interval.end,
         }
     }
 }
@@ -598,6 +660,53 @@ fn determine_first_available_start_time(
         }
     }
     None
+}
+
+fn no_overlap(events: Vec<&Assignment>) -> bool {
+    for event_1 in &events {
+        for event_2 in &events {
+            if event_1 == event_2 {
+                continue;
+            }
+
+            if (event_1.finish <= event_2.start) || (event_2.finish <= event_1.start) {
+                continue;
+            } else {
+                dbg!(event_1);
+                dbg!(event_2);
+                return false;
+            }
+        }
+    }
+    true
+}
+
+fn is_assignments_in_bounds(events: Vec<&Assignment>, availability: &Availability) -> bool {
+    for event in events {
+        if event.start < availability.start_date {
+            dbg!(event, availability);
+            return false;
+        }
+        if availability.end_date < event.finish {
+            dbg!(event, availability);
+            return false;
+        }
+    }
+    true
+}
+
+fn equality_between_time_interval_and_assignments(all_events: Vec<&Assignment>) {
+    for assignment in all_events {
+        assert_eq!(assignment.start.time(), assignment.event_type.start_time());
+        assert_eq!(
+            assignment.finish.time(),
+            assignment.event_type.finish_time()
+        );
+        assert_eq!(
+            assignment.event_type.time_delta(),
+            assignment.finish - assignment.start
+        )
+    }
 }
 
 #[cfg(test)]
