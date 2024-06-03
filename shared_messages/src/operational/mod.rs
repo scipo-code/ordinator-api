@@ -98,7 +98,7 @@ impl OperationalResponse {
 pub struct OperationalConfiguration {
     pub availability: Availability,
     pub break_interval: TimeInterval,
-    pub shift_interval: TimeInterval,
+    pub off_shift_interval: TimeInterval,
     pub toolbox_interval: TimeInterval,
 }
 
@@ -106,13 +106,13 @@ impl OperationalConfiguration {
     pub fn new(
         availability: Availability,
         break_interval: TimeInterval,
-        shift_interval: TimeInterval,
+        off_shift_interval: TimeInterval,
         toolbox_interval: TimeInterval,
     ) -> Self {
         Self {
             availability,
             break_interval,
-            shift_interval,
+            off_shift_interval,
             toolbox_interval,
         }
     }
@@ -128,10 +128,12 @@ pub struct TomlOperationalConfiguration {
 
 impl From<TomlOperationalConfiguration> for OperationalConfiguration {
     fn from(value: TomlOperationalConfiguration) -> Self {
+        let shift_interval: TimeInterval = value.shift_interval.into();
+        let off_shift_interval: TimeInterval = shift_interval.invert();
         OperationalConfiguration {
             availability: value.availability.into(),
             break_interval: value.break_interval.into(),
-            shift_interval: value.shift_interval.into(),
+            off_shift_interval,
             toolbox_interval: value.toolbox_interval.into(),
         }
     }
@@ -169,6 +171,7 @@ impl From<TomlTimeInterval> for TimeInterval {
 
 impl TimeInterval {
     pub fn new(start: NaiveTime, end: NaiveTime) -> Self {
+        assert_ne!(start, end);
         Self { start, end }
     }
 
@@ -183,14 +186,23 @@ impl TimeInterval {
     }
 
     pub fn duration(&self) -> TimeDelta {
-        self.end - self.start
+        if self.end < self.start {
+            TimeDelta::new(86400, 0).unwrap() - (self.end - self.start).abs()
+        } else {
+            (self.end - self.start).abs()
+        }
     }
 
     pub fn invert(&self) -> TimeInterval {
-        TimeInterval {
-            start: self.end,
-            end: self.start,
-        }
+        let inverted_start = self.end;
+        let inverted_end = self.start;
+
+        let inverted_time_interval = TimeInterval {
+            start: inverted_start,
+            end: inverted_end,
+        };
+        assert_eq!(self.duration(), inverted_time_interval.duration());
+        inverted_time_interval
     }
 }
 
@@ -245,5 +257,17 @@ mod tests {
             time_interval.duration(),
             TimeDelta::new(5 * 3600, 0).unwrap()
         );
+        let start = NaiveTime::from_hms_opt(23, 00, 00).unwrap();
+        let end = NaiveTime::from_hms_opt(1, 00, 00).unwrap();
+        let time_interval = TimeInterval { start, end };
+        assert_eq!(
+            time_interval.duration(),
+            TimeDelta::new(2 * 3600, 0).unwrap()
+        );
+
+        let start = NaiveTime::from_hms_opt(23, 00, 00).unwrap();
+        let end = NaiveTime::from_hms_opt(23, 00, 00).unwrap();
+        let time_interval = TimeInterval { start, end };
+        assert_eq!(time_interval.duration(), TimeDelta::new(0, 0).unwrap());
     }
 }

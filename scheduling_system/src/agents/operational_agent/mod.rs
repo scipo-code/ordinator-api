@@ -65,11 +65,11 @@ impl OperationalAgent {
         if days.len() == 1 {
             let start_of_time_window = Utc.from_utc_datetime(&NaiveDateTime::new(
                 days.first().unwrap().0.date().date_naive(),
-                self.operational_configuration.shift_interval.start,
+                self.operational_configuration.off_shift_interval.start,
             ));
             let end_of_time_window = Utc.from_utc_datetime(&NaiveDateTime::new(
                 days.last().unwrap().0.date().date_naive(),
-                self.operational_configuration.shift_interval.end,
+                self.operational_configuration.off_shift_interval.end,
             ));
             (start_of_time_window, end_of_time_window)
         } else {
@@ -77,12 +77,12 @@ impl OperationalAgent {
             let end_day = days.last().unwrap().0.date().date_naive();
             let start_datetime = NaiveDateTime::new(
                 start_day,
-                self.operational_configuration.shift_interval.end
+                self.operational_configuration.off_shift_interval.end
                     - Duration::seconds(3600 * days[0].1.round() as i64),
             );
             let end_datetime = NaiveDateTime::new(
                 end_day,
-                self.operational_configuration.shift_interval.start
+                self.operational_configuration.off_shift_interval.start
                     + Duration::seconds(3600 * days.last().unwrap().1.round() as i64),
             );
 
@@ -217,7 +217,6 @@ impl Handler<OperationSolution> for OperationalAgent {
             operation_solution.work_order_number,
             operation_solution.activity_number,
             operational_parameter,
-            operational_solution,
         );
         info!(id = ?self.id_operational, operation = ?operation_solution);
         true
