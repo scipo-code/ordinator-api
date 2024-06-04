@@ -188,12 +188,16 @@ impl OperationalFunctions for OperationalSolutions {
                     assignments,
                 };
 
-                self.0
-                    .insert(index + 1, (key.0, key.1, Some(operational_solution)));
+                if self.is_operational_solution_unique(key) {
+                    self.0
+                        .insert(index + 1, (key.0, key.1, Some(operational_solution)));
+                }
                 break;
             }
         }
-        self.0.push((key.0, key.1, None));
+        if self.is_operational_solution_unique(key) {
+            self.0.push((key.0, key.1, None));
+        };
     }
 
     fn containing_operational_solution(&self, time: DateTime<Utc>) -> ContainOrNextOrNone {
@@ -217,6 +221,16 @@ impl OperationalFunctions for OperationalSolutions {
                 }
             }
         }
+    }
+}
+
+impl OperationalSolutions {
+    fn is_operational_solution_unique(&self, key: (WorkOrderNumber, ActivityNumber)) -> bool {
+        self.0
+            .iter()
+            .any(|(work_order_number, activity_number, _)| {
+                *work_order_number == key.0 && *activity_number == key.1
+            })
     }
 }
 
@@ -330,9 +344,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
     fn calculate_objective_value(&mut self) {
         // Here we should determine the objective based on the highest needed skill. Meaning that a MTN-TURB should not bid highly
-
         // on a MTN-MECH job. I think that this will be very interesting to solve.
-
         let operational_events: Vec<Assignment> = self
             .operational_solutions
             .0
@@ -395,26 +407,16 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
     }
 
     fn schedule(&mut self) {
-        // let old_objective = self.objective_value.clone();
-
         for (operation_id, operational_parameter) in &self.operational_parameters {
-            let start_time_option = determine_first_available_start_time(
+            let start_time = determine_first_available_start_time(
                 operational_parameter,
                 &self.operational_solutions,
             );
 
-            match start_time_option {
-                Some(start_time) => {
-                    let assignments =
-                        self.determine_wrench_time_assignment(start_time, operational_parameter);
-                    self.operational_solutions
-                        .try_insert(*operation_id, assignments);
-                }
-                None => continue,
-            };
-
-            // If the operation does not fit in the schedule it should be scheduled in the next round of the LNS optimization.
-            // The operational agent is different in that there can be no penalty.
+            let assignments =
+                self.determine_wrench_time_assignment(start_time, operational_parameter);
+            self.operational_solutions
+                .try_insert(*operation_id, assignments);
         }
 
         // fill the schedule
@@ -529,7 +531,10 @@ impl OperationalAlgorithm {
 
             let next_event = self.determine_next_event(&current_time);
 
-            if next_event.0 < remaining_combined_work {
+            if next_event.0.is_zero() {
+                let finish_time = current_time + next_event.1.time_delta();
+                assigned_work.push(Assignment::new(next_event.1, current_time, finish_time))
+            } else if next_event.0 < remaining_combined_work {
                 assigned_work.push(Assignment::new(
                     OperationalEvents::WrenchTime(TimeInterval::new(
                         current_time.time(),
@@ -544,7 +549,7 @@ impl OperationalAlgorithm {
                 assigned_work.push(Assignment::new(
                     OperationalEvents::WrenchTime(TimeInterval::new(
                         current_time.time(),
-                        (current_time + next_event.0).time(),
+                        (current_time + remaining_combined_work).time(),
                     )),
                     current_time,
                     current_time + remaining_combined_work,
@@ -640,7 +645,7 @@ impl OperationalEvents {
 fn determine_first_available_start_time(
     operational_parameter: &OperationalParameter,
     operational_solutions: &OperationalSolutions,
-) -> Option<DateTime<Utc>> {
+) -> DateTime<Utc> {
     for operational_solution in operational_solutions.0.windows(2) {
         let start_of_interval = match &operational_solution[0].2 {
             Some(operational_solution) => operational_solution.assignments.last().unwrap().finish,
@@ -656,10 +661,10 @@ fn determine_first_available_start_time(
             - operational_parameter.start_window.max(start_of_interval)
             > operational_parameter.operation_time_delta
         {
-            return Some(operational_parameter.start_window.max(start_of_interval));
+            return operational_parameter.start_window.max(start_of_interval);
         }
     }
-    None
+    operational_parameter.start_window
 }
 
 fn no_overlap(events: Vec<&Assignment>) -> bool {
