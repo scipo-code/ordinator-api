@@ -398,7 +398,9 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             all_events.clone().collect::<Vec<_>>(),
             &self.availability
         ));
+
         assert!(no_overlap(all_events.collect::<Vec<_>>()));
+
         let total_time =
             (wrench_time + break_time + off_shift_time + toolbox_time + non_productive_time);
         assert_eq!(total_time, self.availability.duration());
