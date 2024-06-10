@@ -1,4 +1,4 @@
-./imperium/scripts/initialize.sh
+fish imperium/scripts/initialize.sh
 
 ^sleep 180
 imperium strategic resources df load-capacity-file imperium/scripts/strategic/resource_configurations/low_resources.toml
