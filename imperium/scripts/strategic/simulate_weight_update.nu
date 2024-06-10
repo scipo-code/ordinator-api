@@ -401,9 +401,10 @@ let work_orders = [
   2100077100,
 ]
 
+$work_orders | each { |x| imperium orchestrator scheduling-environment work-orders $x modify-status-codes smat }
+
 fish imperium/scripts/initialize.sh
 
-$work_orders | each { |x| imperium orchestrator scheduling-environment work-orders $x modify-status-codes smat }
 
 ^sleep 180
 $work_orders | each { |x| imperium orchestrator scheduling-environment work-orders $x modify-status-codes smat --sece }

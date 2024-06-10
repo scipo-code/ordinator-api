@@ -303,6 +303,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 optimized_period,
                 work_order_latest_allowed_finish_period,
             );
+            
             let period_penalty = std::cmp::max(period_difference, 0) as f64
                 * self
                     .optimized_work_orders
@@ -324,7 +325,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
         }
 
         self.objective_value = 
-            period_penalty_contribution + 1000000000.0 * excess_penalty_contribution;
+            period_penalty_contribution + 0.0 * excess_penalty_contribution;
     }
 
     #[instrument(level = "trace", skip_all)]
