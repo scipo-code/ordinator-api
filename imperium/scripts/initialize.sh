@@ -6,5 +6,5 @@
 
 
 imperium strategic resources df load-capacity-file "imperium/configuration/resources_df.toml"
-# imperium tactical resources df load-capacity-file "imperium/configuration/resources_df.toml"
-# imperium orchestrator initialize-crew-from-file df "imperium/configuration/resources_df.toml"
+imperium tactical resources df load-capacity-file "imperium/configuration/resources_df.toml"
+imperium orchestrator initialize-crew-from-file df "imperium/configuration/resources_df.toml"
