@@ -174,7 +174,7 @@ impl Handler<ScheduleIteration> for OperationalAgent {
                 self.operational_algorithm.operational_solutions.clone(),
                 self.operational_algorithm.objective_value,
             )));
-            // info!(operational_objective = %self.operational_algorithm.objective_value);
+            info!(operational_objective = %self.operational_algorithm.objective_value);
         };
 
         ctx.notify(ScheduleIteration {});

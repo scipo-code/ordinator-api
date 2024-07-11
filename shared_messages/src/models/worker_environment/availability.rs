@@ -12,6 +12,13 @@ pub struct Availability {
 }
 
 impl Availability {
+    pub fn new(start_date: chrono::DateTime<Utc>, end_date: chrono::DateTime<Utc>) -> Self {
+        Self {
+            start_date,
+            end_date,
+        }
+    }
+
     pub fn duration(&self) -> TimeDelta {
         self.end_date - self.start_date
     }
