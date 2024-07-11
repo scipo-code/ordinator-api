@@ -30,7 +30,7 @@ layout {
 			}
 		}
 		pane size="30%" {
-			command "helix"
+			command "hx"
 			args "."
 			cwd "$ORDINATOR_PATH"
 		}
