@@ -17,6 +17,7 @@ use shared_messages::{
         operational_response_time::OperationalTimeResponse, TimeInterval,
     },
 };
+use tracing::info;
 
 use crate::agents::traits::LargeNeighborHoodSearch;
 
@@ -169,6 +170,7 @@ impl OperationalFunctions for OperationalSolutions {
     type Sequence = Vec<Assignment>;
 
     fn try_insert(&mut self, key: Self::Key, assignments: Self::Sequence) {
+        dbg!(assignments.clone());
         for (index, operation_solution) in self.0.windows(2).enumerate() {
             let finish_time_solution_window = match &operation_solution[0].2 {
                 Some(operational_solution) => operational_solution.finish_time(),
@@ -361,9 +363,6 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         let mut toolbox_time: TimeDelta = TimeDelta::zero();
         let mut non_productive_time: TimeDelta = TimeDelta::zero();
 
-        dbg!(self.operational_solutions.0.len());
-        dbg!(self.operational_non_productive.0.len());
-        dbg!(self.operational_parameters.len());
         let all_events = operational_events
             .iter()
             .chain(&self.operational_non_productive.0);
@@ -412,6 +411,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
     }
 
     fn schedule(&mut self) {
+        self.operational_non_productive.0.clear();
         for (operation_id, operational_parameter) in &self.operational_parameters {
             let start_time = determine_first_available_start_time(
                 operational_parameter,
@@ -420,12 +420,14 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
             let assignments =
                 self.determine_wrench_time_assignment(start_time, operational_parameter);
+
+            dbg!(operational_parameter.work);
+            dbg!(assignments.clone());
             self.operational_solutions
                 .try_insert(*operation_id, assignments);
         }
 
         // fill the schedule
-        self.operational_non_productive.0.clear();
         let mut current_time = self.availability.start_date;
 
         loop {
@@ -526,16 +528,16 @@ impl OperationalAlgorithm {
         let mut remaining_combined_work = operational_parameter.operation_time_delta.clone();
         let mut current_time = start_time;
         while !remaining_combined_work.is_zero() {
-            if self.break_interval.contains(&current_time) {
-                current_time += self.break_interval.end - current_time.time();
-                assert!(self.break_interval.end - current_time.time() >= TimeDelta::zero());
-            } else if self.off_shift_interval.contains(&current_time) {
-                current_time += self.off_shift_interval.end - current_time.time();
-                assert!(self.toolbox_interval.end - current_time.time() >= TimeDelta::zero());
-            } else if self.toolbox_interval.contains(&current_time) {
-                current_time += self.toolbox_interval.end - current_time.time();
-                assert!(self.break_interval.end - current_time.time() >= TimeDelta::zero());
-            };
+            // if self.break_interval.contains(&current_time) {
+            //     current_time += self.break_interval.end - current_time.time();
+            //     assert_eq!(current_time.time(), self.break_interval.end);
+            // } else if self.off_shift_interval.contains(&current_time) {
+            //     current_time += self.off_shift_interval.end - current_time.time();
+            //     assert_eq!(current_time.time(), self.off_shift_interval.end);
+            // } else if self.toolbox_interval.contains(&current_time) {
+            //     current_time += self.toolbox_interval.end - current_time.time();
+            //     assert_eq!(current_time.time(), self.toolbox_interval.end);
+            // };
 
             let next_event = self.determine_next_event(&current_time);
 
@@ -725,8 +727,143 @@ fn equality_between_time_interval_and_assignments(all_events: Vec<&Assignment>) 
 
 #[cfg(test)]
 mod tests {
+    use chrono::{DateTime, NaiveTime, TimeDelta, TimeZone, Utc};
     use proptest::prelude::*;
+    use shared_messages::{
+        models::worker_environment::availability::Availability,
+        operational::{OperationalConfiguration, TimeInterval},
+    };
 
+    use crate::agents::operational_agent::algorithm::OperationalEvents;
+
+    use super::OperationalAlgorithm;
+
+    #[test]
+    fn test_determine_next_event_1() {
+        let availability_start: DateTime<Utc> =
+            DateTime::parse_from_rfc3339("2024-05-16T07:00:00Z")
+                .unwrap()
+                .to_utc();
+        let availability_end: DateTime<Utc> = DateTime::parse_from_rfc3339("2024-05-30T15:00:00Z")
+            .unwrap()
+            .to_utc();
+
+        let break_interval = TimeInterval::new(
+            NaiveTime::from_hms_opt(11, 0, 0).unwrap(),
+            NaiveTime::from_hms_opt(12, 0, 0).unwrap(),
+        );
+
+        let off_shift_interval = TimeInterval::new(
+            NaiveTime::from_hms_opt(19, 0, 0).unwrap(),
+            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
+        );
+        let toolbox_interval = TimeInterval::new(
+            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
+            NaiveTime::from_hms_opt(8, 0, 0).unwrap(),
+        );
+        let operational_configuration = OperationalConfiguration::new(
+            Availability::new(availability_start, availability_end),
+            break_interval,
+            off_shift_interval.clone(),
+            toolbox_interval,
+        );
+
+        let operational_algorithm = OperationalAlgorithm::new(operational_configuration);
+
+        let current_time = DateTime::parse_from_rfc3339("2024-05-20T12:00:00Z")
+            .unwrap()
+            .to_utc();
+
+        let (time_delta, next_event) = operational_algorithm.determine_next_event(&current_time);
+
+        assert_eq!(time_delta, TimeDelta::new(3600 * 7, 0).unwrap());
+
+        assert_eq!(next_event, OperationalEvents::OffShift(off_shift_interval));
+    }
+
+    #[test]
+    fn test_determine_next_event_2() {
+        let availability_start: DateTime<Utc> =
+            DateTime::parse_from_rfc3339("2024-05-16T07:00:00Z")
+                .unwrap()
+                .to_utc();
+        let availability_end: DateTime<Utc> = DateTime::parse_from_rfc3339("2024-05-30T15:00:00Z")
+            .unwrap()
+            .to_utc();
+
+        let break_interval = TimeInterval::new(
+            NaiveTime::from_hms_opt(11, 0, 0).unwrap(),
+            NaiveTime::from_hms_opt(12, 0, 0).unwrap(),
+        );
+
+        let off_shift_interval = TimeInterval::new(
+            NaiveTime::from_hms_opt(19, 0, 0).unwrap(),
+            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
+        );
+        let toolbox_interval = TimeInterval::new(
+            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
+            NaiveTime::from_hms_opt(8, 0, 0).unwrap(),
+        );
+        let operational_configuration = OperationalConfiguration::new(
+            Availability::new(availability_start, availability_end),
+            break_interval,
+            off_shift_interval.clone(),
+            toolbox_interval.clone(),
+        );
+
+        let operational_algorithm = OperationalAlgorithm::new(operational_configuration);
+
+        let current_time = DateTime::parse_from_rfc3339("2024-05-20T00:00:00Z")
+            .unwrap()
+            .to_utc();
+
+        let (time_delta, next_event) = operational_algorithm.determine_next_event(&current_time);
+
+        assert_eq!(time_delta, TimeDelta::new(3600 * 7, 0).unwrap());
+        assert_eq!(next_event, OperationalEvents::Toolbox(toolbox_interval));
+    }
+
+    #[test]
+    fn test_determine_next_event_3() {
+        let availability_start: DateTime<Utc> =
+            DateTime::parse_from_rfc3339("2024-05-16T07:00:00Z")
+                .unwrap()
+                .to_utc();
+        let availability_end: DateTime<Utc> = DateTime::parse_from_rfc3339("2024-05-30T15:00:00Z")
+            .unwrap()
+            .to_utc();
+
+        let break_interval = TimeInterval::new(
+            NaiveTime::from_hms_opt(11, 0, 0).unwrap(),
+            NaiveTime::from_hms_opt(12, 0, 0).unwrap(),
+        );
+
+        let off_shift_interval = TimeInterval::new(
+            NaiveTime::from_hms_opt(19, 0, 0).unwrap(),
+            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
+        );
+        let toolbox_interval = TimeInterval::new(
+            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
+            NaiveTime::from_hms_opt(8, 0, 0).unwrap(),
+        );
+        let operational_configuration = OperationalConfiguration::new(
+            Availability::new(availability_start, availability_end),
+            break_interval,
+            off_shift_interval.clone(),
+            toolbox_interval.clone(),
+        );
+
+        let operational_algorithm = OperationalAlgorithm::new(operational_configuration);
+
+        let current_time = DateTime::parse_from_rfc3339("2024-05-20T01:00:00Z")
+            .unwrap()
+            .to_utc();
+
+        let (time_delta, next_event) = operational_algorithm.determine_next_event(&current_time);
+
+        assert_eq!(time_delta, TimeDelta::new(3600 * 7, 0).unwrap());
+        assert_eq!(next_event, OperationalEvents::Toolbox(toolbox_interval));
+    }
     fn reverse(s: &str) -> String {
         s.chars().rev().collect()
     }
