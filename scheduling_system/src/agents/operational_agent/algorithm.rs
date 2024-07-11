@@ -361,6 +361,9 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         let mut toolbox_time: TimeDelta = TimeDelta::zero();
         let mut non_productive_time: TimeDelta = TimeDelta::zero();
 
+        dbg!(self.operational_solutions.0.len());
+        dbg!(self.operational_non_productive.0.len());
+        dbg!(self.operational_parameters.len());
         let all_events = operational_events
             .iter()
             .chain(&self.operational_non_productive.0);
@@ -525,17 +528,21 @@ impl OperationalAlgorithm {
         while !remaining_combined_work.is_zero() {
             if self.break_interval.contains(&current_time) {
                 current_time += self.break_interval.end - current_time.time();
+                assert!(self.break_interval.end - current_time.time() >= TimeDelta::zero());
             } else if self.off_shift_interval.contains(&current_time) {
-                current_time += self.toolbox_interval.end - current_time.time();
-            } else if self.toolbox_interval.contains(&current_time) {
                 current_time += self.off_shift_interval.end - current_time.time();
+                assert!(self.toolbox_interval.end - current_time.time() >= TimeDelta::zero());
+            } else if self.toolbox_interval.contains(&current_time) {
+                current_time += self.toolbox_interval.end - current_time.time();
+                assert!(self.break_interval.end - current_time.time() >= TimeDelta::zero());
             };
 
             let next_event = self.determine_next_event(&current_time);
 
             if next_event.0.is_zero() {
                 let finish_time = current_time + next_event.1.time_delta();
-                assigned_work.push(Assignment::new(next_event.1, current_time, finish_time))
+                assigned_work.push(Assignment::new(next_event.1, current_time, finish_time));
+                current_time = finish_time;
             } else if next_event.0 < remaining_combined_work {
                 assigned_work.push(Assignment::new(
                     OperationalEvents::WrenchTime(TimeInterval::new(
