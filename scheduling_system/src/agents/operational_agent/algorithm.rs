@@ -17,7 +17,6 @@ use shared_messages::{
         operational_response_time::OperationalTimeResponse, TimeInterval,
     },
 };
-use tracing::info;
 
 use crate::agents::traits::LargeNeighborHoodSearch;
 
@@ -170,7 +169,6 @@ impl OperationalFunctions for OperationalSolutions {
     type Sequence = Vec<Assignment>;
 
     fn try_insert(&mut self, key: Self::Key, assignments: Self::Sequence) {
-        dbg!(assignments.clone());
         for (index, operation_solution) in self.0.windows(2).enumerate() {
             let finish_time_solution_window = match &operation_solution[0].2 {
                 Some(operational_solution) => operational_solution.finish_time(),
@@ -413,16 +411,11 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
     fn schedule(&mut self) {
         self.operational_non_productive.0.clear();
         for (operation_id, operational_parameter) in &self.operational_parameters {
-            let start_time = determine_first_available_start_time(
-                operational_parameter,
-                &self.operational_solutions,
-            );
+            let start_time = self.determine_first_available_start_time(operational_parameter);
 
             let assignments =
                 self.determine_wrench_time_assignment(start_time, operational_parameter);
 
-            dbg!(operational_parameter.work);
-            dbg!(assignments.clone());
             self.operational_solutions
                 .try_insert(*operation_id, assignments);
         }
@@ -527,18 +520,8 @@ impl OperationalAlgorithm {
         let mut assigned_work: Vec<Assignment> = vec![];
         let mut remaining_combined_work = operational_parameter.operation_time_delta.clone();
         let mut current_time = start_time;
-        while !remaining_combined_work.is_zero() {
-            // if self.break_interval.contains(&current_time) {
-            //     current_time += self.break_interval.end - current_time.time();
-            //     assert_eq!(current_time.time(), self.break_interval.end);
-            // } else if self.off_shift_interval.contains(&current_time) {
-            //     current_time += self.off_shift_interval.end - current_time.time();
-            //     assert_eq!(current_time.time(), self.off_shift_interval.end);
-            // } else if self.toolbox_interval.contains(&current_time) {
-            //     current_time += self.toolbox_interval.end - current_time.time();
-            //     assert_eq!(current_time.time(), self.toolbox_interval.end);
-            // };
 
+        while !remaining_combined_work.is_zero() {
             let next_event = self.determine_next_event(&current_time);
 
             if next_event.0.is_zero() {
@@ -612,6 +595,115 @@ impl OperationalAlgorithm {
             self.unschedule((operational_solution.0, operational_solution.1));
         }
     }
+
+    fn determine_first_available_start_time(
+        &self,
+        operational_parameter: &OperationalParameter,
+    ) -> DateTime<Utc> {
+        for operational_solution in self.operational_solutions.0.windows(2) {
+            let start_of_interval = match &operational_solution[0].2 {
+                Some(operational_solution) => {
+                    let mut current_time = operational_solution.assignments.last().unwrap().finish;
+
+                    if current_time < operational_parameter.start_window {
+                        current_time = operational_parameter.start_window;
+                    }
+
+                    let current_time_option = self.update_current_time_based_on_event(current_time);
+
+                    current_time = match current_time_option {
+                        Some(new_current_time) => new_current_time,
+                        None => current_time,
+                    };
+
+                    loop {
+                        let (time_to_next_event, next_event) =
+                            self.determine_next_event(&current_time);
+
+                        if time_to_next_event.is_zero() {
+                            current_time += next_event.time_delta();
+                        } else {
+                            break current_time;
+                        }
+                    }
+                }
+                None => break,
+            };
+
+            let end_of_interval = match &operational_solution[1].2 {
+                Some(operational_solution) => {
+                    operational_solution.assignments.first().unwrap().start
+                }
+                None => self.availability.end_date,
+            };
+
+            if operational_parameter.end_window.min(end_of_interval)
+                - operational_parameter.start_window.max(start_of_interval)
+                > operational_parameter.operation_time_delta
+            {
+                return operational_parameter.start_window.max(start_of_interval);
+            }
+        }
+
+        let mut current_time = operational_parameter.start_window;
+
+        let current_time_option = self.update_current_time_based_on_event(current_time);
+
+        current_time = match current_time_option {
+            Some(new_current_time) => new_current_time,
+            None => current_time,
+        };
+
+        let start_time = loop {
+            let (time_to_next_event, next_event) = self.determine_next_event(&current_time);
+
+            if time_to_next_event.is_zero() {
+                current_time += next_event.time_delta();
+            } else {
+                break current_time;
+            }
+        };
+        start_time
+    }
+
+    fn update_current_time_based_on_event(
+        &self,
+        mut current_time: DateTime<Utc>,
+    ) -> Option<DateTime<Utc>> {
+        if self.off_shift_interval.contains(&current_time) {
+            let off_shift_interval_end = self.off_shift_interval.end;
+            if off_shift_interval_end < current_time.time() {
+                current_time = current_time.with_time(off_shift_interval_end).unwrap();
+                current_time += TimeDelta::days(1);
+                Some(current_time)
+            } else {
+                current_time = current_time.with_time(off_shift_interval_end).unwrap();
+                Some(current_time)
+            }
+        } else if self.break_interval.contains(&current_time) {
+            let break_interval_end = self.break_interval.end;
+            if break_interval_end < current_time.time() {
+                current_time = current_time.with_time(break_interval_end).unwrap();
+                current_time += TimeDelta::days(1);
+                Some(current_time)
+            } else {
+                current_time = current_time.with_time(break_interval_end).unwrap();
+                Some(current_time)
+            }
+        } else if self.toolbox_interval.contains(&current_time) {
+            let toolbox_interval_end = self.toolbox_interval.end;
+            if toolbox_interval_end < current_time.time() {
+                current_time = current_time.with_time(toolbox_interval_end).unwrap();
+                current_time += TimeDelta::days(1);
+                Some(current_time)
+            } else {
+                current_time = current_time.with_time(toolbox_interval_end).unwrap();
+                Some(current_time)
+            }
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -651,31 +743,25 @@ impl OperationalEvents {
             Self::NonProductiveTime(time_interval) => time_interval.end,
         }
     }
-}
 
-fn determine_first_available_start_time(
-    operational_parameter: &OperationalParameter,
-    operational_solutions: &OperationalSolutions,
-) -> DateTime<Utc> {
-    for operational_solution in operational_solutions.0.windows(2) {
-        let start_of_interval = match &operational_solution[0].2 {
-            Some(operational_solution) => operational_solution.assignments.last().unwrap().finish,
-            None => break,
-        };
-
-        let end_of_interval = match &operational_solution[1].2 {
-            Some(operational_solution) => operational_solution.assignments.first().unwrap().start,
-            None => continue,
-        };
-
-        if operational_parameter.end_window.min(end_of_interval)
-            - operational_parameter.start_window.max(start_of_interval)
-            > operational_parameter.operation_time_delta
-        {
-            return operational_parameter.start_window.max(start_of_interval);
+    fn is_non_work(&self) -> bool {
+        match self {
+            Self::WrenchTime(_) => false,
+            _ => true,
         }
     }
-    operational_parameter.start_window
+
+    fn is_inside_interval(&self, date_time: &DateTime<Utc>) -> bool {
+        match self {
+            OperationalEvents::WrenchTime(time_interval) => time_interval.contains(date_time),
+            OperationalEvents::Break(time_interval) => time_interval.contains(date_time),
+            OperationalEvents::Toolbox(time_interval) => time_interval.contains(date_time),
+            OperationalEvents::OffShift(time_interval) => time_interval.contains(date_time),
+            OperationalEvents::NonProductiveTime(time_interval) => {
+                time_interval.contains(date_time)
+            }
+        }
+    }
 }
 
 fn no_overlap(events: Vec<&Assignment>) -> bool {
@@ -733,10 +819,11 @@ mod tests {
         models::worker_environment::availability::Availability,
         operational::{OperationalConfiguration, TimeInterval},
     };
+    use tracing::instrument::WithSubscriber;
 
     use crate::agents::operational_agent::algorithm::OperationalEvents;
 
-    use super::OperationalAlgorithm;
+    use super::{OperationalAlgorithm, OperationalParameter};
 
     #[test]
     fn test_determine_next_event_1() {
@@ -864,6 +951,59 @@ mod tests {
         assert_eq!(time_delta, TimeDelta::new(3600 * 7, 0).unwrap());
         assert_eq!(next_event, OperationalEvents::Toolbox(toolbox_interval));
     }
+
+    #[test]
+    fn test_determine_first_available_start_time() {
+        let availability_start: DateTime<Utc> =
+            DateTime::parse_from_rfc3339("2024-05-16T07:00:00Z")
+                .unwrap()
+                .to_utc();
+        let availability_end: DateTime<Utc> = DateTime::parse_from_rfc3339("2024-05-30T15:00:00Z")
+            .unwrap()
+            .to_utc();
+
+        let break_interval = TimeInterval::new(
+            NaiveTime::from_hms_opt(11, 0, 0).unwrap(),
+            NaiveTime::from_hms_opt(12, 0, 0).unwrap(),
+        );
+
+        let off_shift_interval = TimeInterval::new(
+            NaiveTime::from_hms_opt(19, 0, 0).unwrap(),
+            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
+        );
+        let toolbox_interval = TimeInterval::new(
+            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
+            NaiveTime::from_hms_opt(8, 0, 0).unwrap(),
+        );
+        let operational_configuration = OperationalConfiguration::new(
+            Availability::new(availability_start, availability_end),
+            break_interval,
+            off_shift_interval.clone(),
+            toolbox_interval.clone(),
+        );
+
+        let operational_algorithm = OperationalAlgorithm::new(operational_configuration);
+
+        let start_window = DateTime::parse_from_rfc3339("2024-05-16T01:00:00Z")
+            .unwrap()
+            .to_utc();
+        let end_window = DateTime::parse_from_rfc3339("2024-05-19T01:00:00Z")
+            .unwrap()
+            .to_utc();
+
+        let operational_parameter = OperationalParameter::new(20.0, 0.0, start_window, end_window);
+
+        let start_time =
+            operational_algorithm.determine_first_available_start_time(&operational_parameter);
+
+        assert_eq!(
+            start_time,
+            DateTime::parse_from_rfc3339("2024-05-16T08:00:00Z")
+                .unwrap()
+                .to_utc()
+        );
+    }
+
     fn reverse(s: &str) -> String {
         s.chars().rev().collect()
     }
