@@ -297,7 +297,7 @@ impl Orchestrator {
                         work_order_response.insert(response.0, response.1);
                         work_order_response
                     }
-                    None => return Err(format!("{:?} was not found for the asset",work_order_number)),
+                    None => return Err(format!("{:?} was not found for the asset", work_order_number)),
                 };
                 
                 let work_orders_status = WorkOrdersStatus::new(work_order_response);

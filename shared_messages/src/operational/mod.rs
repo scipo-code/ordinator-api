@@ -1,15 +1,10 @@
-use std::collections::HashMap;
-
 use actix::Message;
-use chrono::{DateTime, NaiveTime, TimeDelta, Timelike, Utc};
+use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     agent_error::AgentError,
-    models::worker_environment::{
-        availability::{Availability, TomlAvailability},
-        resources::Id,
-    },
+    models::worker_environment::availability::{Availability, TomlAvailability},
     AlgorithmState, ConstraintState,
 };
 
@@ -178,7 +173,15 @@ impl TimeInterval {
     pub fn contains(&self, date_time: &DateTime<Utc>) -> bool {
         let time = date_time.time();
 
-        if self.start <= time && time < self.end {
+        if self.start > self.end {
+            if (self.start <= time && time <= NaiveTime::from_hms_opt(23, 59, 59).unwrap())
+                || (NaiveTime::from_hms_opt(0, 0, 0).unwrap() <= time && time < self.end)
+            {
+                true
+            } else {
+                false
+            }
+        } else if self.start <= time && time < self.end {
             true
         } else {
             false
@@ -239,6 +242,60 @@ impl Default for OperationalInfeasibleCases {
 mod tests {
 
     use super::*;
+
+    #[test]
+    fn test_time_interval_contains_1() {
+        let start_time = NaiveTime::from_hms_opt(19, 00, 00).unwrap();
+        let end_time = NaiveTime::from_hms_opt(01, 0, 0).unwrap();
+
+        let current_time = DateTime::parse_from_rfc3339("2024-07-14T00:00:00Z")
+            .unwrap()
+            .to_utc();
+
+        let time_interval = TimeInterval::new(start_time, end_time);
+
+        assert!(time_interval.contains(&current_time));
+    }
+    #[test]
+    fn test_time_interval_contains_2() {
+        let start_time = NaiveTime::from_hms_opt(19, 00, 00).unwrap();
+        let end_time = NaiveTime::from_hms_opt(22, 0, 0).unwrap();
+
+        let current_time = DateTime::parse_from_rfc3339("2024-07-14T20:00:00Z")
+            .unwrap()
+            .to_utc();
+
+        let time_interval = TimeInterval::new(start_time, end_time);
+
+        assert!(time_interval.contains(&current_time));
+    }
+
+    #[test]
+    fn test_time_interval_contains_3() {
+        let start_time = NaiveTime::from_hms_opt(19, 00, 00).unwrap();
+        let end_time = NaiveTime::from_hms_opt(01, 0, 0).unwrap();
+
+        let current_time = DateTime::parse_from_rfc3339("2024-07-14T18:00:00Z")
+            .unwrap()
+            .to_utc();
+
+        let time_interval = TimeInterval::new(start_time, end_time);
+
+        assert!(!time_interval.contains(&current_time));
+    }
+    #[test]
+    fn test_time_interval_contains_4() {
+        let start_time = NaiveTime::from_hms_opt(19, 00, 00).unwrap();
+        let end_time = NaiveTime::from_hms_opt(22, 0, 0).unwrap();
+
+        let current_time = DateTime::parse_from_rfc3339("2024-07-14T18:00:00Z")
+            .unwrap()
+            .to_utc();
+
+        let time_interval = TimeInterval::new(start_time, end_time);
+
+        assert!(!time_interval.contains(&current_time));
+    }
 
     #[test]
     fn test_time_interval_duration() {

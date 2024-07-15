@@ -48,8 +48,6 @@ fn send_http(client: &Client, system_message: SystemMessages) -> String {
         }
     };
 
-    dbg!(&system_message_json);
-
     let res = client
         .post(url)
         .body(system_message_json)
