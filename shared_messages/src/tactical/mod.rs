@@ -173,4 +173,18 @@ impl TacticalResources {
         }
         TacticalResources::new(resource_capacity)
     }
+
+    pub fn update_resources(&mut self, resources: Self) {
+        for resource in resources.resources {
+            for day in resource.1.days {
+                *self
+                    .resources
+                    .get_mut(&resource.0)
+                    .unwrap()
+                    .days
+                    .get_mut(&day.0)
+                    .unwrap() = day.1;
+            }
+        }
+    }
 }

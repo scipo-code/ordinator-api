@@ -3,56 +3,48 @@ mod api;
 mod data_processing;
 mod init;
 
-use futures_util::io::AsyncWriteExt;
 use std::{
+    env,
     fs::File,
-    io::{self, Read, Write},
+    io::{self, ErrorKind, Read, Write},
+    path::Path,
     sync::{Arc, Mutex},
 };
 
 use actix_web::{guard, web, App, HttpServer};
 use agents::orchestrator::Orchestrator;
-use mongodb::{bson::doc, options::GridFsBucketOptions, Client};
 
 use shared_messages::{models::SchedulingEnvironment, Asset};
-use tracing::info;
 
 use crate::init::logging;
 
 ///This is the entry point of the application. We should
 #[actix_web::main]
 async fn main() -> Result<(), io::Error> {
-    dotenv::dotenv().ok();
+    dotenvy::dotenv().ok();
 
     let log_handles = logging::setup_logging();
 
-    let scheduling_environment: SchedulingEnvironment;
-    if std::path::Path::new("temp_scheduling_environment/scheduling_environment.json").exists() {
-        let mut file =
-            File::open("temp_scheduling_environment/scheduling_environment.json").unwrap();
-        let mut data = String::new();
+    let database_path_string = &env::var("DATABASE_PATH").expect("Could not read database path");
 
-        file.read_to_string(&mut data).unwrap();
+    let database_path = std::path::Path::new(database_path_string);
 
-        scheduling_environment = serde_json::from_str(&data).unwrap();
+    let scheduling_environment = if database_path.exists() {
+        initialize_from_database(database_path)
     } else {
-        scheduling_environment =
-            init::model_initializers::initialize_scheduling_environment(52, 4, 120);
-
-        let json_scheduling_environment = serde_json::to_string(&scheduling_environment).unwrap();
-        let mut file =
-            File::create("temp_scheduling_environment/scheduling_environment.json").unwrap();
-
-        file.write_all(json_scheduling_environment.as_bytes())
-            .unwrap();
-    }
+        write_to_database(database_path)
+            .expect("Could not write SchedulingEnvironment to database.")
+    };
 
     let mutex_scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
 
     let mut orchestrator = Orchestrator::new(mutex_scheduling_environment.clone(), log_handles);
 
     orchestrator.add_asset(Asset::DF);
+    orchestrator.initialize_agents_from_env(Asset::DF);
+
     // orchestrator.add_asset(Asset::HD);
+
     let arc_orchestrator = Arc::new(Mutex::new(orchestrator));
 
     HttpServer::new(move || {
@@ -68,4 +60,25 @@ async fn main() -> Result<(), io::Error> {
     .bind("127.0.0.1:8080")?
     .run()
     .await
+}
+
+fn initialize_from_database(path: &Path) -> SchedulingEnvironment {
+    let mut file = File::open(path).unwrap();
+    let mut data = String::new();
+
+    file.read_to_string(&mut data).unwrap();
+
+    serde_json::from_str::<SchedulingEnvironment>(&data).unwrap()
+}
+
+fn write_to_database(path: &Path) -> Result<SchedulingEnvironment, std::io::Error> {
+    let scheduling_environment =
+        init::model_initializers::initialize_scheduling_environment(52, 4, 120);
+
+    let json_scheduling_environment = serde_json::to_string(&scheduling_environment).unwrap();
+    let mut file = File::create(path).unwrap();
+
+    file.write_all(json_scheduling_environment.as_bytes())
+        .unwrap();
+    Ok(scheduling_environment)
 }

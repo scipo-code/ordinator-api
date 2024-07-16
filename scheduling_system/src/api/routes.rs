@@ -1,12 +1,10 @@
-use actix::dev::channel::AddressSender;
-use actix::dev::Request;
 use actix_web::{web, HttpRequest, HttpResponse, Result};
-use futures::future::join_all;
+use dotenvy::dotenv;
 use shared_messages::models::work_order::WorkOrderNumber;
 use shared_messages::models::worker_environment::resources::Id;
 use shared_messages::operational::operational_request_status::OperationalStatusRequest;
 use shared_messages::operational::operational_response_status::OperationalStatusResponse;
-use shared_messages::operational::{OperationalInfeasibleCases, OperationalRequestMessage, OperationalResponse, OperationalResponseMessage, OperationalTarget};
+use shared_messages::operational::{OperationalConfiguration, OperationalRequestMessage, OperationalResponse, OperationalResponseMessage, OperationalTarget};
 use shared_messages::orchestrator::{AgentStatus, AgentStatusResponse, OrchestratorResponse};
 use shared_messages::strategic::strategic_request_status_message::StrategicStatusMessage;
 use shared_messages::strategic::strategic_response_status::{WorkOrderResponse, WorkOrdersStatus};
@@ -17,14 +15,13 @@ use shared_messages::supervisor::{SupervisorRequestMessage, SupervisorResponse};
 
 use shared_messages::tactical::tactical_status_message::TacticalStatusMessage;
 use shared_messages::tactical::{TacticalRequestMessage, TacticalResponse, TacticalResponseMessage};
-use shared_messages::{Asset, SystemResponses};
+use shared_messages::{Asset, SystemResponses, TomlAgents};
 use shared_messages::{orchestrator::OrchestratorRequest, SystemMessages};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{instrument, warn};
 use tracing_subscriber::EnvFilter;
 
-use crate::agents::operational_agent::OperationalAgent;
 use crate::agents::orchestrator::Orchestrator;
 use crate::agents::UpdateWorkOrderMessage;
 use shared_messages::models::WorkOrders;
@@ -410,23 +407,12 @@ impl Orchestrator {
                 Ok(orchestrator_response)
             }
             OrchestratorRequest::CreateOperationalAgent(asset, id, operational_configuration) => {
-                let supervisor_agent_addr = self
-                    .agent_registries
-                    .get(&asset)
-                    .unwrap()
-                    .supervisor_agent_addr_by_resource(&id.1[0].clone());
-                
-                let operational_agent_addr = self
-                    .agent_factory
-                    .build_operational_agent(id.clone(), operational_configuration, supervisor_agent_addr);
-
-                self.agent_registries
-                    .get_mut(&asset)
-                    .unwrap()
-                    .add_operational_agent(id.clone(), operational_agent_addr.clone());
-
                 let response_string = format!("Operational agent created with id {}", id);
+
+                self.create_operational_agent(&asset, id, operational_configuration);
+
                 let orchestrator_response = OrchestratorResponse::RequestStatus(response_string);
+
                 Ok(orchestrator_response)
             }
             OrchestratorRequest::DeleteOperationalAgent(asset, id_string) => {
@@ -507,6 +493,41 @@ impl Orchestrator {
                 )))
             }
         }
+    }
+
+    pub fn initialize_agents_from_env(&mut self, asset: Asset) {
+        dotenv().expect("Could not load in the .env file.");
+
+        
+        let resource_path = std::env::var("RESOURCE_CONFIG_INITIALIZATION").expect("Could not read RESOURCE_CONFIG_INITIALIZATION");
+
+
+        let toml_agents_string: String = std::fs::read_to_string(resource_path).unwrap(); 
+        let toml_agents: TomlAgents = toml::from_str(&toml_agents_string).unwrap();
+
+        for agent in toml_agents.operational {
+            let id: Id = Id::new(agent.id, agent.resources.resources, None);
+            self.create_operational_agent(&asset, id, agent.operational_configuration.into());
+        }
+
+        
+    }
+
+    fn create_operational_agent(&mut self, asset: &Asset, id: Id, operational_configuration: OperationalConfiguration) {
+        let supervisor_agent_addr = self
+            .agent_registries
+            .get(&asset)
+            .unwrap()
+            .supervisor_agent_addr_by_resource(&id.1[0]);
+    
+        let operational_agent_addr = self
+            .agent_factory
+            .build_operational_agent(id.clone(), operational_configuration, supervisor_agent_addr);
+
+        self.agent_registries
+            .get_mut(&asset)
+            .unwrap()
+            .add_operational_agent(id.clone(), operational_agent_addr.clone());
     }
 }
 

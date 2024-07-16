@@ -26,7 +26,7 @@ use crate::{
 use self::{
     strategic_request_periods_message::StrategicTimeRequest,
     strategic_request_resources_message::{ManualResource, StrategicResourceRequest},
-    strategic_request_scheduling_message::{StrategicSchedulingRequest},
+    strategic_request_scheduling_message::StrategicSchedulingRequest,
     strategic_request_status_message::StrategicStatusMessage,
     strategic_response_periods::StrategicResponsePeriods,
     strategic_response_resources::StrategicResponseResources,
@@ -250,5 +250,19 @@ impl StrategicResources {
             writeln!(string).ok();
         }
         string
+    }
+
+    pub fn update_resources(&mut self, resources: Self) {
+        for resource in resources.inner {
+            for period in resource.1 .0 {
+                *self
+                    .inner
+                    .get_mut(&resource.0)
+                    .unwrap()
+                    .0
+                    .get_mut(&period.0)
+                    .unwrap() = period.1;
+            }
+        }
     }
 }

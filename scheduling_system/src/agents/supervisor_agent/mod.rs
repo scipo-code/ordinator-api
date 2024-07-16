@@ -57,7 +57,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     type Result = ();
 
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
-        for (work_order_number, operations) in &self.assigned_work_orders {
+        for (_work_order_number, operations) in &self.assigned_work_orders {
             // Sync here
 
             let mut all_messages: Vec<Request<OperationalAgent, OperationSolution>> = vec![];
