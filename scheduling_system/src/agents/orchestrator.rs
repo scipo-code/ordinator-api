@@ -1,11 +1,19 @@
 use actix::prelude::*;
+use shared_messages::models::time_environment::day::Day;
+use shared_messages::models::time_environment::period::Period;
 use shared_messages::models::worker_environment::resources;
 use shared_messages::models::worker_environment::resources::Id;
 use shared_messages::models::worker_environment::resources::MainResources;
 
-use shared_messages::models::worker_environment::resources::Shift;
+use shared_messages::models::worker_environment::resources::Resources;
+use shared_messages::strategic::Periods;
+use shared_messages::strategic::StrategicResources;
+use shared_messages::tactical::Days;
+use shared_messages::tactical::TacticalResources;
 use shared_messages::Asset;
+use shared_messages::TomlAgents;
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 use strum::IntoEnumIterator;
@@ -128,11 +136,24 @@ impl Orchestrator {
     }
 
     pub fn add_asset(&mut self, asset: Asset) {
-        let strategic_agent_addr = self.agent_factory.build_strategic_agent(asset.clone());
+        let toml_agents_string_path = std::env::var("RESOURCE_CONFIG_INITIALIZATION")
+            .expect("Could not read RESOURCE_CONFIG_INITIALIZATION");
 
-        let tactical_agent_addr = self
+        let toml_agents_path = Path::new(&toml_agents_string_path);
+
+        let strategic_resources = self.generate_strategic_resources(toml_agents_path);
+
+        let tactical_resources = self.generate_tactical_resources(toml_agents_path);
+
+        let strategic_agent_addr = self
             .agent_factory
-            .build_tactical_agent(asset.clone(), strategic_agent_addr.clone());
+            .build_strategic_agent(asset.clone(), Some(strategic_resources));
+
+        let tactical_agent_addr = self.agent_factory.build_tactical_agent(
+            asset.clone(),
+            strategic_agent_addr.clone(),
+            Some(tactical_resources),
+        );
 
         let mut supervisor_addrs = HashMap::<Id, Addr<SupervisorAgent>>::new();
         for main_resource in resources::MainResources::iter() {
@@ -150,5 +171,102 @@ impl Orchestrator {
             ActorRegistry::new(strategic_agent_addr, tactical_agent_addr, supervisor_addrs);
 
         self.agent_registries.insert(asset, agent_registry);
+    }
+
+    fn generate_strategic_resources(&self, toml_agents_path: &Path) -> StrategicResources {
+        let periods: Vec<Period> = self
+            .scheduling_environment
+            .lock()
+            .unwrap()
+            .periods()
+            .clone();
+
+        let contents = std::fs::read_to_string(toml_agents_path).unwrap();
+
+        let config: TomlAgents = toml::from_str(&contents).unwrap();
+
+        let _hours_per_day = 6.0;
+        let days_in_period = 13.0;
+
+        let gradual_reduction = |i: usize| -> f64 {
+            if i == 0 {
+                1.0
+            } else if i == 1 {
+                0.9
+            } else if i == 2 {
+                0.8
+            } else {
+                0.6
+            }
+        };
+
+        let mut resources_hash_map = HashMap::<Resources, Periods>::new();
+        for operational_agent in config.operational {
+            for (i, period) in periods.clone().iter().enumerate() {
+                let resource_periods = resources_hash_map
+                    .entry(
+                        operational_agent
+                            .resources
+                            .resources
+                            .first()
+                            .cloned()
+                            .unwrap(),
+                    )
+                    .or_insert(Periods(HashMap::new()));
+
+                *resource_periods
+                    .0
+                    .entry(period.clone())
+                    .or_insert_with(|| 0.0) +=
+                    operational_agent.hours_per_day * days_in_period * gradual_reduction(i)
+            }
+        }
+
+        StrategicResources::new(resources_hash_map)
+    }
+    fn generate_tactical_resources(&self, toml_path: &Path) -> TacticalResources {
+        let days: Vec<Day> = self
+            .scheduling_environment
+            .lock()
+            .unwrap()
+            .tactical_days()
+            .clone();
+
+        let contents = std::fs::read_to_string(toml_path).unwrap();
+
+        let config: TomlAgents = toml::from_str(&contents).unwrap();
+
+        let _hours_per_day = 6.0;
+
+        let gradual_reduction = |i: usize| -> f64 {
+            match i {
+                0..=13 => 1.0,
+                14..=27 => 1.0,
+                _ => 1.0,
+            }
+        };
+
+        let mut resources_hash_map = HashMap::<Resources, Days>::new();
+        for operational_agent in config.operational {
+            for (i, day) in days.clone().iter().enumerate() {
+                let resource_periods = resources_hash_map
+                    .entry(
+                        operational_agent
+                            .resources
+                            .resources
+                            .first()
+                            .cloned()
+                            .unwrap(),
+                    )
+                    .or_insert(Days::new(HashMap::new()));
+
+                *resource_periods
+                    .days
+                    .entry(day.clone())
+                    .or_insert_with(|| 0.0) +=
+                    operational_agent.hours_per_day * gradual_reduction(i);
+            }
+        }
+        TacticalResources::new(resources_hash_map)
     }
 }

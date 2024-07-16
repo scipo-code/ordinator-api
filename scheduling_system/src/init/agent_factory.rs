@@ -33,7 +33,11 @@ impl AgentFactory {
         }
     }
 
-    pub fn build_strategic_agent(&self, asset: Asset) -> Addr<StrategicAgent> {
+    pub fn build_strategic_agent(
+        &self,
+        asset: Asset,
+        strategic_resources: Option<StrategicResources>,
+    ) -> Addr<StrategicAgent> {
         let mut cloned_work_orders = self
             .scheduling_environment
             .lock()
@@ -52,10 +56,19 @@ impl AgentFactory {
         // period_locks.insert(locked_scheduling_environment.periods()[0].clone());
         // period_locks.insert(locked_scheduling_environment.get_periods()[1].clone());
 
+        let mut resources_capacity =
+            initialize_strategic_resources(&locked_scheduling_environment, 0.0);
+
+        if let Some(resources) = strategic_resources {
+            resources_capacity.update_resources(resources);
+        }
+
+        let resources_loading = initialize_strategic_resources(&locked_scheduling_environment, 0.0);
+
         let mut strategic_agent_algorithm = StrategicAlgorithm::new(
             0.0,
-            initialize_strategic_resources(&locked_scheduling_environment, 0.0),
-            initialize_strategic_resources(&locked_scheduling_environment, 0.0),
+            resources_capacity,
+            resources_loading,
             PriorityQueues::new(),
             OptimizedWorkOrders::new(HashMap::new()),
             period_locks,
@@ -93,6 +106,7 @@ impl AgentFactory {
         &self,
         asset: Asset,
         strategic_agent_addr: Addr<StrategicAgent>,
+        tactical_resources: Option<TacticalResources>,
     ) -> Addr<TacticalAgent> {
         let (sender, receiver) = std::sync::mpsc::channel::<Addr<TacticalAgent>>();
 
@@ -100,11 +114,21 @@ impl AgentFactory {
 
         let tactical_periods = scheduling_environment_guard.tactical_periods().clone();
 
+        let mut tactical_resources_capacity =
+            initialize_tactical_resources(&scheduling_environment_guard, 0.0);
+
+        if let Some(resources) = tactical_resources {
+            tactical_resources_capacity.update_resources(resources);
+        }
+
+        let tactical_resources_loading =
+            initialize_tactical_resources(&scheduling_environment_guard, 0.0);
+
         let tactical_algorithm = TacticalAlgorithm::new(
             scheduling_environment_guard.tactical_days().clone(),
             tactical_periods.clone(),
-            initialize_tactical_resources(&scheduling_environment_guard, 0.0),
-            initialize_tactical_resources(&scheduling_environment_guard, 0.0),
+            tactical_resources_capacity,
+            tactical_resources_loading,
         );
 
         drop(scheduling_environment_guard);
