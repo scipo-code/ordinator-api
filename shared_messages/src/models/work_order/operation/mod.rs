@@ -158,6 +158,7 @@ pub struct OperationBuilder {
     operation_dates: OperationDates,
 }
 
+#[allow(dead_code)]
 impl OperationBuilder {
     fn with_operation_info(
         mut self,

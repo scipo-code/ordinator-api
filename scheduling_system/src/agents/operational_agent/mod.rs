@@ -25,7 +25,7 @@ use tracing::{info, warn};
 
 use crate::agents::{operational_agent::algorithm::OperationalParameter, StateLink};
 
-use self::algorithm::OperationalAlgorithm;
+use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
 
 use super::{
     strategic_agent::ScheduleIteration,
@@ -35,6 +35,7 @@ use super::{
     SetAddr, UpdateWorkOrderMessage,
 };
 
+#[allow(dead_code)]
 pub struct OperationalAgent {
     id_operational: Id,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
@@ -44,12 +45,6 @@ pub struct OperationalAgent {
     backup_activities: Option<HashMap<u32, Operation>>,
     operational_configuration: OperationalConfiguration,
     supervisor_agent_addr: Addr<SupervisorAgent>,
-}
-
-pub struct AssignedWork {
-    work: f64,
-    assigned: bool,
-    operation_solution: OperationSolution,
 }
 
 type Assigned = bool;
@@ -143,6 +138,29 @@ impl Actor for OperationalAgent {
         self.supervisor_agent_addr.do_send(SetAddr::Operational(
             self.id_operational.clone(),
             ctx.address(),
+        ));
+
+        let start_event = Assignment::make_unavailable_event(
+            algorithm::Unavailability::Beginning,
+            &self.operational_configuration.availability,
+        );
+        let end_event = Assignment::make_unavailable_event(
+            algorithm::Unavailability::End,
+            &self.operational_configuration.availability,
+        );
+        let unavailability_start_event = OperationalSolution::new(true, vec![start_event]);
+        let unavailability_end_event = OperationalSolution::new(true, vec![end_event]);
+
+        self.operational_algorithm.operational_solutions.0.push((
+            WorkOrderNumber(0),
+            ActivityNumber(0),
+            Some(unavailability_start_event),
+        ));
+
+        self.operational_algorithm.operational_solutions.0.push((
+            WorkOrderNumber(0),
+            ActivityNumber(0),
+            Some(unavailability_end_event),
         ));
 
         ctx.notify(ScheduleIteration {})

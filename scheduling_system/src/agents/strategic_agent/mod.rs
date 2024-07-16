@@ -908,6 +908,7 @@ mod tests {
         type Result = Option<TestResponse>;
     }
 
+    #[allow(dead_code)]
     pub struct TestResponse {
         pub objective_value: f64,
         pub manual_resources_capacity: HashMap<Resources, Periods>,
