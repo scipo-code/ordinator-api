@@ -13,6 +13,8 @@ use tracing_subscriber::{prelude::*, reload, Registry};
 type LogLayer =
     Filtered<Layer<Registry, JsonFields, Format<Json>, NonBlocking>, EnvFilter, Registry>;
 type ProfilingLayer = Filtered<FlameLayer<Registry, BufWriter<File>>, EnvFilter, Registry>;
+
+#[allow(dead_code)]
 pub struct LogHandles {
     pub file_handle: Handle<LogLayer, Registry>,
     pub flame_handle: Handle<ProfilingLayer, Registry>,

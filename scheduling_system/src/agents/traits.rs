@@ -1,5 +1,6 @@
 use shared_messages::AlgorithmState;
 
+#[allow(dead_code)]
 pub trait LargeNeighborHoodSearch {
     type SchedulingRequest;
     type SchedulingResponse;

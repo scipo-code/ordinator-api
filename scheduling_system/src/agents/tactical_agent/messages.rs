@@ -3,12 +3,6 @@ use shared_messages::StatusMessage;
 
 use super::TacticalAgent;
 
-struct ScheduleIteration {}
-
-impl Message for ScheduleIteration {
-    type Result = ();
-}
-
 impl Handler<StatusMessage> for TacticalAgent {
     type Result = String;
 

@@ -231,6 +231,7 @@ pub enum ActivityRelation {
     Postpone(DateTime<Utc>),
 }
 
+#[allow(dead_code)]
 #[derive(serde::Deserialize, Debug)]
 pub struct WeightParams {
     order_type_weights: HashMap<String, u32>,

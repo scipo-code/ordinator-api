@@ -159,7 +159,7 @@ trait OperationalFunctions {
     type Key;
     type Sequence;
 
-    fn try_insert(&mut self, key: Self::Key, sequence: Self::Sequence);
+    fn try_insert(&mut self, key: Self::Key, sequence: Self::Sequence, availability: &Availability);
 
     fn containing_operational_solution(&self, time: DateTime<Utc>) -> ContainOrNextOrNone;
 }
@@ -168,20 +168,25 @@ impl OperationalFunctions for OperationalSolutions {
     type Key = (WorkOrderNumber, ActivityNumber);
     type Sequence = Vec<Assignment>;
 
-    fn try_insert(&mut self, key: Self::Key, assignments: Self::Sequence) {
+    fn try_insert(
+        &mut self,
+        key: Self::Key,
+        assignments: Self::Sequence,
+        availability: &Availability,
+    ) {
         for (index, operation_solution) in self.0.windows(2).enumerate() {
-            let finish_time_solution_window = match &operation_solution[0].2 {
+            let start_of_solution_window = match &operation_solution[0].2 {
                 Some(operational_solution) => operational_solution.finish_time(),
-                None => break,
+                None => availability.start_date,
             };
 
-            let start_time_solution_window = match &operation_solution[1].2 {
+            let end_of_solution_window = match &operation_solution[1].2 {
                 Some(operational_solution) => operational_solution.start_time(),
-                None => break,
+                None => availability.end_date,
             };
 
-            if finish_time_solution_window < assignments.first().unwrap().start
-                && assignments.last().unwrap().finish < start_time_solution_window
+            if start_of_solution_window < assignments.first().unwrap().start
+                && assignments.last().unwrap().finish < end_of_solution_window
             {
                 let operational_solution = OperationalSolution {
                     assigned: false,
@@ -249,6 +254,13 @@ pub struct OperationalSolution {
 }
 
 impl OperationalSolution {
+    pub fn new(assigned: Assigned, assignments: Vec<Assignment>) -> Self {
+        Self {
+            assigned,
+            assignments,
+        }
+    }
+
     pub fn start_time(&self) -> DateTime<Utc> {
         self.assignments.first().unwrap().start
     }
@@ -285,9 +297,58 @@ impl Assignment {
             finish,
         }
     }
+
+    pub fn make_unavailable_event(kind: Unavailability, availability: &Availability) -> Self {
+        match kind {
+            Unavailability::Beginning => {
+                let event_start_time = availability
+                    .start_date
+                    .clone()
+                    .date_naive()
+                    .and_hms_opt(0, 0, 0)
+                    .unwrap()
+                    .and_utc();
+                let event_finish_time = availability.start_date;
+
+                Assignment::new(
+                    OperationalEvents::Unavailable(TimeInterval::from_date_times(
+                        event_start_time,
+                        event_finish_time,
+                    )),
+                    event_start_time,
+                    event_finish_time,
+                )
+            }
+            Unavailability::End => {
+                let event_start_time = availability.start_date;
+                let event_finish_time = availability
+                    .start_date
+                    .clone()
+                    .date_naive()
+                    .and_hms_opt(23, 59, 59)
+                    .unwrap()
+                    .and_utc();
+
+                Assignment::new(
+                    OperationalEvents::Unavailable(TimeInterval::from_date_times(
+                        event_start_time,
+                        event_finish_time,
+                    )),
+                    event_start_time,
+                    event_finish_time,
+                )
+            }
+        }
+    }
+}
+
+pub enum Unavailability {
+    Beginning,
+    End,
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct OperationalParameter {
     work: f64,
     preparation: f64,
@@ -379,6 +440,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                     non_productive_time += time_interval.duration();
                     current_time += time_interval.duration();
                 }
+                OperationalEvents::Unavailable(_) => todo!(),
             }
         }
 
@@ -409,7 +471,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                 self.determine_wrench_time_assignment(start_time, operational_parameter);
 
             self.operational_solutions
-                .try_insert(*operation_id, assignments);
+                .try_insert(*operation_id, assignments, &self.availability);
         }
 
         // fill the schedule
@@ -705,6 +767,7 @@ pub enum OperationalEvents {
     Toolbox(TimeInterval),
     OffShift(TimeInterval),
     NonProductiveTime(TimeInterval),
+    Unavailable(TimeInterval),
 }
 
 impl OperationalEvents {
@@ -715,6 +778,7 @@ impl OperationalEvents {
             Self::Toolbox(time_interval) => time_interval.duration(),
             Self::OffShift(time_interval) => time_interval.duration(),
             Self::NonProductiveTime(time_interval) => time_interval.duration(),
+            Self::Unavailable(time_interval) => time_interval.duration(),
         }
     }
     fn start_time(&self) -> NaiveTime {
@@ -724,6 +788,7 @@ impl OperationalEvents {
             Self::Toolbox(time_interval) => time_interval.start,
             Self::OffShift(time_interval) => time_interval.start,
             Self::NonProductiveTime(time_interval) => time_interval.start,
+            Self::Unavailable(time_interval) => time_interval.start,
         }
     }
     fn finish_time(&self) -> NaiveTime {
@@ -733,25 +798,7 @@ impl OperationalEvents {
             Self::Toolbox(time_interval) => time_interval.end,
             Self::OffShift(time_interval) => time_interval.end,
             Self::NonProductiveTime(time_interval) => time_interval.end,
-        }
-    }
-
-    fn is_inside_interval(&self, date_time: &DateTime<Utc>) -> bool {
-        match self {
-            OperationalEvents::WrenchTime(time_interval) => time_interval.contains(date_time),
-            OperationalEvents::Break(time_interval) => time_interval.contains(date_time),
-            OperationalEvents::Toolbox(time_interval) => time_interval.contains(date_time),
-            OperationalEvents::OffShift(time_interval) => time_interval.contains(date_time),
-            OperationalEvents::NonProductiveTime(time_interval) => {
-                time_interval.contains(date_time)
-            }
-        }
-    }
-
-    fn is_break(&self) -> bool {
-        match self {
-            OperationalEvents::Break(_) => true,
-            _ => false,
+            Self::Unavailable(time_interval) => time_interval.end,
         }
     }
 }
