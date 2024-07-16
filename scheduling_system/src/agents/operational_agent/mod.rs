@@ -21,12 +21,9 @@ use shared_messages::{
 };
 
 use shared_messages::models::{work_order::operation::Operation, SchedulingEnvironment};
-use tracing::{info, instrument::WithSubscriber, warn, Instrument};
+use tracing::{info, warn};
 
-use crate::agents::{
-    operational_agent::algorithm::{OperationalParameter, OperationalSolution},
-    StateLink,
-};
+use crate::agents::{operational_agent::algorithm::OperationalParameter, StateLink};
 
 use self::algorithm::OperationalAlgorithm;
 
@@ -155,12 +152,12 @@ impl Actor for OperationalAgent {
 impl Handler<ScheduleIteration> for OperationalAgent {
     type Result = ();
 
-    fn handle(&mut self, msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         let mut rng = rand::thread_rng();
 
         let mut temporary_schedule: OperationalAlgorithm = self.operational_algorithm.clone();
 
-        // ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(1000)).into_actor(self));
+        ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(10)).into_actor(self));
         temporary_schedule.unschedule_random_work_order_activies(&mut rng, 15);
 
         temporary_schedule.schedule();
@@ -211,8 +208,6 @@ impl Handler<OperationSolution> for OperationalAgent {
             operation_solution.work_order_number,
             operation_solution.activity_number,
         ));
-
-        let operational_solution = OperationalSolution::new(false, Vec::new());
 
         self.operational_algorithm.insert_optimized_operation(
             operation_solution.work_order_number,

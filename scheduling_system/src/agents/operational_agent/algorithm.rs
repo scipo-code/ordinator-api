@@ -189,6 +189,7 @@ impl OperationalFunctions for OperationalSolutions {
                 };
 
                 if self.is_operational_solution_unique(key) {
+                    dbg!();
                     self.0
                         .insert(index + 1, (key.0, key.1, Some(operational_solution)));
                 }
@@ -286,15 +287,6 @@ impl Assignment {
     }
 }
 
-impl OperationalSolution {
-    pub fn new(assigned: Assigned, assignments: Vec<Assignment>) -> Self {
-        Self {
-            assigned,
-            assignments,
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct OperationalParameter {
     work: f64,
@@ -365,7 +357,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             .iter()
             .chain(&self.operational_non_productive.0);
 
-        for (index, assignment) in all_events.clone().enumerate() {
+        for (_index, assignment) in all_events.clone().enumerate() {
             match &assignment.event_type {
                 OperationalEvents::WrenchTime(time_interval) => {
                     wrench_time += time_interval.duration();
@@ -402,7 +394,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         assert!(no_overlap(all_events.collect::<Vec<_>>()));
 
         let total_time =
-            (wrench_time + break_time + off_shift_time + toolbox_time + non_productive_time);
+            wrench_time + break_time + off_shift_time + toolbox_time + non_productive_time;
         assert_eq!(total_time, self.availability.duration());
         self.objective_value = (wrench_time).num_seconds() as f64
             / (wrench_time + break_time + toolbox_time + non_productive_time).num_seconds() as f64;
@@ -537,7 +529,7 @@ impl OperationalAlgorithm {
                     current_time,
                     current_time + next_event.0,
                 ));
-                current_time += next_event.0 + next_event.1.time_delta();
+                current_time += next_event.0;
                 remaining_combined_work -= next_event.0;
             } else if next_event.0 >= remaining_combined_work {
                 assigned_work.push(Assignment::new(
@@ -744,13 +736,6 @@ impl OperationalEvents {
         }
     }
 
-    fn is_non_work(&self) -> bool {
-        match self {
-            Self::WrenchTime(_) => false,
-            _ => true,
-        }
-    }
-
     fn is_inside_interval(&self, date_time: &DateTime<Utc>) -> bool {
         match self {
             OperationalEvents::WrenchTime(time_interval) => time_interval.contains(date_time),
@@ -760,6 +745,13 @@ impl OperationalEvents {
             OperationalEvents::NonProductiveTime(time_interval) => {
                 time_interval.contains(date_time)
             }
+        }
+    }
+
+    fn is_break(&self) -> bool {
+        match self {
+            OperationalEvents::Break(_) => true,
+            _ => false,
         }
     }
 }
@@ -813,13 +805,12 @@ fn equality_between_time_interval_and_assignments(all_events: Vec<&Assignment>) 
 
 #[cfg(test)]
 mod tests {
-    use chrono::{DateTime, NaiveTime, TimeDelta, TimeZone, Utc};
+    use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
     use proptest::prelude::*;
     use shared_messages::{
         models::worker_environment::availability::Availability,
         operational::{OperationalConfiguration, TimeInterval},
     };
-    use tracing::instrument::WithSubscriber;
 
     use crate::agents::operational_agent::algorithm::OperationalEvents;
 

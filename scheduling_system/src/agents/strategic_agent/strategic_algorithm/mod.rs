@@ -623,7 +623,6 @@ mod tests {
     use shared_messages::strategic::strategic_request_scheduling_message::SingleWorkOrder;
     use chrono::{Duration, TimeZone, Utc};
     use rand::{rngs::StdRng, SeedableRng};
-    use proptest::prelude::*;
 
     use shared_messages::models::worker_environment::resources::Resources;
 

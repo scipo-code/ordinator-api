@@ -10,9 +10,7 @@ use std::fmt::{self, Display};
 use actix::prelude::*;
 use clap::{Subcommand, ValueEnum};
 use models::worker_environment::resources::Resources;
-use operational::{
-    OperationalConfiguration, OperationalRequest, OperationalResponse, TomlOperationalConfiguration,
-};
+use operational::{OperationalRequest, OperationalResponse, TomlOperationalConfiguration};
 use orchestrator::{OrchestratorRequest, OrchestratorResponse};
 use serde::{Deserialize, Serialize};
 use strategic::{StrategicRequest, StrategicResponse};
@@ -200,7 +198,7 @@ pub struct TomlResources {
     pub wellsupv: f64,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct TomlAgents {
     pub operational: Vec<TomlOperational>,
 }
@@ -259,16 +257,8 @@ pub enum LoadOperation {
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveTime;
-    use toml::{map::Map, Table, Value};
 
-    use crate::{
-        models::worker_environment::resources::{Resources, Shift},
-        operational::TimeInterval,
-        TomlAgents,
-    };
-
-    use super::TomlOperational;
+    use crate::{models::worker_environment::resources::Resources, TomlAgents};
 
     #[test]
     fn test_toml_operational_parsing() {

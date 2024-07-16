@@ -1,4 +1,4 @@
-use shared_messages::{models::work_order::WorkOrderNumber, AlgorithmState};
+use shared_messages::AlgorithmState;
 
 pub trait LargeNeighborHoodSearch {
     type SchedulingRequest;
