@@ -170,6 +170,16 @@ impl TimeInterval {
         Self { start, end }
     }
 
+    pub fn from_date_times(
+        start_date_time: DateTime<Utc>,
+        finish_date_time: DateTime<Utc>,
+    ) -> Self {
+        Self {
+            start: start_date_time.time(),
+            end: finish_date_time.time(),
+        }
+    }
+
     pub fn contains(&self, date_time: &DateTime<Utc>) -> bool {
         let time = date_time.time();
 

@@ -1,5 +1,5 @@
 # Ordinator
-Ordinator is a multi-agent scheduling system created in Rust. The system is revolved around agents
+Ordinator is a multi-agent scheduling system. The system is based on agents
 that each schedule a specific part of the scheduling process in real-time and then communicates 
 their solutions to each other and to the user of the system in the form of RESTful API endpoints.
 
@@ -19,7 +19,6 @@ Imperium.
 
 
 # Profiling and benchmarking
-
 This file is to explain and tell how to profile and benchmark the scheduling system.
 
 ## Profiling 

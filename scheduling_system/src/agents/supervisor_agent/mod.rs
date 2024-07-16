@@ -30,6 +30,7 @@ use super::{
     SetAddr, StateLink, UpdateWorkOrderMessage,
 };
 
+#[allow(dead_code)]
 pub struct SupervisorAgent {
     id_supervisor: Id,
     asset: Asset,

@@ -6,7 +6,7 @@ mod init;
 use std::{
     env,
     fs::File,
-    io::{self, ErrorKind, Read, Write},
+    io::{self, Read, Write},
     path::Path,
     sync::{Arc, Mutex},
 };

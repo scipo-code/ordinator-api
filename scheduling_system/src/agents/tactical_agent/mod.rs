@@ -22,6 +22,7 @@ use super::supervisor_agent::SupervisorAgent;
 use super::traits::{LargeNeighborHoodSearch, TestAlgorithm};
 use super::{StateLink, UpdateWorkOrderMessage};
 
+#[allow(dead_code)]
 pub struct TacticalAgent {
     asset: Asset,
     id_tactical: i32,

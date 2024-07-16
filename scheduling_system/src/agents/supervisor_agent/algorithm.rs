@@ -21,6 +21,7 @@ pub struct SupervisorSchedulingRequest;
 pub struct SupervisorResourceRequest;
 pub struct SupervisorTimeRequest;
 
+#[allow(dead_code)]
 pub struct SupervisorAlgorithm {
     pub objective_value: f64,
     pub assigned_activities_by_agent: HashMap<Id, Vec<(WorkOrderNumber, ActivityNumber)>>,
@@ -32,10 +33,6 @@ impl SupervisorAlgorithm {
             objective_value: f64::INFINITY,
             assigned_activities_by_agent: HashMap::new(),
         }
-    }
-
-    pub(crate) fn clone(&self) -> SupervisorAlgorithm {
-        todo!()
     }
 }
 

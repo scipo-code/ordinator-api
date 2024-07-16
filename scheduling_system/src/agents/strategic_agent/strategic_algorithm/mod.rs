@@ -40,9 +40,6 @@ pub struct StrategicAlgorithm {
 }
 
 impl StrategicAlgorithm {
-    pub fn optimized_work_order(&self, work_order_number: &WorkOrderNumber) -> Option<&OptimizedWorkOrder> {
-        self.optimized_work_orders.inner.get(work_order_number)
-    }
 
     pub fn objective_value(&self) -> f64 {
         self.objective_value
@@ -592,9 +589,6 @@ impl StrategicAlgorithm {
 
 }
 
-fn calculate_excess_penalty(loading: &f64, capacity: &f64) -> f64 {
-        (loading - capacity).max(0.0)
-}
 
 #[derive(Debug, Clone)]
 pub struct PriorityQueues<T, P>
@@ -602,16 +596,12 @@ where
     T: Hash + Eq,
     P: Ord,
 {
-    pub unloading: PriorityQueue<T, P>,
-    pub shutdown_vendor: PriorityQueue<T, P>,
     pub normal: PriorityQueue<T, P>,
 }
 
 impl PriorityQueues<u32, u32> {
     pub fn new() -> Self {
         Self {
-            unloading: PriorityQueue::<u32, u32>::new(),
-            shutdown_vendor: PriorityQueue::<u32, u32>::new(),
             normal: PriorityQueue::<u32, u32>::new(),
         }
     }
@@ -637,6 +627,12 @@ mod tests {
             WorkOrders,
     };
 
+    impl StrategicAlgorithm {
+        
+    pub fn optimized_work_order(&self, work_order_number: &WorkOrderNumber) -> Option<&OptimizedWorkOrder> {
+        self.optimized_work_orders.inner.get(work_order_number)
+    }
+    }
     #[test]
     fn test_update_scheduler_algorithm_state() {
         let work_order_number = WorkOrderNumber(1212123212);

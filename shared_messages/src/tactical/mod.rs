@@ -17,7 +17,6 @@ use crate::{
 use actix::Message;
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::*;
-use std::fmt::Write;
 
 use self::{
     tactical_resources_message::TacticalResourceRequest,

@@ -47,17 +47,3 @@ impl From<TomlAvailability> for Availability {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use toml::value::Datetime;
-
-    use super::TomlAvailability;
-
-    fn test_toml_availability_from() {
-        let toml_availability = TomlAvailability {
-            start_date: "2024-05-01T00:00:00Z".parse::<Datetime>().unwrap(),
-            end_date: "2024-05-15T00:00:00Z".parse::<Datetime>().unwrap(),
-        };
-    }
-}
