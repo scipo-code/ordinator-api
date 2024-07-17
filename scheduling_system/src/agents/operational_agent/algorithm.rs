@@ -185,7 +185,21 @@ impl OperationalFunctions for OperationalSolutions {
                 None => availability.end_date,
             };
 
-            if start_of_solution_window < assignments.first().unwrap().start
+            // dbg!(&start_of_solution_window);
+            // dbg!(
+            //     &assignments
+            //         .first()
+            //         .expect("No Assignment in the OperationalSolution")
+            //         .start
+            // );
+            // dbg!(&assignments.last().unwrap().finish);
+            // dbg!(&end_of_solution_window);
+
+            if start_of_solution_window
+                < assignments
+                    .first()
+                    .expect("No Assignment in the OperationalSolution")
+                    .start
                 && assignments.last().unwrap().finish < end_of_solution_window
             {
                 let operational_solution = OperationalSolution {
@@ -193,8 +207,7 @@ impl OperationalFunctions for OperationalSolutions {
                     assignments,
                 };
 
-                if self.is_operational_solution_unique(key) {
-                    dbg!();
+                if !self.is_operational_solution_unique(key) {
                     self.0
                         .insert(index + 1, (key.0, key.1, Some(operational_solution)));
                 }
@@ -210,8 +223,13 @@ impl OperationalFunctions for OperationalSolutions {
         let containing: Option<OperationalSolution> = self
             .0
             .iter()
-            .find(|operational_solution| operational_solution.2.as_ref().unwrap().contains(time))
-            .map(|os| os.2.clone().unwrap());
+            .find_map(|operational_solution| {
+                operational_solution
+                    .2
+                    .as_ref()
+                    .filter(|os| os.contains(time))
+            })
+            .cloned();
 
         match containing {
             Some(containing) => ContainOrNextOrNone::Contain(containing),
@@ -219,8 +237,10 @@ impl OperationalFunctions for OperationalSolutions {
                 let next: Option<OperationalSolution> = self
                     .0
                     .iter()
-                    .find(|os| os.2.as_ref().unwrap().start_time() > time)
-                    .map(|os| os.2.clone().unwrap());
+                    .filter_map(|os| os.2.as_ref())
+                    .find(|start| start.start_time() > time)
+                    .cloned();
+
                 match next {
                     Some(operational_solution) => ContainOrNextOrNone::Next(operational_solution),
                     None => ContainOrNextOrNone::None,
@@ -398,7 +418,8 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             .operational_solutions
             .0
             .iter()
-            .flat_map(|inner| inner.2.as_ref().unwrap().assignments.iter())
+            .filter_map(|operational_solution| operational_solution.2.as_ref())
+            .flat_map(|os| os.assignments.iter())
             .cloned()
             .collect();
 
@@ -414,7 +435,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             .iter()
             .chain(&self.operational_non_productive.0);
 
-        for (_index, assignment) in all_events.clone().enumerate() {
+        for assignment in all_events.clone() {
             match &assignment.event_type {
                 OperationalEvents::WrenchTime(time_interval) => {
                     wrench_time += time_interval.duration();
@@ -436,7 +457,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                     non_productive_time += time_interval.duration();
                     current_time += time_interval.duration();
                 }
-                OperationalEvents::Unavailable(_) => todo!(),
+                OperationalEvents::Unavailable(_) => (),
             }
         }
 
@@ -451,6 +472,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
         assert!(no_overlap(all_events.collect::<Vec<_>>()));
 
+        dbg!(&wrench_time);
         let total_time =
             wrench_time + break_time + off_shift_time + toolbox_time + non_productive_time;
         assert_eq!(total_time, self.availability.duration());
@@ -797,6 +819,10 @@ impl OperationalEvents {
             Self::Unavailable(time_interval) => time_interval.end,
         }
     }
+
+    fn unavail(&self) -> bool {
+        matches!(&self, OperationalEvents::Unavailable(_))
+    }
 }
 
 fn no_overlap(events: Vec<&Assignment>) -> bool {
@@ -820,11 +846,11 @@ fn no_overlap(events: Vec<&Assignment>) -> bool {
 
 fn is_assignments_in_bounds(events: Vec<&Assignment>, availability: &Availability) -> bool {
     for event in events {
-        if event.start < availability.start_date {
+        if event.start < availability.start_date && !event.event_type.unavail() {
             dbg!(event, availability);
             return false;
         }
-        if availability.end_date < event.finish {
+        if availability.end_date < event.finish && !event.event_type.unavail() {
             dbg!(event, availability);
             return false;
         }

@@ -1,6 +1,7 @@
 pub mod algorithm;
 use std::{
     collections::{HashMap, HashSet},
+    ops::AddAssign,
     sync::{Arc, Mutex},
 };
 
@@ -214,13 +215,16 @@ impl Handler<OperationSolution> for OperationalAgent {
         let (start_datetime, end_datetime) =
             self.determine_start_and_finish_times(&operation_solution.scheduled);
 
-        let operational_parameter = OperationalParameter::new(
-            operation.work_remaining(),
-            operation.operation_analytic.preparation_time,
-            start_datetime,
-            end_datetime,
-        );
-
+        let operational_parameter = if operation.work_remaining() > 0.0 {
+            OperationalParameter::new(
+                operation.work_remaining(),
+                operation.operation_analytic.preparation_time,
+                start_datetime,
+                end_datetime,
+            )
+        } else {
+            return false;
+        };
         self.assigned.insert((
             false,
             operation_solution.work_order_number,
