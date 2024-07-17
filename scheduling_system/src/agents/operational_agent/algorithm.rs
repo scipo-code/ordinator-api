@@ -270,11 +270,7 @@ impl OperationalSolution {
     }
 
     pub fn contains(&self, time: DateTime<Utc>) -> bool {
-        if self.start_time() <= time && time <= self.finish_time() {
-            true
-        } else {
-            false
-        }
+        self.start_time() <= time && time <= self.finish_time()
     }
 }
 
