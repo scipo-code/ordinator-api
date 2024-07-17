@@ -247,7 +247,7 @@ enum ContainOrNextOrNone {
 }
 
 #[allow(dead_code)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct OperationalSolution {
     assigned: Assigned,
     assignments: Vec<Assignment>,
@@ -270,7 +270,7 @@ impl OperationalSolution {
     }
 
     pub fn contains(&self, time: DateTime<Utc>) -> bool {
-        self.start_time() <= time && time <= self.finish_time()
+        self.start_time() <= time && time < self.finish_time()
     }
 }
 
@@ -316,9 +316,9 @@ impl Assignment {
                 )
             }
             Unavailability::End => {
-                let event_start_time = availability.start_date;
+                let event_start_time = availability.end_date;
                 let event_finish_time = availability
-                    .start_date
+                    .end_date
                     .clone()
                     .date_naive()
                     .and_hms_opt(23, 59, 59)

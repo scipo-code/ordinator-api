@@ -179,7 +179,7 @@ impl Handler<ScheduleIteration> for OperationalAgent {
         temporary_schedule.unschedule_random_work_order_activies(&mut rng, 15);
 
         temporary_schedule.schedule();
-        panic!();
+
         temporary_schedule.calculate_objective_value();
 
         if temporary_schedule.objective_value < self.operational_algorithm.objective_value {
