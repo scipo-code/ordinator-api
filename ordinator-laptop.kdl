@@ -8,85 +8,90 @@ layout {
 	tab name="control" focus=true {
 		pane split_direction="vertical" {
 			pane size="20%" split_direction="horizontal" {
-				pane size="30%" split_direction="vertical" {
-					pane size="15%" name="Ordinator watch" {	
-			  			command "cargo"
-			      		args "watch" "-w" "scheduling_system" "-w" "shared_messages" "-x" "run --bin scheduling_system -- $ORDINATOR_INPUT"
-		    	  		cwd "$ORDINATOR_PATH"
-		    		}
-			    	pane size="3%" name="Imperium watch"{
-		    	  		command "cargo"
-		      			args "watch" "-w" "imperium/" "-w" "shared_messages/"  "-x" "build --release --bin imperium"
-		      			cwd "$ORDINATOR_PATH"
-			    	}
-			    	pane size="2%" name="clear logs" {
-			    		command "cargo"
-			    		args "watch" "-s" "./logging/clear_logging.sh" "-w" "scheduling_system"		
-						cwd "$ORDINATOR_PATH"
-			    	}
-				}
+				pane size="50%" name="Ordinator watch" {	
+		  			command "cargo"
+		      		args "watch" "-w" "scheduling_system" "-w" "shared_messages" "-x" "run --bin scheduling_system -- $ORDINATOR_INPUT"
+	    	  		cwd "$ORDINATOR_PATH"
+	    		}
 				pane name="Bottom" {
 					cwd "$ORDINATOR_PATH"
 					command "htop"
 				}
 			}
-			pane focus=true size="40%" {
+			pane focus=true size="80%" {
 				command "hx"
 				args "."
 				cwd "$ORDINATOR_PATH"
 			}
-			pane size="40%" split_direction="horizontal" {
-				pane split_direction="vertical" {
-					pane name="Scino" {
-						cwd "$ORDINATOR_PATH"
-						command "zk"
-						args "edit" "--interactive"
-					}
-				}
-				pane name="Imperium" cwd="$ORDINATOR_PATH"
-			}
 		}  
 	    pane size=1 borderless=true {
-
-	      // plugin location="status-bar"
+	      plugin location="status-bar"
+	    }
+	    pane size=1 borderless=true {
 	      plugin location="tab-bar"
-	      // plugin location="compact-bar"
 	    }
     }
+	tab name="notes and interaction" {
+		pane name="Scino" {
+			cwd "$ORDINATOR_PATH"
+			command "zk"
+			args "edit" "--interactive"
+		}
+		pane name="Imperium" cwd="$ORDINATOR_PATH"
+	    pane size=1 borderless=true {
+	      plugin location="status-bar"
+	    }
+	    pane size=1 borderless=true {
+	      plugin location="tab-bar"
+	    }
+	}
     tab name="tracing" {
     	pane split_direction="vertical" {
 	    	pane name="Orchestrator" {
 	    		cwd "$ORDINATOR_PATH"
-	    		command "./logging/orchestrator_logging.sh"
 	    	}
 			pane split_direction="horizontal" {
 		    	pane name="Strategic" {
 		    		cwd "$ORDINATOR_PATH"
-	    		command "./logging/strategic_logging.sh"
 		    	}
 		    	pane name="Tactical" {
 		    		cwd "$ORDINATOR_PATH"
-	    		command "./logging/tactical_logging.sh"
 		    	}
 			}
 			pane split_direction="horizontal" {
 		    	pane name="Supervisor" {
 		    		cwd "$ORDINATOR_PATH"
-		    		command "./logging/supervisor_logging.sh"
 		    	}
 		    	pane name="Operational" {
 		    		cwd "$ORDINATOR_PATH"
-		    		command "./logging/operational_logging.sh"
 		    	}
 			}
     	}
 	    pane size=1 borderless=true {
-
-	      // plugin location="status-bar"
+	      plugin location="status-bar"
+	    }
+	    pane size=1 borderless=true {
 	      plugin location="tab-bar"
-	      // plugin location="compact-bar"
 	    }
     }
+	tab name="compilation" {
+		pane name="Imperium watch"{
+	  		command "cargo"
+			args "watch" "-w" "imperium/" "-w" "shared_messages/"  "-x" "build --release --bin imperium"
+			cwd "$ORDINATOR_PATH"
+		}
+		pane name="clear logs" {
+			command "cargo"
+			args "watch" "-s" "./logging/clear_logging.sh" "-w" "scheduling_system"		
+			cwd "$ORDINATOR_PATH"
+		}
+	    pane size=1 borderless=true {
+	      plugin location="status-bar"
+	    }
+	    pane size=1 borderless=true {
+	      plugin location="tab-bar"
+	    }
+	}
 }
 
 plugins {
