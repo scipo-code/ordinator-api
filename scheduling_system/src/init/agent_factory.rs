@@ -19,8 +19,8 @@ use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
 use crate::agents::tactical_agent::TacticalAgent;
 use crate::agents::traits::LargeNeighborHoodSearch;
 
-use shared_messages::models::worker_environment::resources::{Id, Resources};
-use shared_messages::models::SchedulingEnvironment;
+use shared_messages::scheduling_environment::worker_environment::resources::{Id, Resources};
+use shared_messages::scheduling_environment::SchedulingEnvironment;
 
 pub struct AgentFactory {
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,

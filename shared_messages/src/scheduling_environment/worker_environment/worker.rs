@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fmt::{self, Formatter};
 
-use crate::models::worker_environment::availability::Availability;
+use crate::scheduling_environment::worker_environment::availability::Availability;
 
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize)]

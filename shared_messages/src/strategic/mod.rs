@@ -19,7 +19,7 @@ use serde_json_any_key::any_key_map;
 
 use crate::{
     agent_error::AgentError,
-    models::{time_environment::period::Period, worker_environment::resources::Resources},
+    scheduling_environment::{time_environment::period::Period, worker_environment::resources::Resources},
     AlgorithmState, Asset, ConstraintState, LoadOperation,
 };
 

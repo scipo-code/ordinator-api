@@ -2,7 +2,7 @@ use std::{collections::HashMap, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-use crate::models::{time_environment::period::Period, worker_environment::resources::Resources};
+use crate::scheduling_environment::{time_environment::period::Period, worker_environment::resources::Resources};
 
 use super::{Periods, StrategicResources, TimePeriod};
 

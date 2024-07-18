@@ -7,7 +7,7 @@ use std::{
 use actix::prelude::*;
 use shared_messages::{
     agent_error::AgentError,
-    models::work_order::{operation::ActivityNumber, WorkOrderNumber},
+    scheduling_environment::work_order::{operation::ActivityNumber, WorkOrderNumber},
     supervisor::{
         supervisor_response_status::SupervisorResponseStatus, SupervisorInfeasibleCases,
         SupervisorRequestMessage, SupervisorResponseMessage,
@@ -15,10 +15,10 @@ use shared_messages::{
     AlgorithmState, Asset, ConstraintState, StatusMessage, StopMessage,
 };
 
-use shared_messages::models::worker_environment::resources::Id;
+use shared_messages::scheduling_environment::worker_environment::resources::Id;
 use tracing::{error, instrument, warn};
 
-use shared_messages::models::SchedulingEnvironment;
+use shared_messages::scheduling_environment::SchedulingEnvironment;
 
 use self::algorithm::SupervisorAlgorithm;
 

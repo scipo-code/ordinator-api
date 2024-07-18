@@ -4,7 +4,7 @@ use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
 use rand::seq::SliceRandom;
 use shared_messages::{
     agent_error::AgentError,
-    models::{
+    scheduling_environment::{
         work_order::{operation::ActivityNumber, WorkOrderNumber},
         worker_environment::availability::Availability,
     },
@@ -17,7 +17,7 @@ use shared_messages::{
         operational_response_time::OperationalTimeResponse, TimeInterval,
     },
 };
-use tracing::{debug, field::debug};
+use tracing::debug;
 
 use crate::agents::traits::LargeNeighborHoodSearch;
 
@@ -607,7 +607,7 @@ impl OperationalAlgorithm {
         operational_parameter: &OperationalParameter,
     ) -> Vec<Assignment> {
         let mut assigned_work: Vec<Assignment> = vec![];
-        let mut remaining_combined_work = operational_parameter.operation_time_delta.clone();
+        let mut remaining_combined_work = operational_parameter.operation_time_delta;
         let mut current_time = start_time;
 
         while !remaining_combined_work.is_zero() {
@@ -660,7 +660,7 @@ impl OperationalAlgorithm {
             OperationalEvents::OffShift(self.off_shift_interval.clone()),
         );
 
-        vec![break_diff, toolbox_diff, off_shift_diff]
+        [break_diff, toolbox_diff, off_shift_diff]
             .iter()
             .filter(|&diff_event| diff_event.0.num_seconds() >= 0)
             .min_by_key(|&diff_event| diff_event.0.num_seconds())
@@ -743,7 +743,7 @@ impl OperationalAlgorithm {
             None => current_time,
         };
 
-        let start_time = loop {
+        loop {
             let (time_to_next_event, next_event) = self.determine_next_event(&current_time);
 
             if time_to_next_event.is_zero() {
@@ -751,8 +751,7 @@ impl OperationalAlgorithm {
             } else {
                 break current_time;
             }
-        };
-        start_time
+        }
     }
 
     fn update_current_time_based_on_event(
@@ -840,10 +839,6 @@ impl OperationalEvents {
     fn unavail(&self) -> bool {
         matches!(&self, OperationalEvents::Unavailable(_))
     }
-
-    fn is_wrench_time(&self) -> bool {
-        matches!(&self, Self::WrenchTime(_))
-    }
 }
 
 fn no_overlap(events: Vec<&Assignment>) -> bool {
@@ -898,7 +893,7 @@ mod tests {
     use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
     use proptest::prelude::*;
     use shared_messages::{
-        models::worker_environment::availability::Availability,
+        scheduling_environment::worker_environment::availability::Availability,
         operational::{OperationalConfiguration, TimeInterval},
     };
 

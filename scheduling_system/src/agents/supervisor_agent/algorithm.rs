@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use shared_messages::{
     agent_error::AgentError,
-    models::{
+    scheduling_environment::{
         work_order::{operation::ActivityNumber, WorkOrderNumber},
         worker_environment::resources::Id,
     },

@@ -1,5 +1,5 @@
 pub mod agent_error;
-pub mod models;
+pub mod scheduling_environment;
 pub mod operational;
 pub mod orchestrator;
 pub mod strategic;
@@ -9,7 +9,7 @@ use std::fmt::{self, Display};
 
 use actix::prelude::*;
 use clap::{Subcommand, ValueEnum};
-use models::worker_environment::resources::Resources;
+use scheduling_environment::worker_environment::resources::Resources;
 use operational::{OperationalRequest, OperationalResponse, TomlOperationalConfiguration};
 use orchestrator::{OrchestratorRequest, OrchestratorResponse};
 use serde::{Deserialize, Serialize};
@@ -258,7 +258,7 @@ pub enum LoadOperation {
 #[cfg(test)]
 mod tests {
 
-    use crate::{models::worker_environment::resources::Resources, TomlAgents};
+    use crate::{scheduling_environment::worker_environment::resources::Resources, TomlAgents};
 
     #[test]
     fn test_toml_operational_parsing() {

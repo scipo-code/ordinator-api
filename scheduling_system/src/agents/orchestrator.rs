@@ -1,11 +1,11 @@
 use actix::prelude::*;
-use shared_messages::models::time_environment::day::Day;
-use shared_messages::models::time_environment::period::Period;
-use shared_messages::models::worker_environment::resources;
-use shared_messages::models::worker_environment::resources::Id;
-use shared_messages::models::worker_environment::resources::MainResources;
+use shared_messages::scheduling_environment::time_environment::day::Day;
+use shared_messages::scheduling_environment::time_environment::period::Period;
+use shared_messages::scheduling_environment::worker_environment::resources;
+use shared_messages::scheduling_environment::worker_environment::resources::Id;
+use shared_messages::scheduling_environment::worker_environment::resources::MainResources;
 
-use shared_messages::models::worker_environment::resources::Resources;
+use shared_messages::scheduling_environment::worker_environment::resources::Resources;
 use shared_messages::strategic::Periods;
 use shared_messages::strategic::StrategicResources;
 use shared_messages::tactical::Days;
@@ -25,7 +25,7 @@ use crate::agents::tactical_agent::TacticalAgent;
 use crate::init::agent_factory;
 use crate::init::agent_factory::AgentFactory;
 use crate::init::logging::LogHandles;
-use shared_messages::models::SchedulingEnvironment;
+use shared_messages::scheduling_environment::SchedulingEnvironment;
 
 pub struct Orchestrator {
     pub scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
@@ -69,7 +69,7 @@ impl ActorRegistry {
 
     pub fn supervisor_agent_addr_by_resource(
         &self,
-        resource: &shared_messages::models::worker_environment::resources::Resources,
+        resource: &shared_messages::scheduling_environment::worker_environment::resources::Resources,
     ) -> Addr<SupervisorAgent> {
         let matching_supervisor = self.supervisor_agent_addrs.iter().find_map(|(id, addr)| {
             if id.1.contains(resource) {

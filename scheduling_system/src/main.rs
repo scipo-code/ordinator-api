@@ -14,7 +14,7 @@ use std::{
 use actix_web::{guard, web, App, HttpServer};
 use agents::orchestrator::Orchestrator;
 
-use shared_messages::{models::SchedulingEnvironment, Asset};
+use shared_messages::{scheduling_environment::SchedulingEnvironment, Asset};
 
 use crate::init::logging;
 

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::models::{time_environment::period::Period, work_order::WorkOrderNumber};
+use crate::scheduling_environment::{time_environment::period::Period, work_order::WorkOrderNumber};
 
 #[derive(Serialize, Deserialize)]
 pub struct StrategicResponseScheduling {

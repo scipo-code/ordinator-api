@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     agent_error::AgentError,
-    models::worker_environment::availability::{Availability, TomlAvailability},
+    scheduling_environment::worker_environment::availability::{Availability, TomlAvailability},
     AlgorithmState, ConstraintState,
 };
 

@@ -8,9 +8,9 @@ use std::{collections::HashSet};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
-use crate::models::worker_environment::crew::Crew;
+use crate::scheduling_environment::worker_environment::crew::Crew;
 
-use crate::models::worker_environment::resources::Resources;
+use crate::scheduling_environment::worker_environment::resources::Resources;
 
 #[derive(Serialize, Deserialize)]
 pub struct WorkerEnvironment {

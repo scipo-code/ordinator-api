@@ -12,7 +12,7 @@ use self::supervisor_response_scheduling::SupervisorResponseScheduling;
 use self::supervisor_response_status::SupervisorResponseStatus;
 use self::supervisor_response_time::SupervisorResponseTime;
 use self::supervisor_status_message::SupervisorStatusMessage;
-use crate::models::worker_environment::resources::MainResources;
+use crate::scheduling_environment::worker_environment::resources::MainResources;
 use crate::{agent_error::AgentError, Asset};
 use crate::{AlgorithmState, ConstraintState};
 

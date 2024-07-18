@@ -4,7 +4,7 @@ use clap::{Args, ValueEnum};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::models::time_environment::period::Period;
+use crate::scheduling_environment::time_environment::period::Period;
 
 #[derive(Args, Clone, Serialize, Deserialize, Debug)]
 pub struct StatusCodes {

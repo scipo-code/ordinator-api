@@ -1,11 +1,11 @@
 use serde::Serialize;
-use shared_messages::models::worker_environment::resources::Resources;
+use shared_messages::scheduling_environment::worker_environment::resources::Resources;
 use std::str::FromStr;
 use std::{collections::HashMap, collections::HashSet, hash::Hash, hash::Hasher};
 use tracing::instrument;
 
-use shared_messages::models::time_environment::period::Period;
-use shared_messages::models::work_order::{WorkOrder, WorkOrderNumber};
+use shared_messages::scheduling_environment::time_environment::period::Period;
+use shared_messages::scheduling_environment::work_order::{WorkOrder, WorkOrderNumber};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct OptimizedWorkOrders {

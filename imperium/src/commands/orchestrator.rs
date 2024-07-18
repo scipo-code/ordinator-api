@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use clap::Subcommand;
 use clap::{self};
 use reqwest::blocking::Client;
-use shared_messages::models::time_environment::day::Day;
-use shared_messages::models::time_environment::period::Period;
+use shared_messages::scheduling_environment::time_environment::day::Day;
+use shared_messages::scheduling_environment::time_environment::period::Period;
 
-use shared_messages::models::worker_environment::resources::{MainResources, Resources, Shift};
+use shared_messages::scheduling_environment::worker_environment::resources::{MainResources, Resources, Shift};
 use shared_messages::{
-    models::worker_environment::resources::Id, orchestrator::OrchestratorRequest, SystemMessages,
+    scheduling_environment::worker_environment::resources::Id, orchestrator::OrchestratorRequest, SystemMessages,
 };
 use shared_messages::{Asset, TomlAgents};
 
@@ -51,10 +51,10 @@ pub enum SchedulingEnvironmentCommands {
 #[derive(Subcommand, Debug)]
 pub enum WorkOrderCommands {
     /// Change the status codes of a work order
-    ModifyStatusCodes(shared_messages::models::work_order::status_codes::StatusCodes),
+    ModifyStatusCodes(shared_messages::scheduling_environment::work_order::status_codes::StatusCodes),
 
     /// Change the unloading point of a work order
-    ModifyUnloadingPoint(shared_messages::models::work_order::unloading_point::UnloadingPoint),
+    ModifyUnloadingPoint(shared_messages::scheduling_environment::work_order::unloading_point::UnloadingPoint),
 }
 
 #[derive(Subcommand, Debug)]
