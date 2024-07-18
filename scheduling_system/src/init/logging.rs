@@ -30,6 +30,7 @@ pub fn setup_logging() -> LogHandles {
         .with_writer(non_blocking)
         .json() // Output logs in JSON format
         .with_file(true) // Include file name in logs
+        .with_thread_ids(true)
         .with_line_number(true) // Include line number in logs
         .with_filter(EnvFilter::from_default_env());
     let (file_layer, file_handle) = reload::Layer::new(file_layer);

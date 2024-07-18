@@ -17,6 +17,7 @@ use shared_messages::{
         operational_response_time::OperationalTimeResponse, TimeInterval,
     },
 };
+use tracing::{debug, field::debug};
 
 use crate::agents::traits::LargeNeighborHoodSearch;
 
@@ -43,7 +44,7 @@ pub struct OperationalNonProductive(Vec<Assignment>);
 impl OperationalAlgorithm {
     pub fn new(operational_configuration: OperationalConfiguration) -> Self {
         Self {
-            objective_value: f64::INFINITY,
+            objective_value: 0.0,
             operational_solutions: OperationalSolutions(Vec::new()),
             operational_non_productive: OperationalNonProductive(Vec::new()),
             operational_parameters: HashMap::new(),
@@ -159,7 +160,7 @@ trait OperationalFunctions {
     type Key;
     type Sequence;
 
-    fn try_insert(&mut self, key: Self::Key, sequence: Self::Sequence, availability: &Availability);
+    fn try_insert(&mut self, key: Self::Key, sequence: Self::Sequence);
 
     fn containing_operational_solution(&self, time: DateTime<Utc>) -> ContainOrNextOrNone;
 }
@@ -168,24 +169,35 @@ impl OperationalFunctions for OperationalSolutions {
     type Key = (WorkOrderNumber, ActivityNumber);
     type Sequence = Vec<Assignment>;
 
-    fn try_insert(
-        &mut self,
-        key: Self::Key,
-        assignments: Self::Sequence,
-        availability: &Availability,
-    ) {
-        for (index, operation_solution) in self.0.windows(2).enumerate() {
-            let start_of_solution_window = match &operation_solution[0].2 {
-                Some(operational_solution) => operational_solution.finish_time(),
-                None => availability.start_date,
-            };
+    fn try_insert(&mut self, key: Self::Key, assignments: Self::Sequence) {
+        for (index, operational_solution) in self
+            .0
+            .iter()
+            .filter_map(|os| os.2.clone())
+            .collect::<Vec<_>>()
+            .windows(2)
+            .map(|x| (&x[0], &x[1]))
+            .enumerate()
+        {
+            let start_of_solution_window = operational_solution.0.finish_time();
 
-            let end_of_solution_window = match &operation_solution[1].2 {
-                Some(operational_solution) => operational_solution.start_time(),
-                None => availability.end_date,
-            };
+            let end_of_solution_window = operational_solution.1.start_time();
 
-            if start_of_solution_window < assignments.first().unwrap().start
+            debug!(start_window = ?start_of_solution_window);
+            debug!(
+                first_assignment = ?assignments
+                    .first()
+                    .expect("No Assignment in the OperationalSolution")
+                    .start,
+            );
+            debug!(last_assignment = ?assignments.last().unwrap().finish);
+            debug!(end_window = ?end_of_solution_window);
+
+            if start_of_solution_window
+                < assignments
+                    .first()
+                    .expect("No Assignment in the OperationalSolution")
+                    .start
                 && assignments.last().unwrap().finish < end_of_solution_window
             {
                 let operational_solution = OperationalSolution {
@@ -193,15 +205,22 @@ impl OperationalFunctions for OperationalSolutions {
                     assignments,
                 };
 
-                if self.is_operational_solution_unique(key) {
-                    dbg!();
+                if !self.is_operational_solution_already_scheduled(key) {
                     self.0
                         .insert(index + 1, (key.0, key.1, Some(operational_solution)));
+                    let assignments: Vec<&Assignment> = self
+                        .0
+                        .iter()
+                        .filter_map(|os| os.2.as_ref())
+                        .flat_map(|a| &a.assignments)
+                        .collect();
+
+                    assert!(no_overlap(assignments));
                 }
                 break;
             }
         }
-        if self.is_operational_solution_unique(key) {
+        if !self.is_operational_solution_already_scheduled(key) {
             self.0.push((key.0, key.1, None));
         };
     }
@@ -210,8 +229,13 @@ impl OperationalFunctions for OperationalSolutions {
         let containing: Option<OperationalSolution> = self
             .0
             .iter()
-            .find(|operational_solution| operational_solution.2.as_ref().unwrap().contains(time))
-            .map(|os| os.2.clone().unwrap());
+            .find_map(|operational_solution| {
+                operational_solution
+                    .2
+                    .as_ref()
+                    .filter(|os| os.contains(time))
+            })
+            .cloned();
 
         match containing {
             Some(containing) => ContainOrNextOrNone::Contain(containing),
@@ -219,8 +243,10 @@ impl OperationalFunctions for OperationalSolutions {
                 let next: Option<OperationalSolution> = self
                     .0
                     .iter()
-                    .find(|os| os.2.as_ref().unwrap().start_time() > time)
-                    .map(|os| os.2.clone().unwrap());
+                    .filter_map(|os| os.2.as_ref())
+                    .find(|start| start.start_time() > time)
+                    .cloned();
+
                 match next {
                     Some(operational_solution) => ContainOrNextOrNone::Next(operational_solution),
                     None => ContainOrNextOrNone::None,
@@ -231,7 +257,10 @@ impl OperationalFunctions for OperationalSolutions {
 }
 
 impl OperationalSolutions {
-    fn is_operational_solution_unique(&self, key: (WorkOrderNumber, ActivityNumber)) -> bool {
+    fn is_operational_solution_already_scheduled(
+        &self,
+        key: (WorkOrderNumber, ActivityNumber),
+    ) -> bool {
         self.0
             .iter()
             .any(|(work_order_number, activity_number, _)| {
@@ -398,7 +427,8 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             .operational_solutions
             .0
             .iter()
-            .flat_map(|inner| inner.2.as_ref().unwrap().assignments.iter())
+            .filter_map(|operational_solution| operational_solution.2.as_ref())
+            .flat_map(|os| os.assignments.iter())
             .cloned()
             .collect();
 
@@ -410,11 +440,11 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         let mut toolbox_time: TimeDelta = TimeDelta::zero();
         let mut non_productive_time: TimeDelta = TimeDelta::zero();
 
-        let all_events = operational_events
+        let mut all_events = operational_events
             .iter()
             .chain(&self.operational_non_productive.0);
 
-        for (_index, assignment) in all_events.clone().enumerate() {
+        for assignment in all_events.clone() {
             match &assignment.event_type {
                 OperationalEvents::WrenchTime(time_interval) => {
                     wrench_time += time_interval.duration();
@@ -436,7 +466,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                     non_productive_time += time_interval.duration();
                     current_time += time_interval.duration();
                 }
-                OperationalEvents::Unavailable(_) => todo!(),
+                OperationalEvents::Unavailable(_) => (),
             }
         }
 
@@ -454,8 +484,16 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         let total_time =
             wrench_time + break_time + off_shift_time + toolbox_time + non_productive_time;
         assert_eq!(total_time, self.availability.duration());
-        self.objective_value = (wrench_time).num_seconds() as f64
+
+        debug!(wrench_time = ?wrench_time);
+        debug!(wrench_time = ?wrench_time);
+        debug!(break_time = ?break_time);
+        debug!(toolbox_time = ?toolbox_time);
+        debug!(non_productive_time = ?non_productive_time);
+        let value = (wrench_time).num_seconds() as f64
             / (wrench_time + break_time + toolbox_time + non_productive_time).num_seconds() as f64;
+
+        self.objective_value = value
     }
 
     fn schedule(&mut self) {
@@ -467,7 +505,8 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                 self.determine_wrench_time_assignment(start_time, operational_parameter);
 
             self.operational_solutions
-                .try_insert(*operation_id, assignments, &self.availability);
+                .try_insert(*operation_id, assignments);
+            debug!(number_of_operations = ?self.operational_solutions.0.len());
         }
 
         // fill the schedule
@@ -797,6 +836,14 @@ impl OperationalEvents {
             Self::Unavailable(time_interval) => time_interval.end,
         }
     }
+
+    fn unavail(&self) -> bool {
+        matches!(&self, OperationalEvents::Unavailable(_))
+    }
+
+    fn is_wrench_time(&self) -> bool {
+        matches!(&self, Self::WrenchTime(_))
+    }
 }
 
 fn no_overlap(events: Vec<&Assignment>) -> bool {
@@ -820,11 +867,11 @@ fn no_overlap(events: Vec<&Assignment>) -> bool {
 
 fn is_assignments_in_bounds(events: Vec<&Assignment>, availability: &Availability) -> bool {
     for event in events {
-        if event.start < availability.start_date {
+        if event.start < availability.start_date && !event.event_type.unavail() {
             dbg!(event, availability);
             return false;
         }
-        if availability.end_date < event.finish {
+        if availability.end_date < event.finish && !event.event_type.unavail() {
             dbg!(event, availability);
             return false;
         }
