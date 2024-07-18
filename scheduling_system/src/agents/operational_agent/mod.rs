@@ -1,6 +1,7 @@
 pub mod algorithm;
 use std::{
     collections::{HashMap, HashSet},
+    ops::AddAssign,
     sync::{Arc, Mutex},
 };
 
@@ -175,14 +176,14 @@ impl Handler<ScheduleIteration> for OperationalAgent {
 
         let mut temporary_schedule: OperationalAlgorithm = self.operational_algorithm.clone();
 
-        ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(100)).into_actor(self));
+        ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(10)).into_actor(self));
         temporary_schedule.unschedule_random_work_order_activies(&mut rng, 15);
 
         temporary_schedule.schedule();
 
         temporary_schedule.calculate_objective_value();
 
-        if temporary_schedule.objective_value < self.operational_algorithm.objective_value {
+        if temporary_schedule.objective_value > self.operational_algorithm.objective_value {
             self.operational_algorithm = temporary_schedule;
 
             self.supervisor_agent_addr.do_send(StateLink::Operational((
@@ -214,13 +215,16 @@ impl Handler<OperationSolution> for OperationalAgent {
         let (start_datetime, end_datetime) =
             self.determine_start_and_finish_times(&operation_solution.scheduled);
 
-        let operational_parameter = OperationalParameter::new(
-            operation.work_remaining(),
-            operation.operation_analytic.preparation_time,
-            start_datetime,
-            end_datetime,
-        );
-
+        let operational_parameter = if operation.work_remaining() > 0.0 {
+            OperationalParameter::new(
+                operation.work_remaining(),
+                operation.operation_analytic.preparation_time,
+                start_datetime,
+                end_datetime,
+            )
+        } else {
+            return false;
+        };
         self.assigned.insert((
             false,
             operation_solution.work_order_number,

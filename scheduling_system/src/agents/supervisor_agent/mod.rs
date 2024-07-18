@@ -62,7 +62,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
             // Sync here
 
             let mut all_messages: Vec<Request<OperationalAgent, OperationSolution>> = vec![];
-            for (_activity_number, operation_solution) in operations {
+            for operation_solution in operations.values() {
                 // send a message to each relevant agent
                 for (id, operational_addr) in &self.operational_agent_addrs {
                     if id.1.contains(&operation_solution.resource) {
@@ -77,7 +77,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
             }
         }
 
-        ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(5)).into_actor(self));
+        ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(200)).into_actor(self));
         ctx.notify(ScheduleIteration {});
     }
 }
