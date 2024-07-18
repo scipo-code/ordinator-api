@@ -57,21 +57,26 @@ layout {
     	pane split_direction="vertical" {
 	    	pane name="Orchestrator" {
 	    		cwd "$ORDINATOR_PATH"
+	    		command "./logging/orchestrator_logging.sh"
 	    	}
 			pane split_direction="horizontal" {
 		    	pane name="Strategic" {
 		    		cwd "$ORDINATOR_PATH"
+	    		command "./logging/strategic_logging.sh"
 		    	}
 		    	pane name="Tactical" {
 		    		cwd "$ORDINATOR_PATH"
+	    		command "./logging/tactical_logging.sh"
 		    	}
 			}
 			pane split_direction="horizontal" {
 		    	pane name="Supervisor" {
 		    		cwd "$ORDINATOR_PATH"
+		    		command "./logging/supervisor_logging.sh"
 		    	}
 		    	pane name="Operational" {
 		    		cwd "$ORDINATOR_PATH"
+		    		command "./logging/operational_logging.sh"
 		    	}
 			}
     	}
