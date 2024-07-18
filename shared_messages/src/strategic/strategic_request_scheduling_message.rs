@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::models::work_order::WorkOrderNumber;
+use crate::scheduling_environment::work_order::WorkOrderNumber;
 
 use super::TimePeriod;
 

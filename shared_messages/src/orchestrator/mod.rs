@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use actix::Message;
 use serde::{Deserialize, Serialize};
 
-use crate::models::time_environment::day::Day;
-use crate::models::time_environment::period::Period;
-use crate::models::work_order::status_codes::StatusCodes;
-use crate::models::work_order::WorkOrderNumber;
-use crate::models::worker_environment::resources::Id;
+use crate::scheduling_environment::time_environment::day::Day;
+use crate::scheduling_environment::time_environment::period::Period;
+use crate::scheduling_environment::work_order::status_codes::StatusCodes;
+use crate::scheduling_environment::work_order::WorkOrderNumber;
+use crate::scheduling_environment::worker_environment::resources::Id;
 use crate::operational::operational_response_status::OperationalStatusResponse;
 use crate::operational::OperationalConfiguration;
 use crate::strategic::strategic_response_status::{StrategicResponseStatus, WorkOrdersStatus};

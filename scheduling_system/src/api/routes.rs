@@ -1,7 +1,7 @@
 use actix_web::{web, HttpRequest, HttpResponse, Result};
 use dotenvy::dotenv;
-use shared_messages::models::work_order::WorkOrderNumber;
-use shared_messages::models::worker_environment::resources::Id;
+use shared_messages::scheduling_environment::work_order::WorkOrderNumber;
+use shared_messages::scheduling_environment::worker_environment::resources::Id;
 use shared_messages::operational::operational_request_status::OperationalStatusRequest;
 use shared_messages::operational::operational_response_status::OperationalStatusResponse;
 use shared_messages::operational::{OperationalConfiguration, OperationalRequestMessage, OperationalResponse, OperationalResponseMessage, OperationalTarget};
@@ -24,7 +24,7 @@ use tracing_subscriber::EnvFilter;
 
 use crate::agents::orchestrator::Orchestrator;
 use crate::agents::UpdateWorkOrderMessage;
-use shared_messages::models::WorkOrders;
+use shared_messages::scheduling_environment::WorkOrders;
 
 #[instrument(level = "info", skip_all)]
 pub async fn http_to_scheduling_system(
@@ -536,7 +536,7 @@ mod tests {
     use std::collections::HashMap;
 
     use chrono::Utc;
-    use shared_messages::{models::{time_environment::day::Day, worker_environment::resources::Resources}, tactical::{Days, TacticalResources}};
+    use shared_messages::{scheduling_environment::{time_environment::day::Day, worker_environment::resources::Resources}, tactical::{Days, TacticalResources}};
 
     #[test]
     fn test_day_serialize() {
