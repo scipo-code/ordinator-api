@@ -7,11 +7,10 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-
-use crate::models::time_environment::day::Day;
-use crate::models::time_environment::period::Period;
-use crate::models::work_order::WorkOrder;
-use crate::models::worker_environment::WorkerEnvironment;
+use crate::scheduling_environment::time_environment::day::Day;
+use crate::scheduling_environment::time_environment::period::Period;
+use crate::scheduling_environment::work_order::WorkOrder;
+use crate::scheduling_environment::worker_environment::WorkerEnvironment;
 
 use self::time_environment::TimeEnvironment;
 use self::work_order::operation::{ActivityNumber, Operation};
@@ -119,8 +118,7 @@ impl WorkOrders {
     }
 
     pub fn insert(&mut self, work_order: WorkOrder) {
-        self.inner
-            .insert(work_order.work_order_number.clone(), work_order);
+        self.inner.insert(work_order.work_order_number, work_order);
     }
 
     pub fn new_work_order(&self, work_order_number: WorkOrderNumber) -> bool {

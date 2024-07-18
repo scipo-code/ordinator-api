@@ -10,30 +10,30 @@ pub mod status_codes;
 pub mod system_condition;
 pub mod unloading_point;
 
-use crate::models::work_order::functional_location::FunctionalLocation;
-use crate::models::work_order::operation::Operation;
-use crate::models::work_order::order_dates::WorkOrderDates;
-use crate::models::work_order::order_text::OrderText;
-use crate::models::work_order::order_type::WorkOrderType;
-use crate::models::work_order::priority::Priority;
-use crate::models::work_order::revision::Revision;
-use crate::models::work_order::status_codes::StatusCodes;
-use crate::models::work_order::system_condition::SystemCondition;
-use crate::models::work_order::unloading_point::UnloadingPoint;
-use crate::models::worker_environment::resources::MainResources;
+use crate::scheduling_environment::work_order::functional_location::FunctionalLocation;
+use crate::scheduling_environment::work_order::operation::Operation;
+use crate::scheduling_environment::work_order::order_dates::WorkOrderDates;
+use crate::scheduling_environment::work_order::order_text::OrderText;
+use crate::scheduling_environment::work_order::order_type::WorkOrderType;
+use crate::scheduling_environment::work_order::priority::Priority;
+use crate::scheduling_environment::work_order::revision::Revision;
+use crate::scheduling_environment::work_order::status_codes::StatusCodes;
+use crate::scheduling_environment::work_order::system_condition::SystemCondition;
+use crate::scheduling_environment::work_order::unloading_point::UnloadingPoint;
+use crate::scheduling_environment::worker_environment::resources::MainResources;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
 use std::fs;
-// use crate::models::work_order::optimized_work_order::OptimizedWorkOrder;
-use crate::models::work_order::{
+// use crate::scheduling_environment::work_order::optimized_work_order::OptimizedWorkOrder;
+use crate::scheduling_environment::work_order::{
     order_type::{WDFPriority, WGNPriority, WPMPriority},
     status_codes::MaterialStatus,
 };
 
-use crate::models::worker_environment::resources::Resources;
+use crate::scheduling_environment::worker_environment::resources::Resources;
 
 use self::operation::ActivityNumber;
 
@@ -457,7 +457,7 @@ impl Default for WorkOrder {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::models::worker_environment::resources::{MainResources, Resources};
+    use crate::scheduling_environment::worker_environment::resources::{MainResources, Resources};
 
     use super::{
         functional_location::FunctionalLocation,

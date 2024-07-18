@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::models::worker_environment::resources::Id;
+use crate::scheduling_environment::worker_environment::resources::Id;
 
 #[derive(Serialize)]
 pub struct OperationalStatusResponse {

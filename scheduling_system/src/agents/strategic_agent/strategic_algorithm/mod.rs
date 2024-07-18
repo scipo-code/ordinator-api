@@ -3,7 +3,7 @@ pub mod optimized_work_orders;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
-use shared_messages::models::work_order::WorkOrderNumber;
+use shared_messages::scheduling_environment::work_order::WorkOrderNumber;
 use shared_messages::strategic::strategic_response_periods::StrategicResponsePeriods;
 use shared_messages::strategic::strategic_response_resources::StrategicResponseResources;
 use shared_messages::strategic::strategic_response_scheduling::StrategicResponseScheduling;
@@ -19,10 +19,10 @@ use shared_messages::strategic::strategic_request_resources_message::StrategicRe
 use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
 
 use crate::agents::traits::LargeNeighborHoodSearch;
-use shared_messages::models::WorkOrders;
-use shared_messages::models::time_environment::period::Period;
+use shared_messages::scheduling_environment::WorkOrders;
+use shared_messages::scheduling_environment::time_environment::period::Period;
 
-use shared_messages::models::worker_environment::resources::Resources;
+use shared_messages::scheduling_environment::worker_environment::resources::Resources;
 
 use self::optimized_work_orders::{OptimizedWorkOrder, OptimizedWorkOrders};
 
@@ -501,7 +501,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                             self
                                 .optimized_work_orders
                                 .inner
-                                .get_mut(&work_order_number)
+                                .get_mut(work_order_number)
                                 .expect("The work order number was not found in the optimized work orders. The work order should have been initialized at the outset.");
                         
                         optimized_work_order
@@ -614,7 +614,7 @@ mod tests {
     use chrono::{Duration, TimeZone, Utc};
     use rand::{rngs::StdRng, SeedableRng};
 
-    use shared_messages::models::worker_environment::resources::Resources;
+    use shared_messages::scheduling_environment::worker_environment::resources::Resources;
 
     use crate::agents::strategic_agent::strategic_algorithm::{
             OptimizedWorkOrders, PriorityQueues, StrategicAlgorithm,
@@ -622,7 +622,7 @@ mod tests {
 
     use std::{collections::HashMap, str::FromStr};
 
-    use shared_messages::models::{
+    use shared_messages::scheduling_environment::{
         work_order::WorkOrder,
             WorkOrders,
     };

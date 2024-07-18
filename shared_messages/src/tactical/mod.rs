@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 use crate::{
     agent_error::AgentError,
-    models::{time_environment::day::Day, worker_environment::resources::Resources},
+    scheduling_environment::{time_environment::day::Day, worker_environment::resources::Resources},
     AlgorithmState, Asset, ConstraintState,
 };
 use actix::Message;

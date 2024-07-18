@@ -1,40 +1,40 @@
 use calamine::{Data, Error, Reader, Xlsx};
 use core::fmt;
 use regex::Regex;
-use shared_messages::models::time_environment::day::Day;
+use shared_messages::scheduling_environment::time_environment::day::Day;
 use shared_messages::Asset;
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::{debug, event, info, warn};
 
-use shared_messages::models::time_environment::period::Period;
-use shared_messages::models::time_environment::TimeEnvironment;
-use shared_messages::models::work_order::system_condition::SystemCondition;
+use shared_messages::scheduling_environment::time_environment::period::Period;
+use shared_messages::scheduling_environment::time_environment::TimeEnvironment;
+use shared_messages::scheduling_environment::work_order::system_condition::SystemCondition;
 
 use chrono::{
     naive, DateTime, Datelike, Days, Duration, NaiveDate, NaiveTime, TimeZone, Timelike, Utc,
 };
-use shared_messages::models::work_order::functional_location::FunctionalLocation;
-use shared_messages::models::work_order::order_dates::WorkOrderDates;
-use shared_messages::models::work_order::order_text::OrderText;
-use shared_messages::models::work_order::order_type::{WDFPriority, WGNPriority, WPMPriority};
-use shared_messages::models::work_order::order_type::{WROPriority, WorkOrderType};
-use shared_messages::models::work_order::priority::Priority;
-use shared_messages::models::work_order::revision::Revision;
-use shared_messages::models::work_order::status_codes::{MaterialStatus, StatusCodes};
-use shared_messages::models::work_order::unloading_point::UnloadingPoint;
-use shared_messages::models::work_order::{
+use shared_messages::scheduling_environment::work_order::functional_location::FunctionalLocation;
+use shared_messages::scheduling_environment::work_order::order_dates::WorkOrderDates;
+use shared_messages::scheduling_environment::work_order::order_text::OrderText;
+use shared_messages::scheduling_environment::work_order::order_type::{WDFPriority, WGNPriority, WPMPriority};
+use shared_messages::scheduling_environment::work_order::order_type::{WROPriority, WorkOrderType};
+use shared_messages::scheduling_environment::work_order::priority::Priority;
+use shared_messages::scheduling_environment::work_order::revision::Revision;
+use shared_messages::scheduling_environment::work_order::status_codes::{MaterialStatus, StatusCodes};
+use shared_messages::scheduling_environment::work_order::unloading_point::UnloadingPoint;
+use shared_messages::scheduling_environment::work_order::{
     ActivityRelation, WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderNumber,
 };
-use shared_messages::models::worker_environment::resources::{MainResources, Resources};
-use shared_messages::models::worker_environment::WorkerEnvironment;
-use shared_messages::models::{SchedulingEnvironment, WorkOrders};
+use shared_messages::scheduling_environment::worker_environment::resources::{MainResources, Resources};
+use shared_messages::scheduling_environment::worker_environment::WorkerEnvironment;
+use shared_messages::scheduling_environment::{SchedulingEnvironment, WorkOrders};
 
 extern crate regex;
 
-use shared_messages::models::work_order::operation::operation_analytic::OperationAnalytic;
-use shared_messages::models::work_order::operation::operation_info::OperationInfo;
-use shared_messages::models::work_order::operation::{ActivityNumber, Operation, OperationDates};
+use shared_messages::scheduling_environment::work_order::operation::operation_analytic::OperationAnalytic;
+use shared_messages::scheduling_environment::work_order::operation::operation_info::OperationInfo;
+use shared_messages::scheduling_environment::work_order::operation::{ActivityNumber, Operation, OperationDates};
 
 #[derive(Debug)]
 struct ExcelLoadError(String);

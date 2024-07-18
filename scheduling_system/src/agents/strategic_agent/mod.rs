@@ -3,12 +3,12 @@ pub mod strategic_algorithm;
 
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborHoodSearch;
-use shared_messages::models::work_order::WorkOrderNumber;
-use shared_messages::models::SchedulingEnvironment;
+use shared_messages::scheduling_environment::work_order::WorkOrderNumber;
+use shared_messages::scheduling_environment::SchedulingEnvironment;
 
 use actix::prelude::*;
 use shared_messages::agent_error::AgentError;
-use shared_messages::models::worker_environment::resources::Resources;
+use shared_messages::scheduling_environment::worker_environment::resources::Resources;
 use shared_messages::strategic::strategic_request_status_message::StrategicStatusMessage;
 use shared_messages::strategic::strategic_response_periods::StrategicResponsePeriods;
 use shared_messages::strategic::strategic_response_scheduling::StrategicResponseScheduling;
@@ -201,7 +201,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                                         .unwrap()
                                         .work_orders()
                                         .inner
-                                        .get(&work_order_number)
+                                        .get(work_order_number)
                                         .unwrap()
                                         .clone();
                                     let work_order_response = WorkOrderResponse::new(
@@ -209,12 +209,12 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                                             .order_dates
                                             .earliest_allowed_start_period
                                             .clone(),
-                                        work_order.work_order_analytic.status_codes.awsc.clone(),
-                                        work_order.work_order_analytic.status_codes.sece.clone(),
+                                        work_order.work_order_analytic.status_codes.awsc,
+                                        work_order.work_order_analytic.status_codes.sece,
                                         work_order.work_order_info.revision.clone(),
                                         work_order.work_order_info.work_order_type.clone(),
                                         work_order.work_order_info.priority.clone(),
-                                        work_order.work_order_analytic.vendor.clone(),
+                                        work_order.work_order_analytic.vendor,
                                         work_order
                                             .work_order_analytic
                                             .status_codes
@@ -331,16 +331,13 @@ impl Handler<UpdateWorkOrderMessage> for StrategicAgent {
             .build_from_work_order(&work_order, &periods)
             .build();
         assert!(work_order.work_order_analytic.work_order_weight == optimized_work_order.weight);
-        match work_order
+        if let Some(period) = work_order
             .work_order_analytic
             .status_codes
             .material_status
             .period_delay(&periods)
         {
-            Some(period) => {
-                assert!(&optimized_work_order.excluded_periods.contains(&period));
-            }
-            None => (),
+            assert!(&optimized_work_order.excluded_periods.contains(&period));
         }
 
         self.strategic_agent_algorithm
@@ -581,7 +578,7 @@ impl TestAlgorithm for StrategicAgent {
 mod tests {
 
     use chrono::{TimeZone, Utc};
-    use shared_messages::models::work_order::operation::ActivityNumber;
+    use shared_messages::scheduling_environment::work_order::operation::ActivityNumber;
     use shared_messages::strategic::strategic_request_scheduling_message::SingleWorkOrder;
     use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
     use shared_messages::strategic::Periods;
@@ -593,13 +590,13 @@ mod tests {
     use std::str::FromStr;
 
     use super::{strategic_algorithm::PriorityQueues, *};
-    use shared_messages::models::worker_environment::resources::Resources;
+    use shared_messages::scheduling_environment::worker_environment::resources::Resources;
 
-    use shared_messages::models::work_order::operation::Operation;
-    use shared_messages::models::work_order::*;
-    use shared_messages::models::WorkOrders;
+    use shared_messages::scheduling_environment::work_order::operation::Operation;
+    use shared_messages::scheduling_environment::work_order::*;
+    use shared_messages::scheduling_environment::WorkOrders;
 
-    use shared_messages::models::time_environment::period::Period;
+    use shared_messages::scheduling_environment::time_environment::period::Period;
     #[actix_rt::test]
     async fn test_scheduler_agent_handle() {
         let mut work_orders = WorkOrders::new();

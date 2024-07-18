@@ -1,7 +1,7 @@
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::models::time_environment::period::Period;
+use crate::scheduling_environment::time_environment::period::Period;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrderDates {

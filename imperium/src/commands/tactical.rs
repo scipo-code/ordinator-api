@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use clap::Subcommand;
 use reqwest::blocking::Client;
 use shared_messages::{
-    models::{time_environment::day::Day, worker_environment::resources::Resources},
+    scheduling_environment::{time_environment::day::Day, worker_environment::resources::Resources},
     tactical::{
         tactical_resources_message::TacticalResourceRequest,
         tactical_status_message::TacticalStatusMessage, Days, TacticalRequest,

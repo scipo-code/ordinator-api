@@ -1,4 +1,4 @@
-use crate::models::work_order::WorkOrder;
+use crate::scheduling_environment::work_order::WorkOrder;
 use std::fmt;
 use std::fmt::Write;
 

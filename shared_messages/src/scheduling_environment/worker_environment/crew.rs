@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::models::worker_environment::worker::Worker;
+use crate::scheduling_environment::worker_environment::worker::Worker;
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize)]
