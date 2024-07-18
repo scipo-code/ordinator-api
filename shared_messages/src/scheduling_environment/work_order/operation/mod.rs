@@ -1,12 +1,12 @@
 pub mod operation_analytic;
 pub mod operation_info;
 
-use crate::models::work_order::operation::operation_info::OperationInfo;
-use crate::models::{
+use crate::scheduling_environment::work_order::operation::operation_info::OperationInfo;
+use crate::scheduling_environment::{
     time_environment::day::Day, work_order::operation::operation_analytic::OperationAnalytic,
 };
 
-use crate::models::worker_environment::resources::Resources;
+use crate::scheduling_environment::worker_environment::resources::Resources;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;

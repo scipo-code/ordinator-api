@@ -1,4 +1,4 @@
-use crate::models::time_environment::period::Period;
+use crate::scheduling_environment::time_environment::period::Period;
 use clap::{Args};
 use serde::{Deserialize, Serialize};
 

@@ -4,7 +4,7 @@ use rand::seq::SliceRandom;
 use serde::Serialize;
 use shared_messages::{
     agent_error::AgentError,
-    models::{
+    scheduling_environment::{
         time_environment::day::Day,
         work_order::{operation::ActivityNumber, WorkOrderNumber},
         worker_environment::resources::{MainResources, Resources},
@@ -27,7 +27,7 @@ use tracing::{debug, error, info, instrument, warn};
 
 use crate::agents::traits::{LargeNeighborHoodSearch, TestAlgorithm};
 
-use shared_messages::models::{
+use shared_messages::scheduling_environment::{
     time_environment::period::Period,
     work_order::{ActivityRelation, WorkOrder},
     WorkOrders,
@@ -849,7 +849,7 @@ pub mod tests {
     use std::{collections::HashMap, str::FromStr};
 
     use chrono::{Days, Duration};
-    use shared_messages::models::{
+    use shared_messages::scheduling_environment::{
         work_order::{operation::ActivityNumber, WorkOrderNumber},
         worker_environment::resources::{MainResources, Resources},
     };
@@ -860,7 +860,7 @@ pub mod tests {
     };
 
     use super::{Day, OperationParameters, OptimizedTacticalWorkOrder};
-    use shared_messages::models::{time_environment::period::Period, work_order::ActivityRelation};
+    use shared_messages::scheduling_environment::{time_environment::period::Period, work_order::ActivityRelation};
 
     #[test]
     fn test_determine_load_1() {
@@ -1021,7 +1021,7 @@ pub mod tests {
             .operation_solutions
             .as_ref()
             .unwrap()
-            .get(&shared_messages::models::work_order::operation::ActivityNumber(1))
+            .get(&shared_messages::scheduling_environment::work_order::operation::ActivityNumber(1))
             .unwrap()
             .scheduled
             .first()

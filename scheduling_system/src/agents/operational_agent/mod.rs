@@ -9,7 +9,7 @@ use actix::prelude::*;
 use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use shared_messages::{
     agent_error::AgentError,
-    models::{
+    scheduling_environment::{
         time_environment::day::Day,
         work_order::{operation::ActivityNumber, WorkOrderNumber},
         worker_environment::resources::Id,
@@ -21,7 +21,7 @@ use shared_messages::{
     AlgorithmState, ConstraintState, StatusMessage, StopMessage,
 };
 
-use shared_messages::models::{work_order::operation::Operation, SchedulingEnvironment};
+use shared_messages::scheduling_environment::{work_order::operation::Operation, SchedulingEnvironment};
 use tracing::{info, warn};
 
 use crate::agents::{operational_agent::algorithm::OperationalParameter, StateLink};
@@ -53,7 +53,7 @@ type Assigned = bool;
 impl OperationalAgent {
     fn determine_start_and_finish_times(
         &self,
-        days: &Vec<(Day, f64)>,
+        days: &[(Day, f64)],
     ) -> (DateTime<Utc>, DateTime<Utc>) {
         if days.len() == 1 {
             let start_of_time_window = Utc.from_utc_datetime(&NaiveDateTime::new(

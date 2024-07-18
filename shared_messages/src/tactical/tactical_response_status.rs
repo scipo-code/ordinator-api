@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::models::time_environment::period::Period;
+use crate::scheduling_environment::time_environment::period::Period;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TacticalResponseStatus {

@@ -1,6 +1,6 @@
 use clap::Subcommand;
 use shared_messages::{
-    models::worker_environment::resources::MainResources,
+    scheduling_environment::worker_environment::resources::MainResources,
     supervisor::{
         supervisor_status_message::SupervisorStatusMessage, SupervisorRequest,
         SupervisorRequestMessage,
