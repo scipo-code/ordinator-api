@@ -17,16 +17,22 @@ use chrono::{
 use shared_messages::scheduling_environment::work_order::functional_location::FunctionalLocation;
 use shared_messages::scheduling_environment::work_order::order_dates::WorkOrderDates;
 use shared_messages::scheduling_environment::work_order::order_text::OrderText;
-use shared_messages::scheduling_environment::work_order::order_type::{WDFPriority, WGNPriority, WPMPriority};
+use shared_messages::scheduling_environment::work_order::order_type::{
+    WDFPriority, WGNPriority, WPMPriority,
+};
 use shared_messages::scheduling_environment::work_order::order_type::{WROPriority, WorkOrderType};
 use shared_messages::scheduling_environment::work_order::priority::Priority;
 use shared_messages::scheduling_environment::work_order::revision::Revision;
-use shared_messages::scheduling_environment::work_order::status_codes::{MaterialStatus, StatusCodes};
+use shared_messages::scheduling_environment::work_order::status_codes::{
+    MaterialStatus, StatusCodes,
+};
 use shared_messages::scheduling_environment::work_order::unloading_point::UnloadingPoint;
 use shared_messages::scheduling_environment::work_order::{
     ActivityRelation, WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderNumber,
 };
-use shared_messages::scheduling_environment::worker_environment::resources::{MainResources, Resources};
+use shared_messages::scheduling_environment::worker_environment::resources::{
+    MainResources, Resources,
+};
 use shared_messages::scheduling_environment::worker_environment::WorkerEnvironment;
 use shared_messages::scheduling_environment::{SchedulingEnvironment, WorkOrders};
 
@@ -34,7 +40,9 @@ extern crate regex;
 
 use shared_messages::scheduling_environment::work_order::operation::operation_analytic::OperationAnalytic;
 use shared_messages::scheduling_environment::work_order::operation::operation_info::OperationInfo;
-use shared_messages::scheduling_environment::work_order::operation::{ActivityNumber, Operation, OperationDates};
+use shared_messages::scheduling_environment::work_order::operation::{
+    ActivityNumber, Operation, OperationDates,
+};
 
 #[derive(Debug)]
 struct ExcelLoadError(String);
@@ -647,7 +655,7 @@ fn extract_order_dates(
         Some(_) => panic!("Could not parse basic finish as string"),
         None => {
             warn!("basic finish date could not be parsed and is not part of the scheduling system. Setting it to Basic Start.");
-            basic_start_date_naive.clone()
+            basic_start_date_naive
         }
     }
     .and_hms_opt(7, 0, 0)
@@ -795,7 +803,7 @@ fn extract_functional_location(
     match string {
         Some(s) => match s {
             calamine::Data::String(s) => {
-                let asset = Asset::new_from_string(&s[0..2]);
+                let asset = Asset::new_from_string(s[0..2].to_string());
                 Ok(FunctionalLocation { string: s, asset })
             }
             _ => Err(Error::Msg("Could not parse functional location as string")),

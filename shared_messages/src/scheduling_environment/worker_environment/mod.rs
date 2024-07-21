@@ -3,7 +3,7 @@ pub mod crew;
 pub mod resources;
 pub mod worker;
 
-use std::{collections::HashSet};
+use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
@@ -12,7 +12,7 @@ use crate::scheduling_environment::worker_environment::crew::Crew;
 
 use crate::scheduling_environment::worker_environment::resources::Resources;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct WorkerEnvironment {
     crew: Option<Crew>,
     work_centers: HashSet<Resources>,

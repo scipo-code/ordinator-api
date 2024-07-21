@@ -70,7 +70,7 @@ impl StrategicAlgorithm {
 pub fn create_optimized_work_orders(
     &mut self,
     work_orders: &mut WorkOrders,
-    periods: &Vec<Period>,
+    periods: &[Period],
     asset: &Asset,
 ) {
     for (work_order_number, work_order) in work_orders.inner.iter() {
@@ -411,11 +411,11 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 let mut percentage_loading = HashMap::<Resources, Periods>::new();
 
                 for (resource, periods) in &capacities.inner {
-                    if percentage_loading.get(resource).is_none() {
+                    if !percentage_loading.contains_key(resource) {
                         percentage_loading.insert(resource.clone(), Periods(HashMap::<Period, f64>::new()));
                     }
                     for (period, capacity) in &periods.0 {
-                        let percentage: f64 = (loadings.inner.get(resource).unwrap().0.get(&period).unwrap() / capacity * 100.0).round();
+                        let percentage: f64 = (loadings.inner.get(resource).unwrap().0.get(period).unwrap() / capacity * 100.0).round();
                         percentage_loading.get_mut(resource).unwrap().0.insert(period.clone(), percentage);
                     }
                 }

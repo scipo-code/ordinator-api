@@ -484,7 +484,7 @@ impl TestAlgorithm for StrategicAgent {
             if work_order.status_codes().sch
                 && work_order.work_order_info.unloading_point.period.is_some()
                 && periods[0..=1].contains(
-                    &work_order
+                    work_order
                         .work_order_info
                         .unloading_point
                         .period
@@ -521,8 +521,10 @@ impl TestAlgorithm for StrategicAgent {
 
         let mut aggregated_strategic_load = StrategicResources::new(HashMap::new());
         for period in self.strategic_agent_algorithm.periods() {
-            for (_work_order_number, optimized_work_order) in
-                self.strategic_agent_algorithm.optimized_work_orders()
+            for optimized_work_order in self
+                .strategic_agent_algorithm
+                .optimized_work_orders()
+                .values()
             {
                 if optimized_work_order.scheduled_period.as_ref().unwrap() == &period.clone() {
                     let work_load = &optimized_work_order.work_load;
