@@ -24,7 +24,7 @@ use agents::orchestrator::ArcOrchestrator;
 ///This is the entry point of the application. We should
 #[actix_web::main]
 async fn main() -> Result<(), io::Error> {
-    dotenvy::dotenv().ok();
+    let var_name = dotenvy::dotenv().ok();
 
     let log_handles = logging::setup_logging();
 
@@ -51,20 +51,7 @@ async fn main() -> Result<(), io::Error> {
     let arc_orchestrator = ArcOrchestrator(Arc::new(Mutex::new(orchestrator)));
 
     let arc_orchestrator_steel = arc_orchestrator.clone();
-    thread::spawn(move || {
-        let mut steel_engine = steel::steel_vm::engine::Engine::new();
-        steel_engine.register_type::<ArcOrchestrator>("Orchestrator?");
-        steel_engine.register_fn("actor_registry", ArcOrchestrator::print_actor_registry);
-        steel_engine.register_type::<Asset>("Asset?");
-        steel_engine.register_fn("Asset", Asset::new_from_string);
-
-        steel_engine.register_external_value("asset::df", Asset::DF);
-        steel_engine
-            .register_external_value("orchestrator", arc_orchestrator_steel)
-            .unwrap();
-
-        steel_repl::run_repl(steel_engine).unwrap();
-    });
+    // start_steel_repl(arc_orchestrator_steel);
 
     let arc_orchestrator_server = arc_orchestrator.clone();
 
@@ -103,4 +90,21 @@ fn write_to_database(path: &Path) -> Result<SchedulingEnvironment, std::io::Erro
     file.write_all(json_scheduling_environment.as_bytes())
         .unwrap();
     Ok(scheduling_environment)
+}
+
+fn start_steel_repl(arc_orchestrator: ArcOrchestrator) {
+    thread::spawn(move || {
+        let mut steel_engine = steel::steel_vm::engine::Engine::new();
+        steel_engine.register_type::<ArcOrchestrator>("Orchestrator?");
+        steel_engine.register_fn("actor_registry", ArcOrchestrator::print_actor_registry);
+        steel_engine.register_type::<Asset>("Asset?");
+        steel_engine.register_fn("Asset", Asset::new_from_string);
+
+        steel_engine.register_external_value("asset::df", Asset::DF);
+        steel_engine
+            .register_external_value("orchestrator", arc_orchestrator)
+            .unwrap();
+
+        steel_repl::run_repl(steel_engine).unwrap();
+    });
 }
