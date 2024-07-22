@@ -1,11 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::scheduling_environment::time_environment::period::Period;
-use crate::scheduling_environment::work_order::unloading_point::{UnloadingPoint};
-use crate::scheduling_environment::work_order::WorkOrderNumber;
-use crate::scheduling_environment::work_order::{
-    order_type::WorkOrderType, priority::Priority, revision::Revision, status_codes::MaterialStatus,
-};
+use crate::scheduling_environment::work_order::status_codes::StatusCodes;
+use crate::scheduling_environment::work_order::{WorkOrderInfo, WorkOrderNumber};
 use crate::Asset;
 use serde::{Deserialize, Serialize};
 
@@ -46,43 +43,28 @@ impl WorkOrdersStatus {
 #[derive(Serialize)]
 pub struct WorkOrderResponse {
     earliest_period: Period,
-    awsc: bool,
-    sece: bool,
-    revision: Revision,
-    work_order_type: WorkOrderType,
-    priority: Priority,
+    work_order_info: WorkOrderInfo,
     vendor: bool,
-    material: MaterialStatus,
     weight: u32,
-    unloading_point: UnloadingPoint,
+    status_codes: StatusCodes,
     optimized_work_order_response: Option<OptimizedWorkOrderResponse>,
 }
 
 impl WorkOrderResponse {
     pub fn new(
         earliest_period: Period,
-        awsc: bool,
-        sece: bool,
-        revision: Revision,
-        work_order_type: WorkOrderType,
-        priority: Priority,
+        work_order_info: WorkOrderInfo,
         vendor: bool,
-        material: MaterialStatus,
         weight: u32,
-        unloading_point: UnloadingPoint,
+        status_codes: StatusCodes,
         optimized_work_order_response: Option<OptimizedWorkOrderResponse>,
     ) -> Self {
         Self {
             earliest_period,
-            awsc,
-            sece,
-            revision,
-            work_order_type,
-            priority,
+            work_order_info,
             vendor,
-            material,
             weight,
-            unloading_point,
+            status_codes,
             optimized_work_order_response,
         }
     }

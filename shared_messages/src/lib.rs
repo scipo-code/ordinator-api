@@ -278,7 +278,7 @@ mod tests {
             operational_configuration.availability.end_date = 2024-05-30T15:00:00Z
         "#;
 
-        let toml_agents: TomlAgents = toml::from_str(&toml_operational_string).unwrap();
+        let toml_agents: TomlAgents = toml::from_str(toml_operational_string).unwrap();
 
         assert_eq!(toml_agents.operational[0].id, "OP-01-001".to_string());
 
