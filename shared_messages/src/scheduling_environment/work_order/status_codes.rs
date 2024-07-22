@@ -77,7 +77,7 @@ impl MaterialStatus {
         // If no patterns match, return the Unknown variant
     }
 
-    pub fn period_delay(&self, periods: &Vec<Period>) -> Option<Period> {
+    pub fn period_delay(&self, periods: &[Period]) -> Option<Period> {
         match self {
             Self::Smat => None,
             Self::Nmat => None,

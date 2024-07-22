@@ -16,7 +16,6 @@ use shared_messages::tactical::Days;
 use shared_messages::tactical::TacticalResources;
 use shared_messages::Asset;
 use shared_messages::TomlAgents;
-use steel_derive::Steel;
 use tracing::instrument;
 use std::collections::HashMap;
 use std::path::Path;
@@ -56,21 +55,10 @@ use tracing_subscriber::EnvFilter;
 use crate::agents::UpdateWorkOrderMessage;
 use shared_messages::scheduling_environment::WorkOrders;
 
-#[derive(steel_derive::Steel, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct ArcOrchestrator(pub Arc<Mutex<Orchestrator>>);
 
-impl ArcOrchestrator {
-    pub fn print_actor_registry(self, asset: &Asset) -> ActorRegistry {
-        let actor_registries = self.0.lock().unwrap().agent_registries.clone();
-            
-        actor_registries
-            .clone().get(asset).unwrap().clone()
-
-    }
-}
-
-
-#[derive(steel_derive::Steel, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct Orchestrator {
     pub scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub agent_factory: AgentFactory,
@@ -78,7 +66,7 @@ pub struct Orchestrator {
     pub log_handles: LogHandles,
 }
 
-#[derive(Steel, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct ActorRegistry {
     pub strategic_agent_addr: Addr<StrategicAgent>,
     pub tactical_agent_addr: Addr<TacticalAgent>,
@@ -204,19 +192,10 @@ impl Orchestrator {
                     .map(|(work_order_number, work_order)| {
                         let work_order_response = WorkOrderResponse::new(
                             work_order.order_dates.earliest_allowed_start_period.clone(),
-                            work_order.work_order_analytic.status_codes.awsc,
-                            work_order.work_order_analytic.status_codes.sece,
-                            work_order.work_order_info.revision.clone(),
-                            work_order.work_order_info.work_order_type.clone(),
-                            work_order.work_order_info.priority.clone(),
+                            work_order.work_order_info.clone(),
                             work_order.work_order_analytic.vendor,
-                            work_order
-                                .work_order_analytic
-                                .status_codes
-                                .material_status
-                                .clone(),
                             work_order.work_order_analytic.work_order_weight,
-                            work_order.work_order_info.unloading_point.clone(),
+                            work_order.work_order_analytic.status_codes.clone(),
                             None,
                         );
                         (*work_order_number, work_order_response)
@@ -253,19 +232,10 @@ impl Orchestrator {
                     .map(|(work_order_number, work_order)| {
                         let work_order_response = WorkOrderResponse::new(
                             work_order.order_dates.earliest_allowed_start_period.clone(),
-                            work_order.work_order_analytic.status_codes.awsc,
-                            work_order.work_order_analytic.status_codes.sece,
-                            work_order.work_order_info.revision.clone(),
-                            work_order.work_order_info.work_order_type.clone(),
-                            work_order.work_order_info.priority.clone(),
+                            work_order.work_order_info.clone(),
                             work_order.work_order_analytic.vendor,
-                            work_order
-                                .work_order_analytic
-                                .status_codes
-                                .material_status
-                                .clone(),
                             work_order.work_order_analytic.work_order_weight,
-                            work_order.work_order_info.unloading_point.clone(),
+                            work_order.work_order_analytic.status_codes.clone(),
                             None,
                         );
                         (*work_order_number, work_order_response)

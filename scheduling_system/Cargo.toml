@@ -9,8 +9,8 @@ edition = "2021"
 criterion = "0.5"
 
 [dependencies]
-steel-core = { git="https://github.com/mattwparas/steel.git", branch = "master" }
-steel-repl = { git="https://github.com/mattwparas/steel.git", branch = "master" }
+# steel-core = { git="https://github.com/mattwparas/steel.git", branch = "master" }
+# steel-repl = { git="https://github.com/mattwparas/steel.git", branch = "master" }
 steel-derive = { git="https://github.com/mattwparas/steel.git", branch = "master" }
 shared_messages = { path = "../shared_messages" }
 chrono = { version = "0.4", features = ["serde"] }
@@ -29,14 +29,12 @@ tracing = "0"
 tracing-subscriber = { version = "0", features = ["json", "env-filter"] }
 tracing-appender = "0.2"
 csv = "1.3"
-lazy_static = "1.4.0" 
 rand = "0.8"
 strum = "0"
 strum_macros = "0"
 tracing-flame = "0.2"
 colored = "2"
 dotenvy = "0.15"
-mongodb = "2.8.2"
 serde_json_any_key = "2"
 futures-util = "0"
 bincode = "1"

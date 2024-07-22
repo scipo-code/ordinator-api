@@ -99,25 +99,19 @@ impl SchedulingEnvironment {
 impl Default for SchedulingEnvironment {
     fn default() -> Self {
         SchedulingEnvironment {
-            work_orders: WorkOrders::new(),
+            work_orders: WorkOrders::default(),
             worker_environment: WorkerEnvironment::new(),
             time_environment: TimeEnvironment::new(Vec::new(), Vec::new(), Vec::new()),
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct WorkOrders {
     pub inner: HashMap<WorkOrderNumber, WorkOrder>,
 }
 
 impl WorkOrders {
-    pub fn new() -> Self {
-        WorkOrders {
-            inner: HashMap::<WorkOrderNumber, WorkOrder>::new(),
-        }
-    }
-
     pub fn insert(&mut self, work_order: WorkOrder) {
         self.inner.insert(work_order.work_order_number, work_order);
     }

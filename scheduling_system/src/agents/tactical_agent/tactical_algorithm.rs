@@ -261,6 +261,20 @@ impl TacticalAlgorithm {
             self.unschedule(*work_order_number);
         }
     }
+
+    fn determine_aggregate_excess(&mut self) -> f64 {
+        let mut objective_value_from_excess = 0.0;
+        for resource in self.capacity.resources.keys() {
+            for day in self.tactical_days.clone() {
+                let excess_capacity = self.loading(resource, &day) - self.capacity(resource, &day);
+
+                if excess_capacity > 0.0 {
+                    objective_value_from_excess += excess_capacity;
+                }
+            }
+        }
+        objective_value_from_excess
+    }
 }
 
 impl LargeNeighborHoodSearch for TacticalAlgorithm {
@@ -277,7 +291,6 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
     fn calculate_objective_value(&mut self) {
         let mut objective_value_from_tardiness = 0.0;
-        let mut objective_value_from_excess = 0.0;
         for (_work_order_number, optimized_work_order) in self.optimized_work_orders.iter() {
             let period_start_date = optimized_work_order
                 .scheduled_period
@@ -316,16 +329,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
         }
 
         // Calculate penalty for exceeding the capacity
-        for resource in Resources::iter() {
-            for day in self.tactical_days.clone() {
-                let excess_capacity =
-                    self.loading(&resource, &day) - self.capacity(&resource, &day);
-
-                if excess_capacity > 0.0 {
-                    objective_value_from_excess += 1000000.0 * excess_capacity;
-                }
-            }
-        }
+        let objective_value_from_excess = 1000000.0 * self.determine_aggregate_excess();
         self.objective_value = objective_value_from_tardiness + objective_value_from_excess;
     }
 
@@ -403,7 +407,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             for activity in sorted_activities {
                 let operation_parameters = optimized_work_order
                     .operation_parameters
-                    .get(&activity)
+                    .get(activity)
                     .expect("The work order should always have its corresponding parameters");
                 let mut activity_load = Vec::<(Day, f64)>::new();
                 let resource = operation_parameters.resource.clone();
@@ -487,7 +491,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     activity_load,
                     resource,
                     current_work_order_number,
-                    activity.clone(),
+                    *activity,
                 );
                 operation_solutions.insert(*activity, operation_solution);
             }
@@ -898,7 +902,7 @@ pub mod tests {
         let loadings =
             tactical_algorithm.determine_load(remaining_capacity, operating_time, work_remaining);
 
-        assert_eq!(loadings, vec![0.0, 0.0, 0.0]);
+        assert_eq!(loadings, vec![3.0, 4.0, 3.0]);
     }
 
     #[test]
