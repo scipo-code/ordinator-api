@@ -16,7 +16,8 @@ use self::time_environment::TimeEnvironment;
 use self::work_order::operation::{ActivityNumber, Operation};
 use self::work_order::WorkOrderNumber;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
+
 pub struct SchedulingEnvironment {
     work_orders: WorkOrders,
     worker_environment: WorkerEnvironment,

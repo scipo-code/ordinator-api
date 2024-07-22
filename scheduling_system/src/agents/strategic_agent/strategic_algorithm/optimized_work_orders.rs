@@ -119,14 +119,14 @@ impl OptimizedWorkOrderBuilder {
         }
     }
 
-    pub fn build_from_work_order(mut self, work_order: &WorkOrder, periods: &Vec<Period>) -> Self {
+    pub fn build_from_work_order(mut self, work_order: &WorkOrder, periods: &[Period]) -> Self {
         self.scheduled_period = periods.last().cloned();
 
         self.excluded_periods = work_order.find_excluded_periods(periods);
 
         self.weight = work_order.work_order_weight();
 
-        self.work_load = work_order.work_load().clone();
+        self.work_load.clone_from(work_order.work_load());
 
         self.latest_period = work_order.order_dates.latest_allowed_finish_period.clone();
 
@@ -172,8 +172,8 @@ impl OptimizedWorkOrderBuilder {
             if unloading_point_period.is_some()
                 && periods[0..=1].contains(&unloading_point_period.clone().unwrap())
             {
-                self.locked_in_period = unloading_point_period.clone();
-                self.scheduled_period = unloading_point_period.clone();
+                self.locked_in_period.clone_from(&unloading_point_period);
+                self.scheduled_period.clone_from(&unloading_point_period);
             } else {
                 let scheduled_period = periods[0..=1]
                     .iter()
@@ -218,8 +218,8 @@ impl OptimizedWorkOrderBuilder {
         }
         let period = periods.last().cloned();
         if work_order.main_work_center.is_fmc() {
-            self.locked_in_period = period.clone();
-            self.scheduled_period = period.clone();
+            self.locked_in_period.clone_from(&period);
+            self.scheduled_period.clone_from(&period);
         }
         self.scheduled_period = periods.last().cloned();
         self

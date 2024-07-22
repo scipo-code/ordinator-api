@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::scheduling_environment::worker_environment::worker::Worker;
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Crew {
     workers: HashMap<WorkerNumber, Worker>,
 }
