@@ -38,9 +38,9 @@ layout {
 			pane size="40%" split_direction="horizontal" {
 				pane split_direction="vertical" {
 					pane name="Scino" {
-						cwd "$ORDINATOR_PATH"
+						cwd "$ZK_NOTEBOOK_DIR"
 						command "zk"
-						args "edit" "--interactive"
+						args "daily"
 					}
 				}
 				pane name="Imperium" cwd="$ORDINATOR_PATH"

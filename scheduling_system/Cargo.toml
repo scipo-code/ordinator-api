@@ -9,6 +9,9 @@ edition = "2021"
 criterion = "0.5"
 
 [dependencies]
+steel-core = { git="https://github.com/mattwparas/steel.git", branch = "master" }
+steel-repl = { git="https://github.com/mattwparas/steel.git", branch = "master" }
+steel-derive = { git="https://github.com/mattwparas/steel.git", branch = "master" }
 shared_messages = { path = "../shared_messages" }
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = "0"

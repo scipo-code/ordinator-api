@@ -9,19 +9,23 @@ use actix::prelude::*;
 use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use shared_messages::{
     agent_error::AgentError,
+    operational::{
+        operational_response_status::OperationalStatusResponse, OperationalConfiguration,
+        OperationalInfeasibleCases, OperationalRequestMessage, OperationalResponseMessage,
+    },
     scheduling_environment::{
         time_environment::day::Day,
         work_order::{operation::ActivityNumber, WorkOrderNumber},
         worker_environment::resources::Id,
     },
-    operational::{
-        operational_response_status::OperationalStatusResponse, OperationalConfiguration,
-        OperationalInfeasibleCases, OperationalRequestMessage, OperationalResponseMessage,
-    },
     AlgorithmState, ConstraintState, StatusMessage, StopMessage,
 };
 
-use shared_messages::scheduling_environment::{work_order::operation::Operation, SchedulingEnvironment};
+
+use shared_messages::scheduling_environment::{
+    work_order::operation::Operation, SchedulingEnvironment,
+};
+
 use tracing::{info, warn};
 
 use crate::agents::{operational_agent::algorithm::OperationalParameter, StateLink};

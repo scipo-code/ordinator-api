@@ -184,17 +184,10 @@ impl TimeInterval {
         let time = date_time.time();
 
         if self.start > self.end {
-            if (self.start <= time && time <= NaiveTime::from_hms_opt(23, 59, 59).unwrap())
+            (self.start <= time && time <= NaiveTime::from_hms_opt(23, 59, 59).unwrap())
                 || (NaiveTime::from_hms_opt(0, 0, 0).unwrap() <= time && time < self.end)
-            {
-                true
-            } else {
-                false
-            }
-        } else if self.start <= time && time < self.end {
-            true
         } else {
-            false
+            self.start <= time && time < self.end
         }
     }
 
@@ -256,7 +249,7 @@ mod tests {
     #[test]
     fn test_time_interval_contains_1() {
         let start_time = NaiveTime::from_hms_opt(19, 00, 00).unwrap();
-        let end_time = NaiveTime::from_hms_opt(01, 0, 0).unwrap();
+        let end_time = NaiveTime::from_hms_opt(1, 0, 0).unwrap();
 
         let current_time = DateTime::parse_from_rfc3339("2024-07-14T00:00:00Z")
             .unwrap()
@@ -283,7 +276,7 @@ mod tests {
     #[test]
     fn test_time_interval_contains_3() {
         let start_time = NaiveTime::from_hms_opt(19, 00, 00).unwrap();
-        let end_time = NaiveTime::from_hms_opt(01, 0, 0).unwrap();
+        let end_time = NaiveTime::from_hms_opt(1, 0, 0).unwrap();
 
         let current_time = DateTime::parse_from_rfc3339("2024-07-14T18:00:00Z")
             .unwrap()

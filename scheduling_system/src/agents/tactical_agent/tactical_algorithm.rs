@@ -614,14 +614,13 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 let mut percentage_loading = HashMap::<Resources, Days>::new();
 
                 for (resource, days) in &capacities.resources {
-                    if percentage_loading.get(resource).is_none() {
+                    if !percentage_loading.contains_key(resource) {
                         percentage_loading.insert(resource.clone(), Days::new(HashMap::new()));
                     }
                     for (day, capacity) in &days.days {
-                        let percentage = (loadings.resources.get(resource).unwrap().get(&day)
-                            / capacity
-                            * 100.0)
-                            .round();
+                        let percentage =
+                            (loadings.resources.get(resource).unwrap().get(day) / capacity * 100.0)
+                                .round();
                         percentage_loading
                             .get_mut(resource)
                             .unwrap()
@@ -860,7 +859,9 @@ pub mod tests {
     };
 
     use super::{Day, OperationParameters, OptimizedTacticalWorkOrder};
-    use shared_messages::scheduling_environment::{time_environment::period::Period, work_order::ActivityRelation};
+    use shared_messages::scheduling_environment::{
+        time_environment::period::Period, work_order::ActivityRelation,
+    };
 
     #[test]
     fn test_determine_load_1() {
