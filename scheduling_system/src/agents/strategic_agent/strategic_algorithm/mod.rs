@@ -564,7 +564,7 @@ impl StrategicAlgorithm {
     }
 
     pub fn resources_loading(&self, resource: &Resources, period: &Period) -> &f64 {
-        &self.resources_loading.inner.get(resource).unwrap().0.get(period).unwrap()
+        self.resources_loading.inner.get(resource).unwrap().0.get(period).unwrap()
     }
 
     pub fn resources_capacities(&self) -> &StrategicResources {
@@ -636,7 +636,7 @@ mod tests {
     #[test]
     fn test_update_scheduler_algorithm_state() {
         let work_order_number = WorkOrderNumber(1212123212);
-        let mut work_orders = WorkOrders::new();
+        let mut work_orders = WorkOrders::default();
 
         let work_order = WorkOrder::default(     );
 
@@ -952,10 +952,10 @@ mod tests {
         );
 
         assert!(
-            strategic_agent_algorithm
+            !strategic_agent_algorithm
                 .resources_loading
                 .inner
-                .get(&Resources::MtnScaf).is_none(),
+                .contains_key(&Resources::MtnScaf),
                 
         );
     }
@@ -980,7 +980,7 @@ mod tests {
         let period_3 = Period::new(0, start_date, end_date) + Duration::weeks(4);
 
         let periods: Vec<Period> = vec![period_1.clone(), period_2.clone(), period_3.clone()];
-        let resources = vec![Resources::MtnMech, Resources::MtnElec, Resources::Prodtech];
+        let resources = [Resources::MtnMech, Resources::MtnElec, Resources::Prodtech];
         // Again, this is not completely correct. There is an invariant here that is not being
         // upheld correctly. What should we do about that?
         let mut resource_capacity: HashMap<Resources, Periods> = HashMap::new();

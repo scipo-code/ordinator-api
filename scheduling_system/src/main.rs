@@ -9,23 +9,19 @@ use std::{
     io::{self, Read, Write},
     path::Path,
     sync::{Arc, Mutex},
-    thread,
 };
 
 use actix_web::{guard, web, App, HttpServer};
 use agents::orchestrator::Orchestrator;
 
-use shared_messages::{scheduling_environment::SchedulingEnvironment, Asset};
-use steel::steel_vm::register_fn::RegisterFn;
-
-
 use crate::init::logging;
 use agents::orchestrator::ArcOrchestrator;
+use shared_messages::{scheduling_environment::SchedulingEnvironment, Asset};
 
-///This is the entry point of the application. We should
+///This is the entry point of the application.
 #[actix_web::main]
 async fn main() -> Result<(), io::Error> {
-    let var_name = dotenvy::dotenv().ok();
+    dotenvy::dotenv().unwrap();
 
     let log_handles = logging::setup_logging();
 
@@ -51,7 +47,7 @@ async fn main() -> Result<(), io::Error> {
 
     let arc_orchestrator = ArcOrchestrator(Arc::new(Mutex::new(orchestrator)));
 
-    let arc_orchestrator_steel = arc_orchestrator.clone();
+    // let arc_orchestrator_steel = arc_orchestrator.clone();
     // start_steel_repl(arc_orchestrator_steel);
 
     let arc_orchestrator_server = arc_orchestrator.clone();
@@ -93,19 +89,19 @@ fn write_to_database(path: &Path) -> Result<SchedulingEnvironment, std::io::Erro
     Ok(scheduling_environment)
 }
 
-fn start_steel_repl(arc_orchestrator: ArcOrchestrator) {
-    thread::spawn(move || {
-        let mut steel_engine = steel::steel_vm::engine::Engine::new();
-        steel_engine.register_type::<ArcOrchestrator>("Orchestrator?");
-        steel_engine.register_fn("actor_registry", ArcOrchestrator::print_actor_registry);
-        steel_engine.register_type::<Asset>("Asset?");
-        steel_engine.register_fn("Asset", Asset::new_from_string);
+// fn start_steel_repl(arc_orchestrator: ArcOrchestrator) {
+//     thread::spawn(move || {
+// let mut steel_engine = steel::steel_vm::engine::Engine::new();
+// steel_engine.register_type::<ArcOrchestrator>("Orchestrator?");
+// steel_engine.register_fn("actor_registry", ArcOrchestrator::print_actor_registry);
+// steel_engine.register_type::<Asset>("Asset?");
+// steel_engine.register_fn("Asset", Asset::new_from_string);
 
-        steel_engine.register_external_value("asset::df", Asset::DF);
-        steel_engine
-            .register_external_value("orchestrator", arc_orchestrator)
-            .unwrap();
+// steel_engine.register_external_value("asset::df", Asset::DF);
+// steel_engine
+//     .register_external_value("orchestrator", arc_orchestrator)
+//     .unwrap();
 
-        steel_repl::run_repl(steel_engine).unwrap();
-    });
-}
+// steel_repl::run_repl(steel_engine).unwrap();
+//     });
+// }

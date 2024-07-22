@@ -42,15 +42,15 @@ pub enum MainResources {
 
 impl MainResources {
     pub fn is_fmc(&self) -> bool {
-        match self {
-            Self::MtnRope => true,
-            Self::MtnScaf => true,
-            Self::MtnRigg => true,
-            Self::MtnLagg => true,
-            Self::MtnPipf => true,
-            Self::MtnPain => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Self::MtnRope
+                | Self::MtnScaf
+                | Self::MtnRigg
+                | Self::MtnLagg
+                | Self::MtnPipf
+                | Self::MtnPain
+        )
     }
 }
 

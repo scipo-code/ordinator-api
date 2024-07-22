@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub enum SystemCondition {
     A,
     B,
@@ -9,11 +9,6 @@ pub enum SystemCondition {
     E,
     F,
     G,
+    #[default]
     Unknown,
-}
-
-impl SystemCondition {
-    pub fn new() -> Self {
-        SystemCondition::Unknown
-    }
 }

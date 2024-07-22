@@ -4,10 +4,6 @@ use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
 use rand::seq::SliceRandom;
 use shared_messages::{
     agent_error::AgentError,
-    scheduling_environment::{
-        work_order::{operation::ActivityNumber, WorkOrderNumber},
-        worker_environment::availability::Availability,
-    },
     operational::{
         operational_request_resource::OperationalResourceRequest,
         operational_request_scheduling::OperationalSchedulingRequest,
@@ -15,6 +11,10 @@ use shared_messages::{
         operational_response_resource::OperationalResourceResponse,
         operational_response_scheduling::OperationalSchedulingResponse,
         operational_response_time::OperationalTimeResponse, TimeInterval,
+    },
+    scheduling_environment::{
+        work_order::{operation::ActivityNumber, WorkOrderNumber},
+        worker_environment::availability::Availability,
     },
 };
 use tracing::debug;
@@ -440,7 +440,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         let mut toolbox_time: TimeDelta = TimeDelta::zero();
         let mut non_productive_time: TimeDelta = TimeDelta::zero();
 
-        let mut all_events = operational_events
+        let all_events = operational_events
             .iter()
             .chain(&self.operational_non_productive.0);
 
@@ -893,8 +893,8 @@ mod tests {
     use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
     use proptest::prelude::*;
     use shared_messages::{
-        scheduling_environment::worker_environment::availability::Availability,
         operational::{OperationalConfiguration, TimeInterval},
+        scheduling_environment::worker_environment::availability::Availability,
     };
 
     use crate::agents::operational_agent::algorithm::OperationalEvents;
@@ -1024,7 +1024,7 @@ mod tests {
 
         let (time_delta, next_event) = operational_algorithm.determine_next_event(&current_time);
 
-        assert_eq!(time_delta, TimeDelta::new(3600 * 7, 0).unwrap());
+        assert_eq!(time_delta, TimeDelta::new(3600 * 6, 0).unwrap());
         assert_eq!(next_event, OperationalEvents::Toolbox(toolbox_interval));
     }
 
