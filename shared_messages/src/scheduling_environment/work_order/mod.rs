@@ -175,8 +175,7 @@ impl WorkOrder {
     }
 
     pub fn insert_operation(&mut self, operation: Operation) {
-        self.operations
-            .insert(operation.activity.clone(), operation);
+        self.operations.insert(operation.activity, operation);
     }
 
     pub fn unloading_point(&self) -> &UnloadingPoint {
@@ -392,7 +391,6 @@ impl WorkOrder {
         }
     }
     pub fn find_excluded_periods(&self, periods: &[Period]) -> HashSet<Period> {
-
         let mut excluded_periods: HashSet<Period> = HashSet::new();
         for (i, period) in periods.iter().enumerate() {
             if *period < self.order_dates.earliest_allowed_start_period

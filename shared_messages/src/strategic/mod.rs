@@ -19,7 +19,9 @@ use serde_json_any_key::any_key_map;
 
 use crate::{
     agent_error::AgentError,
-    scheduling_environment::{time_environment::period::Period, worker_environment::resources::Resources},
+    scheduling_environment::{
+        time_environment::period::Period, worker_environment::resources::Resources,
+    },
     AlgorithmState, Asset, ConstraintState, LoadOperation,
 };
 
@@ -219,33 +221,21 @@ impl StrategicResources {
         periods.dedup();
 
         write!(string, "{:<12}", "Resource").ok();
-        for (nr_period, period) in periods.iter().enumerate().take(number_of_periods as usize) {
-            if nr_period == 0 {
-                write!(string, "{:>12}", period.period_string()).ok();
-            } else if nr_period == 1 || nr_period == 2 {
-                write!(string, "{:>12}", period.period_string()).ok();
-            } else {
-                write!(string, "{:>12}", period.period_string()).ok();
-            }
+        for period in periods.iter().take(number_of_periods as usize) {
+            write!(string, "{:>12}", period.period_string()).ok();
         }
         writeln!(string).ok();
 
         let mut sorted_resources: Vec<&Resources> = self.inner.keys().collect();
 
-        sorted_resources
-            .sort_by(|resource_a, resource_b| resource_a.to_string().cmp(&resource_b.to_string()));
+        sorted_resources.sort_by_key(|resource| resource.to_string());
+
         for resource in sorted_resources {
             let inner_map = self.inner.get(resource).unwrap();
             write!(string, "{:<12}", resource.variant_name()).unwrap();
-            for (nr_period, period) in periods.iter().enumerate().take(number_of_periods as usize) {
+            for period in periods.iter().take(number_of_periods as usize) {
                 let value = inner_map.0.get(period).unwrap_or(&0.0);
-                if nr_period == 0 {
-                    write!(string, "{:>12}", value.round().to_string()).ok();
-                } else if nr_period == 1 || nr_period == 2 {
-                    write!(string, "{:>12}", value.round().to_string()).ok();
-                } else {
-                    write!(string, "{:>12}", value.round()).ok();
-                }
+                write!(string, "{:>12}", value.round().to_string()).ok();
             }
             writeln!(string).ok();
         }

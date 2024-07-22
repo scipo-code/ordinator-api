@@ -46,7 +46,6 @@ use shared_messages::scheduling_environment::work_order::operation::{
     ActivityNumber, Operation, OperationDates,
 };
 
-
 #[derive(Debug)]
 struct ExcelLoadError(String);
 
@@ -69,7 +68,7 @@ pub fn load_data_file(
         .ok_or(calamine::Error::Msg("Cannot find work order sheet"))?
         .expect("Could not load work order sheet.");
 
-    let mut work_orders: WorkOrders = WorkOrders::new();
+    let mut work_orders: WorkOrders = WorkOrders::default();
     let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
 
     let strategic_periods: Vec<Period> = create_periods(number_of_strategic_periods)
@@ -222,6 +221,7 @@ fn create_new_work_order(
         _ => Priority::StringValue(String::new()),
     };
 
+    dbg!(&main_work_center_data);
     let main_work_center = match main_work_center_data {
         Some(calamine::Data::String(s)) => MainResources::new_from_string(s.clone()),
         _ => return Err(Error::Msg("Could not parse Main Work Center as string")),
@@ -259,7 +259,7 @@ fn create_new_work_order(
         extract_unloading_point(row, header_to_index, periods)
             .expect("Failed to extract UnloadingPoint"),
         extract_revision(row, header_to_index).expect("Failed to extract Revision"),
-        SystemCondition::new(),
+        SystemCondition::default(),
     );
 
     Ok(WorkOrder::new(
@@ -1168,7 +1168,7 @@ mod tests {
 
     #[test]
     fn test_load_data_file() {
-        let file_path = Path::new("test_data/export.XLSX");
+        let file_path = Path::new("test_data/input-ordinator-complete-2024-04-10.xlsx");
         let number_of_periods = 26;
         let number_of_tactical_periods = 4;
         let number_of_days = 56;
@@ -1206,12 +1206,12 @@ mod tests {
             .unwrap()
             .work_orders()
             .inner
-            .get(&WorkOrderNumber(2100024139))
+            .get(&WorkOrderNumber(2100106943))
             .unwrap()
             .operations()
             .len();
 
-        assert_eq!(number_of_work_orders, 1227);
-        assert_eq!(number_of_operations, 12);
+        assert_eq!(number_of_work_orders, 11288);
+        assert_eq!(number_of_operations, 3);
     }
 }
