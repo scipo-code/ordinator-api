@@ -1,7 +1,8 @@
 pub mod agent_error;
-pub mod scheduling_environment;
+
 pub mod operational;
 pub mod orchestrator;
+pub mod scheduling_environment;
 pub mod strategic;
 pub mod supervisor;
 pub mod tactical;
@@ -9,9 +10,10 @@ use std::fmt::{self, Display};
 
 use actix::prelude::*;
 use clap::{Subcommand, ValueEnum};
-use scheduling_environment::worker_environment::resources::Resources;
+
 use operational::{OperationalRequest, OperationalResponse, TomlOperationalConfiguration};
 use orchestrator::{OrchestratorRequest, OrchestratorResponse};
+use scheduling_environment::worker_environment::resources::Resources;
 use serde::{Deserialize, Serialize};
 use strategic::{StrategicRequest, StrategicResponse};
 use supervisor::{SupervisorRequest, SupervisorResponse};
@@ -88,7 +90,9 @@ impl LogLevel {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Serialize, Deserialize, Debug, Clone, ValueEnum)]
+#[derive(
+    steel_derive::Steel, PartialEq, Eq, Hash, Serialize, Deserialize, Debug, Clone, ValueEnum,
+)]
 pub enum Asset {
     DF,
     DM,
@@ -136,8 +140,8 @@ impl Display for Asset {
 }
 
 impl Asset {
-    pub fn new_from_string(asset_string: &str) -> Asset {
-        match asset_string {
+    pub fn new_from_string(asset_string: String) -> Asset {
+        match asset_string.as_str() {
             "DF" => Asset::DF,
             "DM" => Asset::DM,
             "DE" => Asset::DE,

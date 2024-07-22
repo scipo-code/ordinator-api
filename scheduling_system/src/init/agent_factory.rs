@@ -22,6 +22,7 @@ use crate::agents::traits::LargeNeighborHoodSearch;
 use shared_messages::scheduling_environment::worker_environment::resources::{Id, Resources};
 use shared_messages::scheduling_environment::SchedulingEnvironment;
 
+#[derive(Debug, Clone)]
 pub struct AgentFactory {
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
 }

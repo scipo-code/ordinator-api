@@ -6,7 +6,7 @@ use self::period::Period;
 pub mod day;
 pub mod period;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TimeEnvironment {
     pub strategic_periods: Vec<Period>,
     pub tactical_periods: Vec<Period>,

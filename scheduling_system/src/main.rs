@@ -9,19 +9,23 @@ use std::{
     io::{self, Read, Write},
     path::Path,
     sync::{Arc, Mutex},
+    thread,
 };
 
 use actix_web::{guard, web, App, HttpServer};
 use agents::orchestrator::Orchestrator;
 
 use shared_messages::{scheduling_environment::SchedulingEnvironment, Asset};
+use steel::steel_vm::register_fn::RegisterFn;
+
 
 use crate::init::logging;
+use agents::orchestrator::ArcOrchestrator;
 
 ///This is the entry point of the application. We should
 #[actix_web::main]
 async fn main() -> Result<(), io::Error> {
-    dotenvy::dotenv().ok();
+    let var_name = dotenvy::dotenv().ok();
 
     let log_handles = logging::setup_logging();
 
@@ -45,16 +49,22 @@ async fn main() -> Result<(), io::Error> {
 
     // orchestrator.add_asset(Asset::HD);
 
-    let arc_orchestrator = Arc::new(Mutex::new(orchestrator));
+    let arc_orchestrator = ArcOrchestrator(Arc::new(Mutex::new(orchestrator)));
+
+    let arc_orchestrator_steel = arc_orchestrator.clone();
+    // start_steel_repl(arc_orchestrator_steel);
+
+    let arc_orchestrator_server = arc_orchestrator.clone();
 
     HttpServer::new(move || {
-        let orchestrator = arc_orchestrator.clone();
-        App::new().app_data(web::Data::new(orchestrator)).route(
-            "/ws",
-            web::post()
-                .guard(guard::Header("content-type", "application/json"))
-                .to(api::routes::http_to_scheduling_system),
-        )
+        App::new()
+            .app_data(web::Data::new(arc_orchestrator_server.0.clone()))
+            .route(
+                "/ws",
+                web::post()
+                    .guard(guard::Header("content-type", "application/json"))
+                    .to(api::routes::http_to_scheduling_system),
+            )
     })
     .workers(4)
     .bind("127.0.0.1:8080")?
@@ -81,4 +91,21 @@ fn write_to_database(path: &Path) -> Result<SchedulingEnvironment, std::io::Erro
     file.write_all(json_scheduling_environment.as_bytes())
         .unwrap();
     Ok(scheduling_environment)
+}
+
+fn start_steel_repl(arc_orchestrator: ArcOrchestrator) {
+    thread::spawn(move || {
+        let mut steel_engine = steel::steel_vm::engine::Engine::new();
+        steel_engine.register_type::<ArcOrchestrator>("Orchestrator?");
+        steel_engine.register_fn("actor_registry", ArcOrchestrator::print_actor_registry);
+        steel_engine.register_type::<Asset>("Asset?");
+        steel_engine.register_fn("Asset", Asset::new_from_string);
+
+        steel_engine.register_external_value("asset::df", Asset::DF);
+        steel_engine
+            .register_external_value("orchestrator", arc_orchestrator)
+            .unwrap();
+
+        steel_repl::run_repl(steel_engine).unwrap();
+    });
 }
