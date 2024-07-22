@@ -1,6 +1,7 @@
 pub mod algorithm;
 use std::{
     collections::{HashMap, HashSet},
+    ops::AddAssign,
     sync::{Arc, Mutex},
 };
 
@@ -20,9 +21,11 @@ use shared_messages::{
     AlgorithmState, ConstraintState, StatusMessage, StopMessage,
 };
 
+
 use shared_messages::scheduling_environment::{
     work_order::operation::Operation, SchedulingEnvironment,
 };
+
 use tracing::{info, warn};
 
 use crate::agents::{operational_agent::algorithm::OperationalParameter, StateLink};

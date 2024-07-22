@@ -392,6 +392,7 @@ impl WorkOrder {
         }
     }
     pub fn find_excluded_periods(&self, periods: &[Period]) -> HashSet<Period> {
+
         let mut excluded_periods: HashSet<Period> = HashSet::new();
         for (i, period) in periods.iter().enumerate() {
             if *period < self.order_dates.earliest_allowed_start_period

@@ -1,5 +1,6 @@
 use actix::prelude::*;
 use shared_messages::orchestrator::OrchestratorRequest;
+
 use shared_messages::scheduling_environment::time_environment::day::Day;
 use shared_messages::scheduling_environment::time_environment::period::Period;
 use shared_messages::scheduling_environment::worker_environment::resources;
@@ -67,6 +68,7 @@ impl ArcOrchestrator {
 
     }
 }
+
 
 #[derive(steel_derive::Steel, Debug, Clone)]
 pub struct Orchestrator {

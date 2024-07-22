@@ -17,6 +17,7 @@ use self::work_order::operation::{ActivityNumber, Operation};
 use self::work_order::WorkOrderNumber;
 
 #[derive(Deserialize, Serialize, Debug)]
+
 pub struct SchedulingEnvironment {
     work_orders: WorkOrders,
     worker_environment: WorkerEnvironment,

@@ -440,7 +440,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         let mut toolbox_time: TimeDelta = TimeDelta::zero();
         let mut non_productive_time: TimeDelta = TimeDelta::zero();
 
-        let all_events = operational_events
+        let mut all_events = operational_events
             .iter()
             .chain(&self.operational_non_productive.0);
 

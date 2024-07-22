@@ -26,6 +26,7 @@ use shared_messages::scheduling_environment::work_order::revision::Revision;
 use shared_messages::scheduling_environment::work_order::status_codes::{
     MaterialStatus, StatusCodes,
 };
+
 use shared_messages::scheduling_environment::work_order::unloading_point::UnloadingPoint;
 use shared_messages::scheduling_environment::work_order::{
     ActivityRelation, WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderNumber,
@@ -33,6 +34,7 @@ use shared_messages::scheduling_environment::work_order::{
 use shared_messages::scheduling_environment::worker_environment::resources::{
     MainResources, Resources,
 };
+
 use shared_messages::scheduling_environment::worker_environment::WorkerEnvironment;
 use shared_messages::scheduling_environment::{SchedulingEnvironment, WorkOrders};
 
@@ -43,6 +45,7 @@ use shared_messages::scheduling_environment::work_order::operation::operation_in
 use shared_messages::scheduling_environment::work_order::operation::{
     ActivityNumber, Operation, OperationDates,
 };
+
 
 #[derive(Debug)]
 struct ExcelLoadError(String);
