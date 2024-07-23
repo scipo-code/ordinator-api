@@ -188,10 +188,16 @@ impl Handler<ScheduleIteration> for OperationalAgent {
         if temporary_schedule.objective_value > self.operational_algorithm.objective_value {
             self.operational_algorithm = temporary_schedule;
 
-            self.supervisor_agent_addr.do_send(StateLink::Operational((
-                self.operational_algorithm.operational_solutions.clone(),
-                self.operational_algorithm.objective_value,
-            )));
+            for operational_solution in &self.operational_algorithm.operational_solutions.0 {
+                self.supervisor_agent_addr.do_send(StateLink::Operational((
+                    (
+                        self.id_operational.clone(),
+                        operational_solution.0,
+                        operational_solution.1,
+                    ),
+                    self.operational_algorithm.objective_value,
+                )));
+            }
             info!(operational_objective = %self.operational_algorithm.objective_value);
         };
 
