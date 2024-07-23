@@ -23,7 +23,7 @@ use shared_messages::scheduling_environment::SchedulingEnvironment;
 use self::algorithm::SupervisorAlgorithm;
 
 use super::{
-    operational_agent::OperationalAgent,
+    operational_agent::{algorithm::OperationalObjective, OperationalAgent},
     strategic_agent::ScheduleIteration,
     tactical_agent::{tactical_algorithm::OperationSolution, TacticalAgent},
     traits::TestAlgorithm,
@@ -36,6 +36,8 @@ pub struct SupervisorAgent {
     asset: Asset,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     assigned_work_orders: Vec<(WorkOrderNumber, HashMap<ActivityNumber, OperationSolution>)>,
+    operational_solutions:
+        HashMap<(Id, WorkOrderNumber, ActivityNumber), Option<OperationalObjective>>,
     pub supervisor_algorithm: SupervisorAlgorithm,
     tactical_agent_addr: Addr<TacticalAgent>,
     operational_agent_addrs: HashMap<Id, Addr<OperationalAgent>>,
@@ -67,6 +69,13 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
                 for (id, operational_addr) in &self.operational_agent_addrs {
                     if id.1.contains(&operation_solution.resource) {
                         all_messages.push(operational_addr.send(operation_solution.clone()));
+                        self.operational_solutions
+                            .entry((
+                                id.clone(),
+                                operation_solution.work_order_number,
+                                operation_solution.activity_number,
+                            ))
+                            .or_insert(None);
                     }
                     // self.operational_agent_addrs;
                 }
@@ -74,6 +83,35 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 
             for message in all_messages {
                 ctx.wait(message.into_actor(self).map(|_, _, _| ()))
+            }
+        }
+
+        for (work_order_number, activities) in &self.assigned_work_orders {
+            for (activity_number, activity) in activities {
+                let operational_solution_across_ids: Vec<Option<OperationalObjective>> = self
+                    .operational_solutions
+                    .iter()
+                    .filter(|(key, value)| key.1 == *work_order_number && key.2 == *activity_number)
+                    .map(|(key, value)| value)
+                    .cloned()
+                    .collect();
+
+                if operational_solution_across_ids
+                    .iter()
+                    .all(|objectives| objectives.is_some())
+                {
+                    // Start here tomorrow.
+                    // - [ ] Implement number of the OperationSolution
+                    // - [ ] You should implement the two groups of Addr<OperationalAgent>s.
+                    // - [ ] Make a new/reuse message type to update the OperationalAgent State.
+                    todo!();
+
+                    // operational_solution_across_ids.sort();
+                    // let most_suited_operational_agents = operational_solution_across_ids
+                    //     .iter()
+                    //     .rev()
+                    //     .take(activity.number);
+                }
             }
         }
 
@@ -94,6 +132,7 @@ impl SupervisorAgent {
             asset,
             scheduling_environment,
             assigned_work_orders: Vec::new(),
+            operational_solutions: HashMap::new(),
             supervisor_algorithm: SupervisorAlgorithm::new(),
             tactical_agent_addr,
             operational_agent_addrs: HashMap::new(),
@@ -143,7 +182,10 @@ impl Handler<StateLink> for SupervisorAgent {
                 self.assigned_work_orders = tactical_supervisor_link;
             }
             StateLink::Supervisor => {}
-            StateLink::Operational(_) => {}
+            StateLink::Operational(operational_solution) => {
+                self.operational_solutions
+                    .insert(operational_solution.0, Some(operational_solution.1));
+            }
         }
     }
 }
