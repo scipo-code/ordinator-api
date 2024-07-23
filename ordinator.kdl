@@ -38,7 +38,7 @@ layout {
 			pane size="40%" split_direction="horizontal" {
 				pane split_direction="vertical" {
 					pane name="Scino" {
-						cwd "$ZK_NOTEBOOK_DIR"
+						cwd "$ZK_NOTEBOOK_DIR/.."
 						command "zk"
 						args "daily"
 					}

@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
 use actix::{Addr, Message};
-use operational_agent::algorithm::{OperationalObjective, OperationalSolutions};
+use operational_agent::algorithm::OperationalObjective;
 use shared_messages::scheduling_environment::work_order::operation::ActivityNumber;
-use shared_messages::scheduling_environment::{work_order::WorkOrderNumber, worker_environment::resources::Id};
+use shared_messages::scheduling_environment::{
+    work_order::WorkOrderNumber, worker_environment::resources::Id,
+};
 
 use shared_messages::scheduling_environment::time_environment::period::Period;
 
@@ -38,7 +40,7 @@ pub enum StateLink {
     Strategic(Vec<(WorkOrderNumber, Period)>),
     Tactical(Vec<(WorkOrderNumber, HashMap<ActivityNumber, OperationSolution>)>),
     Supervisor,
-    Operational((OperationalSolutions, OperationalObjective)),
+    Operational(((Id, WorkOrderNumber, ActivityNumber), OperationalObjective)),
 }
 
 impl Message for StateLink {
