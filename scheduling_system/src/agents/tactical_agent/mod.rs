@@ -175,7 +175,7 @@ impl Handler<StateLink> for TacticalAgent {
             StateLink::Tactical(_) => {
                 todo!()
             }
-            StateLink::Supervisor => {
+            StateLink::Supervisor(_) => {
                 todo!()
             }
             StateLink::Operational(_) => {

@@ -1,8 +1,9 @@
 use serde::Deserialize;
 use serde::Serialize;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct OperationInfo {
-    number: u32,
+    number: NumberOfPeople,
     work_remaining: f64,
     work_performed: f64,
     work: f64,
@@ -11,7 +12,7 @@ pub struct OperationInfo {
 
 impl OperationInfo {
     pub fn new(
-        number: u32,
+        number: NumberOfPeople,
         work_remaining: f64,
         work_performed: f64,
         work: f64,
@@ -30,7 +31,7 @@ impl OperationInfo {
         self.work_remaining
     }
 
-    pub fn number(&self) -> u32 {
+    pub fn number(&self) -> NumberOfPeople {
         self.number
     }
 
@@ -38,3 +39,5 @@ impl OperationInfo {
         self.operating_time
     }
 }
+
+pub type NumberOfPeople = u32;
