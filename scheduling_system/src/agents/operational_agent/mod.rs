@@ -1,6 +1,6 @@
 pub mod algorithm;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     sync::{Arc, Mutex},
 };
 
@@ -32,7 +32,7 @@ use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
 
 use super::{
     strategic_agent::ScheduleIteration,
-    supervisor_agent::SupervisorAgent,
+    supervisor_agent::{Delegate, SupervisorAgent},
     tactical_agent::tactical_algorithm::OperationSolution,
     traits::{LargeNeighborHoodSearch, TestAlgorithm},
     SetAddr, UpdateWorkOrderMessage,
@@ -44,7 +44,7 @@ pub struct OperationalAgent {
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     operational_algorithm: OperationalAlgorithm,
     capacity: Option<f32>,
-    assigned: HashSet<(Assigned, WorkOrderNumber, ActivityNumber)>,
+    assigned: HashMap<(WorkOrderNumber, ActivityNumber), Assigned>,
     backup_activities: Option<HashMap<u32, Operation>>,
     operational_configuration: OperationalConfiguration,
     supervisor_agent_addr: Addr<SupervisorAgent>,
@@ -188,10 +188,16 @@ impl Handler<ScheduleIteration> for OperationalAgent {
         if temporary_schedule.objective_value > self.operational_algorithm.objective_value {
             self.operational_algorithm = temporary_schedule;
 
-            self.supervisor_agent_addr.do_send(StateLink::Operational((
-                self.operational_algorithm.operational_solutions.clone(),
-                self.operational_algorithm.objective_value,
-            )));
+            for operational_solution in &self.operational_algorithm.operational_solutions.0 {
+                self.supervisor_agent_addr.do_send(StateLink::Operational((
+                    (
+                        self.id_operational.clone(),
+                        operational_solution.0,
+                        operational_solution.1,
+                    ),
+                    self.operational_algorithm.objective_value,
+                )));
+            }
             info!(operational_objective = %self.operational_algorithm.objective_value);
         };
 
@@ -227,11 +233,13 @@ impl Handler<OperationSolution> for OperationalAgent {
         } else {
             return false;
         };
-        self.assigned.insert((
+        self.assigned.insert(
+            (
+                operation_solution.work_order_number,
+                operation_solution.activity_number,
+            ),
             false,
-            operation_solution.work_order_number,
-            operation_solution.activity_number,
-        ));
+        );
 
         self.operational_algorithm.insert_optimized_operation(
             operation_solution.work_order_number,
@@ -243,16 +251,7 @@ impl Handler<OperationSolution> for OperationalAgent {
     }
 }
 
-pub struct OperationalAgentBuilder {
-    id_operational: Id,
-    scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-    operational_algorithm: OperationalAlgorithm,
-    capacity: Option<f32>,
-    assigned: HashSet<(Assigned, WorkOrderNumber, ActivityNumber)>,
-    backup_activities: Option<HashMap<u32, Operation>>,
-    operational_configuration: OperationalConfiguration,
-    supervisor_agent_addr: Addr<SupervisorAgent>,
-}
+pub struct OperationalAgentBuilder(OperationalAgent);
 
 impl OperationalAgentBuilder {
     pub fn new(
@@ -262,49 +261,95 @@ impl OperationalAgentBuilder {
         operational_algorithm: OperationalAlgorithm,
         supervisor_agent_addr: Addr<SupervisorAgent>,
     ) -> Self {
-        OperationalAgentBuilder {
+        Self(OperationalAgent {
             id_operational,
             scheduling_environment,
             operational_algorithm,
             capacity: None,
-            assigned: HashSet::new(),
+            assigned: HashMap::new(),
             backup_activities: None,
             operational_configuration,
             supervisor_agent_addr,
-        }
+        })
     }
 
     #[allow(dead_code)]
     pub fn with_capacity(mut self, capacity: f32) -> Self {
-        self.capacity = Some(capacity);
+        self.0.capacity = Some(capacity);
         self
     }
 
     #[allow(dead_code)]
     pub fn with_assigned(
         mut self,
-        assigned: HashSet<(Assigned, WorkOrderNumber, ActivityNumber)>,
+        assigned: HashMap<(WorkOrderNumber, ActivityNumber), Assigned>,
     ) -> Self {
-        self.assigned = assigned;
+        self.0.assigned = assigned;
         self
     }
 
     #[allow(dead_code)]
     pub fn with_backup_activities(mut self, backup_activities: HashMap<u32, Operation>) -> Self {
-        self.backup_activities = Some(backup_activities);
+        self.0.backup_activities = Some(backup_activities);
         self
     }
 
     pub fn build(self) -> OperationalAgent {
         OperationalAgent {
-            id_operational: self.id_operational,
-            scheduling_environment: self.scheduling_environment,
-            operational_algorithm: self.operational_algorithm,
-            capacity: self.capacity,
-            assigned: self.assigned,
-            backup_activities: self.backup_activities,
-            operational_configuration: self.operational_configuration,
-            supervisor_agent_addr: self.supervisor_agent_addr,
+            id_operational: self.0.id_operational,
+            scheduling_environment: self.0.scheduling_environment,
+            operational_algorithm: self.0.operational_algorithm,
+            capacity: self.0.capacity,
+            assigned: self.0.assigned,
+            backup_activities: self.0.backup_activities,
+            operational_configuration: self.0.operational_configuration,
+            supervisor_agent_addr: self.0.supervisor_agent_addr,
+        }
+    }
+}
+
+impl Handler<StateLink> for OperationalAgent {
+    type Result = ();
+
+    fn handle(&mut self, msg: StateLink, _ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            StateLink::Strategic(_) => todo!(),
+            StateLink::Tactical(_) => todo!(),
+            StateLink::Supervisor(delegate) => match delegate {
+                Delegate::Keep((work_order_number, activity_number)) => {
+                    self.assigned
+                        .insert((work_order_number, activity_number), true);
+
+                    let operational_solutions =
+                        &mut self.operational_algorithm.operational_solutions;
+
+                    if let Some(operational_solution) = operational_solutions
+                        .0
+                        .iter_mut()
+                        .find(|os| os.0 == work_order_number && os.1 == activity_number)
+                    {
+                        operational_solution.2.as_mut().unwrap().assigned = true;
+                    }
+                }
+                Delegate::Drop((work_order_number, activity_number)) => {
+                    assert!(self
+                        .assigned
+                        .contains_key(&(work_order_number, activity_number)));
+                    self.assigned.remove(&(work_order_number, activity_number));
+                    let number_of_os = self.operational_algorithm.operational_solutions.0.len();
+                    self.operational_algorithm
+                        .operational_solutions
+                        .0
+                        .retain(|element| {
+                            !(element.0 == work_order_number && element.1 == activity_number)
+                        });
+                    assert_eq!(
+                        self.operational_algorithm.operational_solutions.0.len(),
+                        number_of_os - 1
+                    );
+                }
+            },
+            StateLink::Operational(_) => todo!(),
         }
     }
 }
