@@ -278,7 +278,7 @@ enum ContainOrNextOrNone {
 #[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct OperationalSolution {
-    assigned: Assigned,
+    pub assigned: Assigned,
     assignments: Vec<Assignment>,
 }
 
