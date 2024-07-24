@@ -9,6 +9,7 @@ use shared_messages::scheduling_environment::{
 
 use shared_messages::scheduling_environment::time_environment::period::Period;
 
+use self::supervisor_agent::Delegate;
 use self::{
     operational_agent::OperationalAgent,
     strategic_agent::StrategicAgent,
@@ -39,7 +40,7 @@ impl Message for SetAddr {
 pub enum StateLink {
     Strategic(Vec<(WorkOrderNumber, Period)>),
     Tactical(Vec<(WorkOrderNumber, HashMap<ActivityNumber, OperationSolution>)>),
-    Supervisor,
+    Supervisor(Delegate),
     Operational(((Id, WorkOrderNumber, ActivityNumber), OperationalObjective)),
 }
 

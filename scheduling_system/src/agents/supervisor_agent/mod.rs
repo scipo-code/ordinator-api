@@ -1,6 +1,6 @@
 pub mod algorithm;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
 };
 
@@ -38,6 +38,7 @@ pub struct SupervisorAgent {
     assigned_work_orders: Vec<(WorkOrderNumber, HashMap<ActivityNumber, OperationSolution>)>,
     operational_solutions:
         HashMap<(Id, WorkOrderNumber, ActivityNumber), Option<OperationalObjective>>,
+    assigned_to_operational_agents: HashSet<(WorkOrderNumber, ActivityNumber)>,
     pub supervisor_algorithm: SupervisorAlgorithm,
     tactical_agent_addr: Addr<TacticalAgent>,
     operational_agent_addrs: HashMap<Id, Addr<OperationalAgent>>,
@@ -60,24 +61,29 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     type Result = ();
 
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
-        for (_work_order_number, operations) in &self.assigned_work_orders {
+        for (work_order_number, operations) in &self.assigned_work_orders {
             // Sync here
 
             let mut all_messages: Vec<Request<OperationalAgent, OperationSolution>> = vec![];
-            for operation_solution in operations.values() {
+            for (activity_number, operation_solution) in operations {
                 // send a message to each relevant agent
-                for (id, operational_addr) in &self.operational_agent_addrs {
-                    if id.1.contains(&operation_solution.resource) {
-                        all_messages.push(operational_addr.send(operation_solution.clone()));
-                        self.operational_solutions
-                            .entry((
-                                id.clone(),
-                                operation_solution.work_order_number,
-                                operation_solution.activity_number,
-                            ))
-                            .or_insert(None);
+                if !self
+                    .assigned_to_operational_agents
+                    .contains(&(*work_order_number, *activity_number))
+                {
+                    for (id, operational_addr) in &self.operational_agent_addrs {
+                        if id.1.contains(&operation_solution.resource) {
+                            all_messages.push(operational_addr.send(operation_solution.clone()));
+                            self.operational_solutions
+                                .entry((
+                                    id.clone(),
+                                    operation_solution.work_order_number,
+                                    operation_solution.activity_number,
+                                ))
+                                .or_insert(None);
+                        }
+                        // self.operational_agent_addrs;
                     }
-                    // self.operational_agent_addrs;
                 }
             }
 
@@ -87,30 +93,72 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
         }
 
         for (work_order_number, activities) in &self.assigned_work_orders {
-            for (activity_number, activity) in activities {
-                let operational_solution_across_ids: Vec<Option<OperationalObjective>> = self
+            for (activity_number, operation_solution) in activities {
+                let mut operational_solution_across_ids: Vec<_> = self
                     .operational_solutions
                     .iter()
-                    .filter(|(key, value)| key.1 == *work_order_number && key.2 == *activity_number)
-                    .map(|(key, value)| value)
-                    .cloned()
+                    .filter(|(key, _)| key.1 == *work_order_number && key.2 == *activity_number)
+                    .map(|(key, value)| (&key.0, *value))
                     .collect();
+
+                if self
+                    .assigned_to_operational_agents
+                    .contains(&(*work_order_number, *activity_number))
+                {
+                    continue;
+                }
 
                 if operational_solution_across_ids
                     .iter()
-                    .all(|objectives| objectives.is_some())
+                    .all(|objectives| objectives.1.is_some())
                 {
-                    // Start here tomorrow.
-                    // - [ ] Implement number of the OperationSolution
-                    // - [ ] You should implement the two groups of Addr<OperationalAgent>s.
-                    // - [ ] Make a new/reuse message type to update the OperationalAgent State.
-                    todo!();
+                    operational_solution_across_ids
+                        .sort_by(|a, b| a.1.unwrap().partial_cmp(&b.1.unwrap()).unwrap());
 
-                    // operational_solution_across_ids.sort();
-                    // let most_suited_operational_agents = operational_solution_across_ids
-                    //     .iter()
-                    //     .rev()
-                    //     .take(activity.number);
+                    let operational_solution_across_ids =
+                        operational_solution_across_ids.iter().rev();
+
+                    let number_of_operational_solutions = operational_solution_across_ids.len();
+                    let (top_operational_agents, remaining_operational_agents): (Vec<_>, Vec<_>) =
+                        operational_solution_across_ids
+                            .into_iter()
+                            .enumerate()
+                            .partition(|&(i, _)| i < operation_solution.number as usize);
+
+                    assert_eq!(
+                        remaining_operational_agents.len() + top_operational_agents.len(),
+                        number_of_operational_solutions
+                    );
+
+                    let mut messages_to_operational_agents = vec![];
+                    for toa in top_operational_agents {
+                        messages_to_operational_agents.push(
+                            self.operational_agent_addrs.get(toa.1 .0).unwrap().send(
+                                StateLink::Supervisor(Delegate::Keep((
+                                    *work_order_number,
+                                    *activity_number,
+                                ))),
+                            ),
+                        );
+                    }
+
+                    for roa in remaining_operational_agents {
+                        messages_to_operational_agents.push(
+                            self.operational_agent_addrs.get(roa.1 .0).unwrap().send(
+                                StateLink::Supervisor(Delegate::Drop((
+                                    *work_order_number,
+                                    *activity_number,
+                                ))),
+                            ),
+                        );
+                    }
+
+                    self.assigned_to_operational_agents
+                        .insert((*work_order_number, *activity_number));
+
+                    for message in messages_to_operational_agents {
+                        ctx.wait(message.into_actor(self).map(|_, _, _| ()))
+                    }
                 }
             }
         }
@@ -118,6 +166,15 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
         ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(200)).into_actor(self));
         ctx.notify(ScheduleIteration {});
     }
+}
+
+pub enum Delegate {
+    Keep((WorkOrderNumber, ActivityNumber)),
+    Drop((WorkOrderNumber, ActivityNumber)),
+}
+
+impl Message for Delegate {
+    type Result = ();
 }
 
 impl SupervisorAgent {
@@ -133,6 +190,7 @@ impl SupervisorAgent {
             scheduling_environment,
             assigned_work_orders: Vec::new(),
             operational_solutions: HashMap::new(),
+            assigned_to_operational_agents: HashSet::new(),
             supervisor_algorithm: SupervisorAlgorithm::new(),
             tactical_agent_addr,
             operational_agent_addrs: HashMap::new(),
@@ -181,7 +239,7 @@ impl Handler<StateLink> for SupervisorAgent {
             StateLink::Tactical(tactical_supervisor_link) => {
                 self.assigned_work_orders = tactical_supervisor_link;
             }
-            StateLink::Supervisor => {}
+            StateLink::Supervisor(_) => {}
             StateLink::Operational(operational_solution) => {
                 self.operational_solutions
                     .insert(operational_solution.0, Some(operational_solution.1));
