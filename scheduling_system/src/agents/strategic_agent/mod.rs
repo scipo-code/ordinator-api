@@ -40,6 +40,7 @@ use crate::agents::tactical_agent::TacticalAgent;
 use self::strategic_algorithm::optimized_work_orders::OptimizedWorkOrder;
 
 use super::traits::TestAlgorithm;
+use super::ScheduleIteration;
 use super::SetAddr;
 use super::StateLink;
 use super::UpdateWorkOrderMessage;
@@ -100,10 +101,6 @@ impl StrategicAgent {
         }
     }
 }
-
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct ScheduleIteration {}
 
 impl Handler<ScheduleIteration> for StrategicAgent {
     type Result = ();
