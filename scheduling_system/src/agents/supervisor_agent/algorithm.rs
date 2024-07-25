@@ -1,5 +1,6 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
+use futures::SinkExt;
 use shared_types::{
     agent_error::AgentError,
     scheduling_environment::{
@@ -49,7 +50,16 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
     type Error = AgentError;
 
     fn calculate_objective_value(&mut self) {
-        todo!()
+        let assigned_woas = &self.assigned_to_operational_agents;
+
+        let all_woas: HashSet<_> = self
+            .assigned_work_orders
+            .iter()
+            .flat_map(|(wo, activities)| activities.keys().map(|key| (*wo, *key)))
+            .collect();
+
+        self.supervisor_algorithm.objective_value =
+            assigned_woas.len() as f64 / all_woas.len() as f64;
     }
 
     fn schedule(&mut self) {
