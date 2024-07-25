@@ -2,12 +2,12 @@ use std::collections::HashMap;
 
 use actix::{Addr, Message};
 use operational_agent::algorithm::OperationalObjective;
-use shared_messages::scheduling_environment::work_order::operation::ActivityNumber;
-use shared_messages::scheduling_environment::{
+use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
+use shared_types::scheduling_environment::{
     work_order::WorkOrderNumber, worker_environment::resources::Id,
 };
 
-use shared_messages::scheduling_environment::time_environment::period::Period;
+use shared_types::scheduling_environment::time_environment::period::Period;
 
 use self::supervisor_agent::Delegate;
 use self::{

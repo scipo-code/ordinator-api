@@ -4,7 +4,7 @@ use clap::{Command, CommandFactory, Parser};
 use clap_complete::{generate, Generator, Shell};
 use commands::Commands;
 use reqwest::blocking::Client;
-use shared_messages::SystemMessages;
+use shared_types::SystemMessages;
 use tracing::error;
 
 #[derive(Parser)]

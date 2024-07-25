@@ -3,26 +3,26 @@ pub mod optimized_work_orders;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
-use shared_messages::scheduling_environment::work_order::WorkOrderNumber;
-use shared_messages::strategic::strategic_response_periods::StrategicResponsePeriods;
-use shared_messages::strategic::strategic_response_resources::StrategicResponseResources;
-use shared_messages::strategic::strategic_response_scheduling::StrategicResponseScheduling;
-use shared_messages::strategic::{Periods, StrategicResources};
-use shared_messages::{Asset, LoadOperation};
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::strategic::strategic_response_periods::StrategicResponsePeriods;
+use shared_types::strategic::strategic_response_resources::StrategicResponseResources;
+use shared_types::strategic::strategic_response_scheduling::StrategicResponseScheduling;
+use shared_types::strategic::{Periods, StrategicResources};
+use shared_types::{Asset, LoadOperation};
 use tracing::{error, info, instrument, trace};
 use rand::prelude::SliceRandom;
 
 use priority_queue::PriorityQueue;
-use shared_messages::agent_error::AgentError;
-use shared_messages::strategic::strategic_request_periods_message::StrategicTimeRequest;
-use shared_messages::strategic::strategic_request_resources_message::StrategicResourceRequest;
-use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
+use shared_types::agent_error::AgentError;
+use shared_types::strategic::strategic_request_periods_message::StrategicTimeRequest;
+use shared_types::strategic::strategic_request_resources_message::StrategicResourceRequest;
+use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
 
 use crate::agents::traits::LargeNeighborHoodSearch;
-use shared_messages::scheduling_environment::WorkOrders;
-use shared_messages::scheduling_environment::time_environment::period::Period;
+use shared_types::scheduling_environment::WorkOrders;
+use shared_types::scheduling_environment::time_environment::period::Period;
 
-use shared_messages::scheduling_environment::worker_environment::resources::Resources;
+use shared_types::scheduling_environment::worker_environment::resources::Resources;
 
 use self::optimized_work_orders::{OptimizedWorkOrder, OptimizedWorkOrders};
 
@@ -610,11 +610,11 @@ impl PriorityQueues<u32, u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use shared_messages::strategic::strategic_request_scheduling_message::SingleWorkOrder;
+    use shared_types::strategic::strategic_request_scheduling_message::SingleWorkOrder;
     use chrono::{Duration, TimeZone, Utc};
     use rand::{rngs::StdRng, SeedableRng};
 
-    use shared_messages::scheduling_environment::worker_environment::resources::Resources;
+    use shared_types::scheduling_environment::worker_environment::resources::Resources;
 
     use crate::agents::strategic_agent::strategic_algorithm::{
             OptimizedWorkOrders, PriorityQueues, StrategicAlgorithm,
@@ -622,7 +622,7 @@ mod tests {
 
     use std::{collections::HashMap, str::FromStr};
 
-    use shared_messages::scheduling_environment::{
+    use shared_types::scheduling_environment::{
         work_order::WorkOrder,
             WorkOrders,
     };
