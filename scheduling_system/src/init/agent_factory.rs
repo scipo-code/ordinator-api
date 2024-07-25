@@ -1,9 +1,9 @@
 use actix::prelude::*;
 
-use shared_messages::operational::OperationalConfiguration;
-use shared_messages::strategic::{Periods, StrategicResources};
-use shared_messages::tactical::{Days, TacticalResources};
-use shared_messages::Asset;
+use shared_types::operational::OperationalConfiguration;
+use shared_types::strategic::{Periods, StrategicResources};
+use shared_types::tactical::{Days, TacticalResources};
+use shared_types::Asset;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -19,8 +19,8 @@ use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
 use crate::agents::tactical_agent::TacticalAgent;
 use crate::agents::traits::LargeNeighborHoodSearch;
 
-use shared_messages::scheduling_environment::worker_environment::resources::{Id, Resources};
-use shared_messages::scheduling_environment::SchedulingEnvironment;
+use shared_types::scheduling_environment::worker_environment::resources::{Id, Resources};
+use shared_types::scheduling_environment::SchedulingEnvironment;
 
 #[derive(Debug, Clone)]
 pub struct AgentFactory {

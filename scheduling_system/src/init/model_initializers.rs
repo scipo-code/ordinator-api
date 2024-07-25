@@ -3,8 +3,8 @@ use std::path::Path;
 
 use tracing::info;
 
-use crate::data_processing::sources;
-use shared_messages::scheduling_environment::SchedulingEnvironment;
+use crate::data_processing::sources::{excel::TotalExcel, SchedulingEnvironmentFactory};
+use shared_types::scheduling_environment::SchedulingEnvironment;
 
 pub fn initialize_scheduling_environment(
     number_of_strategic_periods: u32,
@@ -33,13 +33,17 @@ fn create_scheduling_environment(
 
     if args.len() > 1 {
         let file_path = Path::new(&args[1]);
-        let scheduling_environment = sources::excel::load_data_file(
+
+        let total_excel = TotalExcel::new(
             file_path,
             number_of_strategic_periods,
             number_of_tactical_periods,
             number_of_days,
-        )
-        .unwrap_or_else(|_| panic!("Could not load data file. File path: {:?} ", args));
+        );
+
+        let scheduling_environment =
+            SchedulingEnvironment::create_scheduling_environment(total_excel)
+                .unwrap_or_else(|_| panic!("Could not load data file. File path: {:?} ", args));
         return Some(scheduling_environment);
     }
     None
