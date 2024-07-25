@@ -177,20 +177,20 @@ All Agents implement this Message and it triggers a testing procedure of the giv
 > - [ ] In the future I generally think that these should be incorporated into the assert! statements
 
 #### [OperationSolution](scheduling_system/agents/tactical_agents/tactical_algorithm.rs)
-This is another stray Message, it should be refactor under the [StateLink]() Message as it is related to how the the [SupervisorAgent]() handles
-and interprets the schedule/solution coming from the [TacticalAgent]. 
+This is another stray Message, it should be refactor under the [StateLink](scheduling_system/src/agents/mod.rs) Message as it is related to how the the [SupervisorAgent](scheduling_system/src/agents/supervisor_agent/mod.rs) handles
+and interprets the schedule/solution coming from the [TacticalAgent](scheduling_system/src/agents/tactical_agent/mod.rs). 
 
 > Issue: OperationSolution
 >  - [ ] This should be changed. This is clearly a StateLink message
 
 #### [StatusMessage](shared_types/src/lib.rs)
-Another stary Message. Each Agent should implement a Handler<StatusMessage> but it should be part of the [SystemMessages]() on the Request side
-and the return value/result should be given by the [SystemResponses]() Message
+Another stary Message. Each Agent should implement a Handler<StatusMessage> but it should be part of the [SystemMessages](shared_types/src/lib.rs) on the Request side
+and the return value/result should be given by the [SystemResponses](shared_types/src/lib.rs) Message
 >  - [ ] StatusMessage's are a part of the Request category
 
 ## [Imperium](imperium/src/main.rs) 
 Imperium is a command line tool to interact with the Ordinator scheduling system. It contains all the API (in the form of HTTP messages)
-that users need to get and modify their schedules in real-time. This API is specified completely in the [SystemMessages](shared_system/src/lib.rs) and [SystemResponses](shared_system/src/lib.rs).
+that users need to get and modify their schedules in real-time. This API is specified completely in the [SystemMessages](shared_types/src/lib.rs) and [SystemResponses](shared_types/src/lib.rs).
 This is not ideal for a future stable deployment, but it does mean that as long as [Imperium](imperium/src/main.rs) and [Ordinator](scheduling_system/src/main.rs) are compiled together in the
 workspace that we will have static type guarantees on the HTTPs API that are communicated between them. (NON-TRIVIAL!) 
 
