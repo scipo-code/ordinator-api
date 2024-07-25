@@ -1,13 +1,13 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use shared_messages::operational::{
+use shared_types::operational::{
     OperationalResponse, OperationalResponseMessage, OperationalTarget,
 };
-use shared_messages::strategic::StrategicResponse;
-use shared_messages::supervisor::SupervisorResponse;
+use shared_types::strategic::StrategicResponse;
+use shared_types::supervisor::SupervisorResponse;
 
-use shared_messages::tactical::TacticalResponse;
-use shared_messages::SystemMessages;
-use shared_messages::SystemResponses;
+use shared_types::tactical::TacticalResponse;
+use shared_types::SystemMessages;
+use shared_types::SystemResponses;
 
 use std::sync::{Arc, Mutex};
 use tracing::{instrument, warn};
@@ -150,7 +150,7 @@ mod tests {
     use std::collections::HashMap;
 
     use chrono::Utc;
-    use shared_messages::{
+    use shared_types::{
         scheduling_environment::{
             time_environment::day::Day, worker_environment::resources::Resources,
         },

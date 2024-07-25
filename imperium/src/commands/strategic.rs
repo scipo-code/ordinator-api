@@ -3,20 +3,20 @@ use std::collections::HashMap;
 use clap::Args;
 use clap::Subcommand;
 use reqwest::blocking::Client;
-use shared_messages::scheduling_environment::time_environment::period::Period;
-use shared_messages::scheduling_environment::work_order::WorkOrderNumber;
-use shared_messages::scheduling_environment::worker_environment::resources::Resources;
-use shared_messages::strategic::strategic_request_resources_message::StrategicResourceRequest;
-use shared_messages::strategic::strategic_request_scheduling_message::SingleWorkOrder;
-use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
-use shared_messages::strategic::strategic_request_status_message::StrategicStatusMessage;
-use shared_messages::strategic::Periods;
-use shared_messages::strategic::StrategicRequest;
-use shared_messages::strategic::StrategicRequestMessage;
-use shared_messages::strategic::StrategicResources;
-use shared_messages::Asset;
-use shared_messages::SystemMessages;
-use shared_messages::TomlAgents;
+use shared_types::scheduling_environment::time_environment::period::Period;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::worker_environment::resources::Resources;
+use shared_types::strategic::strategic_request_resources_message::StrategicResourceRequest;
+use shared_types::strategic::strategic_request_scheduling_message::SingleWorkOrder;
+use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
+use shared_types::strategic::strategic_request_status_message::StrategicStatusMessage;
+use shared_types::strategic::Periods;
+use shared_types::strategic::StrategicRequest;
+use shared_types::strategic::StrategicRequestMessage;
+use shared_types::strategic::StrategicResources;
+use shared_types::Asset;
+use shared_types::SystemMessages;
+use shared_types::TomlAgents;
 
 #[derive(Subcommand, Debug)]
 pub enum StrategicCommands {

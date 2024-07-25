@@ -3,7 +3,7 @@
 resolver = "2"
 members = [
     "scheduling_system",
-    "shared_messages",
+    "shared_types",
     "imperium",
     "sap_diesel",
 ]

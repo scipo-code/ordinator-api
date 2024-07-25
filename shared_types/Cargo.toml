@@ -1,5 +1,5 @@
 [package]
-name = "shared_messages"
+name = "shared_types"
 version = "0.1.0"
 edition = "2021"
 

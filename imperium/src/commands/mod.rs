@@ -11,7 +11,7 @@ pub mod tactical;
 use orchestrator::OrchestratorCommands;
 use reqwest::blocking::Client;
 use sap::SapCommands;
-use shared_messages::{orchestrator::OrchestratorRequest, Asset, SystemMessages};
+use shared_types::{orchestrator::OrchestratorRequest, Asset, SystemMessages};
 use status::{StatusCommands, WorkOrders};
 use strategic::StrategicCommands;
 use tactical::TacticalCommands;
