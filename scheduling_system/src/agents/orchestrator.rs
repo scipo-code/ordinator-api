@@ -1,21 +1,21 @@
 use actix::prelude::*;
-use shared_messages::orchestrator::OrchestratorRequest;
+use shared_types::orchestrator::OrchestratorRequest;
 
-use shared_messages::scheduling_environment::time_environment::day::Day;
-use shared_messages::scheduling_environment::time_environment::period::Period;
-use shared_messages::scheduling_environment::worker_environment::resources;
-use shared_messages::scheduling_environment::worker_environment::resources::Id;
-use shared_messages::scheduling_environment::worker_environment::resources::MainResources;
+use shared_types::scheduling_environment::time_environment::day::Day;
+use shared_types::scheduling_environment::time_environment::period::Period;
+use shared_types::scheduling_environment::worker_environment::resources;
+use shared_types::scheduling_environment::worker_environment::resources::Id;
+use shared_types::scheduling_environment::worker_environment::resources::MainResources;
 
-use shared_messages::scheduling_environment::worker_environment::resources::Resources;
-use shared_messages::strategic::Periods;
-use shared_messages::strategic::StrategicResources;
-use shared_messages::strategic::StrategicResponseMessage;
-use shared_messages::supervisor::SupervisorRequestMessage;
-use shared_messages::tactical::Days;
-use shared_messages::tactical::TacticalResources;
-use shared_messages::Asset;
-use shared_messages::TomlAgents;
+use shared_types::scheduling_environment::worker_environment::resources::Resources;
+use shared_types::strategic::Periods;
+use shared_types::strategic::StrategicResources;
+use shared_types::strategic::StrategicResponseMessage;
+use shared_types::supervisor::SupervisorRequestMessage;
+use shared_types::tactical::Days;
+use shared_types::tactical::TacticalResources;
+use shared_types::Asset;
+use shared_types::TomlAgents;
 use tracing::instrument;
 use std::collections::HashMap;
 use std::path::Path;
@@ -30,30 +30,30 @@ use crate::agents::tactical_agent::TacticalAgent;
 use crate::init::agent_factory;
 use crate::init::agent_factory::AgentFactory;
 use crate::init::logging::LogHandles;
-use shared_messages::scheduling_environment::SchedulingEnvironment;
+use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use dotenvy::dotenv;
-use shared_messages::operational::operational_request_status::OperationalStatusRequest;
-use shared_messages::operational::operational_response_status::OperationalStatusResponse;
-use shared_messages::operational::{
+use shared_types::operational::operational_request_status::OperationalStatusRequest;
+use shared_types::operational::operational_response_status::OperationalStatusResponse;
+use shared_types::operational::{
     OperationalConfiguration, OperationalRequestMessage,
     OperationalResponseMessage,
 };
-use shared_messages::orchestrator::{AgentStatus, AgentStatusResponse, OrchestratorResponse};
-use shared_messages::scheduling_environment::work_order::WorkOrderNumber;
-use shared_messages::strategic::strategic_request_status_message::StrategicStatusMessage;
-use shared_messages::strategic::strategic_response_status::{WorkOrderResponse, WorkOrdersStatus};
-use shared_messages::supervisor::supervisor_response_status::SupervisorResponseStatus;
-use shared_messages::supervisor::supervisor_status_message::SupervisorStatusMessage;
+use shared_types::orchestrator::{AgentStatus, AgentStatusResponse, OrchestratorResponse};
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::strategic::strategic_request_status_message::StrategicStatusMessage;
+use shared_types::strategic::strategic_response_status::{WorkOrderResponse, WorkOrdersStatus};
+use shared_types::supervisor::supervisor_response_status::SupervisorResponseStatus;
+use shared_types::supervisor::supervisor_status_message::SupervisorStatusMessage;
 
-use shared_messages::tactical::tactical_status_message::TacticalStatusMessage;
-use shared_messages::tactical::{
+use shared_types::tactical::tactical_status_message::TacticalStatusMessage;
+use shared_types::tactical::{
     TacticalRequestMessage,  TacticalResponseMessage,
 };
 use tracing_subscriber::EnvFilter;
 
 use crate::agents::UpdateWorkOrderMessage;
-use shared_messages::scheduling_environment::WorkOrders;
+use shared_types::scheduling_environment::WorkOrders;
 
 #[derive(Clone, Debug)]
 pub struct ArcOrchestrator(pub Arc<Mutex<Orchestrator>>);
@@ -120,7 +120,7 @@ impl Orchestrator {
                         .clone();
 
                     let strategic_agent_status = if let StrategicResponseMessage::Status(status) = strategic_agent_addr
-                        .send(shared_messages::strategic::StrategicRequestMessage::Status(StrategicStatusMessage::General))
+                        .send(shared_types::strategic::StrategicRequestMessage::Status(StrategicStatusMessage::General))
                         .await
                         .unwrap()
                         .unwrap() {
@@ -299,7 +299,7 @@ impl Orchestrator {
                     .unwrap()
                     .supervisor_agent_addr(id.clone());
 
-                supervisor_agent_addr.do_send(shared_messages::StopMessage {});
+                supervisor_agent_addr.do_send(shared_types::StopMessage {});
 
                 self.agent_registries
                     .get_mut(&asset)
@@ -333,7 +333,7 @@ impl Orchestrator {
                     .unwrap()
                     .operational_agent_addr(id.clone());
 
-                operational_agent_addr.do_send(shared_messages::StopMessage {});
+                operational_agent_addr.do_send(shared_types::StopMessage {});
 
                 self.agent_registries
                     .get_mut(&asset)
@@ -380,7 +380,7 @@ impl Orchestrator {
 
                 let strategic_agent_solution = agent_registry_for_asset
                     .strategic_agent_addr
-                    .send(shared_messages::SolutionExportMessage {})
+                    .send(shared_types::SolutionExportMessage {})
                     .await;
 
                 let tactical_agent_solution = self
@@ -388,7 +388,7 @@ impl Orchestrator {
                     .get(&asset)
                     .unwrap()
                     .tactical_agent_addr
-                    .send(shared_messages::SolutionExportMessage {})
+                    .send(shared_types::SolutionExportMessage {})
                     .await;
 
                 Ok(OrchestratorResponse::Export(format!(
@@ -464,7 +464,7 @@ impl ActorRegistry {
 
     pub fn supervisor_agent_addr_by_resource(
         &self,
-        resource: &shared_messages::scheduling_environment::worker_environment::resources::Resources,
+        resource: &shared_types::scheduling_environment::worker_environment::resources::Resources,
     ) -> Addr<SupervisorAgent> {
         let matching_supervisor = self.supervisor_agent_addrs.iter().find_map(|(id, addr)| {
             if id.1.contains(resource) {

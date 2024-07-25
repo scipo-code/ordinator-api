@@ -6,7 +6,7 @@ use std::{
 
 use actix::prelude::*;
 use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
-use shared_messages::{
+use shared_types::{
     agent_error::AgentError,
     operational::{
         operational_response_status::OperationalStatusResponse, OperationalConfiguration,
@@ -20,7 +20,7 @@ use shared_messages::{
     AlgorithmState, ConstraintState, StatusMessage, StopMessage,
 };
 
-use shared_messages::scheduling_environment::{
+use shared_types::scheduling_environment::{
     work_order::operation::Operation, SchedulingEnvironment,
 };
 
@@ -389,7 +389,7 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
 impl TestAlgorithm for OperationalAgent {
     type InfeasibleCases = OperationalInfeasibleCases;
 
-    fn determine_algorithm_state(&self) -> shared_messages::AlgorithmState<Self::InfeasibleCases> {
+    fn determine_algorithm_state(&self) -> shared_types::AlgorithmState<Self::InfeasibleCases> {
         let mut operational_infeasible_cases = OperationalInfeasibleCases::default();
         self.determine_operation_overlap(&mut operational_infeasible_cases);
 

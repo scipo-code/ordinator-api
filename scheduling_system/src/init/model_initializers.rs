@@ -4,7 +4,7 @@ use std::path::Path;
 use tracing::info;
 
 use crate::data_processing::sources::{excel::TotalExcel, SchedulingEnvironmentFactory};
-use shared_messages::scheduling_environment::SchedulingEnvironment;
+use shared_types::scheduling_environment::SchedulingEnvironment;
 
 pub fn initialize_scheduling_environment(
     number_of_strategic_periods: u32,

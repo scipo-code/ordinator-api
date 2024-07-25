@@ -1,6 +1,6 @@
 pub mod excel;
 
-use shared_messages::scheduling_environment::SchedulingEnvironment;
+use shared_types::scheduling_environment::SchedulingEnvironment;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

@@ -2,11 +2,11 @@ pub mod messages;
 pub mod tactical_algorithm;
 
 use actix::prelude::*;
-use shared_messages::agent_error::AgentError;
-use shared_messages::scheduling_environment::worker_environment::resources::Id;
-use shared_messages::tactical::tactical_response_status::TacticalResponseStatus;
-use shared_messages::tactical::{TacticalRequestMessage, TacticalResponseMessage};
-use shared_messages::{Asset, SolutionExportMessage};
+use shared_types::agent_error::AgentError;
+use shared_types::scheduling_environment::worker_environment::resources::Id;
+use shared_types::tactical::tactical_response_status::TacticalResponseStatus;
+use shared_types::tactical::{TacticalRequestMessage, TacticalResponseMessage};
+use shared_types::{Asset, SolutionExportMessage};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{info, instrument, warn};
@@ -14,8 +14,8 @@ use tracing::{info, instrument, warn};
 use crate::agents::strategic_agent::ScheduleIteration;
 use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
 use crate::agents::SetAddr;
-use shared_messages::scheduling_environment::time_environment::period::Period;
-use shared_messages::scheduling_environment::SchedulingEnvironment;
+use shared_types::scheduling_environment::time_environment::period::Period;
+use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use super::strategic_agent::StrategicAgent;
 use super::supervisor_agent::SupervisorAgent;

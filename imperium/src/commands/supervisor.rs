@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use shared_messages::{
+use shared_types::{
     scheduling_environment::worker_environment::resources::MainResources,
     supervisor::{
         supervisor_status_message::SupervisorStatusMessage, SupervisorRequest,

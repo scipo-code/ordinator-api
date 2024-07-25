@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use shared_messages::{Asset, LevelOfDetail, LogLevel};
+use shared_types::{Asset, LevelOfDetail, LogLevel};
 
 /// The StatusCommands are mostly important for the scheduling environment.
 #[derive(Subcommand, Debug)]
