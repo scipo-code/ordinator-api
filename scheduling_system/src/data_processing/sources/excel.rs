@@ -46,67 +46,86 @@ use shared_messages::scheduling_environment::work_order::operation::{
     ActivityNumber, Operation, OperationDates,
 };
 
-#[derive(Debug)]
-struct ExcelLoadError(String);
+use super::{SchedulingEnvironmentFactory, SchedulingEnvironmentFactoryError};
 
-impl fmt::Display for ExcelLoadError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ExcelLoadError: {}", self.0)
-    }
-}
-
-pub fn load_data_file(
-    file_path: &Path,
+#[derive(Clone)]
+pub struct TotalExcel<'a> {
+    file_path: &'a Path,
     number_of_strategic_periods: u32,
     number_of_tactical_periods: u32,
     number_of_days: u32,
-) -> Result<SchedulingEnvironment, calamine::Error> {
-    let mut workbook: Xlsx<_> = calamine::open_workbook(file_path)?;
-    info!("Excel file from path {:?} successfully loaded", file_path);
-    let sheet: &calamine::Range<calamine::Data> = &workbook
-        .worksheet_range_at(0)
-        .ok_or(calamine::Error::Msg("Cannot find work order sheet"))?
-        .expect("Could not load work order sheet.");
+}
 
-    let mut work_orders: WorkOrders = WorkOrders::default();
-    let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
-
-    let strategic_periods: Vec<Period> = create_periods(number_of_strategic_periods)
-        .unwrap_or_else(|_| {
-            panic!(
-                "Could not create periods in {} at line {}",
-                file!(),
-                line!()
-            )
-        });
-
-    let tactical_periods: &Vec<Period> =
-        &strategic_periods.clone()[0..number_of_tactical_periods as usize].to_vec();
-
-    let first_period = strategic_periods.first().unwrap().clone();
-
-    let tactical_days = |number_of_days: u32| -> Vec<Day> {
-        let mut days: Vec<Day> = Vec::new();
-        let mut date = first_period.start_date().to_owned();
-        for day_index in 0..number_of_days {
-            days.push(Day::new(day_index as usize, date.to_owned()));
-            date = date.checked_add_days(Days::new(1)).unwrap();
+impl<'a> TotalExcel<'a> {
+    pub fn new(
+        file_path: &'a Path,
+        number_of_strategic_periods: u32,
+        number_of_tactical_periods: u32,
+        number_of_days: u32,
+    ) -> Self {
+        Self {
+            file_path,
+            number_of_strategic_periods,
+            number_of_tactical_periods,
+            number_of_days,
         }
-        days
-    };
+    }
+}
 
-    populate_work_orders(&mut work_orders, &strategic_periods, sheet)
-        .expect("could not populate the work orders");
+impl<'a> SchedulingEnvironmentFactory<TotalExcel<'a>> for SchedulingEnvironment {
+    fn create_scheduling_environment(
+        data_source: TotalExcel<'a>,
+    ) -> Result<SchedulingEnvironment, SchedulingEnvironmentFactoryError> {
+        let mut workbook: Xlsx<_> = calamine::open_workbook(data_source.file_path).unwrap();
+        info!(
+            "Excel file from path {:?} successfully loaded",
+            data_source.file_path
+        );
+        let sheet: &calamine::Range<calamine::Data> = &workbook
+            .worksheet_range_at(0)
+            .ok_or(calamine::Error::Msg("Cannot find work order sheet"))?
+            .expect("Could not load work order sheet.");
 
-    let time_environment = TimeEnvironment::new(
-        strategic_periods,
-        tactical_periods.to_vec(),
-        tactical_days(number_of_days),
-    );
+        let mut work_orders: WorkOrders = WorkOrders::default();
+        let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
 
-    let scheduling_environment =
-        SchedulingEnvironment::new(work_orders, worker_environment, time_environment);
-    Ok(scheduling_environment)
+        let strategic_periods: Vec<Period> =
+            create_periods(data_source.number_of_strategic_periods).unwrap_or_else(|_| {
+                panic!(
+                    "Could not create periods in {} at line {}",
+                    file!(),
+                    line!()
+                )
+            });
+
+        let tactical_periods: &Vec<Period> =
+            &strategic_periods.clone()[0..data_source.number_of_tactical_periods as usize].to_vec();
+
+        let first_period = strategic_periods.first().unwrap().clone();
+
+        let tactical_days = |number_of_days: u32| -> Vec<Day> {
+            let mut days: Vec<Day> = Vec::new();
+            let mut date = first_period.start_date().to_owned();
+            for day_index in 0..number_of_days {
+                days.push(Day::new(day_index as usize, date.to_owned()));
+                date = date.checked_add_days(Days::new(1)).unwrap();
+            }
+            days
+        };
+
+        populate_work_orders(&mut work_orders, &strategic_periods, sheet)
+            .expect("could not populate the work orders");
+
+        let time_environment = TimeEnvironment::new(
+            strategic_periods,
+            tactical_periods.to_vec(),
+            tactical_days(data_source.number_of_days),
+        );
+
+        let scheduling_environment =
+            SchedulingEnvironment::new(work_orders, worker_environment, time_environment);
+        Ok(scheduling_environment)
+    }
 }
 
 fn populate_work_orders<'a>(
@@ -1142,6 +1161,15 @@ fn extract_order_type_and_priority(
     .expect("Could not parse order type")
 }
 
+#[derive(Debug)]
+struct ExcelLoadError(String);
+
+impl fmt::Display for ExcelLoadError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ExcelLoadError: {}", self.0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -1167,33 +1195,32 @@ mod tests {
     }
 
     #[test]
-    fn test_load_data_file() {
+    fn test_create_scheduling_environment() {
         let file_path = Path::new("test_data/input-ordinator-complete-2024-04-10.xlsx");
-        let number_of_periods = 26;
+        let number_of_strategic_periods = 26;
         let number_of_tactical_periods = 4;
         let number_of_days = 56;
 
-        let scheduling_environment = load_data_file(
+        let total_excel: TotalExcel = TotalExcel {
             file_path,
-            number_of_periods,
+            number_of_strategic_periods,
             number_of_tactical_periods,
             number_of_days,
-        );
+        };
+
+        let scheduling_environment =
+            SchedulingEnvironment::create_scheduling_environment(total_excel.clone());
 
         assert_eq!(
             scheduling_environment
                 .unwrap()
                 .clone_strategic_periods()
                 .len(),
-            number_of_periods as usize
+            number_of_strategic_periods as usize
         );
 
-        let scheduling_environment = load_data_file(
-            file_path,
-            number_of_periods,
-            number_of_tactical_periods,
-            number_of_days,
-        );
+        let scheduling_environment =
+            SchedulingEnvironment::create_scheduling_environment(total_excel);
 
         let number_of_work_orders = scheduling_environment
             .as_ref()

@@ -1,2 +1,16 @@
 pub mod excel;
-//  pub mod excel_joins;
+
+use shared_messages::scheduling_environment::SchedulingEnvironment;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum SchedulingEnvironmentFactoryError {
+    #[error("error while creating SchedulingEnvironment from excel file")]
+    ExcelError(#[from] calamine::Error),
+}
+
+pub trait SchedulingEnvironmentFactory<DataSource> {
+    fn create_scheduling_environment(
+        data_source: DataSource,
+    ) -> Result<SchedulingEnvironment, SchedulingEnvironmentFactoryError>;
+}
