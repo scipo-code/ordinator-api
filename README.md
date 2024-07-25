@@ -6,6 +6,7 @@
       - [WorkerEnvironment](#workerenvironment)
       - [TimeEnvironment](#timeenvironment)
     - [[Orchestrator](scheduling_system/src/agents/orchestrator.rs)](#orchestratorschedulingsystemsrcagentsorchestratorrs)
+
     - [StrageticAgent](#strageticagent)
     - [TacticalAgent](#tacticalagent)
     - [SupervisorAgent](#supervisoragent)
@@ -63,6 +64,7 @@ pub trait SchedulingEnvironmentFactory<DataSource> {
 
 The SchedulingEnvironment is composed of three types which will briefly be explained here.
 #### [WorkOrders](shared_types/src/scheduling_environment/mod.rs);
+
 This types contains all needed information on all work orders (usually abbreviated WO). See the source code type
 for additional information. 
 
