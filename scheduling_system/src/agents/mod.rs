@@ -24,6 +24,10 @@ pub mod supervisor_agent;
 pub mod tactical_agent;
 pub mod traits;
 
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct ScheduleIteration {}
+
 #[allow(dead_code)]
 pub enum SetAddr {
     Strategic(Addr<StrategicAgent>),
@@ -36,7 +40,6 @@ impl Message for SetAddr {
     type Result = ();
 }
 
-#[allow(dead_code)]
 pub enum StateLink {
     Strategic(Vec<(WorkOrderNumber, Period)>),
     Tactical(Vec<(WorkOrderNumber, HashMap<ActivityNumber, OperationSolution>)>),
