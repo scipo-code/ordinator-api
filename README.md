@@ -85,26 +85,26 @@ The Orchestrator is has three main responsibilities
 * Manually change values in the [SchedulingEnvironment](shared_types/src/scheduling_environment/mod.rs) (Dangerous)
 * Control logging and tracing setting at runtime [LogHandles](scheduling_system/src/init/logging.rs)
 
-### StrageticAgent
+### [StrateticAgent](scheduling_system/src/agents/strategic_agent/mod.rs)
 The StrategicAgent schedules [WorkOrder](shared_types/src/scheduling_environment/work_order/mod.rs)s into weekly or biweekly periods based on a version of the multi-compartment multi-knapsack problem,
 which is solved using an implementation of the actor-based large neighborhood search meta-heuristic.  
 
-### TacticalAgent
+### [TacticalAgent](scheduling_system/src/agents/tactical_agent/mod.rs)
 The TacticalAgent schedules everything [WorkOrder](shared_types/src/scheduling_environment/work_order/mod.rs)s and their corresponding [Operation](shared_types/src/scheduling_environment/work_order/operation/mod.rs)s into daily time intervals
 specifying how many hours that an [Operation](shared_types/src/scheduling_environment/work_order/operation/mod.rs) should be worked on which day by which kind of skill. The [TacticalAgent] implements
 a [TacticalAlgorithm](scheduling_system/src/agents/tactical_agent/algorithm/mod.rs) that solve a version of a resource constrained project scheduling problem using an actor-based large neighborhood search
 meta-heuristic. 
 
-### SupervisorAgent
+### [SupervisorAgent](scheduling_system/src/agents/supervisor_agent/mod.rs)
 The [SupervisorAgent](scheduling_system/src/agents/supervisor_agent/mod.rs) can have multiple running instances simutaneously. The SupervisorAgent receives [WorkOrder](shared_types/src/scheduling_environment/work_order/mod.rs)s from
 the [TacticalAgent](scheduling_system/src/agents/tactical_agent/mod.rs) and is responsible for distributing them to individual [OperationalAgent](scheduling_system/src/agents/operational_agent/mod.rs)s it does this using 
 an iterative combinatorial auction algorithm which solves a version of the assignment problem.
 
-### OperationalAgent
+### [OperationalAgent](scheduling_system/src/agents/operational_agent/mod.rs)
 The [OperationalAgent](scheduling_system/src/agents/operational_agent/mod.rs) is the final level of the agent hierarchy. The [OperationalAgent](scheduling_system/src/agents/operational_agent/mod.rs) implements an actor-based large neighborhood search
 meta-heuristic 
 
-### Messages
+### [Messages](shared_types/src/lib.rs)
 To allow for efficient and effective communication between different parts of the system 
 
 #### [SystemMessages](shared_types/src/lib.rs)
