@@ -3,28 +3,28 @@ pub mod strategic_algorithm;
 
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborHoodSearch;
-use shared_messages::scheduling_environment::work_order::WorkOrderNumber;
-use shared_messages::scheduling_environment::SchedulingEnvironment;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use actix::prelude::*;
-use shared_messages::agent_error::AgentError;
-use shared_messages::scheduling_environment::worker_environment::resources::Resources;
-use shared_messages::strategic::strategic_request_status_message::StrategicStatusMessage;
-use shared_messages::strategic::strategic_response_periods::StrategicResponsePeriods;
-use shared_messages::strategic::strategic_response_scheduling::StrategicResponseScheduling;
-use shared_messages::strategic::strategic_response_status::OptimizedWorkOrderResponse;
-use shared_messages::strategic::strategic_response_status::StrategicResponseStatus;
-use shared_messages::strategic::strategic_response_status::WorkOrderResponse;
-use shared_messages::strategic::strategic_response_status::WorkOrdersStatus;
-use shared_messages::strategic::StrategicInfeasibleCases;
-use shared_messages::strategic::StrategicRequestMessage;
-use shared_messages::strategic::StrategicResources;
-use shared_messages::strategic::StrategicResponseMessage;
-use shared_messages::AlgorithmState;
-use shared_messages::Asset;
-use shared_messages::ConstraintState;
-use shared_messages::LoadOperation;
-use shared_messages::SolutionExportMessage;
+use shared_types::agent_error::AgentError;
+use shared_types::scheduling_environment::worker_environment::resources::Resources;
+use shared_types::strategic::strategic_request_status_message::StrategicStatusMessage;
+use shared_types::strategic::strategic_response_periods::StrategicResponsePeriods;
+use shared_types::strategic::strategic_response_scheduling::StrategicResponseScheduling;
+use shared_types::strategic::strategic_response_status::OptimizedWorkOrderResponse;
+use shared_types::strategic::strategic_response_status::StrategicResponseStatus;
+use shared_types::strategic::strategic_response_status::WorkOrderResponse;
+use shared_types::strategic::strategic_response_status::WorkOrdersStatus;
+use shared_types::strategic::StrategicInfeasibleCases;
+use shared_types::strategic::StrategicRequestMessage;
+use shared_types::strategic::StrategicResources;
+use shared_types::strategic::StrategicResponseMessage;
+use shared_types::AlgorithmState;
+use shared_types::Asset;
+use shared_types::ConstraintState;
+use shared_types::LoadOperation;
+use shared_types::SolutionExportMessage;
 use strum::IntoEnumIterator;
 use tracing::info;
 
@@ -570,10 +570,10 @@ impl TestAlgorithm for StrategicAgent {
 #[cfg(test)]
 mod tests {
 
-    use shared_messages::scheduling_environment::work_order::operation::ActivityNumber;
-    use shared_messages::strategic::strategic_request_scheduling_message::SingleWorkOrder;
-    use shared_messages::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
-    use shared_messages::strategic::Periods;
+    use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
+    use shared_types::strategic::strategic_request_scheduling_message::SingleWorkOrder;
+    use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
+    use shared_types::strategic::Periods;
     use tests::strategic_algorithm::optimized_work_orders::OptimizedWorkOrder;
     use tests::strategic_algorithm::optimized_work_orders::OptimizedWorkOrders;
 
@@ -582,13 +582,13 @@ mod tests {
     use std::str::FromStr;
 
     use super::{strategic_algorithm::PriorityQueues, *};
-    use shared_messages::scheduling_environment::worker_environment::resources::Resources;
+    use shared_types::scheduling_environment::worker_environment::resources::Resources;
 
-    use shared_messages::scheduling_environment::work_order::operation::Operation;
-    use shared_messages::scheduling_environment::work_order::*;
-    use shared_messages::scheduling_environment::WorkOrders;
+    use shared_types::scheduling_environment::work_order::operation::Operation;
+    use shared_types::scheduling_environment::work_order::*;
+    use shared_types::scheduling_environment::WorkOrders;
 
-    use shared_messages::scheduling_environment::time_environment::period::Period;
+    use shared_types::scheduling_environment::time_environment::period::Period;
 
     // #[test]
     // fn test_scheduler_agent_handle() {

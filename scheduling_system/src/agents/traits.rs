@@ -1,4 +1,4 @@
-use shared_messages::AlgorithmState;
+use shared_types::AlgorithmState;
 
 #[allow(dead_code)]
 pub trait LargeNeighborHoodSearch {

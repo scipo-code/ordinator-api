@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
 use rand::seq::SliceRandom;
-use shared_messages::{
+use shared_types::{
     agent_error::AgentError,
     operational::{
         operational_request_resource::OperationalResourceRequest,
@@ -892,7 +892,7 @@ fn equality_between_time_interval_and_assignments(all_events: Vec<&Assignment>) 
 mod tests {
     use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
     use proptest::prelude::*;
-    use shared_messages::{
+    use shared_types::{
         operational::{OperationalConfiguration, TimeInterval},
         scheduling_environment::worker_environment::availability::Availability,
     };

@@ -1,5 +1,5 @@
 use actix::prelude::*;
-use shared_messages::StatusMessage;
+use shared_types::StatusMessage;
 
 use super::TacticalAgent;
 
