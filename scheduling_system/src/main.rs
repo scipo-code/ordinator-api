@@ -16,7 +16,7 @@ use agents::orchestrator::Orchestrator;
 
 use crate::init::logging;
 use agents::orchestrator::ArcOrchestrator;
-use shared_messages::{scheduling_environment::SchedulingEnvironment, Asset};
+use shared_types::{scheduling_environment::SchedulingEnvironment, Asset};
 
 ///This is the entry point of the application.
 #[actix_web::main]

@@ -5,7 +5,7 @@ use std::{
 };
 
 use actix::prelude::*;
-use shared_messages::{
+use shared_types::{
     agent_error::AgentError,
     scheduling_environment::work_order::{operation::ActivityNumber, WorkOrderNumber},
     supervisor::{
@@ -15,10 +15,10 @@ use shared_messages::{
     AlgorithmState, Asset, ConstraintState, StatusMessage, StopMessage,
 };
 
-use shared_messages::scheduling_environment::worker_environment::resources::Id;
+use shared_types::scheduling_environment::worker_environment::resources::Id;
 use tracing::{error, instrument, warn};
 
-use shared_messages::scheduling_environment::SchedulingEnvironment;
+use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use self::algorithm::SupervisorAlgorithm;
 

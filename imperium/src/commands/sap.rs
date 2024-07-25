@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use shared_messages::SystemMessages;
+use shared_types::SystemMessages;
 
 #[derive(Subcommand, Debug)]
 pub enum SapCommands {

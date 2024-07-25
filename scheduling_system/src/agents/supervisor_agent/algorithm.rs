@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use shared_messages::{
+use shared_types::{
     agent_error::AgentError,
     scheduling_environment::{
         work_order::{operation::ActivityNumber, WorkOrderNumber},

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use clap::Subcommand;
 use reqwest::blocking::Client;
-use shared_messages::{
+use shared_types::{
     scheduling_environment::{time_environment::day::Day, worker_environment::resources::Resources},
     tactical::{
         tactical_resources_message::TacticalResourceRequest,
@@ -33,7 +33,7 @@ pub enum TacticalCommands {
 }
 
 impl TacticalCommands {
-    pub fn execute(&self, client: &Client) -> shared_messages::SystemMessages {
+    pub fn execute(&self, client: &Client) -> shared_types::SystemMessages {
         match self {
             TacticalCommands::Status { asset } => {
                 dbg!("TacticalAgent Status Message");

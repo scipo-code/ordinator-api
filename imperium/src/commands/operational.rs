@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use shared_messages::{
+use shared_types::{
     operational::{
         operational_request_status::OperationalStatusRequest, OperationalRequest,
         OperationalRequestMessage, OperationalTarget,
