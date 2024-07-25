@@ -24,10 +24,9 @@ use self::algorithm::SupervisorAlgorithm;
 
 use super::{
     operational_agent::{algorithm::OperationalObjective, OperationalAgent},
-    strategic_agent::ScheduleIteration,
     tactical_agent::{tactical_algorithm::OperationSolution, TacticalAgent},
     traits::TestAlgorithm,
-    SetAddr, StateLink, UpdateWorkOrderMessage,
+    ScheduleIteration, SetAddr, StateLink, UpdateWorkOrderMessage,
 };
 
 #[allow(dead_code)]

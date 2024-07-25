@@ -31,11 +31,10 @@ use crate::agents::{operational_agent::algorithm::OperationalParameter, StateLin
 use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
 
 use super::{
-    strategic_agent::ScheduleIteration,
     supervisor_agent::{Delegate, SupervisorAgent},
     tactical_agent::tactical_algorithm::OperationSolution,
     traits::{LargeNeighborHoodSearch, TestAlgorithm},
-    SetAddr, UpdateWorkOrderMessage,
+    ScheduleIteration, SetAddr, UpdateWorkOrderMessage,
 };
 
 #[allow(dead_code)]
