@@ -6,6 +6,7 @@
       - [WorkerEnvironment](#workerenvironment)
       - [TimeEnvironment](#timeenvironment)
     - [[Orchestrator]()](#orchestrator)
+
     - [StrageticAgent](#strageticagent)
     - [TacticalAgent](#tacticalagent)
     - [SupervisorAgent](#supervisoragent)
@@ -22,6 +23,7 @@
       - [TestRequest](#testrequest)
       - [OperationSolution](#operationsolution)
       - [StatusMessage](#statusmessage)
+
   - [Imperium](#imperium)
   - [Tracing](#tracing)
 - [Profiling and benchmarking](#profiling-and-benchmarking)
@@ -53,6 +55,7 @@ get the latest state in a scalable way and write to shared memory without corrup
 from company data meaning that there is a specific implementation for each data source(s) that has (have) to
 implement the following trait: 
 
+
 ```rust
 pub trait SchedulingEnvironmentFactory<DataSource> {
     fn create_scheduling_environment(
@@ -63,6 +66,7 @@ pub trait SchedulingEnvironmentFactory<DataSource> {
 
 The SchedulingEnvironment is composed of three types which will briefly be explained here.
 #### [WorkOrders](shared_types/scheduling_environment/work_orders/mod.rs);
+
 This types contains all needed information on all work orders (usually abbreviated WO). See the source code type
 for additional information. 
 
