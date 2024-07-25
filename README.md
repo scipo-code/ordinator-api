@@ -65,7 +65,7 @@ pub trait SchedulingEnvironmentFactory<DataSource> {
 ```
 
 The SchedulingEnvironment is composed of three types which will briefly be explained here.
-#### [WorkOrders](shared_types/src/scheduling_environment/work_orders/mod.rs);
+#### [WorkOrders](shared_types/src/scheduling_environment/mod.rs);
 This types contains all needed information on all work orders (usually abbreviated WO). See the source code type
 for additional information. 
 
