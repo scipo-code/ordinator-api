@@ -2,14 +2,28 @@
 - [Ordinator](#ordinator)
   - [Important High Level Types](#important-high-level-types)
     - [SchedulingEnvironment](#schedulingenvironment)
-      - [WorkOrders](#workorders)
+      - [[WorkOrders](shared_types/scheduling_environment/work_orders/mod.rs);](#workorderssharedtypesschedulingenvironmentworkordersmodrs)
       - [WorkerEnvironment](#workerenvironment)
       - [TimeEnvironment](#timeenvironment)
-    - [Orchestrator](#orchestrator)
+    - [[Orchestrator]()](#orchestrator)
+
     - [StrageticAgent](#strageticagent)
     - [TacticalAgent](#tacticalagent)
     - [SupervisorAgent](#supervisoragent)
     - [OperationalAgent](#operationalagent)
+    - [Messages](#messages)
+      - [[SystemMessages]()](#systemmessages)
+      - [[SystemResponses]()](#systemresponses)
+      - [[StateLink]()](#statelink)
+      - [[SetAddr]()](#setaddr)
+      - [StopMessage](#stopmessage)
+      - [ScheduleIteration](#scheduleiteration)
+      - [UpdateWorkOrder](#updateworkorder)
+      - [SolutionExportMessage](#solutionexportmessage)
+      - [TestRequest](#testrequest)
+      - [OperationSolution](#operationsolution)
+      - [StatusMessage](#statusmessage)
+
   - [Imperium](#imperium)
   - [Tracing](#tracing)
 - [Profiling and benchmarking](#profiling-and-benchmarking)
@@ -20,7 +34,7 @@
 # Ordinator
 Ordinator is a multi-agent scheduling system. The system is based on agents
 that each schedule a specific part of the scheduling process in real-time and then communicates 
-their solutions to each other and to the user of the system in the form of RESTful API endpoints.
+their solutions to each other and to the users of the system exposed in the form of RESTful API endpoints.
 
 The real-time responsiveness of the systems means that each agent in the scheduling process will be 
 able to react to incoming information from the system whenever and whereever it arrives in the 
@@ -28,12 +42,19 @@ scheduling process.
 
 
 ## Important High Level Types
-
+This section is to help understand the inner workings of Ordinator, to better allow developers to contribute to 
+the code base.
 
 ### SchedulingEnvironment
-This SchedulingEnvironment is implemented as the memory blackboard. The SchedulingEnvironment is initialized
+When manual decisions are made by a user through one of the specific agent instances, the SchedulingEnvironment
+will be updated to reflect the latest available knowledge. The other agents of the system then updates 
+their states and delivers new solution based the best available knowledge from the scheduling environment. 
+
+The SchedulingEnvironment is implemented as the memory blackboard pattern, this enable all the agents of the system to remain
+get the latest state in a scalable way and write to shared memory without corrupting state when writing. The SchedulingEnvironment is initialized
 from company data meaning that there is a specific implementation for each data source(s) that has (have) to
-implement the trait 
+implement the following trait: 
+
 
 ```rust
 pub trait SchedulingEnvironmentFactory<DataSource> {
@@ -42,12 +63,10 @@ pub trait SchedulingEnvironmentFactory<DataSource> {
     ) -> Result<SchedulingEnvironment, SchedulingEnvironmentFactoryError>;
 }   
 ```
-When manual decisions are made by a user through one of the specific agent types the SchedulingEnvironment
-will be updated to reflect the latest available knowledge. The other agents of the system then updates 
-their states and delivers new solution based the best available knowledge from the scheduling environment. 
 
-The SchedulingEnvironment is composed of three main types which will briefly be explained here.
-#### WorkOrders
+The SchedulingEnvironment is composed of three types which will briefly be explained here.
+#### [WorkOrders](shared_types/scheduling_environment/work_orders/mod.rs);
+
 This types contains all needed information on all work orders (usually abbreviated WO). See the source code type
 for additional information. 
 
