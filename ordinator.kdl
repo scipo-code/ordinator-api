@@ -11,12 +11,12 @@ layout {
 				pane size="30%" split_direction="vertical" {
 					pane size="15%" name="Ordinator watch" {	
 			  			command "cargo"
-			      		args "watch" "-w" "scheduling_system" "-w" "shared_messages" "-x" "run --bin scheduling_system -- $ORDINATOR_INPUT"
+			      		args "watch" "-w" "scheduling_system" "-w" "shared_types" "-x" "run --bin scheduling_system -- $ORDINATOR_INPUT"
 		    	  		cwd "$ORDINATOR_PATH"
 		    		}
 			    	pane size="3%" name="Imperium watch"{
 		    	  		command "cargo"
-		      			args "watch" "-w" "imperium/" "-w" "shared_messages/"  "-x" "build --release --bin imperium"
+		      			args "watch" "-w" "imperium/" "-w" "shared_types/"  "-x" "build --release --bin imperium"
 		      			cwd "$ORDINATOR_PATH"
 			    	}
 			    	pane size="2%" name="clear logs" {

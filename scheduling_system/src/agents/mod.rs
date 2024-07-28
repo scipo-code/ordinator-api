@@ -50,6 +50,13 @@ pub enum StateLink {
 impl Message for StateLink {
     type Result = ();
 }
+
+pub enum EnteringState<T> {
+    Present,
+    New(T),
+    Obselete(T),
+}
+
 #[derive(Clone)]
 pub struct UpdateWorkOrderMessage(pub WorkOrderNumber);
 

@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use futures::SinkExt;
 use shared_types::{
     agent_error::AgentError,
     scheduling_environment::{
@@ -57,6 +56,15 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
             .iter()
             .flat_map(|(wo, activities)| activities.keys().map(|key| (*wo, *key)))
             .collect();
+
+        // So the issue here is that there can be more assign work orders than all_woas. This probably comes from the
+        // fact that the woas are updated correctly and the assign is not. This whole setup means that the code should
+        // work so that the supervisor updates the state of each of his OperationalAgents in response to the message
+        // that he receives from his. Okay we should fix this first and call an assert.
+        assert!(assigned_woas
+            .iter()
+            .map(|aw| all_woas.contains(aw))
+            .all(|present_woa| present_woa));
 
         self.supervisor_algorithm.objective_value =
             assigned_woas.len() as f64 / all_woas.len() as f64;
