@@ -25,8 +25,8 @@ use self::algorithm::SupervisorAlgorithm;
 use super::{
     operational_agent::{algorithm::OperationalObjective, OperationalAgent},
     tactical_agent::{tactical_algorithm::OperationSolution, TacticalAgent},
-    traits::TestAlgorithm,
-    ScheduleIteration, SetAddr, StateLink, UpdateWorkOrderMessage,
+    traits::{LargeNeighborHoodSearch, TestAlgorithm},
+    EnteringState, ScheduleIteration, SetAddr, StateLink, UpdateWorkOrderMessage,
 };
 
 #[allow(dead_code)]
@@ -60,6 +60,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     type Result = ();
 
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
+        self.calculate_objective_value();
         for (work_order_number, operations) in &self.assigned_work_orders {
             // Sync here
 
@@ -236,7 +237,38 @@ impl Handler<StateLink> for SupervisorAgent {
         match state_link {
             StateLink::Strategic(_) => {}
             StateLink::Tactical(tactical_supervisor_link) => {
+                // Does the nested structure even make sense here? I think that a better way would be
+                // to flatten the structure, but I am not sure of the implications.
+
                 self.assigned_work_orders = tactical_supervisor_link;
+
+                let supervisor_set: HashSet<(WorkOrderNumber, ActivityNumber)> = self
+                    .assigned_work_orders
+                    .iter()
+                    .map(|(won, acs)| acs.iter().map(|(acn, _)| (won, acn)))
+                    .collect::<HashSet<_>>();
+                let tactical_set = tactical_supervisor_link.iter().collect::<HashSet<_>>();
+
+                // The SupervisorAgent will have to call back all the work orders that he "losing"
+                // In what way should this be handled? I think that the we should find all the
+                // work orders that are leaving. There must be a better way of doing this in a decentralized way
+                // I think that the best approach would be to make something that will allow us to
+                // I think that the API here should be different, you should not just be allowed to
+                // overwrite important fields like this. All the required methods should be called to
+                // update the state correctly through the whole system.
+
+                // In general I think that simply overwriting a field with no update method is a little dangerous
+
+                // for (tactical_work_order_number, tactical_activities) in tactical_supervisor_link {
+                //     for tactical_activity in tactical_activities {
+                //         let entering_state: EnteringState = if self.assigned_work_orders.iter().any(|(sup_wo, _)| wo == tactical_work_order_number)) {
+                //             EnteringState::Present,
+                //         } else if !self.assigned_work_orders.iter().any(|(sup_wo, _|) sup_wo == tactical_work_order_number) {
+                //             EnteringState::new((WorkOrderNumber, ActivityNumber, OperationSolution))
+                //         } else if self.assigned_work_orders
+
+                //     }
+                // }
             }
             StateLink::Supervisor(_) => {}
             StateLink::Operational(operational_solution) => {
