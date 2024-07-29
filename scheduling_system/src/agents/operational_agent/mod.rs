@@ -30,11 +30,13 @@ use crate::agents::{operational_agent::algorithm::OperationalParameter, StateLin
 
 use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
 
-use super::{
-    supervisor_agent::{Delegate, SupervisorAgent},
-    traits::{LargeNeighborHoodSearch, TestAlgorithm},
-    ScheduleIteration, SetAddr, StateLinkError, UpdateWorkOrderMessage,
-};
+use super::supervisor_agent::{Delegate, SupervisorAgent};
+use super::traits::LargeNeighborHoodSearch;
+use super::traits::TestAlgorithm;
+use super::ScheduleIteration;
+use super::SetAddr;
+use super::StateLinkError;
+use super::UpdateWorkOrderMessage;
 
 #[allow(dead_code)]
 pub struct OperationalAgent {

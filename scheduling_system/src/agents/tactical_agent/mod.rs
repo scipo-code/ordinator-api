@@ -3,6 +3,7 @@ pub mod tactical_algorithm;
 
 use actix::prelude::*;
 use shared_types::agent_error::AgentError;
+use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::tactical::tactical_response_status::TacticalResponseStatus;
@@ -12,7 +13,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{info, instrument, warn};
 
-use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
+use crate::agents::tactical_agent::tactical_algorithm::{OperationSolution, TacticalAlgorithm};
 use crate::agents::SetAddr;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::SchedulingEnvironment;
@@ -99,20 +100,24 @@ impl Handler<ScheduleIteration> for TacticalAgent {
             self.tactical_algorithm = temporary_schedule;
 
             self.supervisor_addrs.iter().for_each(|(id, addr)| {
-                let mut work_orders_to_supervisor = vec![];
+                let mut work_orders_to_supervisor: Vec<(
+                    WorkOrderNumber,
+                    ActivityNumber,
+                    OperationSolution,
+                )> = vec![];
                 self.tactical_algorithm
                     .optimized_work_orders()
                     .iter()
                     .for_each(|(work_order_number, optimized_work_order)| {
                         if id.2.as_ref().unwrap() == &optimized_work_order.main_work_center {
-                            work_orders_to_supervisor.push((
-                                *work_order_number,
-                                optimized_work_order
-                                    .operation_solutions
-                                    .as_ref()
-                                    .unwrap()
-                                    .clone(),
-                            ))
+                            for (acn, os) in optimized_work_order
+                                .operation_solutions
+                                .as_ref()
+                                .unwrap()
+                                .clone()
+                            {
+                                work_orders_to_supervisor.push((*work_order_number, acn, os))
+                            }
                         }
                     });
 

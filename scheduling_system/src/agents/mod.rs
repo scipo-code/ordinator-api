@@ -43,17 +43,9 @@ impl Message for SetAddr {
 /// Agent types creating a mesh of communication pathways that are still
 /// statically typed.
 pub enum StateLink<S, T, Su, O> {
-    // This one is for the Strategic -> Tactical
-    // Strategic(Vec<(WorkOrderNumber, Period)>),
     Strategic(S),
-    // This one is for the Tactical -> Supervisor
-    // Tactical(Vec<(WorkOrderNumber, HashMap<ActivityNumber, OperationSolution>)>),
     Tactical(T),
-    // This one is for the Supervisor -> Operational
-    // Supervisor(Delegate),
     Supervisor(Su),
-    // This one is backwards and is for the Operational -> Supervisor
-    // Operational(((Id, WorkOrderNumber, ActivityNumber), OperationalObjective)),
     Operational(O),
 }
 
