@@ -1,11 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use shared_types::{
     agent_error::AgentError,
-    scheduling_environment::{
-        work_order::{operation::ActivityNumber, WorkOrderNumber},
-        worker_environment::resources::Id,
-    },
+    scheduling_environment::work_order::{operation::ActivityNumber, WorkOrderNumber},
     supervisor::{
         supervisor_response_resources::SupervisorResponseResources,
         supervisor_response_scheduling::SupervisorResponseScheduling,
@@ -21,21 +18,6 @@ pub struct SupervisorSchedulingRequest;
 pub struct SupervisorResourceRequest;
 pub struct SupervisorTimeRequest;
 
-#[allow(dead_code)]
-pub struct SupervisorAlgorithm {
-    pub objective_value: f64,
-    pub assigned_activities_by_agent: HashMap<Id, Vec<(WorkOrderNumber, ActivityNumber)>>,
-}
-
-impl SupervisorAlgorithm {
-    pub fn new() -> Self {
-        Self {
-            objective_value: f64::INFINITY,
-            assigned_activities_by_agent: HashMap::new(),
-        }
-    }
-}
-
 impl LargeNeighborHoodSearch for SupervisorAgent {
     type SchedulingRequest = SupervisorSchedulingRequest;
     type SchedulingResponse = SupervisorResponseScheduling;
@@ -49,12 +31,13 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
     type Error = AgentError;
 
     fn calculate_objective_value(&mut self) {
-        let assigned_woas = &self.assigned_to_operational_agents;
+        let assigned_woas = &self.supervisor_algorithm.assigned_to_operational_agents;
 
         let all_woas: HashSet<_> = self
+            .supervisor_algorithm
             .assigned_work_orders
             .iter()
-            .flat_map(|(wo, activities)| activities.keys().map(|key| (*wo, *key)))
+            .map(|(wo, activities, _os)| (wo, activities))
             .collect();
 
         // So the issue here is that there can be more assign work orders than all_woas. This probably comes from the
@@ -63,7 +46,7 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
         // that he receives from his. Okay we should fix this first and call an assert.
         assert!(assigned_woas
             .iter()
-            .map(|aw| all_woas.contains(aw))
+            .map(|(wo, ac)| all_woas.contains(&(wo, ac)))
             .all(|present_woa| present_woa));
 
         self.supervisor_algorithm.objective_value =
