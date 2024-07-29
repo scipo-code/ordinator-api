@@ -7,7 +7,10 @@ use std::{
 use actix::prelude::*;
 use shared_types::{
     agent_error::AgentError,
-    scheduling_environment::work_order::{operation::ActivityNumber, WorkOrderNumber},
+    scheduling_environment::{
+        work_order::{operation::ActivityNumber, WorkOrderNumber},
+        worker_environment::resources::Resources,
+    },
     supervisor::{
         supervisor_response_status::SupervisorResponseStatus, SupervisorInfeasibleCases,
         SupervisorRequestMessage, SupervisorResponseMessage,
@@ -26,7 +29,7 @@ use super::{
     operational_agent::{algorithm::OperationalObjective, OperationalAgent},
     tactical_agent::{tactical_algorithm::OperationSolution, TacticalAgent},
     traits::{LargeNeighborHoodSearch, TestAlgorithm},
-    EnteringState, ScheduleIteration, SetAddr, StateLink, UpdateWorkOrderMessage,
+    EnteringState, ScheduleIteration, SetAddr, StateLink, StateLinkError, UpdateWorkOrderMessage,
 };
 
 #[allow(dead_code)]
@@ -34,6 +37,29 @@ pub struct SupervisorAgent {
     id_supervisor: Id,
     asset: Asset,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
+    // It is in this place that we need to fix the mess. What is it actually that is missing here?
+    // I think that we should create something that will allow us to centralize more.
+    // I think that the operational agents is the primary obstacle here. We should change the construction
+    // here so that we only have have one thing here. I primary goal here is to keep everything orthogonal
+    // What would that look like? I think that the best option is to create something
+    //
+    // What would a HashMap<(Option<Id>, WorkOrderNumber, ActivityNumber), Option<OperationalObjective>
+    // mean? I actually think that could be a good idea. It would remove a lot of complexity. I should also
+    // keep in mind that the approach forward is to implement auction algorithms so a subgoal will be to make something
+    // that will align with this as well.
+    // There is also the constraint on the data structure coming from the sequencing problem.
+    // The main issues here is that the Types are considerably different and that either they should
+    // be made the same or a strong API should be created.
+
+    // What should I do here? I think that the best course of action will be to make this
+    // You will learn a lot by solving this problem. I think that you simply need to work on solving it
+    // You do not need to read about it. I think, the code sends out job
+
+    // To uniquely identify a bid we need Id, WorkOrderNumber, and ActivityNumber.
+    // The Option OperationalObjective, specifies if the WOA for ID is scheduled or not and what the
+    // objective is. The problem with this data structure is that it is difficult to tell which
+    // WOA the supervisor have in his state. It is also, also the assigned_to_operational_agent is
+    // difficult as it only tells which WOA are assigned
     assigned_work_orders: Vec<(WorkOrderNumber, HashMap<ActivityNumber, OperationSolution>)>,
     operational_solutions:
         HashMap<(Id, WorkOrderNumber, ActivityNumber), Option<OperationalObjective>>,
@@ -42,6 +68,11 @@ pub struct SupervisorAgent {
     tactical_agent_addr: Addr<TacticalAgent>,
     operational_agent_addrs: HashMap<Id, Addr<OperationalAgent>>,
 }
+
+// The type needed here will require significant effort to derive. I think that the best approach
+// It should have a list of all assigned WOAs this is a given. I think that the
+
+// Does the SupervisorAgent even need to have the OperationSolution?
 
 impl Actor for SupervisorAgent {
     type Context = Context<Self>;
@@ -62,9 +93,8 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
         self.calculate_objective_value();
         for (work_order_number, operations) in &self.assigned_work_orders {
-            // Sync here
-
-            let mut all_messages: Vec<Request<OperationalAgent, OperationSolution>> = vec![];
+            let mut all_messages: Vec<Request<OperationalAgent, StateLink<_, _, Delegate, _>>> =
+                vec![];
             for (activity_number, operation_solution) in operations {
                 // send a message to each relevant agent
                 if !self
@@ -73,7 +103,9 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
                 {
                     for (id, operational_addr) in &self.operational_agent_addrs {
                         if id.1.contains(&operation_solution.resource) {
-                            all_messages.push(operational_addr.send(operation_solution.clone()));
+                            all_messages.push(operational_addr.send(StateLink::Supervisor(
+                                Delegate::Assess(operation_solution.clone()),
+                            )));
                             self.operational_solutions
                                 .entry((
                                     id.clone(),
@@ -134,7 +166,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
                     for toa in top_operational_agents {
                         messages_to_operational_agents.push(
                             self.operational_agent_addrs.get(toa.1 .0).unwrap().send(
-                                StateLink::Supervisor(Delegate::Keep((
+                                StateLink::Supervisor(Delegate::Assign((
                                     *work_order_number,
                                     *activity_number,
                                 ))),
@@ -169,8 +201,9 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 }
 
 pub enum Delegate {
-    Keep((WorkOrderNumber, ActivityNumber)),
+    Assign((WorkOrderNumber, ActivityNumber)),
     Drop((WorkOrderNumber, ActivityNumber)),
+    Assess(OperationSolution),
 }
 
 impl Message for Delegate {
@@ -229,51 +262,86 @@ impl Handler<SetAddr> for SupervisorAgent {
     }
 }
 
-impl Handler<StateLink> for SupervisorAgent {
-    type Result = ();
+type StrategicMessage = ();
+type TacticalMessage = Vec<(WorkOrderNumber, HashMap<ActivityNumber, OperationSolution>)>;
+type SupervisorMessage = ();
+type OperationalMessage = ((Id, WorkOrderNumber, ActivityNumber), OperationalObjective);
+
+impl Handler<StateLink<StrategicMessage, TacticalMessage, SupervisorMessage, OperationalMessage>>
+    for SupervisorAgent
+{
+    type Result = Result<(), StateLinkError>;
 
     #[instrument(level = "trace", skip_all)]
-    fn handle(&mut self, state_link: StateLink, _ctx: &mut Self::Context) {
+    fn handle(
+        &mut self,
+        state_link: StateLink<
+            StrategicMessage,
+            TacticalMessage,
+            SupervisorMessage,
+            OperationalMessage,
+        >,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
         match state_link {
-            StateLink::Strategic(_) => {}
+            StateLink::Strategic(_) => Ok(()),
             StateLink::Tactical(tactical_supervisor_link) => {
                 // Does the nested structure even make sense here? I think that a better way would be
                 // to flatten the structure, but I am not sure of the implications.
 
-                self.assigned_work_orders = tactical_supervisor_link;
-
-                let supervisor_set: HashSet<(WorkOrderNumber, ActivityNumber)> = self
+                let supervisor_set: HashSet<(WorkOrderNumber, ActivityNumber, Resources)> = self
                     .assigned_work_orders
                     .iter()
-                    .map(|(won, acs)| acs.iter().map(|(acn, _)| (won, acn)))
+                    .flat_map(|(won, acs)| {
+                        acs.iter()
+                            .map(|(acn, os)| (*won, *acn, os.resource.clone()))
+                    })
+                    .collect();
+
+                let tactical_set: HashSet<(WorkOrderNumber, ActivityNumber, Resources)> =
+                    tactical_supervisor_link
+                        .iter()
+                        .flat_map(|(won, acs)| {
+                            acs.iter()
+                                .map(|(acn, os)| (*won, *acn, os.resource.clone()))
+                        })
+                        .collect::<HashSet<_>>();
+
+                let present_woas = supervisor_set
+                    .intersection(&tactical_set)
                     .collect::<HashSet<_>>();
-                let tactical_set = tactical_supervisor_link.iter().collect::<HashSet<_>>();
 
-                // The SupervisorAgent will have to call back all the work orders that he "losing"
-                // In what way should this be handled? I think that the we should find all the
-                // work orders that are leaving. There must be a better way of doing this in a decentralized way
-                // I think that the best approach would be to make something that will allow us to
-                // I think that the API here should be different, you should not just be allowed to
-                // overwrite important fields like this. All the required methods should be called to
-                // update the state correctly through the whole system.
+                let leaving_woas = supervisor_set
+                    .difference(&tactical_set)
+                    .collect::<HashSet<_>>();
 
-                // In general I think that simply overwriting a field with no update method is a little dangerous
+                let entering_woas = tactical_set
+                    .difference(&supervisor_set)
+                    .collect::<HashSet<_>>();
 
-                // for (tactical_work_order_number, tactical_activities) in tactical_supervisor_link {
-                //     for tactical_activity in tactical_activities {
-                //         let entering_state: EnteringState = if self.assigned_work_orders.iter().any(|(sup_wo, _)| wo == tactical_work_order_number)) {
-                //             EnteringState::Present,
-                //         } else if !self.assigned_work_orders.iter().any(|(sup_wo, _|) sup_wo == tactical_work_order_number) {
-                //             EnteringState::new((WorkOrderNumber, ActivityNumber, OperationSolution))
-                //         } else if self.assigned_work_orders
+                for leaving_woa in &leaving_woas {
+                    for (operational_agent, addr) in &self.operational_agent_addrs {
+                        if operational_agent.1.contains(&leaving_woa.2) {
+                            let leaving_message = StateLink::Supervisor(Delegate::Drop((
+                                leaving_woa.0,
+                                leaving_woa.1,
+                            )));
+                            addr.do_send(leaving_message);
+                        }
+                    }
 
-                //     }
-                // }
+                    self.assigned_to_operational_agents
+                        .remove(&(leaving_woa.0, leaving_woa.1));
+                    // Put entering_woas here
+                }
+                self.assigned_work_orders = tactical_supervisor_link;
+                Ok(())
             }
-            StateLink::Supervisor(_) => {}
+            StateLink::Supervisor(_) => Ok(()),
             StateLink::Operational(operational_solution) => {
                 self.operational_solutions
                     .insert(operational_solution.0, Some(operational_solution.1));
+                Ok(())
             }
         }
     }
