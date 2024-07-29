@@ -1,14 +1,7 @@
-#[derive(Debug)]
+use thiserror::Error;
+#[derive(Debug, Error)]
+
 pub enum AgentError {
+    #[error("Request to update agent state failed {0}")]
     StateUpdateError(String),
 }
-
-impl std::fmt::Display for AgentError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match *self {
-            AgentError::StateUpdateError(ref err) => write!(f, "State update error: {}", err),
-        }
-    }
-}
-
-impl std::error::Error for AgentError {}

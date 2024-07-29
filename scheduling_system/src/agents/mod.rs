@@ -1,20 +1,11 @@
-use std::collections::HashMap;
-
 use actix::{Addr, Message};
-use operational_agent::algorithm::OperationalObjective;
-use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
 use shared_types::scheduling_environment::{
     work_order::WorkOrderNumber, worker_environment::resources::Id,
 };
 
-use shared_types::scheduling_environment::time_environment::period::Period;
-
-use self::supervisor_agent::Delegate;
 use self::{
-    operational_agent::OperationalAgent,
-    strategic_agent::StrategicAgent,
-    supervisor_agent::SupervisorAgent,
-    tactical_agent::{tactical_algorithm::OperationSolution, TacticalAgent},
+    operational_agent::OperationalAgent, strategic_agent::StrategicAgent,
+    supervisor_agent::SupervisorAgent, tactical_agent::TacticalAgent,
 };
 
 pub mod operational_agent;
@@ -40,16 +31,37 @@ impl Message for SetAddr {
     type Result = ();
 }
 
-pub enum StateLink {
-    Strategic(Vec<(WorkOrderNumber, Period)>),
-    Tactical(Vec<(WorkOrderNumber, HashMap<ActivityNumber, OperationSolution>)>),
-    Supervisor(Delegate),
-    Operational(((Id, WorkOrderNumber, ActivityNumber), OperationalObjective)),
+/// The StateLink is a generic type that each type of Agent will implement.
+/// The generics mean:
+///     S: Strategic
+///     T: Tactical
+///     Su: Supervisor
+///     O: Operational
+/// This means that each Agent in the system will need to implement how to
+/// understand messages from the other Agents in their own unique way.
+/// This allows us to get custom implementations for each of the
+/// Agent types creating a mesh of communication pathways that are still
+/// statically typed.
+pub enum StateLink<S, T, Su, O> {
+    // This one is for the Strategic -> Tactical
+    // Strategic(Vec<(WorkOrderNumber, Period)>),
+    Strategic(S),
+    // This one is for the Tactical -> Supervisor
+    // Tactical(Vec<(WorkOrderNumber, HashMap<ActivityNumber, OperationSolution>)>),
+    Tactical(T),
+    // This one is for the Supervisor -> Operational
+    // Supervisor(Delegate),
+    Supervisor(Su),
+    // This one is backwards and is for the Operational -> Supervisor
+    // Operational(((Id, WorkOrderNumber, ActivityNumber), OperationalObjective)),
+    Operational(O),
 }
 
-impl Message for StateLink {
-    type Result = ();
+impl<S, T, Su, O> Message for StateLink<S, T, Su, O> {
+    type Result = Result<(), StateLinkError>;
 }
+
+pub struct StateLinkError;
 
 pub enum EnteringState<T> {
     Present,

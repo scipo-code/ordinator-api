@@ -32,9 +32,8 @@ use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
 
 use super::{
     supervisor_agent::{Delegate, SupervisorAgent},
-    tactical_agent::tactical_algorithm::OperationSolution,
     traits::{LargeNeighborHoodSearch, TestAlgorithm},
-    ScheduleIteration, SetAddr, UpdateWorkOrderMessage,
+    ScheduleIteration, SetAddr, StateLinkError, UpdateWorkOrderMessage,
 };
 
 #[allow(dead_code)]
@@ -204,52 +203,6 @@ impl Handler<ScheduleIteration> for OperationalAgent {
     }
 }
 
-impl Handler<OperationSolution> for OperationalAgent {
-    type Result = bool;
-
-    fn handle(
-        &mut self,
-        operation_solution: OperationSolution,
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
-        let scheduling_environment = self.scheduling_environment.lock().unwrap();
-
-        let operation: &Operation = scheduling_environment.operation(
-            &operation_solution.work_order_number,
-            &operation_solution.activity_number,
-        );
-
-        let (start_datetime, end_datetime) =
-            self.determine_start_and_finish_times(&operation_solution.scheduled);
-
-        let operational_parameter = if operation.work_remaining() > 0.0 {
-            OperationalParameter::new(
-                operation.work_remaining(),
-                operation.operation_analytic.preparation_time,
-                start_datetime,
-                end_datetime,
-            )
-        } else {
-            return false;
-        };
-        self.assigned.insert(
-            (
-                operation_solution.work_order_number,
-                operation_solution.activity_number,
-            ),
-            false,
-        );
-
-        self.operational_algorithm.insert_optimized_operation(
-            operation_solution.work_order_number,
-            operation_solution.activity_number,
-            operational_parameter,
-        );
-        info!(id = ?self.id_operational, operation = ?operation_solution);
-        true
-    }
-}
-
 pub struct OperationalAgentBuilder(OperationalAgent);
 
 impl OperationalAgentBuilder {
@@ -307,15 +260,26 @@ impl OperationalAgentBuilder {
     }
 }
 
-impl Handler<StateLink> for OperationalAgent {
-    type Result = ();
+type StrategicMessage = ();
+type TacticalMessage = ();
+type SupervisorMessage = Delegate;
+type OperationalMessage = ();
 
-    fn handle(&mut self, msg: StateLink, _ctx: &mut Self::Context) -> Self::Result {
+impl Handler<StateLink<StrategicMessage, TacticalMessage, SupervisorMessage, OperationalMessage>>
+    for OperationalAgent
+{
+    type Result = Result<(), StateLinkError>;
+
+    fn handle(
+        &mut self,
+        msg: StateLink<StrategicMessage, TacticalMessage, SupervisorMessage, OperationalMessage>,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
         match msg {
             StateLink::Strategic(_) => todo!(),
             StateLink::Tactical(_) => todo!(),
             StateLink::Supervisor(delegate) => match delegate {
-                Delegate::Keep((work_order_number, activity_number)) => {
+                Delegate::Assign((work_order_number, activity_number)) => {
                     self.assigned
                         .insert((work_order_number, activity_number), true);
 
@@ -329,12 +293,24 @@ impl Handler<StateLink> for OperationalAgent {
                     {
                         operational_solution.2.as_mut().unwrap().assigned = true;
                     }
+                    Ok(())
                 }
                 Delegate::Drop((work_order_number, activity_number)) => {
                     assert!(self
                         .assigned
                         .contains_key(&(work_order_number, activity_number)));
+
+                    assert!(self
+                        .operational_algorithm
+                        .operational_solutions
+                        .0
+                        .iter()
+                        .any(|(won, acn, _)| {
+                            *won == work_order_number && *acn == activity_number
+                        }));
+
                     self.assigned.remove(&(work_order_number, activity_number));
+
                     let number_of_os = self.operational_algorithm.operational_solutions.0.len();
                     self.operational_algorithm
                         .operational_solutions
@@ -346,6 +322,44 @@ impl Handler<StateLink> for OperationalAgent {
                         self.operational_algorithm.operational_solutions.0.len(),
                         number_of_os - 1
                     );
+                    Ok(())
+                }
+                Delegate::Assess(operation_solution) => {
+                    let scheduling_environment = self.scheduling_environment.lock().unwrap();
+
+                    let operation: &Operation = scheduling_environment.operation(
+                        &operation_solution.work_order_number,
+                        &operation_solution.activity_number,
+                    );
+
+                    let (start_datetime, end_datetime) =
+                        self.determine_start_and_finish_times(&operation_solution.scheduled);
+
+                    let operational_parameter = if operation.work_remaining() > 0.0 {
+                        OperationalParameter::new(
+                            operation.work_remaining(),
+                            operation.operation_analytic.preparation_time,
+                            start_datetime,
+                            end_datetime,
+                        )
+                    } else {
+                        return Err(StateLinkError);
+                    };
+                    self.assigned.insert(
+                        (
+                            operation_solution.work_order_number,
+                            operation_solution.activity_number,
+                        ),
+                        false,
+                    );
+
+                    self.operational_algorithm.insert_optimized_operation(
+                        operation_solution.work_order_number,
+                        operation_solution.activity_number,
+                        operational_parameter,
+                    );
+                    info!(id = ?self.id_operational, operation = ?operation_solution);
+                    Ok(())
                 }
             },
             StateLink::Operational(_) => todo!(),
