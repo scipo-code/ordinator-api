@@ -17,7 +17,7 @@ use shared_types::{
         worker_environment::availability::Availability,
     },
 };
-use tracing::debug;
+use tracing::{debug, trace};
 
 use crate::agents::traits::LargeNeighborHoodSearch;
 
@@ -55,7 +55,6 @@ impl OperationalAlgorithm {
         }
     }
 
-    #[allow(dead_code)]
     pub fn insert_optimized_operation(
         &mut self,
         work_order_number: WorkOrderNumber,
@@ -183,15 +182,15 @@ impl OperationalFunctions for OperationalSolutions {
 
             let end_of_solution_window = operational_solution.1.start_time();
 
-            debug!(start_window = ?start_of_solution_window);
-            debug!(
+            trace!(start_window = ?start_of_solution_window);
+            trace!(
                 first_assignment = ?assignments
                     .first()
                     .expect("No Assignment in the OperationalSolution")
                     .start,
             );
-            debug!(last_assignment = ?assignments.last().unwrap().finish);
-            debug!(end_window = ?end_of_solution_window);
+            trace!(last_assignment = ?assignments.last().unwrap().finish);
+            trace!(end_window = ?end_of_solution_window);
 
             if start_of_solution_window
                 < assignments
@@ -485,11 +484,11 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             wrench_time + break_time + off_shift_time + toolbox_time + non_productive_time;
         assert_eq!(total_time, self.availability.duration());
 
-        debug!(wrench_time = ?wrench_time);
-        debug!(wrench_time = ?wrench_time);
-        debug!(break_time = ?break_time);
-        debug!(toolbox_time = ?toolbox_time);
-        debug!(non_productive_time = ?non_productive_time);
+        trace!(wrench_time = ?wrench_time);
+        trace!(wrench_time = ?wrench_time);
+        trace!(break_time = ?break_time);
+        trace!(toolbox_time = ?toolbox_time);
+        trace!(non_productive_time = ?non_productive_time);
         let value = (wrench_time).num_seconds() as f64
             / (wrench_time + break_time + toolbox_time + non_productive_time).num_seconds() as f64;
 
@@ -506,7 +505,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
             self.operational_solutions
                 .try_insert(*operation_id, assignments);
-            debug!(number_of_operations = ?self.operational_solutions.0.len());
+            trace!(number_of_operations = ?self.operational_solutions.0.len());
         }
 
         // fill the schedule

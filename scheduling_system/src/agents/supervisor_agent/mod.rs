@@ -19,9 +19,10 @@ use shared_types::{
 };
 
 use shared_types::scheduling_environment::worker_environment::resources::Id;
-use tracing::{error, instrument, warn};
+use tracing::{debug, error, event, instrument, span, warn, Instrument, Level};
 
 use shared_types::scheduling_environment::SchedulingEnvironment;
+use uuid::Uuid;
 
 use super::{
     operational_agent::{algorithm::OperationalObjective, OperationalAgent},
@@ -47,7 +48,11 @@ struct SupervisorAlgorithm {
     operational_solutions:
         HashMap<(Id, WorkOrderNumber, ActivityNumber), Option<OperationalObjective>>,
 }
-
+// Okay so what are the priorities here? Is it really important to refactor this code? I think that
+// I have prepared the code well for a potential API that will make it easier to work with.
+// I think that this need to be done in the right way.
+// What is the functionality that we want here? I think that it is something like a
+//
 // The type needed here will require significant effort to derive. I think that the best approach
 // It should have a list of all assigned WOAs this is a given. I think that the
 
@@ -147,24 +152,31 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 
                 let mut messages_to_operational_agents = vec![];
                 for toa in top_operational_agents {
+                    let message = StateLink::Supervisor(Delegate::Assign((
+                        *work_order_number,
+                        *activity_number,
+                    )));
+                    event!(Level::DEBUG, message = ?message, "Delegate::Assign");
                     messages_to_operational_agents.push(
-                        self.operational_agent_addrs.get(toa.1 .0).unwrap().send(
-                            StateLink::Supervisor(Delegate::Assign((
-                                *work_order_number,
-                                *activity_number,
-                            ))),
-                        ),
+                        self.operational_agent_addrs
+                            .get(toa.1 .0)
+                            .unwrap()
+                            .send(message),
                     );
                 }
 
                 for roa in remaining_operational_agents {
+                    let message = StateLink::Supervisor(Delegate::Drop((
+                        *work_order_number,
+                        *activity_number,
+                    )));
+
+                    debug!(message = ?message, "message before the Delegate::Drop by lossing WOA");
                     messages_to_operational_agents.push(
-                        self.operational_agent_addrs.get(roa.1 .0).unwrap().send(
-                            StateLink::Supervisor(Delegate::Drop((
-                                *work_order_number,
-                                *activity_number,
-                            ))),
-                        ),
+                        self.operational_agent_addrs
+                            .get(roa.1 .0)
+                            .unwrap()
+                            .send(message),
                     );
                 }
 
@@ -183,6 +195,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     }
 }
 
+#[derive(Debug)]
 pub enum Delegate {
     Assign((WorkOrderNumber, ActivityNumber)),
     Drop((WorkOrderNumber, ActivityNumber)),
