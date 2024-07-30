@@ -42,6 +42,7 @@ impl Message for SetAddr {
 /// This allows us to get custom implementations for each of the
 /// Agent types creating a mesh of communication pathways that are still
 /// statically typed.
+#[derive(Debug)]
 pub enum StateLink<S, T, Su, O> {
     Strategic(S),
     Tactical(T),
