@@ -2,7 +2,7 @@ use std::env;
 use std::fs::File;
 use std::io::BufWriter;
 use tracing::{event, Level};
-use tracing_appender::non_blocking::NonBlocking;
+use tracing_appender::non_blocking::{NonBlocking, WorkerGuard};
 use tracing_flame::FlameLayer;
 use tracing_subscriber::filter::{EnvFilter, Filtered};
 use tracing_subscriber::fmt::format::{Format, Json, JsonFields};
@@ -21,7 +21,7 @@ pub struct LogHandles {
     pub flame_handle: Handle<ProfilingLayer, Registry>,
 }
 
-pub fn setup_logging() -> LogHandles {
+pub fn setup_logging() -> (LogHandles, WorkerGuard) {
     let log_dir = env::var("ORDINATOR_LOG_DIR").unwrap_or("./logging/logs".to_string());
     let file_appender = tracing_appender::rolling::daily(log_dir, "ordinator.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
@@ -46,8 +46,9 @@ pub fn setup_logging() -> LogHandles {
     tracing_subscriber::registry().with(layers).init();
 
     event!(Level::INFO, "starting loging");
-    LogHandles {
+    let log_handles = LogHandles {
         file_handle,
         flame_handle,
-    }
+    };
+    (log_handles, _guard)
 }

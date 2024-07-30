@@ -24,7 +24,7 @@ use shared_types::scheduling_environment::{
     work_order::operation::Operation, SchedulingEnvironment,
 };
 
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::agents::{operational_agent::algorithm::OperationalParameter, StateLink};
 
@@ -302,26 +302,29 @@ impl Handler<StateLink<StrategicMessage, TacticalMessage, SupervisorMessage, Ope
                         .assigned
                         .contains_key(&(work_order_number, activity_number)));
 
+                    debug!(work_order_number = ?work_order_number, activity_number = ?activity_number);
                     assert!(self
                         .operational_algorithm
-                        .operational_solutions
-                        .0
-                        .iter()
-                        .any(|(won, acn, _)| {
+                        .operational_parameters
+                        .keys()
+                        .any(|(won, acn)| {
                             *won == work_order_number && *acn == activity_number
                         }));
 
                     self.assigned.remove(&(work_order_number, activity_number));
 
-                    let number_of_os = self.operational_algorithm.operational_solutions.0.len();
+                    let number_of_os = self.operational_algorithm.operational_parameters.len();
                     self.operational_algorithm
                         .operational_solutions
                         .0
                         .retain(|element| {
                             !(element.0 == work_order_number && element.1 == activity_number)
                         });
+                    self.operational_algorithm
+                        .operational_parameters
+                        .remove(&(work_order_number, activity_number));
                     assert_eq!(
-                        self.operational_algorithm.operational_solutions.0.len(),
+                        self.operational_algorithm.operational_parameters.len(),
                         number_of_os - 1
                     );
                     Ok(())

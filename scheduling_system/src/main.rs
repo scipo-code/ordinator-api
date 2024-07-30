@@ -23,7 +23,7 @@ use shared_types::{scheduling_environment::SchedulingEnvironment, Asset};
 async fn main() -> Result<(), io::Error> {
     dotenvy::dotenv().unwrap();
 
-    let log_handles = logging::setup_logging();
+    let (log_handles, _logging_guard) = logging::setup_logging();
 
     let database_path_string = &env::var("DATABASE_PATH").expect("Could not read database path");
 
