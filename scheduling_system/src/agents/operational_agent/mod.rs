@@ -24,7 +24,7 @@ use shared_types::scheduling_environment::{
     work_order::operation::Operation, SchedulingEnvironment,
 };
 
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 use crate::agents::{operational_agent::algorithm::OperationalParameter, StateLink};
 
@@ -44,7 +44,7 @@ pub struct OperationalAgent {
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     operational_algorithm: OperationalAlgorithm,
     capacity: Option<f32>,
-    assigned: HashMap<(WorkOrderNumber, ActivityNumber), Assigned>,
+    // assigned: HashMap<(WorkOrderNumber, ActivityNumber), Assigned>,
     backup_activities: Option<HashMap<u32, Operation>>,
     operational_configuration: OperationalConfiguration,
     supervisor_agent_addr: Addr<SupervisorAgent>,
@@ -220,7 +220,6 @@ impl OperationalAgentBuilder {
             scheduling_environment,
             operational_algorithm,
             capacity: None,
-            assigned: HashMap::new(),
             backup_activities: None,
             operational_configuration,
             supervisor_agent_addr,
@@ -230,15 +229,6 @@ impl OperationalAgentBuilder {
     #[allow(dead_code)]
     pub fn with_capacity(mut self, capacity: f32) -> Self {
         self.0.capacity = Some(capacity);
-        self
-    }
-
-    #[allow(dead_code)]
-    pub fn with_assigned(
-        mut self,
-        assigned: HashMap<(WorkOrderNumber, ActivityNumber), Assigned>,
-    ) -> Self {
-        self.0.assigned = assigned;
         self
     }
 
@@ -254,7 +244,6 @@ impl OperationalAgentBuilder {
             scheduling_environment: self.0.scheduling_environment,
             operational_algorithm: self.0.operational_algorithm,
             capacity: self.0.capacity,
-            assigned: self.0.assigned,
             backup_activities: self.0.backup_activities,
             operational_configuration: self.0.operational_configuration,
             supervisor_agent_addr: self.0.supervisor_agent_addr,
@@ -272,19 +261,22 @@ impl Handler<StateLink<StrategicMessage, TacticalMessage, SupervisorMessage, Ope
 {
     type Result = Result<(), StateLinkError>;
 
+    #[instrument(skip_all, fields(state_link = ?state_link))]
     fn handle(
         &mut self,
-        msg: StateLink<StrategicMessage, TacticalMessage, SupervisorMessage, OperationalMessage>,
+        state_link: StateLink<
+            StrategicMessage,
+            TacticalMessage,
+            SupervisorMessage,
+            OperationalMessage,
+        >,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
-        match msg {
+        match state_link {
             StateLink::Strategic(_) => todo!(),
             StateLink::Tactical(_) => todo!(),
             StateLink::Supervisor(delegate) => match delegate {
                 Delegate::Assign((work_order_number, activity_number)) => {
-                    self.assigned
-                        .insert((work_order_number, activity_number), true);
-
                     let operational_solutions =
                         &mut self.operational_algorithm.operational_solutions;
 
@@ -298,11 +290,7 @@ impl Handler<StateLink<StrategicMessage, TacticalMessage, SupervisorMessage, Ope
                     Ok(())
                 }
                 Delegate::Drop((work_order_number, activity_number)) => {
-                    assert!(self
-                        .assigned
-                        .contains_key(&(work_order_number, activity_number)));
-
-                    debug!(work_order_number = ?work_order_number, activity_number = ?activity_number);
+                    info!(work_order_number = ?work_order_number, activity_number = ?activity_number);
                     assert!(self
                         .operational_algorithm
                         .operational_parameters
@@ -310,8 +298,6 @@ impl Handler<StateLink<StrategicMessage, TacticalMessage, SupervisorMessage, Ope
                         .any(|(won, acn)| {
                             *won == work_order_number && *acn == activity_number
                         }));
-
-                    self.assigned.remove(&(work_order_number, activity_number));
 
                     let number_of_os = self.operational_algorithm.operational_parameters.len();
                     self.operational_algorithm
@@ -348,15 +334,13 @@ impl Handler<StateLink<StrategicMessage, TacticalMessage, SupervisorMessage, Ope
                             end_datetime,
                         )
                     } else {
-                        return Err(StateLinkError);
+                        error!("Actor did not incorporate the right state, but supervisor thought that it did");
+                        return Err(StateLinkError(
+                            Some(self.id_operational.clone()),
+                            Some(operation_solution.work_order_number),
+                            Some(operation_solution.activity_number),
+                        ));
                     };
-                    self.assigned.insert(
-                        (
-                            operation_solution.work_order_number,
-                            operation_solution.activity_number,
-                        ),
-                        false,
-                    );
 
                     self.operational_algorithm.insert_optimized_operation(
                         operation_solution.work_order_number,
@@ -384,7 +368,7 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
             OperationalRequestMessage::Status(_) => {
                 let operational_response_status = OperationalStatusResponse::new(
                     self.id_operational.clone(),
-                    self.assigned.len(),
+                    self.operational_algorithm.operational_parameters.len(),
                     self.operational_algorithm.objective_value,
                 );
                 Ok(OperationalResponseMessage::Status(
