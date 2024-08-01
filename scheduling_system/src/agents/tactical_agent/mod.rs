@@ -100,11 +100,10 @@ impl Handler<ScheduleIteration> for TacticalAgent {
             self.tactical_algorithm = temporary_schedule;
 
             self.supervisor_addrs.iter().for_each(|(id, addr)| {
-                let mut work_orders_to_supervisor: Vec<(
-                    WorkOrderNumber,
-                    ActivityNumber,
+                let mut work_orders_to_supervisor: HashMap<
+                    (WorkOrderNumber, ActivityNumber),
                     OperationSolution,
-                )> = vec![];
+                > = HashMap::new();
                 self.tactical_algorithm
                     .optimized_work_orders()
                     .iter()
@@ -116,7 +115,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
                                 .unwrap()
                                 .clone()
                             {
-                                work_orders_to_supervisor.push((*work_order_number, acn, os))
+                                work_orders_to_supervisor.insert((*work_order_number, acn), os);
                             }
                         }
                     });

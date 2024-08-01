@@ -74,6 +74,7 @@ pub struct OperationSolution {
     pub scheduled: Vec<(Day, f64)>,
     pub resource: Resources,
     pub number: NumberOfPeople,
+    pub work_remaining: f64,
     pub work_order_number: WorkOrderNumber,
     pub activity_number: ActivityNumber,
 }
@@ -83,6 +84,7 @@ impl OperationSolution {
         scheduled: Vec<(Day, f64)>,
         resource: Resources,
         number: NumberOfPeople,
+        work_remaining: f64,
         work_order_number: WorkOrderNumber,
         activity_number: ActivityNumber,
     ) -> OperationSolution {
@@ -90,6 +92,7 @@ impl OperationSolution {
             scheduled,
             resource,
             number,
+            work_remaining,
             work_order_number,
             activity_number,
         }
@@ -497,6 +500,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     activity_load,
                     resource,
                     operation_parameters.number,
+                    operation_parameters.work_remaining,
                     current_work_order_number,
                     *activity,
                 );
@@ -942,6 +946,7 @@ pub mod tests {
             vec![(tactical_algorithm.tactical_days[27].clone(), 1.0)],
             Resources::MtnMech,
             operation_parameter.number,
+            operation_parameter.work_remaining,
             work_order_number,
             activity_number,
         );
