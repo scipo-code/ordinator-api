@@ -1,7 +1,12 @@
 use actix::{Addr, Message};
 use shared_types::scheduling_environment::{
-    work_order::WorkOrderNumber, worker_environment::resources::Id,
+    work_order::{
+        operation::{ActivityNumber, Operation},
+        WorkOrderNumber,
+    },
+    worker_environment::resources::Id,
 };
+use tracing::Span;
 
 use self::{
     operational_agent::OperationalAgent, strategic_agent::StrategicAgent,
@@ -43,6 +48,12 @@ impl Message for SetAddr {
 /// Agent types creating a mesh of communication pathways that are still
 /// statically typed.
 #[derive(Debug)]
+pub struct StateLinkWrapper<S, T, Su, O> {
+    state_link: StateLink<S, T, Su, O>,
+    span: Span,
+}
+
+#[derive(Debug)]
 pub enum StateLink<S, T, Su, O> {
     Strategic(S),
     Tactical(T),
@@ -54,7 +65,7 @@ impl<S, T, Su, O> Message for StateLink<S, T, Su, O> {
     type Result = Result<(), StateLinkError>;
 }
 
-pub struct StateLinkError;
+pub struct StateLinkError(Option<Id>, Option<WorkOrderNumber>, Option<ActivityNumber>);
 
 pub enum EnteringState<T> {
     Present,

@@ -9,6 +9,7 @@ use shared_types::{
         supervisor_response_time::SupervisorResponseTime,
     },
 };
+use tracing::instrument;
 
 use crate::agents::traits::LargeNeighborHoodSearch;
 
@@ -36,18 +37,11 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
         let all_woas: HashSet<_> = self
             .supervisor_algorithm
             .assigned_work_orders
-            .iter()
-            .map(|(wo, activities, _os)| (wo, activities))
+            .keys()
+            .cloned()
             .collect();
 
-        // So the issue here is that there can be more assign work orders than all_woas. This probably comes from the
-        // fact that the woas are updated correctly and the assign is not. This whole setup means that the code should
-        // work so that the supervisor updates the state of each of his OperationalAgents in response to the message
-        // that he receives from his. Okay we should fix this first and call an assert.
-        assert!(assigned_woas
-            .iter()
-            .map(|(wo, ac)| all_woas.contains(&(wo, ac)))
-            .all(|present_woa| present_woa));
+        assert!(is_assigned_part_of_all(assigned_woas, &all_woas));
 
         self.supervisor_algorithm.objective_value =
             assigned_woas.len() as f64 / all_woas.len() as f64;
@@ -81,4 +75,15 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
     ) -> Result<Self::ResourceResponse, Self::Error> {
         todo!()
     }
+}
+
+#[instrument(level = "info", ret)]
+fn is_assigned_part_of_all(
+    assigned_woas: &HashSet<(WorkOrderNumber, ActivityNumber)>,
+    all_woas: &HashSet<(WorkOrderNumber, ActivityNumber)>,
+) -> bool {
+    assigned_woas
+        .iter()
+        .map(|(wo, ac)| all_woas.contains(&(*wo, *ac)))
+        .all(|present_woa| present_woa)
 }
