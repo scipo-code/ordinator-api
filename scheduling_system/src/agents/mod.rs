@@ -1,6 +1,6 @@
 use actix::{Addr, Message};
 use shared_types::scheduling_environment::{
-    work_order::{operation::ActivityNumber, WorkOrderActivity, WorkOrderNumber},
+    work_order::{WorkOrderActivity, WorkOrderNumber},
     worker_environment::resources::Id,
 };
 use tracing::Span;

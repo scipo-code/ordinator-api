@@ -153,8 +153,9 @@ impl Actor for OperationalAgent {
             algorithm::Unavailability::End,
             &self.operational_configuration.availability,
         );
-        let unavailability_start_event = OperationalSolution::new(true, vec![start_event]);
-        let unavailability_end_event = OperationalSolution::new(true, vec![end_event]);
+        let unavailability_start_event =
+            OperationalSolution::new(Delegate::Fixed, vec![start_event]);
+        let unavailability_end_event = OperationalSolution::new(Delegate::Fixed, vec![end_event]);
 
         self.operational_algorithm.operational_solutions.0.push((
             WorkOrderNumber(0),
@@ -201,10 +202,12 @@ impl Handler<ScheduleIteration> for OperationalAgent {
                 let state_link = StateLink::Operational((
                     (
                         self.id_operational.clone(),
-                        operational_solution.0,
-                        operational_solution.1,
+                        (operational_solution.0, operational_solution.1),
                     ),
-                    self.operational_algorithm.objective_value,
+                    (
+                        operational_solution.2.clone().unwrap().assigned,
+                        self.operational_algorithm.objective_value,
+                    ),
                 ));
 
                 let span = span!(Level::INFO, "operational_agent_span", state_link = ?state_link);
@@ -305,7 +308,7 @@ impl
                         .iter_mut()
                         .find(|os| os.0 == work_order_number && os.1 == activity_number)
                     {
-                        operational_solution.2.as_mut().unwrap().assigned = true;
+                        operational_solution.2.as_mut().unwrap().assigned = delegate;
                     }
                     Ok(())
                 }
@@ -339,10 +342,10 @@ impl
                     let scheduling_environment = self.scheduling_environment.lock().unwrap();
 
                     let operation: &Operation =
-                        scheduling_environment.operation(&operation_solution.work_order_activity);
+                        scheduling_environment.operation(&operation_solution.0);
 
                     let (start_datetime, end_datetime) =
-                        self.determine_start_and_finish_times(&operation_solution.scheduled);
+                        self.determine_start_and_finish_times(&operation_solution.1.as_ref().expect("An Delegate::Assess was received in an OperationalAgent without a OperationSolution.").scheduled);
 
                     let operational_parameter = if operation.work_remaining() > 0.0 {
                         OperationalParameter::new(
@@ -355,16 +358,17 @@ impl
                         error!("Actor did not incorporate the right state, but supervisor thought that it did");
                         return Err(StateLinkError(
                             Some(self.id_operational.clone()),
-                            Some(operation_solution.work_order_activity),
+                            Some(operation_solution.0),
                         ));
                     };
 
-                    self.operational_algorithm.insert_optimized_operation(
-                        operation_solution.work_order_activity,
-                        operational_parameter,
-                    );
+                    self.operational_algorithm
+                        .insert_optimized_operation(operation_solution.0, operational_parameter);
                     info!(id = ?self.id_operational, operation = ?operation_solution);
                     Ok(())
+                }
+                Delegate::Fixed => {
+                    todo!()
                 }
             },
             StateLink::Operational(_) => todo!(),
