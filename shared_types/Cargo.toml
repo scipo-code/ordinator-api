@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+tracing = "0"
 steel-derive = { git="https://github.com/mattwparas/steel.git", branch = "master" }
 steel-core = { git="https://github.com/mattwparas/steel.git", branch = "master" }
 serde = { version = "1", features = ["derive"] }
