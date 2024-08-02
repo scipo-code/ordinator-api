@@ -8,7 +8,7 @@ use shared_types::{
         time_environment::day::Day,
         work_order::{
             operation::{operation_info::NumberOfPeople, ActivityNumber},
-            WorkOrderAnalytic, WorkOrderNumber,
+            WorkOrderActivity, WorkOrderAnalytic, WorkOrderNumber,
         },
         worker_environment::resources::{MainResources, Resources},
     },
