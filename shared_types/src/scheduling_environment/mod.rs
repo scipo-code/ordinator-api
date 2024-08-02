@@ -13,7 +13,7 @@ use crate::scheduling_environment::work_order::WorkOrder;
 use crate::scheduling_environment::worker_environment::WorkerEnvironment;
 
 use self::time_environment::TimeEnvironment;
-use self::work_order::operation::{ActivityNumber, Operation};
+use self::work_order::operation::Operation;
 use self::work_order::{WorkOrderActivity, WorkOrderNumber};
 
 #[derive(Deserialize, Serialize, Debug)]
