@@ -57,10 +57,16 @@ pub struct OperationalState(
     HashMap<(Id, WorkOrderActivity), (Delegate, Option<OperationalObjective>)>,
 );
 
-/// This is a fundamental type.
+/// This is a fundamental type. Where should we input the OperationalObjective? I think that keeping the
+/// code clean of these kind of things is exactly what is needed to make this work.
 impl OperationalState {
-    fn insert_delegate(&mut self, key: (Id, WorkOrderActivity), delegate: Delegate) {
-        let previous_delegate = self.0.insert(key.clone(), (delegate, None));
+    fn insert_delegate(
+        &mut self,
+        key: (Id, WorkOrderActivity),
+        delegate: Delegate,
+        objective: Option<OperationalObjective>,
+    ) {
+        let previous_delegate = self.0.insert(key.clone(), (delegate, objective));
 
         match previous_delegate {
             Some(delegate_objective) => {
@@ -84,8 +90,8 @@ impl OperationalState {
     fn number_of_assigned_work_orders(&self) -> HashSet<WorkOrderActivity> {
         self.0
             .iter()
-            .filter(|(key, val)| val.0.is_assign())
-            .map(|(key, val)| key.1)
+            .filter(|(_, val)| val.0.is_assign())
+            .map(|(key, _)| key.1)
             .collect()
     }
 
@@ -101,7 +107,7 @@ impl OperationalState {
     ) -> Vec<(Id, Option<OperationalObjective>)> {
         self.0
             .iter()
-            .filter(|(key, val)| key.1 == work_order_activity)
+            .filter(|(key, _)| key.1 == work_order_activity)
             .map(|(key, val)| (key.0.clone(), val.1))
             .collect()
     }
@@ -163,9 +169,11 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 
                         let key = (id.clone(), operation_solution.work_order_activity);
 
-                        self.supervisor_algorithm
-                            .operational_state
-                            .insert_delegate(key.clone(), delegate);
+                        self.supervisor_algorithm.operational_state.insert_delegate(
+                            key.clone(),
+                            delegate,
+                            None,
+                        );
                     }
                     // self.operational_agent_addrs;
                 }
@@ -270,9 +278,11 @@ impl SupervisorAgent {
 
                     let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
 
-                    self.supervisor_algorithm
-                        .operational_state
-                        .insert_delegate((toa.1 .0.clone(), *work_order_activity), delegate);
+                    self.supervisor_algorithm.operational_state.insert_delegate(
+                        (toa.1 .0.clone(), *work_order_activity),
+                        delegate,
+                        toa.1 .1,
+                    );
 
                     messages_to_operational_agents.push(
                         self.operational_agent_addrs
@@ -304,9 +314,11 @@ impl SupervisorAgent {
 
                     debug!(message = ?message, "message before the Delegate::Drop by lossing WOA");
 
-                    self.supervisor_algorithm
-                        .operational_state
-                        .insert_delegate((roa.1 .0.clone(), *work_order_activity), delegate);
+                    self.supervisor_algorithm.operational_state.insert_delegate(
+                        (roa.1 .0.clone(), *work_order_activity),
+                        delegate,
+                        roa.1 .1,
+                    );
 
                     messages_to_operational_agents.push(
                         self.operational_agent_addrs
@@ -452,7 +464,7 @@ impl
                             warn!("leaving work order");
                             self.supervisor_algorithm
                                 .operational_state
-                                .remove_delegate(&(*operational_agent, *leaving_woa));
+                                .remove_delegate(&(operational_agent.clone(), *leaving_woa));
 
                             let state_link = StateLink::Supervisor(Delegate::Drop((
                                 leaving_woa.0,
@@ -485,9 +497,11 @@ impl
                             }
                             let delegate =
                                 Delegate::Assess((*entering_woa, Some(operation_solution.clone())));
-                            self.supervisor_algorithm
-                                .operational_state
-                                .insert_delegate(key.clone(), delegate.clone());
+                            self.supervisor_algorithm.operational_state.insert_delegate(
+                                key.clone(),
+                                delegate.clone(),
+                                None,
+                            );
                             let state_link = StateLink::Supervisor(delegate);
                             let assess_message = StateLinkWrapper::new(state_link, span.clone());
 
@@ -526,9 +540,11 @@ impl
             }
             StateLink::Supervisor(_) => Ok(()),
             StateLink::Operational(operational_solution) => {
-                self.supervisor_algorithm
-                    .operational_state
-                    .insert_delegate(operational_solution.0, Some(operational_solution.1));
+                self.supervisor_algorithm.operational_state.insert_delegate(
+                    operational_solution.0,
+                    operational_solution.1 .0,
+                    Some(operational_solution.1 .1),
+                );
                 Ok(())
             }
         }
@@ -578,25 +594,14 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
             }
 
             SupervisorRequestMessage::Scheduling(scheduling_message) => {
-                self.supervisor_algorithm
-                    .assigned_to_operational_agents
-                    .insert((
-                        scheduling_message.work_order_number,
-                        scheduling_message.activity_number,
-                    ));
-
-                *self
-                    .supervisor_algorithm
-                    .operational_state
-                    .get_mut(&(
+                self.supervisor_algorithm.operational_state.insert_delegate(
+                    (
                         scheduling_message.id_operational,
-                        scheduling_message.work_order_number,
-                        scheduling_message.activity_number,
-                    ))
-                    .unwrap() = Delegate::Assign((
-                    scheduling_message.work_order_number,
-                    scheduling_message.activity_number,
-                ));
+                        scheduling_message.work_order_activity,
+                    ),
+                    Delegate::Assign(scheduling_message.work_order_activity),
+                    None,
+                );
 
                 // I think that I will get a lot of issues if I do not handle all state management through the
                 // self.operational_state. I think that I should simply go with that data structure and wrap it

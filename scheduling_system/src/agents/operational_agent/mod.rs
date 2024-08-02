@@ -52,8 +52,6 @@ pub struct OperationalAgent {
     supervisor_agent_addr: Addr<SupervisorAgent>,
 }
 
-type Assigned = bool;
-
 impl OperationalAgent {
     fn determine_start_and_finish_times(
         &self,
