@@ -110,7 +110,7 @@ pub fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
 
         Commands::Supervisor {
             supervisor_commands,
-        } => supervisor_commands.execute(),
+        } => supervisor_commands.execute(client),
         Commands::Operational {
             operational_commands,
         } => operational_commands.execute(),

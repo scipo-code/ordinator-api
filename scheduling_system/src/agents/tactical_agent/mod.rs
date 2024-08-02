@@ -11,7 +11,7 @@ use shared_types::tactical::{TacticalRequestMessage, TacticalResponseMessage};
 use shared_types::{Asset, SolutionExportMessage};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tracing::{info, instrument, warn};
+use tracing::{info, instrument, span, warn, Level};
 
 use crate::agents::tactical_agent::tactical_algorithm::{OperationSolution, TacticalAlgorithm};
 use crate::agents::SetAddr;
@@ -21,7 +21,9 @@ use shared_types::scheduling_environment::SchedulingEnvironment;
 use super::strategic_agent::StrategicAgent;
 use super::supervisor_agent::SupervisorAgent;
 use super::traits::{LargeNeighborHoodSearch, TestAlgorithm};
-use super::{ScheduleIteration, StateLink, StateLinkError, UpdateWorkOrderMessage};
+use super::{
+    ScheduleIteration, StateLink, StateLinkError, StateLinkWrapper, UpdateWorkOrderMessage,
+};
 
 #[allow(dead_code)]
 pub struct TacticalAgent {
@@ -119,8 +121,13 @@ impl Handler<ScheduleIteration> for TacticalAgent {
                             }
                         }
                     });
+                let state_link = StateLink::Tactical(work_orders_to_supervisor);
 
-                addr.do_send(StateLink::Tactical(work_orders_to_supervisor));
+                let span = span!(Level::INFO, "tactical_supervisor", state_link = ?state_link);
+                let _enter = span.enter();
+                let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
+
+                addr.do_send(state_link_wrapper);
             });
             info!(tactical_objective_value = %self.tactical_algorithm.get_objective_value());
         };
@@ -171,7 +178,7 @@ type OperationalMessage = ();
 
 impl
     Handler<
-        StateLink<
+        StateLinkWrapper<
             Vec<(WorkOrderNumber, Period)>,
             TacticalMessage,
             SupervisorMessage,
@@ -184,11 +191,19 @@ impl
 
     fn handle(
         &mut self,
-        msg: StateLink<StrategicMessage, TacticalMessage, SupervisorMessage, OperationalMessage>,
+        state_link_wrapper: StateLinkWrapper<
+            StrategicMessage,
+            TacticalMessage,
+            SupervisorMessage,
+            OperationalMessage,
+        >,
         _ctx: &mut Context<Self>,
     ) -> Self::Result {
         let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
-        match msg {
+        let state_link = state_link_wrapper.state_link;
+        let _enter = state_link_wrapper.span.enter();
+
+        match state_link {
             // Strategic(Vec<(WorkOrderNumber, Period)>),
             StateLink::Strategic(strategic_state) => {
                 let work_orders = scheduling_environment_guard.work_orders().clone();

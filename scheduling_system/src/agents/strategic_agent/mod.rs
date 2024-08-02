@@ -26,7 +26,10 @@ use shared_types::ConstraintState;
 use shared_types::LoadOperation;
 use shared_types::SolutionExportMessage;
 use strum::IntoEnumIterator;
+use tracing::event;
 use tracing::info;
+use tracing::span;
+use tracing::Level;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -43,6 +46,7 @@ use super::traits::TestAlgorithm;
 use super::ScheduleIteration;
 use super::SetAddr;
 use super::StateLink;
+use super::StateLinkWrapper;
 use super::UpdateWorkOrderMessage;
 
 pub struct StrategicAgent {
@@ -82,6 +86,8 @@ impl StrategicAgent {
     }
 
     pub fn update_tactical_agent(&self) {
+        let span = span!(Level::INFO, "strategic_tactical_state_link");
+        let _enter = span.enter();
         let locked_scheduling_environment = self.scheduling_environment.lock().unwrap();
 
         let tactical_periods = locked_scheduling_environment.tactical_periods();
@@ -91,7 +97,12 @@ impl StrategicAgent {
 
         match &self.tactical_agent_addr {
             Some(tactical_agent_addr) => {
-                tactical_agent_addr.do_send(StateLink::Strategic(tactical_work_orders));
+                let state_link = StateLink::Strategic(tactical_work_orders);
+
+                event!(Level::INFO, state_link = ?state_link);
+                let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
+
+                tactical_agent_addr.do_send(state_link_wrapper);
             }
             None => {
                 error!(
