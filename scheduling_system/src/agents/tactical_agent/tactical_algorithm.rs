@@ -8,7 +8,7 @@ use shared_types::{
         time_environment::day::Day,
         work_order::{
             operation::{operation_info::NumberOfPeople, ActivityNumber},
-            WorkOrderNumber,
+            WorkOrderAnalytic, WorkOrderNumber,
         },
         worker_environment::resources::{MainResources, Resources},
     },
@@ -75,8 +75,7 @@ pub struct OperationSolution {
     pub resource: Resources,
     pub number: NumberOfPeople,
     pub work_remaining: f64,
-    pub work_order_number: WorkOrderNumber,
-    pub activity_number: ActivityNumber,
+    pub work_order_activity: WorkOrderActivity,
 }
 
 impl OperationSolution {
@@ -93,8 +92,7 @@ impl OperationSolution {
             resource,
             number,
             work_remaining,
-            work_order_number,
-            activity_number,
+            work_order_activity: (work_order_number, activity_number),
         }
     }
 }

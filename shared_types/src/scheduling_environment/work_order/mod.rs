@@ -42,6 +42,8 @@ use super::time_environment::period::Period;
 #[derive(Debug, Copy, Clone, PartialOrd, Ord, Hash, PartialEq, Eq)]
 pub struct WorkOrderNumber(pub u32);
 
+pub type WorkOrderActivity = (WorkOrderNumber, ActivityNumber);
+
 impl From<u32> for WorkOrderNumber {
     fn from(value: u32) -> Self {
         WorkOrderNumber(value)

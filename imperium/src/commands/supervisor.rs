@@ -3,19 +3,14 @@ use std::io::Read;
 use clap::{Args, Subcommand};
 use reqwest::blocking::Client;
 use shared_types::{
-    scheduling_environment::{
-        work_order::{operation::ActivityNumber, WorkOrderNumber},
-        worker_environment::resources::{Id, MainResources},
-    },
+    scheduling_environment::worker_environment::resources::{Id, MainResources},
     supervisor::{
-        supervisor_scheduling_message::{self, SupervisorSchedulingMessage},
-        supervisor_status_message::SupervisorStatusMessage,
-        SupervisorRequest, SupervisorRequestMessage,
+        supervisor_scheduling_message::SupervisorSchedulingMessage,
+        supervisor_status_message::SupervisorStatusMessage, SupervisorRequest,
+        SupervisorRequestMessage,
     },
     Asset, SystemMessages,
 };
-
-use crate::send_http;
 
 #[derive(Subcommand, Debug)]
 pub enum SupervisorCommands {

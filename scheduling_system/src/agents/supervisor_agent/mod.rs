@@ -7,7 +7,9 @@ use std::{
 use actix::prelude::*;
 use shared_types::{
     agent_error::AgentError,
-    scheduling_environment::work_order::{operation::ActivityNumber, WorkOrderNumber},
+    scheduling_environment::work_order::{
+        operation::ActivityNumber, WorkOrderActivity, WorkOrderNumber,
+    },
     supervisor::{
         supervisor_response_scheduling::SupervisorResponseScheduling,
         supervisor_response_status::SupervisorResponseStatus, SupervisorInfeasibleCases,
@@ -42,17 +44,63 @@ pub struct SupervisorAgent {
 #[derive(Default)]
 pub struct SupervisorAlgorithm {
     objective_value: f64,
-    assigned_work_orders: HashMap<(WorkOrderNumber, ActivityNumber), OperationSolution>,
-    assigned_to_operational_agents: HashSet<(WorkOrderNumber, ActivityNumber)>,
-    operational_solutions:
-        HashMap<(Id, WorkOrderNumber, ActivityNumber), Option<OperationalObjective>>,
+    assigned_work_orders: HashMap<WorkOrderActivity, OperationSolution>,
     operational_state: OperationalState,
 }
 
+/// This type will contain all the relevant information handles to the operational agents
+/// Delegation. This means that the code should... I think that it is simple the code should
+/// simply be created in such a way that we only need to change the OperaitonalState and then
+/// the correct messages will be sent out.
 #[derive(Default)]
-pub struct OperationalState(HashMap<(Id, WorkOrderNumber, ActivityNumber), Delegate>);
+pub struct OperationalState(
+    HashMap<(Id, WorkOrderActivity), (Delegate, Option<OperationalObjective>)>,
+);
 
-// yes that felt right, completely right. What are the implications for the remaining
+/// This is a fundamental type.
+impl OperationalState {
+    fn insert_delegate(&mut self, key: (Id, WorkOrderActivity), delegate: Delegate) {
+        let previous_delegate = self.0.insert(key.clone(), (delegate, None));
+
+        match previous_delegate {
+            Some(delegate_objective) => {
+                assert!(delegate_objective.0.is_drop())
+            }
+            None => {
+                event!(
+                    Level::INFO,
+                    operational_agent = key.0 .0,
+                    "new Delegate::Assess",
+                );
+            }
+        }
+    }
+
+    fn number_of_assigned_work_orders(&self) -> HashSet<WorkOrderActivity> {
+        self.0
+            .iter()
+            .filter(|(key, val)| val.0.is_assign())
+            .map(|(key, val)| key.1)
+            .collect()
+    }
+
+    fn is_assigned(&self, work_order_activity: WorkOrderActivity) -> bool {
+        self.0
+            .iter()
+            .any(|(key, val)| work_order_activity == key.1 && val.0.is_assign())
+    }
+
+    fn determine_operational_objectives(
+        &self,
+        work_order_activity: WorkOrderActivity,
+    ) -> Vec<(Id, Option<OperationalObjective>)> {
+        self.0
+            .iter()
+            .filter(|(key, val)| key.1 == work_order_activity)
+            .map(|(key, val)| (key.0.clone(), val.1))
+            .collect()
+    }
+}
 
 type TransitionSets = (
     HashSet<(WorkOrderNumber, ActivityNumber)>,
@@ -78,7 +126,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     #[instrument(skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
         self.calculate_objective_value();
-        for ((work_order_number, activity_number), operation_solution) in
+        for (work_order_activity, operation_solution) in
             &self.supervisor_algorithm.assigned_work_orders
         {
             let mut all_messages: Vec<
@@ -87,8 +135,9 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
             // send a message to each relevant agent
             if !self
                 .supervisor_algorithm
-                .assigned_to_operational_agents
-                .contains(&(*work_order_number, *activity_number))
+                // He we want to find the work order that is a Delegate::Assign.
+                .operational_state
+                .is_assigned(*work_order_activity)
             {
                 for (id, operational_addr) in &self.operational_agent_addrs {
                     if id.1.contains(&operation_solution.resource) {
@@ -112,12 +161,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 
                         self.supervisor_algorithm
                             .operational_state
-                            .insert(key.clone(), delegate);
-
-                        self.supervisor_algorithm
-                            .operational_solutions
-                            .entry(key)
-                            .or_insert(None);
+                            .insert_delegate(key.clone(), delegate);
                     }
                     // self.operational_agent_addrs;
                 }
@@ -146,6 +190,14 @@ impl Delegate {
     pub fn is_assess(&self) -> bool {
         matches!(self, Self::Assess(_))
     }
+
+    fn is_assign(&self) -> bool {
+        matches!(self, Self::Assign(_))
+    }
+
+    fn is_drop(&self) -> bool {
+        matches!(self, Self::Drop(_))
+    }
 }
 
 impl Message for Delegate {
@@ -170,24 +222,13 @@ impl SupervisorAgent {
     }
 
     fn delegate_assign_and_drop(&mut self, ctx: &mut Context<SupervisorAgent>) {
-        for ((work_order_number, activity_number), operation_solution) in
+        for (work_order_activity, operation_solution) in
             &self.supervisor_algorithm.assigned_work_orders
         {
             let mut operational_solution_across_ids: Vec<_> = self
                 .supervisor_algorithm
-                .operational_solutions
-                .iter()
-                .filter(|(key, _)| key.1 == *work_order_number && key.2 == *activity_number)
-                .map(|(key, value)| (&key.0, *value))
-                .collect();
-
-            if self
-                .supervisor_algorithm
-                .assigned_to_operational_agents
-                .contains(&(*work_order_number, *activity_number))
-            {
-                continue;
-            }
+                .operational_state
+                .determine_operational_objectives(work_order_activity);
 
             if operational_solution_across_ids
                 .iter()
@@ -213,7 +254,7 @@ impl SupervisorAgent {
 
                 let mut messages_to_operational_agents = vec![];
                 for toa in top_operational_agents {
-                    let delegate = Delegate::Assign((*work_order_number, *activity_number));
+                    let delegate = Delegate::Assign(*work_order_activity);
 
                     let state_link = StateLink::Supervisor(delegate.clone());
 
@@ -224,18 +265,18 @@ impl SupervisorAgent {
 
                     let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
 
-                    self.supervisor_algorithm.operational_state.insert(
-                        (toa.1 .0.clone(), *work_order_number, *activity_number),
+                    self.supervisor_algorithm.operational_state.insert_delegate(
+                        (
+                            toa.1 .0.clone(),
+                            work_order_activity.0,
+                            work_order_activity.1,
+                        ),
                         delegate,
                     );
 
-                    self.supervisor_algorithm
-                        .assigned_to_operational_agents
-                        .insert((*work_order_number, *activity_number));
-
                     messages_to_operational_agents.push(
                         self.operational_agent_addrs
-                            .get(toa.1 .0)
+                            .get(&toa.1 .0)
                             .unwrap()
                             .send(state_link_wrapper),
                     );
@@ -245,13 +286,19 @@ impl SupervisorAgent {
                     if !self
                         .supervisor_algorithm
                         .operational_state
-                        .get(&(roa.1 .0.clone(), *work_order_number, *activity_number))
+                        .0
+                        .get(&(
+                            roa.1 .0.clone(),
+                            work_order_activity.0,
+                            work_order_activity.1,
+                        ))
                         .unwrap()
+                        .0
                         .is_assess()
                     {
                         continue;
                     }
-                    let delegate = Delegate::Drop((*work_order_number, *activity_number));
+                    let delegate = Delegate::Drop(*work_order_activity);
 
                     let state_link = StateLink::Supervisor(delegate.clone());
 
@@ -261,14 +308,13 @@ impl SupervisorAgent {
 
                     debug!(message = ?message, "message before the Delegate::Drop by lossing WOA");
 
-                    self.supervisor_algorithm.operational_state.insert(
-                        (roa.1 .0.clone(), *work_order_number, *activity_number),
-                        delegate,
-                    );
+                    self.supervisor_algorithm
+                        .operational_state
+                        .insert_delegate((roa.1 .0.clone(), work_order_activity), delegate);
 
                     messages_to_operational_agents.push(
                         self.operational_agent_addrs
-                            .get(roa.1 .0)
+                            .get(&roa.1 .0)
                             .unwrap()
                             .send(message),
                     );
@@ -276,7 +322,7 @@ impl SupervisorAgent {
 
                 self.supervisor_algorithm
                     .assigned_to_operational_agents
-                    .insert((*work_order_number, *activity_number));
+                    .insert(work_order_activity);
 
                 for message in messages_to_operational_agents {
                     ctx.wait(message.into_actor(self).map(|_, _, _| ()))
