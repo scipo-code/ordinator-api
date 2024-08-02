@@ -32,7 +32,10 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
     type Error = AgentError;
 
     fn calculate_objective_value(&mut self) {
-        let assigned_woas = &self.supervisor_algorithm.assigned_to_operational_agents;
+        let assigned_woas = &self
+            .supervisor_algorithm
+            .operational_state
+            .number_of_assigned_work_orders();
 
         let all_woas: HashSet<_> = self
             .supervisor_algorithm

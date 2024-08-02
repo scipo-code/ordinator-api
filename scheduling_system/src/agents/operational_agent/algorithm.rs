@@ -13,7 +13,7 @@ use shared_types::{
         operational_response_time::OperationalTimeResponse, TimeInterval,
     },
     scheduling_environment::{
-        work_order::{operation::ActivityNumber, WorkOrderNumber},
+        work_order::{operation::ActivityNumber, WorkOrderActivity, WorkOrderNumber},
         worker_environment::availability::Availability,
     },
 };
@@ -57,12 +57,11 @@ impl OperationalAlgorithm {
 
     pub fn insert_optimized_operation(
         &mut self,
-        work_order_number: WorkOrderNumber,
-        activity_number: ActivityNumber,
+        work_order_activity: WorkOrderActivity,
         operational_parameters: OperationalParameter,
     ) {
         self.operational_parameters
-            .insert((work_order_number, activity_number), operational_parameters);
+            .insert(work_order_activity, operational_parameters);
     }
 
     fn determine_next_event_non_productive(

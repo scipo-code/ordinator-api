@@ -1,6 +1,6 @@
 use actix::{Addr, Message};
 use shared_types::scheduling_environment::{
-    work_order::{operation::ActivityNumber, WorkOrderNumber},
+    work_order::{operation::ActivityNumber, WorkOrderActivity, WorkOrderNumber},
     worker_environment::resources::Id,
 };
 use tracing::Span;
@@ -69,7 +69,7 @@ impl<S, T, Su, O> Message for StateLinkWrapper<S, T, Su, O> {
 }
 
 #[allow(dead_code)]
-pub struct StateLinkError(Option<Id>, Option<WorkOrderNumber>, Option<ActivityNumber>);
+pub struct StateLinkError(Option<Id>, Option<WorkOrderActivity>);
 
 #[derive(Clone)]
 pub struct UpdateWorkOrderMessage(pub WorkOrderNumber);

@@ -338,10 +338,8 @@ impl
                 Delegate::Assess(operation_solution) => {
                     let scheduling_environment = self.scheduling_environment.lock().unwrap();
 
-                    let operation: &Operation = scheduling_environment.operation(
-                        &operation_solution.work_order_number,
-                        &operation_solution.activity_number,
-                    );
+                    let operation: &Operation =
+                        scheduling_environment.operation(&operation_solution.work_order_activity);
 
                     let (start_datetime, end_datetime) =
                         self.determine_start_and_finish_times(&operation_solution.scheduled);
@@ -357,14 +355,12 @@ impl
                         error!("Actor did not incorporate the right state, but supervisor thought that it did");
                         return Err(StateLinkError(
                             Some(self.id_operational.clone()),
-                            Some(operation_solution.work_order_number),
-                            Some(operation_solution.activity_number),
+                            Some(operation_solution.work_order_activity),
                         ));
                     };
 
                     self.operational_algorithm.insert_optimized_operation(
-                        operation_solution.work_order_number,
-                        operation_solution.activity_number,
+                        operation_solution.work_order_activity,
                         operational_parameter,
                     );
                     info!(id = ?self.id_operational, operation = ?operation_solution);
