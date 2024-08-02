@@ -24,9 +24,11 @@ use shared_types::scheduling_environment::{
     work_order::operation::Operation, SchedulingEnvironment,
 };
 
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{error, info, instrument, span, warn, Level};
 
-use crate::agents::{operational_agent::algorithm::OperationalParameter, StateLink};
+use crate::agents::{
+    operational_agent::algorithm::OperationalParameter, StateLink, StateLinkWrapper,
+};
 
 use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
 
@@ -166,7 +168,7 @@ impl Actor for OperationalAgent {
             Some(unavailability_end_event),
         ));
 
-        ctx.notify(ScheduleIteration {})
+        // ctx.notify(ScheduleIteration {})
     }
 }
 
@@ -188,15 +190,28 @@ impl Handler<ScheduleIteration> for OperationalAgent {
         if temporary_schedule.objective_value > self.operational_algorithm.objective_value {
             self.operational_algorithm = temporary_schedule;
 
-            for operational_solution in &self.operational_algorithm.operational_solutions.0 {
-                self.supervisor_agent_addr.do_send(StateLink::Operational((
+            for operational_solution in &self
+                .operational_algorithm
+                .operational_solutions
+                .0
+                .iter()
+                .filter(|vec| vec.2.is_some())
+                .collect::<Vec<_>>()
+            {
+                let state_link = StateLink::Operational((
                     (
                         self.id_operational.clone(),
                         operational_solution.0,
                         operational_solution.1,
                     ),
                     self.operational_algorithm.objective_value,
-                )));
+                ));
+
+                let span = span!(Level::INFO, "operational_agent_span", state_link = ?state_link);
+
+                let state_link_wrapper = StateLinkWrapper::new(state_link, span);
+
+                self.supervisor_agent_addr.do_send(state_link_wrapper);
             }
             info!(operational_objective = %self.operational_algorithm.objective_value);
         };
@@ -256,15 +271,17 @@ type TacticalMessage = ();
 type SupervisorMessage = Delegate;
 type OperationalMessage = ();
 
-impl Handler<StateLink<StrategicMessage, TacticalMessage, SupervisorMessage, OperationalMessage>>
-    for OperationalAgent
+impl
+    Handler<
+        StateLinkWrapper<StrategicMessage, TacticalMessage, SupervisorMessage, OperationalMessage>,
+    > for OperationalAgent
 {
     type Result = Result<(), StateLinkError>;
 
-    #[instrument(skip_all, fields(state_link = ?state_link))]
+    #[instrument(skip_all, fields(state_link = ?state_link_wrapper.state_link))]
     fn handle(
         &mut self,
-        state_link: StateLink<
+        state_link_wrapper: StateLinkWrapper<
             StrategicMessage,
             TacticalMessage,
             SupervisorMessage,
@@ -272,6 +289,9 @@ impl Handler<StateLink<StrategicMessage, TacticalMessage, SupervisorMessage, Ope
         >,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
+        let state_link = state_link_wrapper.state_link;
+        let span = state_link_wrapper.span;
+        let _enter = span.enter();
         match state_link {
             StateLink::Strategic(_) => todo!(),
             StateLink::Tactical(_) => todo!(),
@@ -290,15 +310,15 @@ impl Handler<StateLink<StrategicMessage, TacticalMessage, SupervisorMessage, Ope
                     Ok(())
                 }
                 Delegate::Drop((work_order_number, activity_number)) => {
-                    info!(work_order_number = ?work_order_number, activity_number = ?activity_number);
-                    assert!(self
+                    if self
                         .operational_algorithm
                         .operational_parameters
                         .keys()
-                        .any(|(won, acn)| {
-                            *won == work_order_number && *acn == activity_number
-                        }));
-
+                        .any(|(won, acn)| *won == work_order_number && *acn == activity_number)
+                    {
+                        error!(work_order_number = ?work_order_number, activity_number = ?activity_number, id_operational = ?self.id_operational);
+                        // panic!();
+                    }
                     let number_of_os = self.operational_algorithm.operational_parameters.len();
                     self.operational_algorithm
                         .operational_solutions

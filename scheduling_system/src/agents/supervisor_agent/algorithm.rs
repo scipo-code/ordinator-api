@@ -77,7 +77,7 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
     }
 }
 
-#[instrument(level = "info", ret)]
+#[instrument(level = "trace", ret)]
 fn is_assigned_part_of_all(
     assigned_woas: &HashSet<(WorkOrderNumber, ActivityNumber)>,
     all_woas: &HashSet<(WorkOrderNumber, ActivityNumber)>,
