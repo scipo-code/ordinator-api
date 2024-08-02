@@ -76,6 +76,11 @@ impl OperationalState {
         }
     }
 
+    fn remove_delegate(&mut self, id_work_order_activity: &(Id, WorkOrderActivity)) {
+        let removed_key = self.0.remove(id_work_order_activity);
+        assert!(removed_key.is_some());
+    }
+
     fn number_of_assigned_work_orders(&self) -> HashSet<WorkOrderActivity> {
         self.0
             .iter()
@@ -144,7 +149,10 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
                         if operation_solution.work_remaining == 0.0 {
                             continue;
                         }
-                        let delegate = Delegate::Assess(operation_solution.clone());
+                        let delegate = Delegate::Assess((
+                            *work_order_activity,
+                            Some(operation_solution.clone()),
+                        ));
                         let state_link = StateLink::Supervisor(delegate.clone());
                         let span = span!(Level::INFO, "delegate_span", state_link = ?state_link);
                         let _enter = span.enter();
@@ -153,11 +161,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 
                         all_messages.push(operational_addr.send(state_link_wrapper));
 
-                        let key = (
-                            id.clone(),
-                            operation_solution.work_order_number,
-                            operation_solution.activity_number,
-                        );
+                        let key = (id.clone(), operation_solution.work_order_activity);
 
                         self.supervisor_algorithm
                             .operational_state
@@ -181,9 +185,10 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 
 #[derive(Debug, Clone)]
 pub enum Delegate {
-    Assign((WorkOrderNumber, ActivityNumber)),
-    Drop((WorkOrderNumber, ActivityNumber)),
-    Assess(OperationSolution),
+    Assign(WorkOrderActivity),
+    Drop(WorkOrderActivity),
+    Assess((WorkOrderActivity, Option<OperationSolution>)),
+    Fixed,
 }
 
 impl Delegate {
@@ -228,7 +233,7 @@ impl SupervisorAgent {
             let mut operational_solution_across_ids: Vec<_> = self
                 .supervisor_algorithm
                 .operational_state
-                .determine_operational_objectives(work_order_activity);
+                .determine_operational_objectives(*work_order_activity);
 
             if operational_solution_across_ids
                 .iter()
@@ -265,14 +270,9 @@ impl SupervisorAgent {
 
                     let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
 
-                    self.supervisor_algorithm.operational_state.insert_delegate(
-                        (
-                            toa.1 .0.clone(),
-                            work_order_activity.0,
-                            work_order_activity.1,
-                        ),
-                        delegate,
-                    );
+                    self.supervisor_algorithm
+                        .operational_state
+                        .insert_delegate((toa.1 .0.clone(), *work_order_activity), delegate);
 
                     messages_to_operational_agents.push(
                         self.operational_agent_addrs
@@ -287,11 +287,7 @@ impl SupervisorAgent {
                         .supervisor_algorithm
                         .operational_state
                         .0
-                        .get(&(
-                            roa.1 .0.clone(),
-                            work_order_activity.0,
-                            work_order_activity.1,
-                        ))
+                        .get(&(roa.1 .0.clone(), *work_order_activity))
                         .unwrap()
                         .0
                         .is_assess()
@@ -310,7 +306,7 @@ impl SupervisorAgent {
 
                     self.supervisor_algorithm
                         .operational_state
-                        .insert_delegate((roa.1 .0.clone(), work_order_activity), delegate);
+                        .insert_delegate((roa.1 .0.clone(), *work_order_activity), delegate);
 
                     messages_to_operational_agents.push(
                         self.operational_agent_addrs
@@ -319,10 +315,6 @@ impl SupervisorAgent {
                             .send(message),
                     );
                 }
-
-                self.supervisor_algorithm
-                    .assigned_to_operational_agents
-                    .insert(work_order_activity);
 
                 for message in messages_to_operational_agents {
                     ctx.wait(message.into_actor(self).map(|_, _, _| ()))
@@ -400,7 +392,7 @@ impl Handler<SetAddr> for SupervisorAgent {
 type StrategicMessage = ();
 type TacticalMessage = HashMap<(WorkOrderNumber, ActivityNumber), OperationSolution>;
 type SupervisorMessage = ();
-type OperationalMessage = ((Id, WorkOrderNumber, ActivityNumber), OperationalObjective);
+type OperationalMessage = ((Id, WorkOrderActivity), (Delegate, OperationalObjective));
 
 impl
     Handler<
@@ -458,6 +450,9 @@ impl
                             .resource;
                         if operational_agent.1.contains(resource) {
                             warn!("leaving work order");
+                            self.supervisor_algorithm
+                                .operational_state
+                                .remove_delegate(&(*operational_agent, *leaving_woa));
 
                             let state_link = StateLink::Supervisor(Delegate::Drop((
                                 leaving_woa.0,
@@ -472,10 +467,6 @@ impl
                     self.supervisor_algorithm
                         .assigned_work_orders
                         .remove(&(leaving_woa.0, leaving_woa.1));
-
-                    self.supervisor_algorithm
-                        .assigned_to_operational_agents
-                        .remove(&(leaving_woa.0, leaving_woa.1));
                 }
                 for entering_woa in &entering_woas {
                     for (operational_agent, addr) in &self.operational_agent_addrs {
@@ -486,16 +477,17 @@ impl
                                 .get(&(entering_woa.0, entering_woa.1))
                                 .unwrap();
 
-                            let key = (operational_agent.clone(), entering_woa.0, entering_woa.1);
+                            let key = (operational_agent.clone(), *entering_woa);
 
                             if operation_solution.work_remaining == 0.0 {
                                 entering_message_count += 1;
                                 continue;
                             }
-                            let delegate = Delegate::Assess(operation_solution.clone());
+                            let delegate =
+                                Delegate::Assess((*entering_woa, Some(operation_solution.clone())));
                             self.supervisor_algorithm
                                 .operational_state
-                                .insert(key.clone(), delegate.clone());
+                                .insert_delegate(key.clone(), delegate.clone());
                             let state_link = StateLink::Supervisor(delegate);
                             let assess_message = StateLinkWrapper::new(state_link, span.clone());
 
@@ -535,8 +527,8 @@ impl
             StateLink::Supervisor(_) => Ok(()),
             StateLink::Operational(operational_solution) => {
                 self.supervisor_algorithm
-                    .operational_solutions
-                    .insert(operational_solution.0, Some(operational_solution.1));
+                    .operational_state
+                    .insert_delegate(operational_solution.0, Some(operational_solution.1));
                 Ok(())
             }
         }

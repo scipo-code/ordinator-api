@@ -19,9 +19,9 @@ use shared_types::{
 };
 use tracing::{debug, trace};
 
-use crate::agents::traits::LargeNeighborHoodSearch;
+use crate::agents::{supervisor_agent::Delegate, traits::LargeNeighborHoodSearch};
 
-use super::{Assigned, OperationalConfiguration};
+use super::OperationalConfiguration;
 
 pub type OperationalObjective = f64;
 
@@ -164,7 +164,7 @@ trait OperationalFunctions {
 }
 
 impl OperationalFunctions for OperationalSolutions {
-    type Key = (WorkOrderNumber, ActivityNumber);
+    type Key = WorkOrderActivity;
     type Sequence = Vec<Assignment>;
 
     fn try_insert(&mut self, key: Self::Key, assignments: Self::Sequence) {
@@ -199,7 +199,7 @@ impl OperationalFunctions for OperationalSolutions {
                 && assignments.last().unwrap().finish < end_of_solution_window
             {
                 let operational_solution = OperationalSolution {
-                    assigned: false,
+                    assigned: Delegate::Assess((key, None)),
                     assignments,
                 };
 
@@ -276,12 +276,12 @@ enum ContainOrNextOrNone {
 #[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct OperationalSolution {
-    pub assigned: Assigned,
+    pub assigned: Delegate,
     assignments: Vec<Assignment>,
 }
 
 impl OperationalSolution {
-    pub fn new(assigned: Assigned, assignments: Vec<Assignment>) -> Self {
+    pub fn new(assigned: Delegate, assignments: Vec<Assignment>) -> Self {
         Self {
             assigned,
             assignments,
