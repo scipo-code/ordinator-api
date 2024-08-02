@@ -431,6 +431,8 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             .cloned()
             .collect();
 
+        debug!(operational_events_len = ?operational_events.iter().filter(|val| val.event_type.is_wrench_time()).collect::<Vec<_>>().len());
+
         let mut current_time = self.availability.start_date;
 
         let mut wrench_time: TimeDelta = TimeDelta::zero();
@@ -837,6 +839,10 @@ impl OperationalEvents {
 
     fn unavail(&self) -> bool {
         matches!(&self, OperationalEvents::Unavailable(_))
+    }
+
+    fn is_wrench_time(&self) -> bool {
+        matches!(&self, Self::WrenchTime(_))
     }
 }
 

@@ -2,6 +2,7 @@ pub mod supervisor_response_resources;
 pub mod supervisor_response_scheduling;
 pub mod supervisor_response_status;
 pub mod supervisor_response_time;
+pub mod supervisor_scheduling_message;
 pub mod supervisor_status_message;
 
 use actix::Message;
@@ -11,6 +12,7 @@ use self::supervisor_response_resources::SupervisorResponseResources;
 use self::supervisor_response_scheduling::SupervisorResponseScheduling;
 use self::supervisor_response_status::SupervisorResponseStatus;
 use self::supervisor_response_time::SupervisorResponseTime;
+use self::supervisor_scheduling_message::SupervisorSchedulingMessage;
 use self::supervisor_status_message::SupervisorStatusMessage;
 use crate::scheduling_environment::worker_environment::resources::MainResources;
 use crate::{agent_error::AgentError, Asset};
@@ -26,6 +28,7 @@ pub struct SupervisorRequest {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum SupervisorRequestMessage {
     Status(SupervisorStatusMessage),
+    Scheduling(SupervisorSchedulingMessage),
     Test,
 }
 

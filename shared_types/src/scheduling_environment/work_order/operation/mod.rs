@@ -63,6 +63,12 @@ impl Operation {
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
 pub struct ActivityNumber(pub u32);
 
+impl From<u32> for ActivityNumber {
+    fn from(value: u32) -> Self {
+        ActivityNumber(value)
+    }
+}
+
 impl Serialize for ActivityNumber {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

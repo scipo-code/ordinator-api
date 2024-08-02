@@ -23,9 +23,7 @@ use shared_types::scheduling_environment::work_order::order_type::{
 use shared_types::scheduling_environment::work_order::order_type::{WROPriority, WorkOrderType};
 use shared_types::scheduling_environment::work_order::priority::Priority;
 use shared_types::scheduling_environment::work_order::revision::Revision;
-use shared_types::scheduling_environment::work_order::status_codes::{
-    MaterialStatus, StatusCodes,
-};
+use shared_types::scheduling_environment::work_order::status_codes::{MaterialStatus, StatusCodes};
 
 use shared_types::scheduling_environment::work_order::unloading_point::UnloadingPoint;
 use shared_types::scheduling_environment::work_order::{
@@ -240,7 +238,6 @@ fn create_new_work_order(
         _ => Priority::StringValue(String::new()),
     };
 
-    dbg!(&main_work_center_data);
     let main_work_center = match main_work_center_data {
         Some(calamine::Data::String(s)) => MainResources::new_from_string(s.clone()),
         _ => return Err(Error::Msg("Could not parse Main Work Center as string")),
@@ -366,8 +363,8 @@ fn create_new_operation(
         {
             Some(calamine::Data::Int(n)) => n as u32,
             Some(calamine::Data::Float(n)) => n as u32,
-            Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(0),
-            _ => 0,
+            Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(1),
+            _ => 1,
         },
         match work_remaining_data.cloned() {
             Some(calamine::Data::Int(n)) => n as f64,

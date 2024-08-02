@@ -1,9 +1,6 @@
 use actix::{Addr, Message};
 use shared_types::scheduling_environment::{
-    work_order::{
-        operation::{ActivityNumber, Operation},
-        WorkOrderNumber,
-    },
+    work_order::{operation::ActivityNumber, WorkOrderNumber},
     worker_environment::resources::Id,
 };
 use tracing::Span;
@@ -53,6 +50,12 @@ pub struct StateLinkWrapper<S, T, Su, O> {
     span: Span,
 }
 
+impl<S, T, Su, O> StateLinkWrapper<S, T, Su, O> {
+    pub fn new(state_link: StateLink<S, T, Su, O>, span: Span) -> Self {
+        Self { state_link, span }
+    }
+}
+
 #[derive(Debug)]
 pub enum StateLink<S, T, Su, O> {
     Strategic(S),
@@ -61,17 +64,12 @@ pub enum StateLink<S, T, Su, O> {
     Operational(O),
 }
 
-impl<S, T, Su, O> Message for StateLink<S, T, Su, O> {
+impl<S, T, Su, O> Message for StateLinkWrapper<S, T, Su, O> {
     type Result = Result<(), StateLinkError>;
 }
 
+#[allow(dead_code)]
 pub struct StateLinkError(Option<Id>, Option<WorkOrderNumber>, Option<ActivityNumber>);
-
-pub enum EnteringState<T> {
-    Present,
-    New(T),
-    Obselete(T),
-}
 
 #[derive(Clone)]
 pub struct UpdateWorkOrderMessage(pub WorkOrderNumber);
