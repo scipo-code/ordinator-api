@@ -1,23 +1,142 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use shared_types::{
     agent_error::AgentError,
-    scheduling_environment::work_order::{operation::ActivityNumber, WorkOrderNumber},
+    scheduling_environment::{
+        work_order::{operation::ActivityNumber, WorkOrderActivity, WorkOrderNumber},
+        worker_environment::resources::Id,
+    },
     supervisor::{
         supervisor_response_resources::SupervisorResponseResources,
         supervisor_response_scheduling::SupervisorResponseScheduling,
         supervisor_response_time::SupervisorResponseTime,
     },
 };
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 
-use crate::agents::traits::LargeNeighborHoodSearch;
+use crate::agents::{
+    operational_agent::algorithm::OperationalObjective,
+    tactical_agent::tactical_algorithm::OperationSolution, traits::LargeNeighborHoodSearch,
+};
 
-use super::SupervisorAgent;
+use super::{Delegate, SupervisorAgent};
 
 pub struct SupervisorSchedulingRequest;
 pub struct SupervisorResourceRequest;
 pub struct SupervisorTimeRequest;
+
+#[derive(Default)]
+pub struct SupervisorAlgorithm {
+    pub objective_value: f64,
+    pub assigned_work_orders: HashMap<WorkOrderActivity, OperationSolution>,
+    pub operational_state: OperationalState,
+}
+
+impl SupervisorAlgorithm {
+    pub fn is_assigned(&self, work_order_activity: WorkOrderActivity) -> bool {
+        self.operational_state
+            .0
+            .iter()
+            .any(|(key, val)| work_order_activity == key.1 && val.0.is_assign())
+    }
+
+    pub fn are_states_consistent(&self) -> bool {
+        let supervisor_state = &self.assigned_work_orders;
+        let operational_state_representation = &self.operational_state;
+
+        for supervisor_work_order_activity in supervisor_state {
+            let consistent_state = operational_state_representation
+                .0
+                .keys()
+                .map(|(id, woa)| {
+                    if id.1.contains(&supervisor_work_order_activity.1.resource) {
+                        if *supervisor_work_order_activity.0 == *woa {
+                            true
+                        } else {
+                            event!(Level::ERROR, id = ?id, work_order_activity = ?woa, "WOAs missing form State in SupervisorAgent", );
+                            false
+                        }
+                    } else {
+                        if *supervisor_work_order_activity.0 != *woa {
+                            true
+                        } else {
+                            event!(Level::ERROR, id = ?id, work_order_activity = ?woa, "WOAs included in state in SupervisorAgent");
+                            false
+                        }
+                    }
+                })
+                .all(|bool| bool);
+
+            if !consistent_state {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+/// This type will contain all the relevant information handles to the operational agents
+/// Delegation. This means that the code should... I think that it is simple the code should
+/// simply be created in such a way that we only need to change the OperaitonalState and then
+/// the correct messages will be sent out.
+#[derive(Debug, Default)]
+pub struct OperationalState(
+    pub HashMap<(Id, WorkOrderActivity), (Delegate, Option<OperationalObjective>)>,
+);
+
+/// This is a fundamental type. Where should we input the OperationalObjective? I think that keeping the
+/// code clean of these kind of things is exactly what is needed to make this work.
+impl OperationalState {
+    pub fn insert_delegate(
+        &mut self,
+        key: (Id, WorkOrderActivity),
+        delegate: Delegate,
+        objective: Option<OperationalObjective>,
+    ) {
+        let previous_delegate = self.0.insert(key.clone(), (delegate, objective));
+
+        match previous_delegate {
+            Some(delegate_objective) => {
+                event!(
+                    Level::INFO,
+                    delegate_objective = ?delegate_objective.0
+                );
+                assert!(delegate_objective.0.is_drop())
+            }
+            None => {
+                event!(
+                    Level::INFO,
+                    operational_agent = key.0 .0,
+                    "new Delegate::Assess",
+                );
+            }
+        }
+    }
+
+    pub fn remove_delegate(&mut self, id_work_order_activity: &(Id, WorkOrderActivity)) {
+        let removed_key = self.0.remove(id_work_order_activity);
+        assert!(removed_key.is_some());
+    }
+
+    fn number_of_assigned_work_orders(&self) -> HashSet<WorkOrderActivity> {
+        self.0
+            .iter()
+            .filter(|(_, val)| val.0.is_assign())
+            .map(|(key, _)| key.1)
+            .collect()
+    }
+
+    pub fn determine_operational_objectives(
+        &self,
+        work_order_activity: WorkOrderActivity,
+    ) -> Vec<(Id, Option<OperationalObjective>)> {
+        self.0
+            .iter()
+            .filter(|(key, _)| key.1 == work_order_activity)
+            .map(|(key, val)| (key.0.clone(), val.1))
+            .collect()
+    }
+}
 
 impl LargeNeighborHoodSearch for SupervisorAgent {
     type SchedulingRequest = SupervisorSchedulingRequest;
