@@ -24,7 +24,7 @@ use shared_types::scheduling_environment::{
     work_order::operation::Operation, SchedulingEnvironment,
 };
 
-use tracing::{error, info, instrument, span, warn, Level};
+use tracing::{error, event, info, instrument, span, warn, Level};
 
 use crate::agents::{
     operational_agent::algorithm::OperationalParameter, StateLink, StateLinkWrapper,
@@ -279,7 +279,7 @@ impl
 {
     type Result = Result<(), StateLinkError>;
 
-    #[instrument(skip_all, fields(state_link = ?state_link_wrapper.state_link))]
+    #[instrument(skip_all)]
     fn handle(
         &mut self,
         state_link_wrapper: StateLinkWrapper<
@@ -293,6 +293,11 @@ impl
         let state_link = state_link_wrapper.state_link;
         let span = state_link_wrapper.span;
         let _enter = span.enter();
+        event!(
+            Level::INFO,
+            self.operational_algorithm.operational_parameters =
+                self.operational_algorithm.operational_parameters.len()
+        );
         match state_link {
             StateLink::Strategic(_) => todo!(),
             StateLink::Tactical(_) => todo!(),
