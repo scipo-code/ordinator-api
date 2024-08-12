@@ -1,5 +1,5 @@
 [package]
-name = "sap_diesel"
+name = "data_processing"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,4 +7,6 @@ edition = "2021"
 
 [dependencies]
 shared_types = { path = "../shared_types" }
+rust_decimal = "*"
+polars = "*"
 dotenv = "0"
