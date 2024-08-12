@@ -5,7 +5,7 @@ members = [
     "scheduling_system",
     "shared_types",
     "imperium",
-    "sap_diesel",
+    "data_processing",
 ]
 
 
