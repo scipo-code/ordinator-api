@@ -51,7 +51,7 @@ impl Operation {
         self.operation_info.number()
     }
 
-    pub fn duration(&self) -> u32 {
+    pub fn duration(&self) -> f64 {
         self.operation_analytic.duration()
     }
 
@@ -137,7 +137,7 @@ impl Operation {
     ) -> OperationBuilder {
         let operation_info = OperationInfo::new(1, work_remaining, 0.0, 0.0, 6.0);
 
-        let operation_analytic = OperationAnalytic::new(1.0, 6);
+        let operation_analytic = OperationAnalytic::new(1.0, 6.0);
 
         let operation_dates = OperationDates::new(
             Day::new(0, Utc::now()),

@@ -1,6 +1,7 @@
 use crate::{CHAR, CLNT, CURR, DATS, NUMC, QUAN, TIMS};
 
 #[allow(non_snake_case)]
+#[allow(dead_code)]
 struct Aufk {
     MANDT: CLNT,
     AUFNR: CHAR,

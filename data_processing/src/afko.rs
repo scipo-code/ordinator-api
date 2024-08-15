@@ -1,6 +1,7 @@
 use crate::{CHAR, DATS, NUMC, TIMS};
 
 #[allow(non_snake_case)]
+#[allow(dead_code)]
 struct Afko {
     AUFNR: CHAR,
     GLTRP: DATS,
