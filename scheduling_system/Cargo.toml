@@ -13,6 +13,7 @@ criterion = "0.5"
 # steel-repl = { git="https://github.com/mattwparas/steel.git", branch = "master" }
 steel-derive = { git="https://github.com/mattwparas/steel.git", branch = "master" }
 shared_types = { path = "../shared_types" }
+data_processing = { path = "../data_processing" }
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = "0"
 calamine = "0"

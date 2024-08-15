@@ -1,6 +1,7 @@
 use crate::{CHAR, CLNT, DATS, FLTP, INT4, NUMC, TIMS, UNIT};
 
 #[allow(non_snake_case)]
+#[allow(dead_code)]
 struct Afih {
     MANDT: CLNT,
     AUFNR: CHAR,

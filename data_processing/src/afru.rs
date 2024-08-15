@@ -1,6 +1,7 @@
 use crate::{CHAR, CLNT, DEC, NUMC, QUAN, UNIT};
 
 #[allow(non_snake_case)]
+#[allow(dead_code)]
 struct Afru {
     MANDT: CLNT,
     RUECK: NUMC,
