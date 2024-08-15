@@ -1,5 +1,6 @@
 use calamine::{Data, Error, Reader, Xlsx};
 use core::fmt;
+use data_processing::{DATS, TIMS};
 use regex::Regex;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::Asset;
@@ -74,7 +75,11 @@ impl<'a> SchedulingEnvironmentFactory<TotalExcel<'a>> for SchedulingEnvironment 
     fn create_scheduling_environment(
         data_source: TotalExcel<'a>,
     ) -> Result<SchedulingEnvironment, SchedulingEnvironmentFactoryError> {
-        let mut workbook: Xlsx<_> = calamine::open_workbook(data_source.file_path).unwrap();
+        let file_path_str = data_source.file_path.to_str().unwrap();
+        dbg!(std::env::current_dir());
+        let mut workbook: Xlsx<_> =
+            calamine::open_workbook(data_source.file_path).expect(&format!("{}", file_path_str));
+
         info!(
             "Excel file from path {:?} successfully loaded",
             data_source.file_path
@@ -159,7 +164,7 @@ fn populate_work_orders<'a>(
             continue;
         }
         info!("processed {} WorkOrder", counter);
-        let work_order_number: WorkOrderNumber = match header_to_index.get("Order") {
+        let work_order_number: WorkOrderNumber = match header_to_index.get("WO_Number") {
             Some(column_index) => {
                 let work_order_string = &row[*column_index];
                 match &work_order_string {
@@ -209,9 +214,13 @@ fn create_new_work_order(
     header_to_index: &HashMap<String, usize>,
     periods: &[Period],
 ) -> Result<WorkOrder, Error> {
-    let work_order_type_possible_headers = ["Order Type", "Order_Type"];
-    let main_work_center_possible_headers =
-        ["Main Work Center", "Main_Work_Center", "Main WorkCtr"];
+    let work_order_type_possible_headers = ["Order Type", "Order_Type", "WO_Order_Type"];
+    let main_work_center_possible_headers = [
+        "Main Work Center",
+        "Main_Work_Center",
+        "Main WorkCtr",
+        "WBS_Name_right",
+    ];
 
     let work_order_type_data =
         get_data_from_headers(row, header_to_index, &work_order_type_possible_headers);
@@ -222,7 +231,7 @@ fn create_new_work_order(
     let priority = match row
         .get(
             *header_to_index
-                .get("Priority")
+                .get("WO_Priority")
                 .ok_or("Priority header not found")?,
         )
         .cloned()
@@ -246,7 +255,7 @@ fn create_new_work_order(
     let work_order_number = match row
         .get(
             *header_to_index
-                .get("Order")
+                .get("WO_Number")
                 .ok_or("Order header not found")?,
         )
         .cloned()
@@ -295,11 +304,18 @@ fn create_new_operation(
 ) -> Result<Operation, Error> {
     let _default_future_date = Utc.with_ymd_and_hms(2026, 1, 1, 7, 0, 0).unwrap();
 
-    let work_possible_headers = ["Remaining Work", "Work_Remaining", "Work_Planned", "Work"];
+    let work_possible_headers = [
+        "OPR_Planned_Work",
+        "Remaining Work",
+        "Work_Remaining",
+        "Work_Planned",
+        "Work",
+    ];
     let earliest_start_date_headers = [
         "Earliest_Start_Date",
         "Earliest start date",
         "Earliest StrDate",
+        "OPR_Start_Date",
     ];
     let earliest_start_time_headers = ["Earliest start time", "Earliest_Start_Time"];
     let earliest_finish_date_headers = [
@@ -307,23 +323,27 @@ fn create_new_operation(
         "Earliest_End_Date",
         "Earliest finish date",
         "Earliest end date",
+        "OPR_End_Date",
     ];
     let earliest_finish_time_headers = [
         "Earliest_Finish_Time",
         "Latest_Finish_Time",
         "Earliest finish time",
+        "OPR_End_Time",
     ];
     let work_center_headers = [
         "Work_Center",
         "Work Center",
         "Work center",
         "Oper.WorkCenter",
+        "WBS_Name",
     ];
     let actual_work_headers = [
         "Work_Actual",
         "Work Actual",
         "Actual work",
         "Work Actual (Hrs)",
+        "OPR_Actual_Work",
     ];
 
     let earliest_start_date_data =
@@ -341,7 +361,7 @@ fn create_new_operation(
     let activity = match row
         .get(
             *header_to_index
-                .get("Activity")
+                .get("OPR_Activity_Number")
                 .ok_or("Activity header not found")?,
         )
         .cloned()
@@ -358,7 +378,11 @@ fn create_new_operation(
 
     let operation_info = OperationInfo::new(
         match row
-            .get(*header_to_index.get("Number").unwrap_or(&1_usize))
+            .get(
+                *header_to_index
+                    .get("OPR_Workers_Numbers")
+                    .unwrap_or(&1_usize),
+            )
             .cloned()
         {
             Some(calamine::Data::Int(n)) => n as u32,
@@ -384,16 +408,16 @@ fn create_new_operation(
 
     let operation_analytic = OperationAnalytic::new(
         0.0,
-        match header_to_index.get("Duration") {
+        match header_to_index.get("OPR_Duration") {
             Some(index) => match row.get(*index).cloned() {
-                Some(calamine::Data::Int(n)) => n as u32,
-                Some(calamine::Data::Float(n)) => n as u32,
+                Some(calamine::Data::Int(n)) => n as f64,
+                Some(calamine::Data::Float(n)) => n as f64,
                 Some(calamine::Data::String(s)) => {
-                    s.parse::<u32>().expect("Duration is not a valid number")
+                    s.parse::<f64>().expect("Duration is not a valid number")
                 }
-                _ => 0,
+                _ => 0.0,
             },
-            None => 0,
+            None => operation_info.work_remaining() / operation_info.number() as f64,
         },
     );
 
@@ -404,6 +428,10 @@ fn create_new_operation(
                 let start = NaiveDate::from_ymd_opt(1900, 1, 1).expect("DATE");
                 let date = start.checked_add_signed(Duration::days(s.as_f64() as i64 - 2));
                 date.unwrap()
+            }
+            Some(calamine::Data::Float(s)) => {
+                let var_name = s.to_string();
+                DATS(var_name).into()
             }
             _ => return Err(Error::Msg("Could not parse Earliest_Start_Date as string")),
         };
@@ -420,6 +448,10 @@ fn create_new_operation(
                 }
             },
             Some(calamine::Data::DateTime(s)) => excel_time_to_hh_mm_ss(s.as_f64()),
+            Some(calamine::Data::Float(s)) => {
+                let var_name = s.to_string();
+                TIMS(var_name).into()
+            }
             _ => {
                 event!(
                     tracing::Level::DEBUG,
@@ -440,6 +472,10 @@ fn create_new_operation(
                 let date = start.checked_add_signed(Duration::days(s.as_f64() as i64 - 2));
                 date.unwrap()
             }
+            Some(calamine::Data::Float(s)) => {
+                let var_name = s.to_string();
+                DATS(var_name).into()
+            }
 
             _ => NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
         };
@@ -456,6 +492,10 @@ fn create_new_operation(
                 }
             },
             Some(calamine::Data::DateTime(s)) => excel_time_to_hh_mm_ss(s.as_f64()),
+            Some(calamine::Data::Float(s)) => {
+                let var_name = s.to_string();
+                TIMS(var_name).into()
+            }
             _ => NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
         };
         Utc.from_utc_datetime(&naive::NaiveDateTime::new(date, time))
@@ -490,14 +530,21 @@ fn extract_status_codes(
         "System Status",
         "Order System Status",
         "System status",
+        "WO_I_Status_Code",
     ];
     let user_status_possible_headers = [
         "User_Status",
         "User Status",
         "Order User Status",
         "User status",
+        "WO_E_Status_Code",
     ];
-    let op_status_possible_headers = ["Opr_User_Status", "Op User Status", "Oper.UserStatus"];
+    let op_status_possible_headers = [
+        "OPR_E_Status_Code",
+        "Opr_User_Status",
+        "Op User Status",
+        "Oper.UserStatus",
+    ];
 
     let system_status_data =
         get_data_from_headers(row, header_to_index, &system_status_possible_headers);
@@ -561,22 +608,32 @@ fn extract_order_dates(
     periods: &[Period],
 ) -> Result<WorkOrderDates, Error> {
     let earliest_allowed_start_date_possible_headers = [
+        "WO_Earliest_Allowed_Start_Date",
         "Earliest Allowed Start Date",
         "Earliest_Start_Date",
         "Earliest start date",
         "Earl.start date",
     ];
 
-    let latest_allowed_finish_date_possible_headers =
-        ["Latst Allowd.FinDate", "Latest Allowed Finish Date"];
+    let latest_allowed_finish_date_possible_headers = [
+        "WO_Latest_Allowed_Finish_Date",
+        "Latst Allowd.FinDate",
+        "Latest Allowed Finish Date",
+    ];
+
     let basic_start_possible_headers = [
+        "WO_Basic_Start_Date",
         "Earliest start date",
         "Basic_Start_Date",
         "Basic Start Date",
         "Bas. start date",
     ];
-    let basic_finish_possible_headers =
-        ["Basic_Finish_Date", "Basic Finish Date", "Basic fin. date"];
+    let basic_finish_possible_headers = [
+        "WO_Basic_End_Date",
+        "Basic_Finish_Date",
+        "Basic Finish Date",
+        "Basic fin. date",
+    ];
 
     // let earliest_start_time_possible_headers = ["Earliest_Start_Time", "Earliest start time"];
 
@@ -640,6 +697,11 @@ fn extract_order_dates(
             date.unwrap()
         }
         Some(calamine::Data::Empty) => NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+
+        Some(calamine::Data::Float(s)) => {
+            let var_name = s.to_string();
+            DATS(var_name).into()
+        }
         _ => {
             return Err(Error::Msg(
                 "Could not parse latest_allowed_finish_date_data as string",
@@ -654,6 +716,10 @@ fn extract_order_dates(
             start
                 .checked_add_signed(Duration::days(datetime.as_f64() as i64))
                 .unwrap()
+        }
+        Some(calamine::Data::Float(s)) => {
+            let var_name = s.to_string();
+            DATS(var_name).into()
         }
         Some(_) => panic!("Could not parse basic_start_data as string"),
         None => panic!("Basic start date is None"),
@@ -670,6 +736,10 @@ fn extract_order_dates(
             start
                 .checked_add_signed(Duration::days(datetime.as_f64() as i64))
                 .unwrap()
+        }
+        Some(calamine::Data::Float(s)) => {
+            let var_name = s.to_string();
+            DATS(var_name).into()
         }
         Some(_) => panic!("Could not parse basic finish as string"),
         None => {
@@ -728,7 +798,7 @@ fn extract_revision(
     let string = match row
         .get(
             *header_to_index
-                .get("Revision")
+                .get("WO_Revision")
                 .ok_or("Revision header not found")?,
         )
         .cloned()
@@ -754,7 +824,8 @@ fn extract_unloading_point(
     header_to_index: &HashMap<String, usize>,
     periods: &[Period],
 ) -> Result<UnloadingPoint, Error> {
-    let unloading_point_possible_headers = ["Unloading_Point", "Unloading Point"];
+    let unloading_point_possible_headers =
+        ["OPR_Scheduled_Work", "Unloading_Point", "Unloading Point"];
 
     let unloading_point_data =
         get_data_from_headers(row, header_to_index, &unloading_point_possible_headers);
@@ -809,6 +880,7 @@ fn extract_functional_location(
     header_to_index: &HashMap<String, usize>,
 ) -> Result<FunctionalLocation, Error> {
     let functional_location_possible_headers = [
+        "FLOC_Name",
         "Functional Loc.",
         "functional_location",
         "Functional Location",
@@ -819,12 +891,17 @@ fn extract_functional_location(
 
     let string = functional_location_data.cloned();
 
+    dbg!(&string);
     match string {
         Some(s) => match s {
             calamine::Data::String(s) => {
                 let asset = Asset::new_from_string(s[0..2].to_string());
                 Ok(FunctionalLocation { string: s, asset })
             }
+            calamine::Data::Empty => Ok(FunctionalLocation {
+                string: "None".to_string(),
+                asset: Asset::Unknown,
+            }),
             _ => Err(Error::Msg("Could not parse functional location as string")),
         },
         None => Ok(FunctionalLocation {
@@ -841,6 +918,7 @@ fn extract_order_text(
     let notes_1_possible_headers = ["Notes_1", "notes_1", "Notes 1"];
     let notes_2_possible_headers = ["Notes_2", "Notes 2", "Notes_2"];
     let description_1_possible_headers = [
+        "WO_Header_Description",
         "Object Description",
         "Description_1",
         "Description 1",
@@ -848,24 +926,28 @@ fn extract_order_text(
         "Description",
     ];
     let description_2_possible_headers = [
+        "WO_Header_Description",
         "Order Description",
         "Description_2",
         "Description 2",
         "Description",
     ];
     let operation_description_possible_headers = [
+        "OPR_Description",
         "Short_Text",
         "Operation Description",
         "Opr. short text",
         "Operation Description",
     ];
     let system_status_possible_headers = [
+        "WO_I_Status_Code",
         "System_Status",
         "System Status",
         "Order System Status",
         "Op.SystemStatus",
     ];
     let user_status_possible_headers = [
+        "WO_E_Status_Code",
         "User_Status",
         "User Status",
         "Order User Status",
@@ -904,6 +986,7 @@ fn extract_order_text(
         }
     };
 
+    dbg!(&description_2_data);
     let object_description = match description_2_data.cloned() {
         Some(calamine::Data::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse object_description as string")),

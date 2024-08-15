@@ -1,7 +1,7 @@
 env  {
 	RUST_BACKTRACE 0;
 	RUST_LOG "info"
-	ORDINATOR_INPUT "scheduling_system/test_data/input-ordinator-complete-2024-04-10.xlsx" 
+	ORDINATOR_INPUT "dlab_data_extract/dlab_data_extract.xlsx" 
 }
 
 layout {
