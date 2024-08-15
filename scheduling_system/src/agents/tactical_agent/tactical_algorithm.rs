@@ -63,7 +63,7 @@ pub struct OptimizedTacticalWorkOrder {
 pub struct OperationParameters {
     work_order_number: WorkOrderNumber,
     number: u32,
-    duration: u32,
+    duration: f64,
     operating_time: f64,
     work_remaining: f64,
     resource: Resources,
@@ -938,7 +938,7 @@ pub mod tests {
         );
 
         let operation_parameter =
-            OperationParameters::new(work_order_number, 1, 1, 1.0, 1.0, Resources::MtnMech);
+            OperationParameters::new(work_order_number, 1, 1.0, 1.0, 1.0, Resources::MtnMech);
 
         let operation_solution = OperationSolution::new(
             vec![(tactical_algorithm.tactical_days[27].clone(), 1.0)],
@@ -1010,7 +1010,7 @@ pub mod tests {
         );
 
         let operation_parameter =
-            OperationParameters::new(work_order_number, 1, 1, 1.0, 1.0, Resources::MtnMech);
+            OperationParameters::new(work_order_number, 1, 1.0, 1.0, 1.0, Resources::MtnMech);
 
         let mut operation_parameters = HashMap::new();
         operation_parameters.insert(ActivityNumber(1), operation_parameter);
@@ -1086,7 +1086,7 @@ pub mod tests {
         );
 
         let operation_parameter =
-            OperationParameters::new(work_order_number, 1, 1, 1.0, 1.0, Resources::MtnMech);
+            OperationParameters::new(work_order_number, 1, 1.0, 1.0, 1.0, Resources::MtnMech);
 
         let mut operation_parameters = HashMap::new();
         operation_parameters.insert(ActivityNumber(1), operation_parameter);
@@ -1148,7 +1148,7 @@ pub mod tests {
         pub fn new(
             work_order_number: WorkOrderNumber,
             number: u32,
-            duration: u32,
+            duration: f64,
             operating_time: f64,
             work_remaining: f64,
             resource: Resources,
