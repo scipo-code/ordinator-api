@@ -4,7 +4,7 @@ use shared_types::{
     agent_error::AgentError,
     scheduling_environment::{
         work_order::{operation::ActivityNumber, WorkOrderActivity, WorkOrderNumber},
-        worker_environment::resources::Id,
+        worker_environment::resources::{Id, MainResources},
     },
     supervisor::{
         supervisor_response_resources::SupervisorResponseResources,
@@ -15,8 +15,7 @@ use shared_types::{
 use tracing::{event, instrument, Level};
 
 use crate::agents::{
-    operational_agent::algorithm::OperationalObjective,
-    tactical_agent::tactical_algorithm::OperationSolution, traits::LargeNeighborHoodSearch,
+    operational_agent::algorithm::OperationalObjective, traits::LargeNeighborHoodSearch,
 };
 
 use super::{Delegate, SupervisorAgent};
@@ -25,53 +24,26 @@ pub struct SupervisorSchedulingRequest;
 pub struct SupervisorResourceRequest;
 pub struct SupervisorTimeRequest;
 
-#[derive(Default)]
 pub struct SupervisorAlgorithm {
     pub objective_value: f64,
-    pub assigned_work_orders: HashMap<WorkOrderActivity, OperationSolution>,
+    pub resource: MainResources,
     pub operational_state: OperationalState,
 }
 
 impl SupervisorAlgorithm {
+    pub fn new(resource: MainResources) -> Self {
+        Self {
+            objective_value: f64::default(),
+            resource,
+            operational_state: OperationalState::default(),
+        }
+    }
+
     pub fn is_assigned(&self, work_order_activity: WorkOrderActivity) -> bool {
         self.operational_state
             .0
             .iter()
             .any(|(key, val)| work_order_activity == key.1 && val.0.is_assign())
-    }
-
-    pub fn are_states_consistent(&self) -> bool {
-        let supervisor_state = &self.assigned_work_orders;
-        let operational_state_representation = &self.operational_state;
-
-        for supervisor_work_order_activity in supervisor_state {
-            let consistent_state = operational_state_representation
-                .0
-                .keys()
-                .map(|(id, woa)| {
-                    if id.1.contains(&supervisor_work_order_activity.1.resource) {
-                        if *supervisor_work_order_activity.0 == *woa {
-                            true
-                        } else {
-                            event!(Level::ERROR, id = ?id, work_order_activity = ?woa, "WOAs missing form State in SupervisorAgent", );
-                            false
-                        }
-                    } else {
-                        if *supervisor_work_order_activity.0 != *woa {
-                            true
-                        } else {
-                            event!(Level::ERROR, id = ?id, work_order_activity = ?woa, "WOAs included in state in SupervisorAgent");
-                            false
-                        }
-                    }
-                })
-                .all(|bool| bool);
-
-            if !consistent_state {
-                return false;
-            }
-        }
-        true
     }
 }
 
@@ -158,8 +130,10 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
 
         let all_woas: HashSet<_> = self
             .supervisor_algorithm
-            .assigned_work_orders
+            .operational_state
+            .0
             .keys()
+            .map(|(_, woa)| woa)
             .cloned()
             .collect();
 

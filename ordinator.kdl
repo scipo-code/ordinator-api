@@ -6,6 +6,12 @@ env  {
 
 layout {
 	tab name="control" focus=true {
+	    pane size=1 borderless=true {
+	      plugin location="file:~/.config/zellij/zellij-datetime.wasm" {
+	      	timezone1 "CEST/+2"
+	      	time_format "%H:%M:%S"
+	      }
+	    }
 		pane split_direction="vertical" {
 			pane size="20%" split_direction="horizontal" {
 				pane size="30%" split_direction="vertical" {
@@ -18,11 +24,6 @@ layout {
 		    	  		command "cargo"
 		      			args "watch" "-w" "imperium/" "-w" "shared_types/"  "-x" "build --release --bin imperium"
 		      			cwd "$ORDINATOR_PATH"
-			    	}
-			    	pane size="2%" name="clear logs" {
-			    		command "cargo"
-			    		args "watch" "-s" "./logging/clear_logging.sh" "-w" "scheduling_system"		
-						cwd "$ORDINATOR_PATH"
 			    	}
 				}
 				pane name="Bottom" {
@@ -57,7 +58,6 @@ layout {
     	pane split_direction="vertical" {
 	    	pane name="Orchestrator" {
 	    		cwd "$ORDINATOR_PATH"
-	    		command "./logging/orchestrator_logging.sh"
 	    	}
 			pane split_direction="horizontal" {
 		    	pane name="Strategic" {
