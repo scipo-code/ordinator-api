@@ -68,65 +68,6 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     #[instrument(skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
         self.calculate_objective_value();
-        for (work_order_activity, operation_solution) in
-            &self.supervisor_algorithm.assigned_work_orders
-        {
-            let mut all_messages: Vec<
-                Request<OperationalAgent, StateLinkWrapper<_, _, Delegate, _>>,
-            > = vec![];
-            // send a message to each relevant agent
-            if self
-                .supervisor_algorithm
-                // He we want to find the work order that is a Delegate::Assign.
-                .is_assigned(*work_order_activity)
-            {
-                continue;
-            };
-
-            for (id, operational_addr) in &self.operational_agent_addrs {
-                if id.1.contains(&operation_solution.resource) {
-                    event!(Level::INFO, work_order_activity = ?work_order_activity);
-                    event!(Level::INFO, operational_state = ?self.supervisor_algorithm.operational_state);
-
-                    if self
-                        .supervisor_algorithm
-                        .operational_state
-                        .0
-                        .get(&(id.clone(), *work_order_activity))
-                        .unwrap() // Counts as an assert! Every OperationalAgent should be in some state at every point in time.
-                        .0
-                        .is_assess()
-                    {
-                        continue;
-                    }
-                    if operation_solution.work_remaining == 0.0 {
-                        continue;
-                    }
-                    let delegate =
-                        Delegate::Assess((*work_order_activity, Some(operation_solution.clone())));
-                    let state_link = StateLink::Supervisor(delegate.clone());
-                    let span = span!(Level::INFO, "delegate_span", state_link = ?state_link);
-                    let _enter = span.enter();
-
-                    let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
-
-                    all_messages.push(operational_addr.send(state_link_wrapper));
-
-                    let key = (id.clone(), operation_solution.work_order_activity);
-
-                    self.supervisor_algorithm.operational_state.insert_delegate(
-                        key.clone(),
-                        delegate,
-                        None,
-                    );
-                }
-                // self.operational_agent_addrs;
-            }
-
-            for message in all_messages {
-                ctx.wait(message.into_actor(self).map(|_, _, _| ()))
-            }
-        }
 
         self.delegate_assign_and_drop(ctx);
 
@@ -168,11 +109,12 @@ impl SupervisorAgent {
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         tactical_agent_addr: Addr<TacticalAgent>,
     ) -> SupervisorAgent {
+        let supervisor_resource = id_supervisor.2.clone().unwrap();
         SupervisorAgent {
             id_supervisor,
             asset,
             scheduling_environment,
-            supervisor_algorithm: SupervisorAlgorithm::default(),
+            supervisor_algorithm: SupervisorAlgorithm::new(supervisor_resource),
             tactical_agent_addr,
             operational_agent_addrs: HashMap::new(),
         }
@@ -183,22 +125,6 @@ impl SupervisorAgent {
         resource: &Resources,
         transition: TransitionState,
     ) -> Option<WorkOrderActivity> {
-        let total_assigned_to_supervisor = self
-            .supervisor_algorithm
-            .assigned_work_orders
-            .iter()
-            .fold(0, |acc, e| {
-                acc + self
-                    .operational_agent_addrs
-                    .iter()
-                    .filter(|(id, _)| id.1.contains(&e.1.resource))
-                    .count()
-            });
-
-        let total_operational_state = self.supervisor_algorithm.operational_state.0.len();
-
-        assert_eq!(total_assigned_to_supervisor, total_operational_state);
-        assert!(self.supervisor_algorithm.are_states_consistent());
         let delegate = match transition {
             TransitionState::Entering(ref operation_solution) => {
                 Delegate::Assess((woa, Some(operation_solution.clone())))
@@ -206,7 +132,6 @@ impl SupervisorAgent {
             TransitionState::Leaving => Delegate::Drop(woa),
         };
 
-        assert!(self.supervisor_algorithm.are_states_consistent());
         for (operational_agent, addr) in &self.operational_agent_addrs {
             if operational_agent.1.contains(resource) {
                 let state_link = StateLink::Supervisor(delegate.clone());
@@ -240,28 +165,7 @@ impl SupervisorAgent {
             }
         }
 
-        dbg!(&transition);
-        match transition {
-            TransitionState::Entering(operation_solution) => {
-                self.supervisor_algorithm
-                    .assigned_work_orders
-                    .insert(woa, operation_solution);
-            }
-            TransitionState::Leaving => {
-                self.supervisor_algorithm.assigned_work_orders.remove(&woa);
-            }
-        }
-        let total_assigned_to_supervisor = self
-            .supervisor_algorithm
-            .assigned_work_orders
-            .iter()
-            .fold(0, |acc, e| {
-                acc + self
-                    .operational_agent_addrs
-                    .iter()
-                    .filter(|(id, _)| id.1.contains(&e.1.resource))
-                    .count()
-            });
+        let total_assigned_to_supervisor = self.count_unique_woa();
 
         let total_operational_state = self.supervisor_algorithm.operational_state.0.len();
 
@@ -270,10 +174,38 @@ impl SupervisorAgent {
         Some(woa)
     }
 
+    pub fn count_unique_woa(&self) -> usize {
+        self.supervisor_algorithm
+            .operational_state
+            .0
+            .keys()
+            .map(|(id, woa)| woa)
+            .len()
+    }
+
     fn delegate_assign_and_drop(&mut self, ctx: &mut Context<SupervisorAgent>) {
-        for (work_order_activity, operation_solution) in
-            &self.supervisor_algorithm.assigned_work_orders
+        for work_order_activity in &self
+            .supervisor_algorithm
+            .operational_state
+            .0
+            .keys()
+            .map(|(_, woa)| woa)
+            .cloned()
+            .collect::<Vec<WorkOrderActivity>>()
         {
+            let number = self
+                .scheduling_environment
+                .lock()
+                .unwrap()
+                .work_orders()
+                .inner
+                .get(&work_order_activity.0)
+                .unwrap()
+                .operations
+                .get(&work_order_activity.1)
+                .unwrap()
+                .number();
+
             let mut operational_solution_across_ids: Vec<_> = self
                 .supervisor_algorithm
                 .operational_state
@@ -293,7 +225,7 @@ impl SupervisorAgent {
                     operational_solution_across_ids
                         .into_iter()
                         .enumerate()
-                        .partition(|&(i, _)| i < operation_solution.number as usize);
+                        .partition(|&(i, _)| i < number as usize);
 
                 assert_eq!(
                     remaining_operational_agents.len() + top_operational_agents.len(),
@@ -374,12 +306,7 @@ impl SupervisorAgent {
         &self,
         tactical_supervisor_link: HashMap<(WorkOrderNumber, ActivityNumber), OperationSolution>,
     ) -> TransitionSets {
-        let supervisor_set: HashSet<(WorkOrderNumber, ActivityNumber)> = self
-            .supervisor_algorithm
-            .assigned_work_orders
-            .keys()
-            .cloned()
-            .collect();
+        let supervisor_set: HashSet<(WorkOrderNumber, ActivityNumber)> = self.get_unique_woa();
 
         let tactical_set: HashSet<(WorkOrderNumber, ActivityNumber)> = tactical_supervisor_link
             .keys()
@@ -402,6 +329,16 @@ impl SupervisorAgent {
             .collect::<HashSet<_>>();
 
         (entering_woas, leaving_woas)
+    }
+
+    fn get_unique_woa(&self) -> HashSet<(WorkOrderNumber, ActivityNumber)> {
+        self.supervisor_algorithm
+            .operational_state
+            .0
+            .keys()
+            .map(|(_, woa)| woa)
+            .cloned()
+            .collect()
     }
 }
 
@@ -468,7 +405,7 @@ impl
         let state_link = state_link_wrapper.state_link;
         let span = state_link_wrapper.span;
 
-        let _enter = span.enter();
+        // let _enter = span.enter();
 
         match state_link {
             StateLink::Strategic(_) => Ok(()),
@@ -476,7 +413,6 @@ impl
                 let (entering_woas, leaving_woas) =
                     self.generate_sets_of_work_order_activities(tactical_supervisor_link.clone());
 
-                assert!(self.supervisor_algorithm.are_states_consistent());
                 assert!(entering_woas.is_disjoint(&leaving_woas));
                 assert!(leaving_woas.is_disjoint(
                     &tactical_supervisor_link
@@ -484,22 +420,6 @@ impl
                         .cloned()
                         .collect::<HashSet<_>>()
                 ));
-
-                for leaving_woa in leaving_woas {
-                    let resource = &self
-                        .supervisor_algorithm
-                        .assigned_work_orders
-                        .get(&leaving_woa)
-                        .unwrap()
-                        .resource
-                        .clone();
-                    let success =
-                        self.change_state(leaving_woa, resource, TransitionState::Leaving);
-                    match success {
-                        Some(woa) => event!(Level::DEBUG, woa = ?woa, "SUCCESFUL scheduling"),
-                        None => panic!(),
-                    }
-                }
 
                 for entering_woa in entering_woas {
                     let resource = &tactical_supervisor_link
@@ -573,7 +493,7 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
                 );
                 let supervisor_status = SupervisorResponseStatus::new(
                     self.id_supervisor.clone().2.unwrap(),
-                    self.supervisor_algorithm.assigned_work_orders.len(),
+                    self.count_unique_woa(),
                     self.supervisor_algorithm.objective_value,
                 );
 
@@ -590,12 +510,6 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
                     None,
                 );
 
-                // I think that I will get a lot of issues if I do not handle all state management through the
-                // self.operational_state. I think that I should simply go with that data structure and wrap it
-                // in a new type and then implement types on that.
-
-                // What does manual scheduling mean here? I think that it means that we should find all delegates
-                // in the state set them to Drop expected for the ones given by the
                 Ok(SupervisorResponseMessage::Scheduling(
                     SupervisorResponseScheduling {},
                 ))
@@ -622,15 +536,14 @@ impl TestAlgorithm for SupervisorAgent {
             .unwrap()
             .work_orders()
             .clone();
-        for ((work_order_number, _operation_solution), _) in
-            self.supervisor_algorithm.assigned_work_orders.iter()
-        {
+        for ((work_order_number, woa), _) in self.supervisor_algorithm.operational_state.0.iter() {
             let work_order_main_resource = work_orders
                 .inner
-                .get(work_order_number)
+                .get(&woa.0)
                 .unwrap()
                 .main_work_center
                 .clone();
+
             if &work_order_main_resource == self.id_supervisor.2.as_ref().unwrap() {
                 continue;
             } else {

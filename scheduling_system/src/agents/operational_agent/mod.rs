@@ -167,7 +167,7 @@ impl Actor for OperationalAgent {
             Some(unavailability_end_event),
         ));
 
-        // ctx.notify(ScheduleIteration {})
+        ctx.notify(ScheduleIteration {})
     }
 }
 

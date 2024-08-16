@@ -17,32 +17,45 @@ pub mod tj30t;
 use chrono::{NaiveDate, NaiveTime};
 use rust_decimal::Decimal;
 
+#[allow(dead_code)]
 pub struct CHAR(String);
+#[allow(dead_code)]
 pub struct NUMC(u32);
+#[allow(dead_code)]
 pub struct FLTP();
+#[allow(dead_code)]
 pub struct DATS(pub String);
+#[allow(dead_code)]
 pub struct TIMS(pub String);
+#[allow(dead_code)]
 pub struct CLNT();
+#[allow(dead_code)]
 pub struct INT1(u8);
+#[allow(dead_code)]
 pub struct INT4(u32);
+#[allow(dead_code)]
 pub struct UNIT(String);
+#[allow(dead_code)]
 pub struct DEC(Decimal);
+#[allow(dead_code)]
 pub struct QUAN(u32);
+#[allow(dead_code)]
 pub struct CURR(Decimal);
+#[allow(dead_code)]
 pub struct LANG(String);
 
-impl Into<NaiveDate> for DATS {
-    fn into(self) -> NaiveDate {
-        let string = self.0;
+impl From<DATS> for NaiveDate {
+    fn from(value: DATS) -> NaiveDate {
+        let string = value.0;
 
         dbg!(&string);
         NaiveDate::parse_from_str(string.as_str(), "%Y%m%d").unwrap()
     }
 }
 
-impl Into<NaiveTime> for TIMS {
-    fn into(self) -> NaiveTime {
-        let mut string = self.0;
+impl From<TIMS> for NaiveTime {
+    fn from(value: TIMS) -> Self {
+        let mut string = value.0;
         let mut seconds = vec![];
         let mut minutes = vec![];
         let mut hours = vec![];
@@ -96,6 +109,7 @@ mod tests {
     use crate::TIMS;
 
     #[test]
+    #[allow(non_snake_case)]
     fn test_TIMS_into_trait_impl_1() {
         let tims = TIMS("80142".to_string());
 
@@ -104,6 +118,7 @@ mod tests {
         assert_eq!(naive_time, NaiveTime::from_hms_opt(8, 1, 42).unwrap())
     }
     #[test]
+    #[allow(non_snake_case)]
     fn test_TIMS_into_trait_impl_2() {
         let tims = TIMS("180142".to_string());
 
@@ -112,6 +127,7 @@ mod tests {
         assert_eq!(naive_time, NaiveTime::from_hms_opt(18, 1, 42).unwrap())
     }
     #[test]
+    #[allow(non_snake_case)]
     fn test_TIMS_into_trait_impl_3() {
         let tims = TIMS("80000".to_string());
 
@@ -120,6 +136,7 @@ mod tests {
         assert_eq!(naive_time, NaiveTime::from_hms_opt(8, 0, 0).unwrap())
     }
     #[test]
+    #[allow(non_snake_case)]
     fn test_TIMS_into_trait_impl_4() {
         let tims = TIMS("00000".to_string());
 
@@ -128,6 +145,7 @@ mod tests {
         assert_eq!(naive_time, NaiveTime::from_hms_opt(0, 0, 0).unwrap())
     }
     #[test]
+    #[allow(non_snake_case)]
     fn test_TIMS_into_trait_impl_5() {
         let tims = TIMS("240000".to_string());
 
