@@ -417,7 +417,13 @@ fn create_new_operation(
                 }
                 _ => 0.0,
             },
-            None => operation_info.work_remaining() / operation_info.number() as f64,
+            None => {
+                if operation_info.number() != 0 {
+                    operation_info.work_remaining() / operation_info.number() as f64
+                } else {
+                    0.0
+                }
+            }
         },
     );
 

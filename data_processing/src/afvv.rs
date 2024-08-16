@@ -1,6 +1,6 @@
 use crate::{CHAR, CLNT, DATS, DEC, FLTP, NUMC, QUAN, TIMS, UNIT};
 
-#[allow(non_snake_case)]
+#[allow(non_snake_case, dead_code)]
 struct Afvv {
     MANDT: CLNT,
     AUFPL: NUMC,
