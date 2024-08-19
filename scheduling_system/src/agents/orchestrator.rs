@@ -5,7 +5,6 @@ use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::worker_environment::resources;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
-use shared_types::scheduling_environment::worker_environment::resources::MainResources;
 
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
 use shared_types::strategic::Periods;
@@ -76,8 +75,8 @@ pub struct ActorRegistry {
 
 impl Orchestrator {
     #[instrument(level = "info", skip_all)]
-    pub async fn handle(&mut self, msg: OrchestratorRequest) -> Result<OrchestratorResponse, String> {
-        match msg {
+    pub async fn handle(&mut self, orchestrator_request: OrchestratorRequest) -> Result<OrchestratorResponse, String> {
+        match orchestrator_request {
             OrchestratorRequest::SetWorkOrderState(work_order_number, status_codes) => {
                 match self.scheduling_environment.lock().unwrap().work_orders_mut().inner.get_mut(&work_order_number) {
                     Some(work_order) => {
@@ -419,15 +418,10 @@ impl Orchestrator {
     }
 
     fn create_operational_agent(&mut self, asset: &Asset, id: Id, operational_configuration: OperationalConfiguration) {
-        let supervisor_agent_addr = self
-            .agent_registries
-            .get(asset)
-            .unwrap()
-            .supervisor_agent_addr_by_resource(&id.1[0]);
     
         let operational_agent_addr = self
             .agent_factory
-            .build_operational_agent(id.clone(), operational_configuration, supervisor_agent_addr);
+            .build_operational_agent(id.clone(), operational_configuration, self.agent_registries.get(asset).unwrap().supervisor_agent_addrs.clone());
 
         self.agent_registries
             .get_mut(asset)
@@ -460,35 +454,6 @@ impl ActorRegistry {
 
     pub fn supervisor_agent_addr(&self, id: Id) -> Addr<SupervisorAgent> {
         self.supervisor_agent_addrs.get(&id).unwrap().clone()
-    }
-
-    pub fn supervisor_agent_addr_by_resource(
-        &self,
-        resource: &shared_types::scheduling_environment::worker_environment::resources::Resources,
-    ) -> Addr<SupervisorAgent> {
-        let matching_supervisor = self.supervisor_agent_addrs.iter().find_map(|(id, addr)| {
-            if id.1.contains(resource) {
-                Some(addr)
-            } else {
-                None
-            }
-        });
-
-        match matching_supervisor {
-            Some(addr) => addr.clone(),
-            None => self
-                .supervisor_agent_addrs
-                .iter()
-                .find_map(|(id, addr)| {
-                    if id.2.as_ref().unwrap() == &MainResources::MtnMech {
-                        Some(addr)
-                    } else {
-                        None
-                    }
-                })
-                .unwrap()
-                .clone(),
-        }
     }
 
     pub fn operational_agent_addr(&self, id: Id) -> Addr<OperationalAgent> {
