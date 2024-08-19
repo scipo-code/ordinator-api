@@ -65,7 +65,7 @@ impl OperationalState {
         delegate: Delegate,
         objective: Option<OperationalObjective>,
     ) {
-        let previous_delegate = self.0.insert(key.clone(), (delegate, objective));
+        let previous_delegate = self.0.insert(key.clone(), (delegate.clone(), objective));
 
         match previous_delegate {
             Some(delegate_objective) => {
@@ -73,6 +73,7 @@ impl OperationalState {
                     Level::INFO,
                     delegate_objective = ?delegate_objective.0
                 );
+                dbg!(&delegate_objective, &delegate);
                 assert!(delegate_objective.0.is_drop())
             }
             None => {

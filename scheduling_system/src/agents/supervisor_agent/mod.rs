@@ -9,7 +9,7 @@ use shared_types::{
     agent_error::AgentError,
     scheduling_environment::{
         work_order::{operation::ActivityNumber, WorkOrderActivity, WorkOrderNumber},
-        worker_environment::resources::Resources,
+        worker_environment::resources::{MainResources, Resources},
     },
     supervisor::{
         supervisor_response_scheduling::SupervisorResponseScheduling,
@@ -20,7 +20,7 @@ use shared_types::{
 };
 
 use shared_types::scheduling_environment::worker_environment::resources::Id;
-use tracing::{debug, error, event, instrument, span, warn, Level};
+use tracing::{debug, error, event, info, instrument, span, warn, Level};
 
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
@@ -44,10 +44,13 @@ pub struct SupervisorAgent {
     operational_agent_addrs: HashMap<Id, Addr<OperationalAgent>>,
 }
 
-type TransitionSets = (
-    HashSet<(WorkOrderNumber, ActivityNumber)>,
-    HashSet<(WorkOrderNumber, ActivityNumber)>,
-);
+pub enum TransitionTypes {
+    Entering(WorkOrderActivity),
+    Leaving(WorkOrderActivity),
+    Present(WorkOrderActivity),
+}
+
+type TransitionSets = HashSet<TransitionTypes>;
 
 impl Actor for SupervisorAgent {
     type Context = Context<Self>;
@@ -69,7 +72,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
         self.calculate_objective_value();
 
-        self.delegate_assign_and_drop(ctx);
+        // self.delegate_assign_and_drop(ctx);
 
         ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(200)).into_actor(self));
         ctx.notify(ScheduleIteration {});
@@ -96,9 +99,16 @@ impl Delegate {
     fn is_drop(&self) -> bool {
         matches!(self, Self::Drop(_))
     }
+
+    pub(crate) fn is_fixed(&self) -> bool {
+        matches!(self, Self::Fixed)
+    }
 }
 
-impl Message for Delegate {
+#[derive(Debug)]
+pub struct DelegateAndId(pub Delegate, pub Id);
+
+impl Message for DelegateAndId {
     type Result = ();
 }
 
@@ -132,9 +142,16 @@ impl SupervisorAgent {
             TransitionState::Leaving => Delegate::Drop(woa),
         };
 
+        warn!(resource_in_change_state = ?resource);
         for (operational_agent, addr) in &self.operational_agent_addrs {
+            warn!(resource_in_change_state = ?resource);
             if operational_agent.1.contains(resource) {
-                let state_link = StateLink::Supervisor(delegate.clone());
+                let state_link = StateLink::Supervisor(DelegateAndId(
+                    delegate.clone(),
+                    self.id_supervisor.clone(),
+                ));
+                warn!(operational_agent = ?operational_agent);
+                warn!(resource_in_change_state = ?resource);
 
                 let number_woas_per_agent = self
                     .supervisor_algorithm
@@ -149,6 +166,7 @@ impl SupervisorAgent {
                 let id_woa = (operational_agent.clone(), woa);
                 match transition {
                     TransitionState::Entering(_) => {
+                        error!(resource = ?resource);
                         self.supervisor_algorithm.operational_state.insert_delegate(
                             id_woa,
                             delegate.clone(),
@@ -179,7 +197,7 @@ impl SupervisorAgent {
             .operational_state
             .0
             .keys()
-            .map(|(id, woa)| woa)
+            .map(|(_, woa)| woa)
             .len()
     }
 
@@ -236,7 +254,10 @@ impl SupervisorAgent {
                 for toa in top_operational_agents {
                     let delegate = Delegate::Assign(*work_order_activity);
 
-                    let state_link = StateLink::Supervisor(delegate.clone());
+                    let state_link = StateLink::Supervisor(DelegateAndId(
+                        delegate.clone(),
+                        self.id_supervisor.clone(),
+                    ));
 
                     event!(Level::DEBUG, state_link = ?state_link, "Delegate::Assign");
 
@@ -273,7 +294,10 @@ impl SupervisorAgent {
                     }
                     let delegate = Delegate::Drop(*work_order_activity);
 
-                    let state_link = StateLink::Supervisor(delegate.clone());
+                    let state_link = StateLink::Supervisor(DelegateAndId(
+                        delegate.clone(),
+                        self.id_supervisor.clone(),
+                    ));
 
                     let span = span!(Level::INFO, "Delegate::Drop", state_link = ?state_link);
                     let _enter = span.enter();
@@ -313,7 +337,7 @@ impl SupervisorAgent {
             .cloned()
             .collect::<HashSet<_>>();
 
-        let _present_woas = supervisor_set
+        let present_woas = supervisor_set
             .intersection(&tactical_set)
             .cloned()
             .collect::<HashSet<_>>();
@@ -328,7 +352,7 @@ impl SupervisorAgent {
             .cloned()
             .collect::<HashSet<_>>();
 
-        (entering_woas, leaving_woas)
+        (entering_woas, present_woas, leaving_woas)
     }
 
     fn get_unique_woa(&self) -> HashSet<(WorkOrderNumber, ActivityNumber)> {
@@ -410,9 +434,14 @@ impl
         match state_link {
             StateLink::Strategic(_) => Ok(()),
             StateLink::Tactical(tactical_supervisor_link) => {
-                let (entering_woas, leaving_woas) =
+                info!(self.id = ?self.id_supervisor);
+                let (entering_woas, present_woas, leaving_woas) =
                     self.generate_sets_of_work_order_activities(tactical_supervisor_link.clone());
 
+                assert_eq!(
+                    entering_woas.len() + present_woas.len(),
+                    tactical_supervisor_link.len()
+                );
                 assert!(entering_woas.is_disjoint(&leaving_woas));
                 assert!(leaving_woas.is_disjoint(
                     &tactical_supervisor_link
@@ -435,6 +464,11 @@ impl
                         resource,
                         TransitionState::Entering(operation_solution),
                     );
+                    info!(unique_woas = ?self.count_unique_woa(),
+                        id_supervisor = ?self.id_supervisor,
+                        entering_woa = ?entering_woa,
+                         entering_resource_into_supervisor_agent = ?resource,
+                    );
                     match success {
                         Some(woa) => event!(Level::DEBUG, woa = ?woa, "SUCCESFUL scheduling"),
                         None => panic!(),
@@ -443,6 +477,8 @@ impl
 
                 // assert!(self.supervisor_algorithm.are_states_consistent());
 
+                let supervisor_state_len = self.count_unique_woa();
+                // assert_eq!(supervisor_state_len, tactical_supervisor_link.len());
                 Ok(())
             }
             StateLink::Supervisor(_) => Ok(()),

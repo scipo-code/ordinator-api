@@ -32,7 +32,7 @@ use crate::agents::{
 
 use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
 
-use super::supervisor_agent::{Delegate, SupervisorAgent};
+use super::supervisor_agent::{Delegate, DelegateAndId, SupervisorAgent};
 use super::traits::LargeNeighborHoodSearch;
 use super::traits::TestAlgorithm;
 use super::ScheduleIteration;
@@ -49,7 +49,8 @@ pub struct OperationalAgent {
     // assigned: HashMap<(WorkOrderNumber, ActivityNumber), Assigned>,
     backup_activities: Option<HashMap<u32, Operation>>,
     operational_configuration: OperationalConfiguration,
-    supervisor_agent_addr: Addr<SupervisorAgent>,
+    main_supervisor: Option<Addr<SupervisorAgent>>,
+    supervisor_agent_addr: HashMap<Id, Addr<SupervisorAgent>>,
 }
 
 impl OperationalAgent {
@@ -138,10 +139,12 @@ impl Actor for OperationalAgent {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        self.supervisor_agent_addr.do_send(SetAddr::Operational(
-            self.id_operational.clone(),
-            ctx.address(),
-        ));
+        self.supervisor_agent_addr.iter().for_each(|(_, addr)| {
+            addr.do_send(SetAddr::Operational(
+                self.id_operational.clone(),
+                ctx.address(),
+            ));
+        });
 
         let start_event = Assignment::make_unavailable_event(
             algorithm::Unavailability::Beginning,
@@ -152,8 +155,9 @@ impl Actor for OperationalAgent {
             &self.operational_configuration.availability,
         );
         let unavailability_start_event =
-            OperationalSolution::new(Delegate::Fixed, vec![start_event]);
-        let unavailability_end_event = OperationalSolution::new(Delegate::Fixed, vec![end_event]);
+            OperationalSolution::new(None, Delegate::Fixed, vec![start_event]);
+        let unavailability_end_event =
+            OperationalSolution::new(None, Delegate::Fixed, vec![end_event]);
 
         self.operational_algorithm.operational_solutions.0.push((
             WorkOrderNumber(0),
@@ -197,13 +201,22 @@ impl Handler<ScheduleIteration> for OperationalAgent {
                 .filter(|vec| vec.2.is_some())
                 .collect::<Vec<_>>()
             {
+                if operational_solution
+                    .2
+                    .as_ref()
+                    .unwrap()
+                    .delegated
+                    .is_fixed()
+                {
+                    continue;
+                }
                 let state_link = StateLink::Operational((
                     (
                         self.id_operational.clone(),
                         (operational_solution.0, operational_solution.1),
                     ),
                     (
-                        operational_solution.2.clone().unwrap().assigned,
+                        operational_solution.2.clone().unwrap().delegated,
                         self.operational_algorithm.objective_value,
                     ),
                 ));
@@ -212,7 +225,19 @@ impl Handler<ScheduleIteration> for OperationalAgent {
 
                 let state_link_wrapper = StateLinkWrapper::new(state_link, span);
 
-                self.supervisor_agent_addr.do_send(state_link_wrapper);
+                dbg!(self.supervisor_agent_addr.len());
+                let supervisor = self.supervisor_agent_addr.iter().find(|(id, _)| {
+                    warn!(supervisor_id = ?id, operational_solution_id = ?operational_solution.2.as_ref().unwrap());
+                    match operational_solution.2.as_ref().unwrap().supervisor.as_ref() {
+                        Some(supervisor_id) => id == &supervisor_id,
+                        None => false,
+                    }
+                });
+
+                match supervisor {
+                    Some(supervisor) => supervisor.1.do_send(state_link_wrapper),
+                    None => panic!("OperationalAgent generated an OperationalSolution for a Addr<SupervisorAgent> that is not part of the OperationalAgent's state"),
+                }
             }
             info!(operational_objective = %self.operational_algorithm.objective_value);
         };
@@ -229,7 +254,8 @@ impl OperationalAgentBuilder {
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         operational_configuration: OperationalConfiguration,
         operational_algorithm: OperationalAlgorithm,
-        supervisor_agent_addr: Addr<SupervisorAgent>,
+        main_supervisor: Option<Addr<SupervisorAgent>>,
+        supervisor_agent_addr: HashMap<Id, Addr<SupervisorAgent>>,
     ) -> Self {
         Self(OperationalAgent {
             id_operational,
@@ -238,6 +264,7 @@ impl OperationalAgentBuilder {
             capacity: None,
             backup_activities: None,
             operational_configuration,
+            main_supervisor,
             supervisor_agent_addr,
         })
     }
@@ -262,6 +289,7 @@ impl OperationalAgentBuilder {
             capacity: self.0.capacity,
             backup_activities: self.0.backup_activities,
             operational_configuration: self.0.operational_configuration,
+            main_supervisor: self.0.main_supervisor,
             supervisor_agent_addr: self.0.supervisor_agent_addr,
         }
     }
@@ -269,7 +297,7 @@ impl OperationalAgentBuilder {
 
 type StrategicMessage = ();
 type TacticalMessage = ();
-type SupervisorMessage = Delegate;
+type SupervisorMessage = DelegateAndId;
 type OperationalMessage = ();
 
 impl
@@ -301,7 +329,7 @@ impl
         match state_link {
             StateLink::Strategic(_) => todo!(),
             StateLink::Tactical(_) => todo!(),
-            StateLink::Supervisor(delegate) => match delegate {
+            StateLink::Supervisor(delegate_and_id) => match delegate_and_id.0 {
                 Delegate::Assign((work_order_number, activity_number)) => {
                     let operational_solutions =
                         &mut self.operational_algorithm.operational_solutions;
@@ -311,7 +339,7 @@ impl
                         .iter_mut()
                         .find(|os| os.0 == work_order_number && os.1 == activity_number)
                     {
-                        operational_solution.2.as_mut().unwrap().assigned = delegate;
+                        operational_solution.2.as_mut().unwrap().delegated = delegate_and_id.0;
                     }
                     Ok(())
                 }
@@ -356,6 +384,7 @@ impl
                             operation.operation_analytic.preparation_time,
                             start_datetime,
                             end_datetime,
+                            delegate_and_id.1,
                         )
                     } else {
                         error!("Actor did not incorporate the right state, but supervisor thought that it did");
@@ -364,7 +393,6 @@ impl
                             Some(operation_solution.0),
                         ));
                     };
-
                     self.operational_algorithm
                         .insert_optimized_operation(operation_solution.0, operational_parameter);
                     info!(id = ?self.id_operational, operation = ?operation_solution);
