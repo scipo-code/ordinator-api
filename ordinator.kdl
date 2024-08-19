@@ -4,6 +4,7 @@ env  {
 	ORDINATOR_INPUT "dlab_data_extract/dlab_data_extract.xlsx" 
 }
 
+pane_frames false
 layout {
 	tab name="control" focus=true {
 	    pane size=1 borderless=true {

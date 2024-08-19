@@ -1,23 +1,23 @@
 use serde::Serialize;
 
-use crate::scheduling_environment::worker_environment::resources::{MainResources};
+use crate::scheduling_environment::worker_environment::resources::MainResources;
 
 #[derive(Serialize)]
 pub struct SupervisorResponseStatus {
     main_work_center: MainResources,
-    assigned_work_orders: usize,
+    delegated_work_order_activities: usize,
     objective: f64,
 }
 
 impl SupervisorResponseStatus {
     pub fn new(
         main_work_center: MainResources,
-        assigned_work_orders: usize,
+        delegated_work_order_activities: usize,
         objective: f64,
     ) -> Self {
         Self {
             main_work_center,
-            assigned_work_orders,
+            delegated_work_order_activities,
             objective,
         }
     }

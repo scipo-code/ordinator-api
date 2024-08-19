@@ -178,7 +178,7 @@ impl AgentFactory {
         &self,
         id_operational: Id,
         operational_configuration: OperationalConfiguration,
-        supervisor_agent_addr: Addr<SupervisorAgent>,
+        supervisor_agent_addr: HashMap<Id, Addr<SupervisorAgent>>,
     ) -> Addr<OperationalAgent> {
         let (sender, receiver) = std::sync::mpsc::channel::<Addr<OperationalAgent>>();
 
@@ -192,6 +192,7 @@ impl AgentFactory {
                 arc_scheduling_environment,
                 operational_configuration,
                 operational_algorithm,
+                None,
                 supervisor_agent_addr,
             )
             .build()

@@ -4,14 +4,14 @@ pub mod tactical_algorithm;
 use actix::prelude::*;
 use shared_types::agent_error::AgentError;
 use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::work_order::{WorkOrderActivity, WorkOrderNumber};
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::tactical::tactical_response_status::TacticalResponseStatus;
 use shared_types::tactical::{TacticalRequestMessage, TacticalResponseMessage};
 use shared_types::{Asset, SolutionExportMessage};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tracing::{info, instrument, span, warn, Level};
+use tracing::{debug, info, instrument, span, warn, Level};
 
 use crate::agents::tactical_agent::tactical_algorithm::{OperationSolution, TacticalAlgorithm};
 use crate::agents::SetAddr;
@@ -102,15 +102,15 @@ impl Handler<ScheduleIteration> for TacticalAgent {
             self.tactical_algorithm = temporary_schedule;
 
             self.supervisor_addrs.iter().for_each(|(id, addr)| {
-                let mut work_orders_to_supervisor: HashMap<
-                    (WorkOrderNumber, ActivityNumber),
-                    OperationSolution,
-                > = HashMap::new();
+                let mut work_orders_to_supervisor: HashMap<WorkOrderActivity, OperationSolution> =
+                    HashMap::new();
                 self.tactical_algorithm
                     .optimized_work_orders()
                     .iter()
                     .for_each(|(work_order_number, optimized_work_order)| {
                         if id.2.as_ref().unwrap() == &optimized_work_order.main_work_center {
+                            debug!(main_work_center = ?optimized_work_order.main_work_center);
+                            debug!(id_of_supervisor = ?id.2.as_ref());
                             for (acn, os) in optimized_work_order
                                 .operation_solutions
                                 .as_ref()
@@ -121,6 +121,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
                             }
                         }
                     });
+                info!(work_orders_to_supervisors = ?work_orders_to_supervisor);
                 let state_link = StateLink::Tactical(work_orders_to_supervisor);
 
                 let span = span!(Level::INFO, "tactical_supervisor", state_link = ?state_link);
