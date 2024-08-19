@@ -29,6 +29,7 @@ fn main() {
     let client = reqwest::blocking::Client::new();
 
     let system_message = commands::handle_command(cli, &client);
+    dbg!(serde_json::to_string(&system_message).unwrap());
 
     let response = send_http(&client, system_message);
 

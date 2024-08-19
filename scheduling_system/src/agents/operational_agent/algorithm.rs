@@ -14,7 +14,7 @@ use shared_types::{
     },
     scheduling_environment::{
         work_order::{operation::ActivityNumber, WorkOrderActivity, WorkOrderNumber},
-        worker_environment::availability::Availability,
+        worker_environment::{availability::Availability, resources::Id},
     },
 };
 use tracing::{debug, trace};
@@ -158,7 +158,7 @@ trait OperationalFunctions {
     type Key;
     type Sequence;
 
-    fn try_insert(&mut self, key: Self::Key, sequence: Self::Sequence);
+    fn try_insert(&mut self, key: Self::Key, sequence: Self::Sequence, supervisor: Id);
 
     fn containing_operational_solution(&self, time: DateTime<Utc>) -> ContainOrNextOrNone;
 }
@@ -167,7 +167,7 @@ impl OperationalFunctions for OperationalSolutions {
     type Key = WorkOrderActivity;
     type Sequence = Vec<Assignment>;
 
-    fn try_insert(&mut self, key: Self::Key, assignments: Self::Sequence) {
+    fn try_insert(&mut self, key: Self::Key, assignments: Self::Sequence, supervisor: Id) {
         for (index, operational_solution) in self
             .0
             .iter()
@@ -199,7 +199,8 @@ impl OperationalFunctions for OperationalSolutions {
                 && assignments.last().unwrap().finish < end_of_solution_window
             {
                 let operational_solution = OperationalSolution {
-                    assigned: Delegate::Assess((key, None)),
+                    supervisor: Some(supervisor),
+                    delegated: Delegate::Assess((key, None)),
                     assignments,
                 };
 
@@ -276,14 +277,16 @@ enum ContainOrNextOrNone {
 #[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct OperationalSolution {
-    pub assigned: Delegate,
+    pub supervisor: Option<Id>,
+    pub delegated: Delegate,
     assignments: Vec<Assignment>,
 }
 
 impl OperationalSolution {
-    pub fn new(assigned: Delegate, assignments: Vec<Assignment>) -> Self {
+    pub fn new(supervisor: Option<Id>, delegate: Delegate, assignments: Vec<Assignment>) -> Self {
         Self {
-            assigned,
+            supervisor,
+            delegated: delegate,
             assignments,
         }
     }
@@ -378,6 +381,7 @@ pub struct OperationalParameter {
     operation_time_delta: TimeDelta,
     start_window: DateTime<Utc>,
     end_window: DateTime<Utc>,
+    supervisor: Id,
 }
 
 impl OperationalParameter {
@@ -386,6 +390,7 @@ impl OperationalParameter {
         preparation: f64,
         start_window: DateTime<Utc>,
         end_window: DateTime<Utc>,
+        supervisor: Id,
     ) -> Self {
         let combined_time = 3600.0 * (work + preparation);
         let seconds_time = combined_time.trunc() as i64;
@@ -397,6 +402,7 @@ impl OperationalParameter {
             operation_time_delta,
             start_window,
             end_window,
+            supervisor,
         }
     }
 }
@@ -504,8 +510,11 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             let assignments =
                 self.determine_wrench_time_assignment(start_time, operational_parameter);
 
-            self.operational_solutions
-                .try_insert(*operation_id, assignments);
+            self.operational_solutions.try_insert(
+                *operation_id,
+                assignments,
+                operational_parameter.supervisor.clone(),
+            );
             trace!(number_of_operations = ?self.operational_solutions.0.len());
         }
 
@@ -898,7 +907,7 @@ mod tests {
     use proptest::prelude::*;
     use shared_types::{
         operational::{OperationalConfiguration, TimeInterval},
-        scheduling_environment::worker_environment::availability::Availability,
+        scheduling_environment::worker_environment::{availability::Availability, resources::Id},
     };
 
     use crate::agents::operational_agent::algorithm::OperationalEvents;
@@ -1062,6 +1071,8 @@ mod tests {
             toolbox_interval.clone(),
         );
 
+        let supervisor: Id = Id::new("test_supervisor".to_string(), vec![], Some(shared_types::scheduling_environment::worker_environment::resources::MainResources::MtnMech));
+
         let operational_algorithm = OperationalAlgorithm::new(operational_configuration);
 
         let start_window = DateTime::parse_from_rfc3339("2024-05-16T01:00:00Z")
@@ -1071,7 +1082,8 @@ mod tests {
             .unwrap()
             .to_utc();
 
-        let operational_parameter = OperationalParameter::new(20.0, 0.0, start_window, end_window);
+        let operational_parameter =
+            OperationalParameter::new(20.0, 0.0, start_window, end_window, supervisor);
 
         let start_time =
             operational_algorithm.determine_first_available_start_time(&operational_parameter);

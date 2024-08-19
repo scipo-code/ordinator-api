@@ -32,7 +32,9 @@ pub fn setup_logging() -> (LogHandles, WorkerGuard) {
         .with_file(true) // Include file name in logs
         .with_thread_ids(true)
         .with_line_number(true) // Include line number in logs
+        .with_current_span(true)
         .with_filter(EnvFilter::from_default_env());
+
     let (file_layer, file_handle) = reload::Layer::new(file_layer);
 
     let flame_layer = FlameLayer::with_file("./profiling_and_benchmarking/tracing.folded")
