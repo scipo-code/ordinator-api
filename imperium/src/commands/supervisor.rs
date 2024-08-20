@@ -42,8 +42,8 @@ pub enum SchedulingCommands {
 
 #[derive(Args, Debug)]
 pub struct Assign {
-    work_order_number: u32,
-    activity_number: u32,
+    work_order_number: u64,
+    activity_number: u64,
     id_operational: String,
 }
 

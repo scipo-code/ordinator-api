@@ -13,7 +13,10 @@ use shared_types::{
         operational_response_time::OperationalTimeResponse, TimeInterval,
     },
     scheduling_environment::{
-        work_order::{operation::ActivityNumber, WorkOrderActivity, WorkOrderNumber},
+        work_order::{
+            operation::{ActivityNumber, Work},
+            WorkOrderActivity, WorkOrderNumber,
+        },
         worker_environment::{availability::Availability, resources::Id},
     },
 };
@@ -376,8 +379,8 @@ pub enum Unavailability {
 #[derive(Clone)]
 #[allow(dead_code)]
 pub struct OperationalParameter {
-    work: f64,
-    preparation: f64,
+    work: Work,
+    preparation: Work,
     operation_time_delta: TimeDelta,
     start_window: DateTime<Utc>,
     end_window: DateTime<Utc>,
@@ -386,15 +389,15 @@ pub struct OperationalParameter {
 
 impl OperationalParameter {
     pub fn new(
-        work: f64,
-        preparation: f64,
+        work: Work,
+        preparation: Work,
         start_window: DateTime<Utc>,
         end_window: DateTime<Utc>,
         supervisor: Id,
     ) -> Self {
-        let combined_time = 3600.0 * (work + preparation);
-        let seconds_time = combined_time.trunc() as i64;
-        let nano_time = combined_time.fract() as u32;
+        let combined_time = (&work + &preparation).in_seconds();
+        let seconds_time = combined_time as i64;
+        let nano_time = combined_time as u32;
         let operation_time_delta = TimeDelta::new(seconds_time, nano_time).unwrap();
         Self {
             work,
@@ -907,7 +910,10 @@ mod tests {
     use proptest::prelude::*;
     use shared_types::{
         operational::{OperationalConfiguration, TimeInterval},
-        scheduling_environment::worker_environment::{availability::Availability, resources::Id},
+        scheduling_environment::{
+            work_order::operation::Work,
+            worker_environment::{availability::Availability, resources::Id},
+        },
     };
 
     use crate::agents::operational_agent::algorithm::OperationalEvents;
@@ -1082,8 +1088,13 @@ mod tests {
             .unwrap()
             .to_utc();
 
-        let operational_parameter =
-            OperationalParameter::new(20.0, 0.0, start_window, end_window, supervisor);
+        let operational_parameter = OperationalParameter::new(
+            Work::from(20.0),
+            Work::from(0.0),
+            start_window,
+            end_window,
+            supervisor,
+        );
 
         let start_time =
             operational_algorithm.determine_first_available_start_time(&operational_parameter);

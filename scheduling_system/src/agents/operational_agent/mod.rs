@@ -14,7 +14,10 @@ use shared_types::{
     },
     scheduling_environment::{
         time_environment::day::Day,
-        work_order::{operation::ActivityNumber, WorkOrderNumber},
+        work_order::{
+            operation::{ActivityNumber, Work},
+            WorkOrderNumber,
+        },
         worker_environment::resources::Id,
     },
     AlgorithmState, ConstraintState, StatusMessage, StopMessage,
@@ -378,10 +381,10 @@ impl
                     let (start_datetime, end_datetime) =
                         self.determine_start_and_finish_times(&operation_solution.1.as_ref().expect("An Delegate::Assess was received in an OperationalAgent without a OperationSolution.").scheduled);
 
-                    let operational_parameter = if operation.work_remaining() > 0.0 {
+                    let operational_parameter = if operation.work_remaining() > &Work::from(0.0) {
                         OperationalParameter::new(
-                            operation.work_remaining(),
-                            operation.operation_analytic.preparation_time,
+                            operation.work_remaining().clone(),
+                            operation.operation_analytic.preparation_time.clone(),
                             start_datetime,
                             end_datetime,
                             delegate_and_id.1,
