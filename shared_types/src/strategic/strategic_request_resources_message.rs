@@ -2,7 +2,10 @@ use std::{collections::HashMap, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-use crate::scheduling_environment::{time_environment::period::Period, worker_environment::resources::Resources};
+use crate::scheduling_environment::{
+    time_environment::period::Period, work_order::operation::Work,
+    worker_environment::resources::Resources,
+};
 
 use super::{Periods, StrategicResources, TimePeriod};
 
@@ -60,7 +63,7 @@ impl StrategicResourceRequest {
         let period_string = Period::from_str("2023-W47-48").unwrap();
 
         let mut period_hash_map = Periods(HashMap::new());
-        period_hash_map.insert(period_string, 300.0);
+        period_hash_map.insert(period_string, Work::from(300.0));
 
         manual_resources.insert(Resources::MtnMech, period_hash_map.clone());
         manual_resources.insert(Resources::MtnElec, period_hash_map.clone());

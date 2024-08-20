@@ -33,7 +33,7 @@ pub struct StrategicAlgorithm {
     objective_value: f64,
     resources_capacity: StrategicResources,
     resources_loading: StrategicResources,
-    priority_queues: PriorityQueues<u32, u32>,
+    priority_queues: PriorityQueues<WorkOrderNumber, u64>,
     pub optimized_work_orders: OptimizedWorkOrders,
     period_locks: HashSet<Period>,
     periods: Vec<Period>,
@@ -340,7 +340,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                     self.schedule_normal_work_order(work_order_number.into(), &period);
 
                 if let Some(work_order_number) = inf_work_order_number {
-                    self.priority_queues.normal.push(work_order_number.0, weight);
+                    self.priority_queues.normal.push(work_order_number, weight);
                 }
             }
         }
@@ -538,7 +538,7 @@ impl StrategicAlgorithm {
         objective_value: f64,
         resources_capacity: StrategicResources,
         resources_loading: StrategicResources,
-        priority_queues: PriorityQueues<u32, u32>,
+        priority_queues: PriorityQueues<WorkOrderNumber, u64>,
         optimized_work_orders: OptimizedWorkOrders,
         period_locks: HashSet<Period>,
         periods: Vec<Period>,
@@ -582,7 +582,7 @@ impl StrategicAlgorithm {
             if work_order.scheduled_period.is_none() {
                 self.priority_queues
                     .normal
-                    .push(work_order_number.0, work_order.weight);
+                    .push(*work_order_number, work_order.weight);
             }
         }
     }
@@ -599,10 +599,10 @@ where
     pub normal: PriorityQueue<T, P>,
 }
 
-impl PriorityQueues<u32, u32> {
+impl PriorityQueues<WorkOrderNumber, u64> {
     pub fn new() -> Self {
         Self {
-            normal: PriorityQueue::<u32, u32>::new(),
+            normal: PriorityQueue::<WorkOrderNumber, u64>::new(),
         }
     }
 }
@@ -759,7 +759,7 @@ mod tests {
             locked_in_period: Option<Period>,
             excluded_periods: HashSet<Period>,
             latest_period: Period,
-            weight: u32,
+            weight: u64,
             work_load: HashMap<Resources, f64>,
         ) -> Self {
             Self {

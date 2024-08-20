@@ -69,12 +69,12 @@ pub struct OperationParameters {
     resource: Resources,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Hash, Eq, PartialEq, Clone, Debug, Serialize)]
 pub struct OperationSolution {
     pub scheduled: Vec<(Day, f64)>,
     pub resource: Resources,
     pub number: NumberOfPeople,
-    pub work_remaining: f64,
+    pub work_remaining: fixed::F128,
     pub work_order_activity: WorkOrderActivity,
 }
 

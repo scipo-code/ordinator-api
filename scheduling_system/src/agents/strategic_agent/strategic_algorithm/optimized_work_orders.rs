@@ -1,4 +1,5 @@
 use serde::Serialize;
+use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
 use std::str::FromStr;
 use std::{collections::HashMap, collections::HashSet, hash::Hash, hash::Hasher};
@@ -93,8 +94,8 @@ pub struct OptimizedWorkOrder {
     pub locked_in_period: Option<Period>,
     pub excluded_periods: HashSet<Period>,
     pub latest_period: Period,
-    pub weight: u32,
-    pub work_load: HashMap<Resources, f64>,
+    pub weight: u64,
+    pub work_load: HashMap<Resources, Work>,
 }
 
 #[derive(Debug)]
@@ -103,8 +104,8 @@ pub struct OptimizedWorkOrderBuilder {
     pub locked_in_period: Option<Period>,
     pub excluded_periods: HashSet<Period>,
     pub latest_period: Period,
-    pub weight: u32,
-    pub work_load: HashMap<Resources, f64>,
+    pub weight: u64,
+    pub work_load: HashMap<Resources, Work>,
 }
 
 impl OptimizedWorkOrderBuilder {

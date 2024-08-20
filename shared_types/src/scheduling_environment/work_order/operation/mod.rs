@@ -8,10 +8,12 @@ use crate::scheduling_environment::{
 
 use crate::scheduling_environment::worker_environment::resources::Resources;
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use fixed::types::U32F32;
+use serde::de::{Deserialize, Visitor};
+use serde::ser::{Serialize, SerializeTupleStruct};
 use std::fmt::Display;
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct Operation {
     pub activity: ActivityNumber,
     pub resource: Resources,
@@ -20,7 +22,90 @@ pub struct Operation {
     pub operation_dates: OperationDates,
 }
 
-type Work = f64;
+#[derive(Eq, PartialOrd, Ord, PartialEq, Debug, Clone)]
+pub struct Work(U32F32);
+
+impl Work {
+    pub fn from(work: f64) -> Self {
+        let u32_f32 = U32F32::from_num(work);
+        Work(u32_f32)
+    }
+
+    pub(crate) fn work(&self) -> U32F32 {
+        self.0
+    }
+
+    pub fn in_seconds(&mut self) -> u64 {
+        self.0.to_num::<u64>() * 3600
+    }
+}
+
+impl std::ops::Add for Work {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let value: U32F32 = self.work() + rhs.work();
+        Self(value)
+    }
+}
+impl std::ops::Add for &Work {
+    type Output = Work;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let value: U32F32 = self.work() + rhs.work();
+        Work(value)
+    }
+}
+
+impl std::ops::AddAssign for Work {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0
+    }
+}
+
+impl std::ops::SubAssign for Work {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 -= rhs.0
+    }
+}
+
+impl Serialize for Work {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut s = serializer.serialize_tuple_struct("Work", 1)?;
+        s.serialize_field(&self.0.to_num::<f64>())?;
+        s.end()
+    }
+}
+
+struct F64Visitor;
+
+impl<'de> Visitor<'de> for F64Visitor {
+    type Value = Work;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("an f64 representing a fixed-point numnber")
+    }
+
+    fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        let fixed_val = U32F32::from_num(value);
+        Ok(Work(fixed_val))
+    }
+}
+
+impl<'de> Deserialize<'de> for Work {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_f64(F64Visitor)
+    }
+}
 
 impl Operation {
     pub fn new(
@@ -39,7 +124,7 @@ impl Operation {
         }
     }
 
-    pub fn work_remaining(&self) -> f64 {
+    pub fn work_remaining(&self) -> &Work {
         self.operation_info.work_remaining()
     }
 
@@ -51,20 +136,20 @@ impl Operation {
         self.operation_info.number()
     }
 
-    pub fn duration(&self) -> f64 {
-        self.operation_analytic.duration()
+    pub fn duration(&self) -> &Work {
+        &self.operation_analytic.duration
     }
 
-    pub fn operating_time(&self) -> f64 {
+    pub fn operating_time(&self) -> &Work {
         self.operation_info.operating_time()
     }
 }
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
-pub struct ActivityNumber(pub u32);
+pub struct ActivityNumber(pub u64);
 
-impl From<u32> for ActivityNumber {
-    fn from(value: u32) -> Self {
+impl From<u64> for ActivityNumber {
+    fn from(value: u64) -> Self {
         ActivityNumber(value)
     }
 }
@@ -78,19 +163,19 @@ impl Serialize for ActivityNumber {
     }
 }
 
-impl<'de> Deserialize<'de> for ActivityNumber {
+impl<'de> serde::Deserialize<'de> for ActivityNumber {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         let activity_number_string = String::deserialize(deserializer).unwrap();
-        let activity_number_primitive = activity_number_string.parse::<u32>().unwrap();
+        let activity_number_primitive = activity_number_string.parse::<u64>().unwrap();
 
         Ok(ActivityNumber(activity_number_primitive))
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct OperationDates {
     possible_start: Day,
     target_finish: Day,
@@ -122,8 +207,8 @@ impl Display for Operation {
             "    Activity: {:>8?}    |{:>11}|{:>14}|{:>8}|{:>6}|",
             self.activity,
             self.resource.to_string(),
-            self.operation_info.work_remaining(),
-            self.operation_analytic.duration(),
+            self.operation_info.work_remaining().work().to_num::<f64>(),
+            self.operation_analytic.duration.work().to_num::<f64>(),
             self.operation_info.number(),
         )
     }
@@ -135,9 +220,15 @@ impl Operation {
         resource: Resources,
         work_remaining: Work,
     ) -> OperationBuilder {
-        let operation_info = OperationInfo::new(1, work_remaining, 0.0, 0.0, 6.0);
+        let operation_info = OperationInfo::new(
+            1,
+            work_remaining,
+            Work::from(0.0),
+            Work::from(0.0),
+            Work::from(6.0),
+        );
 
-        let operation_analytic = OperationAnalytic::new(1.0, 6.0);
+        let operation_analytic = OperationAnalytic::new(Work::from(1.0), Work::from(6.0));
 
         let operation_dates = OperationDates::new(
             Day::new(0, Utc::now()),
@@ -169,10 +260,10 @@ impl OperationBuilder {
     fn with_operation_info(
         mut self,
         number: u32,
-        work_remaining: f64,
-        work_performed: f64,
-        work_adjusted: f64,
-        operating_time: f64,
+        work_remaining: Work,
+        work_performed: Work,
+        work_adjusted: Work,
+        operating_time: Work,
     ) -> Self {
         let operation_info = OperationInfo::new(
             number,
