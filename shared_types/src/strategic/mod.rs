@@ -10,7 +10,7 @@ pub mod strategic_response_status;
 
 use std::{
     collections::{hash_map::Entry, HashMap},
-    fmt::{self, Write},
+    fmt::{self},
 };
 
 use actix::Message;
@@ -20,7 +20,8 @@ use serde_json_any_key::any_key_map;
 use crate::{
     agent_error::AgentError,
     scheduling_environment::{
-        time_environment::period::Period, worker_environment::resources::Resources,
+        time_environment::period::Period, work_order::operation::Work,
+        worker_environment::resources::Resources,
     },
     AlgorithmState, Asset, ConstraintState, LoadOperation,
 };
@@ -168,10 +169,10 @@ pub struct StrategicResources {
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
-pub struct Periods(#[serde(with = "any_key_map")] pub HashMap<Period, f64>);
+pub struct Periods(#[serde(with = "any_key_map")] pub HashMap<Period, Work>);
 
 impl Periods {
-    pub fn insert(&mut self, period: Period, load: f64) {
+    pub fn insert(&mut self, period: Period, load: Work) {
         self.0.insert(period, load);
     }
 }
@@ -185,7 +186,7 @@ impl StrategicResources {
         &mut self,
         resource: &Resources,
         period: &Period,
-        load: f64,
+        load: Work,
         load_operation: LoadOperation,
     ) {
         let resource_entry = self.inner.entry(resource.clone());
@@ -208,38 +209,6 @@ impl StrategicResources {
                 }
             },
         };
-    }
-
-    pub fn to_string(&self, number_of_periods: u32) -> String {
-        let mut string = String::new();
-        let mut periods = self
-            .inner
-            .values()
-            .flat_map(|inner_map| inner_map.0.keys())
-            .collect::<Vec<_>>();
-        periods.sort();
-        periods.dedup();
-
-        write!(string, "{:<12}", "Resource").ok();
-        for period in periods.iter().take(number_of_periods as usize) {
-            write!(string, "{:>12}", period.period_string()).ok();
-        }
-        writeln!(string).ok();
-
-        let mut sorted_resources: Vec<&Resources> = self.inner.keys().collect();
-
-        sorted_resources.sort_by_key(|resource| resource.to_string());
-
-        for resource in sorted_resources {
-            let inner_map = self.inner.get(resource).unwrap();
-            write!(string, "{:<12}", resource.variant_name()).unwrap();
-            for period in periods.iter().take(number_of_periods as usize) {
-                let value = inner_map.0.get(period).unwrap_or(&0.0);
-                write!(string, "{:>12}", value.round().to_string()).ok();
-            }
-            writeln!(string).ok();
-        }
-        string
     }
 
     pub fn update_resources(&mut self, resources: Self) {

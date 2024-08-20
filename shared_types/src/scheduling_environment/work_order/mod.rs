@@ -36,16 +36,17 @@ use crate::scheduling_environment::work_order::{
 use crate::scheduling_environment::worker_environment::resources::Resources;
 
 use self::operation::ActivityNumber;
+use self::operation::Work;
 
 use super::time_environment::period::Period;
 
 #[derive(Debug, Copy, Clone, PartialOrd, Ord, Hash, PartialEq, Eq)]
-pub struct WorkOrderNumber(pub u32);
+pub struct WorkOrderNumber(pub u64);
 
 pub type WorkOrderActivity = (WorkOrderNumber, ActivityNumber);
 
-impl From<u32> for WorkOrderNumber {
-    fn from(value: u32) -> Self {
+impl From<u64> for WorkOrderNumber {
+    fn from(value: u64) -> Self {
         WorkOrderNumber(value)
     }
 }
@@ -65,7 +66,7 @@ impl<'de> Deserialize<'de> for WorkOrderNumber {
         D: serde::Deserializer<'de>,
     {
         let work_order_number_string = String::deserialize(deserializer).unwrap();
-        let work_order_number_primitive = work_order_number_string.parse::<u32>().unwrap();
+        let work_order_number_primitive = work_order_number_string.parse::<u64>().unwrap();
         Ok(WorkOrderNumber(work_order_number_primitive))
     }
 }
@@ -115,9 +116,9 @@ impl WorkOrderInfo {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrderAnalytic {
-    pub work_order_weight: u32,
-    pub work_order_work: f64,
-    pub work_load: HashMap<Resources, f64>,
+    pub work_order_weight: u64,
+    pub work_order_work: Work,
+    pub work_load: HashMap<Resources, Work>,
     pub fixed: bool,
     pub vendor: bool,
     pub status_codes: StatusCodes,
@@ -125,9 +126,9 @@ pub struct WorkOrderAnalytic {
 
 impl WorkOrderAnalytic {
     pub fn new(
-        work_order_weight: u32,
-        work_order_work: f64,
-        work_load: HashMap<Resources, f64>,
+        work_order_weight: u64,
+        work_order_work: Work,
+        work_load: HashMap<Resources, Work>,
         fixed: bool,
         vendor: bool,
         status_codes: StatusCodes,
@@ -208,11 +209,11 @@ impl WorkOrder {
         &self.work_order_info.priority
     }
 
-    pub fn work_load(&self) -> &HashMap<Resources, f64> {
+    pub fn work_load(&self) -> &HashMap<Resources, Work> {
         &self.work_order_analytic.work_load
     }
 
-    pub fn work_order_weight(&self) -> u32 {
+    pub fn work_order_weight(&self) -> u64 {
         self.work_order_analytic.work_order_weight
     }
 
@@ -235,12 +236,12 @@ pub enum ActivityRelation {
 #[allow(dead_code)]
 #[derive(serde::Deserialize, Debug)]
 pub struct WeightParams {
-    order_type_weights: HashMap<String, u32>,
-    status_weights: HashMap<String, u32>,
-    vis_priority_map: HashMap<String, u32>,
-    wdf_priority_map: HashMap<String, u32>,
-    wgn_priority_map: HashMap<String, u32>,
-    wpm_priority_map: HashMap<String, u32>,
+    order_type_weights: HashMap<String, u64>,
+    status_weights: HashMap<String, u64>,
+    vis_priority_map: HashMap<String, u64>,
+    wdf_priority_map: HashMap<String, u64>,
+    wgn_priority_map: HashMap<String, u64>,
+    wpm_priority_map: HashMap<String, u64>,
 }
 
 impl WeightParams {
@@ -344,21 +345,30 @@ impl WorkOrder {
             self.work_order_analytic.work_order_weight +=
                 parameters.status_weights["PCNF_NMAT_SMAT"];
         }
-        self.work_order_analytic.work_order_weight *=
-            self.work_order_analytic.work_order_work.round() as u32;
+        self.work_order_analytic.work_order_weight *= self
+            .work_order_analytic
+            .work_order_work
+            .work()
+            .to_num::<u64>();
 
         // TODO Implement for VIS and ABC
     }
 
     pub fn initialize_work_load(&mut self) {
-        let mut work_load: HashMap<Resources, f64> = HashMap::new();
+        let mut work_load: HashMap<Resources, Work> = HashMap::new();
 
         for (_, operation) in self.operations.iter() {
-            *work_load.entry(operation.resource().clone()).or_insert(0.0) +=
-                operation.work_remaining();
+            *work_load
+                .entry(operation.resource().clone())
+                .or_insert(Work::from(0.0)) += operation.work_remaining().clone();
         }
 
-        self.work_order_analytic.work_order_work = work_load.values().sum();
+        self.work_order_analytic.work_order_work = work_load
+            .clone()
+            .into_values()
+            .reduce(|acc, work| acc + work)
+            .unwrap()
+            .clone();
         self.work_order_analytic.work_load = work_load;
     }
 
@@ -411,13 +421,13 @@ impl Default for WorkOrder {
         let mut operations = HashMap::new();
 
         let operation_0010 =
-            Operation::builder(ActivityNumber(10), Resources::Prodtech, 10.0).build();
+            Operation::builder(ActivityNumber(10), Resources::Prodtech, Work::from(10.0)).build();
         let operation_0020 =
-            Operation::builder(ActivityNumber(20), Resources::MtnMech, 20.0).build();
+            Operation::builder(ActivityNumber(20), Resources::MtnMech, Work::from(20.0)).build();
         let operation_0030 =
-            Operation::builder(ActivityNumber(30), Resources::MtnMech, 30.0).build();
+            Operation::builder(ActivityNumber(30), Resources::MtnMech, Work::from(30.0)).build();
         let operation_0040 =
-            Operation::builder(ActivityNumber(40), Resources::Prodtech, 40.0).build();
+            Operation::builder(ActivityNumber(40), Resources::Prodtech, Work::from(40.0)).build();
 
         operations.insert(ActivityNumber(10), operation_0010);
         operations.insert(ActivityNumber(20), operation_0020);
@@ -426,7 +436,7 @@ impl Default for WorkOrder {
 
         let work_order_analytic = WorkOrderAnalytic::new(
             1000,
-            100.0,
+            Work::from(100.0),
             HashMap::new(),
             false,
             false,
@@ -462,7 +472,7 @@ mod tests {
 
     use super::{
         functional_location::FunctionalLocation,
-        operation::{ActivityNumber, Operation},
+        operation::{ActivityNumber, Operation, Work},
         order_dates::WorkOrderDates,
         order_text::OrderText,
         order_type::{WDFPriority, WorkOrderType},
@@ -485,14 +495,14 @@ mod tests {
                 .work_load()
                 .get(&Resources::new_from_string("PRODTECH".to_string()))
                 .unwrap(),
-            50.0
+            Work::from(50.0)
         );
         assert_eq!(
             *work_order
                 .work_load()
                 .get(&Resources::new_from_string("MTN-MECH".to_string()))
                 .unwrap(),
-            50.0
+            Work::from(50.0)
         );
     }
 
@@ -501,13 +511,17 @@ mod tests {
             let mut operations = HashMap::new();
 
             let operation_0010 =
-                Operation::builder(ActivityNumber(10), Resources::Prodtech, 10.0).build();
+                Operation::builder(ActivityNumber(10), Resources::Prodtech, Work::from(10.0))
+                    .build();
             let operation_0020 =
-                Operation::builder(ActivityNumber(20), Resources::MtnMech, 20.0).build();
+                Operation::builder(ActivityNumber(20), Resources::MtnMech, Work::from(20.0))
+                    .build();
             let operation_0030 =
-                Operation::builder(ActivityNumber(30), Resources::MtnMech, 30.0).build();
+                Operation::builder(ActivityNumber(30), Resources::MtnMech, Work::from(30.0))
+                    .build();
             let operation_0040 =
-                Operation::builder(ActivityNumber(40), Resources::Prodtech, 40.0).build();
+                Operation::builder(ActivityNumber(40), Resources::Prodtech, Work::from(40.0))
+                    .build();
 
             operations.insert(ActivityNumber(10), operation_0010);
             operations.insert(ActivityNumber(20), operation_0020);
@@ -516,7 +530,7 @@ mod tests {
 
             let work_order_analytic = WorkOrderAnalytic::new(
                 1000,
-                100.0,
+                Work::from(100.0),
                 HashMap::new(),
                 false,
                 false,

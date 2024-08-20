@@ -88,12 +88,12 @@ pub enum SchedulingCommands {
     /// Lock a period from any scheduling changes
     PeriodLock { period: String },
     /// Exclude a work order from a period
-    Exclude { work_order: u32, period: String },
+    Exclude { work_order: u64, period: String },
 }
 
 #[derive(Debug, Args)]
 pub struct WorkOrderSchedule {
-    pub work_order: u32,
+    pub work_order: u64,
     pub period: String,
 }
 
@@ -375,6 +375,3 @@ fn generate_manual_resources(client: &Client, toml_path: String) -> StrategicRes
     }
     StrategicResources::new(resources_hash_map)
 }
-
-#[cfg(test)]
-mod test {}

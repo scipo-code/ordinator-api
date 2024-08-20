@@ -45,7 +45,7 @@ pub struct WorkOrderResponse {
     earliest_period: Period,
     work_order_info: WorkOrderInfo,
     vendor: bool,
-    weight: u32,
+    weight: u64,
     status_codes: StatusCodes,
     optimized_work_order_response: Option<OptimizedWorkOrderResponse>,
 }
@@ -55,7 +55,7 @@ impl WorkOrderResponse {
         earliest_period: Period,
         work_order_info: WorkOrderInfo,
         vendor: bool,
-        weight: u32,
+        weight: u64,
         status_codes: StatusCodes,
         optimized_work_order_response: Option<OptimizedWorkOrderResponse>,
     ) -> Self {
