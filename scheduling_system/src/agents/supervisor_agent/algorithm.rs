@@ -1,9 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
+use actix::Addr;
 use shared_types::{
     agent_error::AgentError,
     scheduling_environment::{
-        work_order::{operation::ActivityNumber, WorkOrderActivity, WorkOrderNumber},
+        work_order::{
+            operation::{operation_info::NumberOfPeople, ActivityNumber},
+            WorkOrderActivity, WorkOrderNumber,
+        },
         worker_environment::resources::{Id, MainResources},
     },
     supervisor::{
@@ -12,21 +16,24 @@ use shared_types::{
         supervisor_response_time::SupervisorResponseTime,
     },
 };
-use tracing::{event, instrument, Level};
+use tracing::{event, instrument, span, Level};
 
 use crate::agents::{
-    operational_agent::algorithm::OperationalObjective, traits::LargeNeighborHoodSearch,
+    operational_agent::{algorithm::OperationalObjective, OperationalAgent},
+    tactical_agent::tactical_algorithm::OperationSolution,
+    traits::LargeNeighborHoodSearch,
+    StateLink, StateLinkWrapper,
 };
 
-use super::{Delegate, SupervisorAgent};
+use super::{Delegate, DelegateAndId, SupervisorAgent, TransitionTypes};
 
 pub struct SupervisorSchedulingRequest;
 pub struct SupervisorResourceRequest;
 pub struct SupervisorTimeRequest;
 
 pub struct SupervisorAlgorithm {
-    pub objective_value: f64,
-    pub resource: MainResources,
+    objective_value: f64,
+    resource: MainResources,
     pub operational_state: OperationalState,
 }
 
@@ -39,11 +46,23 @@ impl SupervisorAlgorithm {
         }
     }
 
+    pub fn objective_value(&self) -> f64 {
+        self.objective_value
+    }
+
     pub fn is_assigned(&self, work_order_activity: WorkOrderActivity) -> bool {
         self.operational_state
             .0
             .iter()
             .any(|(key, val)| work_order_activity == key.1 && val.0.is_assign())
+    }
+
+    pub fn number_woas_for_agent(&self, operational_agent: &Id) -> usize {
+        self.operational_state
+            .0
+            .iter()
+            .filter(|id| id.0 .0 == *operational_agent)
+            .count()
     }
 }
 
@@ -53,42 +72,39 @@ impl SupervisorAlgorithm {
 /// the correct messages will be sent out.
 #[derive(Debug, Default)]
 pub struct OperationalState(
-    pub HashMap<(Id, WorkOrderActivity), (Delegate, Option<OperationalObjective>)>,
+    HashMap<(Id, WorkOrderActivity), (Delegate, Option<OperationalObjective>)>,
 );
 
 /// This is a fundamental type. Where should we input the OperationalObjective? I think that keeping the
 /// code clean of these kind of things is exactly what is needed to make this work.
 impl OperationalState {
-    pub fn insert_delegate(
+    pub fn handle_woa(
         &mut self,
-        key: (Id, WorkOrderActivity),
-        delegate: Delegate,
-        objective: Option<OperationalObjective>,
+        woa: TransitionTypes,
+        operational_agent: (&Id, &Addr<OperationalAgent>),
+        operation_solution: OperationSolution,
+        supervisor_id: Id,
     ) {
-        let previous_delegate = self.0.insert(key.clone(), (delegate.clone(), objective));
+        match woa {
+            TransitionTypes::Entering(delegate) => {
+                let state_link =
+                    StateLink::Supervisor(DelegateAndId(delegate.clone(), supervisor_id));
+                self.0.insert(
+                    (operational_agent.0.clone(), delegate.get_woa()),
+                    (delegate, None),
+                );
+                let span = span!(Level::DEBUG, "SupervisorSpan.OperationalState");
 
-        match previous_delegate {
-            Some(delegate_objective) => {
-                event!(
-                    Level::INFO,
-                    delegate_objective = ?delegate_objective.0
-                );
-                dbg!(&delegate_objective, &delegate);
-                assert!(delegate_objective.0.is_drop())
+                let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
+
+                operational_agent.1.do_send(state_link_wrapper)
             }
-            None => {
-                event!(
-                    Level::INFO,
-                    operational_agent = key.0 .0,
-                    "new Delegate::Assess",
-                );
-            }
+            TransitionTypes::Present(woa) => {}
+            TransitionTypes::Leaving(woa) => {}
         }
     }
-
-    pub fn remove_delegate(&mut self, id_work_order_activity: &(Id, WorkOrderActivity)) {
-        let removed_key = self.0.remove(id_work_order_activity);
-        assert!(removed_key.is_some());
+    pub fn count_unique_woa(&self) -> usize {
+        self.0.keys().map(|(_, woa)| woa).len()
     }
 
     fn number_of_assigned_work_orders(&self) -> HashSet<WorkOrderActivity> {
@@ -108,6 +124,71 @@ impl OperationalState {
             .filter(|(key, _)| key.1 == work_order_activity)
             .map(|(key, val)| (key.0.clone(), val.1))
             .collect()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+    pub fn get_unique_woa(&self) -> HashSet<(WorkOrderNumber, ActivityNumber)> {
+        self.0.keys().map(|(_, woa)| woa).cloned().collect()
+    }
+
+    fn determine_delegate_assign_and_drop(
+        &self,
+        number: HashMap<WorkOrderActivity, NumberOfPeople>,
+    ) -> Vec<(Id, TransitionTypes)> {
+        let mut transition_sequence = Vec::<(Id, TransitionTypes)>::new();
+
+        for work_order_activity in &self
+            .0
+            .keys()
+            .map(|(_, woa)| woa)
+            .cloned()
+            .collect::<Vec<WorkOrderActivity>>()
+        {
+            let number = number.get(&work_order_activity).unwrap();
+
+            let mut operational_solution_across_ids: Vec<_> =
+                self.determine_operational_objectives(*work_order_activity);
+
+            if operational_solution_across_ids
+                .iter()
+                .all(|objectives| objectives.1.is_some())
+            {
+                operational_solution_across_ids
+                    .sort_by(|a, b| a.1.unwrap().partial_cmp(&b.1.unwrap()).unwrap());
+
+                let operational_solution_across_ids = operational_solution_across_ids.iter().rev();
+
+                let (top_operational_agents, remaining_operational_agents): (Vec<_>, Vec<_>) =
+                    operational_solution_across_ids
+                        .into_iter()
+                        .enumerate()
+                        .partition(|&(i, _)| i < *number as usize);
+
+                for toa in top_operational_agents {
+                    let transition_type =
+                        TransitionTypes::Present(Delegate::Assign(*work_order_activity));
+                    transition_sequence.push((toa.1 .0.clone(), transition_type));
+                }
+
+                for roa in remaining_operational_agents {
+                    let transition_type =
+                        TransitionTypes::Present(Delegate::Drop(*work_order_activity));
+                    transition_sequence.push((roa.1 .0.clone(), transition_type));
+                }
+            }
+        }
+        transition_sequence
+    }
+
+    pub(crate) fn get_iter(
+        &self,
+    ) -> std::collections::hash_map::Iter<
+        (Id, (WorkOrderNumber, ActivityNumber)),
+        (Delegate, Option<f64>),
+    > {
+        self.0.iter()
     }
 }
 

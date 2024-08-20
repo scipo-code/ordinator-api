@@ -6,9 +6,12 @@ use reqwest::blocking::Client;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
 
-use shared_types::scheduling_environment::worker_environment::resources::{MainResources, Resources, Shift};
+use shared_types::scheduling_environment::worker_environment::resources::{
+    MainResources, Resources, Shift,
+};
 use shared_types::{
-    scheduling_environment::worker_environment::resources::Id, orchestrator::OrchestratorRequest, SystemMessages,
+    orchestrator::OrchestratorRequest, scheduling_environment::worker_environment::resources::Id,
+    SystemMessages,
 };
 use shared_types::{Asset, TomlAgents};
 
@@ -36,7 +39,7 @@ pub enum OrchestratorCommands {
 pub enum SchedulingEnvironmentCommands {
     /// Access the commands to change the work orders (The Orchestrator will ensure that each relevant agent updates its state)
     WorkOrders {
-        work_order_number: u32,
+        work_order_number: u64,
         #[clap(subcommand)]
         work_order_commands: WorkOrderCommands,
     },
@@ -54,7 +57,9 @@ pub enum WorkOrderCommands {
     ModifyStatusCodes(shared_types::scheduling_environment::work_order::status_codes::StatusCodes),
 
     /// Change the unloading point of a work order
-    ModifyUnloadingPoint(shared_types::scheduling_environment::work_order::unloading_point::UnloadingPoint),
+    ModifyUnloadingPoint(
+        shared_types::scheduling_environment::work_order::unloading_point::UnloadingPoint,
+    ),
 }
 
 #[derive(Subcommand, Debug)]

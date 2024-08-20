@@ -3,6 +3,7 @@ pub mod strategic_algorithm;
 
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborHoodSearch;
+use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
@@ -528,7 +529,7 @@ impl TestAlgorithm for StrategicAgent {
                 if optimized_work_order.scheduled_period.as_ref().unwrap() == &period.clone() {
                     let work_load = &optimized_work_order.work_load;
                     for resource in Resources::iter() {
-                        let load = work_load.get(&resource).unwrap_or(&0.0);
+                        let load = work_load.get(&resource).unwrap_or(&Work::from(0.0));
                         aggregated_strategic_load.update_load(
                             &resource,
                             period,
@@ -579,6 +580,7 @@ impl TestAlgorithm for StrategicAgent {
 mod tests {
 
     use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
+    use shared_types::scheduling_environment::work_order::operation::Work;
     use shared_types::strategic::strategic_request_scheduling_message::SingleWorkOrder;
     use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
     use shared_types::strategic::Periods;
@@ -703,11 +705,14 @@ mod tests {
     fn test_extract_state_to_scheduler_overview() {
         let mut operations: HashMap<u32, Operation> = HashMap::new();
 
-        let operation_1 = Operation::builder(ActivityNumber(10), Resources::MtnMech, 1.0).build();
+        let operation_1 =
+            Operation::builder(ActivityNumber(10), Resources::MtnMech, Work::from(1.0)).build();
 
-        let operation_2 = Operation::builder(ActivityNumber(20), Resources::MtnMech, 1.0).build();
+        let operation_2 =
+            Operation::builder(ActivityNumber(20), Resources::MtnMech, Work::from(1.0)).build();
 
-        let operation_3 = Operation::builder(ActivityNumber(30), Resources::MtnMech, 1.0).build();
+        let operation_3 =
+            Operation::builder(ActivityNumber(30), Resources::MtnMech, Work::from(1.0)).build();
 
         operations.insert(10, operation_1);
         operations.insert(20, operation_2);
@@ -907,7 +912,7 @@ mod tests {
         pub objective_value: f64,
         pub manual_resources_capacity: HashMap<Resources, Periods>,
         pub manual_resources_loading: HashMap<Resources, Periods>,
-        pub priority_queues: PriorityQueues<u32, u32>,
+        pub priority_queues: PriorityQueues<WorkOrderNumber, u64>,
         pub optimized_work_orders: OptimizedWorkOrders,
         pub periods: Vec<Period>,
     }

@@ -31,7 +31,7 @@ pub enum WorkOrders {
 
     /// Get all details of a specific work order
     WorkOrder {
-        work_order_number: u32,
+        work_order_number: u64,
         level_of_detail: LevelOfDetail,
     },
 }
