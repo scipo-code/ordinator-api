@@ -3,6 +3,7 @@ use shared_types::orchestrator::OrchestratorRequest;
 
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
+use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::worker_environment::resources;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 
@@ -577,8 +578,8 @@ impl Orchestrator {
                 *resource_periods
                     .0
                     .entry(period.clone())
-                    .or_insert_with(|| 0.0) +=
-                    operational_agent.hours_per_day * days_in_period * gradual_reduction(i)
+                    .or_insert_with(|| Work::from(0.0)) +=
+                    Work::from(operational_agent.hours_per_day * days_in_period * gradual_reduction(i))
             }
         }
 

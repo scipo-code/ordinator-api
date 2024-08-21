@@ -6,4 +6,5 @@ use super::StrategicResources;
 pub enum StrategicResponseResources {
     UpdatedResources(u32),
     Loading(StrategicResources),
+    Percentage(StrategicResources, StrategicResources),
 }

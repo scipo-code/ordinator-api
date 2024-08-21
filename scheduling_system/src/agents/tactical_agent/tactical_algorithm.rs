@@ -7,7 +7,7 @@ use shared_types::{
     scheduling_environment::{
         time_environment::day::Day,
         work_order::{
-            operation::{operation_info::NumberOfPeople, ActivityNumber},
+            operation::{operation_info::NumberOfPeople, ActivityNumber, Work},
             WorkOrderActivity, WorkOrderNumber,
         },
         worker_environment::resources::{MainResources, Resources},
@@ -69,21 +69,21 @@ pub struct OperationParameters {
     resource: Resources,
 }
 
-#[derive(Hash, Eq, PartialEq, Clone, Debug, Serialize)]
+#[derive(Hash, PartialEq, PartialOrd, Ord, Eq, Clone, Debug, Serialize)]
 pub struct OperationSolution {
-    pub scheduled: Vec<(Day, f64)>,
+    pub scheduled: Vec<(Day, Work)>,
     pub resource: Resources,
     pub number: NumberOfPeople,
-    pub work_remaining: fixed::F128,
+    pub work_remaining: Work,
     pub work_order_activity: WorkOrderActivity,
 }
 
 impl OperationSolution {
     pub fn new(
-        scheduled: Vec<(Day, f64)>,
+        scheduled: Vec<(Day, Work)>,
         resource: Resources,
         number: NumberOfPeople,
-        work_remaining: f64,
+        work_remaining: Work,
         work_order_number: WorkOrderNumber,
         activity_number: ActivityNumber,
     ) -> OperationSolution {

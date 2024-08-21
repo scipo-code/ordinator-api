@@ -48,7 +48,7 @@ pub struct SupervisorAgent {
 pub enum TransitionTypes {
     Entering(Delegate),
     Leaving(Delegate),
-    Present(Delegate),
+    Unchanged(Delegate),
 }
 
 type TransitionSets = HashSet<TransitionTypes>;
@@ -82,9 +82,9 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Debug, Clone)]
 pub enum Delegate {
-    Assign(WorkOrderActivity),
+    Assess((WorkOrderActivity, OperationSolution)),
+    Assign((WorkOrderActivity, OperationSolution)),
     Drop(WorkOrderActivity),
-    Assess((WorkOrderActivity, Option<OperationSolution>)),
     Fixed,
 }
 
@@ -141,16 +141,15 @@ impl SupervisorAgent {
     }
     fn update_operational_state(
         &mut self,
-        woa: TransitionTypes,
+        transition_type: TransitionTypes,
         resource: &Resources,
         operation_solution: OperationSolution,
     ) -> Option<TransitionTypes> {
         for operational_agent in &self.operational_agent_addrs {
             if operational_agent.0 .1.contains(resource) {
                 self.supervisor_algorithm.operational_state.handle_woa(
-                    woa.clone(),
+                    transition_type.clone(),
                     operational_agent,
-                    operation_solution.clone(),
                     self.supervisor_id.clone(),
                 )
             }
@@ -165,7 +164,7 @@ impl SupervisorAgent {
 
         assert_eq!(total_assigned_to_supervisor, total_operational_state);
         // assert!(self.supervisor_algorithm.are_states_consistent());
-        Some(woa)
+        Some(transition_type)
     }
 
     /// This whole function should be moved. It is important, but it is also circumventing the API defined on
@@ -189,7 +188,7 @@ impl SupervisorAgent {
         let present_woas = supervisor_set
             .intersection(&tactical_set)
             .cloned()
-            .map(|woa| TransitionTypes::Present(woa))
+            .map(|woa| TransitionTypes::Unchanged(woa))
             .collect::<HashSet<TransitionTypes>>();
 
         let leaving_woas = supervisor_set
@@ -302,22 +301,25 @@ impl
                         TransitionTypes::Entering(woa) => {
                             self.supervisor_algorithm.operational_state
                         }
-                        TransitionTypes::Present(woa) => {}
+                        TransitionTypes::Unchanged(woa) => {}
                         TransitionTypes::Leaving(woa) => {}
                     }
                     let resource = &tactical_supervisor_link
                         .get(&entering_woa)
                         .unwrap()
                         .resource;
+
                     let operation_solution = tactical_supervisor_link
                         .get(&entering_woa)
                         .cloned()
                         .unwrap();
+
                     let success = self.change_state(
                         entering_woa,
                         resource,
                         TransitionState::Entering(operation_solution),
                     );
+
                     info!(unique_woas = ?self.count_unique_woa(),
                         id_supervisor = ?self.supervisor_id,
                         entering_woa = ?entering_woa,
