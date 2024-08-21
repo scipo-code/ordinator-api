@@ -3,6 +3,8 @@ pub mod optimized_work_orders;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
+use fixed::traits::Fixed;
+use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::strategic::strategic_response_periods::StrategicResponsePeriods;
 use shared_types::strategic::strategic_response_resources::StrategicResponseResources;
@@ -119,7 +121,7 @@ impl StrategicAlgorithm {
 
         if period != self.periods().last().unwrap() {
             for (resource, resource_needed) in optimized_work_order.work_load.iter() {
-                let resource_capacity: &f64 = self
+                let resource_capacity: &Work = self
                     .resources_capacity
                     .inner
                     .get(&resource.clone())
@@ -128,7 +130,7 @@ impl StrategicAlgorithm {
                     .get(&period.clone())
                     .unwrap();
 
-                let resource_loading: &f64 = self
+                let resource_loading: &Work = self
                     .resources_loading
                     .inner
                     .get(&resource.clone())
@@ -226,8 +228,8 @@ impl StrategicAlgorithm {
             for (period, loading) in &mut periods.0 {
                 if period == target_period {
                     match load_operation {
-                        LoadOperation::Add => *loading += work_load.get(resource).unwrap_or(&0.0),
-                        LoadOperation::Sub => *loading -= work_load.get(resource).unwrap_or(&0.0),
+                        LoadOperation::Add => *loading += work_load.get(resource).unwrap_or(&Work::from(0.0)),
+                        LoadOperation::Sub => *loading -= work_load.get(resource).unwrap_or(&Work::from(0.0)),
                     }
                 }
             }
@@ -317,7 +319,9 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 let loading = self
                     .resources_loading(resource, period);
 
-                excess_penalty_contribution += (loading - capacity).max(0.0)
+                if loading - capacity > Work::from(0.0) {
+                    excess_penalty_contribution += (loading - capacity).to_f64()
+                }
             }
         }
 
@@ -408,20 +412,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 let capacities = self.resources_capacities();
                 let loadings = self.resources_loadings();
 
-                let mut percentage_loading = HashMap::<Resources, Periods>::new();
-
-                for (resource, periods) in &capacities.inner {
-                    if !percentage_loading.contains_key(resource) {
-                        percentage_loading.insert(resource.clone(), Periods(HashMap::<Period, f64>::new()));
-                    }
-                    for (period, capacity) in &periods.0 {
-                        let percentage: f64 = (loadings.inner.get(resource).unwrap().0.get(period).unwrap() / capacity * 100.0).round();
-                        percentage_loading.get_mut(resource).unwrap().0.insert(period.clone(), percentage);
-                    }
-                }
-
-                let algorithm_resources = StrategicResources::new(percentage_loading );
-                Ok(StrategicResponseResources::Loading(algorithm_resources))
+                Ok(StrategicResponseResources::Percentage(capacities.clone(), loadings.clone()))
             }
         }
     }
@@ -563,7 +554,7 @@ impl StrategicAlgorithm {
         &self.resources_loading
     }
 
-    pub fn resources_loading(&self, resource: &Resources, period: &Period) -> &f64 {
+    pub fn resources_loading(&self, resource: &Resources, period: &Period) -> &Work {
         self.resources_loading.inner.get(resource).unwrap().0.get(period).unwrap()
     }
 
@@ -649,7 +640,7 @@ mod tests {
 
         let mut hash_map_periods_150 = Periods(HashMap::new());
 
-        hash_map_periods_150.0.insert(period.clone(), 150.0);
+        hash_map_periods_150.0.insert(period.clone(), Work::from(150.0));
 
         manual_resource_capacity.insert(
             Resources::MtnMech,
@@ -704,7 +695,7 @@ mod tests {
                 .0
                 .get(&period)
             ,
-            Some(&150.0)
+            Some(&Work::from(150.0))
         );
         assert_eq!(
             scheduler_agent_algorithm
@@ -731,7 +722,7 @@ mod tests {
                 .0
                 .get(&period)
             ,
-            Some(&300.0)
+            Some(&Work::from(300.0))
         );
         assert_eq!(
             scheduler_agent_algorithm
@@ -760,7 +751,7 @@ mod tests {
             excluded_periods: HashSet<Period>,
             latest_period: Period,
             weight: u64,
-            work_load: HashMap<Resources, f64>,
+            work_load: HashMap<Resources, Work>,
         ) -> Self {
             Self {
                 scheduled_period,
@@ -794,8 +785,8 @@ mod tests {
         let mut period_hash_map_150 = Periods(HashMap::new());
         let mut period_hash_map_0 = Periods(HashMap::new());
 
-        period_hash_map_150.insert(period.clone(), 150.0);
-        period_hash_map_0.insert(period.clone(), 0.0);
+        period_hash_map_150.insert(period.clone(), Work::from(150.0));
+        period_hash_map_0.insert(period.clone(), Work::from(0.0));
 
         resource_capacity.insert(Resources::MtnMech, period_hash_map_150.clone());
         resource_capacity.insert(Resources::MtnElec, period_hash_map_150.clone());
@@ -837,7 +828,7 @@ mod tests {
 
         let mut work_load = HashMap::new();
 
-        work_load.insert(Resources::MtnMech, 100.0);
+        work_load.insert(Resources::MtnMech,Work::from( 100.0));
 
         let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
 
@@ -853,7 +844,7 @@ mod tests {
 
         let mut period_hash_map_0 = Periods(HashMap::new());
 
-        period_hash_map_0.insert(period.clone(), 0.0);
+        period_hash_map_0.insert(period.clone(),Work::from( 0.0));
 
         resource_capacity.insert(Resources::MtnMech, period_hash_map_0.clone());
         resource_loadings.insert(Resources::MtnMech, period_hash_map_0.clone());
@@ -885,9 +876,9 @@ mod tests {
     fn test_update_loadings() {
         let mut work_load = HashMap::new();
 
-        work_load.insert(Resources::MtnMech, 20.0);
-        work_load.insert(Resources::MtnElec, 40.0);
-        work_load.insert(Resources::Prodtech, 60.0);
+        work_load.insert(Resources::MtnMech,Work::from( 20.0));
+        work_load.insert(Resources::MtnElec,Work::from( 40.0));
+        work_load.insert(Resources::Prodtech,Work::from( 60.0));
 
         let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 7, 0, 0).unwrap();
         let end_date = start_date + chrono::Duration::days(13);
@@ -900,8 +891,8 @@ mod tests {
         let mut period_hash_map_150 = Periods(HashMap::new());
         let mut period_hash_map_0 = Periods(HashMap::new());
 
-        period_hash_map_150.insert(period.clone(), 150.0);
-        period_hash_map_0.insert(period.clone(), 0.0);
+        period_hash_map_150.insert(period.clone(),Work::from( 150.0));
+        period_hash_map_0.insert(period.clone(),Work::from( 0.0));
 
         resource_capacity.insert(Resources::MtnMech, period_hash_map_150.clone());
         resource_capacity.insert(Resources::MtnElec, period_hash_map_150.clone());
@@ -938,17 +929,17 @@ mod tests {
         assert_eq!(
             *strategic_agent_algorithm
                 .resources_loading(&Resources::MtnMech, &period),
-            20.0
+           Work::from( 20.0)
         );
         assert_eq!(
             *strategic_agent_algorithm
                 .resources_loading(&Resources::MtnElec, &period),
-            40.0
+           Work::from( 40.0)
         );
         assert_eq!(
             *strategic_agent_algorithm
                 .resources_loading(&Resources::Prodtech, &period),
-            60.0
+           Work::from( 60.0)
         );
 
         assert!(
@@ -965,9 +956,9 @@ mod tests {
         let work_order_number = WorkOrderNumber(2200002020);
         let mut work_load = HashMap::new();
 
-        work_load.insert(Resources::MtnMech, 20.0);
-        work_load.insert(Resources::MtnElec, 40.0);
-        work_load.insert(Resources::Prodtech, 60.0);
+        work_load.insert(Resources::MtnMech,Work::from( 20.0));
+        work_load.insert(Resources::MtnElec,Work::from( 40.0));
+        work_load.insert(Resources::Prodtech,Work::from( 60.0));
 
         let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 0, 0, 0).unwrap();
         let end_date = start_date
@@ -991,8 +982,8 @@ mod tests {
             let loading_map = resource_loadings.entry(resource.clone()).or_default();
 
             for period in periods.iter() {
-                capacity_map.insert(period.clone(), 150.0);
-                loading_map.insert(period.clone(), 0.0);
+                capacity_map.insert(period.clone(),Work::from( 150.0));
+                loading_map.insert(period.clone(),Work::from( 0.0));
             }
         }
 
@@ -1024,42 +1015,42 @@ mod tests {
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::MtnMech, &period_1),
-            0.0
+           Work::from( 0.0)
         );
         scheduler_agent_algorithm.schedule_normal_work_order(work_order_number, &period_1);
 
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::MtnMech, &period_1),
-            20.0
+           Work::from( 20.0)
         );
 
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::MtnElec, &period_1),
-            40.0
+           Work::from( 40.0)
         );
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::Prodtech, &period_1),
-            60.0
+           Work::from( 60.0)
         );
 
         scheduler_agent_algorithm.unschedule(work_order_number);
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::MtnMech, &period_1),
-            0.0
+           Work::from( 0.0)
         );
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::MtnElec, &period_1),
-            0.0
+           Work::from( 0.0)
         );
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::Prodtech, &period_1),
-            0.0
+           Work::from( 0.0)
         );
 
         scheduler_agent_algorithm.schedule_forced_work_order(work_order_number);
@@ -1067,17 +1058,17 @@ mod tests {
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::MtnMech, &period_1),
-            20.0
+           Work::from( 20.0)
         );
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::MtnElec, &period_1),
-            40.0
+           Work::from( 40.0)
         );
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::Prodtech, &period_1),
-            60.0
+           Work::from( 60.0)
         );
 
         scheduler_agent_algorithm
@@ -1088,66 +1079,66 @@ mod tests {
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::MtnMech, &period_1),
-            0.0
+           Work::from( 0.0)
         );
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::MtnElec, &period_1),
-            0.0
+           Work::from( 0.0)
         );
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::Prodtech, &period_1),
-            0.0
+           Work::from( 0.0)
         );
 
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::MtnMech, &period_2),
-            20.0
+           Work::from( 20.0)
         );
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::MtnElec, &period_2),
-            40.0
+           Work::from( 40.0)
         );
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::Prodtech, &period_2),
-            60.0
+           Work::from( 60.0)
         );
 
         scheduler_agent_algorithm.unschedule(work_order_number);
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::MtnMech, &period_1),
-            0.0
+           Work::from( 0.0)
         );
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::MtnElec, &period_1),
-            0.0
+           Work::from( 0.0)
         );
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::Prodtech, &period_1),
-            0.0
+           Work::from( 0.0)
         );
 
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::MtnMech, &period_1),
-            0.0
+           Work::from( 0.0)
         );
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::MtnElec, &period_1),
-            0.0
+           Work::from( 0.0)
         );
         assert_eq!(
             *scheduler_agent_algorithm
                 .resources_loading(&Resources::Prodtech, &period_1),
-            0.0
+           Work::from( 0.0)
         );
     }
 
@@ -1157,17 +1148,17 @@ mod tests {
         let mut work_load_2 = HashMap::new();
         let mut work_load_3 = HashMap::new();
 
-        work_load_1.insert(Resources::MtnMech, 10.0);
-        work_load_1.insert(Resources::MtnElec, 10.0);
-        work_load_1.insert(Resources::Prodtech, 10.0);
+        work_load_1.insert(Resources::MtnMech,Work::from( 10.0));
+        work_load_1.insert(Resources::MtnElec,Work::from( 10.0));
+        work_load_1.insert(Resources::Prodtech,Work::from( 10.0));
 
-        work_load_2.insert(Resources::MtnMech, 20.0);
-        work_load_2.insert(Resources::MtnElec, 20.0);
-        work_load_2.insert(Resources::Prodtech, 20.0);
+        work_load_2.insert(Resources::MtnMech,Work::from( 20.0));
+        work_load_2.insert(Resources::MtnElec,Work::from( 20.0));
+        work_load_2.insert(Resources::Prodtech,Work::from( 20.0));
 
-        work_load_3.insert(Resources::MtnMech, 30.0);
-        work_load_3.insert(Resources::MtnElec, 30.0);
-        work_load_3.insert(Resources::Prodtech, 30.0);
+        work_load_3.insert(Resources::MtnMech,Work::from( 30.0));
+        work_load_3.insert(Resources::MtnElec,Work::from( 30.0));
+        work_load_3.insert(Resources::Prodtech,Work::from( 30.0));
 
         let mut optimized_work_orders = OptimizedWorkOrders::new(HashMap::new());
 

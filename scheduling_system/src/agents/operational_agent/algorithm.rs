@@ -203,7 +203,6 @@ impl OperationalFunctions for OperationalSolutions {
             {
                 let operational_solution = OperationalSolution {
                     supervisor: Some(supervisor),
-                    delegated: Delegate::Assess((key, None)),
                     assignments,
                 };
 
@@ -277,19 +276,16 @@ enum ContainOrNextOrNone {
     None,
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct OperationalSolution {
     pub supervisor: Option<Id>,
-    pub delegated: Delegate,
     assignments: Vec<Assignment>,
 }
 
 impl OperationalSolution {
-    pub fn new(supervisor: Option<Id>, delegate: Delegate, assignments: Vec<Assignment>) -> Self {
+    pub fn new(supervisor: Option<Id>, assignments: Vec<Assignment>) -> Self {
         Self {
             supervisor,
-            delegated: delegate,
             assignments,
         }
     }
@@ -384,6 +380,7 @@ pub struct OperationalParameter {
     operation_time_delta: TimeDelta,
     start_window: DateTime<Utc>,
     end_window: DateTime<Utc>,
+    delegated: Delegate,
     supervisor: Id,
 }
 
@@ -393,6 +390,7 @@ impl OperationalParameter {
         preparation: Work,
         start_window: DateTime<Utc>,
         end_window: DateTime<Utc>,
+        delegated: Delegate,
         supervisor: Id,
     ) -> Self {
         let combined_time = (&work + &preparation).in_seconds();
@@ -405,8 +403,13 @@ impl OperationalParameter {
             operation_time_delta,
             start_window,
             end_window,
+            delegated,
             supervisor,
         }
+    }
+
+    pub(crate) fn is_fixed(&self) -> bool {
+        self.delegated.is_fixed()
     }
 }
 
@@ -1088,11 +1091,14 @@ mod tests {
             .unwrap()
             .to_utc();
 
+        let delegated = crate::agents::supervisor_agent::Delegate::Fixed;
+
         let operational_parameter = OperationalParameter::new(
             Work::from(20.0),
             Work::from(0.0),
             start_window,
             end_window,
+            delegated,
             supervisor,
         );
 

@@ -529,11 +529,12 @@ impl TestAlgorithm for StrategicAgent {
                 if optimized_work_order.scheduled_period.as_ref().unwrap() == &period.clone() {
                     let work_load = &optimized_work_order.work_load;
                     for resource in Resources::iter() {
-                        let load = work_load.get(&resource).unwrap_or(&Work::from(0.0));
+                        let load: Work =
+                            work_load.get(&resource).cloned().unwrap_or(Work::from(0.0));
                         aggregated_strategic_load.update_load(
                             &resource,
                             period,
-                            *load,
+                            load,
                             LoadOperation::Add,
                         );
                     }
@@ -553,9 +554,15 @@ impl TestAlgorithm for StrategicAgent {
                     .0
                     .get(&period)
                 {
-                    Some(resource_load) if (*resource_load - load).abs() < 0.005 => continue,
+                    // Some(resource_load) if (*resource_load - load).abs() < 0.005 => continue,
                     Some(resource_load) => {
-                        strategic_state.infeasible_cases_mut().unwrap().respect_aggregated_load = ConstraintState::Infeasible(format!("resource = {}, period = {}, aggregated_load = {:.3e}, resource_load = {:.3e}", resource, period, load, resource_load));
+                        strategic_state
+                            .infeasible_cases_mut()
+                            .unwrap()
+                            .respect_aggregated_load = ConstraintState::Infeasible(format!(
+                            "resource = {}, period = {}, aggregated_load = {}, resource_load = {}",
+                            resource, period, load, resource_load
+                        ));
                         error!(resource = %resource, period = %period, aggregated_load = %load, resource_load = %resource_load);
                         feasible = false
                     }
@@ -808,7 +815,7 @@ mod tests {
 
         let mut work_load = HashMap::new();
 
-        work_load.insert(Resources::VenMech, 16.0);
+        work_load.insert(Resources::VenMech, Work::from(16.0));
 
         let periods: Vec<Period> = vec![Period::from_str("2023-W49-50").unwrap()];
 
@@ -818,9 +825,9 @@ mod tests {
         let mut periods_hash_map_0 = HashMap::new();
         let mut periods_hash_map_16 = HashMap::new();
 
-        periods_hash_map_0.insert(Period::from_str("2023-W49-50").unwrap(), 0.0);
+        periods_hash_map_0.insert(Period::from_str("2023-W49-50").unwrap(), Work::from(0.0));
 
-        periods_hash_map_16.insert(Period::from_str("2023-W49-50").unwrap(), 16.0);
+        periods_hash_map_16.insert(Period::from_str("2023-W49-50").unwrap(), Work::from(16.0));
 
         capacities.insert(Resources::VenMech, Periods(periods_hash_map_16));
 

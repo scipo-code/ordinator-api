@@ -55,7 +55,19 @@ impl MainResources {
 }
 
 /// This enum holds all the resources that are available needed to schedule work order.
-#[derive(Debug, Eq, PartialEq, Hash, Clone, Serialize, Deserialize, EnumIter, clap::ValueEnum)]
+#[derive(
+    PartialOrd,
+    Ord,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    Clone,
+    Serialize,
+    Deserialize,
+    EnumIter,
+    clap::ValueEnum,
+)]
 pub enum Resources {
     #[serde(rename = "MEDIC")]
     Medic,
