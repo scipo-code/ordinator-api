@@ -111,16 +111,16 @@ impl OperationalAgent {
                 .enumerate()
             {
                 if index_1 == index_2
-                    || operational_solution_1.2.is_none()
-                    || operational_solution_2.2.is_none()
+                    || operational_solution_1.1.is_none()
+                    || operational_solution_2.1.is_none()
                 {
                     continue;
                 }
 
-                if operational_solution_1.2.as_ref().unwrap().start_time()
-                    > operational_solution_2.2.as_ref().unwrap().finish_time()
-                    && operational_solution_2.2.as_ref().unwrap().finish_time()
-                        > operational_solution_1.2.as_ref().unwrap().start_time()
+                if operational_solution_1.1.as_ref().unwrap().start_time()
+                    > operational_solution_2.1.as_ref().unwrap().finish_time()
+                    && operational_solution_2.1.as_ref().unwrap().finish_time()
+                        > operational_solution_1.1.as_ref().unwrap().start_time()
                 {
                     operational_infeasible_cases.operation_overlap =
                         ConstraintState::Infeasible(format!(
@@ -161,14 +161,12 @@ impl Actor for OperationalAgent {
         let unavailability_end_event = OperationalSolution::new(None, vec![end_event]);
 
         self.operational_algorithm.operational_solutions.0.push((
-            WorkOrderNumber(0),
-            ActivityNumber(0),
+            (WorkOrderNumber(0), ActivityNumber(0)),
             Some(unavailability_start_event),
         ));
 
         self.operational_algorithm.operational_solutions.0.push((
-            WorkOrderNumber(0),
-            ActivityNumber(0),
+            (WorkOrderNumber(0), ActivityNumber(0)),
             Some(unavailability_end_event),
         ));
 
@@ -199,26 +197,21 @@ impl Handler<ScheduleIteration> for OperationalAgent {
                 .operational_solutions
                 .0
                 .iter()
-                .filter(|vec| vec.2.is_some())
+                .filter(|vec| vec.1.is_some())
                 .collect::<Vec<_>>()
             {
-                let delegated = self
+                let operational_parameter = self
                     .operational_algorithm
                     .operational_parameters
-                    .get(&(operational_solution.0, operational_solution.1))
+                    .get(&operational_solution.0)
                     .unwrap();
-                if delegated {
+
+                if operational_parameter.is_fixed() {
                     continue;
                 }
                 let state_link = StateLink::Operational((
-                    (
-                        self.id_operational.clone(),
-                        (operational_solution.0, operational_solution.1),
-                    ),
-                    (
-                        operational_solution.2.clone().unwrap().delegated,
-                        self.operational_algorithm.objective_value,
-                    ),
+                    (self.id_operational.clone(), operational_solution.0),
+                    self.operational_algorithm.objective_value,
                 ));
 
                 let span = span!(Level::INFO, "operational_agent_span", state_link = ?state_link);
@@ -227,8 +220,8 @@ impl Handler<ScheduleIteration> for OperationalAgent {
 
                 dbg!(self.supervisor_agent_addr.len());
                 let supervisor = self.supervisor_agent_addr.iter().find(|(id, _)| {
-                    warn!(supervisor_id = ?id, operational_solution_id = ?operational_solution.2.as_ref().unwrap());
-                    match operational_solution.2.as_ref().unwrap().supervisor.as_ref() {
+                    warn!(supervisor_id = ?id, operational_solution_id = ?operational_solution.1.as_ref().unwrap());
+                    match operational_solution.1.as_ref().unwrap().supervisor.as_ref() {
                         Some(supervisor_id) => id == &supervisor_id,
                         None => false,
                     }
@@ -329,81 +322,88 @@ impl
         match state_link {
             StateLink::Strategic(_) => todo!(),
             StateLink::Tactical(_) => todo!(),
-            StateLink::Supervisor(delegate_and_id) => match delegate_and_id.0 {
-                Delegate::Assess(operation_solution) => {
-                    let scheduling_environment = self.scheduling_environment.lock().unwrap();
+            StateLink::Supervisor(delegate_and_id) => {
+                let DelegateAndId(delegate, supervisor) = delegate_and_id;
 
-                    let operation: &Operation =
-                        scheduling_environment.operation(&operation_solution.0);
+                match &delegate.clone() {
+                    Delegate::Assess(ref operation_solution) => {
+                        let scheduling_environment = self.scheduling_environment.lock().unwrap();
 
-                    let (start_datetime, end_datetime) =
-                        self.determine_start_and_finish_times(&operation_solution.1.as_ref().expect("An Delegate::Assess was received in an OperationalAgent without a OperationSolution.").scheduled);
+                        let operation: &Operation =
+                            scheduling_environment.operation(&operation_solution.0);
 
-                    let operational_parameter = if operation.work_remaining() > &Work::from(0.0) {
-                        OperationalParameter::new(
-                            operation.work_remaining().clone(),
-                            operation.operation_analytic.preparation_time.clone(),
-                            start_datetime,
-                            end_datetime,
-                            delegate_and_id.0,
-                            delegate_and_id.1,
-                        )
-                    } else {
-                        error!("Actor did not incorporate the right state, but supervisor thought that it did");
-                        return Err(StateLinkError(
-                            Some(self.id_operational.clone()),
-                            Some(operation_solution.0),
-                        ));
-                    };
+                        let (start_datetime, end_datetime) =
+                            self.determine_start_and_finish_times(&operation_solution.1.scheduled);
 
-                    self.operational_algorithm
-                        .insert_optimized_operation(operation_solution.0, operational_parameter);
-                    info!(id = ?self.id_operational, operation = ?operation_solution);
-                    Ok(())
-                }
-                Delegate::Assign((work_order_activity, os)) => {
-                    let operational_solutions =
-                        &mut self.operational_algorithm.operational_solutions;
+                        let operational_parameter = if operation.work_remaining() > &Work::from(0.0)
+                        {
+                            OperationalParameter::new(
+                                operation.work_remaining().clone(),
+                                operation.operation_analytic.preparation_time.clone(),
+                                start_datetime,
+                                end_datetime,
+                                delegate,
+                                supervisor,
+                            )
+                        } else {
+                            error!("Actor did not incorporate the right state, but supervisor thought that it did");
+                            return Err(StateLinkError(
+                                Some(self.id_operational.clone()),
+                                Some(operation_solution.0),
+                            ));
+                        };
 
-                    if let Some(operational_solution) = operational_solutions
-                        .0
-                        .iter_mut()
-                        .find(|os| os == work_order_activity)
-                    {
-                        operational_solution.2.as_mut().unwrap().delegated = delegate_and_id.0;
+                        self.operational_algorithm.insert_optimized_operation(
+                            operation_solution.0,
+                            operational_parameter,
+                        );
+                        info!(id = ?self.id_operational, operation = ?operation_solution);
+                        Ok(())
                     }
-                    Ok(())
-                }
-                Delegate::Drop((work_order_number, activity_number)) => {
-                    if self
-                        .operational_algorithm
-                        .operational_parameters
-                        .keys()
-                        .any(|(won, acn)| *won == work_order_number && *acn == activity_number)
-                    {
-                        error!(work_order_number = ?work_order_number, activity_number = ?activity_number, id_operational = ?self.id_operational);
-                        // panic!();
+                    Delegate::Assign((work_order_activity, os)) => {
+                        let operational_parameters =
+                            &mut self.operational_algorithm.operational_parameters;
+
+                        if let Some(operational_parameter) = operational_parameters
+                            .iter_mut()
+                            .find(|os| os.0 == work_order_activity)
+                        {
+                            operational_parameter
+                                .1
+                                .set_delegated_and_supervisor(delegate, supervisor);
+                        }
+                        Ok(())
                     }
-                    let number_of_os = self.operational_algorithm.operational_parameters.len();
-                    self.operational_algorithm
-                        .operational_solutions
-                        .0
-                        .retain(|element| {
-                            !(element.0 == work_order_number && element.1 == activity_number)
-                        });
-                    self.operational_algorithm
-                        .operational_parameters
-                        .remove(&(work_order_number, activity_number));
-                    assert_eq!(
-                        self.operational_algorithm.operational_parameters.len(),
-                        number_of_os - 1
-                    );
-                    Ok(())
+                    Delegate::Drop(work_order_activity) => {
+                        if self
+                            .operational_algorithm
+                            .operational_parameters
+                            .keys()
+                            .any(|woa| woa == work_order_activity)
+                        {
+                            error!(work_order_activity = ?work_order_activity, id_operational = ?self.id_operational);
+                            // panic!();
+                        }
+                        let number_of_os = self.operational_algorithm.operational_parameters.len();
+                        self.operational_algorithm.operational_solutions.0.retain(
+                            |operational_solution| {
+                                !(operational_solution.0 == *work_order_activity)
+                            },
+                        );
+                        self.operational_algorithm
+                            .operational_parameters
+                            .remove(&work_order_activity);
+                        assert_eq!(
+                            self.operational_algorithm.operational_parameters.len(),
+                            number_of_os - 1
+                        );
+                        Ok(())
+                    }
+                    Delegate::Fixed => {
+                        todo!()
+                    }
                 }
-                Delegate::Fixed => {
-                    todo!()
-                }
-            },
+            }
             StateLink::Operational(_) => todo!(),
         }
     }

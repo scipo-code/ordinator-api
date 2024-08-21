@@ -22,7 +22,10 @@ use shared_types::{
 };
 use tracing::{debug, trace};
 
-use crate::agents::{supervisor_agent::Delegate, traits::LargeNeighborHoodSearch};
+use crate::agents::{
+    supervisor_agent::{Delegate, DelegateAndId},
+    traits::LargeNeighborHoodSearch,
+};
 
 use super::OperationalConfiguration;
 
@@ -153,9 +156,7 @@ impl OperationalAlgorithm {
 }
 
 #[derive(Clone)]
-pub struct OperationalSolutions(
-    pub Vec<(WorkOrderNumber, ActivityNumber, Option<OperationalSolution>)>,
-);
+pub struct OperationalSolutions(pub Vec<(WorkOrderActivity, Option<OperationalSolution>)>);
 
 trait OperationalFunctions {
     type Key;
@@ -174,7 +175,7 @@ impl OperationalFunctions for OperationalSolutions {
         for (index, operational_solution) in self
             .0
             .iter()
-            .filter_map(|os| os.2.clone())
+            .filter_map(|os| os.1.clone())
             .collect::<Vec<_>>()
             .windows(2)
             .map(|x| (&x[0], &x[1]))
@@ -207,12 +208,11 @@ impl OperationalFunctions for OperationalSolutions {
                 };
 
                 if !self.is_operational_solution_already_scheduled(key) {
-                    self.0
-                        .insert(index + 1, (key.0, key.1, Some(operational_solution)));
+                    self.0.insert(index + 1, (key, Some(operational_solution)));
                     let assignments: Vec<&Assignment> = self
                         .0
                         .iter()
-                        .filter_map(|os| os.2.as_ref())
+                        .filter_map(|os| os.1.as_ref())
                         .flat_map(|a| &a.assignments)
                         .collect();
 
@@ -222,7 +222,7 @@ impl OperationalFunctions for OperationalSolutions {
             }
         }
         if !self.is_operational_solution_already_scheduled(key) {
-            self.0.push((key.0, key.1, None));
+            self.0.push((key, None));
         };
     }
 
@@ -232,7 +232,7 @@ impl OperationalFunctions for OperationalSolutions {
             .iter()
             .find_map(|operational_solution| {
                 operational_solution
-                    .2
+                    .1
                     .as_ref()
                     .filter(|os| os.contains(time))
             })
@@ -244,7 +244,7 @@ impl OperationalFunctions for OperationalSolutions {
                 let next: Option<OperationalSolution> = self
                     .0
                     .iter()
-                    .filter_map(|os| os.2.as_ref())
+                    .filter_map(|os| os.1.as_ref())
                     .find(|start| start.start_time() > time)
                     .cloned();
 
@@ -264,9 +264,7 @@ impl OperationalSolutions {
     ) -> bool {
         self.0
             .iter()
-            .any(|(work_order_number, activity_number, _)| {
-                *work_order_number == key.0 && *activity_number == key.1
-            })
+            .any(|(work_order_activity, _)| *work_order_activity == key)
     }
 }
 
@@ -372,7 +370,7 @@ pub enum Unavailability {
     End,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct OperationalParameter {
     work: Work,
@@ -411,6 +409,11 @@ impl OperationalParameter {
     pub(crate) fn is_fixed(&self) -> bool {
         self.delegated.is_fixed()
     }
+
+    pub fn set_delegated_and_supervisor(&mut self, delegate: Delegate, supervisor: Id) {
+        self.delegated = delegate;
+        self.supervisor = supervisor;
+    }
 }
 
 impl LargeNeighborHoodSearch for OperationalAlgorithm {
@@ -437,7 +440,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             .operational_solutions
             .0
             .iter()
-            .filter_map(|operational_solution| operational_solution.2.as_ref())
+            .filter_map(|operational_solution| operational_solution.1.as_ref())
             .flat_map(|os| os.assignments.iter())
             .cloned()
             .collect();
@@ -585,10 +588,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             .operational_solutions
             .0
             .iter()
-            .find(|operational_solution| {
-                operational_solution.0 == work_order_and_activity_number.0
-                    && operational_solution.1 == work_order_and_activity_number.1
-            })
+            .find(|operational_solution| operational_solution.0 == work_order_and_activity_number)
             .take();
         unscheduled_operational_solution.expect("There was nothing in the operational solution");
     }
@@ -688,11 +688,11 @@ impl OperationalAlgorithm {
         rng: &mut impl rand::Rng,
         number_of_activities: usize,
     ) {
-        let operational_solutions: Vec<(WorkOrderNumber, ActivityNumber)> = self
+        let operational_solutions: Vec<WorkOrderActivity> = self
             .operational_solutions
             .0
             .choose_multiple(rng, number_of_activities)
-            .map(|operational_solution| (operational_solution.0, operational_solution.1))
+            .map(|operational_solution| operational_solution.0)
             .collect();
 
         for operational_solution in operational_solutions {
@@ -705,7 +705,7 @@ impl OperationalAlgorithm {
         operational_parameter: &OperationalParameter,
     ) -> DateTime<Utc> {
         for operational_solution in self.operational_solutions.0.windows(2) {
-            let start_of_interval = match &operational_solution[0].2 {
+            let start_of_interval = match &operational_solution[0].1 {
                 Some(operational_solution) => {
                     let mut current_time = operational_solution.assignments.last().unwrap().finish;
 
@@ -734,7 +734,7 @@ impl OperationalAlgorithm {
                 None => break,
             };
 
-            let end_of_interval = match &operational_solution[1].2 {
+            let end_of_interval = match &operational_solution[1].1 {
                 Some(operational_solution) => {
                     operational_solution.assignments.first().unwrap().start
                 }

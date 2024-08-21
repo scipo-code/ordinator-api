@@ -166,8 +166,10 @@ impl OperationalState {
                         .partition(|&(i, _)| i < *number as usize);
 
                 for toa in top_operational_agents {
-                    let transition_type =
-                        TransitionTypes::Unchanged(Delegate::Assign(*work_order_activity));
+                    let transition_type = TransitionTypes::Unchanged(Delegate::Assign((
+                        work_order_activity,
+                        operation,
+                    )));
                     transition_sequence.push((toa.1 .0.clone(), transition_type));
                 }
 
