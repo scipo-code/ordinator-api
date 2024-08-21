@@ -251,7 +251,7 @@ enum TransitionState {
 type StrategicMessage = ();
 type TacticalMessage = HashMap<(WorkOrderNumber, ActivityNumber), OperationSolution>;
 type SupervisorMessage = ();
-type OperationalMessage = ((Id, WorkOrderActivity), (Delegate, OperationalObjective));
+type OperationalMessage = ((Id, WorkOrderActivity), OperationalObjective);
 
 impl
     Handler<

@@ -3,7 +3,6 @@ pub mod optimized_work_orders;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
-use fixed::traits::Fixed;
 use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::strategic::strategic_response_periods::StrategicResponsePeriods;
