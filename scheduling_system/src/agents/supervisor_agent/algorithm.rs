@@ -82,7 +82,6 @@ impl OperationalState {
         &mut self,
         woa: TransitionTypes,
         operational_agent: (&Id, &Addr<OperationalAgent>),
-        operation_solution: OperationSolution,
         supervisor_id: Id,
     ) {
         match woa {
@@ -99,7 +98,7 @@ impl OperationalState {
 
                 operational_agent.1.do_send(state_link_wrapper)
             }
-            TransitionTypes::Present(woa) => {}
+            TransitionTypes::Unchanged(woa) => {}
             TransitionTypes::Leaving(woa) => {}
         }
     }
@@ -168,13 +167,13 @@ impl OperationalState {
 
                 for toa in top_operational_agents {
                     let transition_type =
-                        TransitionTypes::Present(Delegate::Assign(*work_order_activity));
+                        TransitionTypes::Unchanged(Delegate::Assign(*work_order_activity));
                     transition_sequence.push((toa.1 .0.clone(), transition_type));
                 }
 
                 for roa in remaining_operational_agents {
                     let transition_type =
-                        TransitionTypes::Present(Delegate::Drop(*work_order_activity));
+                        TransitionTypes::Unchanged(Delegate::Drop(*work_order_activity));
                     transition_sequence.push((roa.1 .0.clone(), transition_type));
                 }
             }
