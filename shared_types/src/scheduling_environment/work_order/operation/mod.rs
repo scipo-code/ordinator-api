@@ -22,7 +22,7 @@ pub struct Operation {
     pub operation_dates: OperationDates,
 }
 
-#[derive(Eq, PartialOrd, Ord, PartialEq, Debug, Clone)]
+#[derive(Hash, Eq, PartialOrd, Ord, PartialEq, Debug, Clone)]
 pub struct Work(U32F32);
 
 impl Work {
@@ -35,8 +35,12 @@ impl Work {
         self.0
     }
 
-    pub fn in_seconds(&mut self) -> u64 {
+    pub fn in_seconds(&self) -> u64 {
         self.0.to_num::<u64>() * 3600
+    }
+
+    pub fn to_f64(&self) -> f64 {
+        self.0.to_num::<f64>()
     }
 }
 
@@ -63,9 +67,61 @@ impl std::ops::AddAssign for Work {
     }
 }
 
+impl std::ops::AddAssign for &mut Work {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0
+    }
+}
+
+impl std::ops::Sub for Work {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let value = self.0 - rhs.0;
+        Work(value)
+    }
+}
+
+impl std::ops::Sub for &Work {
+    type Output = Work;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let value = self.0 - rhs.0;
+        Work(value)
+    }
+}
+
 impl std::ops::SubAssign for Work {
     fn sub_assign(&mut self, rhs: Self) {
         self.0 -= rhs.0
+    }
+}
+
+impl std::ops::Sub<&Work> for &mut Work {
+    type Output = Work;
+
+    fn sub(self, rhs: &Work) -> Work {
+        Work(self.0 - rhs.0)
+    }
+}
+
+impl std::ops::SubAssign<&Work> for Work {
+    fn sub_assign(&mut self, rhs: &Work) {
+        self.0 -= rhs.0
+    }
+}
+
+impl std::ops::Add<&Work> for &mut Work {
+    type Output = Work;
+
+    fn add(self, rhs: &Work) -> Work {
+        Work(self.0 + rhs.0)
+    }
+}
+
+impl std::ops::AddAssign<&Work> for Work {
+    fn add_assign(&mut self, rhs: &Work) {
+        self.0 += rhs.0
     }
 }
 
@@ -104,6 +160,12 @@ impl<'de> Deserialize<'de> for Work {
         D: serde::Deserializer<'de>,
     {
         deserializer.deserialize_f64(F64Visitor)
+    }
+}
+
+impl Display for Work {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

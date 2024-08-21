@@ -4,6 +4,7 @@ use clap::Args;
 use clap::Subcommand;
 use reqwest::blocking::Client;
 use shared_types::scheduling_environment::time_environment::period::Period;
+use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
 use shared_types::strategic::strategic_request_resources_message::StrategicResourceRequest;
@@ -369,8 +370,9 @@ fn generate_manual_resources(client: &Client, toml_path: String) -> StrategicRes
                 .or_insert(Periods(HashMap::new()));
 
             *resource_periods.0.entry(period.clone()).or_insert_with(|| {
-                operational_agent.hours_per_day * days_in_period * gradual_reduction(i)
-            }) += operational_agent.hours_per_day * days_in_period * gradual_reduction(i)
+                Work::from(operational_agent.hours_per_day * days_in_period * gradual_reduction(i))
+            }) +=
+                Work::from(operational_agent.hours_per_day * days_in_period * gradual_reduction(i))
         }
     }
     StrategicResources::new(resources_hash_map)
