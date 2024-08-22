@@ -9,7 +9,7 @@ use shared_types::{
     agent_error::AgentError,
     scheduling_environment::{
         work_order::{operation::ActivityNumber, WorkOrderActivity, WorkOrderNumber},
-        worker_environment::resources::{MainResources, Resources},
+        worker_environment::resources::Resources,
     },
     supervisor::{
         supervisor_response_scheduling::SupervisorResponseScheduling,
@@ -20,7 +20,7 @@ use shared_types::{
 };
 
 use shared_types::scheduling_environment::worker_environment::resources::Id;
-use tracing::{debug, error, event, info, instrument, span, warn, Level};
+use tracing::{error, event, info, instrument, warn, Level};
 
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
@@ -49,6 +49,7 @@ pub enum TransitionTypes {
     Entering(Delegate),
     Leaving(Delegate),
     Unchanged(Delegate),
+    Changed(Delegate),
 }
 
 type TransitionSets = HashSet<TransitionTypes>;
@@ -107,7 +108,7 @@ impl Delegate {
 
     fn get_woa(&self) -> (WorkOrderNumber, ActivityNumber) {
         match self {
-            Delegate::Assign(woa) => *woa,
+            Delegate::Assign((woa, _)) => *woa,
             Delegate::Assess((woa, _)) => *woa,
             Delegate::Drop(woa) => *woa,
             Delegate::Fixed => panic!(),
@@ -174,21 +175,62 @@ impl SupervisorAgent {
     /// pass everything into the program instead of locking the scheduling environment. That is really
     /// bad practice.J
 
-    fn generate_sets_of_work_order_activities(
+    fn make_transition_sets_from_tactical_state_link(
         &self,
         tactical_supervisor_link: HashMap<(WorkOrderNumber, ActivityNumber), OperationSolution>,
     ) -> TransitionSets {
-        let supervisor_set: HashSet<(WorkOrderNumber, ActivityNumber)> = self.get_unique_woa();
+        let supervisor_set: HashSet<(WorkOrderNumber, ActivityNumber)> =
+            self.supervisor_algorithm.operational_state.get_unique_woa();
 
         let tactical_set: HashSet<(WorkOrderNumber, ActivityNumber)> = tactical_supervisor_link
             .keys()
             .cloned()
             .collect::<HashSet<_>>();
 
-        let present_woas = supervisor_set
+        let mut changed_woas = HashSet::new();
+
+        let mut unchanged_woas = HashSet::new();
+
+        supervisor_set
             .intersection(&tactical_set)
             .cloned()
-            .map(|woa| TransitionTypes::Unchanged(woa))
+            .map(|woa| {
+                // We should go into the operational_state and find all matches on the
+                // woa! Good this is the first step!
+                let delegates = self
+                    .supervisor_algorithm
+                    .operational_state
+                    .get_iter()
+                    .filter(|(key, value)| key.1 == woa)
+                    .collect::<Vec<_>>();
+
+                // If the operation_solution in the delegate is the same as the one
+                // in the TacticalAgent we can simply proceed as before. If not
+                // we the TransitionType should be Changed. What should happen if the
+                // delegate is of the type Drop? Nothing should happen, if the OperationSolution
+                // have changed but the OperationalAgent has been assign Delegate::Drop, we
+                // should make it so that the code will... Hmmm.... Again we have a dilemma.
+                // I am  not sure what the best way is to handle the code. So what will happen
+                // if the TransitionType is Changed and the Delegate is Drop and we decide that
+                // we want to allow the OperationalAgent to access the Delegate again?
+                // That is a reasonable thing to want to do. Especially if doing shutdown
+                // planning. Hmm... Just iterate git gs and then fast
+                delegates.iter().for_each(|delegate| {
+                    if delegate.op {
+                    } else {
+                    }
+                })
+                // So what is it that we want to do here? I think that the goal
+                // is to generate all the different sets and then combine them into
+                // a single HashSet, and then simply loop across them in the outer
+                // scope of the function. Good.
+                // Now we have all the deletages for a single woa. Now we want to
+                // determine what to do with each of them! They are here unchanged which
+                // means that we should make them the same! Yes! so we take all the
+                // delegates and put them into the TransitionTypes?
+
+                // TransitionTypes::Unchanged(woa))
+            })
             .collect::<HashSet<TransitionTypes>>();
 
         let leaving_woas = supervisor_set
@@ -204,7 +246,7 @@ impl SupervisorAgent {
             .collect::<HashSet<TransitionTypes>>();
 
         let entering_present = entering_woas
-            .union(&present_woas)
+            .union(&unchanged_woas)
             .cloned()
             .collect::<HashSet<TransitionTypes>>();
         entering_present.union(&leaving_woas).cloned().collect()
@@ -280,28 +322,17 @@ impl
             StateLink::Strategic(_) => Ok(()),
             StateLink::Tactical(tactical_supervisor_link) => {
                 info!(self.id = ?self.supervisor_id);
-                let transition_sets =
-                    self.generate_sets_of_work_order_activities(tactical_supervisor_link.clone());
+                let transition_sets = self.make_transition_sets_from_tactical_state_link(
+                    tactical_supervisor_link.clone(),
+                );
 
-                // assert_eq!(
-                //     entering_woas.len() + present_woas.len(),
-                //     tactical_supervisor_link.len()
-                // );
-                // assert!(entering_woas.is_disjoint(&leaving_woas));
-                // assert!(leaving_woas.is_disjoint(
-                //     &tactical_supervisor_link
-                //         .keys()
-                //         .cloned()
-                //         .collect::<HashSet<_>>()
-                // ));
-
-                /// For each woa we want separate logic like what we are doing now.
                 for woa in transition_sets {
                     match woa {
+                        TransitionTypes::Unchanged(woa) => {}
+                        TransitionTypes::Changed(woa) => {}
                         TransitionTypes::Entering(woa) => {
                             self.supervisor_algorithm.operational_state
                         }
-                        TransitionTypes::Unchanged(woa) => {}
                         TransitionTypes::Leaving(woa) => {}
                     }
                     let resource = &tactical_supervisor_link
