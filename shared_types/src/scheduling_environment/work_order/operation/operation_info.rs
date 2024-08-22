@@ -42,4 +42,4 @@ impl OperationInfo {
     }
 }
 
-pub type NumberOfPeople = u32;
+pub type NumberOfPeople = u64;

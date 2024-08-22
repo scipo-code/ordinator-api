@@ -11,7 +11,10 @@ use std::collections::HashMap;
 
 use crate::{
     agent_error::AgentError,
-    scheduling_environment::{time_environment::day::Day, worker_environment::resources::Resources},
+    scheduling_environment::{
+        time_environment::day::Day, work_order::operation::Work,
+        worker_environment::resources::Resources,
+    },
     AlgorithmState, Asset, ConstraintState,
 };
 use actix::Message;
@@ -96,19 +99,19 @@ pub struct TacticalResources {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Days {
     #[serde(with = "any_key_map")]
-    pub days: HashMap<Day, f64>,
+    pub days: HashMap<Day, Work>,
 }
 
 impl Days {
-    pub fn new(days: HashMap<Day, f64>) -> Self {
+    pub fn new(days: HashMap<Day, Work>) -> Self {
         Self { days }
     }
 
-    pub fn get(&self, day: &Day) -> &f64 {
+    pub fn get(&self, day: &Day) -> &Work {
         self.days.get(day).unwrap()
     }
 
-    pub fn get_mut(&mut self, day: &Day) -> &mut f64 {
+    pub fn get_mut(&mut self, day: &Day) -> &mut Work {
         self.days.get_mut(day).unwrap()
     }
 }
@@ -160,12 +163,12 @@ impl TacticalResources {
     // string
     // }
 
-    pub fn new_from_data(resources: Vec<Resources>, tactical_days: Vec<Day>, load: f64) -> Self {
+    pub fn new_from_data(resources: Vec<Resources>, tactical_days: Vec<Day>, load: Work) -> Self {
         let mut resource_capacity: HashMap<Resources, Days> = HashMap::new();
         for resource in resources {
             let mut days = HashMap::new();
             for day in tactical_days.iter() {
-                days.insert(day.clone(), load);
+                days.insert(day.clone(), load.clone());
             }
 
             resource_capacity.insert(resource, Days { days });

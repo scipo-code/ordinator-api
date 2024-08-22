@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum Priority {
-    IntValue(u32),
+    IntValue(u64),
     StringValue(String),
 }
 
@@ -16,7 +16,7 @@ impl Priority {
 }
 
 impl Priority {
-    pub fn new_int(priority: u32) -> Self {
+    pub fn new_int(priority: u64) -> Self {
         Self::IntValue(priority)
     }
 }
