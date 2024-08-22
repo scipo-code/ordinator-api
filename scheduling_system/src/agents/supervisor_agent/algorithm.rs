@@ -79,11 +79,11 @@ pub struct OperationalState(
 impl OperationalState {
     pub fn handle_woa(
         &mut self,
-        woa: TransitionTypes,
+        transition_type: TransitionTypes,
         operational_agent: (&Id, &Addr<OperationalAgent>),
         supervisor_id: Id,
     ) {
-        match woa {
+        match transition_type {
             TransitionTypes::Entering(delegate) => {
                 let state_link =
                     StateLink::Supervisor(DelegateAndId(delegate.clone(), supervisor_id));
@@ -97,8 +97,9 @@ impl OperationalState {
 
                 operational_agent.1.do_send(state_link_wrapper)
             }
-            TransitionTypes::Unchanged(woa) => {}
-            TransitionTypes::Leaving(woa) => {}
+            TransitionTypes::Unchanged(_woa) => {}
+            TransitionTypes::Changed(_delegate) => {}
+            TransitionTypes::Leaving(_woa) => {}
         }
     }
     pub fn count_unique_woa(&self) -> usize {

@@ -42,7 +42,7 @@ extern crate regex;
 use shared_types::scheduling_environment::work_order::operation::operation_analytic::OperationAnalytic;
 use shared_types::scheduling_environment::work_order::operation::operation_info::OperationInfo;
 use shared_types::scheduling_environment::work_order::operation::{
-    ActivityNumber, Operation, OperationDates,
+    ActivityNumber, Operation, OperationDates, Work,
 };
 
 use super::{SchedulingEnvironmentFactory, SchedulingEnvironmentFactoryError};
@@ -50,17 +50,17 @@ use super::{SchedulingEnvironmentFactory, SchedulingEnvironmentFactoryError};
 #[derive(Clone)]
 pub struct TotalExcel<'a> {
     file_path: &'a Path,
-    number_of_strategic_periods: u32,
-    number_of_tactical_periods: u32,
-    number_of_days: u32,
+    number_of_strategic_periods: u64,
+    number_of_tactical_periods: u64,
+    number_of_days: u64,
 }
 
 impl<'a> TotalExcel<'a> {
     pub fn new(
         file_path: &'a Path,
-        number_of_strategic_periods: u32,
-        number_of_tactical_periods: u32,
-        number_of_days: u32,
+        number_of_strategic_periods: u64,
+        number_of_tactical_periods: u64,
+        number_of_days: u64,
     ) -> Self {
         Self {
             file_path,
@@ -106,7 +106,7 @@ impl<'a> SchedulingEnvironmentFactory<TotalExcel<'a>> for SchedulingEnvironment 
 
         let first_period = strategic_periods.first().unwrap().clone();
 
-        let tactical_days = |number_of_days: u32| -> Vec<Day> {
+        let tactical_days = |number_of_days: u64| -> Vec<Day> {
             let mut days: Vec<Day> = Vec::new();
             let mut date = first_period.start_date().to_owned();
             for day_index in 0..number_of_days {
@@ -169,7 +169,7 @@ fn populate_work_orders<'a>(
                 let work_order_string = &row[*column_index];
                 match &work_order_string {
                     calamine::Data::Empty => continue,
-                    calamine::Data::String(s) => match s.parse::<u32>() {
+                    calamine::Data::String(s) => match s.parse::<u64>() {
                         Ok(n) => WorkOrderNumber(n),
                         Err(e) => {
                             dbg!(
@@ -180,8 +180,8 @@ fn populate_work_orders<'a>(
                             panic!("WorkOrderNumber could not be extracted from the inputted excel file");
                         }
                     },
-                    calamine::Data::Int(s) => WorkOrderNumber(*s as u32),
-                    calamine::Data::Float(s) => WorkOrderNumber(*s as u32),
+                    calamine::Data::Int(s) => WorkOrderNumber(*s as u64),
+                    calamine::Data::Float(s) => WorkOrderNumber(*s as u64),
                     _ => {
                         todo!("Handle other cases of calamine::Data");
                     }
@@ -236,14 +236,14 @@ fn create_new_work_order(
         )
         .cloned()
     {
-        Some(calamine::Data::Int(n)) => Priority::IntValue(n as u32),
+        Some(calamine::Data::Int(n)) => Priority::IntValue(n as u64),
         Some(calamine::Data::String(s)) => {
-            match s.parse::<u32>() {
+            match s.parse::<u64>() {
                 Ok(num) => Priority::IntValue(num), // If successful, use the integer value
                 Err(_) => Priority::StringValue(s), // If not, fall back to using the string
             }
         }
-        Some(calamine::Data::Float(n)) => Priority::IntValue(n as u32),
+        Some(calamine::Data::Float(n)) => Priority::IntValue(n as u64),
         _ => Priority::StringValue(String::new()),
     };
 
@@ -260,15 +260,15 @@ fn create_new_work_order(
         )
         .cloned()
     {
-        Some(calamine::Data::Int(n)) => WorkOrderNumber(n as u32),
-        Some(calamine::Data::Float(n)) => WorkOrderNumber(n as u32),
-        Some(calamine::Data::String(s)) => WorkOrderNumber(s.parse::<u32>().unwrap_or(0)),
+        Some(calamine::Data::Int(n)) => WorkOrderNumber(n as u64),
+        Some(calamine::Data::Float(n)) => WorkOrderNumber(n as u64),
+        Some(calamine::Data::String(s)) => WorkOrderNumber(s.parse::<u64>().unwrap_or(0)),
         _ => panic!("Work order number could not be parsed"),
     };
 
     let work_order_analytic = WorkOrderAnalytic::new(
         0,
-        0.0,
+        Work::from(0.0),
         HashMap::new(),
         false,
         false,
@@ -366,15 +366,15 @@ fn create_new_operation(
         )
         .cloned()
     {
-        Some(calamine::Data::Int(n)) => ActivityNumber(n as u32),
-        Some(calamine::Data::Float(n)) => ActivityNumber(n as u32),
-        Some(calamine::Data::String(s)) => ActivityNumber(s.parse::<u32>().unwrap_or(0)),
+        Some(calamine::Data::Int(n)) => ActivityNumber(n as u64),
+        Some(calamine::Data::Float(n)) => ActivityNumber(n as u64),
+        Some(calamine::Data::String(s)) => ActivityNumber(s.parse::<u64>().unwrap_or(0)),
         _ => {
             panic!("Activity number is not present or could not be parsed. That should not happen")
         }
     };
 
-    let operating_time = 6.0;
+    let operating_time = Work::from(6.0);
 
     let operation_info = OperationInfo::new(
         match row
@@ -385,9 +385,9 @@ fn create_new_operation(
             )
             .cloned()
         {
-            Some(calamine::Data::Int(n)) => n as u32,
-            Some(calamine::Data::Float(n)) => n as u32,
-            Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(1),
+            Some(calamine::Data::Int(n)) => n as u64,
+            Some(calamine::Data::Float(n)) => n as u64,
+            Some(calamine::Data::String(s)) => s.parse::<u64>().unwrap_or(1),
             _ => 1,
         },
         match work_remaining_data.cloned() {
@@ -867,7 +867,7 @@ fn extract_unloading_point(
     })
 }
 
-fn extract_year_and_weeks(input_string: &str) -> (Option<i32>, Option<u32>, Option<u32>) {
+fn extract_year_and_weeks(input_string: &str) -> (Option<i32>, Option<u64>, Option<u64>) {
     let re = regex::Regex::new(r"(\d{2})?-?[W|w](\d+)-?[W|w]?(\d+)").unwrap();
     let captures = re.captures(input_string);
 
@@ -983,8 +983,8 @@ fn extract_order_text(
     };
 
     let notes_2 = match notes_2_data {
-        Some(calamine::Data::String(s)) => s.parse::<u32>().unwrap_or(8),
-        Some(calamine::Data::Int(n)) => *n as u32,
+        Some(calamine::Data::String(s)) => s.parse::<u64>().unwrap_or(8),
+        Some(calamine::Data::Int(n)) => *n as u64,
         None => 5,
         _ => {
             debug!("Could not parse notes_2 as an integer {}", line!());
@@ -1090,7 +1090,7 @@ fn get_data_from_headers<'a>(
     None
 }
 
-fn create_periods(number_of_periods: u32) -> Result<Vec<Period>, Error> {
+fn create_periods(number_of_periods: u64) -> Result<Vec<Period>, Error> {
     let mut periods: Vec<Period> = Vec::<Period>::new();
     let mut start_date = Utc::now();
 
@@ -1137,10 +1137,10 @@ fn create_periods(number_of_periods: u32) -> Result<Vec<Period>, Error> {
 }
 
 fn excel_time_to_hh_mm_ss(serial_time: f64) -> NaiveTime {
-    let total_seconds: u32 = (serial_time * 24.0 * 3600.0).round() as u32;
-    let hours: u32 = total_seconds / 3600;
-    let minutes: u32 = (total_seconds % 3600) / 60;
-    let seconds: u32 = total_seconds % 60;
+    let total_seconds: u64 = (serial_time * 24.0 * 3600.0).round() as u64;
+    let hours: u64 = total_seconds / 3600;
+    let minutes: u64 = (total_seconds % 3600) / 60;
+    let seconds: u64 = total_seconds % 60;
 
     NaiveTime::from_hms_opt(hours, minutes, seconds)
         .expect("Could not convert excel time to NaiveTime")

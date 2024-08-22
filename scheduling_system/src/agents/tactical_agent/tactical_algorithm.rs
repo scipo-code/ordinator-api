@@ -18,8 +18,7 @@ use shared_types::{
         tactical_response_scheduling::TacticalResponseScheduling,
         tactical_response_time::TacticalResponseTime,
         tactical_scheduling_message::TacticalSchedulingRequest,
-        tactical_time_message::TacticalTimeRequest, Days, TacticalInfeasibleCases,
-        TacticalResources,
+        tactical_time_message::TacticalTimeRequest, TacticalInfeasibleCases, TacticalResources,
     },
     AlgorithmState, ConstraintState, LoadOperation,
 };
@@ -44,7 +43,7 @@ pub struct TacticalAlgorithm {
     pub optimized_work_orders: HashMap<WorkOrderNumber, OptimizedTacticalWorkOrder>,
     pub capacity: TacticalResources,
     pub loading: TacticalResources,
-    pub priority_queue: PriorityQueue<WorkOrderNumber, u32>,
+    pub priority_queue: PriorityQueue<WorkOrderNumber, u64>,
     pub tactical_days: Vec<Day>,
 }
 
@@ -52,7 +51,7 @@ pub struct TacticalAlgorithm {
 pub struct OptimizedTacticalWorkOrder {
     pub main_work_center: MainResources,
     pub operation_parameters: HashMap<ActivityNumber, OperationParameters>,
-    pub weight: u32,
+    pub weight: u64,
     pub relations: Vec<ActivityRelation>,
     pub operation_solutions: Option<HashMap<ActivityNumber, OperationSolution>>,
     pub scheduled_period: Period,
@@ -62,10 +61,10 @@ pub struct OptimizedTacticalWorkOrder {
 #[derive(Clone, Serialize, Debug)]
 pub struct OperationParameters {
     work_order_number: WorkOrderNumber,
-    number: u32,
-    duration: f64,
-    operating_time: f64,
-    work_remaining: f64,
+    number: NumberOfPeople,
+    duration: Work,
+    operating_time: Work,
+    work_remaining: Work,
     resource: Resources,
 }
 
@@ -145,11 +144,11 @@ impl TacticalAlgorithm {
         &self.objective_value
     }
 
-    pub fn capacity(&self, resource: &Resources, day: &Day) -> f64 {
-        *self.capacity.resources.get(resource).unwrap().get(day)
+    pub fn capacity(&self, resource: &Resources, day: &Day) -> &Work {
+        self.capacity.resources.get(resource).unwrap().get(day)
     }
 
-    pub fn capacity_mut(&mut self, resource: &Resources, day: &Day) -> &mut f64 {
+    pub fn capacity_mut(&mut self, resource: &Resources, day: &Day) -> &mut Work {
         self.capacity
             .resources
             .get_mut(resource)
@@ -157,11 +156,11 @@ impl TacticalAlgorithm {
             .get_mut(day)
     }
 
-    pub fn loading(&self, resource: &Resources, day: &Day) -> f64 {
-        *self.loading.resources.get(resource).unwrap().get(day)
+    pub fn loading(&self, resource: &Resources, day: &Day) -> &Work {
+        self.loading.resources.get(resource).unwrap().get(day)
     }
 
-    pub fn loading_mut(&mut self, resource: &Resources, day: &Day) -> &mut f64 {
+    pub fn loading_mut(&mut self, resource: &Resources, day: &Day) -> &mut Work {
         self.loading
             .resources
             .get_mut(resource)
@@ -241,9 +240,9 @@ impl TacticalAlgorithm {
             let optimized_operation = OperationParameters {
                 work_order_number: *work_order.work_order_number(),
                 number: operation.number(),
-                duration: operation.duration(),
-                operating_time: operation.operating_time(),
-                work_remaining: operation.work_remaining(),
+                duration: operation.duration().clone(),
+                operating_time: operation.operating_time().clone(),
+                work_remaining: operation.work_remaining().clone(),
                 resource: operation.resource().clone(),
             };
             optimized_work_order
@@ -275,8 +274,8 @@ impl TacticalAlgorithm {
             for day in self.tactical_days.clone() {
                 let excess_capacity = self.loading(resource, &day) - self.capacity(resource, &day);
 
-                if excess_capacity > 0.0 {
-                    objective_value_from_excess += excess_capacity;
+                if excess_capacity > Work::from(0.0) {
+                    objective_value_from_excess += excess_capacity.to_f64();
                 }
             }
         }
@@ -416,7 +415,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     .operation_parameters
                     .get(activity)
                     .expect("The work order should always have its corresponding parameters");
-                let mut activity_load = Vec::<(Day, f64)>::new();
+                let mut activity_load = Vec::<(Day, Work)>::new();
                 let resource = operation_parameters.resource.clone();
 
                 let current_day_peek = match current_day.peek() {
@@ -442,14 +441,14 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                                 loop_state = LoopState::Unscheduled;
                                 continue 'main;
                             }
-                            0.0
+                            Work::from(0.0)
                         }
                     };
 
                 let loadings = self.determine_load(
                     first_day_remaining_capacity,
-                    operation_parameters.operating_time,
-                    operation_parameters.work_remaining,
+                    operation_parameters.operating_time.clone(),
+                    operation_parameters.work_remaining.clone(),
                 );
 
                 for load in loadings {
@@ -498,7 +497,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     activity_load,
                     resource,
                     operation_parameters.number,
-                    operation_parameters.work_remaining,
+                    operation_parameters.work_remaining.clone(),
                     current_work_order_number,
                     *activity,
                 );
@@ -624,27 +623,8 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 let capacities = &self.capacity;
                 let loadings = &self.loading;
 
-                let mut percentage_loading = HashMap::<Resources, Days>::new();
-
-                for (resource, days) in &capacities.resources {
-                    if !percentage_loading.contains_key(resource) {
-                        percentage_loading.insert(resource.clone(), Days::new(HashMap::new()));
-                    }
-                    for (day, capacity) in &days.days {
-                        let percentage =
-                            (loadings.resources.get(resource).unwrap().get(day) / capacity * 100.0)
-                                .round();
-                        percentage_loading
-                            .get_mut(resource)
-                            .unwrap()
-                            .days
-                            .insert(day.clone(), percentage);
-                    }
-                }
-
-                let algorithm_resources = TacticalResources::new(percentage_loading);
                 let tactical_response_resources =
-                    TacticalResponseResources::Percentage(algorithm_resources);
+                    TacticalResponseResources::Percentage((capacities.clone(), loadings.clone()));
                 Ok(tactical_response_resources)
             }
         }
@@ -670,18 +650,18 @@ impl TacticalAlgorithm {
                 let resource_loading = self.loading(&resource, &day);
 
                 let new_load = match load_operation {
-                    LoadOperation::Add => resource_loading + load,
-                    LoadOperation::Sub => resource_loading - load,
+                    LoadOperation::Add => resource_loading + &load,
+                    LoadOperation::Sub => resource_loading - &load,
                 };
                 *self.loading_mut(&resource, &day) = new_load;
             }
         }
     }
 
-    fn remaining_capacity(&self, resource: &Resources, day: &Day) -> Option<f64> {
+    fn remaining_capacity(&self, resource: &Resources, day: &Day) -> Option<Work> {
         let remaining_capacity = self.capacity(resource, day) - self.loading(resource, day);
 
-        if remaining_capacity <= 0.0 {
+        if remaining_capacity <= Work::from(0.0) {
             None
         } else {
             Some(remaining_capacity)
@@ -690,12 +670,12 @@ impl TacticalAlgorithm {
 
     fn determine_load(
         &self,
-        remaining_capacity: f64,
-        mut operating_time: f64,
-        mut work_remaining: f64,
-    ) -> Vec<f64> {
-        if operating_time <= 0.0 {
-            operating_time = 4.0;
+        remaining_capacity: Work,
+        mut operating_time: Work,
+        mut work_remaining: Work,
+    ) -> Vec<Work> {
+        if operating_time <= Work::from(0.0) {
+            operating_time = Work::from(4.0);
             warn!("Operating time is less or equal to 0.0. This is an error in the data initialization, setting it to 4.0 hours as default");
         }
 
@@ -704,16 +684,16 @@ impl TacticalAlgorithm {
         let first_day_load = match remaining_capacity.partial_cmp(&operating_time) {
             Some(Ordering::Less) => remaining_capacity,
             Some(Ordering::Equal) => remaining_capacity,
-            Some(Ordering::Greater) => operating_time,
+            Some(Ordering::Greater) => operating_time.clone(),
             None => panic!("remaining work and operating_time are not comparable. There is an error in the data initialization"),
-        }.min(work_remaining);
+        }.min(work_remaining.clone());
 
-        loadings.push(first_day_load);
+        loadings.push(first_day_load.clone());
         work_remaining -= first_day_load;
 
-        while work_remaining > 0.0 {
-            let load = operating_time.min(work_remaining);
-            loadings.push(load);
+        while work_remaining > Work::from(0.0) {
+            let load = operating_time.clone().min(work_remaining.clone());
+            loadings.push(load.clone());
             work_remaining -= load;
         }
         loadings
@@ -737,7 +717,7 @@ impl TestAlgorithm for TacticalAlgorithm {
     fn determine_algorithm_state(&self) -> AlgorithmState<Self::InfeasibleCases> {
         let mut algorithm_state = AlgorithmState::Infeasible(TacticalInfeasibleCases::default());
 
-        let mut aggregated_load: HashMap<Resources, HashMap<Day, f64>> = HashMap::new();
+        let mut aggregated_load: HashMap<Resources, HashMap<Day, Work>> = HashMap::new();
         for (_work_order_number, optimized_work_order) in self.optimized_work_orders.clone() {
             for (_activity, operation_solution) in
                 optimized_work_order.operation_solutions.unwrap_or_default()
@@ -749,7 +729,7 @@ impl TestAlgorithm for TacticalAlgorithm {
                         .entry(resource.clone())
                         .or_default()
                         .entry(day)
-                        .or_insert(0.0) += load;
+                        .or_insert(Work::from(0.0)) += load;
                 }
             }
         }
@@ -765,9 +745,12 @@ impl TestAlgorithm for TacticalAlgorithm {
                         None => Cow::Owned(HashMap::new()),
                     };
 
-                    let agg_load = resource_map.get(day).unwrap_or(&0.0);
+                    let zero_work = Work::from(0.0);
+                    let agg_load = resource_map.get(day).unwrap_or(&zero_work);
                     let sch_load = self.loading(&resource, day);
-                    if (*agg_load - sch_load).abs() >= 0.00001 {
+                    if (agg_load - sch_load) > Work::from(0.0)
+                        || (agg_load - sch_load) < Work::from(0.0)
+                    {
                         error!(agg_load = ?agg_load, sch_load = ?sch_load, resource = ?resource, day = ?day);
                         return ConstraintState::Infeasible(format!("Loads does not match on: day {}\nresource: {}\nscheduled load: {}\naggregated_load: {}", day, resource, sch_load, agg_load));
                     }
@@ -862,7 +845,10 @@ pub mod tests {
 
     use chrono::{Days, Duration};
     use shared_types::scheduling_environment::{
-        work_order::{operation::ActivityNumber, WorkOrderNumber},
+        work_order::{
+            operation::{operation_info::NumberOfPeople, ActivityNumber, Work},
+            WorkOrderNumber,
+        },
         worker_environment::resources::{MainResources, Resources},
     };
     use strum::IntoEnumIterator;
@@ -885,14 +871,17 @@ pub mod tests {
             super::TacticalResources::new(HashMap::new()),
         );
 
-        let remaining_capacity = 3.0;
-        let operating_time = 5.0;
-        let work_remaining = 10.0;
+        let remaining_capacity = Work::from(3.0);
+        let operating_time = Work::from(5.0);
+        let work_remaining = Work::from(10.0);
 
         let loadings =
             tactical_algorithm.determine_load(remaining_capacity, operating_time, work_remaining);
 
-        assert_eq!(loadings, vec![3.0, 5.0, 2.0]);
+        assert_eq!(
+            loadings,
+            vec![Work::from(3.0), Work::from(5.0), Work::from(2.0)]
+        );
     }
 
     #[test]
@@ -904,14 +893,17 @@ pub mod tests {
             super::TacticalResources::new(HashMap::new()),
         );
 
-        let remaining_capacity = 3.0;
-        let operating_time = 0.0;
-        let work_remaining = 10.0;
+        let remaining_capacity = Work::from(3.0);
+        let operating_time = Work::from(0.0);
+        let work_remaining = Work::from(10.0);
 
         let loadings =
             tactical_algorithm.determine_load(remaining_capacity, operating_time, work_remaining);
 
-        assert_eq!(loadings, vec![3.0, 4.0, 3.0]);
+        assert_eq!(
+            loadings,
+            vec![Work::from(3.0), Work::from(4.0), Work::from(3.0)]
+        );
     }
 
     #[test]
@@ -937,14 +929,23 @@ pub mod tests {
             super::TacticalResources::new(HashMap::new()),
         );
 
-        let operation_parameter =
-            OperationParameters::new(work_order_number, 1, 1.0, 1.0, 1.0, Resources::MtnMech);
+        let operation_parameter = OperationParameters::new(
+            work_order_number,
+            1,
+            Work::from(1.0),
+            Work::from(1.0),
+            Work::from(1.0),
+            Resources::MtnMech,
+        );
 
         let operation_solution = OperationSolution::new(
-            vec![(tactical_algorithm.tactical_days[27].clone(), 1.0)],
+            vec![(
+                tactical_algorithm.tactical_days[27].clone(),
+                Work::from(1.0),
+            )],
             Resources::MtnMech,
             operation_parameter.number,
-            operation_parameter.work_remaining,
+            operation_parameter.work_remaining.clone(),
             work_order_number,
             activity_number,
         );
@@ -1000,17 +1001,23 @@ pub mod tests {
             super::TacticalResources::new_from_data(
                 Resources::iter().collect(),
                 tactical_days(56),
-                0.0,
+                Work::from(0.0),
             ),
             super::TacticalResources::new_from_data(
                 Resources::iter().collect(),
                 tactical_days(56),
-                0.0,
+                Work::from(0.0),
             ),
         );
 
-        let operation_parameter =
-            OperationParameters::new(work_order_number, 1, 1.0, 1.0, 1.0, Resources::MtnMech);
+        let operation_parameter = OperationParameters::new(
+            work_order_number,
+            1,
+            Work::from(1.0),
+            Work::from(1.0),
+            Work::from(1.0),
+            Resources::MtnMech,
+        );
 
         let mut operation_parameters = HashMap::new();
         operation_parameters.insert(ActivityNumber(1), operation_parameter);
@@ -1076,17 +1083,23 @@ pub mod tests {
             super::TacticalResources::new_from_data(
                 Resources::iter().collect(),
                 tactical_days(56),
-                100.0,
+                Work::from(100.0),
             ),
             super::TacticalResources::new_from_data(
                 Resources::iter().collect(),
                 tactical_days(56),
-                0.0,
+                Work::from(0.0),
             ),
         );
 
-        let operation_parameter =
-            OperationParameters::new(work_order_number, 1, 1.0, 1.0, 1.0, Resources::MtnMech);
+        let operation_parameter = OperationParameters::new(
+            work_order_number,
+            1,
+            Work::from(1.0),
+            Work::from(1.0),
+            Work::from(1.0),
+            Resources::MtnMech,
+        );
 
         let mut operation_parameters = HashMap::new();
         operation_parameters.insert(ActivityNumber(1), operation_parameter);
@@ -1128,7 +1141,7 @@ pub mod tests {
         pub fn new(
             main_work_center: MainResources,
             operation_parameters: HashMap<ActivityNumber, OperationParameters>,
-            weight: u32,
+            weight: u64,
             relations: Vec<ActivityRelation>,
             operation_solutions: Option<HashMap<ActivityNumber, OperationSolution>>,
             scheduled_period: Period,
@@ -1147,10 +1160,10 @@ pub mod tests {
     impl OperationParameters {
         pub fn new(
             work_order_number: WorkOrderNumber,
-            number: u32,
-            duration: f64,
-            operating_time: f64,
-            work_remaining: f64,
+            number: NumberOfPeople,
+            duration: Work,
+            operating_time: Work,
+            work_remaining: Work,
             resource: Resources,
         ) -> Self {
             OperationParameters {

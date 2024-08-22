@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use clap::Subcommand;
 use reqwest::blocking::Client;
 use shared_types::{
-    scheduling_environment::{time_environment::day::Day, worker_environment::resources::Resources},
+    scheduling_environment::{
+        time_environment::day::Day, work_order::operation::Work,
+        worker_environment::resources::Resources,
+    },
     tactical::{
         tactical_resources_message::TacticalResourceRequest,
         tactical_status_message::TacticalStatusMessage, Days, TacticalRequest,
@@ -193,11 +196,9 @@ fn generate_manual_resources(client: &Client, toml_path: String) -> TacticalReso
                 )
                 .or_insert(Days::new(HashMap::new()));
 
-            *resource_periods
-                .days
-                .entry(day.clone())
-                .or_insert_with(|| operational_agent.hours_per_day * gradual_reduction(i)) +=
-                operational_agent.hours_per_day * gradual_reduction(i)
+            *resource_periods.days.entry(day.clone()).or_insert_with(|| {
+                Work::from(operational_agent.hours_per_day * gradual_reduction(i))
+            }) += Work::from(operational_agent.hours_per_day * gradual_reduction(i))
         }
     }
     TacticalResources::new(resources_hash_map)

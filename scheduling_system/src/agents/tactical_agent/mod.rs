@@ -3,7 +3,6 @@ pub mod tactical_algorithm;
 
 use actix::prelude::*;
 use shared_types::agent_error::AgentError;
-use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
 use shared_types::scheduling_environment::work_order::{WorkOrderActivity, WorkOrderNumber};
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::tactical::tactical_response_status::TacticalResponseStatus;

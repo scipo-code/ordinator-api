@@ -624,8 +624,8 @@ impl Orchestrator {
                 *resource_periods
                     .days
                     .entry(day.clone())
-                    .or_insert_with(|| 0.0) +=
-                    operational_agent.hours_per_day * gradual_reduction(i);
+                    .or_insert_with(|| Work::from(0.0)) +=
+                    Work::from(operational_agent.hours_per_day * gradual_reduction(i));
             }
         }
         TacticalResources::new(resources_hash_map)

@@ -20,7 +20,7 @@ use shared_types::{
 };
 
 use shared_types::scheduling_environment::worker_environment::resources::Id;
-use tracing::{error, event, info, instrument, warn, Level};
+use tracing::{error, info, instrument, warn};
 
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
@@ -50,6 +50,17 @@ pub enum TransitionTypes {
     Leaving(Delegate),
     Unchanged(Delegate),
     Changed(Delegate),
+}
+
+impl TransitionTypes {
+    pub fn resource(&self) -> &Resources {
+        match self {
+            TransitionTypes::Entering(delegate) => delegate.get_resource(),
+            TransitionTypes::Leaving(delegate) => delegate.get_resource(),
+            TransitionTypes::Unchanged(delegate) => delegate.get_resource(),
+            TransitionTypes::Changed(delegate) => delegate.get_resource(),
+        }
+    }
 }
 
 type TransitionSets = HashSet<TransitionTypes>;
@@ -90,6 +101,15 @@ pub enum Delegate {
 }
 
 impl Delegate {
+    pub fn operation_solution(&self) -> &OperationSolution {
+        match self {
+            Delegate::Assess((_, os)) => os,
+            Delegate::Assign((_, os)) => os,
+            Delegate::Drop(_) => panic!(),
+            Delegate::Fixed => panic!(),
+        }
+    }
+
     pub fn is_assess(&self) -> bool {
         matches!(self, Self::Assess(_))
     }
@@ -111,6 +131,15 @@ impl Delegate {
             Delegate::Assign((woa, _)) => *woa,
             Delegate::Assess((woa, _)) => *woa,
             Delegate::Drop(woa) => *woa,
+            Delegate::Fixed => panic!(),
+        }
+    }
+
+    fn get_resource(&self) -> &Resources {
+        match self {
+            Delegate::Assess((_, os)) => &os.resource,
+            Delegate::Assign((_, os)) => &os.resource,
+            Delegate::Drop(_) => panic!(),
             Delegate::Fixed => panic!(),
         }
     }
@@ -204,45 +233,38 @@ impl SupervisorAgent {
                     .filter(|(key, value)| key.1 == woa)
                     .collect::<Vec<_>>();
 
-                // If the operation_solution in the delegate is the same as the one
-                // in the TacticalAgent we can simply proceed as before. If not
-                // we the TransitionType should be Changed. What should happen if the
-                // delegate is of the type Drop? Nothing should happen, if the OperationSolution
-                // have changed but the OperationalAgent has been assign Delegate::Drop, we
-                // should make it so that the code will... Hmmm.... Again we have a dilemma.
-                // I am  not sure what the best way is to handle the code. So what will happen
-                // if the TransitionType is Changed and the Delegate is Drop and we decide that
-                // we want to allow the OperationalAgent to access the Delegate again?
-                // That is a reasonable thing to want to do. Especially if doing shutdown
-                // planning. Hmm... Just iterate git gs and then fast
                 delegates.iter().for_each(|delegate| {
-                    if delegate.op {
+                    if delegate.1 .0.operation_solution()
+                        == tactical_supervisor_link.get(&woa).unwrap()
+                    {
+                        let transition_type = TransitionTypes::Unchanged(delegate.1 .0.clone());
+                        unchanged_woas.insert(transition_type);
                     } else {
+                        let transition_type = TransitionTypes::Changed(delegate.1 .0.clone());
+                        changed_woas.insert(transition_type);
                     }
                 })
-                // So what is it that we want to do here? I think that the goal
-                // is to generate all the different sets and then combine them into
-                // a single HashSet, and then simply loop across them in the outer
-                // scope of the function. Good.
-                // Now we have all the deletages for a single woa. Now we want to
-                // determine what to do with each of them! They are here unchanged which
-                // means that we should make them the same! Yes! so we take all the
-                // delegates and put them into the TransitionTypes?
 
                 // TransitionTypes::Unchanged(woa))
-            })
-            .collect::<HashSet<TransitionTypes>>();
+            });
 
         let leaving_woas = supervisor_set
             .difference(&tactical_set)
             .cloned()
-            .map(|woa| TransitionTypes::Leaving(woa))
+            .map(|woa| {
+                let delegate_drop = Delegate::Drop(woa);
+                TransitionTypes::Leaving(delegate_drop)
+            })
             .collect::<HashSet<TransitionTypes>>();
 
         let entering_woas = tactical_set
             .difference(&supervisor_set)
             .cloned()
-            .map(|woa| TransitionTypes::Entering(woa))
+            .map(|woa| {
+                let operation_solution = tactical_supervisor_link.get(&woa).unwrap();
+                let delegate_entering = Delegate::Assess((woa, operation_solution.clone()));
+                TransitionTypes::Entering(delegate_entering)
+            })
             .collect::<HashSet<TransitionTypes>>();
 
         let entering_present = entering_woas
@@ -326,57 +348,21 @@ impl
                     tactical_supervisor_link.clone(),
                 );
 
-                for woa in transition_sets {
-                    match woa {
-                        TransitionTypes::Unchanged(woa) => {}
-                        TransitionTypes::Changed(woa) => {}
-                        TransitionTypes::Entering(woa) => {
-                            self.supervisor_algorithm.operational_state
+                for transition_type in &transition_sets {
+                    for operational_agent in &self.operational_agent_addrs {
+                        if operational_agent.0 .1.contains(transition_type.resource()) {
+                            self.supervisor_algorithm.operational_state.handle_woa(
+                                transition_type.clone(),
+                                operational_agent,
+                                self.supervisor_id.clone(),
+                            )
                         }
-                        TransitionTypes::Leaving(woa) => {}
-                    }
-                    let resource = &tactical_supervisor_link
-                        .get(&entering_woa)
-                        .unwrap()
-                        .resource;
-
-                    let operation_solution = tactical_supervisor_link
-                        .get(&entering_woa)
-                        .cloned()
-                        .unwrap();
-
-                    let success = self.change_state(
-                        entering_woa,
-                        resource,
-                        TransitionState::Entering(operation_solution),
-                    );
-
-                    info!(unique_woas = ?self.count_unique_woa(),
-                        id_supervisor = ?self.supervisor_id,
-                        entering_woa = ?entering_woa,
-                         entering_resource_into_supervisor_agent = ?resource,
-                    );
-                    match success {
-                        Some(woa) => event!(Level::DEBUG, woa = ?woa, "SUCCESFUL scheduling"),
-                        None => panic!(),
                     }
                 }
-
-                // assert!(self.supervisor_algorithm.are_states_consistent());
-
-                let supervisor_state_len = self.count_unique_woa();
-                // assert_eq!(supervisor_state_len, tactical_supervisor_link.len());
                 Ok(())
             }
             StateLink::Supervisor(_) => Ok(()),
-            StateLink::Operational(operational_solution) => {
-                self.supervisor_algorithm.operational_state.insert_delegate(
-                    operational_solution.0,
-                    operational_solution.1 .0,
-                    Some(operational_solution.1 .1),
-                );
-                Ok(())
-            }
+            StateLink::Operational(operational_solution) => Ok(()),
         }
     }
 }
@@ -416,27 +402,18 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
                 );
                 let supervisor_status = SupervisorResponseStatus::new(
                     self.supervisor_id.clone().2.unwrap(),
-                    self.count_unique_woa(),
+                    self.supervisor_algorithm
+                        .operational_state
+                        .count_unique_woa(),
                     self.supervisor_algorithm.objective_value(),
                 );
 
                 Ok(SupervisorResponseMessage::Status(supervisor_status))
             }
 
-            SupervisorRequestMessage::Scheduling(scheduling_message) => {
-                self.supervisor_algorithm.operational_state.insert_delegate(
-                    (
-                        scheduling_message.id_operational,
-                        scheduling_message.work_order_activity,
-                    ),
-                    Delegate::Assign(scheduling_message.work_order_activity),
-                    None,
-                );
-
-                Ok(SupervisorResponseMessage::Scheduling(
-                    SupervisorResponseScheduling {},
-                ))
-            }
+            SupervisorRequestMessage::Scheduling(scheduling_message) => Ok(
+                SupervisorResponseMessage::Scheduling(SupervisorResponseScheduling {}),
+            ),
             SupervisorRequestMessage::Test => {
                 let algorithm_state = self.determine_algorithm_state();
 
@@ -477,7 +454,7 @@ impl TestAlgorithm for SupervisorAgent {
                 break;
             }
         }
-        if self.supervisor_algorithm.is_feasible() {
+        if feasible_main_resources {
             supervisor_state.respect_main_work_center = ConstraintState::Feasible;
         }
 
