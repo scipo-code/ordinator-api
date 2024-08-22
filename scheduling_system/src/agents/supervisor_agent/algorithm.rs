@@ -16,11 +16,10 @@ use shared_types::{
         supervisor_response_time::SupervisorResponseTime,
     },
 };
-use tracing::{event, instrument, span, Level};
+use tracing::{instrument, span, Level};
 
 use crate::agents::{
     operational_agent::{algorithm::OperationalObjective, OperationalAgent},
-    tactical_agent::tactical_algorithm::OperationSolution,
     traits::LargeNeighborHoodSearch,
     StateLink, StateLinkWrapper,
 };
@@ -138,17 +137,16 @@ impl OperationalState {
     ) -> Vec<(Id, TransitionTypes)> {
         let mut transition_sequence = Vec::<(Id, TransitionTypes)>::new();
 
-        for work_order_activity in &self
+        for (work_order_activity, delegate) in &self
             .0
-            .keys()
-            .map(|(_, woa)| woa)
-            .cloned()
-            .collect::<Vec<WorkOrderActivity>>()
+            .iter()
+            .map(|(key, value)| (&key.1, &value.0))
+            .collect::<Vec<(&WorkOrderActivity, &Delegate)>>()
         {
             let number = number.get(&work_order_activity).unwrap();
 
             let mut operational_solution_across_ids: Vec<_> =
-                self.determine_operational_objectives(*work_order_activity);
+                self.determine_operational_objectives(**work_order_activity);
 
             if operational_solution_across_ids
                 .iter()
@@ -165,17 +163,25 @@ impl OperationalState {
                         .enumerate()
                         .partition(|&(i, _)| i < *number as usize);
 
+                let operation_solution = match delegate {
+                    Delegate::Assess((_, os)) => os,
+                    Delegate::Assign((_, os)) => os,
+                    Delegate::Drop(_) => panic!("The method that caused this panic should not deal with Delegate::Drop variants"),
+                    Delegate::Fixed => todo!(),
+                    
+                };
+
                 for toa in top_operational_agents {
                     let transition_type = TransitionTypes::Unchanged(Delegate::Assign((
-                        work_order_activity,
-                        operation,
+                        **work_order_activity,
+                        operation_solution.clone(),
                     )));
                     transition_sequence.push((toa.1 .0.clone(), transition_type));
                 }
 
                 for roa in remaining_operational_agents {
                     let transition_type =
-                        TransitionTypes::Unchanged(Delegate::Drop(*work_order_activity));
+                        TransitionTypes::Unchanged(Delegate::Drop(**work_order_activity));
                     transition_sequence.push((roa.1 .0.clone(), transition_type));
                 }
             }

@@ -360,7 +360,7 @@ impl
                         info!(id = ?self.id_operational, operation = ?operation_solution);
                         Ok(())
                     }
-                    Delegate::Assign((work_order_activity, os)) => {
+                    Delegate::Assign((work_order_activity, _os)) => {
                         let operational_parameters =
                             &mut self.operational_algorithm.operational_parameters;
 
