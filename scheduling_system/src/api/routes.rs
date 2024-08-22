@@ -14,7 +14,6 @@ use tracing::{instrument, warn};
 
 use crate::agents::orchestrator::Orchestrator;
 
-
 #[instrument(level = "info", skip_all)]
 pub async fn http_to_scheduling_system(
     orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
@@ -152,20 +151,20 @@ mod tests {
     use chrono::Utc;
     use shared_types::{
         scheduling_environment::{
-            time_environment::day::Day, worker_environment::resources::Resources,
+            time_environment::day::Day, work_order::operation::Work,
+            worker_environment::resources::Resources,
         },
         tactical::{Days, TacticalResources},
     };
 
-
     #[test]
     fn test_day_serialize() {
-        let mut hash_map_nested = HashMap::<Day, f64>::new();
+        let mut hash_map_nested = HashMap::<Day, Work>::new();
 
         let mut hash_map = HashMap::<Resources, Days>::new();
         let day = Day::new(0, Utc::now());
         day.to_string();
-        hash_map_nested.insert(day, 123.0);
+        hash_map_nested.insert(day, Work::from(123.0));
 
         hash_map.insert(Resources::MtnMech, Days::new(hash_map_nested.clone()));
         let tactical_resources = TacticalResources::new(hash_map.clone());
