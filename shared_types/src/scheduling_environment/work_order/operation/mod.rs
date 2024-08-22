@@ -13,6 +13,8 @@ use serde::de::{Deserialize, Visitor};
 use serde::ser::{Serialize, SerializeTupleStruct};
 use std::fmt::Display;
 
+use self::operation_info::NumberOfPeople;
+
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct Operation {
     pub activity: ActivityNumber,
@@ -194,7 +196,7 @@ impl Operation {
         &self.resource
     }
 
-    pub fn number(&self) -> u32 {
+    pub fn number(&self) -> NumberOfPeople {
         self.operation_info.number()
     }
 
@@ -321,7 +323,7 @@ pub struct OperationBuilder {
 impl OperationBuilder {
     fn with_operation_info(
         mut self,
-        number: u32,
+        number: NumberOfPeople,
         work_remaining: Work,
         work_performed: Work,
         work_adjusted: Work,

@@ -1,4 +1,4 @@
-use serde::{Serialize};
+use serde::Serialize;
 
 use super::TacticalResources;
 
@@ -7,5 +7,5 @@ pub enum TacticalResponseResources {
     UpdatedResources(u32),
     Loading(TacticalResources),
     Capacity(TacticalResources),
-    Percentage(TacticalResources),
+    Percentage((TacticalResources, TacticalResources)),
 }
