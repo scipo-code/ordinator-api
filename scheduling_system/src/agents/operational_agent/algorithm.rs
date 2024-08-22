@@ -22,10 +22,7 @@ use shared_types::{
 };
 use tracing::{debug, trace};
 
-use crate::agents::{
-    supervisor_agent::{Delegate, DelegateAndId},
-    traits::LargeNeighborHoodSearch,
-};
+use crate::agents::{supervisor_agent::Delegate, traits::LargeNeighborHoodSearch};
 
 use super::OperationalConfiguration;
 

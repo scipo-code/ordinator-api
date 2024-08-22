@@ -8,7 +8,7 @@ use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::strategic::strategic_response_periods::StrategicResponsePeriods;
 use shared_types::strategic::strategic_response_resources::StrategicResponseResources;
 use shared_types::strategic::strategic_response_scheduling::StrategicResponseScheduling;
-use shared_types::strategic::{Periods, StrategicResources};
+use shared_types::strategic::StrategicResources;
 use shared_types::{Asset, LoadOperation};
 use tracing::{error, info, instrument, trace};
 use rand::prelude::SliceRandom;
@@ -600,7 +600,7 @@ impl PriorityQueues<WorkOrderNumber, u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use shared_types::strategic::strategic_request_scheduling_message::SingleWorkOrder;
+    use shared_types::strategic::{strategic_request_scheduling_message::SingleWorkOrder, Periods};
     use chrono::{Duration, TimeZone, Utc};
     use rand::{rngs::StdRng, SeedableRng};
 
