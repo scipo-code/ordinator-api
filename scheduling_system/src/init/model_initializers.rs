@@ -7,9 +7,9 @@ use crate::data_processing::sources::{excel::TotalExcel, SchedulingEnvironmentFa
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 pub fn initialize_scheduling_environment(
-    number_of_strategic_periods: u32,
-    number_of_tactical_periods: u32,
-    number_of_days: u32,
+    number_of_strategic_periods: u64,
+    number_of_tactical_periods: u64,
+    number_of_days: u64,
 ) -> SchedulingEnvironment {
     let mut scheduling_environment = create_scheduling_environment(
         number_of_strategic_periods,
@@ -25,9 +25,9 @@ pub fn initialize_scheduling_environment(
 }
 
 fn create_scheduling_environment(
-    number_of_strategic_periods: u32,
-    number_of_tactical_periods: u32,
-    number_of_days: u32,
+    number_of_strategic_periods: u64,
+    number_of_tactical_periods: u64,
+    number_of_days: u64,
 ) -> Option<SchedulingEnvironment> {
     let args: Vec<String> = env::args().collect();
 

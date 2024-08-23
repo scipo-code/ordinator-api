@@ -20,7 +20,7 @@ use shared_types::{
         worker_environment::{availability::Availability, resources::Id},
     },
 };
-use tracing::{debug, trace};
+use tracing::{debug, error, trace};
 
 use crate::agents::{supervisor_agent::Delegate, traits::LargeNeighborHoodSearch};
 
@@ -392,6 +392,9 @@ impl OperationalParameter {
         let seconds_time = combined_time as i64;
         let nano_time = combined_time as u32;
         let operation_time_delta = TimeDelta::new(seconds_time, nano_time).unwrap();
+        assert_ne!(work.to_f64(), 0.0);
+        assert!(!operation_time_delta.is_zero());
+        assert_eq!(seconds_time as u64, work.in_seconds());
         Self {
             work,
             preparation,
@@ -618,10 +621,13 @@ impl OperationalAlgorithm {
         start_time: DateTime<Utc>,
         operational_parameter: &OperationalParameter,
     ) -> Vec<Assignment> {
+        assert_ne!(operational_parameter.work, Work::from(0.0));
+        assert!(!operational_parameter.operation_time_delta.is_zero());
         let mut assigned_work: Vec<Assignment> = vec![];
         let mut remaining_combined_work = operational_parameter.operation_time_delta;
         let mut current_time = start_time;
 
+        error!(remaining_combined_work_in_operational_agent = ? remaining_combined_work);
         while !remaining_combined_work.is_zero() {
             let next_event = self.determine_next_event(&current_time);
 
@@ -653,6 +659,7 @@ impl OperationalAlgorithm {
                 remaining_combined_work = TimeDelta::zero();
             }
         }
+        assert_ne!(assigned_work.len(), 0);
         assigned_work
     }
 

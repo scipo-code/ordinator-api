@@ -97,9 +97,14 @@ impl OperationalState {
 
                 operational_agent.1.do_send(state_link_wrapper)
             }
-            TransitionTypes::Unchanged(_woa) => {}
+            TransitionTypes::Unchanged(delegate) => {}
             TransitionTypes::Changed(_delegate) => {}
-            TransitionTypes::Leaving(_woa) => {}
+            TransitionTypes::Leaving(delegate) => {
+                // This should be a Arc<Delegate>! The operational agent should not be able to change his Delegate only view it
+                // I think that the kind of errors that we can introduce into the code are catastrophic by applying these .clone()
+                // methods. 
+                let state_link = StateLink::Supervisor(DelegateAndId(delegate.clone()))
+            }
         }
     }
     pub fn count_unique_woa(&self) -> usize {
@@ -144,7 +149,7 @@ impl OperationalState {
             .map(|(key, value)| (&key.1, &value.0))
             .collect::<Vec<(&WorkOrderActivity, &Delegate)>>()
         {
-            let number = number.get(&work_order_activity).unwrap();
+            let number = number.get(work_order_activity).unwrap();
 
             let mut operational_solution_across_ids: Vec<_> =
                 self.determine_operational_objectives(**work_order_activity);
@@ -197,6 +202,11 @@ impl OperationalState {
         (Delegate, Option<f64>),
     > {
         self.0.iter()
+    }
+
+    pub fn get(&self, key: &(Id, WorkOrderActivity)) -> Option<&(Delegate, Option<OperationalObjective>)> {
+        self.0.get(&(key))
+        
     }
 }
 

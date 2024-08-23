@@ -1,6 +1,7 @@
 use actix::prelude::*;
 
 use shared_types::operational::OperationalConfiguration;
+use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::strategic::{Periods, StrategicResources};
 use shared_types::tactical::{Days, TacticalResources};
 use shared_types::Asset;
@@ -58,13 +59,14 @@ impl AgentFactory {
         // period_locks.insert(locked_scheduling_environment.get_periods()[1].clone());
 
         let mut resources_capacity =
-            initialize_strategic_resources(&locked_scheduling_environment, 0.0);
+            initialize_strategic_resources(&locked_scheduling_environment, Work::from(0.0));
 
         if let Some(resources) = strategic_resources {
             resources_capacity.update_resources(resources);
         }
 
-        let resources_loading = initialize_strategic_resources(&locked_scheduling_environment, 0.0);
+        let resources_loading =
+            initialize_strategic_resources(&locked_scheduling_environment, Work::from(0.0));
 
         let mut strategic_agent_algorithm = StrategicAlgorithm::new(
             0.0,
@@ -116,14 +118,14 @@ impl AgentFactory {
         let tactical_periods = scheduling_environment_guard.tactical_periods().clone();
 
         let mut tactical_resources_capacity =
-            initialize_tactical_resources(&scheduling_environment_guard, 0.0);
+            initialize_tactical_resources(&scheduling_environment_guard, Work::from(0.0));
 
         if let Some(resources) = tactical_resources {
             tactical_resources_capacity.update_resources(resources);
         }
 
         let tactical_resources_loading =
-            initialize_tactical_resources(&scheduling_environment_guard, 0.0);
+            initialize_tactical_resources(&scheduling_environment_guard, Work::from(0.0));
 
         let tactical_algorithm = TacticalAlgorithm::new(
             scheduling_environment_guard.tactical_days().clone(),
@@ -205,7 +207,7 @@ impl AgentFactory {
 
 fn initialize_strategic_resources(
     scheduling_environment: &SchedulingEnvironment,
-    start_value: f64,
+    start_value: Work,
 ) -> StrategicResources {
     let mut resource_capacity: HashMap<Resources, Periods> = HashMap::new();
     for resource in scheduling_environment
@@ -215,7 +217,7 @@ fn initialize_strategic_resources(
     {
         let mut periods = HashMap::new();
         for period in scheduling_environment.periods().iter() {
-            periods.insert(period.clone(), start_value);
+            periods.insert(period.clone(), start_value.clone());
         }
         resource_capacity.insert(resource.clone(), Periods(periods));
     }
@@ -224,7 +226,7 @@ fn initialize_strategic_resources(
 
 fn initialize_tactical_resources(
     scheduling_environment: &SchedulingEnvironment,
-    start_value: f64,
+    start_value: Work,
 ) -> TacticalResources {
     let mut resource_capacity: HashMap<Resources, Days> = HashMap::new();
     for resource in scheduling_environment
@@ -234,7 +236,7 @@ fn initialize_tactical_resources(
     {
         let mut days = HashMap::new();
         for day in scheduling_environment.tactical_days().iter() {
-            days.insert(day.clone(), start_value);
+            days.insert(day.clone(), start_value.clone());
         }
         resource_capacity.insert(resource.clone(), Days::new(days));
     }

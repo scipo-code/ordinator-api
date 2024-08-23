@@ -53,7 +53,7 @@ pub struct OptimizedTacticalWorkOrder {
     pub operation_parameters: HashMap<ActivityNumber, OperationParameters>,
     pub weight: u64,
     pub relations: Vec<ActivityRelation>,
-    pub operation_solutions: Option<HashMap<ActivityNumber, OperationSolution>>,
+    pub operation_solutions: Option<HashMap<ActivityNumber, TacticalOperation>>,
     pub scheduled_period: Period,
 }
 
@@ -69,7 +69,7 @@ pub struct OperationParameters {
 }
 
 #[derive(Hash, PartialEq, PartialOrd, Ord, Eq, Clone, Debug, Serialize)]
-pub struct OperationSolution {
+pub struct TacticalOperation {
     pub scheduled: Vec<(Day, Work)>,
     pub resource: Resources,
     pub number: NumberOfPeople,
@@ -77,7 +77,7 @@ pub struct OperationSolution {
     pub work_order_activity: WorkOrderActivity,
 }
 
-impl OperationSolution {
+impl TacticalOperation {
     pub fn new(
         scheduled: Vec<(Day, Work)>,
         resource: Resources,
@@ -85,8 +85,8 @@ impl OperationSolution {
         work_remaining: Work,
         work_order_number: WorkOrderNumber,
         activity_number: ActivityNumber,
-    ) -> OperationSolution {
-        OperationSolution {
+    ) -> TacticalOperation {
+        TacticalOperation {
             scheduled,
             resource,
             number,
@@ -96,7 +96,7 @@ impl OperationSolution {
     }
 }
 
-impl Message for OperationSolution {
+impl Message for TacticalOperation {
     type Result = bool;
 }
 
@@ -398,7 +398,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 .filter(|date| start_day.date() <= date.date())
                 .collect();
 
-            let mut operation_solutions = HashMap::<ActivityNumber, OperationSolution>::new();
+            let mut operation_solutions = HashMap::<ActivityNumber, TacticalOperation>::new();
 
             let mut current_day = allowed_days.into_iter().peekable();
 
@@ -493,7 +493,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     };
                 }
 
-                let operation_solution = OperationSolution::new(
+                let operation_solution = TacticalOperation::new(
                     activity_load,
                     resource,
                     operation_parameters.number,
@@ -639,7 +639,7 @@ enum LoopState {
 impl TacticalAlgorithm {
     fn update_loadings(
         &mut self,
-        operation_solutions: &HashMap<ActivityNumber, OperationSolution>,
+        operation_solutions: &HashMap<ActivityNumber, TacticalOperation>,
         load_operation: LoadOperation,
     ) {
         for operation in operation_solutions.values() {
@@ -854,7 +854,7 @@ pub mod tests {
     use strum::IntoEnumIterator;
 
     use crate::agents::{
-        tactical_agent::tactical_algorithm::OperationSolution, traits::LargeNeighborHoodSearch,
+        tactical_agent::tactical_algorithm::TacticalOperation, traits::LargeNeighborHoodSearch,
     };
 
     use super::{Day, OperationParameters, OptimizedTacticalWorkOrder};
@@ -938,7 +938,7 @@ pub mod tests {
             Resources::MtnMech,
         );
 
-        let operation_solution = OperationSolution::new(
+        let operation_solution = TacticalOperation::new(
             vec![(
                 tactical_algorithm.tactical_days[27].clone(),
                 Work::from(1.0),
@@ -1143,7 +1143,7 @@ pub mod tests {
             operation_parameters: HashMap<ActivityNumber, OperationParameters>,
             weight: u64,
             relations: Vec<ActivityRelation>,
-            operation_solutions: Option<HashMap<ActivityNumber, OperationSolution>>,
+            operation_solutions: Option<HashMap<ActivityNumber, TacticalOperation>>,
             scheduled_period: Period,
         ) -> Self {
             OptimizedTacticalWorkOrder {
