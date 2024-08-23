@@ -340,7 +340,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 };
 
                 let inf_work_order_number =
-                    self.schedule_normal_work_order(work_order_number.into(), &period);
+                    self.schedule_normal_work_order(work_order_number, &period);
 
                 if let Some(work_order_number) = inf_work_order_number {
                     self.priority_queues.normal.push(work_order_number, weight);
