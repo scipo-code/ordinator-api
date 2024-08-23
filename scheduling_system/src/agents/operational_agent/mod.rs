@@ -325,15 +325,16 @@ impl
             StateLink::Supervisor(delegate_and_id) => {
                 let DelegateAndId(delegate, supervisor) = delegate_and_id;
 
-                match &delegate.clone() {
-                    Delegate::Assess(ref operation_solution) => {
+                // So why do I have an issue here? I think that the goal should be to really understand this as it is
+                // something where I have absolutely no clue about what to do but it is really essential.
+                match *delegate {
+                    Delegate::Assess((woa, ref tactical_operation)) => {
                         let scheduling_environment = self.scheduling_environment.lock().unwrap();
 
-                        let operation: &Operation =
-                            scheduling_environment.operation(&operation_solution.0);
+                        let operation: &Operation = scheduling_environment.operation(&woa);
 
                         let (start_datetime, end_datetime) =
-                            self.determine_start_and_finish_times(&operation_solution.1.scheduled);
+                            self.determine_start_and_finish_times(&tactical_operation.scheduled);
 
                         let operational_parameter = if operation.work_remaining() > &Work::from(0.0)
                         {
@@ -342,31 +343,29 @@ impl
                                 operation.operation_analytic.preparation_time.clone(),
                                 start_datetime,
                                 end_datetime,
-                                delegate,
+                                delegate.clone(),
                                 supervisor,
                             )
                         } else {
                             error!("Actor did not incorporate the right state, but supervisor thought that it did");
                             return Err(StateLinkError(
                                 Some(self.id_operational.clone()),
-                                Some(operation_solution.0),
+                                Some(woa),
                             ));
                         };
 
-                        self.operational_algorithm.insert_optimized_operation(
-                            operation_solution.0,
-                            operational_parameter,
-                        );
-                        info!(id = ?self.id_operational, operation = ?operation_solution);
+                        self.operational_algorithm
+                            .insert_optimized_operation(woa, operational_parameter);
+                        info!(id = ?self.id_operational, tactical_operation = ?tactical_operation);
                         Ok(())
                     }
-                    Delegate::Assign((work_order_activity, _os)) => {
+                    Delegate::Assign((work_order_activity, ref tactical_operation)) => {
                         let operational_parameters =
                             &mut self.operational_algorithm.operational_parameters;
 
                         if let Some(operational_parameter) = operational_parameters
                             .iter_mut()
-                            .find(|os| os.0 == work_order_activity)
+                            .find(|os| *os.0 == work_order_activity)
                         {
                             operational_parameter
                                 .1
@@ -379,18 +378,18 @@ impl
                             .operational_algorithm
                             .operational_parameters
                             .keys()
-                            .any(|woa| woa == work_order_activity)
+                            .any(|woa| *woa == work_order_activity)
                         {
                             error!(work_order_activity = ?work_order_activity, id_operational = ?self.id_operational);
                             // panic!();
                         }
                         let number_of_os = self.operational_algorithm.operational_parameters.len();
                         self.operational_algorithm.operational_solutions.0.retain(
-                            |operational_solution| operational_solution.0 != *work_order_activity,
+                            |operational_solution| operational_solution.0 != work_order_activity,
                         );
                         self.operational_algorithm
                             .operational_parameters
-                            .remove(work_order_activity);
+                            .remove(&work_order_activity);
                         assert_eq!(
                             self.operational_algorithm.operational_parameters.len(),
                             number_of_os - 1

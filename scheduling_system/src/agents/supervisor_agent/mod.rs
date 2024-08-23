@@ -46,16 +46,16 @@ pub struct SupervisorAgent {
 
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum TransitionTypes {
-    Entering(Delegate),
-    Leaving(Delegate),
-    Unchanged(Delegate),
-    Changed(Delegate),
+    Entering(Arc<Delegate>),
+    Leaving(Arc<Delegate>),
+    Unchanged(Arc<Delegate>),
+    Changed(Arc<Delegate>),
 }
 
 impl TransitionTypes {
     pub fn resource(&self) -> &Resources {
         match self {
-            TransitionTypes::Entering(delegate) => delegate.get_resource(),
+            TransitionTypes::Entering(ref delegate) => delegate.get_resource(),
             TransitionTypes::Leaving(delegate) => delegate.get_resource(),
             TransitionTypes::Unchanged(delegate) => delegate.get_resource(),
             TransitionTypes::Changed(delegate) => delegate.get_resource(),
@@ -101,19 +101,19 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     }
 }
 
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Debug, Clone)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
 pub enum Delegate {
-    Assess((WorkOrderActivity, TacticalOperation)),
-    Assign((WorkOrderActivity, TacticalOperation)),
+    Assess((WorkOrderActivity, Arc<TacticalOperation>)),
+    Assign((WorkOrderActivity, Arc<TacticalOperation>)),
     Drop(WorkOrderActivity),
     Fixed,
 }
 
 impl Delegate {
-    pub fn operation_solution(&self) -> &TacticalOperation {
+    pub fn operation_solution(&self) -> Arc<TacticalOperation> {
         match self {
-            Delegate::Assess((_, os)) => os,
-            Delegate::Assign((_, os)) => os,
+            Delegate::Assess((_, os)) => os.clone(),
+            Delegate::Assign((_, os)) => os.clone(),
             Delegate::Drop(_) => panic!(),
             Delegate::Fixed => panic!(),
         }
@@ -215,7 +215,10 @@ impl SupervisorAgent {
 
     fn make_transition_sets_from_tactical_state_link(
         &self,
-        tactical_supervisor_link: HashMap<(WorkOrderNumber, ActivityNumber), TacticalOperation>,
+        tactical_supervisor_link: HashMap<
+            (WorkOrderNumber, ActivityNumber),
+            Arc<TacticalOperation>,
+        >,
     ) -> TransitionSets {
         let supervisor_set: HashSet<(WorkOrderNumber, ActivityNumber)> =
             self.supervisor_algorithm.operational_state.get_unique_woa();
@@ -239,12 +242,12 @@ impl SupervisorAgent {
                     .supervisor_algorithm
                     .operational_state
                     .get_iter()
-                    .filter(|(key, value)| key.1 == woa)
+                    .filter(|(key, _)| key.1 == woa)
                     .collect::<Vec<_>>();
 
                 delegates.iter().for_each(|delegate| {
                     if delegate.1 .0.operation_solution()
-                        == tactical_supervisor_link.get(&woa).unwrap()
+                        == *tactical_supervisor_link.get(&woa).unwrap()
                     {
                         let transition_type = TransitionTypes::Unchanged(delegate.1 .0.clone());
                         unchanged_woas.insert(transition_type);
@@ -261,7 +264,7 @@ impl SupervisorAgent {
             .difference(&tactical_set)
             .cloned()
             .map(|woa| {
-                let delegate_drop = Delegate::Drop(woa);
+                let delegate_drop = Arc::new(Delegate::Drop(woa));
                 TransitionTypes::Leaving(delegate_drop)
             })
             .collect::<HashSet<TransitionTypes>>();
@@ -270,8 +273,10 @@ impl SupervisorAgent {
             .difference(&supervisor_set)
             .cloned()
             .map(|woa| {
-                let operation_solution = tactical_supervisor_link.get(&woa).unwrap();
-                let delegate_entering = Delegate::Assess((woa, operation_solution.clone()));
+                let operation_solution = tactical_supervisor_link.get(&woa).unwrap().clone();
+                // Hmm would it make sense for the code here and to have an Arc<TacticalOperation>? It would mean that the
+                // code would have to adjust further up! We are already at the tactical_supervisor_link
+                let delegate_entering = Arc::new(Delegate::Assess((woa, operation_solution)));
                 TransitionTypes::Entering(delegate_entering)
             })
             .collect::<HashSet<TransitionTypes>>();
@@ -290,7 +295,7 @@ impl Handler<StatusMessage> for SupervisorAgent {
     #[instrument(level = "trace", skip_all)]
     fn handle(&mut self, _msg: StatusMessage, _ctx: &mut Self::Context) -> Self::Result {
         format!(
-            "ID: {}, Work Center: {:?}, Main Work Center: {:?}",
+            "ID*: {}, Work Center: {:?}, Main Work Center: {:?}",
             self.supervisor_id.0, self.supervisor_id.1, self.supervisor_id.2
         )
     }
@@ -322,7 +327,7 @@ enum TransitionState {
 }
 
 type StrategicMessage = ();
-type TacticalMessage = HashMap<(WorkOrderNumber, ActivityNumber), TacticalOperation>;
+type TacticalMessage = HashMap<(WorkOrderNumber, ActivityNumber), Arc<TacticalOperation>>;
 type SupervisorMessage = ();
 type OperationalMessage = ((Id, WorkOrderActivity), OperationalObjective);
 
