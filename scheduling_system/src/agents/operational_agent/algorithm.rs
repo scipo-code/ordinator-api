@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
 use rand::seq::SliceRandom;
@@ -375,7 +375,7 @@ pub struct OperationalParameter {
     operation_time_delta: TimeDelta,
     start_window: DateTime<Utc>,
     end_window: DateTime<Utc>,
-    delegated: Delegate,
+    delegated: Arc<Delegate>,
     supervisor: Id,
 }
 
@@ -385,7 +385,7 @@ impl OperationalParameter {
         preparation: Work,
         start_window: DateTime<Utc>,
         end_window: DateTime<Utc>,
-        delegated: Delegate,
+        delegated: Arc<Delegate>,
         supervisor: Id,
     ) -> Self {
         let combined_time = (&work + &preparation).in_seconds();
@@ -410,7 +410,7 @@ impl OperationalParameter {
         self.delegated.is_fixed()
     }
 
-    pub fn set_delegated_and_supervisor(&mut self, delegate: Delegate, supervisor: Id) {
+    pub fn set_delegated_and_supervisor(&mut self, delegate: Arc<Delegate>, supervisor: Id) {
         self.delegated = delegate;
         self.supervisor = supervisor;
     }
@@ -913,6 +913,8 @@ fn equality_between_time_interval_and_assignments(all_events: Vec<&Assignment>) 
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
     use proptest::prelude::*;
     use shared_types::{
@@ -1095,7 +1097,7 @@ mod tests {
             .unwrap()
             .to_utc();
 
-        let delegated = crate::agents::supervisor_agent::Delegate::Fixed;
+        let delegated = Arc::new(crate::agents::supervisor_agent::Delegate::Fixed);
 
         let operational_parameter = OperationalParameter::new(
             Work::from(20.0),

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, sync::Arc};
 
 use actix::Addr;
 use shared_types::{
@@ -71,7 +71,7 @@ impl SupervisorAlgorithm {
 /// the correct messages will be sent out.
 #[derive(Debug, Default)]
 pub struct OperationalState(
-    HashMap<(Id, WorkOrderActivity), (Delegate, Option<OperationalObjective>)>,
+    HashMap<(Id, WorkOrderActivity), (Arc<Delegate>, Option<OperationalObjective>)>,
 );
 
 /// This is a fundamental type. Where should we input the OperationalObjective? I think that keeping the
@@ -91,19 +91,22 @@ impl OperationalState {
                     (operational_agent.0.clone(), delegate.get_woa()),
                     (delegate, None),
                 );
-                let span = span!(Level::DEBUG, "SupervisorSpan.OperationalState");
+                let span = span!(Level::DEBUG, "SupervisorSpan.OperationalState.TransitionType::Entering");
 
                 let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
 
                 operational_agent.1.do_send(state_link_wrapper)
             }
-            TransitionTypes::Unchanged(delegate) => {}
+            TransitionTypes::Unchanged(_delegate) => {}
             TransitionTypes::Changed(_delegate) => {}
             TransitionTypes::Leaving(delegate) => {
-                // This should be a Arc<Delegate>! The operational agent should not be able to change his Delegate only view it
-                // I think that the kind of errors that we can introduce into the code are catastrophic by applying these .clone()
-                // methods. 
-                let state_link = StateLink::Supervisor(DelegateAndId(delegate.clone()))
+
+                let span = span!(Level::DEBUG, "SupervisorSpan.OperationalState.TransitionType::Leaving");
+                let state_link = StateLink::Supervisor(DelegateAndId(delegate.clone(), supervisor_id));
+
+                let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
+
+                operational_agent.1.do_send(state_link_wrapper)
             }
         }
     }
@@ -147,7 +150,7 @@ impl OperationalState {
             .0
             .iter()
             .map(|(key, value)| (&key.1, &value.0))
-            .collect::<Vec<(&WorkOrderActivity, &Delegate)>>()
+            .collect::<Vec<(&WorkOrderActivity, &Arc<Delegate>)>>()
         {
             let number = number.get(work_order_activity).unwrap();
 
@@ -169,26 +172,27 @@ impl OperationalState {
                         .enumerate()
                         .partition(|&(i, _)| i < *number as usize);
 
-                let operation_solution = match delegate {
-                    Delegate::Assess((_, os)) => os,
-                    Delegate::Assign((_, os)) => os,
+                let tactical_operation = match ***delegate {
+                    Delegate::Assess((_, ref os)) => os,
+                    Delegate::Assign((_, ref os)) => os,
                     Delegate::Drop(_) => panic!("The method that caused this panic should not deal with Delegate::Drop variants"),
                     Delegate::Fixed => todo!(),
                     
                 };
 
                 for toa in top_operational_agents {
-                    let transition_type = TransitionTypes::Unchanged(Delegate::Assign((
+                    let transition_type = TransitionTypes::Unchanged(Arc::new(Delegate::Assign((
                         **work_order_activity,
-                        operation_solution.clone(),
-                    )));
+                        tactical_operation.clone(),
+                    ))));
                     transition_sequence.push((toa.1 .0.clone(), transition_type));
                 }
 
                 for roa in remaining_operational_agents {
                     let transition_type =
-                        TransitionTypes::Unchanged(Delegate::Drop(**work_order_activity));
+                        TransitionTypes::Unchanged(Arc::new(Delegate::Drop(**work_order_activity)));
                     transition_sequence.push((roa.1 .0.clone(), transition_type));
+
                 }
             }
         }
@@ -199,14 +203,13 @@ impl OperationalState {
         &self,
     ) -> std::collections::hash_map::Iter<
         (Id, (WorkOrderNumber, ActivityNumber)),
-        (Delegate, Option<f64>),
+        (Arc<Delegate>, Option<f64>),
     > {
         self.0.iter()
     }
 
-    pub fn get(&self, key: &(Id, WorkOrderActivity)) -> Option<&(Delegate, Option<OperationalObjective>)> {
+    pub fn get(&self, key: &(Id, WorkOrderActivity)) -> Option<&(Arc<Delegate>, Option<OperationalObjective>)> {
         self.0.get(&(key))
-        
     }
 }
 
