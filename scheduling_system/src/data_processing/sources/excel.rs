@@ -413,7 +413,7 @@ fn create_new_operation(
         match header_to_index.get("OPR_Duration") {
             Some(index) => match row.get(*index).cloned() {
                 Some(calamine::Data::Int(duration)) => Work::from(duration as f64),
-                Some(calamine::Data::Float(duration)) => Work::from(duration as f64),
+                Some(calamine::Data::Float(duration)) => Work::from(duration),
                 Some(calamine::Data::String(duration)) => duration
                     .parse::<Work>()
                     .expect("Duration is not a valid number"),
