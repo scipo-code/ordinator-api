@@ -391,37 +391,41 @@ fn create_new_operation(
             _ => 1,
         },
         match work_remaining_data.cloned() {
-            Some(calamine::Data::Int(n)) => n as f64,
-            Some(calamine::Data::Float(n)) => n,
-            Some(calamine::Data::String(s)) => s.parse::<f64>().unwrap_or(0.0),
-            _ => 100000.0,
+            Some(calamine::Data::Int(planned_work)) => Work::from(planned_work as f64),
+            Some(calamine::Data::Float(planned_work)) => Work::from(planned_work),
+            Some(calamine::Data::String(planned_work)) => {
+                planned_work.parse::<Work>().unwrap_or(Work::from(0.0))
+            }
+            _ => Work::from(100000.0),
         },
         match actual_work_data.cloned() {
-            Some(calamine::Data::Int(n)) => n as f64,
-            Some(calamine::Data::Float(n)) => n,
-            Some(calamine::Data::String(s)) => s.parse::<f64>().unwrap_or(0.0),
-            _ => 0.0,
+            Some(calamine::Data::Int(actual_work)) => Work::from(actual_work as f64),
+            Some(calamine::Data::Float(actual_work)) => Work::from(actual_work),
+            Some(calamine::Data::String(s)) => s.parse::<Work>().unwrap_or(Work::from(0.0)),
+            _ => Work::from(0.0),
         },
-        0.0,
+        Work::from(0.0),
         operating_time,
     );
 
     let operation_analytic = OperationAnalytic::new(
-        0.0,
+        Work::from(0.0),
         match header_to_index.get("OPR_Duration") {
             Some(index) => match row.get(*index).cloned() {
-                Some(calamine::Data::Int(n)) => n as f64,
-                Some(calamine::Data::Float(n)) => n as f64,
-                Some(calamine::Data::String(s)) => {
-                    s.parse::<f64>().expect("Duration is not a valid number")
-                }
-                _ => 0.0,
+                Some(calamine::Data::Int(duration)) => Work::from(duration as f64),
+                Some(calamine::Data::Float(duration)) => Work::from(duration as f64),
+                Some(calamine::Data::String(duration)) => duration
+                    .parse::<Work>()
+                    .expect("Duration is not a valid number"),
+                _ => Work::from(0.0),
             },
             None => {
                 if operation_info.number() != 0 {
-                    operation_info.work_remaining() / operation_info.number() as f64
+                    operation_info
+                        .work_remaining()
+                        .cal_duration(operation_info.number())
                 } else {
-                    0.0
+                    Work::from(0.0)
                 }
             }
         },
@@ -867,7 +871,7 @@ fn extract_unloading_point(
     })
 }
 
-fn extract_year_and_weeks(input_string: &str) -> (Option<i32>, Option<u64>, Option<u64>) {
+fn extract_year_and_weeks(input_string: &str) -> (Option<i32>, Option<u32>, Option<u32>) {
     let re = regex::Regex::new(r"(\d{2})?-?[W|w](\d+)-?[W|w]?(\d+)").unwrap();
     let captures = re.captures(input_string);
 
@@ -1137,10 +1141,10 @@ fn create_periods(number_of_periods: u64) -> Result<Vec<Period>, Error> {
 }
 
 fn excel_time_to_hh_mm_ss(serial_time: f64) -> NaiveTime {
-    let total_seconds: u64 = (serial_time * 24.0 * 3600.0).round() as u64;
-    let hours: u64 = total_seconds / 3600;
-    let minutes: u64 = (total_seconds % 3600) / 60;
-    let seconds: u64 = total_seconds % 60;
+    let total_seconds: u32 = (serial_time * 24.0 * 3600.0).round() as u32;
+    let hours: u32 = total_seconds / 3600;
+    let minutes: u32 = (total_seconds % 3600) / 60;
+    let seconds: u32 = total_seconds % 60;
 
     NaiveTime::from_hms_opt(hours, minutes, seconds)
         .expect("Could not convert excel time to NaiveTime")

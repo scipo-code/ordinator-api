@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{debug, info, instrument, span, warn, Level};
 
-use crate::agents::tactical_agent::tactical_algorithm::{OperationSolution, TacticalAlgorithm};
+use crate::agents::tactical_agent::tactical_algorithm::{TacticalAlgorithm, TacticalOperation};
 use crate::agents::SetAddr;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::SchedulingEnvironment;
@@ -101,7 +101,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
             self.tactical_algorithm = temporary_schedule;
 
             self.supervisor_addrs.iter().for_each(|(id, addr)| {
-                let mut work_orders_to_supervisor: HashMap<WorkOrderActivity, OperationSolution> =
+                let mut work_orders_to_supervisor: HashMap<WorkOrderActivity, TacticalOperation> =
                     HashMap::new();
                 self.tactical_algorithm
                     .optimized_work_orders()

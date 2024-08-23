@@ -197,9 +197,10 @@ impl Handler<ScheduleIteration> for OperationalAgent {
                 .operational_solutions
                 .0
                 .iter()
-                .filter(|vec| vec.1.is_some())
+                .filter(|woa| !woa.0 .0.is_dummy() && woa.1.is_some())
                 .collect::<Vec<_>>()
             {
+                error!(operational_solution_woa = ? operational_solution.0);
                 let operational_parameter = self
                     .operational_algorithm
                     .operational_parameters
@@ -218,7 +219,6 @@ impl Handler<ScheduleIteration> for OperationalAgent {
 
                 let state_link_wrapper = StateLinkWrapper::new(state_link, span);
 
-                dbg!(self.supervisor_agent_addr.len());
                 let supervisor = self.supervisor_agent_addr.iter().find(|(id, _)| {
                     warn!(supervisor_id = ?id, operational_solution_id = ?operational_solution.1.as_ref().unwrap());
                     match operational_solution.1.as_ref().unwrap().supervisor.as_ref() {
@@ -386,13 +386,11 @@ impl
                         }
                         let number_of_os = self.operational_algorithm.operational_parameters.len();
                         self.operational_algorithm.operational_solutions.0.retain(
-                            |operational_solution| {
-                                !(operational_solution.0 == *work_order_activity)
-                            },
+                            |operational_solution| operational_solution.0 != *work_order_activity,
                         );
                         self.operational_algorithm
                             .operational_parameters
-                            .remove(&work_order_activity);
+                            .remove(work_order_activity);
                         assert_eq!(
                             self.operational_algorithm.operational_parameters.len(),
                             number_of_os - 1

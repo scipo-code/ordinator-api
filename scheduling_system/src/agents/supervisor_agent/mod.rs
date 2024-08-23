@@ -20,7 +20,7 @@ use shared_types::{
 };
 
 use shared_types::scheduling_environment::worker_environment::resources::Id;
-use tracing::{error, info, instrument, warn};
+use tracing::{error, event, info, instrument, warn, Level};
 
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
@@ -28,7 +28,7 @@ use self::algorithm::SupervisorAlgorithm;
 
 use super::{
     operational_agent::{algorithm::OperationalObjective, OperationalAgent},
-    tactical_agent::{tactical_algorithm::OperationSolution, TacticalAgent},
+    tactical_agent::{tactical_algorithm::TacticalOperation, TacticalAgent},
     traits::{LargeNeighborHoodSearch, TestAlgorithm},
     ScheduleIteration, SetAddr, StateLink, StateLinkError, StateLinkWrapper,
     UpdateWorkOrderMessage,
@@ -59,6 +59,15 @@ impl TransitionTypes {
             TransitionTypes::Leaving(delegate) => delegate.get_resource(),
             TransitionTypes::Unchanged(delegate) => delegate.get_resource(),
             TransitionTypes::Changed(delegate) => delegate.get_resource(),
+        }
+    }
+
+    pub fn get_woa(&self) -> WorkOrderActivity {
+        match self {
+            TransitionTypes::Entering(delegate) => delegate.get_woa(),
+            TransitionTypes::Leaving(delegate) => delegate.get_woa(),
+            TransitionTypes::Unchanged(delegate) => delegate.get_woa(),
+            TransitionTypes::Changed(delegate) => delegate.get_woa(),
         }
     }
 }
@@ -94,14 +103,14 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Debug, Clone)]
 pub enum Delegate {
-    Assess((WorkOrderActivity, OperationSolution)),
-    Assign((WorkOrderActivity, OperationSolution)),
+    Assess((WorkOrderActivity, TacticalOperation)),
+    Assign((WorkOrderActivity, TacticalOperation)),
     Drop(WorkOrderActivity),
     Fixed,
 }
 
 impl Delegate {
-    pub fn operation_solution(&self) -> &OperationSolution {
+    pub fn operation_solution(&self) -> &TacticalOperation {
         match self {
             Delegate::Assess((_, os)) => os,
             Delegate::Assign((_, os)) => os,
@@ -146,7 +155,7 @@ impl Delegate {
 }
 
 #[derive(Debug)]
-pub struct DelegateAndId(pub Delegate, pub Id);
+pub struct DelegateAndId(pub Arc<Delegate>, pub Id);
 
 impl Message for DelegateAndId {
     type Result = ();
@@ -173,7 +182,7 @@ impl SupervisorAgent {
         &mut self,
         transition_type: TransitionTypes,
         resource: &Resources,
-        operation_solution: OperationSolution,
+        operation_solution: TacticalOperation,
     ) -> Option<TransitionTypes> {
         for operational_agent in &self.operational_agent_addrs {
             if operational_agent.0 .1.contains(resource) {
@@ -206,7 +215,7 @@ impl SupervisorAgent {
 
     fn make_transition_sets_from_tactical_state_link(
         &self,
-        tactical_supervisor_link: HashMap<(WorkOrderNumber, ActivityNumber), OperationSolution>,
+        tactical_supervisor_link: HashMap<(WorkOrderNumber, ActivityNumber), TacticalOperation>,
     ) -> TransitionSets {
         let supervisor_set: HashSet<(WorkOrderNumber, ActivityNumber)> =
             self.supervisor_algorithm.operational_state.get_unique_woa();
@@ -308,12 +317,12 @@ impl Handler<SetAddr> for SupervisorAgent {
 
 #[derive(Debug)]
 enum TransitionState {
-    Entering(OperationSolution),
+    Entering(TacticalOperation),
     Leaving,
 }
 
 type StrategicMessage = ();
-type TacticalMessage = HashMap<(WorkOrderNumber, ActivityNumber), OperationSolution>;
+type TacticalMessage = HashMap<(WorkOrderNumber, ActivityNumber), TacticalOperation>;
 type SupervisorMessage = ();
 type OperationalMessage = ((Id, WorkOrderActivity), OperationalObjective);
 
@@ -350,12 +359,37 @@ impl
 
                 for transition_type in &transition_sets {
                     for operational_agent in &self.operational_agent_addrs {
-                        if operational_agent.0 .1.contains(transition_type.resource()) {
-                            self.supervisor_algorithm.operational_state.handle_woa(
-                                transition_type.clone(),
-                                operational_agent,
-                                self.supervisor_id.clone(),
-                            )
+                        match transition_type {
+                            TransitionTypes::Entering(delegate) => {
+                                if operational_agent.0 .1.contains(transition_type.resource()) {
+                                    self.supervisor_algorithm.operational_state.handle_woa(
+                                        transition_type.clone(),
+                                        operational_agent,
+                                        self.supervisor_id.clone(),
+                                    )
+                                }
+                            }
+                            TransitionTypes::Leaving(delegate) => {
+                                let leaving_woa = self
+                                    .supervisor_algorithm
+                                    .operational_state
+                                    .get(&(operational_agent.0.clone(), delegate.get_woa()));
+
+                                match leaving_woa {
+                                    Some(woa) => {
+                                        self.supervisor_algorithm.operational_state.handle_woa(
+                                            transition_type.clone(),
+                                            operational_agent,
+                                            self.supervisor_id.clone(),
+                                        )
+                                    }
+                                    None => {
+                                        event!(Level::DEBUG, "If you get this, and suspect an error, check that the woa that is being dropped does not match the resource of operational agent. This could be a very pernicious bug if true, but a significant rewrite of the type system is needed to assert! this")
+                                    }
+                                }
+                            }
+                            TransitionTypes::Unchanged(delegate) => {}
+                            TransitionTypes::Changed(delegate) => {}
                         }
                     }
                 }

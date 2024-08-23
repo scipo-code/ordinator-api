@@ -8,10 +8,12 @@ use crate::scheduling_environment::{
 
 use crate::scheduling_environment::worker_environment::resources::Resources;
 use chrono::{DateTime, Utc};
-use fixed::types::U32F32;
+use rust_decimal::prelude::*;
 use serde::de::{Deserialize, Visitor};
 use serde::ser::{Serialize, SerializeTupleStruct};
 use std::fmt::Display;
+use std::num::ParseFloatError;
+use std::str::FromStr;
 
 use self::operation_info::NumberOfPeople;
 
@@ -25,24 +27,39 @@ pub struct Operation {
 }
 
 #[derive(Hash, Eq, PartialOrd, Ord, PartialEq, Debug, Clone)]
-pub struct Work(U32F32);
+pub struct Work(Decimal);
 
+impl FromStr for Work {
+    type Err = ParseFloatError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let value = s.parse::<f64>()?;
+
+        Ok(Work::from(value))
+    }
+}
 impl Work {
     pub fn from(work: f64) -> Self {
-        let u32_f32 = U32F32::from_num(work);
+        let u32_f32 = Decimal::from_f64(work).unwrap();
         Work(u32_f32)
     }
 
-    pub(crate) fn work(&self) -> U32F32 {
+    pub(crate) fn work(&self) -> Decimal {
         self.0
     }
 
     pub fn in_seconds(&self) -> u64 {
-        self.0.to_num::<u64>() * 3600
+        (self.0 * Decimal::from_u64(3600).unwrap())
+            .to_u64()
+            .unwrap()
     }
 
     pub fn to_f64(&self) -> f64 {
-        self.0.to_num::<f64>()
+        self.0.to_f64().unwrap()
+    }
+
+    pub fn cal_duration(&self, number: u64) -> Work {
+        Work(self.0 / Decimal::from_u64(number).unwrap())
     }
 }
 
@@ -50,7 +67,7 @@ impl std::ops::Add for Work {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let value: U32F32 = self.work() + rhs.work();
+        let value: Decimal = self.work() + rhs.work();
         Self(value)
     }
 }
@@ -58,7 +75,7 @@ impl std::ops::Add for &Work {
     type Output = Work;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let value: U32F32 = self.work() + rhs.work();
+        let value: Decimal = self.work() + rhs.work();
         Work(value)
     }
 }
@@ -133,7 +150,7 @@ impl Serialize for Work {
         S: serde::Serializer,
     {
         let mut s = serializer.serialize_tuple_struct("Work", 1)?;
-        s.serialize_field(&self.0.to_num::<f64>())?;
+        s.serialize_field(&self.0.to_f64().unwrap())?;
         s.end()
     }
 }
@@ -151,7 +168,7 @@ impl<'de> Visitor<'de> for F64Visitor {
     where
         E: serde::de::Error,
     {
-        let fixed_val = U32F32::from_num(value);
+        let fixed_val = Decimal::from_f64(value).unwrap();
         Ok(Work(fixed_val))
     }
 }
@@ -271,8 +288,8 @@ impl Display for Operation {
             "    Activity: {:>8?}    |{:>11}|{:>14}|{:>8}|{:>6}|",
             self.activity,
             self.resource.to_string(),
-            self.operation_info.work_remaining().work().to_num::<f64>(),
-            self.operation_analytic.duration.work().to_num::<f64>(),
+            self.operation_info.work_remaining().work(),
+            self.operation_analytic.duration.work(),
             self.operation_info.number(),
         )
     }
