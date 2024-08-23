@@ -8,5 +8,5 @@ pub struct OrderText {
     pub operation_description: String,
     pub object_description: String,
     pub notes_1: String,
-    pub notes_2: u32,
+    pub notes_2: u64,
 }

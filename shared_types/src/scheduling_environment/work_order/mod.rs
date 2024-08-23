@@ -42,6 +42,11 @@ use super::time_environment::period::Period;
 
 #[derive(Debug, Copy, Clone, PartialOrd, Ord, Hash, PartialEq, Eq)]
 pub struct WorkOrderNumber(pub u64);
+impl WorkOrderNumber {
+    pub fn is_dummy(&self) -> bool {
+        self.0 == 0
+    }
+}
 
 pub type WorkOrderActivity = (WorkOrderNumber, ActivityNumber);
 
@@ -345,11 +350,9 @@ impl WorkOrder {
             self.work_order_analytic.work_order_weight +=
                 parameters.status_weights["PCNF_NMAT_SMAT"];
         }
-        self.work_order_analytic.work_order_weight *= self
-            .work_order_analytic
-            .work_order_work
-            .work()
-            .to_num::<u64>();
+
+        self.work_order_analytic.work_order_weight *=
+            self.work_order_analytic.work_order_work.to_f64() as u64
 
         // TODO Implement for VIS and ABC
     }
