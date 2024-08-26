@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
 use rand::seq::SliceRandom;
@@ -33,7 +36,8 @@ pub struct OperationalAlgorithm {
     pub objective_value: OperationalObjective,
     pub operational_solutions: OperationalSolutions,
     pub operational_non_productive: OperationalNonProductive,
-    pub operational_parameters: HashMap<(WorkOrderNumber, ActivityNumber), OperationalParameter>,
+    pub operational_parameters: HashMap<WorkOrderActivity, OperationalParameter>,
+    pub history_of_dropped_operational_parameters: HashSet<WorkOrderActivity>,
     pub availability: Availability,
     pub off_shift_interval: TimeInterval,
     pub break_interval: TimeInterval,
@@ -51,6 +55,7 @@ impl OperationalAlgorithm {
             operational_solutions: OperationalSolutions(Vec::new()),
             operational_non_productive: OperationalNonProductive(Vec::new()),
             operational_parameters: HashMap::new(),
+            history_of_dropped_operational_parameters: HashSet::new(),
             availability: operational_configuration.availability,
             off_shift_interval: operational_configuration.off_shift_interval,
             break_interval: operational_configuration.break_interval,
@@ -389,12 +394,10 @@ impl OperationalParameter {
         supervisor: Id,
     ) -> Self {
         let combined_time = (&work + &preparation).in_seconds();
-        let seconds_time = combined_time as i64;
-        let nano_time = combined_time as u32;
-        let operation_time_delta = TimeDelta::new(seconds_time, nano_time).unwrap();
+        let operation_time_delta = TimeDelta::new(combined_time as i64, 0).unwrap();
         assert_ne!(work.to_f64(), 0.0);
         assert!(!operation_time_delta.is_zero());
-        assert_eq!(seconds_time as u64, work.in_seconds());
+        assert_eq!(combined_time, work.in_seconds());
         Self {
             work,
             preparation,
@@ -627,7 +630,6 @@ impl OperationalAlgorithm {
         let mut remaining_combined_work = operational_parameter.operation_time_delta;
         let mut current_time = start_time;
 
-        error!(remaining_combined_work_in_operational_agent = ? remaining_combined_work);
         while !remaining_combined_work.is_zero() {
             let next_event = self.determine_next_event(&current_time);
 

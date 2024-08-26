@@ -77,7 +77,7 @@ pub struct OperationalState(
 /// This is a fundamental type. Where should we input the OperationalObjective? I think that keeping the
 /// code clean of these kind of things is exactly what is needed to make this work.
 impl OperationalState {
-    pub fn handle_woa(
+    pub fn update_operaitonal_state(
         &mut self,
         transition_type: TransitionTypes,
         operational_agent: (&Id, &Addr<OperationalAgent>),
@@ -93,6 +93,7 @@ impl OperationalState {
                 );
                 let span = span!(Level::DEBUG, "SupervisorSpan.OperationalState.TransitionType::Entering");
 
+                let _entered = span.enter();
                 let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
 
                 operational_agent.1.do_send(state_link_wrapper)
@@ -108,10 +109,40 @@ impl OperationalState {
 
                 operational_agent.1.do_send(state_link_wrapper)
             }
+            TransitionTypes::Done(delegate) => {
+                self.0.insert(
+                    (operational_agent.0.clone(), delegate.get_woa()),
+                    (delegate.clone(), None),
+                );
+                
+            }
         }
     }
     pub fn count_unique_woa(&self) -> usize {
         self.0.keys().map(|(_, woa)| woa).len()
+    }
+
+    pub fn are_unassigned_woas_valid(&self) -> bool {
+        for work_order_activity in self.0.keys().map(|(_, woa)| woa).collect::<Vec<_>>() {
+           
+            // What is it that is mutable here? 
+            let mut delegates_by_woa = self.0.iter().filter(|(key, _)| {
+                key.1 == *work_order_activity
+            }).map(|(_,(delegates, _))| delegates );
+
+            let is_all_assess = delegates_by_woa.all(|delegate| {
+                 delegate.is_assess()   
+            });
+
+            let is_all_drop = delegates_by_woa.all(|delegate| {
+                delegate.is_drop()
+            });
+
+            if !(is_all_drop || is_all_assess) {
+                return false
+            }
+        }
+        true
     }
 
     fn number_of_assigned_work_orders(&self) -> HashSet<WorkOrderActivity> {
@@ -176,6 +207,7 @@ impl OperationalState {
                     Delegate::Assess((_, ref os)) => os,
                     Delegate::Assign((_, ref os)) => os,
                     Delegate::Drop(_) => panic!("The method that caused this panic should not deal with Delegate::Drop variants"),
+                    Delegate::Done(_) => panic!("Delegate::Done TacticalOperations should not be propagated through the system"),
                     Delegate::Fixed => todo!(),
                     
                 };
