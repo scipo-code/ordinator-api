@@ -328,10 +328,11 @@ impl
                 // So why do I have an issue here? I think that the goal should be to really understand this as it is
                 // something where I have absolutely no clue about what to do but it is really essential.
                 match *delegate {
-                    Delegate::Assess((woa, ref tactical_operation)) => {
+                    Delegate::Assess((work_order_activity, ref tactical_operation)) => {
                         let scheduling_environment = self.scheduling_environment.lock().unwrap();
 
-                        let operation: &Operation = scheduling_environment.operation(&woa);
+                        let operation: &Operation =
+                            scheduling_environment.operation(&work_order_activity);
 
                         let (start_datetime, end_datetime) =
                             self.determine_start_and_finish_times(&tactical_operation.scheduled);
@@ -348,14 +349,21 @@ impl
                             )
                         } else {
                             error!("Actor did not incorporate the right state, but supervisor thought that it did");
-                            return Err(StateLinkError(
-                                Some(self.id_operational.clone()),
-                                Some(woa),
-                            ));
+                            panic!();
                         };
 
+                        let number_of_operational_parameters =
+                            self.operational_algorithm.operational_parameters.len();
                         self.operational_algorithm
-                            .insert_optimized_operation(woa, operational_parameter);
+                            .insert_optimized_operation(work_order_activity, operational_parameter);
+
+                        self.operational_algorithm
+                            .history_of_dropped_operational_parameters
+                            .insert(work_order_activity);
+                        assert_eq!(
+                            number_of_operational_parameters + 1,
+                            self.operational_algorithm.operational_parameters.len()
+                        );
                         info!(id = ?self.id_operational, tactical_operation = ?tactical_operation);
                         Ok(())
                     }
@@ -374,15 +382,31 @@ impl
                         Ok(())
                     }
                     Delegate::Drop(work_order_activity) => {
-                        if self
+                        let operational_parameter_option = self
                             .operational_algorithm
                             .operational_parameters
                             .keys()
-                            .any(|woa| *woa == work_order_activity)
-                        {
-                            error!(work_order_activity = ?work_order_activity, id_operational = ?self.id_operational);
-                            // panic!();
-                        }
+                            .find(|woa| **woa == work_order_activity);
+
+                        match operational_parameter_option {
+                            Some(operational_parameter) => operational_parameter,
+                            None => {
+                                if self
+                                    .operational_algorithm
+                                    .history_of_dropped_operational_parameters
+                                    .contains(&work_order_activity)
+                                {
+                                    event!(
+                                        Level::ERROR,
+                                        work_order_activity = ?work_order_activity,
+                                        "OperationalAgent did have the WOA in his state previously",
+                                    );
+                                    panic!();
+                                }
+                                panic!();
+                            }
+                        };
+
                         let number_of_os = self.operational_algorithm.operational_parameters.len();
                         self.operational_algorithm.operational_solutions.0.retain(
                             |operational_solution| operational_solution.0 != work_order_activity,
@@ -395,6 +419,9 @@ impl
                             number_of_os - 1
                         );
                         Ok(())
+                    }
+                    Delegate::Done(_) => {
+                        panic!("An OperationalAgent should not receive a Delegate::Done")
                     }
                     Delegate::Fixed => {
                         todo!()

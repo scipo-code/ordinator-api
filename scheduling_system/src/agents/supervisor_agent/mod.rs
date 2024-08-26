@@ -1,6 +1,8 @@
 pub mod algorithm;
 use std::{
+    borrow::BorrowMut,
     collections::{HashMap, HashSet},
+    ops::BitOr,
     sync::{Arc, Mutex},
 };
 
@@ -8,7 +10,10 @@ use actix::prelude::*;
 use shared_types::{
     agent_error::AgentError,
     scheduling_environment::{
-        work_order::{operation::ActivityNumber, WorkOrderActivity, WorkOrderNumber},
+        work_order::{
+            operation::{ActivityNumber, Work},
+            WorkOrderActivity, WorkOrderNumber,
+        },
         worker_environment::resources::Resources,
     },
     supervisor::{
@@ -50,6 +55,7 @@ pub enum TransitionTypes {
     Leaving(Arc<Delegate>),
     Unchanged(Arc<Delegate>),
     Changed(Arc<Delegate>),
+    Done(Arc<Delegate>),
 }
 
 impl TransitionTypes {
@@ -59,6 +65,7 @@ impl TransitionTypes {
             TransitionTypes::Leaving(delegate) => delegate.get_resource(),
             TransitionTypes::Unchanged(delegate) => delegate.get_resource(),
             TransitionTypes::Changed(delegate) => delegate.get_resource(),
+            TransitionTypes::Done(delegate) => delegate.get_resource(),
         }
     }
 
@@ -68,6 +75,7 @@ impl TransitionTypes {
             TransitionTypes::Leaving(delegate) => delegate.get_woa(),
             TransitionTypes::Unchanged(delegate) => delegate.get_woa(),
             TransitionTypes::Changed(delegate) => delegate.get_woa(),
+            TransitionTypes::Done(delegate) => delegate.get_woa(),
         }
     }
 }
@@ -106,6 +114,7 @@ pub enum Delegate {
     Assess((WorkOrderActivity, Arc<TacticalOperation>)),
     Assign((WorkOrderActivity, Arc<TacticalOperation>)),
     Drop(WorkOrderActivity),
+    Done((WorkOrderActivity, Resources)),
     Fixed,
 }
 
@@ -115,6 +124,9 @@ impl Delegate {
             Delegate::Assess((_, os)) => os.clone(),
             Delegate::Assign((_, os)) => os.clone(),
             Delegate::Drop(_) => panic!(),
+            Delegate::Done(_) => {
+                panic!("The Operation is done. There should be no applicable business logic.")
+            }
             Delegate::Fixed => panic!(),
         }
     }
@@ -140,6 +152,7 @@ impl Delegate {
             Delegate::Assign((woa, _)) => *woa,
             Delegate::Assess((woa, _)) => *woa,
             Delegate::Drop(woa) => *woa,
+            Delegate::Done((woa, _)) => *woa,
             Delegate::Fixed => panic!(),
         }
     }
@@ -149,6 +162,7 @@ impl Delegate {
             Delegate::Assess((_, os)) => &os.resource,
             Delegate::Assign((_, os)) => &os.resource,
             Delegate::Drop(_) => panic!(),
+            Delegate::Done((_, resource)) => resource,
             Delegate::Fixed => panic!(),
         }
     }
@@ -186,11 +200,13 @@ impl SupervisorAgent {
     ) -> Option<TransitionTypes> {
         for operational_agent in &self.operational_agent_addrs {
             if operational_agent.0 .1.contains(resource) {
-                self.supervisor_algorithm.operational_state.handle_woa(
-                    transition_type.clone(),
-                    operational_agent,
-                    self.supervisor_id.clone(),
-                )
+                self.supervisor_algorithm
+                    .operational_state
+                    .update_operaitonal_state(
+                        transition_type.clone(),
+                        operational_agent,
+                        self.supervisor_id.clone(),
+                    )
             }
         }
 
@@ -212,7 +228,6 @@ impl SupervisorAgent {
     /// We should delete it! There are multiple errors in here and I think that the best approach is to
     /// pass everything into the program instead of locking the scheduling environment. That is really
     /// bad practice.J
-
     fn make_transition_sets_from_tactical_state_link(
         &self,
         tactical_supervisor_link: HashMap<
@@ -220,13 +235,27 @@ impl SupervisorAgent {
             Arc<TacticalOperation>,
         >,
     ) -> TransitionSets {
-        let supervisor_set: HashSet<(WorkOrderNumber, ActivityNumber)> =
+        let supervisor_set: HashSet<WorkOrderActivity> =
             self.supervisor_algorithm.operational_state.get_unique_woa();
 
-        let tactical_set: HashSet<(WorkOrderNumber, ActivityNumber)> = tactical_supervisor_link
+        let tactical_set: HashSet<WorkOrderActivity> = tactical_supervisor_link
             .keys()
             .cloned()
             .collect::<HashSet<_>>();
+
+        let (done_set, tactical_set): (HashSet<WorkOrderActivity>, HashSet<WorkOrderActivity>) =
+            tactical_set.into_iter().partition(|woa| {
+                tactical_supervisor_link.get(woa).unwrap().work_remaining == Work::from(0.0)
+            });
+
+        let done_woas: HashSet<TransitionTypes> = done_set
+            .into_iter()
+            .map(|woa| {
+                let resource = tactical_supervisor_link.get(&woa).unwrap().resource.clone();
+                let delegate = Arc::new(Delegate::Done((woa, resource)));
+                TransitionTypes::Done(delegate)
+            })
+            .collect();
 
         let mut changed_woas = HashSet::new();
 
@@ -235,7 +264,7 @@ impl SupervisorAgent {
         supervisor_set
             .intersection(&tactical_set)
             .cloned()
-            .map(|woa| {
+            .for_each(|woa| {
                 // We should go into the operational_state and find all matches on the
                 // woa! Good this is the first step!
                 let delegates = self
@@ -256,7 +285,6 @@ impl SupervisorAgent {
                         changed_woas.insert(transition_type);
                     }
                 })
-
                 // TransitionTypes::Unchanged(woa))
             });
 
@@ -281,11 +309,13 @@ impl SupervisorAgent {
             })
             .collect::<HashSet<TransitionTypes>>();
 
-        let entering_present = entering_woas
-            .union(&unchanged_woas)
-            .cloned()
-            .collect::<HashSet<TransitionTypes>>();
-        entering_present.union(&leaving_woas).cloned().collect()
+        let mut final_set = entering_woas;
+
+        final_set.extend(unchanged_woas);
+        final_set.extend(leaving_woas);
+        final_set.extend(done_woas);
+
+        final_set
     }
 }
 
@@ -362,16 +392,22 @@ impl
                     tactical_supervisor_link.clone(),
                 );
 
+                assert!(self
+                    .supervisor_algorithm
+                    .operational_state
+                    .are_unassigned_woas_valid());
                 for transition_type in &transition_sets {
                     for operational_agent in &self.operational_agent_addrs {
                         match transition_type {
                             TransitionTypes::Entering(delegate) => {
                                 if operational_agent.0 .1.contains(transition_type.resource()) {
-                                    self.supervisor_algorithm.operational_state.handle_woa(
-                                        transition_type.clone(),
-                                        operational_agent,
-                                        self.supervisor_id.clone(),
-                                    )
+                                    self.supervisor_algorithm
+                                        .operational_state
+                                        .update_operaitonal_state(
+                                            transition_type.clone(),
+                                            operational_agent,
+                                            self.supervisor_id.clone(),
+                                        )
                                 }
                             }
                             TransitionTypes::Leaving(delegate) => {
@@ -381,13 +417,14 @@ impl
                                     .get(&(operational_agent.0.clone(), delegate.get_woa()));
 
                                 match leaving_woa {
-                                    Some(woa) => {
-                                        self.supervisor_algorithm.operational_state.handle_woa(
+                                    Some(woa) => self
+                                        .supervisor_algorithm
+                                        .operational_state
+                                        .update_operaitonal_state(
                                             transition_type.clone(),
                                             operational_agent,
                                             self.supervisor_id.clone(),
-                                        )
-                                    }
+                                        ),
                                     None => {
                                         event!(Level::DEBUG, "If you get this, and suspect an error, check that the woa that is being dropped does not match the resource of operational agent. This could be a very pernicious bug if true, but a significant rewrite of the type system is needed to assert! this")
                                     }
@@ -395,9 +432,24 @@ impl
                             }
                             TransitionTypes::Unchanged(delegate) => {}
                             TransitionTypes::Changed(delegate) => {}
+                            TransitionTypes::Done(delegate) => {
+                                if operational_agent.0 .1.contains(transition_type.resource()) {
+                                    self.supervisor_algorithm
+                                        .operational_state
+                                        .update_operaitonal_state(
+                                            transition_type.clone(),
+                                            operational_agent,
+                                            self.supervisor_id.clone(),
+                                        )
+                                }
+                            }
                         }
                     }
                 }
+                assert!(self
+                    .supervisor_algorithm
+                    .operational_state
+                    .are_unassigned_woas_valid());
                 Ok(())
             }
             StateLink::Supervisor(_) => Ok(()),
