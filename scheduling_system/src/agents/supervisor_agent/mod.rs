@@ -51,18 +51,18 @@ pub struct SupervisorAgent {
 
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum TransitionTypes {
-    Entering(Arc<Delegate>),
-    Leaving(Arc<Delegate>),
-    Unchanged(Arc<Delegate>),
-    Changed(Arc<Delegate>),
-    Done(Arc<Delegate>),
+    Entering(Delegate),
+    Leaving(WorkOrderActivity),
+    Unchanged(Delegate),
+    Changed(Delegate),
+    Done(Delegate),
 }
 
 impl TransitionTypes {
     pub fn resource(&self) -> &Resources {
         match self {
             TransitionTypes::Entering(ref delegate) => delegate.get_resource(),
-            TransitionTypes::Leaving(delegate) => delegate.get_resource(),
+            TransitionTypes::Leaving(woa) => panic!(),
             TransitionTypes::Unchanged(delegate) => delegate.get_resource(),
             TransitionTypes::Changed(delegate) => delegate.get_resource(),
             TransitionTypes::Done(delegate) => delegate.get_resource(),
@@ -72,7 +72,7 @@ impl TransitionTypes {
     pub fn get_woa(&self) -> WorkOrderActivity {
         match self {
             TransitionTypes::Entering(delegate) => delegate.get_woa(),
-            TransitionTypes::Leaving(delegate) => delegate.get_woa(),
+            TransitionTypes::Leaving(woa) => panic!(),
             TransitionTypes::Unchanged(delegate) => delegate.get_woa(),
             TransitionTypes::Changed(delegate) => delegate.get_woa(),
             TransitionTypes::Done(delegate) => delegate.get_woa(),
@@ -135,6 +135,10 @@ impl Delegate {
         matches!(self, Self::Assess(_))
     }
 
+    pub fn is_done(&self) -> bool {
+        matches!(self, Self::Done(_))
+    }
+
     fn is_assign(&self) -> bool {
         matches!(self, Self::Assign(_))
     }
@@ -164,6 +168,15 @@ impl Delegate {
             Delegate::Drop(_) => panic!(),
             Delegate::Done((_, resource)) => resource,
             Delegate::Fixed => panic!(),
+        }
+    }
+
+    // convert_to_drop consumes the delegate and inserts it in-place in the. 
+    fn convert_to_drop(self) -> Delegate {
+        match self {
+            Delegate::Assess((woa, _)) => Delegate::Drop(woa),
+            Delegate::Assign((woa, _)) => Delegate::Drop(woa),
+            _ => panic!("Only Delegate::Assess and Delegate::Assign can be converted to a Delegate::Drop")
         }
     }
 }
@@ -416,18 +429,20 @@ impl
                                     .operational_state
                                     .get(&(operational_agent.0.clone(), delegate.get_woa()));
 
-                                match leaving_woa {
-                                    Some(woa) => self
-                                        .supervisor_algorithm
-                                        .operational_state
-                                        .update_operaitonal_state(
-                                            transition_type.clone(),
-                                            operational_agent,
-                                            self.supervisor_id.clone(),
-                                        ),
-                                    None => {
-                                        event!(Level::DEBUG, "If you get this, and suspect an error, check that the woa that is being dropped does not match the resource of operational agent. This could be a very pernicious bug if true, but a significant rewrite of the type system is needed to assert! this")
-                                    }
+                                    if operational_agent.0.1.contains(transition_type.resource()) {
+                                        match leaving_woa {
+                                            Some(woa) => self
+                                                .supervisor_algorithm
+                                                .operational_state
+                                                .update_operaitonal_state(
+                                                    transition_type.clone(),
+                                                    operational_agent,
+                                                    self.supervisor_id.clone(),
+                                                ),
+                                            None => {
+                                                event!(Level::DEBUG, "If you get this, and suspect an error, check that the woa that is being dropped does not match the resource of operational agent. This could be a very pernicious bug if true, but a significant rewrite of the type system is needed to assert! this")
+                                            }
+                                        }
                                 }
                             }
                             TransitionTypes::Unchanged(delegate) => {}
