@@ -16,7 +16,7 @@ use shared_types::{
         supervisor_response_time::SupervisorResponseTime,
     },
 };
-use tracing::{instrument, span, Level};
+use tracing::{event, instrument, span, Level};
 
 use crate::agents::{
     operational_agent::{algorithm::OperationalObjective, OperationalAgent},
@@ -71,7 +71,7 @@ impl SupervisorAlgorithm {
 /// the correct messages will be sent out.
 #[derive(Debug, Default)]
 pub struct OperationalState(
-    HashMap<(Id, WorkOrderActivity), (Arc<Delegate>, Option<OperationalObjective>)>,
+    HashMap<(Id, WorkOrderActivity), (Delegate, Option<OperationalObjective>)>,
 );
 
 /// This is a fundamental type. Where should we input the OperationalObjective? I think that keeping the
@@ -85,8 +85,9 @@ impl OperationalState {
     ) {
         match transition_type {
             TransitionTypes::Entering(delegate) => {
+                let arc_delegate = Arc::new(delegate);
                 let state_link =
-                    StateLink::Supervisor(DelegateAndId(delegate.clone(), supervisor_id));
+                    StateLink::Supervisor(DelegateAndId(arc_delegate.clone(), supervisor_id));
                 self.0.insert(
                     (operational_agent.0.clone(), delegate.get_woa()),
                     (delegate, None),
@@ -100,19 +101,42 @@ impl OperationalState {
             }
             TransitionTypes::Unchanged(_delegate) => {}
             TransitionTypes::Changed(_delegate) => {}
-            TransitionTypes::Leaving(delegate) => {
+            TransitionTypes::Leaving(woa) => {
+                // Okay so here a delegate is received. Now what we need to do is to go into the OperationalState
+                // and find delegate using the Id and WOA, with these take the delegate, and call the 
+                // delegate_to_drop on it! And then this is what... Yes! If done this way we will get 
+                // an error if trying to send a Delegate::Drop if it is not part of the OperationalState. 
 
+                // 
+                let delegate_option = self.0.get(&(operational_agent.0.clone(), woa));
+
+                let delegate = match delegate_option {
+                    Some(delegate) => {
+                        delegate.0.convert_to_drop()
+                    }
+                    None => {
+                        panic!("Cannot Delegate::Drop a WOA that is not in the already in the OperationalState");
+                    }
+                };
+
+                
+                self.remove_an_operational_state(
+                    woa, operational_agent.0.clone()
+                );
+
+                let arc_delegate = Arc::new(delegate);
                 let span = span!(Level::DEBUG, "SupervisorSpan.OperationalState.TransitionType::Leaving");
-                let state_link = StateLink::Supervisor(DelegateAndId(delegate.clone(), supervisor_id));
+                let state_link = StateLink::Supervisor(DelegateAndId(arc_delegate, supervisor_id));
 
                 let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
 
                 operational_agent.1.do_send(state_link_wrapper)
             }
             TransitionTypes::Done(delegate) => {
+
                 self.0.insert(
                     (operational_agent.0.clone(), delegate.get_woa()),
-                    (delegate.clone(), None),
+                    (delegate, None),
                 );
                 
             }
@@ -120,6 +144,21 @@ impl OperationalState {
     }
     pub fn count_unique_woa(&self) -> usize {
         self.0.keys().map(|(_, woa)| woa).len()
+    }
+
+    pub fn remove_an_operational_state(&mut self, work_order_activity: WorkOrderActivity, operational_id: Id) {
+        let value_option = self.0.remove(&(operational_id, work_order_activity));
+
+        match value_option {
+            Some(value) => {
+                if !value.0.is_drop() {
+                    panic!("You tried to remove a delegate that was not Delegate::Drop, doing this could lead to a situation where the remaining state could be wrong");
+                }
+            }
+            None => {
+                panic!("You tried to remove an entry of the SupervisorAlgorithm OperationalState, which did not exist. This is a major violation of the internal consistency of the SupervisorAgent and all its OperationalAgents")
+            }    
+        }
     }
 
     pub fn are_unassigned_woas_valid(&self) -> bool {
@@ -131,14 +170,15 @@ impl OperationalState {
             }).map(|(_,(delegates, _))| delegates );
 
             let is_all_assess = delegates_by_woa.all(|delegate| {
-                 delegate.is_assess()   
+                 delegate.is_assess() || delegate.is_done() 
             });
 
             let is_all_drop = delegates_by_woa.all(|delegate| {
-                delegate.is_drop()
+                delegate.is_drop() || delegate.is_done() 
             });
 
             if !(is_all_drop || is_all_assess) {
+                event!(Level::ERROR, delegate_by_woa = ?delegates_by_woa);
                 return false
             }
         }
