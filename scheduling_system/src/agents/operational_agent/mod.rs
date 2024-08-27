@@ -368,6 +368,7 @@ impl
                         Ok(())
                     }
                     Delegate::Assign((work_order_activity, ref tactical_operation)) => {
+                        panic!();
                         let operational_parameters =
                             &mut self.operational_algorithm.operational_parameters;
 
