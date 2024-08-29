@@ -94,6 +94,10 @@ impl TacticalOperation {
             work_order_activity: (work_order_number, activity_number),
         }
     }
+
+    pub(crate) fn get_resource(&self) -> &Resources {
+        &self.resource
+    }
 }
 
 impl Message for TacticalOperation {

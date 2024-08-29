@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::Arc,
+    sync::{Arc, RwLock},
 };
 
 use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
@@ -380,7 +380,7 @@ pub struct OperationalParameter {
     operation_time_delta: TimeDelta,
     start_window: DateTime<Utc>,
     end_window: DateTime<Utc>,
-    delegated: Arc<Delegate>,
+    delegated: Arc<RwLock<Delegate>>,
     supervisor: Id,
 }
 
@@ -390,7 +390,7 @@ impl OperationalParameter {
         preparation: Work,
         start_window: DateTime<Utc>,
         end_window: DateTime<Utc>,
-        delegated: Arc<Delegate>,
+        delegated: Arc<RwLock<Delegate>>,
         supervisor: Id,
     ) -> Self {
         let combined_time = (&work + &preparation).in_seconds();
@@ -410,10 +410,10 @@ impl OperationalParameter {
     }
 
     pub(crate) fn is_fixed(&self) -> bool {
-        self.delegated.is_fixed()
+        self.delegated.read().unwrap().is_fixed()
     }
 
-    pub fn set_delegated_and_supervisor(&mut self, delegate: Arc<Delegate>, supervisor: Id) {
+    pub fn set_delegated_and_supervisor(&mut self, delegate: Arc<RwLock<Delegate>>, supervisor: Id) {
         self.delegated = delegate;
         self.supervisor = supervisor;
     }
@@ -915,7 +915,7 @@ fn equality_between_time_interval_and_assignments(all_events: Vec<&Assignment>) 
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::sync::{Arc, RwLock};
 
     use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
     use proptest::prelude::*;
@@ -927,7 +927,7 @@ mod tests {
         },
     };
 
-    use crate::agents::operational_agent::algorithm::OperationalEvents;
+    use crate::agents::{operational_agent::algorithm::OperationalEvents, supervisor_agent::Delegate};
 
     use super::{OperationalAlgorithm, OperationalParameter};
 
@@ -1099,7 +1099,7 @@ mod tests {
             .unwrap()
             .to_utc();
 
-        let delegated = Arc::new(crate::agents::supervisor_agent::Delegate::Fixed);
+        let delegated = Arc::new(RwLock::new(Delegate::Fixed));
 
         let operational_parameter = OperationalParameter::new(
             Work::from(20.0),

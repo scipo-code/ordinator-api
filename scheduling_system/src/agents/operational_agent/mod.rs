@@ -325,9 +325,10 @@ impl
             StateLink::Supervisor(delegate_and_id) => {
                 let DelegateAndId(delegate, supervisor) = delegate_and_id;
 
+                let delegate_read_lock = delegate.read().unwrap();
                 // So why do I have an issue here? I think that the goal should be to really understand this as it is
                 // something where I have absolutely no clue about what to do but it is really essential.
-                match *delegate {
+                match *delegate_read_lock {
                     Delegate::Assess((work_order_activity, ref tactical_operation)) => {
                         let scheduling_environment = self.scheduling_environment.lock().unwrap();
 
@@ -337,21 +338,17 @@ impl
                         let (start_datetime, end_datetime) =
                             self.determine_start_and_finish_times(&tactical_operation.scheduled);
 
-                        let operational_parameter = if operation.work_remaining() > &Work::from(0.0)
-                        {
-                            OperationalParameter::new(
-                                operation.work_remaining().clone(),
-                                operation.operation_analytic.preparation_time.clone(),
-                                start_datetime,
-                                end_datetime,
-                                delegate.clone(),
-                                supervisor,
-                            )
-                        } else {
-                            error!("Actor did not incorporate the right state, but supervisor thought that it did");
-                            panic!();
-                        };
-
+                        assert!(operation.work_remaining() > &Work::from(0.0));
+                    
+                        let operational_parameter = OperationalParameter::new(
+                            operation.work_remaining().clone(),
+                            operation.operation_analytic.preparation_time.clone(),
+                            start_datetime,
+                            end_datetime,
+                            delegate.clone(),
+                            supervisor,
+                        );
+                         
                         let number_of_operational_parameters =
                             self.operational_algorithm.operational_parameters.len();
                         self.operational_algorithm
