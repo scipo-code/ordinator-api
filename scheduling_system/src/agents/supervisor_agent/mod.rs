@@ -3,7 +3,7 @@ use std::{
     borrow::BorrowMut,
     collections::{HashMap, HashSet},
     ops::BitOr,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
 };
 
 use actix::prelude::*;
@@ -51,31 +51,31 @@ pub struct SupervisorAgent {
 
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum TransitionTypes {
-    Entering(Delegate),
+    Entering((WorkOrderActivity, Arc<TacticalOperation>)),
     Leaving(WorkOrderActivity),
-    Unchanged(Delegate),
-    Changed(Delegate),
-    Done(Delegate),
+    Unchanged(WorkOrderActivity),
+    Changed((WorkOrderActivity, Arc<TacticalOperation>)),
+    Done(WorkOrderActivity),
 }
 
 impl TransitionTypes {
     pub fn resource(&self) -> &Resources {
         match self {
-            TransitionTypes::Entering(ref delegate) => delegate.get_resource(),
-            TransitionTypes::Leaving(woa) => panic!(),
-            TransitionTypes::Unchanged(delegate) => delegate.get_resource(),
-            TransitionTypes::Changed(delegate) => delegate.get_resource(),
-            TransitionTypes::Done(delegate) => delegate.get_resource(),
+            TransitionTypes::Entering((_,tac)) => (**tac).get_resource(),
+            TransitionTypes::Leaving(_) => panic!(),
+            TransitionTypes::Unchanged(_) => panic!(),
+            TransitionTypes::Changed((_, tac)) => (**tac).get_resource(),
+            TransitionTypes::Done(_) => panic!(),
         }
     }
 
-    pub fn get_woa(&self) -> WorkOrderActivity {
+    pub fn get_woa(&self) -> &WorkOrderActivity {
         match self {
-            TransitionTypes::Entering(delegate) => delegate.get_woa(),
-            TransitionTypes::Leaving(woa) => panic!(),
-            TransitionTypes::Unchanged(delegate) => delegate.get_woa(),
-            TransitionTypes::Changed(delegate) => delegate.get_woa(),
-            TransitionTypes::Done(delegate) => delegate.get_woa(),
+            TransitionTypes::Entering((work_order_activity, _)) => work_order_activity,
+            TransitionTypes::Leaving(work_order_activity) => work_order_activity,
+            TransitionTypes::Unchanged(work_order_activity) => work_order_activity,
+            TransitionTypes::Changed((work_order_activity, _)) => work_order_activity,
+            TransitionTypes::Done(work_order_activity) => work_order_activity,
         }
     }
 }
@@ -114,15 +114,18 @@ pub enum Delegate {
     Assess((WorkOrderActivity, Arc<TacticalOperation>)),
     Assign((WorkOrderActivity, Arc<TacticalOperation>)),
     Drop(WorkOrderActivity),
-    Done((WorkOrderActivity, Resources)),
+    Done(WorkOrderActivity),
     Fixed,
 }
-
 impl Delegate {
-    pub fn operation_solution(&self) -> Arc<TacticalOperation> {
+    pub fn new(work_order_activity: WorkOrderActivity, tactical_operation: Arc<TacticalOperation>) -> Delegate {
+        Delegate::Assess((work_order_activity, tactical_operation))
+    }
+
+    pub fn tactical_operation(&self) -> Arc<TacticalOperation> {
         match self {
-            Delegate::Assess((_, os)) => os.clone(),
-            Delegate::Assign((_, os)) => os.clone(),
+            Delegate::Assess((_, tactical_operation)) => tactical_operation.clone(),
+            Delegate::Assign((_, tactical_operation)) => tactical_operation.clone(),
             Delegate::Drop(_) => panic!(),
             Delegate::Done(_) => {
                 panic!("The Operation is done. There should be no applicable business logic.")
@@ -156,7 +159,7 @@ impl Delegate {
             Delegate::Assign((woa, _)) => *woa,
             Delegate::Assess((woa, _)) => *woa,
             Delegate::Drop(woa) => *woa,
-            Delegate::Done((woa, _)) => *woa,
+            Delegate::Done(woa) => *woa,
             Delegate::Fixed => panic!(),
         }
     }
@@ -166,23 +169,23 @@ impl Delegate {
             Delegate::Assess((_, os)) => &os.resource,
             Delegate::Assign((_, os)) => &os.resource,
             Delegate::Drop(_) => panic!(),
-            Delegate::Done((_, resource)) => resource,
+            Delegate::Done(_) => panic!(),
             Delegate::Fixed => panic!(),
         }
     }
 
     // convert_to_drop consumes the delegate and inserts it in-place in the. 
-    fn convert_to_drop(self) -> Delegate {
+    fn convert_to_drop(&mut self) {
         match self {
-            Delegate::Assess((woa, _)) => Delegate::Drop(woa),
-            Delegate::Assign((woa, _)) => Delegate::Drop(woa),
+            Delegate::Assess((work_order_activity, _)) => *self = Delegate::Drop(*work_order_activity),
+            Delegate::Assign((work_order_activity, _)) => *self = Delegate::Drop(*work_order_activity),
             _ => panic!("Only Delegate::Assess and Delegate::Assign can be converted to a Delegate::Drop")
         }
     }
 }
 
 #[derive(Debug)]
-pub struct DelegateAndId(pub Arc<Delegate>, pub Id);
+pub struct DelegateAndId(pub Arc<RwLock<Delegate>>, pub Id);
 
 impl Message for DelegateAndId {
     type Result = ();
@@ -264,9 +267,7 @@ impl SupervisorAgent {
         let done_woas: HashSet<TransitionTypes> = done_set
             .into_iter()
             .map(|woa| {
-                let resource = tactical_supervisor_link.get(&woa).unwrap().resource.clone();
-                let delegate = Arc::new(Delegate::Done((woa, resource)));
-                TransitionTypes::Done(delegate)
+                TransitionTypes::Done(woa)
             })
             .collect();
 
@@ -280,21 +281,22 @@ impl SupervisorAgent {
             .for_each(|woa| {
                 // We should go into the operational_state and find all matches on the
                 // woa! Good this is the first step!
-                let delegates = self
+                let operational_state_machine_inner = self
                     .supervisor_algorithm
                     .operational_state
                     .get_iter()
                     .filter(|(key, _)| key.1 == woa)
                     .collect::<Vec<_>>();
 
-                delegates.iter().for_each(|delegate| {
-                    if delegate.1 .0.operation_solution()
+                operational_state_machine_inner.iter().for_each(|(_, (delegate, _))| {
+                    let tactical_operation = delegate.read().unwrap().tactical_operation();
+                    if tactical_operation
                         == *tactical_supervisor_link.get(&woa).unwrap()
                     {
-                        let transition_type = TransitionTypes::Unchanged(delegate.1 .0.clone());
+                        let transition_type = TransitionTypes::Unchanged(woa);
                         unchanged_woas.insert(transition_type);
                     } else {
-                        let transition_type = TransitionTypes::Changed(delegate.1 .0.clone());
+                        let transition_type = TransitionTypes::Changed((woa, tactical_operation));
                         changed_woas.insert(transition_type);
                     }
                 })
@@ -305,8 +307,7 @@ impl SupervisorAgent {
             .difference(&tactical_set)
             .cloned()
             .map(|woa| {
-                let delegate_drop = Arc::new(Delegate::Drop(woa));
-                TransitionTypes::Leaving(delegate_drop)
+                TransitionTypes::Leaving(woa)
             })
             .collect::<HashSet<TransitionTypes>>();
 
@@ -314,11 +315,8 @@ impl SupervisorAgent {
             .difference(&supervisor_set)
             .cloned()
             .map(|woa| {
-                let operation_solution = tactical_supervisor_link.get(&woa).unwrap().clone();
-                // Hmm would it make sense for the code here and to have an Arc<TacticalOperation>? It would mean that the
-                // code would have to adjust further up! We are already at the tactical_supervisor_link
-                let delegate_entering = Arc::new(Delegate::Assess((woa, operation_solution)));
-                TransitionTypes::Entering(delegate_entering)
+                let tactical_operation = tactical_supervisor_link.get(&woa).unwrap().clone();
+                TransitionTypes::Entering((woa, tactical_operation))
             })
             .collect::<HashSet<TransitionTypes>>();
 
@@ -423,11 +421,11 @@ impl
                                         )
                                 }
                             }
-                            TransitionTypes::Leaving(delegate) => {
+                            TransitionTypes::Leaving(work_order_number) => {
                                 let leaving_woa = self
                                     .supervisor_algorithm
                                     .operational_state
-                                    .get(&(operational_agent.0.clone(), delegate.get_woa()));
+                                    .get(&(operational_agent.0.clone(), *work_order_number));
 
                                     if operational_agent.0.1.contains(transition_type.resource()) {
                                         match leaving_woa {

@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, HashSet}, sync::Arc};
+use std::{collections::{HashMap, HashSet}, sync::{Arc, RwLock}};
 
 use actix::Addr;
 use shared_types::{
@@ -33,7 +33,7 @@ pub struct SupervisorTimeRequest;
 pub struct SupervisorAlgorithm {
     objective_value: f64,
     resource: MainResources,
-    pub operational_state: OperationalState,
+    pub operational_state: OperationalStateMachine,
 }
 
 impl SupervisorAlgorithm {
@@ -41,7 +41,7 @@ impl SupervisorAlgorithm {
         Self {
             objective_value: f64::default(),
             resource,
-            operational_state: OperationalState::default(),
+            operational_state: OperationalStateMachine::default(),
         }
     }
 
@@ -53,7 +53,7 @@ impl SupervisorAlgorithm {
         self.operational_state
             .0
             .iter()
-            .any(|(key, val)| work_order_activity == key.1 && val.0.is_assign())
+            .any(|(key, val)| work_order_activity == key.1 && val.0.read().unwrap().is_assign())
     }
 
     pub fn number_woas_for_agent(&self, operational_agent: &Id) -> usize {
@@ -70,13 +70,13 @@ impl SupervisorAlgorithm {
 /// simply be created in such a way that we only need to change the OperaitonalState and then
 /// the correct messages will be sent out.
 #[derive(Debug, Default)]
-pub struct OperationalState(
-    HashMap<(Id, WorkOrderActivity), (Delegate, Option<OperationalObjective>)>,
+pub struct OperationalStateMachine(
+    HashMap<(Id, WorkOrderActivity), (Arc<RwLock<Delegate>>, Option<OperationalObjective>)>,
 );
 
 /// This is a fundamental type. Where should we input the OperationalObjective? I think that keeping the
 /// code clean of these kind of things is exactly what is needed to make this work.
-impl OperationalState {
+impl OperationalStateMachine {
     pub fn update_operaitonal_state(
         &mut self,
         transition_type: TransitionTypes,
@@ -84,17 +84,20 @@ impl OperationalState {
         supervisor_id: Id,
     ) {
         match transition_type {
-            TransitionTypes::Entering(delegate) => {
-                let arc_delegate = Arc::new(delegate);
-                let state_link =
-                    StateLink::Supervisor(DelegateAndId(arc_delegate.clone(), supervisor_id));
+            TransitionTypes::Entering((work_order_activity, tactical_operation)) => {
+                let delegate = Arc::new(RwLock::new(Delegate::new(work_order_activity, tactical_operation)));
+
                 self.0.insert(
-                    (operational_agent.0.clone(), delegate.get_woa()),
-                    (delegate, None),
+                    (operational_agent.0.clone(), work_order_activity),
+                    (Arc::clone(&delegate), None),
                 );
+
                 let span = span!(Level::DEBUG, "SupervisorSpan.OperationalState.TransitionType::Entering");
 
                 let _entered = span.enter();
+
+                let state_link =
+                    StateLink::Supervisor(DelegateAndId(delegate.clone(), supervisor_id));
                 let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
 
                 operational_agent.1.do_send(state_link_wrapper)
@@ -110,32 +113,31 @@ impl OperationalState {
                 // 
                 let delegate_option = self.0.get(&(operational_agent.0.clone(), woa));
 
-                let delegate = match delegate_option {
-                    Some(delegate) => {
-                        delegate.0.convert_to_drop()
-                    }
-                    None => {
-                        panic!("Cannot Delegate::Drop a WOA that is not in the already in the OperationalState");
-                    }
-                };
 
-                
+                let delegate = delegate_option
+                    .expect("Cannot Delegate::Drop a WOA that is not in the already in the OperationalState")
+                    .0
+                    .clone();
+
+                delegate.write().unwrap().convert_to_drop();
+
                 self.remove_an_operational_state(
                     woa, operational_agent.0.clone()
                 );
 
-                let arc_delegate = Arc::new(delegate);
                 let span = span!(Level::DEBUG, "SupervisorSpan.OperationalState.TransitionType::Leaving");
-                let state_link = StateLink::Supervisor(DelegateAndId(arc_delegate, supervisor_id));
+
+                let state_link = StateLink::Supervisor(DelegateAndId(delegate, supervisor_id));
 
                 let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
 
                 operational_agent.1.do_send(state_link_wrapper)
             }
-            TransitionTypes::Done(delegate) => {
+            TransitionTypes::Done(work_order_activity) => {
+                let delegate = Arc::new(RwLock::new(Delegate::Done(work_order_activity)));
 
                 self.0.insert(
-                    (operational_agent.0.clone(), delegate.get_woa()),
+                    (operational_agent.0.clone(), work_order_activity),
                     (delegate, None),
                 );
                 
@@ -151,7 +153,7 @@ impl OperationalState {
 
         match value_option {
             Some(value) => {
-                if !value.0.is_drop() {
+                if !value.0.read().unwrap().is_drop() {
                     panic!("You tried to remove a delegate that was not Delegate::Drop, doing this could lead to a situation where the remaining state could be wrong");
                 }
             }
@@ -170,11 +172,11 @@ impl OperationalState {
             }).map(|(_,(delegates, _))| delegates );
 
             let is_all_assess = delegates_by_woa.all(|delegate| {
-                 delegate.is_assess() || delegate.is_done() 
+                 delegate.read().unwrap().is_assess() || delegate.read().unwrap().is_done() 
             });
 
             let is_all_drop = delegates_by_woa.all(|delegate| {
-                delegate.is_drop() || delegate.is_done() 
+                delegate.read().unwrap().is_drop() || delegate.read().unwrap().is_done() 
             });
 
             if !(is_all_drop || is_all_assess) {
@@ -188,7 +190,7 @@ impl OperationalState {
     fn number_of_assigned_work_orders(&self) -> HashSet<WorkOrderActivity> {
         self.0
             .iter()
-            .filter(|(_, val)| val.0.is_assign())
+            .filter(|(_, val)| val.0.read().unwrap().is_assign())
             .map(|(key, _)| key.1)
             .collect()
     }
@@ -221,7 +223,7 @@ impl OperationalState {
             .0
             .iter()
             .map(|(key, value)| (&key.1, &value.0))
-            .collect::<Vec<(&WorkOrderActivity, &Arc<Delegate>)>>()
+            .collect::<Vec<(&WorkOrderActivity, &Arc<RwLock<Delegate>>)>>()
         {
             let number = number.get(work_order_activity).unwrap();
 
@@ -243,26 +245,23 @@ impl OperationalState {
                         .enumerate()
                         .partition(|&(i, _)| i < *number as usize);
 
-                let tactical_operation = match ***delegate {
-                    Delegate::Assess((_, ref os)) => os,
-                    Delegate::Assign((_, ref os)) => os,
-                    Delegate::Drop(_) => panic!("The method that caused this panic should not deal with Delegate::Drop variants"),
-                    Delegate::Done(_) => panic!("Delegate::Done TacticalOperations should not be propagated through the system"),
-                    Delegate::Fixed => todo!(),
+                // let tactical_operation = match delegate.read().unwrap() {
+                //     Delegate::Assess((_, ref os)) => os,
+                //     Delegate::Assign((_, ref os)) => os,
+                //     Delegate::Drop(_) => panic!("The method that caused this panic should not deal with Delegate::Drop variants"),
+                //     Delegate::Done(_) => panic!("Delegate::Done TacticalOperations should not be propagated through the system"),
+                //     Delegate::Fixed => todo!(),
                     
-                };
+                // };
 
                 for toa in top_operational_agents {
-                    let transition_type = TransitionTypes::Unchanged(Arc::new(Delegate::Assign((
-                        **work_order_activity,
-                        tactical_operation.clone(),
-                    ))));
+                    let transition_type = TransitionTypes::Unchanged(**work_order_activity);
                     transition_sequence.push((toa.1 .0.clone(), transition_type));
                 }
 
                 for roa in remaining_operational_agents {
                     let transition_type =
-                        TransitionTypes::Unchanged(Arc::new(Delegate::Drop(**work_order_activity)));
+                        TransitionTypes::Unchanged(**work_order_activity);
                     transition_sequence.push((roa.1 .0.clone(), transition_type));
 
                 }
@@ -275,12 +274,12 @@ impl OperationalState {
         &self,
     ) -> std::collections::hash_map::Iter<
         (Id, (WorkOrderNumber, ActivityNumber)),
-        (Arc<Delegate>, Option<f64>),
+        (Arc<RwLock<Delegate>>, Option<f64>),
     > {
         self.0.iter()
     }
 
-    pub fn get(&self, key: &(Id, WorkOrderActivity)) -> Option<&(Arc<Delegate>, Option<OperationalObjective>)> {
+    pub fn get(&self, key: &(Id, WorkOrderActivity)) -> Option<&(Arc<RwLock<Delegate>>, Option<OperationalObjective>)> {
         self.0.get(&(key))
     }
 }
