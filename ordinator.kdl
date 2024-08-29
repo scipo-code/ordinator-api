@@ -7,12 +7,6 @@ env  {
 pane_frames false
 layout {
 	tab name="control" focus=true {
-	    pane size=1 borderless=true {
-	      plugin location="file:~/.config/zellij/zellij-datetime.wasm" {
-	      	timezone1 "CEST/+2"
-	      	time_format "%H:%M:%S"
-	      }
-	    }
 		pane split_direction="vertical" {
 			pane size="20%" split_direction="horizontal" {
 				pane size="30%" split_direction="vertical" {
@@ -82,7 +76,6 @@ layout {
 			}
     	}
 	    pane size=1 borderless=true {
-
 	      // plugin location="status-bar"
 	      plugin location="tab-bar"
 	      // plugin location="compact-bar"
