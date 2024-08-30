@@ -1,9 +1,9 @@
 pub mod algorithm;
+pub mod delegate;
+
 use std::{
-    borrow::BorrowMut,
     collections::{HashMap, HashSet},
-    ops::BitOr,
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, Mutex},
 };
 
 use actix::prelude::*;
@@ -99,87 +99,6 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     }
 }
 
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
-pub enum Delegate {
-    Assess((WorkOrderActivity, Arc<TacticalOperation>)),
-    Assign((WorkOrderActivity, Arc<TacticalOperation>)),
-    Drop(WorkOrderActivity),
-    Done(WorkOrderActivity),
-    Fixed,
-}
-impl Delegate {
-    pub fn new(work_order_activity: WorkOrderActivity, tactical_operation: Arc<TacticalOperation>) -> Delegate {
-        Delegate::Assess((work_order_activity, tactical_operation))
-    }
-
-    pub fn tactical_operation(&self) -> Arc<TacticalOperation> {
-        match self {
-            Delegate::Assess((_, tactical_operation)) => tactical_operation.clone(),
-            Delegate::Assign((_, tactical_operation)) => tactical_operation.clone(),
-            Delegate::Drop(_) => panic!(),
-            Delegate::Done(_) => {
-                panic!("The Operation is done. There should be no applicable business logic.")
-            }
-            Delegate::Fixed => panic!(),
-        }
-    }
-
-    pub fn is_assess(&self) -> bool {
-        matches!(self, Self::Assess(_))
-    }
-
-    pub fn is_done(&self) -> bool {
-        matches!(self, Self::Done(_))
-    }
-
-    fn is_assign(&self) -> bool {
-        matches!(self, Self::Assign(_))
-    }
-
-    fn is_drop(&self) -> bool {
-        matches!(self, Self::Drop(_))
-    }
-
-    pub(crate) fn is_fixed(&self) -> bool {
-        matches!(self, Self::Fixed)
-    }
-
-    fn get_woa(&self) -> (WorkOrderNumber, ActivityNumber) {
-        match self {
-            Delegate::Assign((woa, _)) => *woa,
-            Delegate::Assess((woa, _)) => *woa,
-            Delegate::Drop(woa) => *woa,
-            Delegate::Done(woa) => *woa,
-            Delegate::Fixed => panic!(),
-        }
-    }
-
-    fn get_resource(&self) -> &Resources {
-        match self {
-            Delegate::Assess((_, os)) => &os.resource,
-            Delegate::Assign((_, os)) => &os.resource,
-            Delegate::Drop(_) => panic!(),
-            Delegate::Done(_) => panic!(),
-            Delegate::Fixed => panic!(),
-        }
-    }
-
-    // convert_to_drop consumes the delegate and inserts it in-place in the. 
-    fn convert_to_drop(&mut self) {
-        match self {
-            Delegate::Assess((work_order_activity, _)) => *self = Delegate::Drop(*work_order_activity),
-            Delegate::Assign((work_order_activity, _)) => *self = Delegate::Drop(*work_order_activity),
-            _ => panic!("Only Delegate::Assess and Delegate::Assign can be converted to a Delegate::Drop")
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct DelegateAndId(pub Arc<RwLock<Delegate>>, pub Id);
-
-impl Message for DelegateAndId {
-    type Result = ();
-}
 
 impl SupervisorAgent {
     pub fn new(
@@ -197,35 +116,6 @@ impl SupervisorAgent {
             tactical_agent_addr,
             operational_agent_addrs: HashMap::new(),
         }
-    }
-    fn update_operational_state(
-        &mut self,
-        transition_type: TransitionTypes,
-        resource: &Resources,
-        operation_solution: TacticalOperation,
-    ) -> Option<TransitionTypes> {
-        for operational_agent in &self.operational_agent_addrs {
-            if operational_agent.0 .1.contains(resource) {
-                self.supervisor_algorithm
-                    .operational_state
-                    .update_operaitonal_state(
-                        transition_type.clone(),
-                        operational_agent,
-                        self.supervisor_id.clone(),
-                    )
-            }
-        }
-
-        let total_assigned_to_supervisor = self
-            .supervisor_algorithm
-            .operational_state
-            .count_unique_woa();
-
-        let total_operational_state = self.supervisor_algorithm.operational_state.len();
-
-        assert_eq!(total_assigned_to_supervisor, total_operational_state);
-        // assert!(self.supervisor_algorithm.are_states_consistent());
-        Some(transition_type)
     }
 
     /// This whole function should be moved. It is important, but it is also circumventing the API defined on
@@ -351,12 +241,6 @@ impl Handler<SetAddr> for SupervisorAgent {
     }
 }
 
-#[derive(Debug)]
-enum TransitionState {
-    Entering(TacticalOperation),
-    Leaving,
-}
-
 type StrategicMessage = ();
 type TacticalMessage = HashMap<(WorkOrderNumber, ActivityNumber), Arc<TacticalOperation>>;
 type SupervisorMessage = ();
@@ -383,7 +267,7 @@ impl
         let state_link = state_link_wrapper.state_link;
         let span = state_link_wrapper.span;
 
-        // let _enter = span.enter();
+        let _enter = span.enter();
 
         match state_link {
             StateLink::Strategic(_) => Ok(()),
@@ -400,7 +284,7 @@ impl
                 for transition_type in &transition_sets {
                     for operational_agent in &self.operational_agent_addrs {
                         match transition_type {
-                            TransitionTypes::Entering(delegate) => {
+                            TransitionTypes::Entering((_work_order_activity, tactical_operation)) => {
                                 if operational_agent.0 .1.contains(transition_type.resource()) {
                                     self.supervisor_algorithm
                                         .operational_state
@@ -412,13 +296,13 @@ impl
                                 }
                             }
                             TransitionTypes::Leaving(work_order_number) => {
-                                let leaving_woa = self
+                                let leaving_delegate_option = self
                                     .supervisor_algorithm
                                     .operational_state
                                     .get(&(operational_agent.0.clone(), *work_order_number));
 
-                                match leaving_woa {
-                                    Some(woa) => self
+                                match leaving_delegate_option {
+                                    Some(_woa) => self
                                         .supervisor_algorithm
                                         .operational_state
                                         .update_operaitonal_state(
@@ -429,10 +313,12 @@ impl
                                     None => {
                                         event!(Level::DEBUG, "If you get this, and suspect an error, check that the woa that is being dropped does not match the resource of operational agent. This could be a very pernicious bug if true, but a significant rewrite of the type system is needed to assert! this")
                                     }
-                                    }
+                                }
                             }
                             TransitionTypes::Unchanged(delegate) => {}
-                            TransitionTypes::Changed(delegate) => {}
+                            TransitionTypes::Changed(delegate) => {
+                                todo!();
+                            }
                             TransitionTypes::Done(delegate) => {
                                 // What should the logic be here? I think that the most important think
                                 // will be to make something... For an operational agent we want to set

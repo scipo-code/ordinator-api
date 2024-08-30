@@ -25,7 +25,7 @@ use shared_types::{
 };
 use tracing::{debug, trace};
 
-use crate::agents::{supervisor_agent::Delegate, traits::LargeNeighborHoodSearch};
+use crate::agents::{ supervisor_agent::delegate::Delegate, traits::LargeNeighborHoodSearch};
 
 use super::OperationalConfiguration;
 
@@ -380,7 +380,7 @@ pub struct OperationalParameter {
     operation_time_delta: TimeDelta,
     start_window: DateTime<Utc>,
     end_window: DateTime<Utc>,
-    delegated: Arc<RwLock<Delegate>>,
+    pub delegated: Arc<RwLock<Delegate>>,
     supervisor: Id,
 }
 
@@ -413,10 +413,6 @@ impl OperationalParameter {
         self.delegated.read().unwrap().is_fixed()
     }
 
-    pub fn set_delegated_and_supervisor(&mut self, delegate: Arc<RwLock<Delegate>>, supervisor: Id) {
-        self.delegated = delegate;
-        self.supervisor = supervisor;
-    }
 }
 
 impl LargeNeighborHoodSearch for OperationalAlgorithm {
@@ -927,7 +923,7 @@ mod tests {
         },
     };
 
-    use crate::agents::{operational_agent::algorithm::OperationalEvents, supervisor_agent::Delegate};
+    use crate::agents::{operational_agent::algorithm::OperationalEvents, supervisor_agent::delegate::Delegate};
 
     use super::{OperationalAlgorithm, OperationalParameter};
 
