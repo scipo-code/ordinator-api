@@ -23,7 +23,7 @@ use shared_types::{
         worker_environment::{availability::Availability, resources::Id},
     },
 };
-use tracing::{debug, error, trace};
+use tracing::{debug, trace};
 
 use crate::agents::{supervisor_agent::Delegate, traits::LargeNeighborHoodSearch};
 

@@ -68,16 +68,6 @@ impl TransitionTypes {
             TransitionTypes::Done(_) => panic!(),
         }
     }
-
-    pub fn get_woa(&self) -> &WorkOrderActivity {
-        match self {
-            TransitionTypes::Entering((work_order_activity, _)) => work_order_activity,
-            TransitionTypes::Leaving(work_order_activity) => work_order_activity,
-            TransitionTypes::Unchanged(work_order_activity) => work_order_activity,
-            TransitionTypes::Changed((work_order_activity, _)) => work_order_activity,
-            TransitionTypes::Done(work_order_activity) => work_order_activity,
-        }
-    }
 }
 
 type TransitionSets = HashSet<TransitionTypes>;
@@ -427,34 +417,35 @@ impl
                                     .operational_state
                                     .get(&(operational_agent.0.clone(), *work_order_number));
 
-                                    if operational_agent.0.1.contains(transition_type.resource()) {
-                                        match leaving_woa {
-                                            Some(woa) => self
-                                                .supervisor_algorithm
-                                                .operational_state
-                                                .update_operaitonal_state(
-                                                    transition_type.clone(),
-                                                    operational_agent,
-                                                    self.supervisor_id.clone(),
-                                                ),
-                                            None => {
-                                                event!(Level::DEBUG, "If you get this, and suspect an error, check that the woa that is being dropped does not match the resource of operational agent. This could be a very pernicious bug if true, but a significant rewrite of the type system is needed to assert! this")
-                                            }
-                                        }
-                                }
-                            }
-                            TransitionTypes::Unchanged(delegate) => {}
-                            TransitionTypes::Changed(delegate) => {}
-                            TransitionTypes::Done(delegate) => {
-                                if operational_agent.0 .1.contains(transition_type.resource()) {
-                                    self.supervisor_algorithm
+                                match leaving_woa {
+                                    Some(woa) => self
+                                        .supervisor_algorithm
                                         .operational_state
                                         .update_operaitonal_state(
                                             transition_type.clone(),
                                             operational_agent,
                                             self.supervisor_id.clone(),
-                                        )
-                                }
+                                        ),
+                                    None => {
+                                        event!(Level::DEBUG, "If you get this, and suspect an error, check that the woa that is being dropped does not match the resource of operational agent. This could be a very pernicious bug if true, but a significant rewrite of the type system is needed to assert! this")
+                                    }
+                                    }
+                            }
+                            TransitionTypes::Unchanged(delegate) => {}
+                            TransitionTypes::Changed(delegate) => {}
+                            TransitionTypes::Done(delegate) => {
+                                // What should the logic be here? I think that the most important think
+                                // will be to make something... For an operational agent we want to set
+                                // the Delegate::Done. The thing is that we should already know this 
+                                // when inside of the agent, we should have the Arc<TacticalOperation> 
+                                // laying around.
+                                self.supervisor_algorithm
+                                    .operational_state
+                                    .update_operaitonal_state(
+                                        transition_type.clone(),
+                                        operational_agent,
+                                        self.supervisor_id.clone(),
+                                    )
                             }
                         }
                     }
