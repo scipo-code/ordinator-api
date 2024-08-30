@@ -4,7 +4,6 @@ mod data_processing;
 mod init;
 
 use std::{
-    env,
     fs::File,
     io::{self, Read, Write},
     path::Path,
@@ -25,7 +24,7 @@ async fn main() -> Result<(), io::Error> {
 
     let (log_handles, _logging_guard) = logging::setup_logging();
 
-    let database_path_string = &env::var("DATABASE_PATH").expect("Could not read database path");
+    let database_path_string = &dotenvy::var("DATABASE_PATH").expect("Could not read database path");
 
     let database_path = std::path::Path::new(database_path_string);
 
@@ -56,14 +55,14 @@ async fn main() -> Result<(), io::Error> {
         App::new()
             .app_data(web::Data::new(arc_orchestrator_server.0.clone()))
             .route(
-                "/ws",
+                &dotenvy::var("ORDINATOR_MAIN_ENDPOINT").unwrap(),
                 web::post()
                     .guard(guard::Header("content-type", "application/json"))
                     .to(api::routes::http_to_scheduling_system),
             )
     })
     .workers(4)
-    .bind("127.0.0.1:8080")?
+    .bind(dotenvy::var("ORDINATOR_API_ADDRESS").unwrap())?
     .run()
     .await
 }
