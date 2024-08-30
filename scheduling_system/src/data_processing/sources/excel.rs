@@ -76,7 +76,6 @@ impl<'a> SchedulingEnvironmentFactory<TotalExcel<'a>> for SchedulingEnvironment 
         data_source: TotalExcel<'a>,
     ) -> Result<SchedulingEnvironment, SchedulingEnvironmentFactoryError> {
         let file_path_str = data_source.file_path.to_str().unwrap();
-        dbg!(std::env::current_dir());
         let mut workbook: Xlsx<_> =
             calamine::open_workbook(data_source.file_path).expect(&format!("{}", file_path_str));
 

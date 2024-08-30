@@ -19,7 +19,6 @@ pub enum SupervisorCommands {
         asset: Asset,
         supervisor: MainResources,
     },
-
     /// Get the commands for manually scheduling a work order activity.
     Scheduling {
         asset: Asset,
@@ -108,7 +107,7 @@ impl SupervisorCommands {
 }
 
 fn get_id_operational(client: &Client, id_operational: String) -> Id {
-    let url = "http://localhost:8080/ws";
+    let url: String = "http://".to_string() + &dotenvy::var("ORDINATOR_API_ADDRESS").unwrap() + &dotenvy::var("ORDINATOR_MAIN_ENDPOINT)").unwrap();
 
     let mut id_operational_json = String::new();
     client
