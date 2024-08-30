@@ -37,7 +37,7 @@ fn main() {
 }
 
 fn send_http(client: &Client, system_message: SystemMessages) -> String {
-    let url = "http://localhost:8080/ws";
+    let url = "http://".to_string() + &dotenvy::var("ORDINATOR_API_ADDRESS").unwrap() + &dotenvy::var("ORDINATOR_MAIN_ENDPOINT").unwrap();
     let system_message_json_option = serde_json::to_string(&system_message);
     let system_message_json = match system_message_json_option {
         Ok(string) => string,
