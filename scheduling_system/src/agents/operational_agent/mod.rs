@@ -35,7 +35,7 @@ use crate::agents::{
 
 use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
 
-use super::supervisor_agent::{Delegate, DelegateAndId, SupervisorAgent};
+use super::supervisor_agent::{delegate::Delegate, delegate::DelegateAndId, SupervisorAgent};
 use super::traits::LargeNeighborHoodSearch;
 use super::traits::TestAlgorithm;
 use super::ScheduleIteration;
@@ -314,6 +314,8 @@ impl
         let state_link = state_link_wrapper.state_link;
         let span = state_link_wrapper.span;
         let _enter = span.enter();
+
+        assert!(!self.operational_algorithm.operational_parameters.iter().any(|(_, op)| op.delegated.read().unwrap().is_done()));
         event!(
             Level::INFO,
             self.operational_algorithm.operational_parameters =
@@ -364,20 +366,8 @@ impl
                         info!(id = ?self.id_operational, tactical_operation = ?tactical_operation);
                         Ok(())
                     }
-                    Delegate::Assign((work_order_activity, ref tactical_operation)) => {
+                    Delegate::Assign((_work_order_activity, ref _tactical_operation)) => {
                         panic!();
-                        let operational_parameters =
-                            &mut self.operational_algorithm.operational_parameters;
-
-                        if let Some(operational_parameter) = operational_parameters
-                            .iter_mut()
-                            .find(|os| *os.0 == work_order_activity)
-                        {
-                            operational_parameter
-                                .1
-                                .set_delegated_and_supervisor(delegate, supervisor);
-                        }
-                        Ok(())
                     }
                     Delegate::Drop(work_order_activity) => {
                         let operational_parameter_option = self
