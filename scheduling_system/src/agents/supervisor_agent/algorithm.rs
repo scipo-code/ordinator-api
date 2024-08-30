@@ -24,7 +24,7 @@ use crate::agents::{
     StateLink, StateLinkWrapper,
 };
 
-use super::{Delegate, DelegateAndId, SupervisorAgent, TransitionTypes};
+use super::{delegate::Delegate, delegate::DelegateAndId, SupervisorAgent, TransitionTypes};
 
 pub struct SupervisorSchedulingRequest;
 pub struct SupervisorResourceRequest;
@@ -32,7 +32,7 @@ pub struct SupervisorTimeRequest;
 
 pub struct SupervisorAlgorithm {
     objective_value: f64,
-    resource: MainResources,
+    _resource: MainResources,
     pub operational_state: OperationalStateMachine,
 }
 
@@ -40,7 +40,7 @@ impl SupervisorAlgorithm {
     pub fn new(resource: MainResources) -> Self {
         Self {
             objective_value: f64::default(),
-            resource,
+            _resource: resource,
             operational_state: OperationalStateMachine::default(),
         }
     }
@@ -49,6 +49,8 @@ impl SupervisorAlgorithm {
         self.objective_value
     }
 
+
+    #[allow(dead_code)]
     pub fn is_assigned(&self, work_order_activity: WorkOrderActivity) -> bool {
         self.operational_state
             .0
@@ -56,6 +58,7 @@ impl SupervisorAlgorithm {
             .any(|(key, val)| work_order_activity == key.1 && val.0.read().unwrap().is_assign())
     }
 
+    #[allow(dead_code)]
     pub fn number_woas_for_agent(&self, operational_agent: &Id) -> usize {
         self.operational_state
             .0
@@ -105,33 +108,18 @@ impl OperationalStateMachine {
             TransitionTypes::Unchanged(_delegate) => {}
             TransitionTypes::Changed(_delegate) => {}
             TransitionTypes::Leaving(woa) => {
-                // Okay so here a delegate is received. Now what we need to do is to go into the OperationalState
-                // and find delegate using the Id and WOA, with these take the delegate, and call the 
-                // delegate_to_drop on it! And then this is what... Yes! If done this way we will get 
-                // an error if trying to send a Delegate::Drop if it is not part of the OperationalState. 
-
-                // 
                 let delegate_option = self.0.get(&(operational_agent.0.clone(), woa));
-
 
                 let delegate = delegate_option
                     .expect("Cannot Delegate::Drop a WOA that is not in the already in the OperationalState")
                     .0
                     .clone();
 
-                delegate.write().unwrap().convert_to_drop();
+                delegate.write().unwrap().state_change_to_drop();
 
                 self.remove_an_operational_state(
                     woa, operational_agent.0.clone()
                 );
-
-                let span = span!(Level::DEBUG, "SupervisorSpan.OperationalState.TransitionType::Leaving");
-
-                let state_link = StateLink::Supervisor(DelegateAndId(delegate, supervisor_id));
-
-                let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
-
-                operational_agent.1.do_send(state_link_wrapper)
             }
             TransitionTypes::Done(work_order_activity) => {
                 let delegate = Arc::new(RwLock::new(Delegate::Done(work_order_activity)));
@@ -144,6 +132,7 @@ impl OperationalStateMachine {
             }
         }
     }
+    
     pub fn count_unique_woa(&self) -> usize {
         self.0.keys().map(|(_, woa)| woa).len()
     }
@@ -195,6 +184,7 @@ impl OperationalStateMachine {
             .collect()
     }
 
+    #[allow(dead_code)]
     pub fn determine_operational_objectives(
         &self,
         work_order_activity: WorkOrderActivity,
@@ -206,20 +196,18 @@ impl OperationalStateMachine {
             .collect()
     }
 
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
     pub fn get_unique_woa(&self) -> HashSet<(WorkOrderNumber, ActivityNumber)> {
         self.0.keys().map(|(_, woa)| woa).cloned().collect()
     }
 
+    #[allow(dead_code)]
     fn determine_delegate_assign_and_drop(
         &self,
         number: HashMap<WorkOrderActivity, NumberOfPeople>,
     ) -> Vec<(Id, TransitionTypes)> {
         let mut transition_sequence = Vec::<(Id, TransitionTypes)>::new();
 
-        for (work_order_activity, delegate) in &self
+        for (work_order_activity, _delegate) in &self
             .0
             .iter()
             .map(|(key, value)| (&key.1, &value.0))
