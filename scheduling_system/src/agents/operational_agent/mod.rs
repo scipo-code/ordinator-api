@@ -351,18 +351,20 @@ impl
                             supervisor,
                         );
                          
-                        let number_of_operational_parameters =
-                            self.operational_algorithm.operational_parameters.len();
-                        self.operational_algorithm
+                        let replaced_operational_parameter = self.operational_algorithm
                             .insert_optimized_operation(work_order_activity, operational_parameter);
+
+                        match replaced_operational_parameter {
+                            Some(operational_parameter) => {
+                                event!(Level::INFO, operational_parameter = ?operational_parameter, "An OperationalParameter was inserted into the OperationalAgent that was already present. If the WOA is not Delegate::Drop panic!() the thread.");
+                                assert!(operational_parameter.delegated.read().unwrap().is_drop());
+                            }
+                            None => (),
+                        }
 
                         self.operational_algorithm
                             .history_of_dropped_operational_parameters
                             .insert(work_order_activity);
-                        assert_eq!(
-                            number_of_operational_parameters + 1,
-                            self.operational_algorithm.operational_parameters.len()
-                        );
                         info!(id = ?self.id_operational, tactical_operation = ?tactical_operation);
                         Ok(())
                     }
