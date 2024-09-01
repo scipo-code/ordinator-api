@@ -37,7 +37,7 @@ pub fn setup_logging() -> (LogHandles, WorkerGuard) {
 
     let (file_layer, file_handle) = reload::Layer::new(file_layer);
 
-    let flame_layer = FlameLayer::with_file("./profiling_and_benchmarking/tracing.folded")
+    let flame_layer = FlameLayer::with_file("./benches/tracing.folded")
         .unwrap()
         .0
         .with_filter(EnvFilter::from_default_env());

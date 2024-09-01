@@ -67,9 +67,9 @@ impl OperationalAlgorithm {
         &mut self,
         work_order_activity: WorkOrderActivity,
         operational_parameters: OperationalParameter,
-    ) {
+    ) -> Option<OperationalParameter> {
         self.operational_parameters
-            .insert(work_order_activity, operational_parameters);
+            .insert(work_order_activity, operational_parameters)
     }
 
     fn determine_next_event_non_productive(
