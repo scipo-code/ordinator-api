@@ -19,12 +19,12 @@
           openpyxl
         ]);
       in {
-        devShell = pkgs.mkShell {
+        devShell.x86_64-linux.default = pkgs.mkShell {
           buildInputs = [
             pythonEnv
-            nixpkgs.legacyPackages.x86_64-linux.git
-            nixpkgs.legacyPackages.x86_64-linux.just
-            nixpkgs.legacyPackages.x86_64-linux.dust
+            pkgs.git
+            pkgs.just
+            pkgs.dust
           ];
         };
       });
