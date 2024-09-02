@@ -13,7 +13,6 @@ def update_excel_with_tactical_output(json_data, excel_file, work_order_col, act
   
 
     # Load the Excel file into a DataFrame
-
     df.insert(0, 'Start Day', 0)
     df = df.dropna(subset=[work_order_col])
     df[work_order_col] = df[work_order_col].astype(int)
