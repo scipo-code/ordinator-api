@@ -60,6 +60,7 @@ def update_excel_with_strategic_output(json_data, excel_file, work_order_col):
 
 def main():
 
+    print(os.getcwd())
     # Create an argument parser
     parser = argparse.ArgumentParser(description='Process some integers.')
 
@@ -68,7 +69,7 @@ def main():
 
     time = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
     input_path = parser.parse_args().filename
-    output_path = './output/output-' + str(time) + '.xlsx'
+    output_path = './data_processing/output-' + str(time) + '.xlsx'
 
     print(input_path)
     print(output_path)
