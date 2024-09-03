@@ -84,7 +84,7 @@ def main():
     work_order_col = 'Order'  # Replace with your actual column name
     activity_col = 'Activity' # Replace with your actual column name
 
-    print(json_data.)
+    print(json_data['Orchestrator']['Export'].keys())
     # Update the Excel file based on JSON data
     update_excel_with_tactical_output(json_data['tactical_agent_solution'], output_path, work_order_col, activity_col)
     update_excel_with_strategic_output(json_data['strategic_agent_solution'], output_path, work_order_col)
