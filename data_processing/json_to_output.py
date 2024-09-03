@@ -10,6 +10,7 @@ import openpyxl
 def update_excel_with_tactical_output(json_data, excel_file, work_order_col, activity_col):
     # Load the Excel file
     df = pd.read_excel(excel_file)
+    print(df.columns)
   
 
     # Load the Excel file into a DataFrame
@@ -18,7 +19,6 @@ def update_excel_with_tactical_output(json_data, excel_file, work_order_col, act
     df[work_order_col] = df[work_order_col].astype(int)
     df[activity_col] = df[activity_col].astype(int)
 
-    print(f"{df[df['Order'] == 2100049119]}")
     # Iterate over each item in JSON data
     for work_order_number, work_order in json_data.items():
         # Find rows where search_col matches id_key
@@ -47,6 +47,7 @@ def update_excel_with_strategic_output(json_data, excel_file, work_order_col):
     # Load the Excel file
     df = pd.read_excel(excel_file)
     
+    print(df.columns)
     # Load the Excel file into a DataFrame
     df.insert(0, 'Scheduled Period', 0)
     df = df.dropna(subset=[work_order_col])
@@ -81,10 +82,15 @@ def main():
     json_data = json.loads(json_str)
 
     # Define the Excel file, search column, and update column
-    work_order_col = 'Order'  # Replace with your actual column name
-    activity_col = 'Activity' # Replace with your actual column name
+    work_order_col = 'WO_Number'  # Replace with your actual column name
+    activity_col = 'OPR_Activity_Number' # Replace with your actual column name
 
-    print(json_data['Orchestrator']['Export'].keys())
+    json_data = json_data['Orchestrator']
+    json_data = json_data['Export']
+    
+
+    json_data = json.loads(json_data)
+    print(json_data)
     # Update the Excel file based on JSON data
     update_excel_with_tactical_output(json_data['tactical_agent_solution'], output_path, work_order_col, activity_col)
     update_excel_with_strategic_output(json_data['strategic_agent_solution'], output_path, work_order_col)
