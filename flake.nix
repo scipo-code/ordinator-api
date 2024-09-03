@@ -22,6 +22,7 @@
           buildInputs = [
             pythonEnv
             pkgs.git
+            pkgs.openssl
           ];
         };
       });
