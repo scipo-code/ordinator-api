@@ -23,6 +23,7 @@
             pythonEnv
             pkgs.git
             pkgs.openssl
+            pkgs.python3Packages.pylsp
           ];
         };
       });
