@@ -5,8 +5,8 @@ layout {
 			pane size="20%" split_direction="horizontal" {
 				pane size="30%" split_direction="vertical" {
 					pane size="15%" name="Ordinator watch" {	
-			  			command "cargo"
-			      		args "watch" "-w" "scheduling_system" "-w" "shared_types" "-x" "run --bin scheduling_system -- $ORDINATOR_INPUT"
+			  			command "taskset"
+			      		args "-c" "2-8" "cargo" "watch" "-w" "scheduling_system" "-w" "shared_types" "-x" "run --bin scheduling_system -- $ORDINATOR_INPUT"
 		    	  		cwd "$ORDINATOR_PATH"
 		    		}
 			    	pane size="3%" name="Imperium watch"{
