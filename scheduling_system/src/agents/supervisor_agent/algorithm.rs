@@ -1,6 +1,7 @@
 use std::{collections::{HashMap, HashSet}, sync::{Arc, RwLock}};
 
 use actix::Addr;
+use chrono::TimeDelta;
 use shared_types::{
     agent_error::AgentError,
     scheduling_environment::{
@@ -25,6 +26,7 @@ use crate::agents::{
 };
 
 use super::{delegate::Delegate, delegate::DelegateAndId, SupervisorAgent, TransitionTypes};
+pub type MarginalFitness = TimeDelta;
 
 pub struct SupervisorSchedulingRequest;
 pub struct SupervisorResourceRequest;
@@ -74,7 +76,7 @@ impl SupervisorAlgorithm {
 /// the correct messages will be sent out.
 #[derive(Debug, Default)]
 pub struct OperationalStateMachine(
-    HashMap<(Id, WorkOrderActivity), (Arc<RwLock<Delegate>>, Option<OperationalObjective>)>,
+    HashMap<(Id, WorkOrderActivity), (Arc<RwLock<Delegate>>, Option<OperationalObjective>, Option<MarginalFitness>)>,
 );
 
 /// This is a fundamental type. Where should we input the OperationalObjective? I think that keeping the
@@ -92,7 +94,7 @@ impl OperationalStateMachine {
 
                 self.0.insert(
                     (operational_agent.0.clone(), work_order_activity),
-                    (Arc::clone(&delegate), None),
+                    (Arc::clone(&delegate), None, None),
                 );
 
                 let span = span!(Level::DEBUG, "SupervisorSpan.OperationalState.TransitionType::Entering");
@@ -126,7 +128,7 @@ impl OperationalStateMachine {
 
                 self.0.insert(
                     (operational_agent.0.clone(), work_order_activity),
-                    (delegate, None),
+                    (delegate, None, None),
                 );
                 
             }
@@ -158,7 +160,7 @@ impl OperationalStateMachine {
             // What is it that is mutable here? 
             let mut delegates_by_woa = self.0.iter().filter(|(key, _)| {
                 key.1 == *work_order_activity
-            }).map(|(_,(delegates, _))| delegates );
+            }).map(|(_,(delegates, _, _))| delegates );
 
             let is_all_assess = delegates_by_woa.all(|delegate| {
                  delegate.read().unwrap().is_assess() || delegate.read().unwrap().is_done() 
@@ -262,12 +264,12 @@ impl OperationalStateMachine {
         &self,
     ) -> std::collections::hash_map::Iter<
         (Id, (WorkOrderNumber, ActivityNumber)),
-        (Arc<RwLock<Delegate>>, Option<f64>),
+        (Arc<RwLock<Delegate>>, Option<OperationalObjective>, Option<MarginalFitness>),
     > {
         self.0.iter()
     }
 
-    pub fn get(&self, key: &(Id, WorkOrderActivity)) -> Option<&(Arc<RwLock<Delegate>>, Option<OperationalObjective>)> {
+    pub fn get(&self, key: &(Id, WorkOrderActivity)) -> Option<&(Arc<RwLock<Delegate>>, Option<OperationalObjective>, Option<MarginalFitness>)> {
         self.0.get(&(key))
     }
 }
