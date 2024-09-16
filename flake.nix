@@ -22,7 +22,12 @@
           buildInputs = [
             pythonEnv
             pkgs.git
+            pkgs.helix
+            pkgs.zellij
+            pkgs.nushell
+            pkgs.jq
             pkgs.openssl
+            pkgs.pkg-config
             pkgs.python312Packages.python-lsp-server
           ];
         };
