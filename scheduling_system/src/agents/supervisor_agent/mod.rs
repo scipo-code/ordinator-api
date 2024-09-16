@@ -92,7 +92,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
         self.calculate_objective_value();
 
-        // self.delegate_assign_and_drop(ctx);
+        //self.delegate_assign_and_drop(ctx);
 
         ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(200)).into_actor(self));
         ctx.notify(ScheduleIteration {});
@@ -168,7 +168,7 @@ impl SupervisorAgent {
                     .filter(|(key, _)| key.1 == woa)
                     .collect::<Vec<_>>();
 
-                operational_state_machine_inner.iter().for_each(|(_, (delegate, _))| {
+                operational_state_machine_inner.iter().for_each(|(_, (delegate, _, _))| {
                     let tactical_operation = delegate.read().unwrap().tactical_operation();
                     if tactical_operation
                         == *tactical_supervisor_link.get(&woa).unwrap()
