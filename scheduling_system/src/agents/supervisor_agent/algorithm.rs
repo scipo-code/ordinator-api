@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, HashSet}, sync::{Arc, RwLock}};
+use std::{cmp::Ordering, collections::{HashMap, HashSet}, sync::{atomic::AtomicUsize, Arc, RwLock}};
 
 use actix::Addr;
 use chrono::TimeDelta;
@@ -20,13 +20,41 @@ use shared_types::{
 use tracing::{event, instrument, span, Level};
 
 use crate::agents::{
-    operational_agent::{algorithm::OperationalObjective, OperationalAgent},
-    traits::LargeNeighborHoodSearch,
-    StateLink, StateLinkWrapper,
+    operational_agent::{algorithm::OperationalObjective, InitialMessage, OperationalAgent}, tactical_agent::tactical_algorithm::TacticalOperation, traits::LargeNeighborHoodSearch, StateLink, StateLinkWrapper
 };
 
-use super::{delegate::Delegate, delegate::DelegateAndId, SupervisorAgent, TransitionTypes};
-pub type MarginalFitness = TimeDelta;
+use super::{delegate::Delegate, SupervisorAgent, TransitionTypes};
+
+
+#[derive(Debug, Clone)]
+pub struct MarginalFitness(pub Arc<AtomicUsize>);
+
+impl MarginalFitness {
+    fn is_scheduled(&self) -> bool {
+        self.0.load(std::sync::atomic::Ordering::SeqCst) == usize::MAX
+    }
+
+    fn compare(&self, other: &Self) -> Ordering {
+        let self_value = self.0.load(std::sync::atomic::Ordering::Acquire);
+        let other_value = other.0.load(std::sync::atomic::Ordering::Acquire);
+
+        if self_value == other_value {
+            return Ordering::Equal;
+        } else if  self_value > other_value {
+            return Ordering::Greater;
+        } else {
+            return Ordering::Less;
+        }
+    }
+}
+
+impl Default for MarginalFitness {
+    fn default() -> Self {
+        MarginalFitness(Arc::new(AtomicUsize::new(usize::MAX)))
+    }
+}
+
+
 
 pub struct SupervisorSchedulingRequest;
 pub struct SupervisorResourceRequest;
@@ -36,6 +64,8 @@ pub struct SupervisorAlgorithm {
     objective_value: f64,
     _resource: MainResources,
     pub operational_state: OperationalStateMachine,
+    pub operational_agent_objectives: HashMap<Id, Arc<OperationalObjective>>,
+    pub tactical_operations: HashMap<WorkOrderActivity, Arc<TacticalOperation>>,
 }
 
 impl SupervisorAlgorithm {
@@ -44,6 +74,8 @@ impl SupervisorAlgorithm {
             objective_value: f64::default(),
             _resource: resource,
             operational_state: OperationalStateMachine::default(),
+            operational_agent_objectives: HashMap::default(),
+            tactical_operations: HashMap::default(),
         }
     }
 
@@ -76,7 +108,7 @@ impl SupervisorAlgorithm {
 /// the correct messages will be sent out.
 #[derive(Debug, Default)]
 pub struct OperationalStateMachine(
-    HashMap<(Id, WorkOrderActivity), (Arc<RwLock<Delegate>>, Option<OperationalObjective>, Option<MarginalFitness>)>,
+    HashMap<(Id, WorkOrderActivity), (Arc<RwLock<Delegate>>, MarginalFitness)>,
 );
 
 /// This is a fundamental type. Where should we input the OperationalObjective? I think that keeping the
@@ -90,11 +122,12 @@ impl OperationalStateMachine {
     ) {
         match transition_type {
             TransitionTypes::Entering((work_order_activity, tactical_operation)) => {
-                let delegate = Arc::new(RwLock::new(Delegate::new(work_order_activity, tactical_operation)));
+                let delegate = Arc::new(RwLock::new(Delegate::new(work_order_activity)));
+                let marginal_fitness = MarginalFitness::default();
 
                 self.0.insert(
                     (operational_agent.0.clone(), work_order_activity),
-                    (Arc::clone(&delegate), None, None),
+                    (Arc::clone(&delegate), marginal_fitness.clone()),
                 );
 
                 let span = span!(Level::DEBUG, "SupervisorSpan.OperationalState.TransitionType::Entering");
@@ -102,7 +135,13 @@ impl OperationalStateMachine {
                 let _entered = span.enter();
 
                 let state_link =
-                    StateLink::Supervisor(DelegateAndId(delegate.clone(), supervisor_id));
+                    StateLink::Supervisor(InitialMessage::new(
+                        work_order_activity,
+                        delegate.clone(),
+                        tactical_operation,
+                        marginal_fitness,
+                        supervisor_id,
+                        ));
                 let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
 
                 operational_agent.1.do_send(state_link_wrapper)
@@ -128,7 +167,7 @@ impl OperationalStateMachine {
 
                 self.0.insert(
                     (operational_agent.0.clone(), work_order_activity),
-                    (delegate, None, None),
+                    (delegate, MarginalFitness::default() ),
                 );
                 
             }
@@ -160,7 +199,7 @@ impl OperationalStateMachine {
             // What is it that is mutable here? 
             let mut delegates_by_woa = self.0.iter().filter(|(key, _)| {
                 key.1 == *work_order_activity
-            }).map(|(_,(delegates, _, _))| delegates );
+            }).map(|(_,(delegates, _))| delegates );
 
             let is_all_assess = delegates_by_woa.all(|delegate| {
                  delegate.read().unwrap().is_assess() || delegate.read().unwrap().is_done() 
@@ -186,15 +225,14 @@ impl OperationalStateMachine {
             .collect()
     }
 
-    #[allow(dead_code)]
-    pub fn determine_operational_objectives(
+    pub fn collect_marginal_fitnai(
         &self,
         work_order_activity: WorkOrderActivity,
-    ) -> Vec<(Id, Option<OperationalObjective>)> {
+    ) -> Vec<(Id, MarginalFitness)> {
         self.0
             .iter()
             .filter(|(key, _)| key.1 == work_order_activity)
-            .map(|(key, val)| (key.0.clone(), val.1))
+            .map(|(key, val)| (key.0.clone(), val.1.clone()))
             .collect()
     }
 
@@ -217,17 +255,17 @@ impl OperationalStateMachine {
         {
             let number = number.get(work_order_activity).unwrap();
 
-            let mut operational_solution_across_ids: Vec<_> =
-                self.determine_operational_objectives(**work_order_activity);
+            let mut operational_marginal_fitnai: Vec<_> =
+                self.collect_marginal_fitnai(**work_order_activity);
 
-            if operational_solution_across_ids
+            if operational_marginal_fitnai
                 .iter()
-                .all(|objectives| objectives.1.is_some())
+                .all(|objectives| objectives.1.is_scheduled() )
             {
-                operational_solution_across_ids
-                    .sort_by(|a, b| a.1.unwrap().partial_cmp(&b.1.unwrap()).unwrap());
+                operational_marginal_fitnai
+                    .sort_by(|a, b| a.1.compare(&b.1));
 
-                let operational_solution_across_ids = operational_solution_across_ids.iter().rev();
+                let operational_solution_across_ids = operational_marginal_fitnai.iter().rev();
 
                 let (top_operational_agents, remaining_operational_agents): (Vec<_>, Vec<_>) =
                     operational_solution_across_ids
@@ -264,12 +302,12 @@ impl OperationalStateMachine {
         &self,
     ) -> std::collections::hash_map::Iter<
         (Id, (WorkOrderNumber, ActivityNumber)),
-        (Arc<RwLock<Delegate>>, Option<OperationalObjective>, Option<MarginalFitness>),
+        (Arc<RwLock<Delegate>>, MarginalFitness),
     > {
         self.0.iter()
     }
 
-    pub fn get(&self, key: &(Id, WorkOrderActivity)) -> Option<&(Arc<RwLock<Delegate>>, Option<OperationalObjective>, Option<MarginalFitness>)> {
+    pub fn get(&self, key: &(Id, WorkOrderActivity)) -> Option<&(Arc<RwLock<Delegate>>, MarginalFitness)> {
         self.0.get(&(key))
     }
 }
