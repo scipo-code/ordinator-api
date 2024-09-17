@@ -7,27 +7,15 @@ use crate::agents::tactical_agent::tactical_algorithm::TacticalOperation;
 
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
 pub enum Delegate {
-    Assess((WorkOrderActivity, Arc<TacticalOperation>)),
-    Assign((WorkOrderActivity, Arc<TacticalOperation>)),
+    Assess(WorkOrderActivity),
+    Assign(WorkOrderActivity),
     Drop(WorkOrderActivity),
     Done(WorkOrderActivity),
     Fixed,
 }
 impl Delegate {
-    pub fn new(work_order_activity: WorkOrderActivity, tactical_operation: Arc<TacticalOperation>) -> Delegate {
-        Delegate::Assess((work_order_activity, tactical_operation))
-    }
-
-    pub fn tactical_operation(&self) -> Arc<TacticalOperation> {
-        match self {
-            Delegate::Assess((_, tactical_operation)) => tactical_operation.clone(),
-            Delegate::Assign((_, tactical_operation)) => tactical_operation.clone(),
-            Delegate::Drop(_) => panic!(),
-            Delegate::Done(_) => {
-                panic!("The Operation is done. There should be no applicable business logic.")
-            }
-            Delegate::Fixed => panic!(),
-        }
+    pub fn new(work_order_activity: WorkOrderActivity) -> Delegate {
+        Delegate::Assess(work_order_activity)
     }
 
     pub fn is_assess(&self) -> bool {
@@ -52,11 +40,11 @@ impl Delegate {
 
     pub fn state_change_to_drop(&mut self) {
         match self {
-            Delegate::Assign((work_order_activity, _)) => {
+            Delegate::Assign(work_order_activity) => {
                 panic!("The program is not ready to handle this yet");
                 *self = Delegate::Drop(*work_order_activity);
             }
-            Delegate::Assess((work_order_activity, _)) => {
+            Delegate::Assess(work_order_activity) => {
                 let delegate = Delegate::Drop(*work_order_activity);
                 *self = delegate;
             }
@@ -66,11 +54,4 @@ impl Delegate {
             _ => panic!("Only Delegate::Assess and Delegate::Assign and Delegate::Drop can be converted to a Delegate::Drop")
         }
     }
-}
-
-#[derive(Debug)]
-pub struct DelegateAndId(pub Arc<RwLock<Delegate>>, pub Id);
-
-impl Message for DelegateAndId {
-    type Result = ();
 }
