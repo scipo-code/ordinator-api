@@ -1,7 +1,7 @@
 pub mod algorithm;
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{atomic::Ordering, Arc, Mutex, RwLock},
 };
 
 use actix::prelude::*;
@@ -15,8 +15,7 @@ use shared_types::{
     scheduling_environment::{
         time_environment::day::Day,
         work_order::{
-            operation::{ActivityNumber, Work},
-            WorkOrderNumber,
+            operation::{ActivityNumber, Work}, WorkOrderActivity, WorkOrderNumber
         },
         worker_environment::resources::Id,
     },
@@ -35,7 +34,7 @@ use crate::agents::{
 
 use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
 
-use super::supervisor_agent::{delegate::Delegate, delegate::DelegateAndId, SupervisorAgent};
+use super::{supervisor_agent::{algorithm::MarginalFitness, delegate::Delegate , SupervisorAgent}, tactical_agent::tactical_algorithm::TacticalOperation};
 use super::traits::LargeNeighborHoodSearch;
 use super::traits::TestAlgorithm;
 use super::ScheduleIteration;
@@ -188,51 +187,9 @@ impl Handler<ScheduleIteration> for OperationalAgent {
         temporary_schedule.schedule();
 
         temporary_schedule.calculate_objective_value();
-
-        if temporary_schedule.objective_value > self.operational_algorithm.objective_value {
+        if temporary_schedule.objective_value.load(std::sync::atomic::Ordering::Acquire) > self.operational_algorithm.objective_value.load(Ordering::Acquire) {
             self.operational_algorithm = temporary_schedule;
-
-            for operational_solution in &self
-                .operational_algorithm
-                .operational_solutions
-                .0
-                .iter()
-                .filter(|woa| !woa.0 .0.is_dummy() && woa.1.is_some())
-                .collect::<Vec<_>>()
-            {
-                error!(operational_solution_woa = ? operational_solution.0);
-                let operational_parameter = self
-                    .operational_algorithm
-                    .operational_parameters
-                    .get(&operational_solution.0)
-                    .unwrap();
-
-                if operational_parameter.is_fixed() {
-                    continue;
-                }
-                let state_link = StateLink::Operational((
-                    (self.id_operational.clone(), operational_solution.0),
-                    self.operational_algorithm.objective_value,
-                ));
-
-                let span = span!(Level::INFO, "operational_agent_span", state_link = ?state_link);
-
-                let state_link_wrapper = StateLinkWrapper::new(state_link, span);
-
-                let supervisor = self.supervisor_agent_addr.iter().find(|(id, _)| {
-                    warn!(supervisor_id = ?id, operational_solution_id = ?operational_solution.1.as_ref().unwrap());
-                    match operational_solution.1.as_ref().unwrap().supervisor.as_ref() {
-                        Some(supervisor_id) => id == &supervisor_id,
-                        None => false,
-                    }
-                });
-
-                match supervisor {
-                    Some(supervisor) => supervisor.1.do_send(state_link_wrapper),
-                    None => panic!("OperationalAgent generated an OperationalSolution for a Addr<SupervisorAgent> that is not part of the OperationalAgent's state"),
-                }
-            }
-            info!(operational_objective = %self.operational_algorithm.objective_value);
+            info!(operational_objective = ?self.operational_algorithm.objective_value);
         };
 
         ctx.notify(ScheduleIteration {});
@@ -288,9 +245,23 @@ impl OperationalAgentBuilder {
     }
 }
 
+pub struct InitialMessage {
+    work_order_activity: WorkOrderActivity,
+    delegate: Arc<RwLock<Delegate>>,
+    tactical_operation: Arc<TacticalOperation>,
+    marginal_fitness: MarginalFitness,
+    supervisor_id: Id
+}
+
+impl InitialMessage {
+    pub fn new(work_order_activity: WorkOrderActivity, delegate: Arc<RwLock<Delegate>>, tactical_operation: Arc<TacticalOperation>, marginal_fitness: MarginalFitness, supervisor_id: Id) -> Self {
+        Self { work_order_activity, delegate, tactical_operation, marginal_fitness, supervisor_id }
+    }
+}
+
 type StrategicMessage = ();
 type TacticalMessage = ();
-type SupervisorMessage = DelegateAndId;
+type SupervisorMessage = InitialMessage;
 type OperationalMessage = ();
 
 impl
@@ -324,99 +295,50 @@ impl
         match state_link {
             StateLink::Strategic(_) => todo!(),
             StateLink::Tactical(_) => todo!(),
-            StateLink::Supervisor(delegate_and_id) => {
-                let DelegateAndId(delegate, supervisor) = delegate_and_id;
+            StateLink::Supervisor(initial_message) => {
+                let delegate_read_lock = initial_message.delegate.read().unwrap();
 
-                let delegate_read_lock = delegate.read().unwrap();
+                assert!(delegate_read_lock.is_assess());
                 // So why do I have an issue here? I think that the goal should be to really understand this as it is
                 // something where I have absolutely no clue about what to do but it is really essential.
-                match *delegate_read_lock {
-                    Delegate::Assess((work_order_activity, ref tactical_operation)) => {
-                        let scheduling_environment = self.scheduling_environment.lock().unwrap();
+                let scheduling_environment = self.scheduling_environment.lock().unwrap();
 
-                        let operation: &Operation =
-                            scheduling_environment.operation(&work_order_activity);
+                let operation: &Operation =
+                    scheduling_environment.operation(&initial_message.work_order_activity);
 
-                        let (start_datetime, end_datetime) =
-                            self.determine_start_and_finish_times(&tactical_operation.scheduled);
+                let (start_datetime, end_datetime) =
+                    self.determine_start_and_finish_times(&initial_message.tactical_operation.scheduled);
 
-                        assert!(operation.work_remaining() > &Work::from(0.0));
-                    
-                        let operational_parameter = OperationalParameter::new(
-                            operation.work_remaining().clone(),
-                            operation.operation_analytic.preparation_time.clone(),
-                            start_datetime,
-                            end_datetime,
-                            delegate.clone(),
-                            supervisor,
-                        );
-                         
-                        let replaced_operational_parameter = self.operational_algorithm
-                            .insert_optimized_operation(work_order_activity, operational_parameter);
+                assert!(operation.work_remaining() > &Work::from(0.0));
+            
+                let operational_parameter = OperationalParameter::new(
+                    operation.work_remaining().clone(),
+                    operation.operation_analytic.preparation_time.clone(),
+                    start_datetime,
+                    end_datetime,
+                    initial_message.delegate.clone(),
+                    initial_message.marginal_fitness, 
+                    initial_message.supervisor_id,
+                );
+                 
+                let replaced_operational_parameter = self.operational_algorithm
+                    .insert_optimized_operation(initial_message.work_order_activity, operational_parameter);
 
-                        match replaced_operational_parameter {
-                            Some(operational_parameter) => {
-                                event!(Level::INFO, operational_parameter = ?operational_parameter, "An OperationalParameter was inserted into the OperationalAgent that was already present. If the WOA is not Delegate::Drop panic!() the thread.");
-                                assert!(operational_parameter.delegated.read().unwrap().is_drop());
-                            }
-                            None => (),
-                        }
-
-                        self.operational_algorithm
-                            .history_of_dropped_operational_parameters
-                            .insert(work_order_activity);
-                        info!(id = ?self.id_operational, tactical_operation = ?tactical_operation);
-                        Ok(())
+                match replaced_operational_parameter {
+                    Some(operational_parameter) => {
+                        event!(Level::INFO, operational_parameter = ?operational_parameter, "An OperationalParameter was inserted into the OperationalAgent that was already present. If the WOA is not Delegate::Drop panic!() the thread.");
+                        assert!(operational_parameter.delegated.read().unwrap().is_drop());
                     }
-                    Delegate::Assign((_work_order_activity, ref _tactical_operation)) => {
-                        panic!();
-                    }
-                    Delegate::Drop(work_order_activity) => {
-                        let operational_parameter_option = self
-                            .operational_algorithm
-                            .operational_parameters
-                            .keys()
-                            .find(|woa| **woa == work_order_activity);
-
-                        match operational_parameter_option {
-                            Some(operational_parameter) => operational_parameter,
-                            None => {
-                                if self
-                                    .operational_algorithm
-                                    .history_of_dropped_operational_parameters
-                                    .contains(&work_order_activity)
-                                {
-                                    event!(
-                                        Level::ERROR,
-                                        work_order_activity = ?work_order_activity,
-                                        "OperationalAgent did have the WOA in his state previously",
-                                    );
-                                    panic!();
-                                }
-                                panic!();
-                            }
-                        };
-
-                        let number_of_os = self.operational_algorithm.operational_parameters.len();
-                        self.operational_algorithm.operational_solutions.0.retain(
-                            |operational_solution| operational_solution.0 != work_order_activity,
-                        );
-                        self.operational_algorithm
-                            .operational_parameters
-                            .remove(&work_order_activity);
-                        assert_eq!(
-                            self.operational_algorithm.operational_parameters.len(),
-                            number_of_os - 1
-                        );
-                        Ok(())
-                    }
-                    Delegate::Done(_) => {
-                        panic!("An OperationalAgent should not receive a Delegate::Done")
-                    }
-                    Delegate::Fixed => {
-                        todo!()
-                    }
+                    None => (),
                 }
+
+                self.operational_algorithm
+                    .history_of_dropped_operational_parameters
+                    .insert(initial_message.work_order_activity);
+
+                info!(id = ?self.id_operational, tactical_operation = ?initial_message.tactical_operation);
+                Ok(())
+                
             }
             StateLink::Operational(_) => todo!(),
         }
@@ -436,7 +358,7 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
                 let operational_response_status = OperationalStatusResponse::new(
                     self.id_operational.clone(),
                     self.operational_algorithm.operational_parameters.len(),
-                    self.operational_algorithm.objective_value,
+                    self.operational_algorithm.objective_value.load(Ordering::Acquire),
                 );
                 Ok(OperationalResponseMessage::Status(
                     operational_response_status,
@@ -475,7 +397,7 @@ impl Handler<StatusMessage> for OperationalAgent {
 
     fn handle(&mut self, _msg: StatusMessage, _ctx: &mut Self::Context) -> Self::Result {
         format!(
-            "ID: {}, traits: {}, Objective: {}",
+            "ID: {}, traits: {}, Objective: {:?}",
             self.id_operational.0,
             self.id_operational
                 .1

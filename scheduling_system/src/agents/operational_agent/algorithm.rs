@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, RwLock},
+    sync::{atomic::{AtomicUsize, Ordering}, Arc, RwLock},
 };
 
 use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
@@ -29,7 +29,7 @@ use crate::agents::{ supervisor_agent::{algorithm::MarginalFitness, delegate::De
 
 use super::OperationalConfiguration;
 
-pub type OperationalObjective = f64;
+pub type OperationalObjective = Arc<AtomicUsize>;
 
 #[derive(Clone)]
 pub struct OperationalAlgorithm {
@@ -51,7 +51,7 @@ pub struct OperationalNonProductive(Vec<Assignment>);
 impl OperationalAlgorithm {
     pub fn new(operational_configuration: OperationalConfiguration) -> Self {
         Self {
-            objective_value: 0.0,
+            objective_value: Arc::new(AtomicUsize::new(0)),
             operational_solutions: OperationalSolutions(Vec::new()),
             operational_non_productive: OperationalNonProductive(Vec::new()),
             operational_parameters: HashMap::new(),
@@ -154,6 +154,13 @@ impl OperationalAlgorithm {
             None => TimeInterval::new(current_time.time(), interval.end),
         };
         time_interval
+    }
+
+    fn update_marginal_fitness(&self, work_order_activity_previous: (WorkOrderNumber, ActivityNumber), time_delta: TimeDelta) {
+        assert_eq!(time_delta.num_nanoseconds().unwrap(), 0);
+        let time_delta_usize = time_delta.num_seconds() as usize;
+
+        self.operational_parameters.get(&work_order_activity_previous).unwrap().marginal_fitness.0.store(time_delta_usize, std::sync::atomic::Ordering::Release);
     }
 }
 
@@ -381,6 +388,7 @@ pub struct OperationalParameter {
     start_window: DateTime<Utc>,
     end_window: DateTime<Utc>,
     pub delegated: Arc<RwLock<Delegate>>,
+    marginal_fitness: MarginalFitness,
     supervisor: Id,
 }
 
@@ -391,6 +399,7 @@ impl OperationalParameter {
         start_window: DateTime<Utc>,
         end_window: DateTime<Utc>,
         delegated: Arc<RwLock<Delegate>>,
+        marginal_fitness: MarginalFitness,
         supervisor: Id,
     ) -> Self {
         let combined_time = (&work + &preparation).in_seconds();
@@ -405,6 +414,7 @@ impl OperationalParameter {
             start_window,
             end_window,
             delegated,
+            marginal_fitness,
             supervisor,
         }
     }
@@ -447,6 +457,8 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         debug!(operational_events_len = ?operational_events.iter().filter(|val| val.event_type.is_wrench_time()).collect::<Vec<_>>().len());
 
 
+        
+
         let all_events = operational_events
             .iter()
             .chain(&self.operational_non_productive.0);
@@ -459,9 +471,8 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         let mut toolbox_time: TimeDelta = TimeDelta::zero();
         let mut non_productive_time: TimeDelta = TimeDelta::zero();
 
-        let mut work_order_activity_fitnai: HashMap<WorkOrderActivity, MarginalFitness> = HashMap::new();
-        let mut prev_fitness: MarginalFitness = TimeDelta::zero();
-        let mut next_fitness: MarginalFitness = TimeDelta::zero();
+        let mut prev_fitness: TimeDelta = TimeDelta::zero();
+        let mut next_fitness: TimeDelta = TimeDelta::zero();
         let mut first_fitness: bool = true;
         let mut current_work_order_activity: Option<WorkOrderActivity> = None;
         for assignment in all_events.clone() {
@@ -472,7 +483,8 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                     current_work_order_activity = match current_work_order_activity {
                         Some(work_order_activity_previous) => {
                             if work_order_activity_previous != *work_order_activity {
-                                work_order_activity_fitnai.insert(work_order_activity_previous, prev_fitness + next_fitness);
+                                let marginal_fitness_time_delta = prev_fitness + next_fitness;
+                                self.update_marginal_fitness(work_order_activity_previous, marginal_fitness_time_delta);
                                 prev_fitness = next_fitness;
                             }
                             Some(*work_order_activity)
@@ -530,11 +542,10 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         trace!(break_time = ?break_time);
         trace!(toolbox_time = ?toolbox_time);
         trace!(non_productive_time = ?non_productive_time);
-        let value = (wrench_time).num_seconds() as f64
-            / (wrench_time + break_time + toolbox_time + non_productive_time).num_seconds() as f64;
+        let value = (wrench_time).num_seconds() as usize
+            / (wrench_time + break_time + toolbox_time + non_productive_time).num_seconds() as usize;
 
-        work_order_activity_fitnai
-        self.objective_value = value
+        self.objective_value.store(value, Ordering::Release);
         
     }
 
@@ -950,7 +961,7 @@ mod tests {
         },
     };
 
-    use crate::agents::{operational_agent::algorithm::OperationalEvents, supervisor_agent::delegate::Delegate};
+    use crate::agents::{operational_agent::algorithm::OperationalEvents, supervisor_agent::{algorithm::MarginalFitness, delegate::Delegate}};
 
     use super::{OperationalAlgorithm, OperationalParameter};
 
@@ -1124,12 +1135,14 @@ mod tests {
 
         let delegated = Arc::new(RwLock::new(Delegate::Fixed));
 
+        
         let operational_parameter = OperationalParameter::new(
             Work::from(20.0),
             Work::from(0.0),
             start_window,
             end_window,
             delegated,
+            MarginalFitness::default(),
             supervisor,
         );
 

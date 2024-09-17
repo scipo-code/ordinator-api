@@ -68,6 +68,16 @@ impl TransitionTypes {
             TransitionTypes::Done(_) => panic!(),
         }
     }
+
+    pub fn get_woa(&self) -> WorkOrderActivity {
+        match self {
+            TransitionTypes::Entering((work_order_activity, _)) => *work_order_activity,
+            TransitionTypes::Leaving(work_order_activity) => *work_order_activity,
+            TransitionTypes::Unchanged(work_order_activity) => *work_order_activity,
+            TransitionTypes::Changed((work_order_activity, _)) => *work_order_activity,
+            TransitionTypes::Done(work_order_activity) => *work_order_activity,
+        }
+    }
 }
 
 type TransitionSets = HashSet<TransitionTypes>;
@@ -131,8 +141,11 @@ impl SupervisorAgent {
             Arc<TacticalOperation>,
         >,
     ) -> TransitionSets {
+        // Remember to upa
         let supervisor_set: HashSet<WorkOrderActivity> =
-            self.supervisor_algorithm.operational_state.get_unique_woa();
+            self.supervisor_algorithm.tactical_operations.keys().cloned().collect();
+                
+        // TODO! .get_unique_woa();
 
         let tactical_set: HashSet<WorkOrderActivity> = tactical_supervisor_link
             .keys()
@@ -159,17 +172,7 @@ impl SupervisorAgent {
             .intersection(&tactical_set)
             .cloned()
             .for_each(|woa| {
-                // We should go into the operational_state and find all matches on the
-                // woa! Good this is the first step!
-                let operational_state_machine_inner = self
-                    .supervisor_algorithm
-                    .operational_state
-                    .get_iter()
-                    .filter(|(key, _)| key.1 == woa)
-                    .collect::<Vec<_>>();
-
-                operational_state_machine_inner.iter().for_each(|(_, (delegate, _, _))| {
-                    let tactical_operation = delegate.read().unwrap().tactical_operation();
+                    let tactical_operation = self.supervisor_algorithm.tactical_operations.get(&woa).unwrap().clone();
                     if tactical_operation
                         == *tactical_supervisor_link.get(&woa).unwrap()
                     {
@@ -179,8 +182,7 @@ impl SupervisorAgent {
                         let transition_type = TransitionTypes::Changed((woa, tactical_operation));
                         changed_woas.insert(transition_type);
                     }
-                })
-                // TransitionTypes::Unchanged(woa))
+
             });
 
         let leaving_woas = supervisor_set
@@ -200,8 +202,11 @@ impl SupervisorAgent {
             })
             .collect::<HashSet<TransitionTypes>>();
 
-        let mut final_set = entering_woas;
+        
+        assert!(leaving_woas.is_disjoint(&entering_woas));
 
+        let mut final_set = entering_woas;
+        
         final_set.extend(unchanged_woas);
         final_set.extend(leaving_woas);
         final_set.extend(done_woas);
@@ -244,6 +249,7 @@ impl Handler<SetAddr> for SupervisorAgent {
 type StrategicMessage = ();
 type TacticalMessage = HashMap<(WorkOrderNumber, ActivityNumber), Arc<TacticalOperation>>;
 type SupervisorMessage = ();
+// Why do we send this message? I am not really sure? 
 type OperationalMessage = ((Id, WorkOrderActivity), OperationalObjective);
 
 impl
@@ -282,24 +288,42 @@ impl
                     .operational_state
                     .are_unassigned_woas_valid());
                 for transition_type in &transition_sets {
-                    for operational_agent in &self.operational_agent_addrs {
                         match transition_type {
-                            TransitionTypes::Entering((_work_order_activity, tactical_operation)) => {
-                                if operational_agent.0 .1.contains(transition_type.resource()) {
-                                    self.supervisor_algorithm
-                                        .operational_state
-                                        .update_operaitonal_state(
-                                            transition_type.clone(),
-                                            operational_agent,
-                                            self.supervisor_id.clone(),
-                                        )
+                            TransitionTypes::Entering((work_order_activity, tactical_operation)) => {
+                                let insert_option = self.supervisor_algorithm.tactical_operations.insert(*work_order_activity, tactical_operation.clone());
+                                match insert_option {
+                                    Some(_) => panic!(),
+                                    None => (),
+                                }
+                                
+                                for operational_agent in &self.operational_agent_addrs {
+                                    if operational_agent.0 .1.contains(transition_type.resource()) {
+                                        self.supervisor_algorithm
+                                            .operational_state
+                                            .update_operaitonal_state(
+                                                transition_type.clone(),
+                                                operational_agent,
+                                                self.supervisor_id.clone(),
+                                            )
+                                    }
                                 }
                             }
-                            TransitionTypes::Leaving(work_order_number) => {
+                            TransitionTypes::Leaving(work_order_activity) => {
+                                let remove_option = self.supervisor_algorithm.tactical_operations.remove(work_order_activity);
+                                match remove_option {
+                                    Some(_) => {
+                                        event!(Level::DEBUG, work_order_activity = ?work_order_activity, "TacticalOperation left the SupervisorAgent");
+                                    }
+                                    None => {
+                                        event!(Level::ERROR, work_order_activity = ?work_order_activity, all_work_order_activities = ?self.supervisor_algorithm.tactical_operations.keys());
+                                        panic!();
+                                    }
+                                }
+                                for operational_agent in &self.operational_agent_addrs {
                                 let leaving_delegate_option = self
                                     .supervisor_algorithm
                                     .operational_state
-                                    .get(&(operational_agent.0.clone(), *work_order_number));
+                                    .get(&(operational_agent.0.clone(), *work_order_activity));
 
                                 match leaving_delegate_option {
                                     Some(_woa) => self
@@ -314,32 +338,48 @@ impl
                                         event!(Level::DEBUG, "If you get this, and suspect an error, check that the woa that is being dropped does not match the resource of operational agent. This could be a very pernicious bug if true, but a significant rewrite of the type system is needed to assert! this")
                                     }
                                 }
+                                }
                             }
                             TransitionTypes::Unchanged(delegate) => {}
                             TransitionTypes::Changed(delegate) => {
                                 todo!();
                             }
                             TransitionTypes::Done(delegate) => {
-                                // What should the logic be here? I think that the most important think
-                                // will be to make something... For an operational agent we want to set
-                                // the Delegate::Done. The thing is that we should already know this 
-                                // when inside of the agent, we should have the Arc<TacticalOperation> 
-                                // laying around.
-                                self.supervisor_algorithm
-                                    .operational_state
-                                    .update_operaitonal_state(
-                                        transition_type.clone(),
-                                        operational_agent,
-                                        self.supervisor_id.clone(),
-                                    )
+                                for operational_agent in &self.operational_agent_addrs {
+                                    self.supervisor_algorithm
+                                        .operational_state
+                                        .update_operaitonal_state(
+                                            transition_type.clone(),
+                                            operational_agent,
+                                            self.supervisor_id.clone(),
+                                        )
+                                }
                             }
                         }
                     }
-                }
                 assert!(self
                     .supervisor_algorithm
                     .operational_state
                     .are_unassigned_woas_valid());
+
+                let tactical_operation_woas: HashSet<WorkOrderActivity> = self.supervisor_algorithm.tactical_operations.keys().cloned().collect();
+                let operational_state_woas: HashSet<WorkOrderActivity> = self.supervisor_algorithm.operational_state.get_iter().map(|(woa,_ )| {
+                    woa.1
+                }).collect();
+                let symmetric_difference = tactical_operation_woas.symmetric_difference(&operational_state_woas).cloned().collect::<HashSet<WorkOrderActivity>>(); 
+
+                if symmetric_difference.is_empty() {
+                    
+                } else {
+                    // event!(Level::ERROR, 
+                    //     non_corresponding_work_order_activities = ? symmetric_difference,
+                    //     in_the_tactical_operations = ?symmetric_difference.intersection(&tactical_operation_woas),
+                    //     in_the_operational_state_woas = ?symmetric_difference.intersection(&operational_state_woas),
+                    // );
+                    // panic!()
+                }
+
+
                 Ok(())
             }
             StateLink::Supervisor(_) => Ok(()),
