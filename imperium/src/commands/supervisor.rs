@@ -48,6 +48,7 @@ pub struct Assign {
 
 impl SupervisorCommands {
     pub fn execute(&self, client: &Client) -> SystemMessages {
+        dbg!("Start of the execute loop");
         match self {
             SupervisorCommands::Status { asset, supervisor } => {
                 let supervisor_status_message = SupervisorStatusMessage::General;
@@ -61,6 +62,7 @@ impl SupervisorCommands {
                     supervisor_request_message,
                 };
 
+                dbg!("Before the SystemMessages:: generation");
                 SystemMessages::Supervisor(supervisor_request)
             }
             SupervisorCommands::Scheduling {

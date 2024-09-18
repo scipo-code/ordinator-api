@@ -2,6 +2,7 @@ pub mod messages;
 pub mod tactical_algorithm;
 
 use actix::prelude::*;
+use actix_web::cookie::time::Duration;
 use shared_types::agent_error::AgentError;
 use shared_types::scheduling_environment::work_order::{WorkOrderActivity, WorkOrderNumber};
 use shared_types::scheduling_environment::worker_environment::resources::Id;
@@ -126,8 +127,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
                 info!(work_orders_to_supervisors = ?work_orders_to_supervisor);
                 let state_link = StateLink::Tactical(work_orders_to_supervisor);
 
-                let span = span!(Level::INFO, "tactical_supervisor", state_link = ?state_link);
-                let _enter = span.enter();
+                let span = span!(Level::INFO, "tactical_supervisor");
                 let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
 
                 addr.do_send(state_link_wrapper);

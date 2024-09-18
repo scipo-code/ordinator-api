@@ -26,12 +26,15 @@ fn main() {
         print_completions(generator, &mut cmd);
     }
 
+    dbg!();
     let client = reqwest::blocking::Client::new();
 
+    dbg!();
     let system_message = commands::handle_command(cli, &client);
     dbg!(serde_json::to_string(&system_message).unwrap());
 
     let response = send_http(&client, system_message);
+    dbg!();
 
     println!("{}", response);
 }
@@ -47,6 +50,7 @@ fn send_http(client: &Client, system_message: SystemMessages) -> String {
         }
     };
 
+    dbg!();
     let res = client
         .post(url)
         .body(system_message_json)
@@ -54,6 +58,7 @@ fn send_http(client: &Client, system_message: SystemMessages) -> String {
         .send()
         .expect("Could not send request");
 
+    dbg!();
     // Check the response status and process the response as needed
     if res.status().is_success() {
         //println!("Request sent successfully");
