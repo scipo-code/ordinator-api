@@ -48,7 +48,6 @@ impl From<DATS> for NaiveDate {
     fn from(value: DATS) -> NaiveDate {
         let string = value.0;
 
-        dbg!(&string);
         NaiveDate::parse_from_str(string.as_str(), "%Y%m%d").unwrap()
     }
 }
@@ -90,10 +89,6 @@ impl From<TIMS> for NaiveTime {
                 return NaiveTime::from_hms_opt(0, minutes, seconds).unwrap();
             }
         };
-
-        dbg!(seconds);
-        dbg!(minutes);
-        dbg!(hours);
 
         if hours == 24 && minutes == 0 && seconds == 0 {
             return NaiveTime::from_hms_opt(23, 59, 59).unwrap();
