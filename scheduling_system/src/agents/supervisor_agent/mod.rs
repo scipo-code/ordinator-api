@@ -3,7 +3,7 @@ pub mod delegate;
 
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex}, time::Instant,
 };
 
 use actix::prelude::*;
@@ -87,6 +87,7 @@ impl Actor for SupervisorAgent {
 
     #[instrument(level = "trace", skip_all)]
     fn started(&mut self, ctx: &mut Self::Context) {
+        ctx.set_mailbox_capacity(1000);
         self.tactical_agent_addr.do_send(SetAddr::Supervisor(
             self.supervisor_id.clone(),
             ctx.address(),
@@ -104,7 +105,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 
         //self.delegate_assign_and_drop(ctx);
 
-        ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(200)).into_actor(self));
+        // ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(200)).into_actor(self));
         ctx.notify(ScheduleIteration {});
     }
 }
@@ -215,18 +216,6 @@ impl SupervisorAgent {
     }
 }
 
-impl Handler<StatusMessage> for SupervisorAgent {
-    type Result = String;
-
-    #[instrument(level = "trace", skip_all)]
-    fn handle(&mut self, _msg: StatusMessage, _ctx: &mut Self::Context) -> Self::Result {
-        format!(
-            "ID*: {}, Work Center: {:?}, Main Work Center: {:?}",
-            self.supervisor_id.0, self.supervisor_id.1, self.supervisor_id.2
-        )
-    }
-}
-
 impl Handler<StopMessage> for SupervisorAgent {
     type Result = ();
 
@@ -278,7 +267,9 @@ impl
         match state_link {
             StateLink::Strategic(_) => Ok(()),
             StateLink::Tactical(tactical_supervisor_link) => {
+                return Ok(());
                 info!(self.id = ?self.supervisor_id);
+                let instant = Instant::now();
                 let transition_sets = self.make_transition_sets_from_tactical_state_link(
                     tactical_supervisor_link.clone(),
                 );
@@ -287,6 +278,7 @@ impl
                     .supervisor_algorithm
                     .operational_state
                     .are_unassigned_woas_valid());
+
                 for transition_type in &transition_sets {
                         match transition_type {
                             TransitionTypes::Entering((work_order_activity, tactical_operation)) => {
@@ -380,24 +372,14 @@ impl
                 }
 
 
+                if instant.elapsed().as_secs_f32() > 4.0 {
+                    panic!()
+                };
                 Ok(())
             }
             StateLink::Supervisor(_) => Ok(()),
             StateLink::Operational(operational_solution) => Ok(()),
         }
-    }
-}
-
-impl Handler<UpdateWorkOrderMessage> for SupervisorAgent {
-    type Result = ();
-
-    fn handle(
-        &mut self,
-        _update_work_order: UpdateWorkOrderMessage,
-        _ctx: &mut Context<Self>,
-    ) -> Self::Result {
-        // todo!()
-        warn!("Updateimpl Handler<UpdateWorkOrderMessage> for SupervisorAgent should be implemented for the supervisor agent");
     }
 }
 
@@ -410,6 +392,7 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
         supervisor_request_message: SupervisorRequestMessage,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
+        event!(Level::WARN, "start_of_supervisor_handler");
         tracing::info!(
             "Received SupervisorRequestMessage: {:?}",
             supervisor_request_message
@@ -417,6 +400,7 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
 
         match supervisor_request_message {
             SupervisorRequestMessage::Status(supervisor_status_message) => {
+                event!(Level::WARN, "start of status message initialization");
                 tracing::info!(
                     "Received SupervisorStatusMessage: {:?}",
                     supervisor_status_message
@@ -428,6 +412,7 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
                         .count_unique_woa(),
                     self.supervisor_algorithm.objective_value(),
                 );
+                event!(Level::WARN, "after creation of the supervisor_status");
 
                 Ok(SupervisorResponseMessage::Status(supervisor_status))
             }

@@ -251,8 +251,7 @@ pub struct WeightParams {
 
 impl WeightParams {
     pub fn read_config() -> Result<Self, Box<dyn std::error::Error>> {
-        let default_path = "scheduling_system/parameters/work_order_weight_parameters.json";
-        let config_path = env::var("CONFIG_PATH").unwrap_or_else(|_| default_path.to_string());
+        let config_path = env::var("WORK_ORDER_WEIGHTINGS").expect("Work Order configuration parameters should always be provided through configuraion files specified in the .env file");
         let config_contents = fs::read_to_string(config_path).expect("Could not read config file");
 
         let config: WeightParams = serde_json::from_str(&config_contents)?;

@@ -10,7 +10,7 @@ use shared_types::SystemMessages;
 use shared_types::SystemResponses;
 
 use std::sync::{Arc, Mutex};
-use tracing::{instrument, warn};
+use tracing::{event, instrument, warn, Level};
 
 use crate::agents::orchestrator::Orchestrator;
 
@@ -82,6 +82,7 @@ pub async fn http_to_scheduling_system(
             SystemResponses::Tactical(tactical_response)
         }
         SystemMessages::Supervisor(supervisor_request) => {
+            event!(Level::WARN, "before the locking of the actor registry");
             let supervisor_agent_addrs = match orchestrator
                 .lock()
                 .unwrap()
@@ -95,19 +96,21 @@ pub async fn http_to_scheduling_system(
                         .json("SUPERVISOR: SUPERVISOR AGENT NOT INITIALIZED FOR THE ASSET");
                 }
             };
-
+            event!(Level::WARN, "agent registry found the correct supervisor");
             let supervisor_agent_addr = supervisor_agent_addrs
                 .iter()
                 .find(|(id, _)| id.2.as_ref().unwrap() == &supervisor_request.main_work_center)
                 .unwrap()
                 .1;
 
+            event!(Level::WARN, "supervisor addr extracted");
             let response = supervisor_agent_addr
                 .send(supervisor_request.supervisor_request_message)
                 .await
                 .unwrap()
                 .unwrap();
 
+            event!(Level::WARN, "response generated");
             let supervisor_response = SupervisorResponse::new(supervisor_request.asset, response);
 
             SystemResponses::Supervisor(supervisor_response)

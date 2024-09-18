@@ -31,6 +31,7 @@ fn create_scheduling_environment(
 ) -> Option<SchedulingEnvironment> {
     let args: Vec<String> = env::args().collect();
 
+    println!("{:?}", args);
     if args.len() > 1 {
         let file_path = Path::new(&args[1]);
 
