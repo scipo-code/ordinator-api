@@ -91,7 +91,8 @@ impl Orchestrator {
                         actor_registry.strategic_agent_addr.do_send(update_work_order_message.clone());
                         actor_registry.tactical_agent_addr.do_send(update_work_order_message.clone());
 
-                        actor_registry.supervisor_agent_addrs.iter().find(|id| id.0.2.as_ref().unwrap() == &main_resource).unwrap().1.do_send(update_work_order_message.clone());
+                        panic!("Fix the bug below");
+                            // TODO actor_registry.supervisor_agent_addrs.iter().find(|id| id.0.2.as_ref().unwrap() == &main_resource).unwrap().1.do_send(update_work_order_message.clone());
                         for actor in actor_registry.operational_agent_addrs.values() {
                             actor.do_send(update_work_order_message.clone());
                         };

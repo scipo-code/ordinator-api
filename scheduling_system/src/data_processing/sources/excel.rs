@@ -900,7 +900,6 @@ fn extract_functional_location(
 
     let string = functional_location_data.cloned();
 
-    dbg!(&string);
     match string {
         Some(s) => match s {
             calamine::Data::String(s) => {
@@ -995,7 +994,6 @@ fn extract_order_text(
         }
     };
 
-    dbg!(&description_2_data);
     let object_description = match description_2_data.cloned() {
         Some(calamine::Data::String(s)) => s,
         _ => return Err(Error::Msg("Could not parse object_description as string")),
