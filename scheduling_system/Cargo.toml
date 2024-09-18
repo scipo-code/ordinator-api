@@ -11,7 +11,7 @@ criterion = "0.5"
 [dependencies]
 # steel-core = { git="https://github.com/mattwparas/steel.git", branch = "master" }
 # steel-repl = { git="https://github.com/mattwparas/steel.git", branch = "master" }
-steel-derive = { git="https://github.com/mattwparas/steel.git", branch = "master" }
+# steel-derive = { git="https://github.com/mattwparas/steel.git", branch = "master" }
 rust_decimal = "1.36"
 shared_types = { path = "../shared_types" }
 data_processing = { path = "../data_processing" }
