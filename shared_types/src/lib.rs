@@ -90,9 +90,7 @@ impl LogLevel {
     }
 }
 
-#[derive(
-    steel_derive::Steel, PartialEq, Eq, Hash, Serialize, Deserialize, Debug, Clone, ValueEnum,
-)]
+#[derive(PartialEq, Eq, Hash, Serialize, Deserialize, Debug, Clone, ValueEnum)]
 pub enum Asset {
     DF,
     DM,
