@@ -30,6 +30,7 @@
             pkgs.pkg-config
             pkgs.python312Packages.python-lsp-server
           ];
+          pure = true;
         };
       });
 } 
