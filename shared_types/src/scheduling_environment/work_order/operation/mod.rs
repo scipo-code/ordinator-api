@@ -271,7 +271,7 @@ impl OperationDates {
         earliest_start_datetime: DateTime<Utc>,
         earliest_finish_datetime: DateTime<Utc>,
     ) -> Self {
-        assert!(possible_start < target_finish);
+        assert!(possible_start <= target_finish);
         OperationDates {
             possible_start,
             target_finish,
