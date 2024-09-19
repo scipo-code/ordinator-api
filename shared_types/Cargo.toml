@@ -6,19 +6,20 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tracing = "0"
-serde = { version = "1", features = ["derive"] }
-actix = "0"
-rust_decimal = "1.36"
-rust_decimal_macros = "1.36"
-serde_json = "1"
-strum = "0"
-strum_macros = "0"
-chrono = { version = "0", features = ["serde", "arbitrary"] }
-chrono-tz = "0"
-regex = "1"
-clap = { version = "4", features = ["derive"] }
-serde_json_any_key = "2"
-toml = "0.8"
-proptest = "1"
-thiserror = "1"
+atoi = "=1.0.0"
+tracing = "*"
+serde = { version = "*", features = ["derive"] }
+actix = "*"
+rust_decimal = "*"
+rust_decimal_macros = "*"
+serde_json = "*"
+strum = "*"
+strum_macros = "*"
+chrono = { version = "*", features = ["serde", "arbitrary"] }
+chrono-tz = "*"
+regex = "*"
+clap = { version = "*", features = ["derive"] }
+serde_json_any_key = "*"
+toml = "*"
+proptest = "*"
+thiserror = "*"
