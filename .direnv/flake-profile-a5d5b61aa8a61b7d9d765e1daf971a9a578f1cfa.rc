@@ -37,7 +37,7 @@ NIX_CC='/nix/store/gxpdysvlj9l6bfin03k6yq0s922pk7pg-gcc-wrapper-13.3.0'
 export NIX_CC
 NIX_CC_WRAPPER_TARGET_HOST_x86_64_unknown_linux_gnu='1'
 export NIX_CC_WRAPPER_TARGET_HOST_x86_64_unknown_linux_gnu
-NIX_CFLAGS_COMPILE=' -frandom-seed=y6cm42p4h8 -isystem /nix/store/jv6a0a41ix61vxzzvg0ncxy1hys6cdh4-python3-3.12.5-env/include -isystem /nix/store/rwypdgzzxk9740bd01irnq708p62axah-jq-1.7.1-dev/include -isystem /nix/store/qkj41x2pm7qr95krzxzfmcp7pjkh0y24-openssl-3.0.14-dev/include -isystem /nix/store/pgb120fb7srbh418v4i2a70aq1w9dawd-python3-3.12.5/include -isystem /nix/store/jv6a0a41ix61vxzzvg0ncxy1hys6cdh4-python3-3.12.5-env/include -isystem /nix/store/rwypdgzzxk9740bd01irnq708p62axah-jq-1.7.1-dev/include -isystem /nix/store/qkj41x2pm7qr95krzxzfmcp7pjkh0y24-openssl-3.0.14-dev/include -isystem /nix/store/pgb120fb7srbh418v4i2a70aq1w9dawd-python3-3.12.5/include'
+NIX_CFLAGS_COMPILE=' -frandom-seed=49ipx43q9p -isystem /nix/store/jv6a0a41ix61vxzzvg0ncxy1hys6cdh4-python3-3.12.5-env/include -isystem /nix/store/rwypdgzzxk9740bd01irnq708p62axah-jq-1.7.1-dev/include -isystem /nix/store/qkj41x2pm7qr95krzxzfmcp7pjkh0y24-openssl-3.0.14-dev/include -isystem /nix/store/pgb120fb7srbh418v4i2a70aq1w9dawd-python3-3.12.5/include -isystem /nix/store/jv6a0a41ix61vxzzvg0ncxy1hys6cdh4-python3-3.12.5-env/include -isystem /nix/store/rwypdgzzxk9740bd01irnq708p62axah-jq-1.7.1-dev/include -isystem /nix/store/qkj41x2pm7qr95krzxzfmcp7pjkh0y24-openssl-3.0.14-dev/include -isystem /nix/store/pgb120fb7srbh418v4i2a70aq1w9dawd-python3-3.12.5/include'
 export NIX_CFLAGS_COMPILE
 NIX_ENFORCE_NO_NATIVE='1'
 export NIX_ENFORCE_NO_NATIVE
@@ -190,6 +190,8 @@ declare -a propagatedHostDepFiles=('propagated-host-host-deps' 'propagated-build
 propagatedNativeBuildInputs=''
 export propagatedNativeBuildInputs
 declare -a propagatedTargetDepFiles=('propagated-target-target-deps' )
+pure='1'
+export pure
 shell='/nix/store/vpvy79k1qq02p1vyqjk6nb89gwhxqvyb-bash-5.2p32/bin/bash'
 export shell
 shellHook=''
