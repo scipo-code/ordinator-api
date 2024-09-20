@@ -1,6 +1,6 @@
+use crate::sap_mapper_and_types::{DATS, TIMS};
 use calamine::{Data, Error, Reader, Xlsx};
 use core::fmt;
-use data_processing::{DATS, TIMS};
 use regex::Regex;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::Asset;
@@ -37,8 +37,7 @@ use shared_types::scheduling_environment::worker_environment::resources::{
 use shared_types::scheduling_environment::worker_environment::WorkerEnvironment;
 use shared_types::scheduling_environment::{SchedulingEnvironment, WorkOrders};
 
-extern crate regex;
-
+use regex;
 use shared_types::scheduling_environment::work_order::operation::operation_analytic::OperationAnalytic;
 use shared_types::scheduling_environment::work_order::operation::operation_info::OperationInfo;
 use shared_types::scheduling_environment::work_order::operation::{

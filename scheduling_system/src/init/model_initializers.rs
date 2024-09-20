@@ -3,7 +3,7 @@ use std::path::Path;
 
 use tracing::info;
 
-use crate::data_processing::sources::{excel::TotalExcel, SchedulingEnvironmentFactory};
+use data_processing::sources::{excel::TotalExcel, SchedulingEnvironmentFactory};
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 pub fn initialize_scheduling_environment(

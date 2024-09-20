@@ -1,4 +1,4 @@
-use crate::{CHAR, CLNT, DEC, INT1, NUMC};
+use crate::sap_mapper_and_types::{CHAR, CLNT, DEC, INT1, NUMC};
 
 #[allow(non_snake_case, dead_code)]
 struct Afvc {

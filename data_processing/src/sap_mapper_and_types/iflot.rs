@@ -1,3 +1,5 @@
+use super::{CHAR, CLNT};
+
 struct Iflot {
     MANDT: CLNT,
     TPLNR: CHAR,
