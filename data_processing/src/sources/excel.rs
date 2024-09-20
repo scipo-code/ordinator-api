@@ -16,19 +16,22 @@ use chrono::{
     naive, DateTime, Datelike, Days, Duration, NaiveDate, NaiveTime, TimeZone, Timelike, Utc,
 };
 use shared_types::scheduling_environment::work_order::functional_location::FunctionalLocation;
-use shared_types::scheduling_environment::work_order::order_dates::WorkOrderDates;
-use shared_types::scheduling_environment::work_order::order_text::WorkOrderText;
-use shared_types::scheduling_environment::work_order::order_type::{
-    WDFPriority, WGNPriority, WPMPriority,
-};
-use shared_types::scheduling_environment::work_order::order_type::{WROPriority, WorkOrderType};
 use shared_types::scheduling_environment::work_order::priority::Priority;
 use shared_types::scheduling_environment::work_order::revision::Revision;
 use shared_types::scheduling_environment::work_order::status_codes::{MaterialStatus, StatusCodes};
+use shared_types::scheduling_environment::work_order::work_order_dates::WorkOrderDates;
+use shared_types::scheduling_environment::work_order::work_order_text::WorkOrderText;
+use shared_types::scheduling_environment::work_order::work_order_type::{
+    WDFPriority, WGNPriority, WPMPriority,
+};
+use shared_types::scheduling_environment::work_order::work_order_type::{
+    WROPriority, WorkOrderType,
+};
 
 use shared_types::scheduling_environment::work_order::unloading_point::UnloadingPoint;
 use shared_types::scheduling_environment::work_order::{
-    ActivityRelation, WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderNumber,
+    ActivityRelation, WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderInfoDetail,
+    WorkOrderNumber,
 };
 use shared_types::scheduling_environment::worker_environment::resources::{
     MainResources, Resources,
@@ -283,6 +286,7 @@ fn create_new_work_order(
             .expect("Failed to extract UnloadingPoint"),
         extract_revision(row, header_to_index).expect("Failed to extract Revision"),
         SystemCondition::default(),
+        WorkOrderInfoDetail::default(),
     );
 
     Ok(WorkOrder::new(
