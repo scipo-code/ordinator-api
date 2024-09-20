@@ -9,8 +9,8 @@ use crate::scheduling_environment::{
 use crate::scheduling_environment::worker_environment::resources::Resources;
 use chrono::{DateTime, Utc};
 use rust_decimal::prelude::*;
-use serde::de::{Deserialize, Visitor};
-use serde::ser::{Serialize, SerializeTupleStruct};
+use serde::de::{self, Deserialize, Error, MapAccess, Visitor};
+use serde::ser::{Serialize, SerializeStruct, SerializeTupleStruct};
 use std::fmt::Display;
 use std::num::ParseFloatError;
 use std::str::FromStr;
@@ -149,36 +149,60 @@ impl Serialize for Work {
     where
         S: serde::Serializer,
     {
-        let mut s = serializer.serialize_tuple_struct("Work", 1)?;
-        s.serialize_field(&self.0.to_f64().unwrap())?;
+        let mut s = serializer.serialize_struct("Work", 2)?;
+        s.serialize_field("type", "Decimal")?;
+        s.serialize_field("value", &self.0.to_f64().unwrap())?;
         s.end()
     }
 }
 
-struct F64Visitor;
-
-impl<'de> Visitor<'de> for F64Visitor {
-    type Value = Work;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("an f64 representing a fixed-point numnber")
-    }
-
-    fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        let fixed_val = Decimal::from_f64(value).unwrap();
-        Ok(Work(fixed_val))
-    }
-}
+// pub struct Work(Decimal);
 
 impl<'de> Deserialize<'de> for Work {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_f64(F64Visitor)
+        struct WorkVisitor;
+
+        impl<'de> Visitor<'de> for WorkVisitor {
+            type Value = Work;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("An object with a type: Decimal, and value f64 that serializes into a Decimal type in Rust")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut value = None;
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "value" => {
+                            if value.is_some() {
+                                return Err(de::Error::duplicate_field("value"));
+                            }
+
+                            let value_float: f64 = map.next_value()?;
+
+                            value = Decimal::from_f64_retain(value_float);
+                        }
+                        "type" => {
+                            if value.is_some() {
+                                return Err(de::Error::duplicate_field("type"));
+                            }
+                            let value_str: String = map.next_value()?;
+                            assert_eq!(value_str, "Decimal".to_string());
+                        }
+                        _ => return Err(de::Error::unknown_field(&key, &["type", "value"])),
+                    }
+                }
+                let fixed_val = value.ok_or_else(|| de::Error::missing_field("value"))?;
+                Ok(Work(fixed_val))
+            }
+        }
+        deserializer.deserialize_struct("Work", &["type", "value"], WorkVisitor)
     }
 }
 
