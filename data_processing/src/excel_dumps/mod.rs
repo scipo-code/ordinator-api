@@ -1,41 +1,62 @@
+use crate::sap_mapper_and_types::DATS;
+use chrono::NaiveDate;
 use std::collections::HashMap;
+use xlsxwriter::prelude::*;
 
 use shared_types::{
     scheduling_environment::{
         time_environment::period::Period,
-        work_order::{WorkOrder, WorkOrderActivity, WorkOrderNumber},
+        work_order::{
+            functional_location::FunctionalLocation,
+            operation::{ActivityNumber, Work},
+            priority::Priority,
+            revision::Revision,
+            status_codes::StatusCodes,
+            system_condition::SystemCondition,
+            unloading_point::UnloadingPoint,
+            work_order_type::WorkOrderType,
+            WorkOrder, WorkOrderActivity, WorkOrderNumber,
+        },
+        worker_environment::resources::{MainResources, Resources},
         SchedulingEnvironment,
     },
     tactical::Days,
     Asset,
 };
 
+struct AllRows(Vec<RowNames>);
+
+// impl AllRows {
+//     fn write_to_xlsx(file_path) ->
+// }
+
 struct RowNames {
-    priority: String,
-    revision: String,
-    order_type: String,
-    main_work_ctr: String,
-    oper_work_center: String,
-    order: String,
+    priority: Priority,
+    revision: Revision,
+    order_type: WorkOrderType,
+    main_work_ctr: MainResources,
+    oper_work_center: Resources,
+    order: WorkOrderNumber,
     description_work_order: String,
-    opr_short_text: String,
-    system_status: String,
-    user_status: String,
-    work: String,
-    actual_work: String,
-    unloading_point: String,
-    basic_start_date: String,
-    basic_finish_date: String,
-    earliest_start_date: String,
-    earliest_allowed_start_date: String,
-    latest_allowed_finish_date: String,
-    activity: String,
-    opperation_system_status: String,
-    opereration_user_status: String,
-    functional_location: String,
+    operation_short_text: String,
+    system_status: StatusCodes,
+    user_status: StatusCodes,
+    work: Work,
+    actual_work: Work,
+    unloading_point: UnloadingPoint,
+    basic_start_date: DATS,
+    basic_finish_date: DATS,
+    earliest_start_date: DATS,
+    earliest_finish_date: DATS,
+    earliest_allowed_start_date: DATS,
+    latest_allowed_finish_date: DATS,
+    activity: ActivityNumber,
+    opperation_system_status: StatusCodes,
+    opereration_user_status: StatusCodes,
+    functional_location: FunctionalLocation,
     description_operation: String,
     subnetwork_of: String,
-    system_condition: String,
+    system_condition: SystemCondition,
     maintenance_plan: String,
     planner_group: String,
     maintenance_plant: String,
@@ -55,7 +76,8 @@ pub fn create_excel_dump(
     scheduling_environment: SchedulingEnvironment,
     strategic_solution: HashMap<WorkOrderNumber, Period>,
     tactical_solution: HashMap<WorkOrderActivity, Days>,
-) {
+) -> Result<(), std::io::Error> {
+    let all_rows: Vec<RowNames> = Vec::new();
     let work_orders = scheduling_environment.work_orders().clone();
 
     let work_orders_by_asset: Vec<WorkOrder> = work_orders
@@ -66,8 +88,80 @@ pub fn create_excel_dump(
         .collect();
 
     for work_order in work_orders_by_asset {
-        work_order.
-    }
-}
+        let sorted_operations = work_order.operations.iter().collect::<Vec<_>>();
 
-pub fn create_one_row() -> RowNames {}
+        sorted_operations
+            .sort_unstable_by(|value1, value2| value1.0.partial_cmp(value2.0).unwrap());
+
+        for activity in sorted_operations {
+            let one_row = RowNames {
+                priority: work_order.priority().clone(),
+                revision: work_order.revision().clone(),
+                order_type: work_order.work_order_type().clone(),
+                main_work_ctr: work_order.main_work_center,
+                oper_work_center: activity.1.resource,
+                order: work_order.work_order_number,
+                description_work_order: work_order
+                    .work_order_info
+                    .work_order_text
+                    .order_description,
+                operation_short_text: work_order
+                    .work_order_info
+                    .work_order_text
+                    .operation_description,
+                system_status: work_order.status_codes().clone(),
+                user_status: work_order.status_codes().clone(),
+                work: activity.1.work_remaining().clone(),
+                actual_work: activity.1.operation_info.work_actual,
+                unloading_point: work_order.unloading_point().clone(),
+                basic_start_date: work_order
+                    .work_order_dates
+                    .basic_start_date
+                    .date_naive()
+                    .into(),
+                basic_finish_date: work_order.work_order_dates.basic_finish_date.into(),
+                earliest_start_date: activity.1.operation_dates.earliest_start_datetime.into(),
+                earliest_finish_date: activity.1.operation_dates.earliest_finish_datetime.into(),
+                earliest_allowed_start_date: work_order
+                    .work_order_dates
+                    .earliest_allowed_start_date
+                    .into(),
+                latest_allowed_finish_date: work_order
+                    .work_order_dates
+                    .latest_allowed_finish_date
+                    .into(),
+                activity: activity.0,
+                opperation_system_status: work_order.status_codes().clone(),
+                opereration_user_status: work_order.status_codes().clone(),
+                functional_location: work_order.functional_location().clone(),
+                description_operation: work_order
+                    .work_order_info
+                    .work_order_text
+                    .operation_description,
+                subnetwork_of: work_order.work_order_info.work_order_info_detail.subnetwork,
+                system_condition: work_order.work_order_info.system_condition,
+                maintenance_plan: work_order
+                    .work_order_info
+                    .work_order_info_detail
+                    .maintenance_plan,
+                planner_group: work_order
+                    .work_order_info
+                    .work_order_info_detail
+                    .planner_group,
+                maintenance_plant: work_order
+                    .work_order_info
+                    .work_order_info_detail
+                    .maintenance_plant,
+                pm_collective: work_order
+                    .work_order_info
+                    .work_order_info_detail
+                    .pm_collective,
+                room: work_order.work_order_info.work_order_info_detail.room,
+            };
+
+            all_rows.push(one_row);
+        }
+    }
+
+    Ok(())
+}
