@@ -27,6 +27,8 @@
             pkgs.nushell
             pkgs.jq
             pkgs.openssl
+            pkgs.clang
+            pkgs.libxlsxwriter
             pkgs.pkg-config
             pkgs.python312Packages.python-lsp-server
           ];

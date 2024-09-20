@@ -282,10 +282,10 @@ impl<'de> serde::Deserialize<'de> for ActivityNumber {
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct OperationDates {
-    possible_start: Day,
-    target_finish: Day,
-    earliest_start_datetime: DateTime<Utc>,
-    earliest_finish_datetime: DateTime<Utc>,
+    pub possible_start: Day,
+    pub target_finish: Day,
+    pub earliest_start_datetime: DateTime<Utc>,
+    pub earliest_finish_datetime: DateTime<Utc>,
 }
 
 impl OperationDates {

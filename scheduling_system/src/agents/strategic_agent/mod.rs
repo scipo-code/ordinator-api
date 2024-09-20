@@ -215,7 +215,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                                         .clone();
                                     let work_order_response = WorkOrderResponse::new(
                                         work_order
-                                            .order_dates
+                                            .work_order_dates
                                             .earliest_allowed_start_period
                                             .clone(),
                                         work_order.work_order_info.clone(),
