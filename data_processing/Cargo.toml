@@ -16,5 +16,5 @@ dotenv = "*"
 regex = "*"
 thiserror = "*"
 tracing = "*"
-xlsxwriter = "*"
+rust_xlsxwriter = "*"
 
