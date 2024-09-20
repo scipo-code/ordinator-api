@@ -7,9 +7,13 @@ edition = "2021"
 
 [dependencies]
 atoi = "=1.0.0"
+calamine = "*"
 chrono = { version = "0", features = ["serde", "arbitrary"] }
 shared_types = { path = "../shared_types" }
 rust_decimal = "*"
 polars = "*"
 dotenv = "*"
+regex = "*"
+thiserror = "*"
 tracing = "*"
+

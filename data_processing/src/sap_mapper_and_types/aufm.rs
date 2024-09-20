@@ -1,4 +1,4 @@
-use crate::{CHAR, CLNT, NUMC};
+use crate::sap_mapper_and_types::{CHAR, CLNT, NUMC};
 
 #[allow(non_snake_case)]
 #[allow(dead_code)]

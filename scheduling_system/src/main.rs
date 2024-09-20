@@ -1,6 +1,5 @@
 mod agents;
 mod api;
-mod data_processing;
 mod init;
 
 use std::{
@@ -24,7 +23,8 @@ async fn main() -> Result<(), io::Error> {
 
     let (log_handles, _logging_guard) = logging::setup_logging();
 
-    let database_path_string = &dotenvy::var("DATABASE_PATH").expect("Could not read database path");
+    let database_path_string =
+        &dotenvy::var("DATABASE_PATH").expect("Could not read database path");
 
     let database_path = std::path::Path::new(database_path_string);
 

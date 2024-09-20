@@ -1,4 +1,4 @@
-use crate::{CHAR, LANG};
+use crate::sap_mapper_and_types::{CHAR, LANG};
 
 #[allow(dead_code, non_snake_case)]
 struct Tj02t {
