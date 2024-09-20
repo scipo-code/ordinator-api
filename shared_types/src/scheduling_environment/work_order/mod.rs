@@ -1,25 +1,25 @@
 pub mod display;
 pub mod functional_location;
 pub mod operation;
-pub mod order_dates;
-pub mod order_text;
-pub mod order_type;
 pub mod priority;
 pub mod revision;
 pub mod status_codes;
 pub mod system_condition;
 pub mod unloading_point;
+pub mod work_order_dates;
+pub mod work_order_text;
+pub mod work_order_type;
 
 use crate::scheduling_environment::work_order::functional_location::FunctionalLocation;
 use crate::scheduling_environment::work_order::operation::Operation;
-use crate::scheduling_environment::work_order::order_dates::WorkOrderDates;
-use crate::scheduling_environment::work_order::order_text::OrderText;
-use crate::scheduling_environment::work_order::order_type::WorkOrderType;
 use crate::scheduling_environment::work_order::priority::Priority;
 use crate::scheduling_environment::work_order::revision::Revision;
 use crate::scheduling_environment::work_order::status_codes::StatusCodes;
 use crate::scheduling_environment::work_order::system_condition::SystemCondition;
 use crate::scheduling_environment::work_order::unloading_point::UnloadingPoint;
+use crate::scheduling_environment::work_order::work_order_dates::WorkOrderDates;
+use crate::scheduling_environment::work_order::work_order_text::WorkOrderText;
+use crate::scheduling_environment::work_order::work_order_type::WorkOrderType;
 use crate::scheduling_environment::worker_environment::resources::MainResources;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -29,8 +29,8 @@ use std::env;
 use std::fs;
 // use crate::scheduling_environment::work_order::optimized_work_order::OptimizedWorkOrder;
 use crate::scheduling_environment::work_order::{
-    order_type::{WDFPriority, WGNPriority, WPMPriority},
     status_codes::MaterialStatus,
+    work_order_type::{WDFPriority, WGNPriority, WPMPriority},
 };
 
 use crate::scheduling_environment::worker_environment::resources::Resources;
@@ -82,7 +82,7 @@ pub struct WorkOrder {
     pub operations: HashMap<ActivityNumber, Operation>,
     pub relations: Vec<ActivityRelation>,
     pub work_order_analytic: WorkOrderAnalytic,
-    pub order_dates: WorkOrderDates,
+    pub work_order_dates: WorkOrderDates,
     pub work_order_info: WorkOrderInfo,
 }
 
@@ -91,10 +91,11 @@ pub struct WorkOrderInfo {
     pub priority: Priority,
     pub work_order_type: WorkOrderType,
     pub functional_location: FunctionalLocation,
-    pub order_text: OrderText,
+    pub work_order_text: WorkOrderText,
     pub unloading_point: UnloadingPoint,
     pub revision: Revision,
     pub system_condition: SystemCondition,
+    pub work_order_info_detail: WorkOrderInfoDetail,
 }
 
 impl WorkOrderInfo {
@@ -102,19 +103,21 @@ impl WorkOrderInfo {
         priority: Priority,
         work_order_type: WorkOrderType,
         functional_location: FunctionalLocation,
-        order_text: OrderText,
+        work_order_text: WorkOrderText,
         unloading_point: UnloadingPoint,
         revision: Revision,
         system_condition: SystemCondition,
+        work_order_info_detail: WorkOrderInfoDetail,
     ) -> Self {
         WorkOrderInfo {
             priority,
             work_order_type,
             functional_location,
-            order_text,
+            work_order_text,
             unloading_point,
             revision,
             system_condition,
+            work_order_info_detail,
         }
     }
 }
@@ -149,6 +152,29 @@ impl WorkOrderAnalytic {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct WorkOrderInfoDetail {
+    pub subnetwork: String,
+    pub maintenance_plan: String,
+    pub planner_group: String,
+    pub maintenance_plant: String,
+    pub pm_collective: String,
+    pub room: String,
+}
+
+impl Default for WorkOrderInfoDetail {
+    fn default() -> Self {
+        Self {
+            subnetwork: String::new(),
+            maintenance_plan: String::new(),
+            planner_group: String::new(),
+            maintenance_plant: String::new(),
+            pm_collective: String::new(),
+            room: String::new(),
+        }
+    }
+}
+
 impl WorkOrder {
     pub fn new(
         work_order_number: WorkOrderNumber,
@@ -165,7 +191,7 @@ impl WorkOrder {
             operations,
             relations,
             work_order_analytic,
-            order_dates,
+            work_order_dates: order_dates,
             work_order_info,
         }
     }
@@ -191,11 +217,11 @@ impl WorkOrder {
     }
 
     pub fn order_dates_mut(&mut self) -> &mut WorkOrderDates {
-        &mut self.order_dates
+        &mut self.work_order_dates
     }
 
     pub fn order_dates(&self) -> &WorkOrderDates {
-        &self.order_dates
+        &self.work_order_dates
     }
 
     pub fn status_codes(&self) -> &StatusCodes {
@@ -206,7 +232,7 @@ impl WorkOrder {
         &self.work_order_info.revision
     }
 
-    pub fn order_type(&self) -> &WorkOrderType {
+    pub fn work_order_type(&self) -> &WorkOrderType {
         &self.work_order_info.work_order_type
     }
 
@@ -407,7 +433,7 @@ impl WorkOrder {
     pub fn find_excluded_periods(&self, periods: &[Period]) -> HashSet<Period> {
         let mut excluded_periods: HashSet<Period> = HashSet::new();
         for (i, period) in periods.iter().enumerate() {
-            if *period < self.order_dates.earliest_allowed_start_period
+            if *period < self.work_order_dates.earliest_allowed_start_period
                 || (self.is_vendor() && i <= 3)
                 || (self.revision().shutdown && i <= 3)
             {
@@ -449,10 +475,11 @@ impl Default for WorkOrder {
             Priority::new_int(1),
             WorkOrderType::Wdf(WDFPriority::new(1)),
             FunctionalLocation::default(),
-            OrderText::default(),
+            WorkOrderText::default(),
             UnloadingPoint::default(),
             Revision::default(),
             SystemCondition::Unknown,
+            WorkOrderInfoDetail::default(),
         );
 
         WorkOrder::new(
@@ -475,15 +502,15 @@ mod tests {
     use super::{
         functional_location::FunctionalLocation,
         operation::{ActivityNumber, Operation, Work},
-        order_dates::WorkOrderDates,
-        order_text::OrderText,
-        order_type::{WDFPriority, WorkOrderType},
         priority::Priority,
         revision::Revision,
         status_codes::StatusCodes,
         system_condition::SystemCondition,
         unloading_point::UnloadingPoint,
-        WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderNumber,
+        work_order_dates::WorkOrderDates,
+        work_order_text::WorkOrderText,
+        work_order_type::{WDFPriority, WorkOrderType},
+        WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderInfoDetail, WorkOrderNumber,
     };
 
     #[test]
@@ -543,10 +570,11 @@ mod tests {
                 Priority::new_int(1),
                 WorkOrderType::Wdf(WDFPriority::new(1)),
                 FunctionalLocation::default(),
-                OrderText::default(),
+                WorkOrderText::default(),
                 UnloadingPoint::default(),
                 Revision::default(),
                 SystemCondition::Unknown,
+                WorkOrderInfoDetail::default(),
             );
 
             WorkOrder::new(

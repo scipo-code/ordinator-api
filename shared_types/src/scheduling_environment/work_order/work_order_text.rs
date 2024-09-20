@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug)]
-pub struct OrderText {
+pub struct WorkOrderText {
     pub order_system_status: String,
     pub order_user_status: String,
     pub order_description: String,
