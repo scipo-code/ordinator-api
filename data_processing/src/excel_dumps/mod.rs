@@ -1,6 +1,6 @@
 use crate::sap_mapper_and_types::DATS;
 use chrono::NaiveDate;
-use rust_xlsxwriter::prelude::*;
+// use rust_xlsxwriter::prelude::*;
 use std::collections::HashMap;
 
 use shared_types::{
@@ -25,15 +25,15 @@ use shared_types::{
 };
 
 struct AllRows(Vec<RowNames>);
-impl AllRows {
-    fn make_xlsx_dump(&self) -> _ {
-        let mut rust_dump = rust_xlsxwriter::Workbook::new();
+// impl AllRows {
+//     fn make_xlsx_dump(&self) -> _ {
+//         let mut rust_dump = rust_xlsxwriter::Workbook::new();
 
-        let mut work_sheet = rust_dump.add_worksheet();
+//         let mut work_sheet = rust_dump.add_worksheet();
 
-        work_sheet.write(, , )
-    }
-}
+//         work_sheet.write(, , )
+//     }
+// }
 
 struct RowNames {
     priority: Priority,
@@ -200,7 +200,7 @@ pub fn create_excel_dump(
     }
     let all_rows = AllRows(all_rows);
 
-    all_rows.make_xlsx_dump();
+    // all_rows.make_xlsx_dump();
 
     Ok(())
 }

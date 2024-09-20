@@ -57,7 +57,8 @@ impl From<NaiveDate> for DATS {
     fn from(value: NaiveDate) -> Self {
         let mut string = value.to_string();
 
-        string.remove_matches("-");
+        todo!();
+        // string.remove_matches("-");
         Self(string)
     }
 }
