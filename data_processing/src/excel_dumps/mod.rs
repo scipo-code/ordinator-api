@@ -1,7 +1,7 @@
 use crate::sap_mapper_and_types::DATS;
 use chrono::NaiveDate;
+use rust_xlsxwriter::prelude::*;
 use std::collections::HashMap;
-use xlsxwriter::prelude::*;
 
 use shared_types::{
     scheduling_environment::{
@@ -25,10 +25,15 @@ use shared_types::{
 };
 
 struct AllRows(Vec<RowNames>);
+impl AllRows {
+    fn make_xlsx_dump(&self) -> _ {
+        let mut rust_dump = rust_xlsxwriter::Workbook::new();
 
-// impl AllRows {
-//     fn write_to_xlsx(file_path) ->
-// }
+        let mut work_sheet = rust_dump.add_worksheet();
+
+        work_sheet.write(, , )
+    }
+}
 
 struct RowNames {
     priority: Priority,
@@ -77,7 +82,7 @@ pub fn create_excel_dump(
     strategic_solution: HashMap<WorkOrderNumber, Period>,
     tactical_solution: HashMap<WorkOrderActivity, Days>,
 ) -> Result<(), std::io::Error> {
-    let all_rows: Vec<RowNames> = Vec::new();
+    let mut all_rows: Vec<RowNames> = Vec::new();
     let work_orders = scheduling_environment.work_orders().clone();
 
     let work_orders_by_asset: Vec<WorkOrder> = work_orders
@@ -88,7 +93,7 @@ pub fn create_excel_dump(
         .collect();
 
     for work_order in work_orders_by_asset {
-        let sorted_operations = work_order.operations.iter().collect::<Vec<_>>();
+        let mut sorted_operations = work_order.operations.iter().collect::<Vec<_>>();
 
         sorted_operations
             .sort_unstable_by(|value1, value2| value1.0.partial_cmp(value2.0).unwrap());
@@ -98,70 +103,104 @@ pub fn create_excel_dump(
                 priority: work_order.priority().clone(),
                 revision: work_order.revision().clone(),
                 order_type: work_order.work_order_type().clone(),
-                main_work_ctr: work_order.main_work_center,
-                oper_work_center: activity.1.resource,
+                main_work_ctr: work_order.main_work_center.clone(),
+                oper_work_center: activity.1.resource.clone(),
                 order: work_order.work_order_number,
                 description_work_order: work_order
                     .work_order_info
                     .work_order_text
-                    .order_description,
+                    .order_description
+                    .clone(),
                 operation_short_text: work_order
                     .work_order_info
                     .work_order_text
-                    .operation_description,
+                    .operation_description
+                    .clone(),
                 system_status: work_order.status_codes().clone(),
                 user_status: work_order.status_codes().clone(),
                 work: activity.1.work_remaining().clone(),
-                actual_work: activity.1.operation_info.work_actual,
+                actual_work: activity.1.operation_info.work_actual.clone(),
                 unloading_point: work_order.unloading_point().clone(),
                 basic_start_date: work_order
                     .work_order_dates
                     .basic_start_date
                     .date_naive()
                     .into(),
-                basic_finish_date: work_order.work_order_dates.basic_finish_date.into(),
-                earliest_start_date: activity.1.operation_dates.earliest_start_datetime.into(),
-                earliest_finish_date: activity.1.operation_dates.earliest_finish_datetime.into(),
+                basic_finish_date: work_order
+                    .work_order_dates
+                    .basic_finish_date
+                    .date_naive()
+                    .into(),
+                earliest_start_date: activity
+                    .1
+                    .operation_dates
+                    .earliest_start_datetime
+                    .date_naive()
+                    .into(),
+                earliest_finish_date: activity
+                    .1
+                    .operation_dates
+                    .earliest_finish_datetime
+                    .date_naive()
+                    .into(),
                 earliest_allowed_start_date: work_order
                     .work_order_dates
                     .earliest_allowed_start_date
+                    .date_naive()
                     .into(),
                 latest_allowed_finish_date: work_order
                     .work_order_dates
                     .latest_allowed_finish_date
+                    .date_naive()
                     .into(),
-                activity: activity.0,
+                activity: activity.0.clone(),
                 opperation_system_status: work_order.status_codes().clone(),
                 opereration_user_status: work_order.status_codes().clone(),
                 functional_location: work_order.functional_location().clone(),
                 description_operation: work_order
                     .work_order_info
                     .work_order_text
-                    .operation_description,
-                subnetwork_of: work_order.work_order_info.work_order_info_detail.subnetwork,
-                system_condition: work_order.work_order_info.system_condition,
+                    .operation_description
+                    .clone(),
+                subnetwork_of: work_order
+                    .work_order_info
+                    .work_order_info_detail
+                    .subnetwork
+                    .clone(),
+                system_condition: work_order.work_order_info.system_condition.clone(),
                 maintenance_plan: work_order
                     .work_order_info
                     .work_order_info_detail
-                    .maintenance_plan,
+                    .maintenance_plan
+                    .clone(),
                 planner_group: work_order
                     .work_order_info
                     .work_order_info_detail
-                    .planner_group,
+                    .planner_group
+                    .clone(),
                 maintenance_plant: work_order
                     .work_order_info
                     .work_order_info_detail
-                    .maintenance_plant,
+                    .maintenance_plant
+                    .clone(),
                 pm_collective: work_order
                     .work_order_info
                     .work_order_info_detail
-                    .pm_collective,
-                room: work_order.work_order_info.work_order_info_detail.room,
+                    .pm_collective
+                    .clone(),
+                room: work_order
+                    .work_order_info
+                    .work_order_info_detail
+                    .room
+                    .clone(),
             };
 
             all_rows.push(one_row);
         }
     }
+    let all_rows = AllRows(all_rows);
+
+    all_rows.make_xlsx_dump();
 
     Ok(())
 }
