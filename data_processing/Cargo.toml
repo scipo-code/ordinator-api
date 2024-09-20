@@ -16,4 +16,5 @@ dotenv = "*"
 regex = "*"
 thiserror = "*"
 tracing = "*"
+xlsxwriter = "*"
 

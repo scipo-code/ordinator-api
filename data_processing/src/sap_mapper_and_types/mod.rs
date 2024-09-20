@@ -53,6 +53,15 @@ impl From<DATS> for NaiveDate {
     }
 }
 
+impl From<NaiveDate> for DATS {
+    fn from(value: NaiveDate) -> Self {
+        let mut string = value.to_string();
+
+        string.remove_matches("-");
+        Self(string)
+    }
+}
+
 impl From<TIMS> for NaiveTime {
     fn from(value: TIMS) -> Self {
         let mut string = value.0;

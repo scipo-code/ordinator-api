@@ -17,7 +17,7 @@ use chrono::{
 };
 use shared_types::scheduling_environment::work_order::functional_location::FunctionalLocation;
 use shared_types::scheduling_environment::work_order::order_dates::WorkOrderDates;
-use shared_types::scheduling_environment::work_order::order_text::OrderText;
+use shared_types::scheduling_environment::work_order::order_text::WorkOrderText;
 use shared_types::scheduling_environment::work_order::order_type::{
     WDFPriority, WGNPriority, WPMPriority,
 };
@@ -921,7 +921,7 @@ fn extract_functional_location(
 fn extract_order_text(
     row: &[calamine::Data],
     header_to_index: &HashMap<String, usize>,
-) -> Result<OrderText, Error> {
+) -> Result<WorkOrderText, Error> {
     let notes_1_possible_headers = ["Notes_1", "notes_1", "Notes 1"];
     let notes_2_possible_headers = ["Notes_2", "Notes 2", "Notes_2"];
     let description_1_possible_headers = [
@@ -1024,7 +1024,7 @@ fn extract_order_text(
         _ => return Err(Error::Msg("Could not parse order_user_status as string")),
     };
 
-    Ok(OrderText {
+    Ok(WorkOrderText {
         order_system_status,
         order_user_status,
         order_description,

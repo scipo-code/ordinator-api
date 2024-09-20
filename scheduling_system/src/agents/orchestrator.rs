@@ -192,7 +192,7 @@ impl Orchestrator {
                     .find(|(work_order_number_key, _)| work_order_number == **work_order_number_key)
                     .map(|(work_order_number, work_order)| {
                         let work_order_response = WorkOrderResponse::new(
-                            work_order.order_dates.earliest_allowed_start_period.clone(),
+                            work_order.work_order_dates.earliest_allowed_start_period.clone(),
                             work_order.work_order_info.clone(),
                             work_order.work_order_analytic.vendor,
                             work_order.work_order_analytic.work_order_weight,
@@ -232,7 +232,7 @@ impl Orchestrator {
                     .iter()
                     .map(|(work_order_number, work_order)| {
                         let work_order_response = WorkOrderResponse::new(
-                            work_order.order_dates.earliest_allowed_start_period.clone(),
+                            work_order.work_order_dates.earliest_allowed_start_period.clone(),
                             work_order.work_order_info.clone(),
                             work_order.work_order_analytic.vendor,
                             work_order.work_order_analytic.work_order_weight,

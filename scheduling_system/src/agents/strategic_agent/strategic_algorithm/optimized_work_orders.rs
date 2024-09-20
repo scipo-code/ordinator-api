@@ -129,7 +129,10 @@ impl OptimizedWorkOrderBuilder {
 
         self.work_load.clone_from(work_order.work_load());
 
-        self.latest_period = work_order.order_dates.latest_allowed_finish_period.clone();
+        self.latest_period = work_order
+            .work_order_dates
+            .latest_allowed_finish_period
+            .clone();
 
         let unloading_point_period = work_order.unloading_point().period.clone();
 
