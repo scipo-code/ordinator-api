@@ -9,6 +9,7 @@ use crate::scheduling_environment::{
 use crate::scheduling_environment::worker_environment::resources::Resources;
 use chrono::{DateTime, Utc};
 use rust_decimal::prelude::*;
+use rust_xlsxwriter::IntoExcelData;
 use serde::de::{self, Deserialize, Error, MapAccess, Visitor};
 use serde::ser::{Serialize, SerializeStruct, SerializeTupleStruct};
 use std::fmt::Display;
@@ -402,5 +403,28 @@ impl OperationBuilder {
             operation_analytic: self.operation_analytic,
             operation_dates: self.operation_dates,
         }
+    }
+}
+
+impl IntoExcelData for Work {
+    fn write(
+        self,
+        worksheet: &mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        let value = self.0.to_string();
+        worksheet.write_string(row, col, value)
+    }
+
+    fn write_with_format<'a>(
+        self,
+        worksheet: &'a mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+        format: &rust_xlsxwriter::Format,
+    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        let value = self.0.to_string();
+        worksheet.write_string_with_format(row, col, value, format)
     }
 }
