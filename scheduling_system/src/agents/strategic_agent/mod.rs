@@ -3,6 +3,7 @@ pub mod strategic_algorithm;
 
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborHoodSearch;
+use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::SchedulingEnvironment;
@@ -21,6 +22,7 @@ use shared_types::strategic::StrategicInfeasibleCases;
 use shared_types::strategic::StrategicRequestMessage;
 use shared_types::strategic::StrategicResources;
 use shared_types::strategic::StrategicResponseMessage;
+use shared_types::AgentExports;
 use shared_types::AlgorithmState;
 use shared_types::Asset;
 use shared_types::ConstraintState;
@@ -348,7 +350,7 @@ impl Handler<UpdateWorkOrderMessage> for StrategicAgent {
 }
 
 impl Handler<SolutionExportMessage> for StrategicAgent {
-    type Result = String;
+    type Result = Option<AgentExports>;
 
     fn handle(&mut self, _msg: SolutionExportMessage, _ctx: &mut Self::Context) -> Self::Result {
         let mut strategic_solution = HashMap::new();
@@ -359,15 +361,10 @@ impl Handler<SolutionExportMessage> for StrategicAgent {
         {
             strategic_solution.insert(
                 *work_order_number,
-                optimized_work_order
-                    .scheduled_period
-                    .as_ref()
-                    .unwrap()
-                    .period_string(),
+                optimized_work_order.scheduled_period.clone().unwrap(),
             );
         }
-
-        serde_json::to_string(&strategic_solution).unwrap()
+        Some(AgentExports::Strategic(strategic_solution))
     }
 }
 

@@ -1,3 +1,4 @@
+use rust_xlsxwriter::IntoExcelData;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -61,5 +62,28 @@ impl WDFPriority {
             4 => Self::Four,
             _ => Self::Four,
         }
+    }
+}
+
+impl IntoExcelData for WorkOrderType {
+    fn write(
+        self,
+        worksheet: &mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        let value = self.get_type_string();
+        worksheet.write_string(row, col, value)
+    }
+
+    fn write_with_format<'a>(
+        self,
+        worksheet: &'a mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+        format: &rust_xlsxwriter::Format,
+    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        let value = self.get_type_string();
+        worksheet.write_string_with_format(row, col, value, format)
     }
 }

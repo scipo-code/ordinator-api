@@ -9,40 +9,37 @@ edition = "2021"
 criterion = "0.5"
 
 [dependencies]
-# steel-core = { git="https://github.com/mattwparas/steel.git", branch = "master" }
-# steel-repl = { git="https://github.com/mattwparas/steel.git", branch = "master" }
-# steel-derive = { git="https://github.com/mattwparas/steel.git", branch = "master" }
+actix = "*"
+actix-rt = "*"
+actix-web = "*"
+actix-web-actors = "*"
 atoi = "=1.0.0"
-rust_decimal = "*"
-shared_types = { path = "../shared_types" }
-data_processing = { path = "../data_processing" }
+bincode = "*"
+calamine = "*"
 chrono = { version = "*", features = ["serde"] }
 chrono-tz = "*"
-calamine = "*"
+colored = "*"
+csv = "*"
+data_processing = { path = "../data_processing" }
+dotenvy = "*"
+futures = "*"
+futures-util = "*"
+priority-queue = "*"
+proptest = "*"
+rand = "*"
 regex = "*"
-actix-web = "*"
-uuid = { version = "*", features = ["v4"] }
-thiserror = "*"
-actix-web-actors = "*"
-actix-rt = "*"
-actix = "*"
-tokio = "*"
+rust_decimal = "*"
 serde = { version = "*", features = ["derive"] } 
 serde_json = "*"
-priority-queue = "*"
-tracing = "*"
-tracing-subscriber = { version = "*", features = ["json", "env-filter"] }
-tracing-appender = "*"
-csv = "*"
-rand = "*"
+serde_json_any_key = "*"
+shared_types = { path = "../shared_types" }
 strum = "*"
 strum_macros = "*"
-tracing-flame = "*"
-colored = "*"
-dotenvy = "*"
-serde_json_any_key = "*"
-futures-util = "*"
-bincode = "*"
-futures = "*"
-proptest = "*"
+thiserror = "*"
+tokio = "*"
 toml = "*"
+tracing = "*"
+tracing-appender = "*"
+tracing-flame = "*"
+tracing-subscriber = { version = "*", features = ["json", "env-filter"] }
+uuid = { version = "*", features = ["v4"] }

@@ -6,14 +6,22 @@ pub mod scheduling_environment;
 pub mod strategic;
 pub mod supervisor;
 pub mod tactical;
-use std::fmt::{self, Display};
+use std::{
+    collections::HashMap,
+    fmt::{self, Display},
+};
 
 use actix::prelude::*;
+use chrono::{DateTime, Utc};
 use clap::{Subcommand, ValueEnum};
 
 use operational::{OperationalRequest, OperationalResponse, TomlOperationalConfiguration};
 use orchestrator::{OrchestratorRequest, OrchestratorResponse};
-use scheduling_environment::worker_environment::resources::Resources;
+use scheduling_environment::{
+    time_environment::{day::Day, period::Period},
+    work_order::{WorkOrderActivity, WorkOrderNumber},
+    worker_environment::resources::Resources,
+};
 use serde::{Deserialize, Serialize};
 use strategic::{StrategicRequest, StrategicResponse};
 use supervisor::{SupervisorRequest, SupervisorResponse};
@@ -57,10 +65,15 @@ impl Message for StatusMessage {
     type Result = String;
 }
 
-pub struct SolutionExportMessage {}
+pub struct SolutionExportMessage;
+
+pub enum AgentExports {
+    Strategic(HashMap<WorkOrderNumber, Period>),
+    Tactical(HashMap<WorkOrderActivity, DateTime<Utc>>),
+}
 
 impl Message for SolutionExportMessage {
-    type Result = String;
+    type Result = Option<AgentExports>;
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, ValueEnum)]

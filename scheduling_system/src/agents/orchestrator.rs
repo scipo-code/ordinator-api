@@ -1,4 +1,5 @@
 use actix::prelude::*;
+use data_processing::excel_dumps::create_excel_dump;
 use shared_types::orchestrator::OrchestratorRequest;
 
 use shared_types::scheduling_environment::time_environment::day::Day;
@@ -392,11 +393,14 @@ impl Orchestrator {
                     .send(shared_types::SolutionExportMessage {})
                     .await;
 
-                Ok(OrchestratorResponse::Export(format!(
-                    "{{\"strategic_agent_solution\": {}, \"tactical_agent_solution\": {}}}",
-                    strategic_agent_solution.unwrap(),
-                    tactical_agent_solution.unwrap()
-                )))
+                let scheduling_environment_lock = self.scheduling_environment.lock().unwrap();
+                
+                let work_orders = scheduling_environment_lock.work_orders().clone();
+                drop(scheduling_environment_lock);
+
+                create_excel_dump(asset.clone(), work_orders, strategic_agent_solution.unwrap().unwrap(), tactical_agent_solution.unwrap().unwrap()).unwrap();
+
+                Ok(OrchestratorResponse::Export(format!("Excel export performed correctly for {}", asset.clone())))
             }
         }
     }
