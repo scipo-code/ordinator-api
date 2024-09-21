@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use chrono::NaiveTime;
+use rust_xlsxwriter::IntoExcelData;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
@@ -51,6 +52,43 @@ impl MainResources {
                 | Self::MtnPipf
                 | Self::MtnPain
         )
+    }
+
+    pub fn variant_name(&self) -> String {
+        match self {
+            MainResources::Medic => "MEDIC".to_string(),
+            MainResources::MtnCran => "MTN-CRAN".to_string(),
+            MainResources::MtnElec => "MTN-ELEC".to_string(),
+            MainResources::MtnInst => "MTN-INST".to_string(),
+            MainResources::MtnLagg => "MTN-LAGG".to_string(),
+            MainResources::MtnMech => "MTN-MECH".to_string(),
+            MainResources::MtnPain => "MTN-PAIN".to_string(),
+            MainResources::MtnPipf => "MTN-PIPF".to_string(),
+            MainResources::MtnRigg => "MTN-RIGG".to_string(),
+            MainResources::MtnRope => "MTN-ROPE".to_string(),
+            MainResources::MtnRous => "MTN-ROUS".to_string(),
+            MainResources::MtnSat => "MTN-SAT".to_string(),
+            MainResources::MtnScaf => "MTN-SCAF".to_string(),
+            MainResources::MtnTele => "MTN-TELE".to_string(),
+            MainResources::MtnTurb => "MTN-TURB".to_string(),
+            MainResources::InpSite => "INP-SITE".to_string(),
+            MainResources::Prodlabo => "PRODLABO".to_string(),
+            MainResources::Prodtech => "PRODTECH".to_string(),
+            MainResources::VenComm => "VEN-COMM".to_string(),
+            MainResources::VenCran => "VEN-CRAN".to_string(),
+            MainResources::VenElec => "VEN-ELEC".to_string(),
+            MainResources::VenInsp => "VEN-INSP".to_string(),
+            MainResources::VenInst => "VEN-INST".to_string(),
+            MainResources::VenMech => "VEN-MECH".to_string(),
+            MainResources::VenRope => "VEN-ROPE".to_string(),
+            MainResources::VenSubs => "VEN-SUBS".to_string(),
+            MainResources::Wellsupv => "WELLSUPV".to_string(),
+            MainResources::Qaqcmech => "QAQCMECH".to_string(),
+            MainResources::Wellmain => "WELLMAIN".to_string(),
+            MainResources::Welltech => "WELLTECH".to_string(),
+            MainResources::Qaqcelec => "QAQCELEC".to_string(),
+            MainResources::Unknown => "UNKNOWN".to_string(),
+        }
     }
 }
 
@@ -320,5 +358,51 @@ impl MainResources {
             "MEDIC" => MainResources::Medic,
             _ => MainResources::Unknown,
         }
+    }
+}
+
+impl IntoExcelData for MainResources {
+    fn write(
+        self,
+        worksheet: &mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        let value = self.variant_name();
+        worksheet.write_string(row, col, value)
+    }
+
+    fn write_with_format<'a>(
+        self,
+        worksheet: &'a mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+        format: &rust_xlsxwriter::Format,
+    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        let value = self.variant_name();
+        worksheet.write_string_with_format(row, col, value, format)
+    }
+}
+
+impl IntoExcelData for Resources {
+    fn write(
+        self,
+        worksheet: &mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        let value = self.variant_name();
+        worksheet.write_string(row, col, value)
+    }
+
+    fn write_with_format<'a>(
+        self,
+        worksheet: &'a mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+        format: &rust_xlsxwriter::Format,
+    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        let value = self.variant_name();
+        worksheet.write_string_with_format(row, col, value, format)
     }
 }

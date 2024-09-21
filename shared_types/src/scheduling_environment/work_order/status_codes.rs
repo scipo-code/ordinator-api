@@ -2,6 +2,7 @@ use std::fmt::{self, Display};
 
 use clap::{Args, ValueEnum};
 use regex::Regex;
+use rust_xlsxwriter::IntoExcelData;
 use serde::{Deserialize, Serialize};
 
 use crate::scheduling_environment::time_environment::period::Period;
@@ -133,5 +134,44 @@ impl Default for StatusCodes {
             sece: false,
             unloading_point: false,
         }
+    }
+}
+
+impl IntoExcelData for StatusCodes {
+    fn write(
+        self,
+        worksheet: &mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        let pcnf = if self.pcnf { "PCNF" } else { "" };
+        let awsc = if self.awsc { "AWSC" } else { "" };
+        let well = if self.well { "WELL" } else { "" };
+        let sch = if self.sch { "SCH" } else { "" };
+        let sece = if self.sece { "SECE" } else { "" };
+
+        let string = String::new();
+        let value: String = string + pcnf + awsc + well + sch + sece;
+
+        worksheet.write_string(row, col, value)
+    }
+
+    fn write_with_format<'a>(
+        self,
+        worksheet: &'a mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+        format: &rust_xlsxwriter::Format,
+    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        let pcnf = if self.pcnf { "PCNF" } else { "" };
+        let awsc = if self.awsc { "AWSC" } else { "" };
+        let well = if self.well { "WELL" } else { "" };
+        let sch = if self.sch { "SCH" } else { "" };
+        let sece = if self.sece { "SECE" } else { "" };
+
+        let string = String::new();
+        let value: String = string + pcnf + awsc + well + sch + sece;
+
+        worksheet.write_string_with_format(row, col, value, format)
     }
 }
