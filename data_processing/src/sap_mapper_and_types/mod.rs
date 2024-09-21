@@ -17,6 +17,7 @@ pub mod tj30t;
 
 use chrono::{NaiveDate, NaiveTime};
 use rust_decimal::Decimal;
+use rust_xlsxwriter::IntoExcelData;
 
 #[allow(dead_code)]
 pub struct CHAR(String);
@@ -25,6 +26,7 @@ pub struct NUMC(u32);
 #[allow(dead_code)]
 pub struct FLTP();
 #[allow(dead_code)]
+#[derive(Clone)]
 pub struct DATS(pub String);
 #[allow(dead_code)]
 pub struct TIMS(pub String);
@@ -55,9 +57,8 @@ impl From<DATS> for NaiveDate {
 
 impl From<NaiveDate> for DATS {
     fn from(value: NaiveDate) -> Self {
-        let mut string = value.to_string();
+        let string = value.to_string();
 
-        todo!();
         // string.remove_matches("-");
         Self(string)
     }
@@ -105,6 +106,28 @@ impl From<TIMS> for NaiveTime {
             return NaiveTime::from_hms_opt(23, 59, 59).unwrap();
         }
         NaiveTime::from_hms_opt(hours, minutes, seconds).unwrap()
+    }
+}
+impl IntoExcelData for DATS {
+    fn write(
+        self,
+        worksheet: &mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        let value = self.0;
+        worksheet.write_string(row, col, value)
+    }
+
+    fn write_with_format<'a>(
+        self,
+        worksheet: &'a mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+        format: &rust_xlsxwriter::Format,
+    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        let value = self.0;
+        worksheet.write_string_with_format(row, col, value, format)
     }
 }
 

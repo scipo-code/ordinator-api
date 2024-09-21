@@ -7,17 +7,17 @@ edition = "2021"
 
 [dependencies]
 atoi = "=1.0.0"
-shared_types = { path = "../shared_types" }
 clap = { version = "*", features = ["derive"] }
-url = "*"
-serde_json = "*"
-serde = { version = "*", features = ["derive"] }
-strum = "*"
-webbrowser = "*"
-reqwest = { version = "*", features = ["blocking"] }
-tokio = { version = "*", features = ["full"] }
-tracing = "*"
-toml = "*"
 clap_complete = "*"
 clap_complete_nushell = "*"
 dotenvy = "*"
+reqwest = { version = "*", features = ["blocking"] }
+serde = { version = "*", features = ["derive"] }
+serde_json = "*"
+shared_types = { path = "../shared_types" }
+strum = "*"
+tokio = { version = "*", features = ["full"] }
+toml = "*"
+tracing = "*"
+url = "*"
+webbrowser = "*"

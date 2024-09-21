@@ -3,12 +3,14 @@ pub mod tactical_algorithm;
 
 use actix::prelude::*;
 use actix_web::cookie::time::Duration;
+use chrono::{DateTime, Utc};
 use shared_types::agent_error::AgentError;
+use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::work_order::{WorkOrderActivity, WorkOrderNumber};
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::tactical::tactical_response_status::TacticalResponseStatus;
 use shared_types::tactical::{TacticalRequestMessage, TacticalResponseMessage};
-use shared_types::{Asset, SolutionExportMessage};
+use shared_types::{AgentExports, Asset, SolutionExportMessage};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{debug, info, instrument, span, warn, Level};
@@ -258,21 +260,21 @@ impl Handler<UpdateWorkOrderMessage> for TacticalAgent {
 }
 
 impl Handler<SolutionExportMessage> for TacticalAgent {
-    type Result = String;
+    type Result = Option<AgentExports>;
 
     fn handle(&mut self, _msg: SolutionExportMessage, _ctx: &mut Context<Self>) -> Self::Result {
-        let mut tactical_solution = HashMap::new();
+        let mut tactical_solution: HashMap<WorkOrderActivity, DateTime<Utc>> = HashMap::new();
         for (work_order_number, optimized_work_order) in
             self.tactical_algorithm.optimized_work_orders()
         {
-            let mut tactical_operation_solution = HashMap::new();
             for (activity, operation) in optimized_work_order.operation_solutions.as_ref().unwrap()
             {
-                tactical_operation_solution
-                    .insert(activity, operation.scheduled.first().unwrap().0.date());
+                tactical_solution.insert(
+                    (*work_order_number, *activity),
+                    *operation.scheduled.first().unwrap().0.date(),
+                );
             }
-            tactical_solution.insert(work_order_number, tactical_operation_solution);
         }
-        serde_json::to_string(&tactical_solution).unwrap()
+        Some(AgentExports::Tactical(tactical_solution))
     }
 }
