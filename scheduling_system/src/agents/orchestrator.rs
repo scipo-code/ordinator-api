@@ -1,4 +1,5 @@
 use actix::prelude::*;
+use actix_web::HttpResponse;
 use data_processing::excel_dumps::create_excel_dump;
 use shared_types::orchestrator::OrchestratorRequest;
 
@@ -19,6 +20,7 @@ use shared_types::Asset;
 use shared_types::TomlAgents;
 use tracing::instrument;
 use std::collections::HashMap;
+use std::io::Cursor;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -398,7 +400,15 @@ impl Orchestrator {
                 let work_orders = scheduling_environment_lock.work_orders().clone();
                 drop(scheduling_environment_lock);
 
-                create_excel_dump(asset.clone(), work_orders, strategic_agent_solution.unwrap().unwrap(), tactical_agent_solution.unwrap().unwrap()).unwrap();
+                let xlsx_filename = create_excel_dump(asset.clone(), work_orders, strategic_agent_solution.unwrap().unwrap(), tactical_agent_solution.unwrap().unwrap()).unwrap();
+
+                let mut buffer = Cursor::new(Vec::new());
+
+                let http_header = format!("attachment; filename=\"{:?}\"", xlsx_filename.into_os_string());
+
+                HttpResponse::Ok().content_type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    .insert_header(("Content-Disposition", http_header))
+                    .body(buffer.into_inner());
 
                 Ok(OrchestratorResponse::Export(format!("Excel export performed correctly for {}", asset.clone())))
             }

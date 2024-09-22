@@ -1,7 +1,11 @@
 use crate::sap_mapper_and_types::DATS;
 use chrono::NaiveDate;
 use rust_xlsxwriter::{IntoExcelData, Workbook};
-use std::{collections::HashMap, path::Path, time::Instant};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    time::Instant,
+};
 
 use shared_types::{
     scheduling_environment::{
@@ -31,7 +35,7 @@ trait WriteXlsxRow {
 struct AllRows(Vec<RowNames>);
 
 impl AllRows {
-    fn make_xlsx_dump(&self, asset: Asset) -> Result<(), rust_xlsxwriter::XlsxError> {
+    fn make_xlsx_dump(&self, asset: Asset) -> Result<PathBuf, rust_xlsxwriter::XlsxError> {
         let mut rust_dump = rust_xlsxwriter::Workbook::new();
 
         let mut work_sheet = rust_dump.add_worksheet();
@@ -175,17 +179,18 @@ impl AllRows {
                 .write(row_number as u32, 30, row_values.room.clone())
                 .unwrap();
         }
-        let current_time = Instant::now();
 
+        let current_time = chrono::Local::now();
         let xlsx_directory = dotenvy::var("EXCEL_DUMP_DIRECTORY").expect(
             "The excel dump directory environment path could not be found. Check the .env file",
         );
-        let xlsx_name = format!("ordinator_xlsx_dump_{:?}_{}", current_time, asset);
+        let xlsx_name = format!("{}_ordinator_dump_for_asset_{}.xlsx", current_time, asset);
 
         let xlsx_string = xlsx_directory + &xlsx_name;
-        let xlsx_path = Path::new(&xlsx_string);
+        let xlsx_path = PathBuf::from(&xlsx_string);
 
-        rust_dump.save(&xlsx_path)
+        rust_dump.save(&xlsx_path)?;
+        Ok(xlsx_path)
     }
 }
 
@@ -235,7 +240,7 @@ pub fn create_excel_dump(
     work_orders: WorkOrders,
     strategic_solution: AgentExports,
     tactical_solution: AgentExports,
-) -> Result<(), std::io::Error> {
+) -> Result<PathBuf, std::io::Error> {
     let mut all_rows: Vec<RowNames> = Vec::new();
 
     let work_orders_by_asset: Vec<WorkOrder> = work_orders
@@ -353,7 +358,7 @@ pub fn create_excel_dump(
     }
     let all_rows = AllRows(all_rows);
 
-    all_rows.make_xlsx_dump(asset).unwrap();
+    let xlsx_path = all_rows.make_xlsx_dump(asset).unwrap();
 
-    Ok(())
+    Ok(xlsx_path)
 }
