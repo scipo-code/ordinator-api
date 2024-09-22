@@ -29,8 +29,7 @@
   - [Profiling](#profiling)
   - [Benchmarking](#benchmarking)
 <!--toc:end-->
-- [ ] d
-- [ ] 
+
 # Ordinator
 Ordinator is a multi-agent scheduling system. The system is based on agents
 that each schedule a specific part of the scheduling process in real-time and then communicates 
