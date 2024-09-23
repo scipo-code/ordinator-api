@@ -375,52 +375,15 @@ impl Orchestrator {
                 Ok(orchestrator_response)
             }
             OrchestratorRequest::Export(asset) => {
-                let agent_registry_for_asset = match self.agent_registries.get(&asset) {
-                    Some(agent_registry) => agent_registry,
-                    None => {
-                        return Err(format!("Agent registry not found for the asset {}", asset));
-                    }
-                };
-
-                let strategic_agent_solution = agent_registry_for_asset
-                    .strategic_agent_addr
-                    .send(shared_types::SolutionExportMessage {})
-                    .await;
-
-                let tactical_agent_solution = self
-                    .agent_registries
-                    .get(&asset)
-                    .unwrap()
-                    .tactical_agent_addr
-                    .send(shared_types::SolutionExportMessage {})
-                    .await;
-
-                let scheduling_environment_lock = self.scheduling_environment.lock().unwrap();
-                
-                let work_orders = scheduling_environment_lock.work_orders().clone();
-                drop(scheduling_environment_lock);
-
-                let xlsx_filename = create_excel_dump(asset.clone(), work_orders, strategic_agent_solution.unwrap().unwrap(), tactical_agent_solution.unwrap().unwrap()).unwrap();
-
-                let mut buffer = Cursor::new(Vec::new());
-
-                let http_header = format!("attachment; filename=\"{:?}\"", xlsx_filename.into_os_string());
-
-                HttpResponse::Ok().content_type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                    .insert_header(("Content-Disposition", http_header))
-                    .body(buffer.into_inner());
-
-                Ok(OrchestratorResponse::Export(format!("Excel export performed correctly for {}", asset.clone())))
+                panic!();
             }
         }
     }
 
     pub fn initialize_agents_from_env(&mut self, asset: Asset) {
         dotenv().expect("Could not load in the .env file.");
-
         
         let resource_path = std::env::var("RESOURCE_CONFIG_INITIALIZATION").expect("Could not read RESOURCE_CONFIG_INITIALIZATION");
-
 
         let toml_agents_string: String = std::fs::read_to_string(resource_path).unwrap(); 
         let toml_agents: TomlAgents = toml::from_str(&toml_agents_string).unwrap();

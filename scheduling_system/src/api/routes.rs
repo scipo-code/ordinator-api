@@ -1,7 +1,9 @@
 use actix_web::{web, HttpRequest, HttpResponse};
+use data_processing::excel_dumps::create_excel_dump;
 use shared_types::operational::{
     OperationalResponse, OperationalResponseMessage, OperationalTarget,
 };
+use shared_types::orchestrator::{self, OrchestratorRequest};
 use shared_types::strategic::StrategicResponse;
 use shared_types::supervisor::SupervisorResponse;
 
@@ -9,6 +11,8 @@ use shared_types::tactical::TacticalResponse;
 use shared_types::SystemMessages;
 use shared_types::SystemResponses;
 
+use std::fs::File;
+use std::io::{Cursor, Read};
 use std::sync::{Arc, Mutex};
 use tracing::{event, instrument, warn, Level};
 
@@ -22,12 +26,65 @@ pub async fn http_to_scheduling_system(
 ) -> HttpResponse {
     let system_responses: SystemResponses = match payload.0 {
         SystemMessages::Orchestrator(orchestrator_request) => {
-            let response = {
-                orchestrator
-                    .lock()
-                    .unwrap()
-                    .handle(orchestrator_request)
-                    .await
+            let response = match orchestrator_request {
+                OrchestratorRequest::Export(asset) => {
+                    let orchestrator_lock = orchestrator.lock().unwrap();
+                    let agent_registry_for_asset =
+                        orchestrator_lock.agent_registries.get(&asset).unwrap();
+
+                    let strategic_agent_solution = agent_registry_for_asset
+                        .strategic_agent_addr
+                        .send(shared_types::SolutionExportMessage {})
+                        .await;
+
+                    let tactical_agent_solution = orchestrator_lock
+                        .agent_registries
+                        .get(&asset)
+                        .unwrap()
+                        .tactical_agent_addr
+                        .send(shared_types::SolutionExportMessage {})
+                        .await;
+
+                    let scheduling_environment_lock =
+                        orchestrator_lock.scheduling_environment.lock().unwrap();
+
+                    let work_orders = scheduling_environment_lock.work_orders().clone();
+                    drop(scheduling_environment_lock);
+
+                    let xlsx_filename = create_excel_dump(
+                        asset.clone(),
+                        work_orders,
+                        strategic_agent_solution.unwrap().unwrap(),
+                        tactical_agent_solution.unwrap().unwrap(),
+                    )
+                    .unwrap();
+
+                    let mut buffer = Vec::new();
+
+                    let mut file = File::open(&xlsx_filename).unwrap();
+
+                    file.read_to_end(&mut buffer).unwrap();
+
+                    std::fs::remove_file(xlsx_filename)
+                        .expect("The XLSX file could not be deleted");
+
+                    let filename = format!("ordinator_xlsx_dump_for_{}", asset);
+                    let http_header = format!("attachment; filename={}", filename,);
+
+                    return HttpResponse::Ok()
+                        .content_type(
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        )
+                        .insert_header(("Content-Disposition", http_header))
+                        .body(buffer);
+                }
+                _ => {
+                    orchestrator
+                        .lock()
+                        .unwrap()
+                        .handle(orchestrator_request)
+                        .await
+                }
             };
 
             SystemResponses::Orchestrator(response.unwrap())
