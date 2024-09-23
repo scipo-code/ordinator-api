@@ -1,6 +1,7 @@
 use std::env;
 use std::fs::File;
 use std::io::BufWriter;
+use tracing::level_filters::LevelFilter;
 use tracing::{event, Level};
 use tracing_appender::non_blocking::{NonBlocking, WorkerGuard};
 use tracing_flame::FlameLayer;
@@ -26,6 +27,10 @@ pub fn setup_logging() -> (LogHandles, WorkerGuard) {
     let file_appender = tracing_appender::rolling::daily(log_dir, "ordinator.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
+    let tracing_level = dotenvy::var("TRACING_LEVEL").unwrap();
+    let profiling_level = dotenvy::var("PROFILING_LEVEL").unwrap();
+
+    dbg!(&tracing_level);
     let file_layer = fmt::layer()
         .with_writer(non_blocking)
         .json() // Output logs in JSON format
@@ -33,14 +38,14 @@ pub fn setup_logging() -> (LogHandles, WorkerGuard) {
         .with_thread_ids(true)
         .with_line_number(true) // Include line number in logs
         .with_current_span(true)
-        .with_filter(EnvFilter::from_default_env());
+        .with_filter(EnvFilter::from_env(&tracing_level));
 
     let (file_layer, file_handle) = reload::Layer::new(file_layer);
 
     let flame_layer = FlameLayer::with_file("./benches/tracing.folded")
         .unwrap()
         .0
-        .with_filter(EnvFilter::from_default_env());
+        .with_filter(EnvFilter::from_env(&profiling_level));
     let (flame_layer, flame_handle) = reload::Layer::new(flame_layer);
 
     let layers = vec![file_layer.boxed(), flame_layer.boxed()];
