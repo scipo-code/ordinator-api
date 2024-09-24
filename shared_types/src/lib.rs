@@ -12,7 +12,6 @@ use std::{
 };
 
 use actix::prelude::*;
-use chrono::{DateTime, Utc};
 use clap::{Subcommand, ValueEnum};
 
 use operational::{OperationalRequest, OperationalResponse, TomlOperationalConfiguration};
@@ -67,9 +66,10 @@ impl Message for StatusMessage {
 
 pub struct SolutionExportMessage;
 
+#[derive(Clone)]
 pub enum AgentExports {
     Strategic(HashMap<WorkOrderNumber, Period>),
-    Tactical(HashMap<WorkOrderActivity, DateTime<Utc>>),
+    Tactical(HashMap<WorkOrderActivity, Day>),
 }
 
 impl Message for SolutionExportMessage {
