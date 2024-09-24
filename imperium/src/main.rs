@@ -1,5 +1,7 @@
 pub mod commands;
 
+use std::{fs::File, io::Write};
+
 use clap::{Command, CommandFactory, Parser};
 use clap_complete::{generate, Generator, Shell};
 use commands::Commands;
@@ -26,8 +28,10 @@ fn main() {
         print_completions(generator, &mut cmd);
     }
 
-    dbg!();
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::blocking::Client::builder()
+        .timeout(None)
+        .build()
+        .unwrap();
 
     dbg!();
     let system_message = commands::handle_command(cli, &client);
@@ -35,8 +39,6 @@ fn main() {
 
     let response = send_http(&client, system_message);
     dbg!();
-
-    println!("{}", response);
 }
 
 fn send_http(client: &Client, system_message: SystemMessages) -> String {
@@ -60,14 +62,23 @@ fn send_http(client: &Client, system_message: SystemMessages) -> String {
         .send()
         .expect("Could not send request");
 
-    dbg!();
+    dbg!(&res);
     // Check the response status and process the response as needed
+    let header = res.headers().clone();
     if res.status().is_success() {
-        //println!("Request sent successfully");
+        match header.get("Content-Disposition") {
+            Some(download_header) => {
+                let content = res.bytes().unwrap().clone();
+                let mut output = File::create("ordinator_dump.xlsx").unwrap();
+                output.write_all(&content).unwrap();
+                String::from("Downloaded File")
+            }
+            None => res.text().unwrap(),
+        }
     } else {
         eprintln!("Failed to send request: {:?}", res.status());
+        String::from("Failed to get response")
     }
-    res.text().unwrap()
 }
 
 fn print_completions<G: Generator>(gen: G, cmd: &mut Command) {

@@ -3,7 +3,8 @@ pub mod delegate;
 
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, Mutex}, time::Instant,
+    sync::{Arc, Mutex},
+    time::Instant,
 };
 
 use actix::prelude::*;
@@ -61,7 +62,7 @@ pub enum TransitionTypes {
 impl TransitionTypes {
     pub fn resource(&self) -> &Resources {
         match self {
-            TransitionTypes::Entering((_,tac)) => (**tac).get_resource(),
+            TransitionTypes::Entering((_, tac)) => (**tac).get_resource(),
             TransitionTypes::Leaving(_) => panic!(),
             TransitionTypes::Unchanged(_) => panic!(),
             TransitionTypes::Changed((_, tac)) => (**tac).get_resource(),
@@ -92,7 +93,7 @@ impl Actor for SupervisorAgent {
             self.supervisor_id.clone(),
             ctx.address(),
         ));
-        ctx.notify(ScheduleIteration {});
+        // ctx.notify(ScheduleIteration {});
     }
 }
 
@@ -109,7 +110,6 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
         ctx.notify(ScheduleIteration {});
     }
 }
-
 
 impl SupervisorAgent {
     pub fn new(
@@ -143,9 +143,13 @@ impl SupervisorAgent {
         >,
     ) -> TransitionSets {
         // Remember to upa
-        let supervisor_set: HashSet<WorkOrderActivity> =
-            self.supervisor_algorithm.tactical_operations.keys().cloned().collect();
-                
+        let supervisor_set: HashSet<WorkOrderActivity> = self
+            .supervisor_algorithm
+            .tactical_operations
+            .keys()
+            .cloned()
+            .collect();
+
         // TODO! .get_unique_woa();
 
         let tactical_set: HashSet<WorkOrderActivity> = tactical_supervisor_link
@@ -160,9 +164,7 @@ impl SupervisorAgent {
 
         let done_woas: HashSet<TransitionTypes> = done_set
             .into_iter()
-            .map(|woa| {
-                TransitionTypes::Done(woa)
-            })
+            .map(|woa| TransitionTypes::Done(woa))
             .collect();
 
         let mut changed_woas = HashSet::new();
@@ -173,25 +175,25 @@ impl SupervisorAgent {
             .intersection(&tactical_set)
             .cloned()
             .for_each(|woa| {
-                    let tactical_operation = self.supervisor_algorithm.tactical_operations.get(&woa).unwrap().clone();
-                    if tactical_operation
-                        == *tactical_supervisor_link.get(&woa).unwrap()
-                    {
-                        let transition_type = TransitionTypes::Unchanged(woa);
-                        unchanged_woas.insert(transition_type);
-                    } else {
-                        let transition_type = TransitionTypes::Changed((woa, tactical_operation));
-                        changed_woas.insert(transition_type);
-                    }
-
+                let tactical_operation = self
+                    .supervisor_algorithm
+                    .tactical_operations
+                    .get(&woa)
+                    .unwrap()
+                    .clone();
+                if tactical_operation == *tactical_supervisor_link.get(&woa).unwrap() {
+                    let transition_type = TransitionTypes::Unchanged(woa);
+                    unchanged_woas.insert(transition_type);
+                } else {
+                    let transition_type = TransitionTypes::Changed((woa, tactical_operation));
+                    changed_woas.insert(transition_type);
+                }
             });
 
         let leaving_woas = supervisor_set
             .difference(&tactical_set)
             .cloned()
-            .map(|woa| {
-                TransitionTypes::Leaving(woa)
-            })
+            .map(|woa| TransitionTypes::Leaving(woa))
             .collect::<HashSet<TransitionTypes>>();
 
         let entering_woas = tactical_set
@@ -203,11 +205,10 @@ impl SupervisorAgent {
             })
             .collect::<HashSet<TransitionTypes>>();
 
-        
         assert!(leaving_woas.is_disjoint(&entering_woas));
 
         let mut final_set = entering_woas;
-        
+
         final_set.extend(unchanged_woas);
         final_set.extend(leaving_woas);
         final_set.extend(done_woas);
@@ -238,7 +239,7 @@ impl Handler<SetAddr> for SupervisorAgent {
 type StrategicMessage = ();
 type TacticalMessage = HashMap<(WorkOrderNumber, ActivityNumber), Arc<TacticalOperation>>;
 type SupervisorMessage = ();
-// Why do we send this message? I am not really sure? 
+// Why do we send this message? I am not really sure?
 type OperationalMessage = ((Id, WorkOrderActivity), OperationalObjective);
 
 impl
@@ -280,38 +281,44 @@ impl
                     .are_unassigned_woas_valid());
 
                 for transition_type in &transition_sets {
-                        match transition_type {
-                            TransitionTypes::Entering((work_order_activity, tactical_operation)) => {
-                                let insert_option = self.supervisor_algorithm.tactical_operations.insert(*work_order_activity, tactical_operation.clone());
-                                match insert_option {
-                                    Some(_) => panic!(),
-                                    None => (),
-                                }
-                                
-                                for operational_agent in &self.operational_agent_addrs {
-                                    if operational_agent.0 .1.contains(transition_type.resource()) {
-                                        self.supervisor_algorithm
-                                            .operational_state
-                                            .update_operaitonal_state(
-                                                transition_type.clone(),
-                                                operational_agent,
-                                                self.supervisor_id.clone(),
-                                            )
-                                    }
+                    match transition_type {
+                        TransitionTypes::Entering((work_order_activity, tactical_operation)) => {
+                            let insert_option = self
+                                .supervisor_algorithm
+                                .tactical_operations
+                                .insert(*work_order_activity, tactical_operation.clone());
+                            match insert_option {
+                                Some(_) => panic!(),
+                                None => (),
+                            }
+
+                            for operational_agent in &self.operational_agent_addrs {
+                                if operational_agent.0 .1.contains(transition_type.resource()) {
+                                    self.supervisor_algorithm
+                                        .operational_state
+                                        .update_operaitonal_state(
+                                            transition_type.clone(),
+                                            operational_agent,
+                                            self.supervisor_id.clone(),
+                                        )
                                 }
                             }
-                            TransitionTypes::Leaving(work_order_activity) => {
-                                let remove_option = self.supervisor_algorithm.tactical_operations.remove(work_order_activity);
-                                match remove_option {
-                                    Some(_) => {
-                                        event!(Level::DEBUG, work_order_activity = ?work_order_activity, "TacticalOperation left the SupervisorAgent");
-                                    }
-                                    None => {
-                                        event!(Level::ERROR, work_order_activity = ?work_order_activity, all_work_order_activities = ?self.supervisor_algorithm.tactical_operations.keys());
-                                        panic!();
-                                    }
+                        }
+                        TransitionTypes::Leaving(work_order_activity) => {
+                            let remove_option = self
+                                .supervisor_algorithm
+                                .tactical_operations
+                                .remove(work_order_activity);
+                            match remove_option {
+                                Some(_) => {
+                                    event!(Level::DEBUG, work_order_activity = ?work_order_activity, "TacticalOperation left the SupervisorAgent");
                                 }
-                                for operational_agent in &self.operational_agent_addrs {
+                                None => {
+                                    event!(Level::ERROR, work_order_activity = ?work_order_activity, all_work_order_activities = ?self.supervisor_algorithm.tactical_operations.keys());
+                                    panic!();
+                                }
+                            }
+                            for operational_agent in &self.operational_agent_addrs {
                                 let leaving_delegate_option = self
                                     .supervisor_algorithm
                                     .operational_state
@@ -330,47 +337,56 @@ impl
                                         event!(Level::DEBUG, "If you get this, and suspect an error, check that the woa that is being dropped does not match the resource of operational agent. This could be a very pernicious bug if true, but a significant rewrite of the type system is needed to assert! this")
                                     }
                                 }
-                                }
                             }
-                            TransitionTypes::Unchanged(delegate) => {}
-                            TransitionTypes::Changed(delegate) => {
-                                todo!();
-                            }
-                            TransitionTypes::Done(delegate) => {
-                                for operational_agent in &self.operational_agent_addrs {
-                                    self.supervisor_algorithm
-                                        .operational_state
-                                        .update_operaitonal_state(
-                                            transition_type.clone(),
-                                            operational_agent,
-                                            self.supervisor_id.clone(),
-                                        )
-                                }
+                        }
+                        TransitionTypes::Unchanged(delegate) => {}
+                        TransitionTypes::Changed(delegate) => {
+                            todo!();
+                        }
+                        TransitionTypes::Done(delegate) => {
+                            for operational_agent in &self.operational_agent_addrs {
+                                self.supervisor_algorithm
+                                    .operational_state
+                                    .update_operaitonal_state(
+                                        transition_type.clone(),
+                                        operational_agent,
+                                        self.supervisor_id.clone(),
+                                    )
                             }
                         }
                     }
+                }
                 assert!(self
                     .supervisor_algorithm
                     .operational_state
                     .are_unassigned_woas_valid());
 
-                let tactical_operation_woas: HashSet<WorkOrderActivity> = self.supervisor_algorithm.tactical_operations.keys().cloned().collect();
-                let operational_state_woas: HashSet<WorkOrderActivity> = self.supervisor_algorithm.operational_state.get_iter().map(|(woa,_ )| {
-                    woa.1
-                }).collect();
-                let symmetric_difference = tactical_operation_woas.symmetric_difference(&operational_state_woas).cloned().collect::<HashSet<WorkOrderActivity>>(); 
+                let tactical_operation_woas: HashSet<WorkOrderActivity> = self
+                    .supervisor_algorithm
+                    .tactical_operations
+                    .keys()
+                    .cloned()
+                    .collect();
+                let operational_state_woas: HashSet<WorkOrderActivity> = self
+                    .supervisor_algorithm
+                    .operational_state
+                    .get_iter()
+                    .map(|(woa, _)| woa.1)
+                    .collect();
+                let symmetric_difference = tactical_operation_woas
+                    .symmetric_difference(&operational_state_woas)
+                    .cloned()
+                    .collect::<HashSet<WorkOrderActivity>>();
 
                 if symmetric_difference.is_empty() {
-                    
                 } else {
-                    // event!(Level::ERROR, 
+                    // event!(Level::ERROR,
                     //     non_corresponding_work_order_activities = ? symmetric_difference,
                     //     in_the_tactical_operations = ?symmetric_difference.intersection(&tactical_operation_woas),
                     //     in_the_operational_state_woas = ?symmetric_difference.intersection(&operational_state_woas),
                     // );
                     // panic!()
                 }
-
 
                 if instant.elapsed().as_secs_f32() > 4.0 {
                     panic!()

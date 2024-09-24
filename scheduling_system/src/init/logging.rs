@@ -1,6 +1,7 @@
 use std::env;
 use std::fs::File;
 use std::io::BufWriter;
+use tracing::level_filters::LevelFilter;
 use tracing::{event, Level};
 use tracing_appender::non_blocking::{NonBlocking, WorkerGuard};
 use tracing_flame::FlameLayer;
@@ -22,7 +23,8 @@ pub struct LogHandles {
 }
 
 pub fn setup_logging() -> (LogHandles, WorkerGuard) {
-    let log_dir = env::var("ORDINATOR_LOG_DIR").unwrap_or("./logging/logs".to_string());
+    let log_dir = env::var("ORDINATOR_LOG_DIR")
+        .expect("A logging/tracing directory should be set in the .env file");
     let file_appender = tracing_appender::rolling::daily(log_dir, "ordinator.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
@@ -33,14 +35,14 @@ pub fn setup_logging() -> (LogHandles, WorkerGuard) {
         .with_thread_ids(true)
         .with_line_number(true) // Include line number in logs
         .with_current_span(true)
-        .with_filter(EnvFilter::from_default_env());
+        .with_filter(EnvFilter::from_env("TRACING_LEVEL"));
 
     let (file_layer, file_handle) = reload::Layer::new(file_layer);
 
-    let flame_layer = FlameLayer::with_file("./benches/tracing.folded")
+    let flame_layer = FlameLayer::with_file("PROFILING_FILE")
         .unwrap()
         .0
-        .with_filter(EnvFilter::from_default_env());
+        .with_filter(EnvFilter::from_env("PROFILING_LEVEL"));
     let (flame_layer, flame_handle) = reload::Layer::new(flame_layer);
 
     let layers = vec![file_layer.boxed(), flame_layer.boxed()];
