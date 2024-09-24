@@ -15,7 +15,8 @@ use shared_types::{
     scheduling_environment::{
         time_environment::day::Day,
         work_order::{
-            operation::{ActivityNumber, Work}, WorkOrderActivity, WorkOrderNumber
+            operation::{ActivityNumber, Work},
+            WorkOrderActivity, WorkOrderNumber,
         },
         worker_environment::resources::Id,
     },
@@ -34,13 +35,16 @@ use crate::agents::{
 
 use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
 
-use super::{supervisor_agent::{algorithm::MarginalFitness, delegate::Delegate , SupervisorAgent}, tactical_agent::tactical_algorithm::TacticalOperation};
 use super::traits::LargeNeighborHoodSearch;
 use super::traits::TestAlgorithm;
 use super::ScheduleIteration;
 use super::SetAddr;
 use super::StateLinkError;
 use super::UpdateWorkOrderMessage;
+use super::{
+    supervisor_agent::{algorithm::MarginalFitness, delegate::Delegate, SupervisorAgent},
+    tactical_agent::tactical_algorithm::TacticalOperation,
+};
 
 #[allow(dead_code)]
 pub struct OperationalAgent {
@@ -169,7 +173,7 @@ impl Actor for OperationalAgent {
             Some(unavailability_end_event),
         ));
 
-        ctx.notify(ScheduleIteration {})
+        // ctx.notify(ScheduleIteration {})
     }
 }
 
@@ -187,7 +191,14 @@ impl Handler<ScheduleIteration> for OperationalAgent {
         temporary_schedule.schedule();
 
         temporary_schedule.calculate_objective_value();
-        if temporary_schedule.objective_value.load(std::sync::atomic::Ordering::Acquire) > self.operational_algorithm.objective_value.load(Ordering::Acquire) {
+        if temporary_schedule
+            .objective_value
+            .load(std::sync::atomic::Ordering::Acquire)
+            > self
+                .operational_algorithm
+                .objective_value
+                .load(Ordering::Acquire)
+        {
             self.operational_algorithm = temporary_schedule;
             info!(operational_objective = ?self.operational_algorithm.objective_value);
         };
@@ -250,12 +261,24 @@ pub struct InitialMessage {
     delegate: Arc<RwLock<Delegate>>,
     tactical_operation: Arc<TacticalOperation>,
     marginal_fitness: MarginalFitness,
-    supervisor_id: Id
+    supervisor_id: Id,
 }
 
 impl InitialMessage {
-    pub fn new(work_order_activity: WorkOrderActivity, delegate: Arc<RwLock<Delegate>>, tactical_operation: Arc<TacticalOperation>, marginal_fitness: MarginalFitness, supervisor_id: Id) -> Self {
-        Self { work_order_activity, delegate, tactical_operation, marginal_fitness, supervisor_id }
+    pub fn new(
+        work_order_activity: WorkOrderActivity,
+        delegate: Arc<RwLock<Delegate>>,
+        tactical_operation: Arc<TacticalOperation>,
+        marginal_fitness: MarginalFitness,
+        supervisor_id: Id,
+    ) -> Self {
+        Self {
+            work_order_activity,
+            delegate,
+            tactical_operation,
+            marginal_fitness,
+            supervisor_id,
+        }
     }
 }
 
@@ -286,7 +309,11 @@ impl
         let span = state_link_wrapper.span;
         let _enter = span.enter();
 
-        assert!(!self.operational_algorithm.operational_parameters.iter().any(|(_, op)| op.delegated.read().unwrap().is_done()));
+        assert!(!self
+            .operational_algorithm
+            .operational_parameters
+            .iter()
+            .any(|(_, op)| op.delegated.read().unwrap().is_done()));
         event!(
             Level::INFO,
             self.operational_algorithm.operational_parameters =
@@ -306,23 +333,27 @@ impl
                 let operation: &Operation =
                     scheduling_environment.operation(&initial_message.work_order_activity);
 
-                let (start_datetime, end_datetime) =
-                    self.determine_start_and_finish_times(&initial_message.tactical_operation.scheduled);
+                let (start_datetime, end_datetime) = self.determine_start_and_finish_times(
+                    &initial_message.tactical_operation.scheduled,
+                );
 
                 assert!(operation.work_remaining() > &Work::from(0.0));
-            
+
                 let operational_parameter = OperationalParameter::new(
                     operation.work_remaining().clone(),
                     operation.operation_analytic.preparation_time.clone(),
                     start_datetime,
                     end_datetime,
                     initial_message.delegate.clone(),
-                    initial_message.marginal_fitness, 
+                    initial_message.marginal_fitness,
                     initial_message.supervisor_id,
                 );
-                 
-                let replaced_operational_parameter = self.operational_algorithm
-                    .insert_optimized_operation(initial_message.work_order_activity, operational_parameter);
+
+                let replaced_operational_parameter =
+                    self.operational_algorithm.insert_optimized_operation(
+                        initial_message.work_order_activity,
+                        operational_parameter,
+                    );
 
                 match replaced_operational_parameter {
                     Some(operational_parameter) => {
@@ -338,7 +369,6 @@ impl
 
                 info!(id = ?self.id_operational, tactical_operation = ?initial_message.tactical_operation);
                 Ok(())
-                
             }
             StateLink::Operational(_) => todo!(),
         }
@@ -358,7 +388,9 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
                 let operational_response_status = OperationalStatusResponse::new(
                     self.id_operational.clone(),
                     self.operational_algorithm.operational_parameters.len(),
-                    self.operational_algorithm.objective_value.load(Ordering::Acquire),
+                    self.operational_algorithm
+                        .objective_value
+                        .load(Ordering::Acquire),
                 );
                 Ok(OperationalResponseMessage::Status(
                     operational_response_status,

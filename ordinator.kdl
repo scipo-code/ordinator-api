@@ -6,7 +6,7 @@ layout {
 				pane size="30%" split_direction="vertical" {
 					pane size="15%" name="Ordinator watch" {	
 			  			command "taskset"
-			      		args "-c" "2-8" "cargo" "watch" "-w" "scheduling_system" "-w" "shared_types" "-w" "data_processing" "-x" "run --bin scheduling_system -- $ORDINATOR_INPUT"
+			      		args "-c" "4-8" "cargo" "watch" "-i" "\"*.xlsx\"" "-w" "scheduling_system" "-w" "shared_types" "-x" "run --bin scheduling_system -- $ORDINATOR_INPUT"
 		    	  		cwd "$ORDINATOR_PATH"
 		    		}
 			    	pane size="3%" name="Imperium watch"{
@@ -37,36 +37,24 @@ layout {
 			}
 		}  
 	    pane size=1 borderless=true {
-
 	      // plugin location="status-bar"
 	      plugin location="tab-bar"
 	      // plugin location="compact-bar"
 	    }
     }
-    tab name="tracing" {
+    tab name="Auxiliary" {
     	pane split_direction="vertical" {
 	    	pane name="Orchestrator" {
 	    		cwd "$ORDINATOR_PATH"
 	    	}
-			pane split_direction="horizontal" {
-		    	pane name="Strategic" {
-		    		cwd "$ORDINATOR_PATH"
-	    		command "./logging/strategic_logging.sh"
-		    	}
-		    	pane name="Tactical" {
-		    		cwd "$ORDINATOR_PATH"
-	    		command "./logging/tactical_logging.sh"
-		    	}
-			}
-			pane split_direction="horizontal" {
-		    	pane name="Supervisor" {
-		    		cwd "$ORDINATOR_PATH"
-		    		command "./logging/supervisor_logging.sh"
-		    	}
-		    	pane name="Operational" {
-		    		cwd "$ORDINATOR_PATH"
-		    		command "./logging/operational_logging.sh"
-		    	}
+	    	pane name="Qutebrowser" {
+	    		command "qutebrowser"
+	    		args "&"
+	    	}
+			
+	    	pane name="Logging" {
+	    		cwd "$ORDINATOR_PATH"
+	    		command "./logging/operational_logging.sh"
 			}
     	}
 	    pane size=1 borderless=true {

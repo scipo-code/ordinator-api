@@ -1,9 +1,4 @@
-use std::sync::{Arc, RwLock};
-
-use actix::Message;
-use shared_types::scheduling_environment::{work_order::WorkOrderActivity, worker_environment::resources::Id};
-
-use crate::agents::tactical_agent::tactical_algorithm::TacticalOperation;
+use shared_types::scheduling_environment::work_order::WorkOrderActivity;
 
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
 pub enum Delegate {

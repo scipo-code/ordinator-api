@@ -263,7 +263,7 @@ impl Handler<SolutionExportMessage> for TacticalAgent {
     type Result = Option<AgentExports>;
 
     fn handle(&mut self, _msg: SolutionExportMessage, _ctx: &mut Context<Self>) -> Self::Result {
-        let mut tactical_solution: HashMap<WorkOrderActivity, DateTime<Utc>> = HashMap::new();
+        let mut tactical_solution: HashMap<WorkOrderActivity, Day> = HashMap::new();
         for (work_order_number, optimized_work_order) in
             self.tactical_algorithm.optimized_work_orders()
         {
@@ -271,7 +271,7 @@ impl Handler<SolutionExportMessage> for TacticalAgent {
             {
                 tactical_solution.insert(
                     (*work_order_number, *activity),
-                    *operation.scheduled.first().unwrap().0.date(),
+                    operation.scheduled.first().unwrap().0.clone(),
                 );
             }
         }
