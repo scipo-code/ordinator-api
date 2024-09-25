@@ -2,6 +2,7 @@ use shared_types::AlgorithmState;
 
 #[allow(dead_code)]
 pub trait LargeNeighborHoodSearch {
+    type BetterSolution;
     type SchedulingRequest;
     type SchedulingResponse;
     type ResourceRequest;
@@ -13,7 +14,7 @@ pub trait LargeNeighborHoodSearch {
 
     type Error;
 
-    fn calculate_objective_value(&mut self);
+    fn calculate_objective_value(&mut self) -> Self::BetterSolution;
 
     fn schedule(&mut self);
 

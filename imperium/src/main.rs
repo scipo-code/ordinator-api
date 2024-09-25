@@ -33,12 +33,11 @@ fn main() {
         .build()
         .unwrap();
 
-    dbg!();
     let system_message = commands::handle_command(cli, &client);
     dbg!(serde_json::to_string(&system_message).unwrap());
 
     let response = send_http(&client, system_message);
-    dbg!();
+    println!("{}", response);
 }
 
 fn send_http(client: &Client, system_message: SystemMessages) -> String {
@@ -54,7 +53,6 @@ fn send_http(client: &Client, system_message: SystemMessages) -> String {
         }
     };
 
-    dbg!();
     let res = client
         .post(url)
         .body(system_message_json)
@@ -67,7 +65,7 @@ fn send_http(client: &Client, system_message: SystemMessages) -> String {
     let header = res.headers().clone();
     if res.status().is_success() {
         match header.get("Content-Disposition") {
-            Some(download_header) => {
+            Some(_download_header) => {
                 let content = res.bytes().unwrap().clone();
                 let mut output = File::create("ordinator_dump.xlsx").unwrap();
                 output.write_all(&content).unwrap();
