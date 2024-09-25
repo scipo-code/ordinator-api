@@ -43,15 +43,11 @@ impl Delegate {
         matches!(self, Self::Drop)
     }
 
-    pub fn is_fixed(&self) -> bool {
-        matches!(self, Self::Fixed)
-    }
-
     pub fn state_change_to_drop(&mut self) {
         match self {
             Delegate::Assign => {
                 panic!("The program is not ready to handle this yet");
-                *self = Delegate::Drop;
+                // *self = Delegate::Drop;
             }
             Delegate::Assess => {
                 let delegate = Delegate::Drop;

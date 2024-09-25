@@ -66,7 +66,7 @@ fn send_http(client: &Client, system_message: SystemMessages) -> String {
     let header = res.headers().clone();
     if res.status().is_success() {
         match header.get("Content-Disposition") {
-            Some(download_header) => {
+            Some(_download_header) => {
                 let content = res.bytes().unwrap().clone();
                 let mut output = File::create("ordinator_dump.xlsx").unwrap();
                 output.write_all(&content).unwrap();

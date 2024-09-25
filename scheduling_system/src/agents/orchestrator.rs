@@ -1,6 +1,4 @@
 use actix::prelude::*;
-use actix_web::HttpResponse;
-use data_processing::excel_dumps::create_excel_dump;
 use shared_types::orchestrator::OrchestratorRequest;
 
 use shared_types::scheduling_environment::time_environment::day::Day;
@@ -20,7 +18,6 @@ use shared_types::Asset;
 use shared_types::TomlAgents;
 use tracing::instrument;
 use std::collections::HashMap;
-use std::io::Cursor;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -87,7 +84,6 @@ impl Orchestrator {
                         work_order.work_order_analytic.status_codes = status_codes;
                         work_order.initialize_weight();
                         let asset = work_order.functional_location().asset.clone();
-                        let main_resource = work_order.main_work_center.clone();
                         
                         let update_work_order_message = UpdateWorkOrderMessage(work_order_number);
                         let actor_registry = self.agent_registries.get(&asset).unwrap();
@@ -95,11 +91,11 @@ impl Orchestrator {
                         actor_registry.tactical_agent_addr.do_send(update_work_order_message.clone());
 
                         panic!("Fix the bug below");
-                            // TODO actor_registry.supervisor_agent_addrs.iter().find(|id| id.0.2.as_ref().unwrap() == &main_resource).unwrap().1.do_send(update_work_order_message.clone());
-                        for actor in actor_registry.operational_agent_addrs.values() {
-                            actor.do_send(update_work_order_message.clone());
-                        };
-                        Ok(OrchestratorResponse::RequestStatus(format!("Status codes for {:?} updated correctly", work_order_number)))
+                        // TODO actor_registry.supervisor_agent_addrs.iter().find(|id| id.0.2.as_ref().unwrap() == &main_resource).unwrap().1.do_send(update_work_order_message.clone());
+                        // for actor in actor_registry.operational_agent_addrs.values() {
+                        //     actor.do_send(update_work_order_message.clone());
+                        // };
+                        // Ok(OrchestratorResponse::RequestStatus(format!("Status codes for {:?} updated correctly", work_order_number)))
                     }
                     None => Err(format!("Tried to update the status code for {:?}, but it was not found in the scheduling environment", work_order_number))
                 }
@@ -374,7 +370,7 @@ impl Orchestrator {
                 let orchestrator_response = OrchestratorResponse::RequestStatus(response_string);
                 Ok(orchestrator_response)
             }
-            OrchestratorRequest::Export(asset) => {
+            OrchestratorRequest::Export(_asset) => {
                 panic!();
             }
         }

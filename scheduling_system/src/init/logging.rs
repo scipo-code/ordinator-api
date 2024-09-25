@@ -1,8 +1,6 @@
-use chrono::Utc;
 use std::fs::File;
 use std::io::BufWriter;
 use std::{env, fs};
-use tracing::level_filters::LevelFilter;
 use tracing::{event, Level};
 use tracing_appender::non_blocking::{NonBlocking, WorkerGuard};
 use tracing_flame::FlameLayer;

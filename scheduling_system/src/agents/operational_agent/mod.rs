@@ -1,7 +1,7 @@
 pub mod algorithm;
 use std::{
     collections::HashMap,
-    sync::{atomic::Ordering, Arc, Mutex, RwLock},
+    sync::{atomic::Ordering, Arc, Mutex},
 };
 
 use actix::prelude::*;
@@ -27,7 +27,7 @@ use shared_types::scheduling_environment::{
     work_order::operation::Operation, SchedulingEnvironment,
 };
 
-use tracing::{error, event, info, instrument, span, warn, Level};
+use tracing::{event, info, instrument, warn, Level};
 
 use crate::agents::{
     operational_agent::algorithm::OperationalParameter, StateLink, StateLinkWrapper,
@@ -42,7 +42,7 @@ use super::StateLinkError;
 use super::UpdateWorkOrderMessage;
 use super::{supervisor_agent::delegate::AtomicDelegate, traits::LargeNeighborHoodSearch};
 use super::{
-    supervisor_agent::{algorithm::MarginalFitness, delegate::Delegate, SupervisorAgent},
+    supervisor_agent::{algorithm::MarginalFitness, SupervisorAgent},
     tactical_agent::tactical_algorithm::TacticalOperation,
 };
 
@@ -99,31 +99,23 @@ impl OperationalAgent {
         &self,
         operational_infeasible_cases: &mut OperationalInfeasibleCases,
     ) {
-        for (index_1, operational_solution_1) in self
+        for (_, operational_solution_1) in self
             .operational_algorithm
             .operational_solutions
             .0
             .iter()
             .enumerate()
         {
-            for (index_2, operational_solution_2) in self
+            for (_, operational_solution_2) in self
                 .operational_algorithm
                 .operational_solutions
                 .0
                 .iter()
                 .enumerate()
             {
-                if index_1 == index_2
-                    || operational_solution_1.1.is_none()
-                    || operational_solution_2.1.is_none()
-                {
-                    continue;
-                }
-
-                if operational_solution_1.1.as_ref().unwrap().start_time()
-                    > operational_solution_2.1.as_ref().unwrap().finish_time()
-                    && operational_solution_2.1.as_ref().unwrap().finish_time()
-                        > operational_solution_1.1.as_ref().unwrap().start_time()
+                if operational_solution_1.1.start_time() > operational_solution_2.1.finish_time()
+                    && operational_solution_2.1.finish_time()
+                        > operational_solution_1.1.start_time()
                 {
                     operational_infeasible_cases.operation_overlap =
                         ConstraintState::Infeasible(format!(
@@ -165,12 +157,12 @@ impl Actor for OperationalAgent {
 
         self.operational_algorithm.operational_solutions.0.push((
             (WorkOrderNumber(0), ActivityNumber(0)),
-            Some(unavailability_start_event),
+            unavailability_start_event,
         ));
 
         self.operational_algorithm.operational_solutions.0.push((
             (WorkOrderNumber(0), ActivityNumber(0)),
-            Some(unavailability_end_event),
+            unavailability_end_event,
         ));
 
         ctx.notify(ScheduleIteration {})

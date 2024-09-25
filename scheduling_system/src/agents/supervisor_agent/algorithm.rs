@@ -1,12 +1,10 @@
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
-    sync::{atomic::AtomicUsize, Arc, RwLock},
-    time::Instant,
+    sync::{atomic::AtomicUsize, Arc},
 };
 
 use actix::Addr;
-use chrono::TimeDelta;
 use shared_types::{
     agent_error::AgentError,
     scheduling_environment::{
@@ -208,8 +206,8 @@ impl OperationalStateMachine {
         }
     }
 
+    // TODO Rewrite this.
     pub fn are_unassigned_woas_valid(&self) -> bool {
-        let instant = Instant::now();
         for work_order_activity in self.0.keys().map(|(_, woa)| woa).collect::<Vec<_>>() {
             // What is it that is mutable here?
             let mut delegates_by_woa = self

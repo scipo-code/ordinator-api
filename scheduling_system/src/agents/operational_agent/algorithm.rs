@@ -2,7 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     sync::{
         atomic::{AtomicUsize, Ordering},
-        Arc, RwLock,
+        Arc,
     },
 };
 
@@ -29,10 +29,7 @@ use shared_types::{
 use tracing::{debug, event, trace, Level};
 
 use crate::agents::{
-    supervisor_agent::{
-        algorithm::MarginalFitness,
-        delegate::{AtomicDelegate, Delegate},
-    },
+    supervisor_agent::{algorithm::MarginalFitness, delegate::AtomicDelegate},
     traits::LargeNeighborHoodSearch,
 };
 
@@ -183,7 +180,7 @@ impl OperationalAlgorithm {
 }
 
 #[derive(Clone)]
-pub struct OperationalSolutions(pub Vec<(WorkOrderActivity, Option<OperationalSolution>)>);
+pub struct OperationalSolutions(pub Vec<(WorkOrderActivity, OperationalSolution)>);
 
 trait OperationalFunctions {
     type Key;
@@ -202,7 +199,7 @@ impl OperationalFunctions for OperationalSolutions {
         for (index, operational_solution) in self
             .0
             .iter()
-            .filter_map(|os| os.1.clone())
+            .map(|os| os.1.clone())
             .collect::<Vec<_>>()
             .windows(2)
             .map(|x| (&x[0], &x[1]))
@@ -235,34 +232,23 @@ impl OperationalFunctions for OperationalSolutions {
                 };
 
                 if !self.is_operational_solution_already_scheduled(key) {
-                    self.0.insert(index + 1, (key, Some(operational_solution)));
-                    let assignments: Vec<&Assignment> = self
-                        .0
-                        .iter()
-                        .filter_map(|os| os.1.as_ref())
-                        .flat_map(|a| &a.assignments)
-                        .collect();
+                    self.0.insert(index + 1, (key, operational_solution));
+                    let assignments: Vec<&Assignment> =
+                        self.0.iter().flat_map(|(_, os)| &os.assignments).collect();
 
                     assert!(no_overlap(assignments));
                 }
                 break;
             }
         }
-        if !self.is_operational_solution_already_scheduled(key) {
-            self.0.push((key, None));
-        };
     }
 
     fn containing_operational_solution(&self, time: DateTime<Utc>) -> ContainOrNextOrNone {
         let containing: Option<OperationalSolution> = self
             .0
             .iter()
-            .find_map(|operational_solution| {
-                operational_solution
-                    .1
-                    .as_ref()
-                    .filter(|os| os.contains(time))
-            })
+            .find(|operational_solution| operational_solution.1.contains(time))
+            .map(|(_, os)| os)
             .cloned();
 
         match containing {
@@ -271,9 +257,8 @@ impl OperationalFunctions for OperationalSolutions {
                 let next: Option<OperationalSolution> = self
                     .0
                     .iter()
-                    .filter_map(|os| os.1.as_ref())
-                    .find(|start| start.start_time() > time)
-                    .cloned();
+                    .map(|os| os.1.clone())
+                    .find(|start| start.start_time() > time);
 
                 match next {
                     Some(operational_solution) => ContainOrNextOrNone::Next(operational_solution),
@@ -436,10 +421,6 @@ impl OperationalParameter {
             supervisor,
         }
     }
-
-    pub(crate) fn is_fixed(&self) -> bool {
-        self.delegated.load(Ordering::Acquire).is_fixed()
-    }
 }
 
 impl LargeNeighborHoodSearch for OperationalAlgorithm {
@@ -466,8 +447,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             .operational_solutions
             .0
             .iter()
-            .filter_map(|operational_solution| operational_solution.1.as_ref())
-            .flat_map(|os| os.assignments.iter())
+            .flat_map(|(_, os)| os.assignments.iter())
             .cloned()
             .collect();
 
@@ -582,12 +562,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             );
             event!(
                 Level::INFO,
-                number_of_activities_in_operational_agent = self
-                    .operational_solutions
-                    .0
-                    .iter()
-                    .filter(|(_, os)| os.is_some())
-                    .count()
+                number_of_activities_in_operational_agent = self.operational_solutions.0.len()
             );
             trace!(number_of_operations = ?self.operational_solutions.0.len());
         }
@@ -774,41 +749,32 @@ impl OperationalAlgorithm {
         operational_parameter: &OperationalParameter,
     ) -> DateTime<Utc> {
         for operational_solution in self.operational_solutions.0.windows(2) {
-            let start_of_interval = match &operational_solution[0].1 {
-                Some(operational_solution) => {
-                    let mut current_time = operational_solution.assignments.last().unwrap().finish;
+            let start_of_interval = {
+                let mut current_time = operational_solution[0].1.assignments.last().unwrap().finish;
 
-                    if current_time < operational_parameter.start_window {
-                        current_time = operational_parameter.start_window;
-                    }
+                if current_time < operational_parameter.start_window {
+                    current_time = operational_parameter.start_window;
+                }
 
-                    let current_time_option = self.update_current_time_based_on_event(current_time);
+                let current_time_option = self.update_current_time_based_on_event(current_time);
 
-                    current_time = match current_time_option {
-                        Some(new_current_time) => new_current_time,
-                        None => current_time,
-                    };
+                current_time = match current_time_option {
+                    Some(new_current_time) => new_current_time,
+                    None => current_time,
+                };
 
-                    loop {
-                        let (time_to_next_event, next_event) =
-                            self.determine_next_event(&current_time);
+                loop {
+                    let (time_to_next_event, next_event) = self.determine_next_event(&current_time);
 
-                        if time_to_next_event.is_zero() {
-                            current_time += next_event.time_delta();
-                        } else {
-                            break current_time;
-                        }
+                    if time_to_next_event.is_zero() {
+                        current_time += next_event.time_delta();
+                    } else {
+                        break current_time;
                     }
                 }
-                None => break,
             };
 
-            let end_of_interval = match &operational_solution[1].1 {
-                Some(operational_solution) => {
-                    operational_solution.assignments.first().unwrap().start
-                }
-                None => self.availability.end_date,
-            };
+            let end_of_interval = operational_solution[1].1.assignments.first().unwrap().start;
 
             if operational_parameter.end_window.min(end_of_interval)
                 - operational_parameter.start_window.max(start_of_interval)
@@ -978,7 +944,7 @@ fn equality_between_time_interval_and_assignments(all_events: Vec<&Assignment>) 
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, RwLock};
+    use std::sync::Arc;
 
     use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
     use proptest::prelude::*;
