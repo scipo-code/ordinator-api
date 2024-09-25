@@ -33,7 +33,6 @@ fn main() {
         .build()
         .unwrap();
 
-    dbg!();
     let system_message = commands::handle_command(cli, &client);
     dbg!(serde_json::to_string(&system_message).unwrap());
 

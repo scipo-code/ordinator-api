@@ -338,6 +338,7 @@ impl OperationalStateMachine {
 }
 
 impl LargeNeighborHoodSearch for SupervisorAgent {
+    type BetterSolution = ();
     type SchedulingRequest = SupervisorSchedulingRequest;
     type SchedulingResponse = SupervisorResponseScheduling;
     type ResourceRequest = SupervisorResourceRequest;
@@ -349,7 +350,7 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
 
     type Error = AgentError;
 
-    fn calculate_objective_value(&mut self) {
+    fn calculate_objective_value(&mut self) -> Self::BetterSolution {
         let assigned_woas = &self
             .supervisor_algorithm
             .operational_state

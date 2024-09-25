@@ -6,7 +6,7 @@ use std::{
     },
 };
 
-use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use rand::seq::SliceRandom;
 use shared_types::{
     agent_error::AgentError,
@@ -15,8 +15,9 @@ use shared_types::{
         operational_request_scheduling::OperationalSchedulingRequest,
         operational_request_time::OperationalTimeRequest,
         operational_response_resource::OperationalResourceResponse,
-        operational_response_scheduling::OperationalSchedulingResponse,
-        operational_response_time::OperationalTimeResponse, TimeInterval,
+        operational_response_scheduling::{JsonAssignmentEvents, OperationalSchedulingResponse},
+        operational_response_time::OperationalTimeResponse,
+        TimeInterval,
     },
     scheduling_environment::{
         work_order::{
@@ -26,14 +27,14 @@ use shared_types::{
         worker_environment::{availability::Availability, resources::Id},
     },
 };
-use tracing::{debug, event, trace, Level};
+use tracing::{event, Level};
 
 use crate::agents::{
     supervisor_agent::{algorithm::MarginalFitness, delegate::AtomicDelegate},
     traits::LargeNeighborHoodSearch,
 };
 
-use super::OperationalConfiguration;
+use super::{operational_events::OperationalEvents, OperationalConfiguration};
 
 pub type OperationalObjective = Arc<AtomicUsize>;
 
@@ -209,15 +210,15 @@ impl OperationalFunctions for OperationalSolutions {
 
             let end_of_solution_window = operational_solution.1.start_time();
 
-            trace!(start_window = ?start_of_solution_window);
-            trace!(
+            event!(Level::TRACE, start_window = ?start_of_solution_window);
+            event!(Level::TRACE,
                 first_assignment = ?assignments
                     .first()
                     .expect("No Assignment in the OperationalSolution")
                     .start,
             );
-            trace!(last_assignment = ?assignments.last().unwrap().finish);
-            trace!(end_window = ?end_of_solution_window);
+            event!(Level::TRACE, last_assignment = ?assignments.last().unwrap().finish);
+            event!(Level::TRACE, end_window = ?end_of_solution_window);
 
             if start_of_solution_window
                 < assignments
@@ -272,11 +273,9 @@ impl OperationalFunctions for OperationalSolutions {
 impl OperationalSolutions {
     fn is_operational_solution_already_scheduled(
         &self,
-        key: (WorkOrderNumber, ActivityNumber),
+        work_order_activity: WorkOrderActivity,
     ) -> bool {
-        self.0
-            .iter()
-            .any(|(work_order_activity, _)| *work_order_activity == key)
+        self.0.iter().any(|(woa, _)| *woa == work_order_activity)
     }
 }
 
@@ -289,7 +288,7 @@ enum ContainOrNextOrNone {
 #[derive(Clone, Debug)]
 pub struct OperationalSolution {
     pub supervisor: Option<Id>,
-    assignments: Vec<Assignment>,
+    pub assignments: Vec<Assignment>,
 }
 
 impl OperationalSolution {
@@ -310,6 +309,12 @@ impl OperationalSolution {
 
     pub fn contains(&self, time: DateTime<Utc>) -> bool {
         self.start_time() <= time && time < self.finish_time()
+    }
+}
+
+impl Into<JsonAssignmentEvents> for Assignment {
+    fn into(self) -> JsonAssignmentEvents {
+        todo!()
     }
 }
 
@@ -424,6 +429,7 @@ impl OperationalParameter {
 }
 
 impl LargeNeighborHoodSearch for OperationalAlgorithm {
+    type BetterSolution = bool;
     type SchedulingRequest = OperationalSchedulingRequest;
 
     type SchedulingResponse = OperationalSchedulingResponse;
@@ -440,7 +446,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
     type Error = AgentError;
 
-    fn calculate_objective_value(&mut self) {
+    fn calculate_objective_value(&mut self) -> Self::BetterSolution {
         // Here we should determine the objective based on the highest needed skill. Meaning that a MTN-TURB should not bid highly
         // on a MTN-MECH job. I think that this will be very interesting to solve.
         let operational_events: Vec<Assignment> = self
@@ -451,7 +457,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             .cloned()
             .collect();
 
-        debug!(operational_events_len = ?operational_events.iter().filter(|val| val.event_type.is_wrench_time()).collect::<Vec<_>>().len());
+        event!(Level::DEBUG, operational_events_len = ?operational_events.iter().filter(|val| val.event_type.is_wrench_time()).collect::<Vec<_>>().len());
 
         let all_events = operational_events
             .iter()
@@ -532,16 +538,23 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             wrench_time + break_time + off_shift_time + toolbox_time + non_productive_time;
         assert_eq!(total_time, self.availability.duration());
 
-        trace!(wrench_time = ?wrench_time);
-        trace!(wrench_time = ?wrench_time);
-        trace!(break_time = ?break_time);
-        trace!(toolbox_time = ?toolbox_time);
-        trace!(non_productive_time = ?non_productive_time);
-        let value = (wrench_time).num_seconds() as usize
+        event!(Level::TRACE, wrench_time = ?wrench_time);
+        event!(Level::TRACE, wrench_time = ?wrench_time);
+        event!(Level::TRACE, break_time = ?break_time);
+        event!(Level::TRACE, toolbox_time = ?toolbox_time);
+        event!(Level::TRACE, non_productive_time = ?non_productive_time);
+        let new_value = ((wrench_time).num_seconds() * 100) as usize
             / (wrench_time + break_time + toolbox_time + non_productive_time).num_seconds()
                 as usize;
 
-        self.objective_value.store(value, Ordering::Release);
+        let old_value = self.objective_value.load(Ordering::Acquire);
+
+        if new_value > old_value {
+            self.objective_value.store(new_value, Ordering::Release);
+            true
+        } else {
+            false
+        }
     }
 
     fn schedule(&mut self) {
@@ -560,11 +573,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                 assignments,
                 operational_parameter.supervisor.clone(),
             );
-            event!(
-                Level::INFO,
-                number_of_activities_in_operational_agent = self.operational_solutions.0.len()
-            );
-            trace!(number_of_operations = ?self.operational_solutions.0.len());
+            event!(Level::TRACE, number_of_operations = ?self.operational_solutions.0.len());
         }
 
         // fill the schedule
@@ -841,57 +850,6 @@ impl OperationalAlgorithm {
         } else {
             None
         }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum OperationalEvents {
-    WrenchTime((TimeInterval, WorkOrderActivity)),
-    Break(TimeInterval),
-    Toolbox(TimeInterval),
-    OffShift(TimeInterval),
-    NonProductiveTime(TimeInterval),
-    Unavailable(TimeInterval),
-}
-
-impl OperationalEvents {
-    fn time_delta(&self) -> TimeDelta {
-        match self {
-            Self::WrenchTime((time_interval, _)) => time_interval.duration(),
-            Self::Break(time_interval) => time_interval.duration(),
-            Self::Toolbox(time_interval) => time_interval.duration(),
-            Self::OffShift(time_interval) => time_interval.duration(),
-            Self::NonProductiveTime(time_interval) => time_interval.duration(),
-            Self::Unavailable(time_interval) => time_interval.duration(),
-        }
-    }
-    fn start_time(&self) -> NaiveTime {
-        match self {
-            Self::WrenchTime((time_interval, _)) => time_interval.start,
-            Self::Break(time_interval) => time_interval.start,
-            Self::Toolbox(time_interval) => time_interval.start,
-            Self::OffShift(time_interval) => time_interval.start,
-            Self::NonProductiveTime(time_interval) => time_interval.start,
-            Self::Unavailable(time_interval) => time_interval.start,
-        }
-    }
-    fn finish_time(&self) -> NaiveTime {
-        match self {
-            Self::WrenchTime((time_interval, _)) => time_interval.end,
-            Self::Break(time_interval) => time_interval.end,
-            Self::Toolbox(time_interval) => time_interval.end,
-            Self::OffShift(time_interval) => time_interval.end,
-            Self::NonProductiveTime(time_interval) => time_interval.end,
-            Self::Unavailable(time_interval) => time_interval.end,
-        }
-    }
-
-    fn unavail(&self) -> bool {
-        matches!(&self, OperationalEvents::Unavailable(_))
-    }
-
-    fn is_wrench_time(&self) -> bool {
-        matches!(&self, Self::WrenchTime(_))
     }
 }
 

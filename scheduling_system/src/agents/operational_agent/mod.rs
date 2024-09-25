@@ -1,4 +1,6 @@
 pub mod algorithm;
+pub mod operational_events;
+
 use std::{
     collections::HashMap,
     sync::{atomic::Ordering, Arc, Mutex},
@@ -9,8 +11,13 @@ use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use shared_types::{
     agent_error::AgentError,
     operational::{
-        operational_response_status::OperationalStatusResponse, OperationalConfiguration,
-        OperationalInfeasibleCases, OperationalRequestMessage, OperationalResponseMessage,
+        operational_request_scheduling::OperationalSchedulingRequest,
+        operational_response_scheduling::{
+            EventInfo, JsonAssignment, JsonAssignmentEvents, OperationalSchedulingResponse,
+        },
+        operational_response_status::OperationalStatusResponse,
+        OperationalConfiguration, OperationalInfeasibleCases, OperationalRequestMessage,
+        OperationalResponseMessage,
     },
     scheduling_environment::{
         time_environment::day::Day,
@@ -30,7 +37,8 @@ use shared_types::scheduling_environment::{
 use tracing::{event, info, instrument, warn, Level};
 
 use crate::agents::{
-    operational_agent::algorithm::OperationalParameter, StateLink, StateLinkWrapper,
+    operational_agent::algorithm::OperationalParameter, supervisor_agent::delegate::Delegate,
+    StateLink, StateLinkWrapper,
 };
 
 use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
@@ -148,11 +156,14 @@ impl Actor for OperationalAgent {
             algorithm::Unavailability::Beginning,
             &self.operational_configuration.availability,
         );
+
         let end_event = Assignment::make_unavailable_event(
             algorithm::Unavailability::End,
             &self.operational_configuration.availability,
         );
+
         let unavailability_start_event = OperationalSolution::new(None, vec![start_event]);
+
         let unavailability_end_event = OperationalSolution::new(None, vec![end_event]);
 
         self.operational_algorithm.operational_solutions.0.push((
@@ -182,15 +193,20 @@ impl Handler<ScheduleIteration> for OperationalAgent {
 
         temporary_schedule.schedule();
 
-        temporary_schedule.calculate_objective_value();
-        if temporary_schedule
-            .objective_value
-            .load(std::sync::atomic::Ordering::Acquire)
-            > self
+        let is_better_schedule = temporary_schedule.calculate_objective_value();
+
+        event!(
+            Level::ERROR,
+            temp_obj = temporary_schedule.objective_value.load(Ordering::Acquire)
+        );
+        event!(
+            Level::ERROR,
+            temp_obj = self
                 .operational_algorithm
                 .objective_value
                 .load(Ordering::Acquire)
-        {
+        );
+        if is_better_schedule {
             self.operational_algorithm = temporary_schedule;
             info!(operational_objective = ?self.operational_algorithm.objective_value);
         };
@@ -315,7 +331,10 @@ impl
             StateLink::Strategic(_) => todo!(),
             StateLink::Tactical(_) => todo!(),
             StateLink::Supervisor(initial_message) => {
-                assert!(initial_message.delegate.load(Ordering::Acquire).is_assess());
+                assert_eq!(
+                    initial_message.delegate.load(Ordering::Acquire),
+                    Delegate::Assess
+                );
                 // So why do I have an issue here? I think that the goal should be to really understand this as it is
                 // something where I have absolutely no clue about what to do but it is really essential.
                 let scheduling_environment = self.scheduling_environment.lock().unwrap();
@@ -391,7 +410,38 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
                     operational_response_status,
                 ))
             }
-            OperationalRequestMessage::Scheduling(_) => todo!(),
+            OperationalRequestMessage::Scheduling(operational_scheduling_request) => {
+                match operational_scheduling_request {
+                    OperationalSchedulingRequest::ListEvents => {
+                        let mut json_assignments_events: Vec<JsonAssignmentEvents> = vec![];
+
+                        for (work_order_activity, operational_solution) in
+                            &self.operational_algorithm.operational_solutions.0
+                        {
+                            let mut json_assignments = vec![];
+                            for assignment in &operational_solution.assignments {
+                                let json_assignment = JsonAssignment::new(
+                                    assignment.event_type.clone().into(),
+                                    assignment.start,
+                                    assignment.finish,
+                                );
+                                json_assignments.push(json_assignment);
+                            }
+
+                            let event_info = EventInfo::new(Some(*work_order_activity));
+                            let json_assignment_event =
+                                JsonAssignmentEvents::new(event_info, json_assignments);
+                            json_assignments_events.push(json_assignment_event);
+                        }
+
+                        let operational_scheduling_response =
+                            OperationalSchedulingResponse::EventList(json_assignments_events);
+                        Ok(OperationalResponseMessage::Scheduling(
+                            operational_scheduling_response,
+                        ))
+                    }
+                }
+            }
             OperationalRequestMessage::Resource(_) => todo!(),
             OperationalRequestMessage::Time(_) => todo!(),
             OperationalRequestMessage::Test => {
