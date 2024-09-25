@@ -1,4 +1,9 @@
-use std::{cmp::Ordering, collections::{HashMap, HashSet}, sync::{atomic::AtomicUsize, Arc, RwLock}};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    sync::{atomic::AtomicUsize, Arc, RwLock},
+    time::Instant,
+};
 
 use actix::Addr;
 use chrono::TimeDelta;
@@ -20,11 +25,16 @@ use shared_types::{
 use tracing::{event, instrument, span, Level};
 
 use crate::agents::{
-    operational_agent::{algorithm::OperationalObjective, InitialMessage, OperationalAgent}, tactical_agent::tactical_algorithm::TacticalOperation, traits::LargeNeighborHoodSearch, StateLink, StateLinkWrapper
+    operational_agent::{algorithm::OperationalObjective, InitialMessage, OperationalAgent},
+    tactical_agent::tactical_algorithm::TacticalOperation,
+    traits::LargeNeighborHoodSearch,
+    StateLink, StateLinkWrapper,
 };
 
-use super::{delegate::Delegate, SupervisorAgent, TransitionTypes};
-
+use super::{
+    delegate::{AtomicDelegate, Delegate},
+    SupervisorAgent, TransitionTypes,
+};
 
 #[derive(Debug, Clone)]
 pub struct MarginalFitness(pub Arc<AtomicUsize>);
@@ -40,7 +50,7 @@ impl MarginalFitness {
 
         if self_value == other_value {
             return Ordering::Equal;
-        } else if  self_value > other_value {
+        } else if self_value > other_value {
             return Ordering::Greater;
         } else {
             return Ordering::Less;
@@ -53,8 +63,6 @@ impl Default for MarginalFitness {
         MarginalFitness(Arc::new(AtomicUsize::new(usize::MAX)))
     }
 }
-
-
 
 pub struct SupervisorSchedulingRequest;
 pub struct SupervisorResourceRequest;
@@ -83,13 +91,12 @@ impl SupervisorAlgorithm {
         self.objective_value
     }
 
-
     #[allow(dead_code)]
     pub fn is_assigned(&self, work_order_activity: WorkOrderActivity) -> bool {
-        self.operational_state
-            .0
-            .iter()
-            .any(|(key, val)| work_order_activity == key.1 && val.0.read().unwrap().is_assign())
+        self.operational_state.0.iter().any(|(key, val)| {
+            work_order_activity == key.1
+                && val.0.load(std::sync::atomic::Ordering::Relaxed) == Delegate::Assign
+        })
     }
 
     #[allow(dead_code)]
@@ -108,7 +115,7 @@ impl SupervisorAlgorithm {
 /// the correct messages will be sent out.
 #[derive(Debug, Default)]
 pub struct OperationalStateMachine(
-    HashMap<(Id, WorkOrderActivity), (Arc<RwLock<Delegate>>, MarginalFitness)>,
+    HashMap<(Id, WorkOrderActivity), (Arc<AtomicDelegate>, MarginalFitness)>,
 );
 
 /// This is a fundamental type. Where should we input the OperationalObjective? I think that keeping the
@@ -122,7 +129,7 @@ impl OperationalStateMachine {
     ) {
         match transition_type {
             TransitionTypes::Entering((work_order_activity, tactical_operation)) => {
-                let delegate = Arc::new(RwLock::new(Delegate::new(work_order_activity)));
+                let delegate = Arc::new(AtomicDelegate::new(Delegate::new()));
                 let marginal_fitness = MarginalFitness::default();
 
                 self.0.insert(
@@ -130,18 +137,20 @@ impl OperationalStateMachine {
                     (Arc::clone(&delegate), marginal_fitness.clone()),
                 );
 
-                let span = span!(Level::DEBUG, "SupervisorSpan.OperationalState.TransitionType::Entering");
+                let span = span!(
+                    Level::DEBUG,
+                    "SupervisorSpan.OperationalState.TransitionType::Entering"
+                );
 
                 let _entered = span.enter();
 
-                let state_link =
-                    StateLink::Supervisor(InitialMessage::new(
-                        work_order_activity,
-                        delegate.clone(),
-                        tactical_operation,
-                        marginal_fitness,
-                        supervisor_id,
-                        ));
+                let state_link = StateLink::Supervisor(InitialMessage::new(
+                    work_order_activity,
+                    delegate.clone(),
+                    tactical_operation,
+                    marginal_fitness,
+                    supervisor_id,
+                ));
                 let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
 
                 operational_agent.1.do_send(state_link_wrapper)
@@ -156,62 +165,80 @@ impl OperationalStateMachine {
                     .0
                     .clone();
 
-                delegate.write().unwrap().state_change_to_drop();
+                delegate.state_change_to_drop();
 
-                self.remove_an_operational_state(
-                    woa, operational_agent.0.clone()
-                );
+                self.remove_an_operational_state(woa, operational_agent.0.clone());
             }
             TransitionTypes::Done(work_order_activity) => {
-                let delegate = Arc::new(RwLock::new(Delegate::Done(work_order_activity)));
+                let delegate = Arc::new(AtomicDelegate::new(Delegate::Done));
 
                 self.0.insert(
                     (operational_agent.0.clone(), work_order_activity),
-                    (delegate, MarginalFitness::default() ),
+                    (delegate, MarginalFitness::default()),
                 );
-                
             }
         }
     }
-    
+
     pub fn count_unique_woa(&self) -> usize {
         self.0.keys().map(|(_, woa)| woa).len()
     }
 
-    pub fn remove_an_operational_state(&mut self, work_order_activity: WorkOrderActivity, operational_id: Id) {
+    pub fn remove_an_operational_state(
+        &mut self,
+        work_order_activity: WorkOrderActivity,
+        operational_id: Id,
+    ) {
         let value_option = self.0.remove(&(operational_id, work_order_activity));
 
         match value_option {
             Some(value) => {
-                if !value.0.read().unwrap().is_drop() {
+                if !value.0.load(std::sync::atomic::Ordering::Acquire).is_drop() {
+                    event!(
+                        Level::ERROR,
+                        value_in_atomic_delegate =
+                            ?value.0.load(std::sync::atomic::Ordering::Acquire)
+                    );
                     panic!("You tried to remove a delegate that was not Delegate::Drop, doing this could lead to a situation where the remaining state could be wrong");
                 }
             }
             None => {
                 panic!("You tried to remove an entry of the SupervisorAlgorithm OperationalState, which did not exist. This is a major violation of the internal consistency of the SupervisorAgent and all its OperationalAgents")
-            }    
+            }
         }
     }
 
     pub fn are_unassigned_woas_valid(&self) -> bool {
+        let instant = Instant::now();
         for work_order_activity in self.0.keys().map(|(_, woa)| woa).collect::<Vec<_>>() {
-           
-            // What is it that is mutable here? 
-            let mut delegates_by_woa = self.0.iter().filter(|(key, _)| {
-                key.1 == *work_order_activity
-            }).map(|(_,(delegates, _))| delegates );
+            // What is it that is mutable here?
+            let mut delegates_by_woa = self
+                .0
+                .iter()
+                .filter(|(key, _)| key.1 == *work_order_activity)
+                .map(|(_, (delegates, _))| delegates);
 
             let is_all_assess = delegates_by_woa.all(|delegate| {
-                 delegate.read().unwrap().is_assess() || delegate.read().unwrap().is_done() 
+                delegate
+                    .load(std::sync::atomic::Ordering::Acquire)
+                    .is_assess()
+                    || delegate
+                        .load(std::sync::atomic::Ordering::Acquire)
+                        .is_done()
             });
 
             let is_all_drop = delegates_by_woa.all(|delegate| {
-                delegate.read().unwrap().is_drop() || delegate.read().unwrap().is_done() 
+                delegate
+                    .load(std::sync::atomic::Ordering::Acquire)
+                    .is_drop()
+                    || delegate
+                        .load(std::sync::atomic::Ordering::Acquire)
+                        .is_done()
             });
 
             if !(is_all_drop || is_all_assess) {
                 event!(Level::ERROR, delegate_by_woa = ?delegates_by_woa);
-                return false
+                return false;
             }
         }
         true
@@ -220,7 +247,7 @@ impl OperationalStateMachine {
     fn number_of_assigned_work_orders(&self) -> HashSet<WorkOrderActivity> {
         self.0
             .iter()
-            .filter(|(_, val)| val.0.read().unwrap().is_assign())
+            .filter(|(_, val)| val.0.load(std::sync::atomic::Ordering::Acquire).is_assign())
             .map(|(key, _)| key.1)
             .collect()
     }
@@ -251,7 +278,7 @@ impl OperationalStateMachine {
             .0
             .iter()
             .map(|(key, value)| (&key.1, &value.0))
-            .collect::<Vec<(&WorkOrderActivity, &Arc<RwLock<Delegate>>)>>()
+            .collect::<Vec<(&WorkOrderActivity, &Arc<AtomicDelegate>)>>()
         {
             let number = number.get(work_order_activity).unwrap();
 
@@ -260,10 +287,9 @@ impl OperationalStateMachine {
 
             if operational_marginal_fitnai
                 .iter()
-                .all(|objectives| objectives.1.is_scheduled() )
+                .all(|objectives| objectives.1.is_scheduled())
             {
-                operational_marginal_fitnai
-                    .sort_by(|a, b| a.1.compare(&b.1));
+                operational_marginal_fitnai.sort_by(|a, b| a.1.compare(&b.1));
 
                 let operational_solution_across_ids = operational_marginal_fitnai.iter().rev();
 
@@ -273,13 +299,13 @@ impl OperationalStateMachine {
                         .enumerate()
                         .partition(|&(i, _)| i < *number as usize);
 
-                // let tactical_operation = match delegate.read().unwrap() {
+                // let tactical_operation = match delegate.load(std::sync::atomic::Ordering::Acquire) {
                 //     Delegate::Assess((_, ref os)) => os,
                 //     Delegate::Assign((_, ref os)) => os,
                 //     Delegate::Drop(_) => panic!("The method that caused this panic should not deal with Delegate::Drop variants"),
                 //     Delegate::Done(_) => panic!("Delegate::Done TacticalOperations should not be propagated through the system"),
                 //     Delegate::Fixed => todo!(),
-                    
+
                 // };
 
                 for toa in top_operational_agents {
@@ -288,10 +314,8 @@ impl OperationalStateMachine {
                 }
 
                 for roa in remaining_operational_agents {
-                    let transition_type =
-                        TransitionTypes::Unchanged(**work_order_activity);
+                    let transition_type = TransitionTypes::Unchanged(**work_order_activity);
                     transition_sequence.push((roa.1 .0.clone(), transition_type));
-
                 }
             }
         }
@@ -302,12 +326,15 @@ impl OperationalStateMachine {
         &self,
     ) -> std::collections::hash_map::Iter<
         (Id, (WorkOrderNumber, ActivityNumber)),
-        (Arc<RwLock<Delegate>>, MarginalFitness),
+        (Arc<AtomicDelegate>, MarginalFitness),
     > {
         self.0.iter()
     }
 
-    pub fn get(&self, key: &(Id, WorkOrderActivity)) -> Option<&(Arc<RwLock<Delegate>>, MarginalFitness)> {
+    pub fn get(
+        &self,
+        key: &(Id, WorkOrderActivity),
+    ) -> Option<&(Arc<AtomicDelegate>, MarginalFitness)> {
         self.0.get(&(key))
     }
 }

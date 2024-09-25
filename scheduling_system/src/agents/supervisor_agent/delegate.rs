@@ -1,32 +1,46 @@
-use shared_types::scheduling_environment::work_order::WorkOrderActivity;
+use std::sync::atomic::Ordering;
 
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
+use atomic_enum::atomic_enum;
+
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord)]
+#[atomic_enum]
 pub enum Delegate {
-    Assess(WorkOrderActivity),
-    Assign(WorkOrderActivity),
-    Drop(WorkOrderActivity),
-    Done(WorkOrderActivity),
+    Assess,
+    Assign,
+    Drop,
+    Done,
     Fixed,
 }
+
+impl AtomicDelegate {
+    pub fn state_change_to_drop(&self) {
+        let mut delegate_state = self.load(Ordering::Acquire);
+
+        delegate_state.state_change_to_drop();
+
+        self.store(delegate_state, Ordering::Release);
+    }
+}
+
 impl Delegate {
-    pub fn new(work_order_activity: WorkOrderActivity) -> Delegate {
-        Delegate::Assess(work_order_activity)
+    pub fn new() -> Delegate {
+        Delegate::Assess
     }
 
     pub fn is_assess(&self) -> bool {
-        matches!(self, Self::Assess(_))
+        matches!(self, Self::Assess)
     }
 
     pub fn is_done(&self) -> bool {
-        matches!(self, Self::Done(_))
+        matches!(self, Self::Done)
     }
 
     pub fn is_assign(&self) -> bool {
-        matches!(self, Self::Assign(_))
+        matches!(self, Self::Assign)
     }
 
     pub fn is_drop(&self) -> bool {
-        matches!(self, Self::Drop(_))
+        matches!(self, Self::Drop)
     }
 
     pub fn is_fixed(&self) -> bool {
@@ -35,16 +49,16 @@ impl Delegate {
 
     pub fn state_change_to_drop(&mut self) {
         match self {
-            Delegate::Assign(work_order_activity) => {
+            Delegate::Assign => {
                 panic!("The program is not ready to handle this yet");
-                *self = Delegate::Drop(*work_order_activity);
+                *self = Delegate::Drop;
             }
-            Delegate::Assess(work_order_activity) => {
-                let delegate = Delegate::Drop(*work_order_activity);
+            Delegate::Assess => {
+                let delegate = Delegate::Drop;
                 *self = delegate;
             }
-            Delegate::Done(work_order_activity) => {
-                *self = Delegate::Drop(*work_order_activity)
+            Delegate::Done => {
+                *self = Delegate::Drop
             }
             _ => panic!("Only Delegate::Assess and Delegate::Assign and Delegate::Drop can be converted to a Delegate::Drop")
         }

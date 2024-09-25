@@ -38,7 +38,7 @@ fn main() {
     dbg!(serde_json::to_string(&system_message).unwrap());
 
     let response = send_http(&client, system_message);
-    dbg!();
+    println!("{}", response);
 }
 
 fn send_http(client: &Client, system_message: SystemMessages) -> String {
@@ -54,7 +54,6 @@ fn send_http(client: &Client, system_message: SystemMessages) -> String {
         }
     };
 
-    dbg!();
     let res = client
         .post(url)
         .body(system_message_json)

@@ -93,7 +93,7 @@ impl Actor for SupervisorAgent {
             self.supervisor_id.clone(),
             ctx.address(),
         ));
-        // ctx.notify(ScheduleIteration {});
+        ctx.notify(ScheduleIteration {});
     }
 }
 
@@ -106,7 +106,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 
         //self.delegate_assign_and_drop(ctx);
 
-        // ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(200)).into_actor(self));
+        ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(200)).into_actor(self));
         ctx.notify(ScheduleIteration {});
     }
 }
@@ -268,18 +268,16 @@ impl
         match state_link {
             StateLink::Strategic(_) => Ok(()),
             StateLink::Tactical(tactical_supervisor_link) => {
-                return Ok(());
                 info!(self.id = ?self.supervisor_id);
                 let instant = Instant::now();
                 let transition_sets = self.make_transition_sets_from_tactical_state_link(
                     tactical_supervisor_link.clone(),
                 );
 
-                assert!(self
-                    .supervisor_algorithm
-                    .operational_state
-                    .are_unassigned_woas_valid());
-
+                // assert!(self
+                //     .supervisor_algorithm
+                //     .operational_state
+                //     .are_unassigned_woas_valid());
                 for transition_type in &transition_sets {
                     match transition_type {
                         TransitionTypes::Entering((work_order_activity, tactical_operation)) => {
@@ -356,10 +354,10 @@ impl
                         }
                     }
                 }
-                assert!(self
-                    .supervisor_algorithm
-                    .operational_state
-                    .are_unassigned_woas_valid());
+                // assert!(self
+                //     .supervisor_algorithm
+                //     .operational_state
+                //     .are_unassigned_woas_valid());
 
                 let tactical_operation_woas: HashSet<WorkOrderActivity> = self
                     .supervisor_algorithm

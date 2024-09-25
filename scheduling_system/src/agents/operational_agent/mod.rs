@@ -35,12 +35,12 @@ use crate::agents::{
 
 use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
 
-use super::traits::LargeNeighborHoodSearch;
 use super::traits::TestAlgorithm;
 use super::ScheduleIteration;
 use super::SetAddr;
 use super::StateLinkError;
 use super::UpdateWorkOrderMessage;
+use super::{supervisor_agent::delegate::AtomicDelegate, traits::LargeNeighborHoodSearch};
 use super::{
     supervisor_agent::{algorithm::MarginalFitness, delegate::Delegate, SupervisorAgent},
     tactical_agent::tactical_algorithm::TacticalOperation,
@@ -173,7 +173,7 @@ impl Actor for OperationalAgent {
             Some(unavailability_end_event),
         ));
 
-        // ctx.notify(ScheduleIteration {})
+        ctx.notify(ScheduleIteration {})
     }
 }
 
@@ -258,7 +258,7 @@ impl OperationalAgentBuilder {
 
 pub struct InitialMessage {
     work_order_activity: WorkOrderActivity,
-    delegate: Arc<RwLock<Delegate>>,
+    delegate: Arc<AtomicDelegate>,
     tactical_operation: Arc<TacticalOperation>,
     marginal_fitness: MarginalFitness,
     supervisor_id: Id,
@@ -267,7 +267,7 @@ pub struct InitialMessage {
 impl InitialMessage {
     pub fn new(
         work_order_activity: WorkOrderActivity,
-        delegate: Arc<RwLock<Delegate>>,
+        delegate: Arc<AtomicDelegate>,
         tactical_operation: Arc<TacticalOperation>,
         marginal_fitness: MarginalFitness,
         supervisor_id: Id,
@@ -313,7 +313,7 @@ impl
             .operational_algorithm
             .operational_parameters
             .iter()
-            .any(|(_, op)| op.delegated.read().unwrap().is_done()));
+            .any(|(_, op)| op.delegated.load(Ordering::Acquire).is_done()));
         event!(
             Level::INFO,
             self.operational_algorithm.operational_parameters =
@@ -323,9 +323,7 @@ impl
             StateLink::Strategic(_) => todo!(),
             StateLink::Tactical(_) => todo!(),
             StateLink::Supervisor(initial_message) => {
-                let delegate_read_lock = initial_message.delegate.read().unwrap();
-
-                assert!(delegate_read_lock.is_assess());
+                assert!(initial_message.delegate.load(Ordering::Acquire).is_assess());
                 // So why do I have an issue here? I think that the goal should be to really understand this as it is
                 // something where I have absolutely no clue about what to do but it is really essential.
                 let scheduling_environment = self.scheduling_environment.lock().unwrap();
@@ -358,7 +356,10 @@ impl
                 match replaced_operational_parameter {
                     Some(operational_parameter) => {
                         event!(Level::INFO, operational_parameter = ?operational_parameter, "An OperationalParameter was inserted into the OperationalAgent that was already present. If the WOA is not Delegate::Drop panic!() the thread.");
-                        assert!(operational_parameter.delegated.read().unwrap().is_drop());
+                        assert!(operational_parameter
+                            .delegated
+                            .load(Ordering::Acquire)
+                            .is_drop());
                     }
                     None => (),
                 }
@@ -388,6 +389,8 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
                 let operational_response_status = OperationalStatusResponse::new(
                     self.id_operational.clone(),
                     self.operational_algorithm.operational_parameters.len(),
+                    self.operational_algorithm.operational_solutions.0.len(),
+                    self.operational_algorithm.operational_solutions.0.len(),
                     self.operational_algorithm
                         .objective_value
                         .load(Ordering::Acquire),

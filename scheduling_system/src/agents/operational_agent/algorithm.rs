@@ -1,6 +1,9 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::{atomic::{AtomicUsize, Ordering}, Arc, RwLock},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, RwLock,
+    },
 };
 
 use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
@@ -23,9 +26,15 @@ use shared_types::{
         worker_environment::{availability::Availability, resources::Id},
     },
 };
-use tracing::{debug, trace};
+use tracing::{debug, event, trace, Level};
 
-use crate::agents::{ supervisor_agent::{algorithm::MarginalFitness, delegate::Delegate}, traits::LargeNeighborHoodSearch};
+use crate::agents::{
+    supervisor_agent::{
+        algorithm::MarginalFitness,
+        delegate::{AtomicDelegate, Delegate},
+    },
+    traits::LargeNeighborHoodSearch,
+};
 
 use super::OperationalConfiguration;
 
@@ -156,11 +165,20 @@ impl OperationalAlgorithm {
         time_interval
     }
 
-    fn update_marginal_fitness(&self, work_order_activity_previous: (WorkOrderNumber, ActivityNumber), time_delta: TimeDelta) {
+    fn update_marginal_fitness(
+        &self,
+        work_order_activity_previous: (WorkOrderNumber, ActivityNumber),
+        time_delta: TimeDelta,
+    ) {
         assert_eq!(time_delta.num_nanoseconds().unwrap(), 0);
         let time_delta_usize = time_delta.num_seconds() as usize;
 
-        self.operational_parameters.get(&work_order_activity_previous).unwrap().marginal_fitness.0.store(time_delta_usize, std::sync::atomic::Ordering::Release);
+        self.operational_parameters
+            .get(&work_order_activity_previous)
+            .unwrap()
+            .marginal_fitness
+            .0
+            .store(time_delta_usize, std::sync::atomic::Ordering::Release);
     }
 }
 
@@ -387,7 +405,7 @@ pub struct OperationalParameter {
     operation_time_delta: TimeDelta,
     start_window: DateTime<Utc>,
     end_window: DateTime<Utc>,
-    pub delegated: Arc<RwLock<Delegate>>,
+    pub delegated: Arc<AtomicDelegate>,
     marginal_fitness: MarginalFitness,
     supervisor: Id,
 }
@@ -398,7 +416,7 @@ impl OperationalParameter {
         preparation: Work,
         start_window: DateTime<Utc>,
         end_window: DateTime<Utc>,
-        delegated: Arc<RwLock<Delegate>>,
+        delegated: Arc<AtomicDelegate>,
         marginal_fitness: MarginalFitness,
         supervisor: Id,
     ) -> Self {
@@ -420,9 +438,8 @@ impl OperationalParameter {
     }
 
     pub(crate) fn is_fixed(&self) -> bool {
-        self.delegated.read().unwrap().is_fixed()
+        self.delegated.load(Ordering::Acquire).is_fixed()
     }
-
 }
 
 impl LargeNeighborHoodSearch for OperationalAlgorithm {
@@ -456,9 +473,6 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
         debug!(operational_events_len = ?operational_events.iter().filter(|val| val.event_type.is_wrench_time()).collect::<Vec<_>>().len());
 
-
-        
-
         let all_events = operational_events
             .iter()
             .chain(&self.operational_non_productive.0);
@@ -484,7 +498,10 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                         Some(work_order_activity_previous) => {
                             if work_order_activity_previous != *work_order_activity {
                                 let marginal_fitness_time_delta = prev_fitness + next_fitness;
-                                self.update_marginal_fitness(work_order_activity_previous, marginal_fitness_time_delta);
+                                self.update_marginal_fitness(
+                                    work_order_activity_previous,
+                                    marginal_fitness_time_delta,
+                                );
                                 prev_fitness = next_fitness;
                             }
                             Some(*work_order_activity)
@@ -494,7 +511,6 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                             Some(*work_order_activity)
                         }
                     }
-                    
                 }
                 OperationalEvents::Break(time_interval) => {
                     break_time += time_interval.duration();
@@ -514,12 +530,11 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                     if first_fitness {
                         prev_fitness += time_interval.duration();
                     } else {
-                        next_fitness += time_interval.duration(); 
+                        next_fitness += time_interval.duration();
                     }
                 }
                 OperationalEvents::Unavailable(_) => (),
             }
-            
         }
 
         // assert_eq!(current_time, self.availability.end_date);
@@ -543,10 +558,10 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         trace!(toolbox_time = ?toolbox_time);
         trace!(non_productive_time = ?non_productive_time);
         let value = (wrench_time).num_seconds() as usize
-            / (wrench_time + break_time + toolbox_time + non_productive_time).num_seconds() as usize;
+            / (wrench_time + break_time + toolbox_time + non_productive_time).num_seconds()
+                as usize;
 
         self.objective_value.store(value, Ordering::Release);
-        
     }
 
     fn schedule(&mut self) {
@@ -554,13 +569,25 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         for (work_order_activity, operational_parameter) in &self.operational_parameters {
             let start_time = self.determine_first_available_start_time(operational_parameter);
 
-            let assignments =
-                self.determine_wrench_time_assignment(*work_order_activity, operational_parameter, start_time);
+            let assignments = self.determine_wrench_time_assignment(
+                *work_order_activity,
+                operational_parameter,
+                start_time,
+            );
 
             self.operational_solutions.try_insert(
                 *work_order_activity,
                 assignments,
                 operational_parameter.supervisor.clone(),
+            );
+            event!(
+                Level::INFO,
+                number_of_activities_in_operational_agent = self
+                    .operational_solutions
+                    .0
+                    .iter()
+                    .filter(|(_, os)| os.is_some())
+                    .count()
             );
             trace!(number_of_operations = ?self.operational_solutions.0.len());
         }
@@ -582,9 +609,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                             &mut current_time,
                             Some(operational_solution),
                         );
-                    assert!(
-                        !operational_event.is_wrench_time()
-                    );
+                    assert!(!operational_event.is_wrench_time());
                     assert_eq!(
                         operational_event.time_delta(),
                         new_current_time - current_time
@@ -597,9 +622,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                 ContainOrNextOrNone::None => {
                     let (new_current_time, operational_event) =
                         self.determine_next_event_non_productive(&mut current_time, None);
-                    assert!(
-                        !operational_event.is_wrench_time()
-                    );
+                    assert!(!operational_event.is_wrench_time());
                     assert_eq!(
                         operational_event.time_delta(),
                         new_current_time - current_time
@@ -673,10 +696,13 @@ impl OperationalAlgorithm {
                 current_time = finish_time;
             } else if next_event.0 < remaining_combined_work {
                 assigned_work.push(Assignment::new(
-                    OperationalEvents::WrenchTime((TimeInterval::new(
-                        current_time.time(),
-                        (current_time + next_event.0).time(),
-                    ), work_order_activity)),
+                    OperationalEvents::WrenchTime((
+                        TimeInterval::new(
+                            current_time.time(),
+                            (current_time + next_event.0).time(),
+                        ),
+                        work_order_activity,
+                    )),
                     current_time,
                     current_time + next_event.0,
                 ));
@@ -684,10 +710,13 @@ impl OperationalAlgorithm {
                 remaining_combined_work -= next_event.0;
             } else if next_event.0 >= remaining_combined_work {
                 assigned_work.push(Assignment::new(
-                    OperationalEvents::WrenchTime((TimeInterval::new(
-                        current_time.time(),
-                        (current_time + remaining_combined_work).time(),
-                    ), work_order_activity)),
+                    OperationalEvents::WrenchTime((
+                        TimeInterval::new(
+                            current_time.time(),
+                            (current_time + remaining_combined_work).time(),
+                        ),
+                        work_order_activity,
+                    )),
                     current_time,
                     current_time + remaining_combined_work,
                 ));
@@ -961,7 +990,13 @@ mod tests {
         },
     };
 
-    use crate::agents::{operational_agent::algorithm::OperationalEvents, supervisor_agent::{algorithm::MarginalFitness, delegate::Delegate}};
+    use crate::agents::{
+        operational_agent::algorithm::OperationalEvents,
+        supervisor_agent::{
+            algorithm::MarginalFitness,
+            delegate::{AtomicDelegate, Delegate},
+        },
+    };
 
     use super::{OperationalAlgorithm, OperationalParameter};
 
@@ -1133,9 +1168,8 @@ mod tests {
             .unwrap()
             .to_utc();
 
-        let delegated = Arc::new(RwLock::new(Delegate::Fixed));
+        let delegated = Arc::new(AtomicDelegate::new(Delegate::Fixed));
 
-        
         let operational_parameter = OperationalParameter::new(
             Work::from(20.0),
             Work::from(0.0),
