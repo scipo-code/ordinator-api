@@ -29,3 +29,6 @@ core*
 # IDE/Editor folders
 .idea/
 .vscode/
+
+# direnv
+.direnv
