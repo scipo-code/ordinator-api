@@ -16,7 +16,7 @@ use crate::init::logging;
 use agents::orchestrator::ArcOrchestrator;
 use shared_types::{scheduling_environment::SchedulingEnvironment, Asset};
 
-///This is the entry point of the application.
+/// This is the entry point of the application.
 #[actix_web::main]
 async fn main() -> Result<(), io::Error> {
     dotenvy::dotenv().unwrap();

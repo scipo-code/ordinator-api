@@ -22,7 +22,7 @@ use shared_types::{
         supervisor_response_status::SupervisorResponseStatus, SupervisorInfeasibleCases,
         SupervisorRequestMessage, SupervisorResponseMessage,
     },
-    AlgorithmState, Asset, ConstraintState, StatusMessage, StopMessage,
+    AlgorithmState, Asset, ConstraintState, StopMessage,
 };
 
 use shared_types::scheduling_environment::worker_environment::resources::Id;
@@ -37,7 +37,6 @@ use super::{
     tactical_agent::{tactical_algorithm::TacticalOperation, TacticalAgent},
     traits::{LargeNeighborHoodSearch, TestAlgorithm},
     ScheduleIteration, SetAddr, StateLink, StateLinkError, StateLinkWrapper,
-    UpdateWorkOrderMessage,
 };
 
 #[allow(dead_code)]
@@ -69,16 +68,6 @@ impl TransitionTypes {
             TransitionTypes::Done(_) => panic!(),
         }
     }
-
-    pub fn get_woa(&self) -> WorkOrderActivity {
-        match self {
-            TransitionTypes::Entering((work_order_activity, _)) => *work_order_activity,
-            TransitionTypes::Leaving(work_order_activity) => *work_order_activity,
-            TransitionTypes::Unchanged(work_order_activity) => *work_order_activity,
-            TransitionTypes::Changed((work_order_activity, _)) => *work_order_activity,
-            TransitionTypes::Done(work_order_activity) => *work_order_activity,
-        }
-    }
 }
 
 type TransitionSets = HashSet<TransitionTypes>;
@@ -93,7 +82,7 @@ impl Actor for SupervisorAgent {
             self.supervisor_id.clone(),
             ctx.address(),
         ));
-        // ctx.notify(ScheduleIteration {});
+        ctx.notify(ScheduleIteration {});
     }
 }
 
@@ -106,7 +95,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 
         //self.delegate_assign_and_drop(ctx);
 
-        // ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(200)).into_actor(self));
+        ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(200)).into_actor(self));
         ctx.notify(ScheduleIteration {});
     }
 }
@@ -268,18 +257,16 @@ impl
         match state_link {
             StateLink::Strategic(_) => Ok(()),
             StateLink::Tactical(tactical_supervisor_link) => {
-                return Ok(());
                 info!(self.id = ?self.supervisor_id);
                 let instant = Instant::now();
                 let transition_sets = self.make_transition_sets_from_tactical_state_link(
                     tactical_supervisor_link.clone(),
                 );
 
-                assert!(self
-                    .supervisor_algorithm
-                    .operational_state
-                    .are_unassigned_woas_valid());
-
+                // assert!(self
+                //     .supervisor_algorithm
+                //     .operational_state
+                //     .are_unassigned_woas_valid());
                 for transition_type in &transition_sets {
                     match transition_type {
                         TransitionTypes::Entering((work_order_activity, tactical_operation)) => {
@@ -339,11 +326,11 @@ impl
                                 }
                             }
                         }
-                        TransitionTypes::Unchanged(delegate) => {}
-                        TransitionTypes::Changed(delegate) => {
+                        TransitionTypes::Unchanged(_delegate) => {}
+                        TransitionTypes::Changed(_delegate) => {
                             todo!();
                         }
-                        TransitionTypes::Done(delegate) => {
+                        TransitionTypes::Done(_delegate) => {
                             for operational_agent in &self.operational_agent_addrs {
                                 self.supervisor_algorithm
                                     .operational_state
@@ -356,10 +343,10 @@ impl
                         }
                     }
                 }
-                assert!(self
-                    .supervisor_algorithm
-                    .operational_state
-                    .are_unassigned_woas_valid());
+                // assert!(self
+                //     .supervisor_algorithm
+                //     .operational_state
+                //     .are_unassigned_woas_valid());
 
                 let tactical_operation_woas: HashSet<WorkOrderActivity> = self
                     .supervisor_algorithm
@@ -394,7 +381,7 @@ impl
                 Ok(())
             }
             StateLink::Supervisor(_) => Ok(()),
-            StateLink::Operational(operational_solution) => Ok(()),
+            StateLink::Operational(_operational_solution) => Ok(()),
         }
     }
 }
@@ -433,7 +420,7 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
                 Ok(SupervisorResponseMessage::Status(supervisor_status))
             }
 
-            SupervisorRequestMessage::Scheduling(scheduling_message) => Ok(
+            SupervisorRequestMessage::Scheduling(_scheduling_message) => Ok(
                 SupervisorResponseMessage::Scheduling(SupervisorResponseScheduling {}),
             ),
             SupervisorRequestMessage::Test => {

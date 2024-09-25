@@ -3,7 +3,7 @@ use data_processing::excel_dumps::create_excel_dump;
 use shared_types::operational::{
     OperationalResponse, OperationalResponseMessage, OperationalTarget,
 };
-use shared_types::orchestrator::{self, OrchestratorRequest};
+use shared_types::orchestrator::OrchestratorRequest;
 use shared_types::strategic::StrategicResponse;
 use shared_types::supervisor::SupervisorResponse;
 
@@ -12,7 +12,7 @@ use shared_types::SystemMessages;
 use shared_types::SystemResponses;
 
 use std::fs::File;
-use std::io::{Cursor, Read};
+use std::io::Read;
 use std::sync::{Arc, Mutex};
 use tracing::{event, instrument, warn, Level};
 

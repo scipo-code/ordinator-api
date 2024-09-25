@@ -19,7 +19,7 @@ use shared_types::strategic::strategic_request_periods_message::StrategicTimeReq
 use shared_types::strategic::strategic_request_resources_message::StrategicResourceRequest;
 use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
 
-use crate::agents::traits::LargeNeighborHoodSearch;
+use crate::agents::traits::{ LargeNeighborHoodSearch};
 use shared_types::scheduling_environment::WorkOrders;
 use shared_types::scheduling_environment::time_environment::period::Period;
 
@@ -269,6 +269,7 @@ impl Display for StrategicAlgorithm {
 
 impl LargeNeighborHoodSearch for StrategicAlgorithm {
 
+    type BetterSolution = ();
     type SchedulingRequest = StrategicSchedulingRequest;
     type SchedulingResponse = StrategicResponseScheduling;
     type ResourceRequest = StrategicResourceRequest;
@@ -281,7 +282,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
     type Error = AgentError;
     
     #[instrument(level = "trace", skip_all)]
-    fn calculate_objective_value(&mut self) {
+    fn calculate_objective_value(&mut self) -> Self::BetterSolution {
         let mut period_penalty_contribution: f64 = 0.0;
         let mut excess_penalty_contribution: f64 = 0.0;
 
@@ -326,6 +327,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
 
         self.objective_value = 
             period_penalty_contribution + 0.0 * excess_penalty_contribution;
+
     }
 
     #[instrument(level = "trace", skip_all)]
