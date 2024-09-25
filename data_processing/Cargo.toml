@@ -17,4 +17,3 @@ rust_xlsxwriter = "*"
 shared_types = { path = "../shared_types" }
 thiserror = "*"
 tracing = "*"
-

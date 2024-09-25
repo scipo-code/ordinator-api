@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
-pub enum OperationalSchedulingRequest {}
+pub enum OperationalSchedulingRequest {
+    ListEvents,
+}

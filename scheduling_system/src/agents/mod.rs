@@ -56,6 +56,7 @@ impl<S, T, Su, O> StateLinkWrapper<S, T, Su, O> {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum StateLink<S, T, Su, O> {
     Strategic(S),

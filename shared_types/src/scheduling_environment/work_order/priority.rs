@@ -1,4 +1,4 @@
-use rust_xlsxwriter::{IntoExcelData, Worksheet};
+use rust_xlsxwriter::{ColNum, Format, IntoExcelData, RowNum, Worksheet, XlsxError};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -25,21 +25,21 @@ impl Priority {
 impl IntoExcelData for Priority {
     fn write(
         self,
-        worksheet: &mut rust_xlsxwriter::Worksheet,
-        row: rust_xlsxwriter::RowNum,
-        col: rust_xlsxwriter::ColNum,
-    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        worksheet: &mut Worksheet,
+        row: RowNum,
+        col: ColNum,
+    ) -> Result<&mut Worksheet, XlsxError> {
         let value = self.get_priority_string();
         worksheet.write_string(row, col, value)
     }
 
     fn write_with_format<'a>(
         self,
-        worksheet: &'a mut rust_xlsxwriter::Worksheet,
-        row: rust_xlsxwriter::RowNum,
-        col: rust_xlsxwriter::ColNum,
-        format: &rust_xlsxwriter::Format,
-    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        worksheet: &'a mut Worksheet,
+        row: RowNum,
+        col: ColNum,
+        format: &Format,
+    ) -> Result<&'a mut Worksheet, XlsxError> {
         let value = self.get_priority_string();
         worksheet.write_string_with_format(row, col, value, format)
     }

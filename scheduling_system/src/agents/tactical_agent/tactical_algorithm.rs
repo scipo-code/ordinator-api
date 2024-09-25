@@ -288,6 +288,7 @@ impl TacticalAlgorithm {
 }
 
 impl LargeNeighborHoodSearch for TacticalAlgorithm {
+    type BetterSolution = ();
     type SchedulingRequest = TacticalSchedulingRequest;
     type SchedulingResponse = TacticalResponseScheduling;
     type ResourceRequest = TacticalResourceRequest;
@@ -299,7 +300,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
     type Error = AgentError;
 
-    fn calculate_objective_value(&mut self) {
+    fn calculate_objective_value(&mut self) -> Self::BetterSolution {
         let mut objective_value_from_tardiness = 0.0;
         for (_work_order_number, optimized_work_order) in self.optimized_work_orders.iter() {
             let period_start_date = optimized_work_order

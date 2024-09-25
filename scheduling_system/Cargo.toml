@@ -13,7 +13,7 @@ actix = "*"
 actix-rt = "*"
 actix-web = "*"
 actix-web-actors = "*"
-atoi = "=1.0.0"
+atomic_enum = "*"
 bincode = "*"
 calamine = "*"
 chrono = { version = "*", features = ["serde"] }

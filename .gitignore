@@ -3,6 +3,7 @@
 
 # Logging
 /logging/logs/*.log.*
+/logging/logs/*.log
 *.folded
 
 # Extra data
