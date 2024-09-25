@@ -144,7 +144,6 @@ impl AllRows {
                 .unwrap();
         }
 
-        let current_time = chrono::Local::now();
         let xlsx_directory = dotenvy::var("EXCEL_DUMP_DIRECTORY").expect(
             "The excel dump directory environment path could not be found. Check the .env file",
         );

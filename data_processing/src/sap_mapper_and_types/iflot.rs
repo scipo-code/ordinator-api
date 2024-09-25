@@ -1,5 +1,6 @@
 use super::{CHAR, CLNT};
 
+#[allow(dead_code, non_snake_case)]
 struct Iflot {
     MANDT: CLNT,
     TPLNR: CHAR,
