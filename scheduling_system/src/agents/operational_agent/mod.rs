@@ -162,9 +162,9 @@ impl Actor for OperationalAgent {
             &self.operational_configuration.availability,
         );
 
-        let unavailability_start_event = OperationalSolution::new(None, vec![start_event]);
+        let unavailability_start_event = OperationalSolution::new(vec![start_event]);
 
-        let unavailability_end_event = OperationalSolution::new(None, vec![end_event]);
+        let unavailability_end_event = OperationalSolution::new(vec![end_event]);
 
         self.operational_algorithm.operational_solutions.0.push((
             (WorkOrderNumber(0), ActivityNumber(0)),
@@ -186,9 +186,17 @@ impl Handler<ScheduleIteration> for OperationalAgent {
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         let mut rng = rand::thread_rng();
 
+        self.operational_algorithm.remove_delegate_drop();
+        // This is for testing only. There is a small chance that the supervisor
+        // sets a Delegate::Drop in the short time span between the line above
+        // and the assert! below
+        // assert!(self
+        //     .operational_algorithm
+        //     .operational_parameters
+        //     .no_delegate_drop_or_delegate_done());
+
         let mut temporary_schedule: OperationalAlgorithm = self.operational_algorithm.clone();
 
-        ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(10)).into_actor(self));
         temporary_schedule.unschedule_random_work_order_activies(&mut rng, 15);
 
         temporary_schedule.schedule();
@@ -199,6 +207,7 @@ impl Handler<ScheduleIteration> for OperationalAgent {
             Level::ERROR,
             temp_obj = temporary_schedule.objective_value.load(Ordering::Acquire)
         );
+
         event!(
             Level::ERROR,
             temp_obj = self
@@ -210,6 +219,16 @@ impl Handler<ScheduleIteration> for OperationalAgent {
             self.operational_algorithm = temporary_schedule;
             info!(operational_objective = ?self.operational_algorithm.objective_value);
         };
+
+        ctx.wait(
+            tokio::time::sleep(tokio::time::Duration::from_millis(
+                dotenvy::var("OPERATIONAL_THROTTLING")
+                    .expect("The OPERATIONAL_THROTTLING environment variable should always be set")
+                    .parse::<u64>()
+                    .expect("The OPERATIONAL_THROTTLING environment variable have to be an u64 compatible type"),
+            ))
+            .into_actor(self),
+        );
 
         ctx.notify(ScheduleIteration {});
     }
@@ -320,23 +339,18 @@ impl
         assert!(!self
             .operational_algorithm
             .operational_parameters
+            .0
             .iter()
             .any(|(_, op)| op.delegated.load(Ordering::Acquire).is_done()));
         event!(
             Level::INFO,
             self.operational_algorithm.operational_parameters =
-                self.operational_algorithm.operational_parameters.len()
+                self.operational_algorithm.operational_parameters.0.len()
         );
         match state_link {
             StateLink::Strategic(_) => todo!(),
             StateLink::Tactical(_) => todo!(),
             StateLink::Supervisor(initial_message) => {
-                assert_eq!(
-                    initial_message.delegate.load(Ordering::Acquire),
-                    Delegate::Assess
-                );
-                // So why do I have an issue here? I think that the goal should be to really understand this as it is
-                // something where I have absolutely no clue about what to do but it is really essential.
                 let scheduling_environment = self.scheduling_environment.lock().unwrap();
 
                 let operation: &Operation =
@@ -397,11 +411,15 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
     ) -> Self::Result {
         match request {
             OperationalRequestMessage::Status(_) => {
+                let (assign, assess, unassign): (usize, usize, usize) = self
+                    .operational_algorithm
+                    .operational_parameters
+                    .count_delegate_types();
                 let operational_response_status = OperationalStatusResponse::new(
                     self.id_operational.clone(),
-                    self.operational_algorithm.operational_parameters.len(),
-                    self.operational_algorithm.operational_solutions.0.len(),
-                    self.operational_algorithm.operational_solutions.0.len(),
+                    assign,
+                    assess,
+                    unassign,
                     self.operational_algorithm
                         .objective_value
                         .load(Ordering::Acquire),
