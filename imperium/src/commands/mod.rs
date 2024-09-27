@@ -20,9 +20,11 @@ use crate::Cli;
 
 use self::{operational::OperationalCommands, supervisor::SupervisorCommands};
 
+/// Imperium: The command line interface to access the Ordinator scheduling system API.
+/// All commands return a JSON unless otherwise specified.
 #[derive(Subcommand)]
 pub enum Commands {
-    #[command(visible_alias = "hint")]
+    /// Access general status command for imperium
     Status {
         #[clap(subcommand)]
         status_commands: StatusCommands,
@@ -57,9 +59,8 @@ pub enum Commands {
         #[clap(subcommand)]
         sap_commands: SapCommands,
     },
-    Export {
-        asset: Asset,
-    },
+    /// Running this command will export an XLSX file for the chosen Asset
+    Export { asset: Asset },
 }
 
 pub fn handle_command(cli: Cli, client: &Client) -> SystemMessages {

@@ -30,7 +30,10 @@ use shared_types::{
 use tracing::{event, Level};
 
 use crate::agents::{
-    supervisor_agent::{algorithm::MarginalFitness, delegate::AtomicDelegate},
+    supervisor_agent::{
+        algorithm::MarginalFitness,
+        delegate::{AtomicDelegate, Delegate},
+    },
     traits::LargeNeighborHoodSearch,
 };
 
@@ -38,12 +41,66 @@ use super::{operational_events::OperationalEvents, OperationalConfiguration};
 
 pub type OperationalObjective = Arc<AtomicUsize>;
 
+#[derive(Clone, Default)]
+pub struct OperationalParameters(pub HashMap<WorkOrderActivity, OperationalParameter>);
+
+impl OperationalParameters {
+    pub fn count_delegate_types(&self) -> (usize, usize, usize) {
+        let mut count_assign = 0;
+        let mut count_assess = 0;
+        let mut count_unassign = 0;
+        for (_, operational_parameters) in &self.0 {
+            match operational_parameters
+                .delegated
+                .load(std::sync::atomic::Ordering::Acquire)
+            {
+                Delegate::Assess => count_assess += 1,
+                Delegate::Assign => count_assign += 1,
+                Delegate::Unassign => count_unassign += 1,
+                Delegate::Drop => (),
+                Delegate::Done => (),
+                Delegate::Fixed => (),
+            }
+        }
+        (count_assign, count_assess, count_unassign)
+    }
+
+    pub fn no_delegate_drop_or_delegate_done(&self) -> bool {
+        for (_, operational_parameters) in &self.0 {
+            match operational_parameters
+                .delegated
+                .load(std::sync::atomic::Ordering::Acquire)
+            {
+                Delegate::Assess => (),
+                Delegate::Assign => (),
+                Delegate::Unassign => (),
+                Delegate::Drop => return false,
+                Delegate::Done => panic!(),
+                Delegate::Fixed => (),
+            }
+        }
+        true
+    }
+
+    fn remove_drop_delegates(&mut self) -> HashSet<WorkOrderActivity> {
+        let mut removed_work_order_activities = HashSet::new();
+        self.0.retain(|woa, op| {
+            let delegate = op.delegated.load(Ordering::Acquire);
+            if delegate == Delegate::Drop {
+                removed_work_order_activities.insert(woa.clone());
+            }
+            delegate != Delegate::Drop
+        });
+        removed_work_order_activities
+    }
+}
+
 #[derive(Clone)]
 pub struct OperationalAlgorithm {
     pub objective_value: OperationalObjective,
     pub operational_solutions: OperationalSolutions,
     pub operational_non_productive: OperationalNonProductive,
-    pub operational_parameters: HashMap<WorkOrderActivity, OperationalParameter>,
+    pub operational_parameters: OperationalParameters,
     pub history_of_dropped_operational_parameters: HashSet<WorkOrderActivity>,
     pub availability: Availability,
     pub off_shift_interval: TimeInterval,
@@ -61,12 +118,22 @@ impl OperationalAlgorithm {
             objective_value: Arc::new(AtomicUsize::new(0)),
             operational_solutions: OperationalSolutions(Vec::new()),
             operational_non_productive: OperationalNonProductive(Vec::new()),
-            operational_parameters: HashMap::new(),
+            operational_parameters: OperationalParameters::default(),
             history_of_dropped_operational_parameters: HashSet::new(),
             availability: operational_configuration.availability,
             off_shift_interval: operational_configuration.off_shift_interval,
             break_interval: operational_configuration.break_interval,
             toolbox_interval: operational_configuration.toolbox_interval,
+        }
+    }
+
+    pub fn remove_delegate_drop(&mut self) {
+        let woas_to_be_deleted = self.operational_parameters.remove_drop_delegates();
+
+        for work_order_activity in woas_to_be_deleted {
+            self.operational_solutions
+                .0
+                .retain(|os| os.0 != work_order_activity)
         }
     }
 
@@ -76,6 +143,7 @@ impl OperationalAlgorithm {
         operational_parameters: OperationalParameter,
     ) -> Option<OperationalParameter> {
         self.operational_parameters
+            .0
             .insert(work_order_activity, operational_parameters)
     }
 
@@ -172,6 +240,7 @@ impl OperationalAlgorithm {
         let time_delta_usize = time_delta.num_seconds() as usize;
 
         self.operational_parameters
+            .0
             .get(&work_order_activity_previous)
             .unwrap()
             .marginal_fitness
@@ -227,10 +296,7 @@ impl OperationalFunctions for OperationalSolutions {
                     .start
                 && assignments.last().unwrap().finish < end_of_solution_window
             {
-                let operational_solution = OperationalSolution {
-                    supervisor: Some(supervisor),
-                    assignments,
-                };
+                let operational_solution = OperationalSolution { assignments };
 
                 if !self.is_operational_solution_already_scheduled(key) {
                     self.0.insert(index + 1, (key, operational_solution));
@@ -287,16 +353,12 @@ enum ContainOrNextOrNone {
 
 #[derive(Clone, Debug)]
 pub struct OperationalSolution {
-    pub supervisor: Option<Id>,
     pub assignments: Vec<Assignment>,
 }
 
 impl OperationalSolution {
-    pub fn new(supervisor: Option<Id>, assignments: Vec<Assignment>) -> Self {
-        Self {
-            supervisor,
-            assignments,
-        }
+    pub fn new(assignments: Vec<Assignment>) -> Self {
+        Self { assignments }
     }
 
     pub fn start_time(&self) -> DateTime<Utc> {
@@ -559,7 +621,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
     fn schedule(&mut self) {
         self.operational_non_productive.0.clear();
-        for (work_order_activity, operational_parameter) in &self.operational_parameters {
+        for (work_order_activity, operational_parameter) in &self.operational_parameters.0 {
             let start_time = self.determine_first_available_start_time(operational_parameter);
 
             let assignments = self.determine_wrench_time_assignment(

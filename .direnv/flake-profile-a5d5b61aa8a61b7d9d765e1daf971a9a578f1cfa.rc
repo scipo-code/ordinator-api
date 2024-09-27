@@ -63,7 +63,7 @@ NIX_ENFORCE_NO_NATIVE='1'
 export NIX_ENFORCE_NO_NATIVE
 NIX_HARDENING_ENABLE='bindnow format fortify fortify3 pic relro stackprotector strictoverflow zerocallusedregs'
 export NIX_HARDENING_ENABLE
-NIX_LDFLAGS='-rpath /home/cbrje/projects/ordinator/outputs/out/lib  -L/nix/store/00dlkahhv763mn8k8rfgbdqfpqryknqs-python3-3.12.5-env/lib -L/nix/store/n2vk1zmfzy726amnpr96jibk4zaya6qq-jq-1.7.1-lib/lib -L/nix/store/1w90l4fm5lzhlybipfilyjij2das6w98-openssl-3.0.14/lib -L/nix/store/vw8qn5yflwn18ndh0kqjw7f1466dbdpw-libxlsxwriter-1.1.8/lib -L/nix/store/h3i0acpmr8mrjx07519xxmidv8mpax4y-python3-3.12.5/lib -L/nix/store/00dlkahhv763mn8k8rfgbdqfpqryknqs-python3-3.12.5-env/lib -L/nix/store/n2vk1zmfzy726amnpr96jibk4zaya6qq-jq-1.7.1-lib/lib -L/nix/store/1w90l4fm5lzhlybipfilyjij2das6w98-openssl-3.0.14/lib -L/nix/store/vw8qn5yflwn18ndh0kqjw7f1466dbdpw-libxlsxwriter-1.1.8/lib -L/nix/store/h3i0acpmr8mrjx07519xxmidv8mpax4y-python3-3.12.5/lib'
+NIX_LDFLAGS='-rpath /home/cbrje/ordinator/outputs/out/lib  -L/nix/store/00dlkahhv763mn8k8rfgbdqfpqryknqs-python3-3.12.5-env/lib -L/nix/store/n2vk1zmfzy726amnpr96jibk4zaya6qq-jq-1.7.1-lib/lib -L/nix/store/1w90l4fm5lzhlybipfilyjij2das6w98-openssl-3.0.14/lib -L/nix/store/vw8qn5yflwn18ndh0kqjw7f1466dbdpw-libxlsxwriter-1.1.8/lib -L/nix/store/h3i0acpmr8mrjx07519xxmidv8mpax4y-python3-3.12.5/lib -L/nix/store/00dlkahhv763mn8k8rfgbdqfpqryknqs-python3-3.12.5-env/lib -L/nix/store/n2vk1zmfzy726amnpr96jibk4zaya6qq-jq-1.7.1-lib/lib -L/nix/store/1w90l4fm5lzhlybipfilyjij2das6w98-openssl-3.0.14/lib -L/nix/store/vw8qn5yflwn18ndh0kqjw7f1466dbdpw-libxlsxwriter-1.1.8/lib -L/nix/store/h3i0acpmr8mrjx07519xxmidv8mpax4y-python3-3.12.5/lib'
 export NIX_LDFLAGS
 NIX_LDFLAGS_FOR_TARGET=' -L/nix/store/00dlkahhv763mn8k8rfgbdqfpqryknqs-python3-3.12.5-env/lib -L/nix/store/n2vk1zmfzy726amnpr96jibk4zaya6qq-jq-1.7.1-lib/lib -L/nix/store/1w90l4fm5lzhlybipfilyjij2das6w98-openssl-3.0.14/lib -L/nix/store/vw8qn5yflwn18ndh0kqjw7f1466dbdpw-libxlsxwriter-1.1.8/lib -L/nix/store/h3i0acpmr8mrjx07519xxmidv8mpax4y-python3-3.12.5/lib'
 export NIX_LDFLAGS_FOR_TARGET
@@ -189,7 +189,7 @@ name='nix-shell-env'
 export name
 nativeBuildInputs=''
 export nativeBuildInputs
-out='/home/cbrje/projects/ordinator/outputs/out'
+out='/home/cbrje/ordinator/outputs/out'
 export out
 outputBin='out'
 outputDev='out'
@@ -220,7 +220,7 @@ preConfigurePhases=' updateAutotoolsGnuConfigScriptsPhase'
 declare -a preFixupHooks=('_moveToShare' '_multioutDocs' '_multioutDevs' )
 preferLocalBuild='1'
 export preferLocalBuild
-prefix='/home/cbrje/projects/ordinator/outputs/out'
+prefix='/home/cbrje/ordinator/outputs/out'
 declare -a propagatedBuildDepFiles=('propagated-build-build-deps' 'propagated-native-build-inputs' 'propagated-build-target-deps' )
 propagatedBuildInputs=''
 export propagatedBuildInputs

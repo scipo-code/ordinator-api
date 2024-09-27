@@ -139,6 +139,17 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 
             self.update_tactical_agent();
         }
+
+        ctx.wait(
+            tokio::time::sleep(tokio::time::Duration::from_millis(
+                dotenvy::var("STRATEGIC_THROTTLING")
+                    .expect("The STRATEGIC_THROTTLING environment variable should always be set")
+                    .parse::<u64>()
+                    .expect("The STRATEGIC_THROTTLING environment variable have to be an u64 compatible type"),
+            ))
+            .into_actor(self),
+        );
+
         ctx.notify(ScheduleIteration {});
     }
 }
