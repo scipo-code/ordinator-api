@@ -135,6 +135,15 @@ impl Handler<ScheduleIteration> for TacticalAgent {
             info!(tactical_objective_value = %self.tactical_algorithm.get_objective_value());
         };
 
+        ctx.wait(
+            tokio::time::sleep(tokio::time::Duration::from_millis(
+                dotenvy::var("TACTICAL_THROTTLING")
+                    .expect("The TACTICAL_THROTTLING environment variable should always be set")
+                    .parse::<u64>()
+                    .expect("The TACTICAL_THROTTLING environment variable have to be an u64 compatible type"),
+            ))
+            .into_actor(self),
+        );
         ctx.notify(ScheduleIteration {});
     }
 }

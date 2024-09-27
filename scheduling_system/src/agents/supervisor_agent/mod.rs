@@ -95,7 +95,15 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 
         //self.delegate_assign_and_drop(ctx);
 
-        ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(200)).into_actor(self));
+        ctx.wait(
+            tokio::time::sleep(tokio::time::Duration::from_millis(
+                dotenvy::var("SUPERVISOR_THROTTLING")
+                    .expect("The SUPERVISOR_THROTTLING environment variable should always be set")
+                    .parse::<u64>()
+                    .expect("The SUPERVISOR_THROTTLING environment variable have to be an u64 compatible type"),
+            ))
+            .into_actor(self),
+        );
         ctx.notify(ScheduleIteration {});
     }
 }

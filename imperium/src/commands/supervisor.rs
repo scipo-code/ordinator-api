@@ -109,7 +109,9 @@ impl SupervisorCommands {
 }
 
 fn get_id_operational(client: &Client, id_operational: String) -> Id {
-    let url: String = "http://".to_string() + &dotenvy::var("ORDINATOR_API_ADDRESS").unwrap() + &dotenvy::var("ORDINATOR_MAIN_ENDPOINT)").unwrap();
+    let url: String = "http://".to_string()
+        + &dotenvy::var("IMPERIUM_TO_ORDINATOR_ADDRESS").unwrap()
+        + &dotenvy::var("ORDINATOR_MAIN_ENDPOINT)").unwrap();
 
     let mut id_operational_json = String::new();
     client

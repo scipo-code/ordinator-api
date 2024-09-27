@@ -188,7 +188,6 @@ impl Handler<ScheduleIteration> for OperationalAgent {
 
         let mut temporary_schedule: OperationalAlgorithm = self.operational_algorithm.clone();
 
-        ctx.wait(tokio::time::sleep(tokio::time::Duration::from_millis(10)).into_actor(self));
         temporary_schedule.unschedule_random_work_order_activies(&mut rng, 15);
 
         temporary_schedule.schedule();
@@ -210,6 +209,16 @@ impl Handler<ScheduleIteration> for OperationalAgent {
             self.operational_algorithm = temporary_schedule;
             info!(operational_objective = ?self.operational_algorithm.objective_value);
         };
+
+        ctx.wait(
+            tokio::time::sleep(tokio::time::Duration::from_millis(
+                dotenvy::var("OPERATIONAL_THROTTLING")
+                    .expect("The OPERATIONAL_THROTTLING environment variable should always be set")
+                    .parse::<u64>()
+                    .expect("The OPERATIONAL_THROTTLING environment variable have to be an u64 compatible type"),
+            ))
+            .into_actor(self),
+        );
 
         ctx.notify(ScheduleIteration {});
     }
