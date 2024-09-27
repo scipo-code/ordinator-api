@@ -204,6 +204,7 @@ impl Handler<ScheduleIteration> for OperationalAgent {
             Level::ERROR,
             temp_obj = temporary_schedule.objective_value.load(Ordering::Acquire)
         );
+
         event!(
             Level::ERROR,
             temp_obj = self
