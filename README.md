@@ -39,6 +39,30 @@ The real-time responsiveness of the systems means that each agent in the schedul
 able to react to incoming information from the system whenever and whereever it arrives in the 
 scheduling process.
 
+# Example 
+Below we see a small example of how to interact with the Ordinator scheduling system. The system is comprised
+of two components: The scheduling system itself, and corresponding CLI tool imperium
+```rust
+cargo run -p scheduling_system -- <data_file> 
+  
+```
+Running this will run the scheduling system run expose an IP and PORT as specified in the .env file.
+
+```rust
+cargo build imperium 
+```
+
+This command will create the imperium cli tool, after which it can be found in ./target/debug/imperium. The
+corresponding 
+```bash 
+./target/debug/imperium --help 
+```
+The help "should" be sufficient to run understand what imperium allows you to do. If this should not be the case please 
+submit an issue. The --generator function can be used to generate shell completions for the most common shells. This
+will make imperium significantly more ergonomic.
+
+# Documentation
+
 ## Important High Level Types
 This section is to help understand the inner workings of Ordinator, to better allow developers to contribute to 
 the code base.
