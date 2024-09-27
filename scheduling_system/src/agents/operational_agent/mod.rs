@@ -329,23 +329,18 @@ impl
         assert!(!self
             .operational_algorithm
             .operational_parameters
+            .0
             .iter()
             .any(|(_, op)| op.delegated.load(Ordering::Acquire).is_done()));
         event!(
             Level::INFO,
             self.operational_algorithm.operational_parameters =
-                self.operational_algorithm.operational_parameters.len()
+                self.operational_algorithm.operational_parameters.0.len()
         );
         match state_link {
             StateLink::Strategic(_) => todo!(),
             StateLink::Tactical(_) => todo!(),
             StateLink::Supervisor(initial_message) => {
-                assert_eq!(
-                    initial_message.delegate.load(Ordering::Acquire),
-                    Delegate::Assess
-                );
-                // So why do I have an issue here? I think that the goal should be to really understand this as it is
-                // something where I have absolutely no clue about what to do but it is really essential.
                 let scheduling_environment = self.scheduling_environment.lock().unwrap();
 
                 let operation: &Operation =
@@ -406,11 +401,15 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
     ) -> Self::Result {
         match request {
             OperationalRequestMessage::Status(_) => {
+                let (assign, assess, unassign): (usize, usize, usize) = self
+                    .operational_algorithm
+                    .operational_parameters
+                    .count_delegate_types();
                 let operational_response_status = OperationalStatusResponse::new(
                     self.id_operational.clone(),
-                    self.operational_algorithm.operational_parameters.len(),
-                    self.operational_algorithm.operational_solutions.0.len(),
-                    self.operational_algorithm.operational_solutions.0.len(),
+                    assign,
+                    assess,
+                    unassign,
                     self.operational_algorithm
                         .objective_value
                         .load(Ordering::Acquire),

@@ -55,7 +55,7 @@ pub enum TransitionTypes {
     Leaving(WorkOrderActivity),
     Unchanged(WorkOrderActivity),
     Changed((WorkOrderActivity, Arc<TacticalOperation>)),
-    Done(WorkOrderActivity),
+    Done((WorkOrderActivity, Arc<TacticalOperation>)),
 }
 
 impl TransitionTypes {
@@ -77,6 +77,7 @@ impl Actor for SupervisorAgent {
 
     #[instrument(level = "trace", skip_all)]
     fn started(&mut self, ctx: &mut Self::Context) {
+        test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self).expect("The tactical_operations should always hold all the work_order_activities of the operational_state_machine");
         ctx.set_mailbox_capacity(1000);
         self.tactical_agent_addr.do_send(SetAddr::Supervisor(
             self.supervisor_id.clone(),
@@ -91,9 +92,11 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 
     #[instrument(skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
+        test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self).expect("The tactical_operations should always hold all the work_order_activities of the operational_state_machine");
         self.calculate_objective_value();
 
-        //self.delegate_assign_and_drop(ctx);
+        self.schedule();
+        test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self).expect("The tactical_operations should always hold all the work_order_activities of the operational_state_machine");
 
         ctx.wait(
             tokio::time::sleep(tokio::time::Duration::from_millis(
@@ -126,12 +129,6 @@ impl SupervisorAgent {
         }
     }
 
-    /// This whole function should be moved. It is important, but it is also circumventing the API defined on
-    /// OperationalState and that is not allowed. The question is whether we should delete this or not!
-    ///
-    /// We should delete it! There are multiple errors in here and I think that the best approach is to
-    /// pass everything into the program instead of locking the scheduling environment. That is really
-    /// bad practice.J
     fn make_transition_sets_from_tactical_state_link(
         &self,
         tactical_supervisor_link: HashMap<
@@ -139,15 +136,12 @@ impl SupervisorAgent {
             Arc<TacticalOperation>,
         >,
     ) -> TransitionSets {
-        // Remember to upa
         let supervisor_set: HashSet<WorkOrderActivity> = self
             .supervisor_algorithm
             .tactical_operations
             .keys()
             .cloned()
             .collect();
-
-        // TODO! .get_unique_woa();
 
         let tactical_set: HashSet<WorkOrderActivity> = tactical_supervisor_link
             .keys()
@@ -161,7 +155,10 @@ impl SupervisorAgent {
 
         let done_woas: HashSet<TransitionTypes> = done_set
             .into_iter()
-            .map(|woa| TransitionTypes::Done(woa))
+            .map(|woa| {
+                let tactical_operation = tactical_supervisor_link.get(&woa).unwrap();
+                TransitionTypes::Done((woa, Arc::clone(tactical_operation)))
+            })
             .collect();
 
         let mut changed_woas = HashSet::new();
@@ -203,6 +200,11 @@ impl SupervisorAgent {
             .collect::<HashSet<TransitionTypes>>();
 
         assert!(leaving_woas.is_disjoint(&entering_woas));
+        assert!(entering_woas.is_disjoint(&done_woas));
+        assert!(leaving_woas.is_disjoint(&done_woas));
+
+        assert!(unchanged_woas.is_disjoint(&done_woas));
+        assert!(changed_woas.is_disjoint(&done_woas));
 
         let mut final_set = entering_woas;
 
@@ -291,7 +293,7 @@ impl
                                 if operational_agent.0 .1.contains(transition_type.resource()) {
                                     self.supervisor_algorithm
                                         .operational_state
-                                        .update_operaitonal_state(
+                                        .update_operational_state(
                                             transition_type.clone(),
                                             operational_agent,
                                             self.supervisor_id.clone(),
@@ -323,7 +325,7 @@ impl
                                     Some(_woa) => self
                                         .supervisor_algorithm
                                         .operational_state
-                                        .update_operaitonal_state(
+                                        .update_operational_state(
                                             transition_type.clone(),
                                             operational_agent,
                                             self.supervisor_id.clone(),
@@ -333,20 +335,24 @@ impl
                                     }
                                 }
                             }
+
+                            assert!(!self
+                                .supervisor_algorithm
+                                .operational_state
+                                .is_work_order_activity_present(work_order_activity))
                         }
                         TransitionTypes::Unchanged(_delegate) => {}
                         TransitionTypes::Changed(_delegate) => {
                             todo!();
                         }
-                        TransitionTypes::Done(_delegate) => {
-                            for operational_agent in &self.operational_agent_addrs {
-                                self.supervisor_algorithm
-                                    .operational_state
-                                    .update_operaitonal_state(
-                                        transition_type.clone(),
-                                        operational_agent,
-                                        self.supervisor_id.clone(),
-                                    )
+                        TransitionTypes::Done((work_order_activity, tactical_operation)) => {
+                            let insert_option = self
+                                .supervisor_algorithm
+                                .tactical_operations
+                                .insert(*work_order_activity, tactical_operation.clone());
+                            match insert_option {
+                                Some(_) => (), //panic!(),
+                                None => (),
                             }
                         }
                     }
@@ -356,33 +362,6 @@ impl
                 //     .operational_state
                 //     .are_unassigned_woas_valid());
 
-                let tactical_operation_woas: HashSet<WorkOrderActivity> = self
-                    .supervisor_algorithm
-                    .tactical_operations
-                    .keys()
-                    .cloned()
-                    .collect();
-                let operational_state_woas: HashSet<WorkOrderActivity> = self
-                    .supervisor_algorithm
-                    .operational_state
-                    .get_iter()
-                    .map(|(woa, _)| woa.1)
-                    .collect();
-                let symmetric_difference = tactical_operation_woas
-                    .symmetric_difference(&operational_state_woas)
-                    .cloned()
-                    .collect::<HashSet<WorkOrderActivity>>();
-
-                if symmetric_difference.is_empty() {
-                } else {
-                    // event!(Level::ERROR,
-                    //     non_corresponding_work_order_activities = ? symmetric_difference,
-                    //     in_the_tactical_operations = ?symmetric_difference.intersection(&tactical_operation_woas),
-                    //     in_the_operational_state_woas = ?symmetric_difference.intersection(&operational_state_woas),
-                    // );
-                    // panic!()
-                }
-
                 if instant.elapsed().as_secs_f32() > 4.0 {
                     panic!()
                 };
@@ -391,6 +370,63 @@ impl
             StateLink::Supervisor(_) => Ok(()),
             StateLink::Operational(_operational_solution) => Ok(()),
         }
+    }
+}
+
+fn test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(
+    supervisor_agent: &SupervisorAgent,
+) -> Result<(), HashSet<WorkOrderActivity>> {
+    let tactical_operation_woas: HashSet<WorkOrderActivity> = supervisor_agent
+        .supervisor_algorithm
+        .tactical_operations
+        .keys()
+        .cloned()
+        .collect();
+    let operational_state_woas: HashSet<WorkOrderActivity> = supervisor_agent
+        .supervisor_algorithm
+        .operational_state
+        .get_iter()
+        .map(|(woa, _)| woa.1)
+        .collect();
+
+    if operational_state_woas.is_subset(&tactical_operation_woas) {
+        Ok(())
+    } else {
+        Err(operational_state_woas
+            .difference(&tactical_operation_woas)
+            .cloned()
+            .collect())
+    }
+}
+fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(
+    supervisor_agent: &SupervisorAgent,
+) -> Result<(), HashSet<WorkOrderActivity>> {
+    let tactical_operation_woas: HashSet<WorkOrderActivity> = supervisor_agent
+        .supervisor_algorithm
+        .tactical_operations
+        .keys()
+        .cloned()
+        .collect();
+    let operational_state_woas: HashSet<WorkOrderActivity> = supervisor_agent
+        .supervisor_algorithm
+        .operational_state
+        .get_iter()
+        .map(|(woa, _)| woa.1)
+        .collect();
+    let symmetric_difference = tactical_operation_woas
+        .symmetric_difference(&operational_state_woas)
+        .cloned()
+        .collect::<HashSet<WorkOrderActivity>>();
+
+    if symmetric_difference.is_empty() {
+        Ok(())
+    } else {
+        // event!(Level::ERROR,
+        //     non_corresponding_work_order_activities = ? symmetric_difference,
+        //     in_the_tactical_operations = ?symmetric_difference.intersection(&tactical_operation_woas),
+        //     in_the_operational_state_woas = ?symmetric_difference.intersection(&operational_state_woas),
+        // );
+        Err(symmetric_difference)
     }
 }
 
