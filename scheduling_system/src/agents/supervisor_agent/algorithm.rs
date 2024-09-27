@@ -119,7 +119,7 @@ pub struct OperationalStateMachine(
 /// This is a fundamental type. Where should we input the OperationalObjective? I think that keeping the
 /// code clean of these kind of things is exactly what is needed to make this work.
 impl OperationalStateMachine {
-    pub fn update_operaitonal_state(
+    pub fn update_operational_state(
         &mut self,
         transition_type: TransitionTypes,
         operational_agent: (&Id, &Addr<OperationalAgent>),
@@ -167,15 +167,18 @@ impl OperationalStateMachine {
 
                 self.remove_an_operational_state(woa, operational_agent.0.clone());
             }
-            TransitionTypes::Done(work_order_activity) => {
-                let delegate = Arc::new(AtomicDelegate::new(Delegate::Done));
-
-                self.0.insert(
-                    (operational_agent.0.clone(), work_order_activity),
-                    (delegate, MarginalFitness::default()),
-                );
+            TransitionTypes::Done(_) => {
+                panic!("You should never send a done request to an OperationalAgent");
             }
         }
+    }
+
+    pub fn is_work_order_activity_present(&self, work_order_activity: &WorkOrderActivity) -> bool {
+        self.0
+            .keys()
+            .map(|key| key.1)
+            .collect::<HashSet<_>>()
+            .contains(work_order_activity)
     }
 
     pub fn count_unique_woa(&self) -> usize {
@@ -250,14 +253,14 @@ impl OperationalStateMachine {
             .collect()
     }
 
-    pub fn collect_marginal_fitnai(
+    pub fn operational_status_by_woa(
         &self,
-        work_order_activity: WorkOrderActivity,
-    ) -> Vec<(Id, MarginalFitness)> {
+        work_order_activity: &WorkOrderActivity,
+    ) -> Vec<(Id, Arc<AtomicDelegate>, MarginalFitness)> {
         self.0
             .iter()
-            .filter(|(key, _)| key.1 == work_order_activity)
-            .map(|(key, val)| (key.0.clone(), val.1.clone()))
+            .filter(|(key, _)| key.1 == *work_order_activity)
+            .map(|(key, val)| (key.0.clone(), val.0.clone(), val.1.clone()))
             .collect()
     }
 
@@ -281,13 +284,13 @@ impl OperationalStateMachine {
             let number = number.get(work_order_activity).unwrap();
 
             let mut operational_marginal_fitnai: Vec<_> =
-                self.collect_marginal_fitnai(**work_order_activity);
+                self.operational_status_by_woa(*work_order_activity);
 
             if operational_marginal_fitnai
                 .iter()
-                .all(|objectives| objectives.1.is_scheduled())
+                .all(|objectives| objectives.2.is_scheduled())
             {
-                operational_marginal_fitnai.sort_by(|a, b| a.1.compare(&b.1));
+                operational_marginal_fitnai.sort_by(|a, b| a.2.compare(&b.2));
 
                 let operational_solution_across_ids = operational_marginal_fitnai.iter().rev();
 
@@ -372,7 +375,80 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
     }
 
     fn schedule(&mut self) {
-        todo!();
+        'next_work_order_activity: for work_order_activity in &self
+            .supervisor_algorithm
+            .operational_state
+            .0
+            .keys()
+            .map(|(_, woa)| woa)
+            .collect::<HashSet<_>>()
+        {
+            let number = self
+                .supervisor_algorithm
+                .tactical_operations
+                .get(work_order_activity)
+                .expect("The Tactical Operation should be in present if present in the s.s.operational_state")
+                .number;
+
+            let mut operational_status_by_woa = self
+                .supervisor_algorithm
+                .operational_state
+                .operational_status_by_woa(&work_order_activity);
+
+            operational_status_by_woa.sort_by(|a, b| a.2.compare(&b.2));
+
+            let mut number_of_assigned: u64 = 0;
+            for operational_agent in &operational_status_by_woa {
+                if operational_agent
+                    .1
+                    .load(std::sync::atomic::Ordering::Acquire)
+                    == Delegate::Assign
+                {
+                    number_of_assigned += 1;
+                }
+            }
+
+            let mut remaining_work_order_activities_to_be_state_changed_to_delegate_assign =
+                number - number_of_assigned;
+
+            for operational_agent in &operational_status_by_woa {
+                if operational_agent
+                    .1
+                    .load(std::sync::atomic::Ordering::Acquire)
+                    != Delegate::Assess
+                {
+                    continue;
+                }
+
+                if operational_agent
+                    .2
+                     .0
+                    .load(std::sync::atomic::Ordering::Acquire)
+                    == usize::MAX
+                {
+                    continue 'next_work_order_activity;
+                }
+
+                if remaining_work_order_activities_to_be_state_changed_to_delegate_assign >= 1 {
+                    remaining_work_order_activities_to_be_state_changed_to_delegate_assign -= 1;
+                    operational_agent.1.state_change_to_assign();
+                } else if remaining_work_order_activities_to_be_state_changed_to_delegate_assign
+                    == 0
+                {
+                    if operational_agent
+                        .1
+                        .load(std::sync::atomic::Ordering::Acquire)
+                        == Delegate::Assign
+                    {
+                        continue;
+                    }
+
+                    operational_agent.1.state_change_to_unassign()
+                } else {
+                    panic!();
+                }
+            }
+        }
     }
 
     fn unschedule(&mut self, _message: Self::SchedulingUnit) {
