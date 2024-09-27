@@ -52,7 +52,7 @@ impl OperationalParameters {
         for (_, operational_parameters) in &self.0 {
             match operational_parameters
                 .delegated
-                .load(std::sync::atomic::Ordering::Release)
+                .load(std::sync::atomic::Ordering::Acquire)
             {
                 Delegate::Assess => count_assess += 1,
                 Delegate::Assign => count_assign += 1,
@@ -63,6 +63,35 @@ impl OperationalParameters {
             }
         }
         (count_assign, count_assess, count_unassign)
+    }
+
+    pub fn no_delegate_drop_or_delegate_done(&self) -> bool {
+        for (_, operational_parameters) in &self.0 {
+            match operational_parameters
+                .delegated
+                .load(std::sync::atomic::Ordering::Acquire)
+            {
+                Delegate::Assess => (),
+                Delegate::Assign => (),
+                Delegate::Unassign => (),
+                Delegate::Drop => return false,
+                Delegate::Done => panic!(),
+                Delegate::Fixed => (),
+            }
+        }
+        true
+    }
+
+    fn remove_drop_delegates(&mut self) -> HashSet<WorkOrderActivity> {
+        let mut removed_work_order_activities = HashSet::new();
+        self.0.retain(|woa, op| {
+            let delegate = op.delegated.load(Ordering::Acquire);
+            if delegate == Delegate::Drop {
+                removed_work_order_activities.insert(woa.clone());
+            }
+            delegate != Delegate::Drop
+        });
+        removed_work_order_activities
     }
 }
 
@@ -95,6 +124,16 @@ impl OperationalAlgorithm {
             off_shift_interval: operational_configuration.off_shift_interval,
             break_interval: operational_configuration.break_interval,
             toolbox_interval: operational_configuration.toolbox_interval,
+        }
+    }
+
+    pub fn remove_delegate_drop(&mut self) {
+        let woas_to_be_deleted = self.operational_parameters.remove_drop_delegates();
+
+        for work_order_activity in woas_to_be_deleted {
+            self.operational_solutions
+                .0
+                .retain(|os| os.0 != work_order_activity)
         }
     }
 

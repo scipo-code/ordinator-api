@@ -186,6 +186,12 @@ impl Handler<ScheduleIteration> for OperationalAgent {
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         let mut rng = rand::thread_rng();
 
+        self.operational_algorithm.remove_delegate_drop();
+        assert!(self
+            .operational_algorithm
+            .operational_parameters
+            .no_delegate_drop_or_delegate_done());
+
         let mut temporary_schedule: OperationalAlgorithm = self.operational_algorithm.clone();
 
         temporary_schedule.unschedule_random_work_order_activies(&mut rng, 15);
