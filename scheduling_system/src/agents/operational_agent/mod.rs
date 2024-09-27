@@ -187,10 +187,13 @@ impl Handler<ScheduleIteration> for OperationalAgent {
         let mut rng = rand::thread_rng();
 
         self.operational_algorithm.remove_delegate_drop();
-        assert!(self
-            .operational_algorithm
-            .operational_parameters
-            .no_delegate_drop_or_delegate_done());
+        // This is for testing only. There is a small chance that the supervisor
+        // sets a Delegate::Drop in the short time span between the line above
+        // and the assert! below
+        // assert!(self
+        //     .operational_algorithm
+        //     .operational_parameters
+        //     .no_delegate_drop_or_delegate_done());
 
         let mut temporary_schedule: OperationalAlgorithm = self.operational_algorithm.clone();
 
