@@ -162,9 +162,9 @@ impl Actor for OperationalAgent {
             &self.operational_configuration.availability,
         );
 
-        let unavailability_start_event = OperationalSolution::new(None, vec![start_event]);
+        let unavailability_start_event = OperationalSolution::new(vec![start_event]);
 
-        let unavailability_end_event = OperationalSolution::new(None, vec![end_event]);
+        let unavailability_end_event = OperationalSolution::new(vec![end_event]);
 
         self.operational_algorithm.operational_solutions.0.push((
             (WorkOrderNumber(0), ActivityNumber(0)),

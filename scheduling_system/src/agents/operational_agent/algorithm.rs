@@ -296,10 +296,7 @@ impl OperationalFunctions for OperationalSolutions {
                     .start
                 && assignments.last().unwrap().finish < end_of_solution_window
             {
-                let operational_solution = OperationalSolution {
-                    supervisor: Some(supervisor),
-                    assignments,
-                };
+                let operational_solution = OperationalSolution { assignments };
 
                 if !self.is_operational_solution_already_scheduled(key) {
                     self.0.insert(index + 1, (key, operational_solution));
@@ -356,16 +353,12 @@ enum ContainOrNextOrNone {
 
 #[derive(Clone, Debug)]
 pub struct OperationalSolution {
-    pub supervisor: Option<Id>,
     pub assignments: Vec<Assignment>,
 }
 
 impl OperationalSolution {
-    pub fn new(supervisor: Option<Id>, assignments: Vec<Assignment>) -> Self {
-        Self {
-            supervisor,
-            assignments,
-        }
+    pub fn new(assignments: Vec<Assignment>) -> Self {
+        Self { assignments }
     }
 
     pub fn start_time(&self) -> DateTime<Utc> {
