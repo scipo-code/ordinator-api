@@ -18,6 +18,7 @@
           pandas
           openpyxl
         ]);
+        rustPkgs = pkgs.rustPlatform;
       in {
         devShells.default = pkgs.mkShell {
           buildInputs = [
@@ -36,5 +37,17 @@
           ];
           pure = true;
         };
+        packages.default = rustPkgs.buildRustPackage {
+          pname = "ordinator";
+          version = "1.0.0";
+          src = ./.;
+          cargoLock = {
+            lockFile = ./Cargo.lock;
+          };
+        };
+        apps.default = flake-utils.lib.mkApp {
+          drv = self.packages.${system}.default;
+        };
+         
       });
 } 
