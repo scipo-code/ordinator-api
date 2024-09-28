@@ -44,18 +44,14 @@
           cargoLock = {
             lockFile = ./Cargo.lock;
           };
-          cargoEnv = {
-            OPENSSL_NO_VENDOR = "1";
-            PKG_CONFIG_ALLOW_SYSTEM_LIBS = "1";
-          }; 
-         buildInputs = [
-            pkgs.openssl_3_3
-            pkgs.pkg-config
-          ];
-         nativeBuildInputs = [
-            pkgs.openssl_3_3
-            pkgs.pkg-config
-          ];
+           buildInputs = [
+              pkgs.openssl_3_3
+              pkgs.pkg-config
+            ];
+           nativeBuildInputs = [
+              pkgs.openssl_3_3
+              pkgs.pkg-config
+            ];
         };
         apps.default = flake-utils.lib.mkApp {
           drv = self.packages.${system}.default;
