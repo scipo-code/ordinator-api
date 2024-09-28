@@ -30,6 +30,9 @@ pub fn setup_logging() -> (LogHandles, WorkerGuard) {
 
     for log_file in previous_log_files {
         let path = log_file.unwrap().path();
+        if path.file_name().unwrap() == ".gitkeep" {
+            continue;
+        };
         if path.is_file()
             && path
                 .extension()
