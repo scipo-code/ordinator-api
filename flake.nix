@@ -29,7 +29,7 @@
             pkgs.zellij
             pkgs.nushell
             pkgs.jq
-            pkgs.openssl
+            pkgs.openssl_3_3
             pkgs.clang
             pkgs.libxlsxwriter
             pkgs.pkg-config
@@ -44,6 +44,10 @@
           cargoLock = {
             lockFile = ./Cargo.lock;
           };
+          nativeBuildInputs = [
+            pkgs.openssl_3_3
+            pkgs.pkg-config
+          ];
         };
         apps.default = flake-utils.lib.mkApp {
           drv = self.packages.${system}.default;
