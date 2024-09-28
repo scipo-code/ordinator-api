@@ -44,7 +44,17 @@
           cargoLock = {
             lockFile = ./Cargo.lock;
           };
-          buildInputs = [
+          cargoEnv = {
+            OPENSSL_DIR = "${pkgs.openssl_3_3.dev}";
+            OPENSSL_NO_VENDOR = "1";
+            PKG_CONFIG_ALLOW_SYSTEM_LIBS = "1";
+            PKG_CONFIG_PATH = "${pkgs.openssl_3_3.dev}/lib/pkgconfig";
+          }; 
+         buildInputs = [
+            pkgs.openssl_3_3
+            pkgs.pkg-config
+          ];
+         nativeBuildInputs = [
             pkgs.openssl_3_3
             pkgs.pkg-config
           ];
