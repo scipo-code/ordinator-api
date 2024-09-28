@@ -29,7 +29,7 @@
             pkgs.zellij
             pkgs.nushell
             pkgs.jq
-            pkgs.openssl_3_3
+            pkgs.openssl
             pkgs.clang
             pkgs.libxlsxwriter
             pkgs.pkg-config
@@ -45,7 +45,7 @@
             lockFile = ./Cargo.lock;
           };
           nativeBuildInputs = [
-            pkgs.openssl_3_3
+            pkgs.openssl
             pkgs.pkg-config
           ];
         };
