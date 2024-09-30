@@ -31,9 +31,10 @@
 <!--toc:end-->
 
 # Ordinator
-Ordinator is a multi-agent scheduling system. The system is based on agents
+Ordinator is a multi-actor scheduling system. The system is based on actors
 that each schedule a specific part of the scheduling process in real-time and then communicates 
-their solutions to each other and to the users of the system exposed in the form of RESTful API endpoints.
+their solutions to each other and to the users of the system exposed in the form of API endpoints 
+provided through ```imperium```.
 
 The real-time responsiveness of the systems means that each agent in the scheduling process will be 
 able to react to incoming information from the system whenever and whereever it arrives in the 
