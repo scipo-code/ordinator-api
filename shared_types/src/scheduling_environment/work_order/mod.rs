@@ -104,7 +104,6 @@ pub struct WorkOrderInfo {
     pub work_order_type: WorkOrderType,
     pub functional_location: FunctionalLocation,
     pub work_order_text: WorkOrderText,
-    pub unloading_point: UnloadingPoint,
     pub revision: Revision,
     pub system_condition: SystemCondition,
     pub work_order_info_detail: WorkOrderInfoDetail,
@@ -116,7 +115,6 @@ impl WorkOrderInfo {
         work_order_type: WorkOrderType,
         functional_location: FunctionalLocation,
         work_order_text: WorkOrderText,
-        unloading_point: UnloadingPoint,
         revision: Revision,
         system_condition: SystemCondition,
         work_order_info_detail: WorkOrderInfoDetail,
@@ -126,7 +124,6 @@ impl WorkOrderInfo {
             work_order_type,
             functional_location,
             work_order_text,
-            unloading_point,
             revision,
             system_condition,
             work_order_info_detail,
@@ -172,6 +169,26 @@ pub struct WorkOrderInfoDetail {
     pub maintenance_plant: String,
     pub pm_collective: String,
     pub room: String,
+}
+
+impl WorkOrderInfoDetail {
+    pub fn new(
+        subnetwork: String,
+        maintenance_plan: String,
+        planner_group: String,
+        maintenance_plant: String,
+        pm_collective: String,
+        room: String,
+    ) -> Self {
+        Self {
+            subnetwork,
+            maintenance_plan,
+            planner_group,
+            maintenance_plant,
+            pm_collective,
+            room,
+        }
+    }
 }
 
 impl Default for WorkOrderInfoDetail {

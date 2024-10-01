@@ -1,12 +1,20 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
-use chrono::{DateTime, TimeDelta};
+use chrono::{DateTime, TimeDelta, Timelike};
 use shared_types::scheduling_environment::{
-    time_environment::period::Period,
+    time_environment::{day::Day, period::Period},
     work_order::{
-        self, operation::Work, status_codes::{self, MaterialStatus, StatusCodes}, work_order_dates::WorkOrderDates, ActivityRelation, WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderNumber
+        self,
+        functional_location::FunctionalLocation,
+        operation::{operation_analytic::{self, OperationAnalytic}, operation_info::{self, OperationInfo}, ActivityNumber, Operation, OperationDates, Work},
+        revision::Revision,
+        status_codes::{self, MaterialStatus, StatusCodes},
+        system_condition::SystemCondition,
+        work_order_dates::WorkOrderDates,
+        work_order_text::WorkOrderText,
+        ActivityRelation, WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderNumber,
     },
-    worker_environment::resources::MainResources,
+    worker_environment::resources::{MainResources, Resources},
     WorkOrders,
 };
 
@@ -23,7 +31,7 @@ use super::{
 fn create_work_orders(
     work_orders: HashMap<WorkOrderNumber, WorkOrdersCsv>,
     work_center: HashMap<WBSID, WorkCenterCsv>,
-    work_operations: HashMap<OPRRoutingNumber, WorkOperationsCsv>,
+    work_operations_csv: HashMap<(WorkOrderNumber, ActivityNumber), WorkOperationsCsv>,
     work_orders_status: WorkOrdersStatusCsvAggregated,
     operations_status: HashMap<OPRObjectNumber, OperationsStatusCsv>,
     functional_locations: HashMap<FLOCTechnicaID, FunctionalLocationsCsv>,
@@ -64,10 +72,12 @@ fn create_work_orders(
             sece: sece_pattern.is_match(&status_codes_string),
             unloading_point: false, // Assuming default value; modify as needed
         };
+
         // self.initialize_work_load();
         // self.initialize_weight();
         // self.initialize_vendor();
         // self.initialize_material(periods);
+
         let work_order_analytic: WorkOrderAnalytic = WorkOrderAnalytic::new(
             0,
             Work::from(0.0),
@@ -98,26 +108,86 @@ fn create_work_orders(
             None,
         );
 
-        
+        let functional_location = functional_locations
+            .get(&work_order_csv.WO_Functional_Location_Number)
+            .unwrap()
+            .FLOC_Name;
+
+        let work_order_text = WorkOrderText::new(
+            None,
+            None,
+            work_order_csv.WO_Header_Description,
+            None,
+            None,
+            None,
+            None,
+        );
+
+        let work_order_info_detail = work_order::WorkOrderInfoDetail::new(
+            work_order_csv.WO_SubNetwork_ID,
+            work_order_csv.WO_Plan_Maintenance_Number,
+            work_order_csv.WO_Planner_Group,
+            work_order_csv.WO_Maintenance_Plan_Name,
+            "PM_COLLECTIVE_MISSING_TODO".to_string(),
+            "ROOM_MISSING_TODO".to_string(),
+        );
+
         let work_order_info: WorkOrderInfo = WorkOrderInfo::new(
-            work_order_csv.WO_Priority, 
-            work_order_csv.WO_Order_Type, 
+            work_order_csv.WO_Priority,
+            work_order_csv.WO_Order_Type,
+            FunctionalLocation::new(functional_location),
+            work_order_text,
+            Revision::new(work_order_csv.WO_Revision),
+            SystemCondition::from_str(&work_order_csv.WO_System_Condition),
+            work_order_info_detail,
+        );
 
-            work_order_csv., 
-            work_order_csv., 
-            work_order_csv., 
-            work_order_csv., 
-            work_order_csv., )
-        // for operation in wo
-        // let operations: HashMap<ActivityNumber, Operation> = HashMap::new();
+        let mut operations = HashMap::new();
+        for (work_order_activity, operation_csv) in work_operations_csv {
 
-        // let work_order = WorkOrder::new(
-        //     work_order_number,
-        //     main_work_center,
-        //     work_order_analytic,
-        //     work_order_dates,
-        //     ,
-        //     , )
+            let resources = Resources::from_str(&work_center.get(&operation_csv.OPR_WBS_ID).unwrap().WBS_Name);
+            
+            let operation_info = OperationInfo::new(
+                operation_csv.OPR_Workers_Numbers,
+                operation_csv.OPR_Planned_Work ,
+                operation_csv.OPR_Actual_Work ,
+                operation_csv.OPR_Planned_Work ,
+                None,
+            );
+
+            let operation_analytic = OperationAnalytic::new(
+                Work::from(1.0), 
+                operation_csv.OPR_Planned_Work,
+            );
+
+            // TODO start here
+            let operation_start = DateTime::with_hour(, )
+
+            let operation_dates = OperationDates::new(
+                Day::new(, )
+                Day::new(, ), 
+                operation_csv., 
+                , )
+            
+            let operation = Operation::new(
+                operation_csv.0.1, 
+                resources,
+                operation_info, 
+                operation_analytic, 
+                , )
+            
+        }
+
+        let work_order = WorkOrder::new(
+            work_order_number,
+            main_work_center,
+            operations,
+            Vec::new(),
+            work_order_analytic,
+            work_order_dates,
+            work_order_info,
+        );
+        inner_work_orders.insert(work_order_number, work_order);
     }
     inner_work_orders
 }

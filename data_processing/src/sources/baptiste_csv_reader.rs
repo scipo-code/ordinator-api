@@ -1,6 +1,11 @@
 use chrono::{DateTime, Utc};
 use csv::Reader;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::work_order::{
+    operation::{operation_info::NumberOfPeople, ActivityNumber},
+    priority::Priority,
+    work_order_type::WorkOrderType,
+    WorkOrderNumber,
+};
 use std::{collections::HashMap, error::Error, hash::Hash};
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -69,16 +74,16 @@ pub struct WorkOperationsCsv {
     pub OPR_Routing_Number: String,
     pub OPR_Counter: String,
     pub OPR_WBS_ID: String,
-    pub OPR_Workers_Numbers: String,
-    pub OPR_Planned_Work: String,
-    pub OPR_Actual_Work: String,
+    pub OPR_Workers_Numbers: NumberOfPeople,
+    pub OPR_Planned_Work: Work,
+    pub OPR_Actual_Work: Work,
     pub OPR_Start_Date: String,
     pub OPR_Start_Time: String,
     pub OPR_End_Date: String,
     pub OPR_End_Time: String,
     pub OPR_Scheduled_Work: String,
     pub OPR_Description: String,
-    pub OPR_Activity_Number: String,
+    pub OPR_Activity_Number: ActivityNumber,
     pub OPR_Status_ID: String,
 }
 
@@ -150,16 +155,16 @@ pub struct FunctionalLocationsCsv {
 }
 
 impl CsvType for FunctionalLocationsCsv {
+    type KeyType = String;
+
     fn get_and_clone_key(self: &Self) -> Self::KeyType {
         self.FLOC_Technical_ID.clone()
     }
-
-    type KeyType = String;
 }
 
 pub struct WorkOrdersCsv {
     pub WO_Number: String,
-    pub WO_Priority: String,
+    pub WO_Priority: Priority,
     pub WO_Functional_Location_Number: String,
     pub WO_Plan_Maintenance_Number: String,
     pub WO_Planner_Group: String,
@@ -168,7 +173,7 @@ pub struct WorkOrdersCsv {
     pub WO_Activity_Type: String,
     pub WO_Scheduled_Start_Date: String,
     pub WO_Operation_ID: String,
-    pub WO_Order_Type: String,
+    pub WO_Order_Type: WorkOrderType,
     pub WO_Header_Description: String,
     pub WO_Phase_Order_Created: String,
     pub WO_Phase_Order_Released: String,
