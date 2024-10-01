@@ -1,6 +1,6 @@
 use rust_xlsxwriter::IntoExcelData;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr, string::ParseError};
 
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub enum SystemCondition {
@@ -13,6 +13,24 @@ pub enum SystemCondition {
     G,
     #[default]
     Unknown,
+}
+
+impl FromStr for SystemCondition {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let system_condition = match s {
+            "A" => SystemCondition::A,
+            "B" => SystemCondition::B,
+            "C" => SystemCondition::C,
+            "D" => SystemCondition::D,
+            "E" => SystemCondition::E,
+            "F" => SystemCondition::F,
+            "G" => SystemCondition::G,
+            _ => panic!("SystemCondition should be a capital character between [A-G]"),
+        };
+        Ok(system_condition)
+    }
 }
 
 impl Display for SystemCondition {

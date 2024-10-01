@@ -1039,10 +1039,10 @@ fn extract_order_text(
     })
 }
 
-fn date_to_period(periods: &[Period], date: &DateTime<Utc>) -> Period {
+pub fn date_to_period(periods: &[Period], date_time: &DateTime<Utc>) -> Period {
     let period: Option<Period> = periods
         .iter()
-        .find(|period| period.start_date() <= date && period.end_date() >= date)
+        .find(|period| period.start_date() <= date_time && period.end_date() >= date_time)
         .cloned();
 
     match period {
@@ -1053,7 +1053,7 @@ fn date_to_period(periods: &[Period], date: &DateTime<Utc>) -> Period {
             loop {
                 counter += 1;
                 first_period = first_period - Duration::weeks(2);
-                if first_period.start_date() <= date && first_period.end_date() >= date {
+                if first_period.start_date() <= date_time && first_period.end_date() >= date_time {
                     break;
                 }
                 if counter >= 1000 {

@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{convert::Infallible, fmt::Display, str::FromStr, string::ParseError};
 
 use chrono::NaiveTime;
 use rust_xlsxwriter::IntoExcelData;
@@ -177,9 +177,10 @@ pub enum Resources {
     WellSupv,
 }
 
-impl Resources {
-    pub fn new_from_string(resource: String) -> Self {
-        match resource.as_str() {
+impl FromStr for Resources {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let resource = match s {
             "MEDIC" => Resources::Medic,
             "MTN-CRAN" => Resources::MtnCran,
             "MTN-ELEC" => Resources::MtnElec,
@@ -214,10 +215,13 @@ impl Resources {
             "QAQCMECH" => Resources::QaqcMech,
             "QAQCPAIN" => Resources::QaqcPain,
             "WELLSUPV" => Resources::WellSupv,
-            _ => Resources::WellSupv,
-        }
+            unknown => return Err(format!("Could not parse Resource: {}", unknown)),
+        };
+        Ok(resource)
     }
+}
 
+impl Resources {
     pub fn variant_name(&self) -> String {
         match self {
             Resources::Medic => "MEDIC".to_string(),
