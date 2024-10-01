@@ -6,10 +6,8 @@
 /logging/logs/*.log
 *.folded
 
-# Extra data
-/scheduling_system/data
-
-# Visualization
+/temp_scheduling_environment_database
+# Datafiles
 **.svg
 **.png
 **.csv

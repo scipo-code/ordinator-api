@@ -9,7 +9,7 @@ pub struct OperationInfo {
     pub work_remaining: Work,
     pub work_actual: Work,
     pub work: Work,
-    pub operating_time: Work,
+    pub operating_time: Option<Work>,
 }
 
 impl OperationInfo {
@@ -18,7 +18,7 @@ impl OperationInfo {
         work_remaining: Work,
         work_actual: Work,
         work: Work,
-        operating_time: Work,
+        operating_time: Option<Work>,
     ) -> Self {
         OperationInfo {
             number,
@@ -37,7 +37,7 @@ impl OperationInfo {
         self.number
     }
 
-    pub fn operating_time(&self) -> &Work {
+    pub fn operating_time(&self) -> &Option<Work> {
         &self.operating_time
     }
 }
