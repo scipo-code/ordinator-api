@@ -43,14 +43,12 @@ print(mid_work_orders_status)
 mid_work_orders_status = mid_work_orders_status.filter(pl.col("WO_I_Status_Code").str.contains(r'REL'))
 print(mid_work_orders_status)
 
-# mid_work_orders_status = mid_work_orders_status.filter(pl.col("WO_I_Status_Code")
-    
+# mid_work_orders_status = mid_work_orders_status.filter(pl.col("WO_I_Status_Code")    
 combined_df = mid_work_orders_status.join(mid_work_orders, left_on = "WO_Object_Number", right_on = "WO_Status_ID", how = "left")
 combined_df = combined_df.join(mid_work_operations, left_on = "WO_Operation_ID", right_on = "OPR_Routing_Number", how = "left", suffix = "_operations")
 combined_df = combined_df.join(mid_operations_status, left_on = "OPR_Status_ID", right_on = "OPR_Object_Number", how = "left", suffix = "_operation_status")
 
 print(combined_df.collect())
-
 combined_df = combined_df.join(mid_work_center, left_on = "OPR_WBS_ID", right_on = "WBS_ID", how = "left", suffix = "_work_center")
 combined_df = combined_df.join(mid_functional_locations, left_on = "WO_Functional_Location_Number", right_on = "FLOC_Technical_ID", how = "left", suffix = "_functional_location")
 print(combined_df.collect())
@@ -66,3 +64,5 @@ combined_df = combined_df.filter(pl.col("WO_Basic_End_Date") != 0 )
 
 print(combined_df.collect())
 combined_df.collect().write_excel("dlab_data_extract")
+
+# There will be a lot of key duplication? There i
