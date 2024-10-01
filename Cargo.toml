@@ -14,4 +14,3 @@ debug = true
 [profile.release]
 debug = true
 panic = 'abort'
-

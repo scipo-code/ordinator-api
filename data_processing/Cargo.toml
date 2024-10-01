@@ -9,11 +9,13 @@ edition = "2021"
 atoi = "=1.0.0"
 calamine = "*"
 chrono = { version = "0", features = ["serde", "arbitrary"] }
+csv = "*"
 dotenvy = "*"
 polars = "*"
 regex = "*"
 rust_decimal = "*"
 rust_xlsxwriter = "*"
+serde = { version = "*", features = [ "derive" ]}
 shared_types = { path = "../shared_types" }
 thiserror = "*"
 tracing = "*"

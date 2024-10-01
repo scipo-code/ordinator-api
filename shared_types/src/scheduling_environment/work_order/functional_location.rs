@@ -8,6 +8,13 @@ pub struct FunctionalLocation {
     pub asset: Asset,
 }
 
+impl FunctionalLocation {
+    pub fn new(string: String) -> Self {
+        let asset = Asset::new_from_string(string.clone());
+        Self { string, asset }
+    }
+}
+
 impl Default for FunctionalLocation {
     fn default() -> Self {
         FunctionalLocation {

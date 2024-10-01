@@ -18,10 +18,13 @@ use std::str::FromStr;
 
 use self::operation_info::NumberOfPeople;
 
+use super::unloading_point::UnloadingPoint;
+
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct Operation {
     pub activity: ActivityNumber,
     pub resource: Resources,
+    pub unloading_point: UnloadingPoint,
     pub operation_info: OperationInfo,
     pub operation_analytic: OperationAnalytic,
     pub operation_dates: OperationDates,
