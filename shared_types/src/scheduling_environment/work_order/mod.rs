@@ -27,6 +27,9 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
 use std::fs;
+use std::num::ParseIntError;
+use std::str::FromStr;
+use std::string::ParseError;
 // use crate::scheduling_environment::work_order::optimized_work_order::OptimizedWorkOrder;
 use crate::scheduling_environment::work_order::{
     status_codes::MaterialStatus,
@@ -45,6 +48,15 @@ pub struct WorkOrderNumber(pub u64);
 impl WorkOrderNumber {
     pub fn is_dummy(&self) -> bool {
         self.0 == 0
+    }
+}
+
+impl FromStr for WorkOrderNumber {
+    type Err = ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let number = s.parse::<u64>()?;
+        Ok(Self(number))
     }
 }
 

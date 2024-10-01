@@ -1,3 +1,5 @@
+pub mod baptiste_csv_reader;
+pub mod baptiste_csv_reader_merges;
 pub mod excel;
 
 use shared_types::scheduling_environment::SchedulingEnvironment;
