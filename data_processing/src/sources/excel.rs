@@ -50,37 +50,26 @@ use shared_types::scheduling_environment::work_order::operation::{
 
 use super::{
     create_time_environment, SchedulingEnvironmentFactory, SchedulingEnvironmentFactoryError,
+    TimeInput,
 };
 
 #[derive(Clone)]
 pub struct TotalExcel {
     pub file_path: PathBuf,
-    pub number_of_strategic_periods: u64,
-    pub number_of_tactical_periods: u64,
-    pub number_of_days: u64,
 }
 
 impl TotalExcel {
-    pub fn new(
-        file_path: PathBuf,
-        number_of_strategic_periods: u64,
-        number_of_tactical_periods: u64,
-        number_of_days: u64,
-    ) -> Self {
-        Self {
-            file_path,
-            number_of_strategic_periods,
-            number_of_tactical_periods,
-            number_of_days,
-        }
+    pub fn new(file_path: PathBuf) -> Self {
+        Self { file_path }
     }
 }
 
 impl SchedulingEnvironmentFactory<TotalExcel> for SchedulingEnvironment {
     fn create_scheduling_environment(
         data_source: TotalExcel,
+        time_input: TimeInput,
     ) -> Result<SchedulingEnvironment, SchedulingEnvironmentFactoryError> {
-        let time_environment = create_time_environment(&data_source);
+        let time_environment = create_time_environment(&time_input);
 
         let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
 
@@ -1222,15 +1211,15 @@ mod tests {
         let number_of_tactical_periods = 4;
         let number_of_days = 56;
 
-        let total_excel: TotalExcel = TotalExcel {
-            file_path,
+        let total_excel: TotalExcel = TotalExcel { file_path };
+        let time_input: TimeInput = TimeInput {
             number_of_strategic_periods,
             number_of_tactical_periods,
             number_of_days,
         };
 
         let scheduling_environment =
-            SchedulingEnvironment::create_scheduling_environment(total_excel.clone());
+            SchedulingEnvironment::create_scheduling_environment(total_excel.clone(), time_input);
 
         assert_eq!(
             scheduling_environment
@@ -1239,9 +1228,14 @@ mod tests {
                 .len(),
             number_of_strategic_periods as usize
         );
+        let time_input: TimeInput = TimeInput {
+            number_of_strategic_periods,
+            number_of_tactical_periods,
+            number_of_days,
+        };
 
         let scheduling_environment =
-            SchedulingEnvironment::create_scheduling_environment(total_excel);
+            SchedulingEnvironment::create_scheduling_environment(total_excel, time_input);
 
         let number_of_work_orders = scheduling_environment
             .as_ref()

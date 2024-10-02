@@ -1133,6 +1133,7 @@ dependencies = [
  "serde",
  "shared_types",
  "thiserror",
+ "toml",
  "tracing",
 ]
 

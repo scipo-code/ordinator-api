@@ -19,4 +19,5 @@ rust_xlsxwriter = "*"
 serde = { version = "*", features = [ "derive" ]}
 shared_types = { path = "../shared_types" }
 thiserror = "*"
+toml = "*"
 tracing = "*"

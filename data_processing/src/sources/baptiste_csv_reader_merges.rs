@@ -1,6 +1,7 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, fs, path::PathBuf, str::FromStr};
 
 use chrono::{DateTime, Duration, NaiveDate, NaiveTime, Utc};
+use serde::Deserialize;
 use shared_types::scheduling_environment::{
     time_environment::{day::Day, period::Period},
     work_order::{
@@ -31,7 +32,36 @@ use super::baptiste_csv_reader::{
 };
 
 pub fn load_csv_data(file_path: PathBuf, periods: &[Period]) -> WorkOrders {
+    let contents = fs::read_to_string(file_path).unwrap();
+
+    let file_paths: BaptisteToml = toml::from_str(&contents).unwrap();
+
+    let work_center_csv: WorkCenterCsv =
+        populate_csv_structures(file_paths.mid_functional_locations);
+    let work_operations_csv: WorkOperationsCsv =
+        populate_csv_structures(file_paths.mid_operations_status);
+    let work_orders_status_csv: WorkOrdersStatusCsv =
+        populate_csv_structures(file_paths.mid_secondary_locations);
+    let operations_status_csv: OperationsStatusCsv =
+        populate_csv_structures(file_paths.mid_work_center);
+    let secondary_locations_csv: SecondaryLocationsCsv =
+        populate_csv_structures(file_paths.mid_work_operations);
+    let functional_locations_csv: FunctionalLocationsCsv =
+        populate_csv_structures(file_paths.mid_work_orders);
+    let work_orders_csv: WorkOrdersCsv = populate_csv_structures(file_paths.mid_work_orders_status);
+
     let container = populate_csv_structures(file_path, container_type);
+}
+
+#[derive(Deserialize)]
+struct BaptisteToml {
+    mid_functional_locations: String,
+    mid_operations_status: String,
+    mid_secondary_locations: String,
+    mid_work_center: String,
+    mid_work_operations: String,
+    mid_work_orders: String,
+    mid_work_orders_status: String,
 }
 
 #[allow(non_snake_case)]

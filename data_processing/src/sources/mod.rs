@@ -2,14 +2,13 @@ pub mod baptiste_csv_reader;
 pub mod baptiste_csv_reader_merges;
 pub mod excel;
 
-use chrono::{Duration, Utc};
+use std::path::PathBuf;
+
+use chrono::{Days, Duration, Utc};
 use excel::TotalExcel;
-use shared_types::{
-    scheduling_environment::{
-        time_environment::{day::Day, period::Period, TimeEnvironment},
-        SchedulingEnvironment,
-    },
-    tactical::Days,
+use shared_types::scheduling_environment::{
+    time_environment::{day::Day, period::Period, TimeEnvironment},
+    SchedulingEnvironment,
 };
 use thiserror::Error;
 
@@ -21,15 +20,22 @@ pub enum SchedulingEnvironmentFactoryError {
 
 pub trait SchedulingEnvironmentFactory<DataSource> {
     fn create_scheduling_environment(
-        data_source: DataSource,
+        file_path: DataSource,
+        time_input: TimeInput,
     ) -> Result<SchedulingEnvironment, SchedulingEnvironmentFactoryError>;
 }
-pub fn create_time_environment(data_source: &TotalExcel) -> TimeEnvironment {
-    let strategic_periods: Vec<Period> =
-        create_periods(data_source.number_of_strategic_periods).expect("Could not create periods");
+
+struct TimeInput {
+    number_of_strategic_periods: u64,
+    number_of_tactical_periods: u64,
+    number_of_days: u64,
+}
+
+pub fn create_time_environment(time_input: &TimeInput) -> TimeEnvironment {
+    let strategic_periods: Vec<Period> = create_periods(time_input.number_of_strategic_periods);
 
     let tactical_periods: &Vec<Period> =
-        &strategic_periods.clone()[0..data_source.number_of_tactical_periods as usize].to_vec();
+        &strategic_periods.clone()[0..time_input.number_of_tactical_periods as usize].to_vec();
 
     let first_period = strategic_periods.first().unwrap().clone();
 
@@ -46,7 +52,7 @@ pub fn create_time_environment(data_source: &TotalExcel) -> TimeEnvironment {
     let time_environment = TimeEnvironment::new(
         strategic_periods,
         tactical_periods.to_vec(),
-        tactical_days(data_source.number_of_days),
+        tactical_days(time_input.number_of_days),
     );
     time_environment
 }

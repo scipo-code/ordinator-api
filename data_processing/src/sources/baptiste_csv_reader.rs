@@ -5,39 +5,29 @@ use shared_types::scheduling_environment::{
         priority::Priority,
         work_order_type::WorkOrderType,
         WorkOrderNumber,
-    },
-    SchedulingEnvironment,
+    }, worker_environment::WorkerEnvironment, SchedulingEnvironment
 };
 use std::{
     collections::HashMap,
     error::Error,
     hash::Hash,
-    path::{Path, PathBuf},
+    path::{ PathBuf},
 };
 
 use serde::{de::DeserializeOwned, Deserialize};
 
-use super::{baptiste_csv_reader_merges::create_work_orders, SchedulingEnvironmentFactory, SchedulingEnvironmentFactoryError};
+use super::{ create_time_environment, SchedulingEnvironmentFactory, SchedulingEnvironmentFactoryError, TimeInput};
 
 pub struct TotalSap {
     file_path: PathBuf,
-    number_of_strategic_periods: u64,
-    number_of_tactical_periods: u64,
-    number_of_days: u64,
 }
 
 impl TotalSap {
     pub fn new(
         file_path: PathBuf,
-        number_of_strategic_periods: u64,
-        number_of_tactical_periods: u64,
-        number_of_days: u64,
     ) -> Self {
         Self {
             file_path,
-            number_of_strategic_periods,
-            number_of_tactical_periods,
-            number_of_days,
         }
     }
 }
@@ -45,9 +35,10 @@ impl TotalSap {
 impl SchedulingEnvironmentFactory<TotalSap> for SchedulingEnvironment {
     fn create_scheduling_environment(
         data_source: TotalSap,
+        time_input: TimeInput,
     ) -> Result<SchedulingEnvironment, SchedulingEnvironmentFactoryError> {
 
-        let time_environment = create_time_environment(&data_source);
+        let time_environment = create_time_environment(&time_input);
 
         let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
 
@@ -68,7 +59,7 @@ pub enum ContainerType<C: CsvType> {
 }
 
 pub fn populate_csv_structures<'a, C>(
-    file_path: &'a str,
+    file_path: PathBuf,
     container_type: &'a mut ContainerType<C>,
 ) -> Result<&'a mut ContainerType<C>, Box<dyn Error>>
 where
