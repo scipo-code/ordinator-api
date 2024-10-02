@@ -259,12 +259,13 @@ pub fn create_excel_dump(
                     .work_order_info
                     .work_order_text
                     .operation_description
-                    .clone(),
+                    .clone()
+                    .unwrap_or("WE DO NOT HAVE THIS FIELD FROM SAP YET".to_string()),
                 system_status: work_order.status_codes().clone(),
                 user_status: work_order.status_codes().clone(),
                 work: activity.1.work_remaining().clone(),
                 actual_work: activity.1.operation_info.work_actual.clone(),
-                unloading_point: work_order.unloading_point().clone(),
+                unloading_point: activity.1.unloading_point.clone(),
                 basic_start_date: work_order
                     .work_order_dates
                     .basic_start_date
@@ -305,7 +306,8 @@ pub fn create_excel_dump(
                     .work_order_info
                     .work_order_text
                     .operation_description
-                    .clone(),
+                    .clone()
+                    .unwrap_or("WE DO NOT HAVE THIS SAP FIELD YET".to_string()),
                 subnetwork_of: work_order
                     .work_order_info
                     .work_order_info_detail

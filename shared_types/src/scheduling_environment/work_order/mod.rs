@@ -241,10 +241,6 @@ impl WorkOrder {
         self.operations.insert(operation.activity, operation);
     }
 
-    pub fn unloading_point(&self) -> &UnloadingPoint {
-        &self.work_order_info.unloading_point
-    }
-
     pub fn order_dates_mut(&mut self) -> &mut WorkOrderDates {
         &mut self.work_order_dates
     }
@@ -283,6 +279,21 @@ impl WorkOrder {
 
     pub fn relations(&self) -> &Vec<ActivityRelation> {
         &self.relations
+    }
+
+    pub fn unloading_point_contains_period(&self, clone: Period) -> bool {
+        for operation in &self.operations {
+            if operation.1.unloading_point.period == Some(clone.clone()) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn unloading_point(&self) -> Option<Period> {
+        self.operations
+            .values()
+            .find_map(|opr| opr.unloading_point.period.clone())
     }
 }
 
@@ -477,14 +488,35 @@ impl Default for WorkOrder {
     fn default() -> Self {
         let mut operations = HashMap::new();
 
-        let operation_0010 =
-            Operation::builder(ActivityNumber(10), Resources::Prodtech, Work::from(10.0)).build();
-        let operation_0020 =
-            Operation::builder(ActivityNumber(20), Resources::MtnMech, Work::from(20.0)).build();
-        let operation_0030 =
-            Operation::builder(ActivityNumber(30), Resources::MtnMech, Work::from(30.0)).build();
-        let operation_0040 =
-            Operation::builder(ActivityNumber(40), Resources::Prodtech, Work::from(40.0)).build();
+        let unloading_point = UnloadingPoint::default();
+        let operation_0010 = Operation::builder(
+            ActivityNumber(10),
+            unloading_point.clone(),
+            Resources::Prodtech,
+            Work::from(10.0),
+        )
+        .build();
+        let operation_0020 = Operation::builder(
+            ActivityNumber(20),
+            unloading_point.clone(),
+            Resources::MtnMech,
+            Work::from(20.0),
+        )
+        .build();
+        let operation_0030 = Operation::builder(
+            ActivityNumber(30),
+            unloading_point.clone(),
+            Resources::MtnMech,
+            Work::from(30.0),
+        )
+        .build();
+        let operation_0040 = Operation::builder(
+            ActivityNumber(40),
+            unloading_point.clone(),
+            Resources::Prodtech,
+            Work::from(40.0),
+        )
+        .build();
 
         operations.insert(ActivityNumber(10), operation_0010);
         operations.insert(ActivityNumber(20), operation_0020);
@@ -505,7 +537,6 @@ impl Default for WorkOrder {
             WorkOrderType::Wdf(WDFPriority::new(1)),
             FunctionalLocation::default(),
             WorkOrderText::default(),
-            UnloadingPoint::default(),
             Revision::default(),
             SystemCondition::Unknown,
             WorkOrderInfoDetail::default(),
@@ -524,7 +555,7 @@ impl Default for WorkOrder {
 }
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, str::FromStr};
 
     use crate::scheduling_environment::worker_environment::resources::{MainResources, Resources};
 
@@ -551,14 +582,14 @@ mod tests {
         assert_eq!(
             *work_order
                 .work_load()
-                .get(&Resources::new_from_string("PRODTECH".to_string()))
+                .get(&Resources::from_str("PRODTECH").unwrap())
                 .unwrap(),
             Work::from(50.0)
         );
         assert_eq!(
             *work_order
                 .work_load()
-                .get(&Resources::new_from_string("MTN-MECH".to_string()))
+                .get(&Resources::from_str("MTN-MECH").unwrap())
                 .unwrap(),
             Work::from(50.0)
         );
@@ -568,18 +599,35 @@ mod tests {
         pub fn new_test() -> Self {
             let mut operations = HashMap::new();
 
-            let operation_0010 =
-                Operation::builder(ActivityNumber(10), Resources::Prodtech, Work::from(10.0))
-                    .build();
-            let operation_0020 =
-                Operation::builder(ActivityNumber(20), Resources::MtnMech, Work::from(20.0))
-                    .build();
-            let operation_0030 =
-                Operation::builder(ActivityNumber(30), Resources::MtnMech, Work::from(30.0))
-                    .build();
-            let operation_0040 =
-                Operation::builder(ActivityNumber(40), Resources::Prodtech, Work::from(40.0))
-                    .build();
+            let unloading_point = UnloadingPoint::default();
+            let operation_0010 = Operation::builder(
+                ActivityNumber(10),
+                unloading_point.clone(),
+                Resources::Prodtech,
+                Work::from(10.0),
+            )
+            .build();
+            let operation_0020 = Operation::builder(
+                ActivityNumber(20),
+                unloading_point.clone(),
+                Resources::MtnMech,
+                Work::from(20.0),
+            )
+            .build();
+            let operation_0030 = Operation::builder(
+                ActivityNumber(30),
+                unloading_point.clone(),
+                Resources::MtnMech,
+                Work::from(30.0),
+            )
+            .build();
+            let operation_0040 = Operation::builder(
+                ActivityNumber(40),
+                unloading_point.clone(),
+                Resources::Prodtech,
+                Work::from(40.0),
+            )
+            .build();
 
             operations.insert(ActivityNumber(10), operation_0010);
             operations.insert(ActivityNumber(20), operation_0020);
@@ -600,7 +648,6 @@ mod tests {
                 WorkOrderType::Wdf(WDFPriority::new(1)),
                 FunctionalLocation::default(),
                 WorkOrderText::default(),
-                UnloadingPoint::default(),
                 Revision::default(),
                 SystemCondition::Unknown,
                 WorkOrderInfoDetail::default(),

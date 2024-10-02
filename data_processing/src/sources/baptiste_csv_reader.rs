@@ -1,14 +1,66 @@
 use chrono::{DateTime, Utc};
-use csv::Reader;
-use shared_types::scheduling_environment::work_order::{
-    operation::{operation_info::NumberOfPeople, ActivityNumber},
-    priority::Priority,
-    work_order_type::WorkOrderType,
-    WorkOrderNumber,
+use shared_types::scheduling_environment::{
+    work_order::{
+        operation::{operation_info::NumberOfPeople, ActivityNumber, Work},
+        priority::Priority,
+        work_order_type::WorkOrderType,
+        WorkOrderNumber,
+    },
+    SchedulingEnvironment,
 };
-use std::{collections::HashMap, error::Error, hash::Hash};
+use std::{
+    collections::HashMap,
+    error::Error,
+    hash::Hash,
+    path::{Path, PathBuf},
+};
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize};
+
+use super::{baptiste_csv_reader_merges::create_work_orders, SchedulingEnvironmentFactory, SchedulingEnvironmentFactoryError};
+
+pub struct TotalSap {
+    file_path: PathBuf,
+    number_of_strategic_periods: u64,
+    number_of_tactical_periods: u64,
+    number_of_days: u64,
+}
+
+impl TotalSap {
+    pub fn new(
+        file_path: PathBuf,
+        number_of_strategic_periods: u64,
+        number_of_tactical_periods: u64,
+        number_of_days: u64,
+    ) -> Self {
+        Self {
+            file_path,
+            number_of_strategic_periods,
+            number_of_tactical_periods,
+            number_of_days,
+        }
+    }
+}
+
+impl SchedulingEnvironmentFactory<TotalSap> for SchedulingEnvironment {
+    fn create_scheduling_environment(
+        data_source: TotalSap,
+    ) -> Result<SchedulingEnvironment, SchedulingEnvironmentFactoryError> {
+
+        let time_environment = create_time_environment(&data_source);
+
+        let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
+
+        let work_orders = create_work_orders(, , , , , , )
+
+        let scheduling_environment =
+            SchedulingEnvironment::new(work_orders, worker_environment, time_environment);
+        Ok(scheduling_environment)
+
+
+        
+    }
+}
 
 pub enum ContainerType<C: CsvType> {
     HashMap(HashMap<C::KeyType, C>),
@@ -55,6 +107,7 @@ pub type OPRObjectNumber = String;
 pub type FLOCTechnicaID = String;
 
 #[derive(Deserialize, Debug)]
+#[allow(non_snake_case, dead_code)]
 pub struct WorkCenterCsv {
     pub WBS_ID: WBSID,
     pub WBS_Name: String,
@@ -70,6 +123,7 @@ impl CsvType for WorkCenterCsv {
 }
 
 #[derive(Deserialize, Debug)]
+#[allow(non_snake_case, dead_code)]
 pub struct WorkOperationsCsv {
     pub OPR_Routing_Number: String,
     pub OPR_Counter: String,
@@ -95,6 +149,7 @@ impl CsvType for WorkOperationsCsv {
     type KeyType = String;
 }
 
+#[allow(non_snake_case, dead_code)]
 pub struct WorkOrdersStatusCsv {
     pub WO_Object_Number: String,
     pub WO_Status_ID: String,
@@ -113,6 +168,7 @@ impl CsvType for WorkOrdersStatusCsv {
     type KeyType = String;
 }
 
+#[allow(non_snake_case, dead_code)]
 pub struct OperationsStatusCsv {
     pub OPR_Object_Number: String,
     pub OPR_Status_ID: String,
@@ -123,6 +179,7 @@ pub struct OperationsStatusCsv {
     pub OPR_I_Status_Message: String,
 }
 
+#[allow(non_snake_case, dead_code)]
 impl CsvType for OperationsStatusCsv {
     fn get_and_clone_key(self: &Self) -> Self::KeyType {
         self.OPR_Object_Number.clone()
@@ -131,6 +188,7 @@ impl CsvType for OperationsStatusCsv {
     type KeyType = String;
 }
 
+#[allow(non_snake_case, dead_code)]
 pub struct SecondaryLocationsCsv {
     pub PM_Object_Number: String,
     pub PM_Functional_Location: String,
@@ -146,6 +204,7 @@ impl CsvType for SecondaryLocationsCsv {
     type KeyType = String;
 }
 
+#[allow(non_snake_case, dead_code)]
 pub struct FunctionalLocationsCsv {
     pub FLOC_Technical_ID: String,
     pub FLOC_Functional_ID: String,
@@ -162,6 +221,7 @@ impl CsvType for FunctionalLocationsCsv {
     }
 }
 
+#[allow(non_snake_case, dead_code)]
 pub struct WorkOrdersCsv {
     pub WO_Number: String,
     pub WO_Priority: Priority,

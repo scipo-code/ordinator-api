@@ -405,8 +405,7 @@ impl TestAlgorithm for StrategicAgent {
                 Some(scheduled_period) => {
                     if awsc
                         && !(scheduled_period.contains_date(basic_start_of_first_activity)
-                            || Some(scheduled_period.clone())
-                                == work_order.work_order_info.unloading_point.period)
+                            || work_order.unloading_point_contains_period(scheduled_period.clone()))
                         && &basic_start_of_first_activity > first_period.start_date()
                     {
                         strategic_state.infeasible_cases_mut().unwrap().respect_awsc =
@@ -416,7 +415,7 @@ impl TestAlgorithm for StrategicAgent {
                                 scheduled_period,
                                 basic_start_of_first_activity,
                                 work_order.status_codes(),
-                                work_order.unloading_point().period,
+                                work_order.operations.values().map(|opr| opr.unloading_point.period.clone()),
                                 if work_order.is_vendor() { "VEN" } else { "   " },
                             ));
                         break;
@@ -445,9 +444,9 @@ impl TestAlgorithm for StrategicAgent {
                 .unwrap();
             let periods = scheduling_environment.periods();
 
-            if work_order.unloading_point().period.is_some()
-                && work_order.unloading_point().period != optimized_work_order.scheduled_period
-                && !periods[0..=1].contains(work_order.unloading_point().period.as_ref().unwrap())
+            if work_order.unloading_point().is_some()
+                && work_order.unloading_point() != optimized_work_order.scheduled_period
+                && !periods[0..=1].contains(work_order.unloading_point().as_ref().unwrap())
                 && !work_order.status_codes().awsc
                 && !work_order.status_codes().sch
             {
@@ -466,7 +465,7 @@ impl TestAlgorithm for StrategicAgent {
                     .respect_unloading = ConstraintState::Infeasible(format!(
                     "\t\t\nWork order number: {:?}\t\t\nwith unloading period: {}\t\t\nwith scheduled period: {}\t\t\nwith locked period: {}",
                     work_order_number,
-                    work_order.unloading_point().period.as_ref().unwrap(),
+                    work_order.unloading_point().as_ref().unwrap(),
                     optimized_work_order.scheduled_period.clone().unwrap(),
                     optimized_work_order.locked_in_period.clone().unwrap(),
                 ));
@@ -489,17 +488,9 @@ impl TestAlgorithm for StrategicAgent {
             let periods = scheduling_environment.periods();
 
             if work_order.status_codes().sch
-                && work_order.work_order_info.unloading_point.period.is_some()
-                && periods[0..=1].contains(
-                    work_order
-                        .work_order_info
-                        .unloading_point
-                        .period
-                        .as_ref()
-                        .unwrap(),
-                )
-                && optimized_work_order.scheduled_period
-                    != work_order.work_order_info.unloading_point.period
+                && work_order.unloading_point().is_some()
+                && periods[0..=1].contains(work_order.unloading_point().as_ref().unwrap())
+                && optimized_work_order.scheduled_period != work_order.unloading_point()
             {
                 error!(
                     work_order_number = ?work_order_number,
@@ -519,7 +510,7 @@ impl TestAlgorithm for StrategicAgent {
                     optimized_work_order.scheduled_period.as_ref().unwrap(),
                     optimized_work_order.locked_in_period.as_ref(),
                     work_order.status_codes(),
-                    work_order.unloading_point().period.as_ref(),
+                    work_order.unloading_point().as_ref(),
                 ));
                 break;
             }
@@ -600,6 +591,7 @@ mod tests {
     use shared_types::strategic::Periods;
     use tests::strategic_algorithm::optimized_work_orders::OptimizedWorkOrder;
     use tests::strategic_algorithm::optimized_work_orders::OptimizedWorkOrders;
+    use unloading_point::UnloadingPoint;
 
     use std::collections::HashMap;
     use std::collections::HashSet;
@@ -719,14 +711,30 @@ mod tests {
     fn test_extract_state_to_scheduler_overview() {
         let mut operations: HashMap<u32, Operation> = HashMap::new();
 
-        let operation_1 =
-            Operation::builder(ActivityNumber(10), Resources::MtnMech, Work::from(1.0)).build();
+        let unloading_point = UnloadingPoint::default();
+        let operation_1 = Operation::builder(
+            ActivityNumber(10),
+            unloading_point.clone(),
+            Resources::MtnMech,
+            Work::from(1.0),
+        )
+        .build();
 
-        let operation_2 =
-            Operation::builder(ActivityNumber(20), Resources::MtnMech, Work::from(1.0)).build();
+        let operation_2 = Operation::builder(
+            ActivityNumber(20),
+            unloading_point.clone(),
+            Resources::MtnMech,
+            Work::from(1.0),
+        )
+        .build();
 
-        let operation_3 =
-            Operation::builder(ActivityNumber(30), Resources::MtnMech, Work::from(1.0)).build();
+        let operation_3 = Operation::builder(
+            ActivityNumber(30),
+            unloading_point.clone(),
+            Resources::MtnMech,
+            Work::from(1.0),
+        )
+        .build();
 
         operations.insert(10, operation_1);
         operations.insert(20, operation_2);

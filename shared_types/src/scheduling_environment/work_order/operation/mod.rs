@@ -220,6 +220,7 @@ impl Operation {
     pub fn new(
         activity: ActivityNumber,
         resource: Resources,
+        unloading_point: UnloadingPoint,
         operation_info: OperationInfo,
         operation_analytic: OperationAnalytic,
         operation_dates: OperationDates,
@@ -227,6 +228,7 @@ impl Operation {
         Operation {
             activity,
             resource,
+            unloading_point,
             operation_info,
             operation_analytic,
             operation_dates,
@@ -249,7 +251,7 @@ impl Operation {
         &self.operation_analytic.duration
     }
 
-    pub fn operating_time(&self) -> &Work {
+    pub fn operating_time(&self) -> &Option<Work> {
         self.operation_info.operating_time()
     }
 }
@@ -326,6 +328,7 @@ impl Display for Operation {
 impl Operation {
     pub fn builder(
         activity: ActivityNumber,
+        unloading_point: UnloadingPoint,
         resource: Resources,
         work_remaining: Work,
     ) -> OperationBuilder {
@@ -334,7 +337,7 @@ impl Operation {
             work_remaining,
             Work::from(0.0),
             Work::from(0.0),
-            Work::from(6.0),
+            Some(Work::from(6.0)),
         );
 
         let operation_analytic = OperationAnalytic::new(Work::from(1.0), Work::from(6.0));
@@ -349,6 +352,7 @@ impl Operation {
         OperationBuilder {
             activity,
             resource,
+            unloading_point,
             operation_info,
             operation_analytic,
             operation_dates,
@@ -359,6 +363,7 @@ impl Operation {
 pub struct OperationBuilder {
     activity: ActivityNumber,
     resource: Resources,
+    unloading_point: UnloadingPoint,
     operation_info: OperationInfo,
     operation_analytic: OperationAnalytic,
     operation_dates: OperationDates,
@@ -379,7 +384,7 @@ impl OperationBuilder {
             work_remaining,
             work_performed,
             work_adjusted,
-            operating_time,
+            Some(operating_time),
         );
 
         self.operation_info = operation_info;
@@ -402,6 +407,7 @@ impl OperationBuilder {
         Operation {
             activity: self.activity,
             resource: self.resource,
+            unloading_point: self.unloading_point,
             operation_info: self.operation_info,
             operation_analytic: self.operation_analytic,
             operation_dates: self.operation_dates,

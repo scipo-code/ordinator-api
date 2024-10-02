@@ -63,7 +63,7 @@ pub struct OperationParameters {
     work_order_number: WorkOrderNumber,
     number: NumberOfPeople,
     duration: Work,
-    operating_time: Work,
+    operating_time: Option<Work>,
     work_remaining: Work,
     resource: Resources,
 }
@@ -112,7 +112,7 @@ impl Display for OperationParameters {
         {:?}\n
         number: {}\n
         duration: {}\n
-        operating_time: {}\n
+        operating_time: {:?}\n
         work_remaining: {}\n
         resource: {}",
             self.work_order_number,
@@ -452,7 +452,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
                 let loadings = self.determine_load(
                     first_day_remaining_capacity,
-                    operation_parameters.operating_time.clone(),
+                    operation_parameters.operating_time.as_ref().unwrap(),
                     operation_parameters.work_remaining.clone(),
                 );
 
@@ -676,14 +676,9 @@ impl TacticalAlgorithm {
     fn determine_load(
         &self,
         remaining_capacity: Work,
-        mut operating_time: Work,
+        mut operating_time: &Work,
         mut work_remaining: Work,
     ) -> Vec<Work> {
-        if operating_time <= Work::from(0.0) {
-            operating_time = Work::from(4.0);
-            warn!("Operating time is less or equal to 0.0. This is an error in the data initialization, setting it to 4.0 hours as default");
-        }
-
         let mut loadings = Vec::new();
 
         let first_day_load = match remaining_capacity.partial_cmp(&operating_time) {
@@ -881,7 +876,7 @@ pub mod tests {
         let work_remaining = Work::from(10.0);
 
         let loadings =
-            tactical_algorithm.determine_load(remaining_capacity, operating_time, work_remaining);
+            tactical_algorithm.determine_load(remaining_capacity, &operating_time, work_remaining);
 
         assert_eq!(
             loadings,
@@ -903,7 +898,7 @@ pub mod tests {
         let work_remaining = Work::from(10.0);
 
         let loadings =
-            tactical_algorithm.determine_load(remaining_capacity, operating_time, work_remaining);
+            tactical_algorithm.determine_load(remaining_capacity, &operating_time, work_remaining);
 
         assert_eq!(
             loadings,
@@ -938,7 +933,7 @@ pub mod tests {
             work_order_number,
             1,
             Work::from(1.0),
-            Work::from(1.0),
+            Some(Work::from(1.0)),
             Work::from(1.0),
             Resources::MtnMech,
         );
@@ -1019,7 +1014,7 @@ pub mod tests {
             work_order_number,
             1,
             Work::from(1.0),
-            Work::from(1.0),
+            Some(Work::from(1.0)),
             Work::from(1.0),
             Resources::MtnMech,
         );
@@ -1101,7 +1096,7 @@ pub mod tests {
             work_order_number,
             1,
             Work::from(1.0),
-            Work::from(1.0),
+            Some(Work::from(1.0)),
             Work::from(1.0),
             Resources::MtnMech,
         );
@@ -1167,7 +1162,7 @@ pub mod tests {
             work_order_number: WorkOrderNumber,
             number: NumberOfPeople,
             duration: Work,
-            operating_time: Work,
+            operating_time: Option<Work>,
             work_remaining: Work,
             resource: Resources,
         ) -> Self {
