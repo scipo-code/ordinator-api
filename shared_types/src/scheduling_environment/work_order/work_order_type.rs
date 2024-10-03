@@ -51,6 +51,8 @@ impl WorkOrderType {
             WorkOrderType::Other => "Other".to_owned(),
         }
     }
+
+    pub fn new_dyn() -> Self {}
 }
 
 impl WDFPriority {

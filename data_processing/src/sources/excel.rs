@@ -193,15 +193,15 @@ fn create_new_work_order(
         )
         .cloned()
     {
-        Some(calamine::Data::Int(n)) => Priority::IntValue(n as u64),
+        Some(calamine::Data::Int(n)) => Priority::Int(n as u64),
         Some(calamine::Data::String(s)) => {
             match s.parse::<u64>() {
-                Ok(num) => Priority::IntValue(num), // If successful, use the integer value
-                Err(_) => Priority::StringValue(s), // If not, fall back to using the string
+                Ok(num) => Priority::Int(num), // If successful, use the integer value
+                Err(_) => Priority::Char(s),   // If not, fall back to using the string
             }
         }
-        Some(calamine::Data::Float(n)) => Priority::IntValue(n as u64),
-        _ => Priority::StringValue(String::new()),
+        Some(calamine::Data::Float(n)) => Priority::Int(n as u64),
+        _ => Priority::Char(String::new()),
     };
 
     let main_work_center = match main_work_center_data {
@@ -1075,7 +1075,7 @@ fn extract_order_type_and_priority(
     match work_order_type_data.cloned() {
         Some(calamine::Data::String(work_order_type)) => match work_order_type.as_str() {
             "WDF" => match &priority {
-                Priority::IntValue(value) => match value {
+                Priority::Int(value) => match value {
                     1 => Ok(WorkOrderType::Wdf(WDFPriority::One)),
                     2 => Ok(WorkOrderType::Wdf(WDFPriority::Two)),
                     3 => Ok(WorkOrderType::Wdf(WDFPriority::Three)),
@@ -1085,7 +1085,7 @@ fn extract_order_type_and_priority(
                 _ => Err(ExcelLoadError("Could not parse WDF priority as int".into())),
             },
             "WGN" => match &priority {
-                Priority::IntValue(value) => match value {
+                Priority::Int(value) => match value {
                     1 => Ok(WorkOrderType::Wgn(WGNPriority::One)),
                     2 => Ok(WorkOrderType::Wgn(WGNPriority::Two)),
                     3 => Ok(WorkOrderType::Wgn(WGNPriority::Three)),
@@ -1095,7 +1095,7 @@ fn extract_order_type_and_priority(
                 _ => Err(ExcelLoadError("Could not parse WGN priority as int".into())),
             },
             "WPM" => match &priority {
-                Priority::StringValue(value) => match value.as_str() {
+                Priority::Char(value) => match value.as_str() {
                     "A" => Ok(WorkOrderType::Wpm(WPMPriority::A)),
                     "B" => Ok(WorkOrderType::Wpm(WPMPriority::B)),
                     "C" => Ok(WorkOrderType::Wpm(WPMPriority::C)),
@@ -1105,7 +1105,7 @@ fn extract_order_type_and_priority(
                 _ => Err(ExcelLoadError("Could not parse WPM priority as int".into())),
             },
             "WRO" => match &priority {
-                Priority::IntValue(value) => match value {
+                Priority::Int(value) => match value {
                     1 => Ok(WorkOrderType::Wro(WROPriority::One)),
                     2 => Ok(WorkOrderType::Wro(WROPriority::Two)),
                     3 => Ok(WorkOrderType::Wro(WROPriority::Three)),

@@ -5,30 +5,30 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum Priority {
-    IntValue(u64),
-    StringValue(char),
+    Int(u64),
+    Char(char),
 }
 
 impl Priority {
     pub fn get_priority_string(&self) -> String {
         match self {
-            Priority::IntValue(priority) => priority.to_string(),
-            Priority::StringValue(priority) => priority.to_string(),
+            Priority::Int(priority) => priority.to_string(),
+            Priority::Char(priority) => priority.to_string(),
         }
     }
 
     pub fn dyn_new(input: Box<dyn Any>) -> Self {
         if let Some(int) = input.downcast_ref::<u64>() {
-            Priority::IntValue(*int)
+            Priority::Int(*int)
         } else if let Some(char) = input.downcast_ref::<char>() {
-            Priority::StringValue(*char)
+            Priority::Char(*char)
         } else {
             panic!("Priority can only be an int or a char")
         }
     }
 
     pub fn new_int(priority: u64) -> Self {
-        Self::IntValue(priority)
+        Self::Int(priority)
     }
 }
 

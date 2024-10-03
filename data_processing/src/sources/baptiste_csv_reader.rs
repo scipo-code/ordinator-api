@@ -1,15 +1,12 @@
-use chrono::{DateTime, Utc};
 use shared_types::scheduling_environment::{
     work_order::{
         operation::{operation_info::NumberOfPeople, ActivityNumber, Work},
-        priority::Priority,
-        work_order_type::WorkOrderType,
         WorkOrderActivity, WorkOrderNumber,
     },
     worker_environment::WorkerEnvironment,
     SchedulingEnvironment,
 };
-use std::{collections::HashMap, error::Error, fs::File, hash::Hash, io::Read, path::PathBuf};
+use std::{collections::HashMap, error::Error, fs::File, hash::Hash, path::PathBuf};
 
 use serde::{de::DeserializeOwned, Deserialize};
 

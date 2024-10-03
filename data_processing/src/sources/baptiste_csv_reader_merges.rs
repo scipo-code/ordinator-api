@@ -5,10 +5,21 @@ use serde::Deserialize;
 use shared_types::scheduling_environment::{
     time_environment::{day::Day, period::Period},
     work_order::{
-        self, functional_location::FunctionalLocation, operation::{
+        self,
+        functional_location::FunctionalLocation,
+        operation::{
             operation_analytic::OperationAnalytic, operation_info::OperationInfo, Operation,
             OperationDates, Work,
-        }, priority::Priority, revision::Revision, status_codes::{MaterialStatus, StatusCodes}, system_condition::SystemCondition, unloading_point::UnloadingPoint, work_order_dates::WorkOrderDates, work_order_text::WorkOrderText, WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderNumber
+        },
+        priority::Priority,
+        revision::Revision,
+        status_codes::{MaterialStatus, StatusCodes},
+        system_condition::SystemCondition,
+        unloading_point::UnloadingPoint,
+        work_order_dates::WorkOrderDates,
+        work_order_text::WorkOrderText,
+        work_order_type::{self, WorkOrderType},
+        WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderNumber,
     },
     worker_environment::resources::{MainResources, Resources},
     WorkOrders,
@@ -244,11 +255,13 @@ fn create_work_orders(
             "ROOM_MISSING_TODO".to_string(),
         );
 
-        let priority = Priority::new_int(``) work_order_csv.WO_Priority;
+        let priority = Priority::dyn_new(Box::new(work_order_csv.WO_Priority));
+
+        let work_order_type = WorkOrderType::dyn_new(Box::new(work_order_csv.WO_Order_Type));
 
         let work_order_info: WorkOrderInfo = WorkOrderInfo::new(
-            work_order_csv.WO_Priority,
-            work_order_csv.WO_Order_Type,
+            priority,
+            work_order_type,
             FunctionalLocation::new(functional_location.clone()),
             work_order_text,
             Revision::new(work_order_csv.WO_Revision),
