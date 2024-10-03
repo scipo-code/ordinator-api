@@ -1,10 +1,12 @@
+use std::any::Any;
+
 use rust_xlsxwriter::{ColNum, Format, IntoExcelData, RowNum, Worksheet, XlsxError};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum Priority {
     IntValue(u64),
-    StringValue(String),
+    StringValue(char),
 }
 
 impl Priority {
@@ -14,9 +16,17 @@ impl Priority {
             Priority::StringValue(priority) => priority.to_string(),
         }
     }
-}
 
-impl Priority {
+    pub fn dyn_new(input: Box<dyn Any>) -> Self {
+        if let Some(int) = input.downcast_ref::<u64>() {
+            Priority::IntValue(*int)
+        } else if let Some(char) = input.downcast_ref::<char>() {
+            Priority::StringValue(*char)
+        } else {
+            panic!("Priority can only be an int or a char")
+        }
+    }
+
     pub fn new_int(priority: u64) -> Self {
         Self::IntValue(priority)
     }

@@ -5,17 +5,14 @@ use regex::Regex;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::Asset;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::str::FromStr;
 use tracing::{debug, event, info, warn};
 
 use shared_types::scheduling_environment::time_environment::period::Period;
-use shared_types::scheduling_environment::time_environment::TimeEnvironment;
 use shared_types::scheduling_environment::work_order::system_condition::SystemCondition;
 
-use chrono::{
-    naive, DateTime, Datelike, Days, Duration, NaiveDate, NaiveTime, TimeZone, Timelike, Utc,
-};
+use chrono::{naive, DateTime, Duration, NaiveDate, NaiveTime, TimeZone, Utc};
 use shared_types::scheduling_environment::work_order::functional_location::FunctionalLocation;
 use shared_types::scheduling_environment::work_order::priority::Priority;
 use shared_types::scheduling_environment::work_order::revision::Revision;
@@ -349,27 +346,27 @@ fn create_new_operation(
             Some(calamine::Data::String(s)) => s.parse::<u64>().unwrap_or(1),
             _ => 1,
         },
-        match work_remaining_data.cloned() {
+        Some(match work_remaining_data.cloned() {
             Some(calamine::Data::Int(planned_work)) => Work::from(planned_work as f64),
             Some(calamine::Data::Float(planned_work)) => Work::from(planned_work),
             Some(calamine::Data::String(planned_work)) => {
                 planned_work.parse::<Work>().unwrap_or(Work::from(0.0))
             }
             _ => Work::from(100000.0),
-        },
-        match actual_work_data.cloned() {
+        }),
+        Some(match actual_work_data.cloned() {
             Some(calamine::Data::Int(actual_work)) => Work::from(actual_work as f64),
             Some(calamine::Data::Float(actual_work)) => Work::from(actual_work),
             Some(calamine::Data::String(s)) => s.parse::<Work>().unwrap_or(Work::from(0.0)),
             _ => Work::from(0.0),
-        },
-        Work::from(0.0),
+        }),
+        Some(Work::from(0.0)),
         Some(operating_time),
     );
 
     let operation_analytic = OperationAnalytic::new(
         Work::from(0.0),
-        match header_to_index.get("OPR_Duration") {
+        Some(match header_to_index.get("OPR_Duration") {
             Some(index) => match row.get(*index).cloned() {
                 Some(calamine::Data::Int(duration)) => Work::from(duration as f64),
                 Some(calamine::Data::Float(duration)) => Work::from(duration),
@@ -382,12 +379,14 @@ fn create_new_operation(
                 if operation_info.number() != 0 {
                     operation_info
                         .work_remaining()
+                        .as_ref()
+                        .unwrap()
                         .cal_duration(operation_info.number())
                 } else {
                     Work::from(0.0)
                 }
             }
-        },
+        }),
     );
 
     let earliest_start_datetime = {

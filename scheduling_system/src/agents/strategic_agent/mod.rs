@@ -716,7 +716,7 @@ mod tests {
             ActivityNumber(10),
             unloading_point.clone(),
             Resources::MtnMech,
-            Work::from(1.0),
+            Some(Work::from(1.0)),
         )
         .build();
 
@@ -724,7 +724,7 @@ mod tests {
             ActivityNumber(20),
             unloading_point.clone(),
             Resources::MtnMech,
-            Work::from(1.0),
+            Some(Work::from(1.0)),
         )
         .build();
 
@@ -732,7 +732,7 @@ mod tests {
             ActivityNumber(30),
             unloading_point.clone(),
             Resources::MtnMech,
-            Work::from(1.0),
+            Some(Work::from(1.0)),
         )
         .build();
 

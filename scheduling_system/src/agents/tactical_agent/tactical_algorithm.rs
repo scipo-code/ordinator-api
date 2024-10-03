@@ -244,9 +244,9 @@ impl TacticalAlgorithm {
             let optimized_operation = OperationParameters {
                 work_order_number: *work_order.work_order_number(),
                 number: operation.number(),
-                duration: operation.duration().clone(),
+                duration: operation.duration().clone().unwrap(),
                 operating_time: operation.operating_time().clone(),
-                work_remaining: operation.work_remaining().clone(),
+                work_remaining: operation.work_remaining().clone().unwrap(),
                 resource: operation.resource().clone(),
             };
             optimized_work_order

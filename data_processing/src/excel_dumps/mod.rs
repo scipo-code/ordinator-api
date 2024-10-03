@@ -263,19 +263,11 @@ pub fn create_excel_dump(
                     .unwrap_or("WE DO NOT HAVE THIS FIELD FROM SAP YET".to_string()),
                 system_status: work_order.status_codes().clone(),
                 user_status: work_order.status_codes().clone(),
-                work: activity.1.work_remaining().clone(),
-                actual_work: activity.1.operation_info.work_actual.clone(),
+                work: activity.1.work_remaining().clone().unwrap(),
+                actual_work: activity.1.operation_info.work_actual.clone().unwrap(),
                 unloading_point: activity.1.unloading_point.clone(),
-                basic_start_date: work_order
-                    .work_order_dates
-                    .basic_start_date
-                    .date_naive()
-                    .into(),
-                basic_finish_date: work_order
-                    .work_order_dates
-                    .basic_finish_date
-                    .date_naive()
-                    .into(),
+                basic_start_date: work_order.work_order_dates.basic_start_date.into(),
+                basic_finish_date: work_order.work_order_dates.basic_finish_date.into(),
                 earliest_start_date: activity
                     .1
                     .operation_dates
@@ -291,12 +283,10 @@ pub fn create_excel_dump(
                 earliest_allowed_start_date: work_order
                     .work_order_dates
                     .earliest_allowed_start_date
-                    .date_naive()
                     .into(),
                 latest_allowed_finish_date: work_order
                     .work_order_dates
                     .latest_allowed_finish_date
-                    .date_naive()
                     .into(),
                 activity: activity.0.clone(),
                 opperation_system_status: work_order.status_codes().clone(),

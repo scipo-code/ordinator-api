@@ -428,7 +428,7 @@ impl WorkOrder {
         for (_, operation) in self.operations.iter() {
             *work_load
                 .entry(operation.resource().clone())
-                .or_insert(Work::from(0.0)) += operation.work_remaining().clone();
+                .or_insert(Work::from(0.0)) += operation.work_remaining().clone().unwrap();
         }
 
         self.work_order_analytic.work_order_work = work_load
@@ -493,28 +493,28 @@ impl Default for WorkOrder {
             ActivityNumber(10),
             unloading_point.clone(),
             Resources::Prodtech,
-            Work::from(10.0),
+            Some(Work::from(10.0)),
         )
         .build();
         let operation_0020 = Operation::builder(
             ActivityNumber(20),
             unloading_point.clone(),
             Resources::MtnMech,
-            Work::from(20.0),
+            Some(Work::from(20.0)),
         )
         .build();
         let operation_0030 = Operation::builder(
             ActivityNumber(30),
             unloading_point.clone(),
             Resources::MtnMech,
-            Work::from(30.0),
+            Some(Work::from(30.0)),
         )
         .build();
         let operation_0040 = Operation::builder(
             ActivityNumber(40),
             unloading_point.clone(),
             Resources::Prodtech,
-            Work::from(40.0),
+            Some(Work::from(40.0)),
         )
         .build();
 
@@ -604,28 +604,28 @@ mod tests {
                 ActivityNumber(10),
                 unloading_point.clone(),
                 Resources::Prodtech,
-                Work::from(10.0),
+                Some(Work::from(10.0)),
             )
             .build();
             let operation_0020 = Operation::builder(
                 ActivityNumber(20),
                 unloading_point.clone(),
                 Resources::MtnMech,
-                Work::from(20.0),
+                Some(Work::from(20.0)),
             )
             .build();
             let operation_0030 = Operation::builder(
                 ActivityNumber(30),
                 unloading_point.clone(),
                 Resources::MtnMech,
-                Work::from(30.0),
+                Some(Work::from(30.0)),
             )
             .build();
             let operation_0040 = Operation::builder(
                 ActivityNumber(40),
                 unloading_point.clone(),
                 Resources::Prodtech,
-                Work::from(40.0),
+                Some(Work::from(40.0)),
             )
             .build();
 

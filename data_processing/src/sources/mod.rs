@@ -4,7 +4,7 @@ pub mod excel;
 
 use std::path::PathBuf;
 
-use chrono::{Days, Duration, Utc};
+use chrono::{Datelike, Days, Duration, Timelike, Utc};
 use excel::TotalExcel;
 use shared_types::scheduling_environment::{
     time_environment::{day::Day, period::Period, TimeEnvironment},
@@ -25,10 +25,24 @@ pub trait SchedulingEnvironmentFactory<DataSource> {
     ) -> Result<SchedulingEnvironment, SchedulingEnvironmentFactoryError>;
 }
 
-struct TimeInput {
+pub struct TimeInput {
     number_of_strategic_periods: u64,
     number_of_tactical_periods: u64,
     number_of_days: u64,
+}
+
+impl TimeInput {
+    pub fn new(
+        number_of_strategic_periods: u64,
+        number_of_tactical_periods: u64,
+        number_of_days: u64,
+    ) -> Self {
+        Self {
+            number_of_strategic_periods,
+            number_of_tactical_periods,
+            number_of_days,
+        }
+    }
 }
 
 pub fn create_time_environment(time_input: &TimeInput) -> TimeEnvironment {

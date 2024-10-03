@@ -4,31 +4,27 @@ use shared_types::scheduling_environment::{
         operation::{operation_info::NumberOfPeople, ActivityNumber, Work},
         priority::Priority,
         work_order_type::WorkOrderType,
-        WorkOrderNumber,
-    }, worker_environment::WorkerEnvironment, SchedulingEnvironment
+        WorkOrderActivity, WorkOrderNumber,
+    },
+    worker_environment::WorkerEnvironment,
+    SchedulingEnvironment,
 };
-use std::{
-    collections::HashMap,
-    error::Error,
-    hash::Hash,
-    path::{ PathBuf},
-};
+use std::{collections::HashMap, error::Error, fs::File, hash::Hash, io::Read, path::PathBuf};
 
 use serde::{de::DeserializeOwned, Deserialize};
 
-use super::{ create_time_environment, SchedulingEnvironmentFactory, SchedulingEnvironmentFactoryError, TimeInput};
+use super::{
+    baptiste_csv_reader_merges::load_csv_data, create_time_environment,
+    SchedulingEnvironmentFactory, SchedulingEnvironmentFactoryError, TimeInput,
+};
 
 pub struct TotalSap {
     file_path: PathBuf,
 }
 
 impl TotalSap {
-    pub fn new(
-        file_path: PathBuf,
-    ) -> Self {
-        Self {
-            file_path,
-        }
+    pub fn new(file_path: PathBuf) -> Self {
+        Self { file_path }
     }
 }
 
@@ -37,19 +33,15 @@ impl SchedulingEnvironmentFactory<TotalSap> for SchedulingEnvironment {
         data_source: TotalSap,
         time_input: TimeInput,
     ) -> Result<SchedulingEnvironment, SchedulingEnvironmentFactoryError> {
-
         let time_environment = create_time_environment(&time_input);
 
         let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
 
-        let work_orders = create_work_orders(, , , , , , )
+        let work_orders = load_csv_data(data_source.file_path, &time_environment.strategic_periods);
 
         let scheduling_environment =
             SchedulingEnvironment::new(work_orders, worker_environment, time_environment);
         Ok(scheduling_environment)
-
-
-        
     }
 }
 
@@ -65,8 +57,10 @@ pub fn populate_csv_structures<'a, C>(
 where
     C: DeserializeOwned,
     C: CsvType,
+    C: std::fmt::Debug,
 {
-    let csv_file = std::fs::File::open(file_path)?;
+    let csv_file: File = std::fs::File::open(file_path)?;
+    dbg!(&csv_file);
     let mut reader = csv::Reader::from_reader(csv_file);
     for row in reader.deserialize() {
         let value: C = row.unwrap();
@@ -97,7 +91,7 @@ pub type WOObjectNumber = String;
 pub type OPRObjectNumber = String;
 pub type FLOCTechnicaID = String;
 
-#[derive(Deserialize, Debug)]
+#[derive(Clone, Deserialize, Debug)]
 #[allow(non_snake_case, dead_code)]
 pub struct WorkCenterCsv {
     pub WBS_ID: WBSID,
@@ -113,15 +107,15 @@ impl CsvType for WorkCenterCsv {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[allow(non_snake_case, dead_code)]
 pub struct WorkOperationsCsv {
     pub OPR_Routing_Number: String,
     pub OPR_Counter: String,
     pub OPR_WBS_ID: String,
     pub OPR_Workers_Numbers: NumberOfPeople,
-    pub OPR_Planned_Work: Work,
-    pub OPR_Actual_Work: Work,
+    pub OPR_Planned_Work: String,
+    pub OPR_Actual_Work: String,
     pub OPR_Start_Date: String,
     pub OPR_Start_Time: String,
     pub OPR_End_Date: String,
@@ -140,6 +134,7 @@ impl CsvType for WorkOperationsCsv {
     type KeyType = String;
 }
 
+#[derive(Clone, Deserialize, Debug)]
 #[allow(non_snake_case, dead_code)]
 pub struct WorkOrdersStatusCsv {
     pub WO_Object_Number: String,
@@ -160,6 +155,7 @@ impl CsvType for WorkOrdersStatusCsv {
 }
 
 #[allow(non_snake_case, dead_code)]
+#[derive(Clone, Deserialize, Debug)]
 pub struct OperationsStatusCsv {
     pub OPR_Object_Number: String,
     pub OPR_Status_ID: String,
@@ -180,6 +176,7 @@ impl CsvType for OperationsStatusCsv {
 }
 
 #[allow(non_snake_case, dead_code)]
+#[derive(Clone, Deserialize, Debug)]
 pub struct SecondaryLocationsCsv {
     pub PM_Object_Number: String,
     pub PM_Functional_Location: String,
@@ -196,6 +193,7 @@ impl CsvType for SecondaryLocationsCsv {
 }
 
 #[allow(non_snake_case, dead_code)]
+#[derive(Clone, Deserialize, Debug)]
 pub struct FunctionalLocationsCsv {
     pub FLOC_Technical_ID: String,
     pub FLOC_Functional_ID: String,
@@ -213,9 +211,10 @@ impl CsvType for FunctionalLocationsCsv {
 }
 
 #[allow(non_snake_case, dead_code)]
+#[derive(Clone, Deserialize, Debug)]
 pub struct WorkOrdersCsv {
     pub WO_Number: String,
-    pub WO_Priority: Priority,
+    pub WO_Priority: String,
     pub WO_Functional_Location_Number: String,
     pub WO_Plan_Maintenance_Number: String,
     pub WO_Planner_Group: String,
@@ -224,7 +223,7 @@ pub struct WorkOrdersCsv {
     pub WO_Activity_Type: String,
     pub WO_Scheduled_Start_Date: String,
     pub WO_Operation_ID: String,
-    pub WO_Order_Type: WorkOrderType,
+    pub WO_Order_Type: String,
     pub WO_Header_Description: String,
     pub WO_Phase_Order_Created: String,
     pub WO_Phase_Order_Released: String,
@@ -236,10 +235,10 @@ pub struct WorkOrdersCsv {
     pub WO_Notification: String,
     pub WO_Maintenance_Plan_Name: String,
     pub WO_System_Condition: String,
-    pub WO_Basic_Start_Date: DateTime<Utc>,
-    pub WO_Basic_End_Date: DateTime<Utc>,
-    pub WO_Earliest_Allowed_Start_Date: DateTime<Utc>,
-    pub WO_Latest_Allowed_Finish_Date: DateTime<Utc>,
+    pub WO_Basic_Start_Date: String,
+    pub WO_Basic_End_Date: String,
+    pub WO_Earliest_Allowed_Start_Date: String,
+    pub WO_Latest_Allowed_Finish_Date: String,
     pub WO_SubNetwork_ID: String,
 }
 
@@ -251,16 +250,17 @@ impl CsvType for WorkOrdersCsv {
     type KeyType = WorkOrderNumber;
 }
 
+#[derive(Clone)]
 pub struct WorkOrdersStatusCsvAggregated {
     pub inner: HashMap<WOObjectNumber, String>,
 }
 
 impl WorkOrdersStatusCsvAggregated {
     pub fn new(work_orders_status: Vec<WorkOrdersStatusCsv>) -> Self {
-        let mut work_order_stutus_aggregated: HashMap<String, String> = HashMap::new();
+        let mut work_order_status_aggregated: HashMap<String, String> = HashMap::new();
 
         for work_order_status in work_orders_status {
-            work_order_stutus_aggregated
+            work_order_status_aggregated
                 .entry(work_order_status.WO_Object_Number)
                 .and_modify(|entry| {
                     entry.push_str(&work_order_status.WO_E_Status_Code);
@@ -272,7 +272,73 @@ impl WorkOrdersStatusCsvAggregated {
         }
 
         Self {
-            inner: work_order_stutus_aggregated,
+            inner: work_order_status_aggregated,
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct OperationsStatusCsvAggregated {
+    pub inner: HashMap<OPRObjectNumber, String>,
+}
+
+impl OperationsStatusCsvAggregated {
+    pub fn new(operations_status: Vec<OperationsStatusCsv>) -> Self {
+        let mut operations_status_aggregated: HashMap<String, String> = HashMap::new();
+
+        for operations_status in operations_status {
+            operations_status_aggregated
+                .entry(operations_status.OPR_Object_Number)
+                .and_modify(|entry| {
+                    entry.push_str(&operations_status.OPR_E_Status_Code);
+                    entry.push_str(&operations_status.OPR_I_Status_Code);
+                })
+                .or_insert(
+                    operations_status.OPR_E_Status_Code + &operations_status.OPR_I_Status_Code,
+                );
+        }
+
+        Self {
+            inner: operations_status_aggregated,
+        }
+    }
+}
+pub struct WorkOperations {
+    pub inner: HashMap<WorkOrderActivity, WorkOperationsCsv>,
+}
+
+impl WorkOperations {
+    pub fn new(
+        work_orders_csv: &HashMap<WorkOrderNumber, WorkOrdersCsv>,
+        operations_csv: Vec<WorkOperationsCsv>,
+    ) -> Self {
+        let mut work_operations = HashMap::new();
+        for work_order_csv in work_orders_csv.keys() {
+            for operation_csv in &operations_csv {
+                work_operations.insert(
+                    (*work_order_csv, operation_csv.OPR_Activity_Number),
+                    operation_csv.clone(),
+                );
+            }
+        }
+
+        Self {
+            inner: work_operations,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_populate_csv_structures() {
+        let mut path = PathBuf::new();
+
+        let mut container_type = ContainerType::Vec(Vec::<WorkOperationsCsv>::new());
+        path.push("../temp_scheduling_environment_database/mid_work_operations.csv");
+        populate_csv_structures(path, &mut container_type).unwrap();
     }
 }

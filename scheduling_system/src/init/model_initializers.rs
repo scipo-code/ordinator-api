@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::{env, path::PathBuf};
 
+use data_processing::sources::TimeInput;
 use dotenvy::dotenv;
 use tracing::info;
 
@@ -45,15 +46,16 @@ fn create_scheduling_environment(
     //     number_of_tactical_periods,
     //     number_of_days,
     // );
-
-    let total_sap = TotalSap::new(
-        file_path,
+    let time_input = TimeInput::new(
         number_of_strategic_periods,
         number_of_tactical_periods,
         number_of_days,
     );
 
-    let scheduling_environment = SchedulingEnvironment::create_scheduling_environment(total_sap)
-        .expect("Could not load the data from the data file");
+    let total_sap = TotalSap::new(file_path);
+
+    let scheduling_environment =
+        SchedulingEnvironment::create_scheduling_environment(total_sap, time_input)
+            .expect("Could not load the data from the data file");
     return Some(scheduling_environment);
 }

@@ -154,8 +154,8 @@ impl Serialize for Work {
         S: serde::Serializer,
     {
         let mut s = serializer.serialize_struct("Work", 2)?;
-        s.serialize_field("type", "Decimal")?;
-        s.serialize_field("value", &self.0.to_f64().unwrap())?;
+        s.serialize_field("work_type", "Decimal")?;
+        s.serialize_field("work_value", &self.0.to_f64().unwrap())?;
         s.end()
     }
 }
@@ -167,9 +167,10 @@ impl<'de> Deserialize<'de> for Work {
     where
         D: serde::Deserializer<'de>,
     {
-        struct WorkVisitor;
+        struct WorkVisitorValue;
+        struct WorkVisitorMap;
 
-        impl<'de> Visitor<'de> for WorkVisitor {
+        impl<'de> Visitor<'de> for WorkVisitorMap {
             type Value = Work;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -183,7 +184,7 @@ impl<'de> Deserialize<'de> for Work {
                 let mut value = None;
                 while let Some(key) = map.next_key::<String>()? {
                     match key.as_str() {
-                        "value" => {
+                        "work_value" => {
                             if value.is_some() {
                                 return Err(de::Error::duplicate_field("value"));
                             }
@@ -192,21 +193,28 @@ impl<'de> Deserialize<'de> for Work {
 
                             value = Decimal::from_f64_retain(value_float);
                         }
-                        "type" => {
+                        "work_type" => {
                             if value.is_some() {
                                 return Err(de::Error::duplicate_field("type"));
                             }
                             let value_str: String = map.next_value()?;
                             assert_eq!(value_str, "Decimal".to_string());
                         }
-                        _ => return Err(de::Error::unknown_field(&key, &["type", "value"])),
+                        _ => {
+                            return Err(de::Error::unknown_field(
+                                &key,
+                                &["work_type", "work_value"],
+                            ))
+                        }
                     }
                 }
-                let fixed_val = value.ok_or_else(|| de::Error::missing_field("value"))?;
+
+                let fixed_val = value.ok_or_else(|| de::Error::missing_field("work_value"))?;
                 Ok(Work(fixed_val))
             }
         }
-        deserializer.deserialize_struct("Work", &["type", "value"], WorkVisitor)
+
+        deserializer.deserialize_struct("Work", &["work_type", "work_value"], WorkVisitorMap)
     }
 }
 
@@ -235,7 +243,7 @@ impl Operation {
         }
     }
 
-    pub fn work_remaining(&self) -> &Work {
+    pub fn work_remaining(&self) -> &Option<Work> {
         self.operation_info.work_remaining()
     }
 
@@ -247,7 +255,7 @@ impl Operation {
         self.operation_info.number()
     }
 
-    pub fn duration(&self) -> &Work {
+    pub fn duration(&self) -> &Option<Work> {
         &self.operation_analytic.duration
     }
 
@@ -315,11 +323,11 @@ impl Display for Operation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(
             f,
-            "    Activity: {:>8?}    |{:>11}|{:>14}|{:>8}|{:>6}|",
+            "    Activity: {:>8?}    |{:>11}|{:>14?}|{:>8}|{:>6}|",
             self.activity,
             self.resource.to_string(),
-            self.operation_info.work_remaining().work(),
-            self.operation_analytic.duration.work(),
+            self.operation_info.work_remaining(),
+            self.operation_analytic.duration.as_ref().unwrap().work(),
             self.operation_info.number(),
         )
     }
@@ -330,17 +338,17 @@ impl Operation {
         activity: ActivityNumber,
         unloading_point: UnloadingPoint,
         resource: Resources,
-        work_remaining: Work,
+        work_remaining: Option<Work>,
     ) -> OperationBuilder {
         let operation_info = OperationInfo::new(
             1,
             work_remaining,
-            Work::from(0.0),
-            Work::from(0.0),
+            Some(Work::from(0.0)),
+            Some(Work::from(0.0)),
             Some(Work::from(6.0)),
         );
 
-        let operation_analytic = OperationAnalytic::new(Work::from(1.0), Work::from(6.0));
+        let operation_analytic = OperationAnalytic::new(Work::from(1.0), None);
 
         let operation_dates = OperationDates::new(
             Day::new(0, Utc::now()),
@@ -374,17 +382,17 @@ impl OperationBuilder {
     fn with_operation_info(
         mut self,
         number: NumberOfPeople,
-        work_remaining: Work,
-        work_performed: Work,
-        work_adjusted: Work,
-        operating_time: Work,
+        work_remaining: Option<Work>,
+        work_performed: Option<Work>,
+        work_adjusted: Option<Work>,
+        operating_time: Option<Work>,
     ) -> Self {
         let operation_info = OperationInfo::new(
             number,
             work_remaining,
             work_performed,
             work_adjusted,
-            Some(operating_time),
+            operating_time,
         );
 
         self.operation_info = operation_info;
