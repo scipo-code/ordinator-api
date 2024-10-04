@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs, path::PathBuf, str::FromStr};
 
-use chrono::{DateTime, Duration, NaiveDate, NaiveTime, Utc};
+use chrono::{Duration, NaiveDate, NaiveTime, Utc};
 use serde::Deserialize;
 use shared_types::scheduling_environment::{
     time_environment::{day::Day, period::Period},
@@ -18,7 +18,7 @@ use shared_types::scheduling_environment::{
         unloading_point::UnloadingPoint,
         work_order_dates::WorkOrderDates,
         work_order_text::WorkOrderText,
-        work_order_type::{self, WorkOrderType},
+        work_order_type::WorkOrderType,
         WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderNumber,
     },
     worker_environment::resources::{MainResources, Resources},
@@ -28,9 +28,9 @@ use shared_types::scheduling_environment::{
 use crate::sap_mapper_and_types::{DATS, TIMS};
 
 use super::baptiste_csv_reader::{
-    populate_csv_structures, ContainerType, FLOCTechnicaID, FunctionalLocationsCsv,
-    OperationsStatusCsv, OperationsStatusCsvAggregated, WorkCenterCsv, WorkOperations,
-    WorkOperationsCsv, WorkOrdersCsv, WorkOrdersStatusCsv, WorkOrdersStatusCsvAggregated, WBSID,
+    populate_csv_structures, FLOCTechnicaID, FunctionalLocationsCsv, OperationsStatusCsv,
+    OperationsStatusCsvAggregated, WorkCenterCsv, WorkOperations, WorkOperationsCsv, WorkOrdersCsv,
+    WorkOrdersStatusCsv, WorkOrdersStatusCsvAggregated, WBSID,
 };
 
 pub fn load_csv_data(file_path: PathBuf, periods: &[Period]) -> WorkOrders {
@@ -38,97 +38,44 @@ pub fn load_csv_data(file_path: PathBuf, periods: &[Period]) -> WorkOrders {
 
     let file_paths: BaptisteToml = toml::from_str(&contents).unwrap();
 
-    let mut functional_locations_csv_container = ContainerType::HashMap(HashMap::new());
-    let functional_locations_csv: &mut ContainerType<FunctionalLocationsCsv> =
-        populate_csv_structures(
-            file_paths.mid_functional_locations,
-            &mut functional_locations_csv_container,
-        )
+    let functional_locations_csv =
+        populate_csv_structures::<FunctionalLocationsCsv>(file_paths.mid_functional_locations)
+            .expect("Could not read the csv file");
+
+    let operations_status_csv =
+        populate_csv_structures::<OperationsStatusCsv>(file_paths.mid_operations_status)
+            .expect("Could not load the csv file");
+
+    let work_center_csv = populate_csv_structures::<WorkCenterCsv>(file_paths.mid_work_center)
         .expect("Could not read the csv file");
 
-    let mut operations_status_csv_container = ContainerType::Vec(Vec::<OperationsStatusCsv>::new());
-    let operations_status_csv: &mut ContainerType<OperationsStatusCsv> = populate_csv_structures(
-        file_paths.mid_operations_status,
-        &mut operations_status_csv_container,
-    )
-    .expect("Could not load the csv file");
-
-    let mut work_center_csv_container =
-        ContainerType::HashMap(HashMap::<WBSID, WorkCenterCsv>::new());
-    let work_center_csv: &mut ContainerType<WorkCenterCsv> =
-        populate_csv_structures(file_paths.mid_work_center, &mut work_center_csv_container)
+    let work_operations_csv =
+        populate_csv_structures::<WorkOperationsCsv>(file_paths.mid_work_operations)
             .expect("Could not read the csv file");
 
-    let mut work_operations_csv_container = ContainerType::Vec(Vec::new());
-    let work_operations_csv: &mut ContainerType<WorkOperationsCsv> = populate_csv_structures(
-        file_paths.mid_work_operations,
-        &mut work_operations_csv_container,
-    )
-    .expect("Could not read the csv file");
+    let work_orders_csv = populate_csv_structures::<WorkOrdersCsv>(file_paths.mid_work_orders)
+        .expect("Could not read the csv file");
 
-    let mut work_orders_csv_container = ContainerType::HashMap(HashMap::new());
-    let work_orders_csv: &mut ContainerType<WorkOrdersCsv> =
-        populate_csv_structures(file_paths.mid_work_orders, &mut work_orders_csv_container)
+    let work_orders_status_csv =
+        populate_csv_structures::<WorkOrdersStatusCsv>(file_paths.mid_work_orders_status)
             .expect("Could not read the csv file");
 
-    let mut work_orders_status_csv_container = ContainerType::Vec(Vec::new());
-    let work_orders_status_csv: &mut ContainerType<WorkOrdersStatusCsv> = populate_csv_structures(
-        file_paths.mid_work_orders_status,
-        &mut work_orders_status_csv_container,
-    )
-    .expect("Could not read the csv file");
+    let work_orders_status_agg = WorkOrdersStatusCsvAggregated::new(work_orders_status_csv.clone());
 
-    let functional_locations = if let ContainerType::HashMap(functional_locations_csv_container) =
-        functional_locations_csv
-    {
-        functional_locations_csv_container
-    } else {
-        panic!();
-    };
+    let operations_status_agg = OperationsStatusCsvAggregated::new(operations_status_csv.clone());
 
-    let operations_status =
-        if let ContainerType::Vec(operations_status_csv_container) = operations_status_csv {
-            operations_status_csv_container
-        } else {
-            panic!();
-        };
-    let work_center = if let ContainerType::HashMap(work_center_csv_container) = work_center_csv {
-        work_center_csv_container
-    } else {
-        panic!();
-    };
-    let work_operations =
-        if let ContainerType::Vec(work_operations_csv_container) = work_operations_csv {
-            work_operations_csv_container
-        } else {
-            panic!();
-        };
-    let work_orders = if let ContainerType::HashMap(work_orders_csv_container) = work_orders_csv {
-        work_orders_csv_container
-    } else {
-        panic!();
-    };
-    let work_orders_status =
-        if let ContainerType::Vec(work_orders_status_csv_container) = work_orders_status_csv {
-            work_orders_status_csv_container
-        } else {
-            panic!();
-        };
+    dbg!();
+    let work_operations = WorkOperations::new(&work_orders_csv, &work_operations_csv);
 
-    let work_orders_status = WorkOrdersStatusCsvAggregated::new(work_orders_status.clone());
-
-    let operations_status = OperationsStatusCsvAggregated::new(operations_status.clone());
-
-    let work_operations = WorkOperations::new(&work_orders, work_operations.clone());
-
+    dbg!();
     let work_orders_inner = create_work_orders(
-        functional_locations.clone(),
-        operations_status,
+        functional_locations_csv.clone(),
+        operations_status_agg,
         periods,
-        work_center.clone(),
+        work_center_csv.clone(),
         work_operations,
-        work_orders.clone(),
-        work_orders_status,
+        work_orders_csv.clone(),
+        work_orders_status_agg,
     );
 
     WorkOrders {
@@ -158,7 +105,10 @@ fn create_work_orders(
     work_orders_status: WorkOrdersStatusCsvAggregated,
 ) -> HashMap<WorkOrderNumber, WorkOrder> {
     let mut inner_work_orders = HashMap::new();
+    let mut count = 0;
     for (work_order_number, work_order_csv) in work_orders {
+        count += 1;
+        dbg!(count);
         let main_work_center: MainResources = MainResources::new_from_string(
             work_center
                 .get(&work_order_csv.WO_WBS_ID)
@@ -167,28 +117,30 @@ fn create_work_orders(
                 .clone(),
         );
 
-        let status_codes_string = work_orders_status
-            .inner
-            .get(&work_order_csv.WO_Status_ID)
-            .unwrap();
+        let status_codes_string = work_orders_status.inner.get(&work_order_csv.WO_Status_ID);
 
-        let pcnf_pattern = regex::Regex::new(r"PCNF").unwrap();
-        let awsc_pattern = regex::Regex::new(r"AWSC").unwrap();
-        let well_pattern = regex::Regex::new(r"WELL").unwrap();
-        let sch_pattern = regex::Regex::new(r"SCH").unwrap();
-        let sece_pattern = regex::Regex::new(r"SECE").unwrap();
+        let status_codes = match status_codes_string {
+            Some(string) => {
+                let pcnf_pattern = regex::Regex::new(r"PCNF").unwrap();
+                let awsc_pattern = regex::Regex::new(r"AWSC").unwrap();
+                let well_pattern = regex::Regex::new(r"WELL").unwrap();
+                let sch_pattern = regex::Regex::new(r"SCH").unwrap();
+                let sece_pattern = regex::Regex::new(r"SECE").unwrap();
 
-        let material_status: MaterialStatus =
-            MaterialStatus::from_status_code_string(&status_codes_string);
+                let material_status: MaterialStatus =
+                    MaterialStatus::from_status_code_string(&string);
 
-        let status_codes = StatusCodes {
-            material_status,
-            pcnf: pcnf_pattern.is_match(&status_codes_string),
-            awsc: awsc_pattern.is_match(&status_codes_string),
-            well: well_pattern.is_match(&status_codes_string),
-            sch: sch_pattern.is_match(&status_codes_string),
-            sece: sece_pattern.is_match(&status_codes_string),
-            unloading_point: false, // Assuming default value; modify as needed
+                StatusCodes {
+                    material_status,
+                    pcnf: pcnf_pattern.is_match(&string),
+                    awsc: awsc_pattern.is_match(&string),
+                    well: well_pattern.is_match(&string),
+                    sch: sch_pattern.is_match(&string),
+                    sece: sece_pattern.is_match(&string),
+                    unloading_point: false, // Assuming default value; modify as needed
+                }
+            }
+            None => StatusCodes::default(),
         };
 
         // self.initialize_work_load();
@@ -204,15 +156,16 @@ fn create_work_orders(
             false,
             status_codes,
         );
-
+        dbg!();
         let earliest_allowed_start_date: NaiveDate =
-            DATS(work_order_csv.WO_Earliest_Allowed_Start_Date).into();
+            DATS(work_order_csv.WO_Earliest_Allowed_Start_Date).try_into();
         let latest_allowed_finish_date: NaiveDate =
-            DATS(work_order_csv.WO_Latest_Allowed_Finish_Date).into();
+            DATS(work_order_csv.WO_Latest_Allowed_Finish_Date).try_into();
 
-        let basic_start: NaiveDate = DATS(work_order_csv.WO_Basic_Start_Date).into();
-        let basic_finish: NaiveDate = DATS(work_order_csv.WO_Basic_End_Date).into();
-
+        dbg!();
+        let basic_start: NaiveDate = DATS(work_order_csv.WO_Basic_Start_Date).try_into();
+        let basic_finish: NaiveDate = DATS(work_order_csv.WO_Basic_End_Date).try_into();
+        dbg!();
         let duration = basic_finish - basic_start;
 
         let earliest_allowed_start_period = date_to_period(periods, &earliest_allowed_start_date);
@@ -257,7 +210,7 @@ fn create_work_orders(
 
         let priority = Priority::dyn_new(Box::new(work_order_csv.WO_Priority));
 
-        let work_order_type = WorkOrderType::dyn_new(Box::new(work_order_csv.WO_Order_Type));
+        let work_order_type = WorkOrderType::new(&work_order_csv.WO_Order_Type, priority.clone());
 
         let work_order_info: WorkOrderInfo = WorkOrderInfo::new(
             priority,
@@ -314,13 +267,13 @@ fn create_work_orders(
 
             // We need to use the DATS here! I think that is the only way forward! I think that to scale this
             // we also need to be very clear on the remaining types of the system.
-
+            dbg!();
             let naive_start_DATS: NaiveDate = DATS(operation_csv.OPR_Start_Date.clone()).into();
             let naive_start_TIMS: NaiveTime = TIMS(operation_csv.OPR_Start_Time.clone()).into();
-
+            dbg!();
             let naive_end_DATS: NaiveDate = DATS(operation_csv.OPR_End_Date.clone()).into();
             let naive_end_TIMS: NaiveTime = TIMS(operation_csv.OPR_End_Time.clone()).into();
-
+            dbg!();
             let naive_start_datetime = naive_start_DATS.and_time(naive_start_TIMS);
             let naive_end_datetime = naive_end_DATS.and_time(naive_end_TIMS);
 

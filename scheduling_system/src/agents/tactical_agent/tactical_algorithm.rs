@@ -392,7 +392,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 .filter(|date| {
                     optimized_work_order
                         .scheduled_period
-                        .contains_date(*date.date())
+                        .contains_date(date.date().date_naive())
                 })
                 .collect();
 

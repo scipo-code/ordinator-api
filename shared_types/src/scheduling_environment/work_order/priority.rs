@@ -23,7 +23,18 @@ impl Priority {
         } else if let Some(char) = input.downcast_ref::<char>() {
             Priority::Char(*char)
         } else {
-            panic!("Priority can only be an int or a char")
+            let string_value = input.downcast_ref::<String>().unwrap();
+
+            match string_value.parse::<u64>() {
+                Ok(int) => Priority::Int(int),
+                Err(_) => {
+                    let char = string_value
+                        .parse::<char>()
+                        .expect("priority should be either parsed as an int or a char");
+
+                    Priority::Char(char)
+                }
+            }
         }
     }
 

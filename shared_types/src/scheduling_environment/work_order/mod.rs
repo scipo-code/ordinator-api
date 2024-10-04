@@ -31,10 +31,7 @@ use std::num::ParseIntError;
 use std::str::FromStr;
 use std::string::ParseError;
 // use crate::scheduling_environment::work_order::optimized_work_order::OptimizedWorkOrder;
-use crate::scheduling_environment::work_order::{
-    status_codes::MaterialStatus,
-    work_order_type::{WDFPriority, WGNPriority, WPMPriority},
-};
+use crate::scheduling_environment::work_order::status_codes::MaterialStatus;
 
 use crate::scheduling_environment::worker_environment::resources::Resources;
 
@@ -309,10 +306,10 @@ pub enum ActivityRelation {
 pub struct WeightParams {
     order_type_weights: HashMap<String, u64>,
     status_weights: HashMap<String, u64>,
-    vis_priority_map: HashMap<String, u64>,
-    wdf_priority_map: HashMap<String, u64>,
-    wgn_priority_map: HashMap<String, u64>,
-    wpm_priority_map: HashMap<String, u64>,
+    vis_priority_map: HashMap<char, u64>,
+    wdf_priority_map: HashMap<u64, u64>,
+    wgn_priority_map: HashMap<u64, u64>,
+    wpm_priority_map: HashMap<char, u64>,
 }
 
 impl WeightParams {
@@ -341,58 +338,37 @@ impl WorkOrder {
 
         match &self.work_order_info.work_order_type {
             WorkOrderType::Wdf(wdf_priority) => match wdf_priority {
-                WDFPriority::One => {
+                Priority::Int(int) => {
                     self.work_order_analytic.work_order_weight +=
-                        parameters.wdf_priority_map["1"] * parameters.order_type_weights["WDF"]
+                        parameters.wdf_priority_map[int] * parameters.order_type_weights["WDF"]
                 }
-                WDFPriority::Two => {
+                Priority::Int(int) => {
                     self.work_order_analytic.work_order_weight +=
-                        parameters.wdf_priority_map["2"] * parameters.order_type_weights["WDF"]
+                        parameters.wdf_priority_map[int] * parameters.order_type_weights["WDF"]
                 }
-                WDFPriority::Three => {
+                Priority::Int(int) => {
                     self.work_order_analytic.work_order_weight +=
-                        parameters.wdf_priority_map["3"] * parameters.order_type_weights["WDF"]
+                        parameters.wdf_priority_map[int] * parameters.order_type_weights["WDF"]
                 }
-                WDFPriority::Four => {
+                Priority::Int(int) => {
                     self.work_order_analytic.work_order_weight +=
-                        parameters.wdf_priority_map["4"] * parameters.order_type_weights["WDF"]
+                        parameters.wdf_priority_map[int] * parameters.order_type_weights["WDF"]
                 }
+                _ => panic!("Received a wrong input number work order priority"),
             },
             WorkOrderType::Wgn(wgn_priority) => match wgn_priority {
-                WGNPriority::One => {
+                Priority::Int(int) if int >= &0 && int <= &4 => {
                     self.work_order_analytic.work_order_weight +=
-                        parameters.wgn_priority_map["1"] * parameters.order_type_weights["WGN"]
+                        parameters.wgn_priority_map[int] * parameters.order_type_weights["WGN"]
                 }
-                WGNPriority::Two => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wgn_priority_map["2"] * parameters.order_type_weights["WGN"]
-                }
-                WGNPriority::Three => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wgn_priority_map["3"] * parameters.order_type_weights["WGN"]
-                }
-                WGNPriority::Four => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wgn_priority_map["4"] * parameters.order_type_weights["WGN"]
-                }
+                _ => panic!("Received a wrong input number work order priority"),
             },
             WorkOrderType::Wpm(wpm_priority) => match wpm_priority {
-                WPMPriority::A => {
+                Priority::Char(char) if char >= &'A' && char <= &'D' => {
                     self.work_order_analytic.work_order_weight +=
-                        parameters.wpm_priority_map["A"] * parameters.order_type_weights["WPM"]
+                        parameters.wpm_priority_map[char] * parameters.order_type_weights["WPM"]
                 }
-                WPMPriority::B => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wpm_priority_map["B"] * parameters.order_type_weights["WPM"]
-                }
-                WPMPriority::C => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wpm_priority_map["C"] * parameters.order_type_weights["WPM"]
-                }
-                WPMPriority::D => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wpm_priority_map["D"] * parameters.order_type_weights["WPM"]
-                }
+                _ => panic!("Received a wrong input number work order priority"),
             },
             WorkOrderType::Wro(_) => (),
             WorkOrderType::Other => {
@@ -534,7 +510,7 @@ impl Default for WorkOrder {
 
         let work_order_info = WorkOrderInfo::new(
             Priority::new_int(1),
-            WorkOrderType::Wdf(WDFPriority::new(1)),
+            WorkOrderType::Wdf(Priority::dyn_new(Box::new(1))),
             FunctionalLocation::default(),
             WorkOrderText::default(),
             Revision::default(),
@@ -569,7 +545,7 @@ mod tests {
         unloading_point::UnloadingPoint,
         work_order_dates::WorkOrderDates,
         work_order_text::WorkOrderText,
-        work_order_type::{WDFPriority, WorkOrderType},
+        work_order_type::WorkOrderType,
         WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderInfoDetail, WorkOrderNumber,
     };
 
@@ -645,7 +621,7 @@ mod tests {
 
             let work_order_info = WorkOrderInfo::new(
                 Priority::new_int(1),
-                WorkOrderType::Wdf(WDFPriority::new(1)),
+                WorkOrderType::Wdf(Priority::dyn_new(Box::new(1))),
                 FunctionalLocation::default(),
                 WorkOrderText::default(),
                 Revision::default(),

@@ -1,44 +1,15 @@
 use rust_xlsxwriter::IntoExcelData;
 use serde::{Deserialize, Serialize};
 
+use super::priority::Priority;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum WorkOrderType {
-    Wdf(WDFPriority),
-    Wgn(WGNPriority),
-    Wpm(WPMPriority),
-    Wro(WROPriority),
+    Wdf(Priority),
+    Wgn(Priority),
+    Wpm(Priority),
+    Wro(Priority),
     Other,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub enum WDFPriority {
-    One,
-    Two,
-    Three,
-    Four,
-}
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub enum WGNPriority {
-    One,
-    Two,
-    Three,
-    Four,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub enum WROPriority {
-    One,
-    Two,
-    Three,
-    Four,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub enum WPMPriority {
-    A,
-    B,
-    C,
-    D,
 }
 
 impl WorkOrderType {
@@ -52,17 +23,13 @@ impl WorkOrderType {
         }
     }
 
-    pub fn new_dyn() -> Self {}
-}
-
-impl WDFPriority {
-    pub fn new(priority: u32) -> Self {
-        match priority {
-            1 => Self::One,
-            2 => Self::Two,
-            3 => Self::Three,
-            4 => Self::Four,
-            _ => Self::Four,
+    pub fn new(work_order_type_string: &str, priority: Priority) -> Self {
+        match work_order_type_string {
+            "WDF" => WorkOrderType::Wdf(priority),
+            "WGN" => WorkOrderType::Wdf(priority),
+            "WPM" => WorkOrderType::Wdf(priority),
+            "WRO" => WorkOrderType::Wdf(priority),
+            _ => todo!("Missing implementation for work order type"),
         }
     }
 }

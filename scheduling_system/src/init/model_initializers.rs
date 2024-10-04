@@ -5,9 +5,7 @@ use data_processing::sources::TimeInput;
 use dotenvy::dotenv;
 use tracing::info;
 
-use data_processing::sources::{
-    baptiste_csv_reader::TotalSap, excel::TotalExcel, SchedulingEnvironmentFactory,
-};
+use data_processing::sources::{baptiste_csv_reader::TotalSap, SchedulingEnvironmentFactory};
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 pub fn initialize_scheduling_environment(

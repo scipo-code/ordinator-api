@@ -406,7 +406,7 @@ impl TestAlgorithm for StrategicAgent {
                     if awsc
                         && !(scheduled_period.contains_date(basic_start_of_first_activity)
                             || work_order.unloading_point_contains_period(scheduled_period.clone()))
-                        && &basic_start_of_first_activity > first_period.start_date()
+                        && &basic_start_of_first_activity > &first_period.start_date().date_naive()
                     {
                         strategic_state.infeasible_cases_mut().unwrap().respect_awsc =
                             ConstraintState::Infeasible(format!(

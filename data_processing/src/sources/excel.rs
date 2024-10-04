@@ -19,12 +19,7 @@ use shared_types::scheduling_environment::work_order::revision::Revision;
 use shared_types::scheduling_environment::work_order::status_codes::{MaterialStatus, StatusCodes};
 use shared_types::scheduling_environment::work_order::work_order_dates::WorkOrderDates;
 use shared_types::scheduling_environment::work_order::work_order_text::WorkOrderText;
-use shared_types::scheduling_environment::work_order::work_order_type::{
-    WDFPriority, WGNPriority, WPMPriority,
-};
-use shared_types::scheduling_environment::work_order::work_order_type::{
-    WROPriority, WorkOrderType,
-};
+use shared_types::scheduling_environment::work_order::work_order_type::WorkOrderType;
 
 use shared_types::scheduling_environment::work_order::unloading_point::UnloadingPoint;
 use shared_types::scheduling_environment::work_order::{
@@ -197,11 +192,11 @@ fn create_new_work_order(
         Some(calamine::Data::String(s)) => {
             match s.parse::<u64>() {
                 Ok(num) => Priority::Int(num), // If successful, use the integer value
-                Err(_) => Priority::Char(s),   // If not, fall back to using the string
+                Err(_) => Priority::Char(s.parse::<char>().unwrap()), // If not, fall back to using the string
             }
         }
         Some(calamine::Data::Float(n)) => Priority::Int(n as u64),
-        _ => Priority::Char(String::new()),
+        _ => Priority::Char('X'),
     };
 
     let main_work_center = match main_work_center_data {

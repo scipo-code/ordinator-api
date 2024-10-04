@@ -47,11 +47,24 @@ pub struct CURR(Decimal);
 #[allow(dead_code)]
 pub struct LANG(String);
 
-impl From<DATS> for NaiveDate {
-    fn from(value: DATS) -> NaiveDate {
-        let string = value.0;
+impl TryFrom<DATS> for NaiveDate {
+    type Error = String;
 
-        NaiveDate::parse_from_str(string.as_str(), "%Y%m%d").unwrap()
+    fn try_from(value: DATS) -> Result<NaiveDate, Self::Error> {
+        let str = value.0.trim_end_matches(".0");
+
+        if str == "0" {
+            return Err("Empty DATS value".to_string());
+        };
+
+        let naive_date_result = NaiveDate::parse_from_str(str, "%Y%m%d");
+
+        match naive_date_result {
+            Ok(naive_date) => Ok(naive_date),
+            Err(_) => {
+                panic!("DATS can, according to SAP documentation only be of the form 'YYYYMMDD' or '0' for empty");
+            }
+        }
     }
 }
 

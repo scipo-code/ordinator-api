@@ -1,11 +1,10 @@
 pub mod baptiste_csv_reader;
 pub mod baptiste_csv_reader_merges;
-pub mod excel;
+// pub mod excel;
 
 use std::path::PathBuf;
 
 use chrono::{Datelike, Days, Duration, Timelike, Utc};
-use excel::TotalExcel;
 use shared_types::scheduling_environment::{
     time_environment::{day::Day, period::Period, TimeEnvironment},
     SchedulingEnvironment,
