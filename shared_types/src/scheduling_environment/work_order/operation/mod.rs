@@ -264,7 +264,7 @@ impl Operation {
     }
 }
 
-#[derive(Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
+#[derive(Default, Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
 pub struct ActivityNumber(pub u64);
 
 impl From<u64> for ActivityNumber {

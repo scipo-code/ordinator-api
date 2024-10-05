@@ -23,13 +23,26 @@ impl WorkOrderType {
         }
     }
 
-    pub fn new(work_order_type_string: &str, priority: Priority) -> Self {
+    pub fn new(work_order_type_string: &str, priority: Priority) -> Result<Self, String> {
         match work_order_type_string {
-            "WDF" => WorkOrderType::Wdf(priority),
-            "WGN" => WorkOrderType::Wdf(priority),
-            "WPM" => WorkOrderType::Wdf(priority),
-            "WRO" => WorkOrderType::Wdf(priority),
-            _ => todo!("Missing implementation for work order type"),
+            "WDF" => Ok(WorkOrderType::Wdf(priority)),
+            "WGN" => Ok(WorkOrderType::Wgn(priority)),
+            "WPM" => Ok(WorkOrderType::Wpm(priority)),
+            "WRO" => Ok(WorkOrderType::Wro(priority)),
+            _ => Err(format!(
+                "WorkOrderType: {} is not valid in Ordinator yet",
+                work_order_type_string
+            )),
+        }
+    }
+
+    pub fn valid_work_order_type(str: &str) -> bool {
+        match str {
+            "WDF" => true,
+            "WGN" => true,
+            "WPM" => true,
+            "WRO" => true,
+            _ => false,
         }
     }
 }

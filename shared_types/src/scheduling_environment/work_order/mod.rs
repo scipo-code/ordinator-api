@@ -401,6 +401,7 @@ impl WorkOrder {
     pub fn initialize_work_load(&mut self) {
         let mut work_load: HashMap<Resources, Work> = HashMap::new();
 
+        dbg!(&self.operations);
         for (_, operation) in self.operations.iter() {
             *work_load
                 .entry(operation.resource().clone())

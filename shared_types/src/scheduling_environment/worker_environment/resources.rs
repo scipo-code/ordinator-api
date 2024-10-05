@@ -107,42 +107,82 @@ impl MainResources {
     clap::ValueEnum,
 )]
 pub enum Resources {
-    #[serde(rename = "MEDIC")]
-    Medic,
+    #[serde(rename = "MTN-PIPF")]
+    MtnPipf,
+    #[serde(rename = "VEN-TURB")]
+    VenTurb,
+    #[serde(rename = "CON-VEN")]
+    ConVen,
+    #[serde(rename = "MTN-LAGG")]
+    MtnLagg,
+    #[serde(rename = "VEN-SCAF")]
+    VenScaf,
+    #[serde(rename = "MTN-ROPE")]
+    MtnRope,
+    #[serde(rename = "VEN-INSP")]
+    VenInsp,
+    #[serde(rename = "INP-SITE")]
+    InpSite,
+    #[serde(rename = "VEN-INST")]
+    VenInst,
+    #[serde(rename = "MAINONSH")]
+    Mainonsh,
+    #[serde(rename = "DRILLING")]
+    Drilling,
+    #[serde(rename = "WELLMAIN")]
+    Wellmain,
+    #[serde(rename = "WELLSUPV")]
+    Wellsupv,
+    #[serde(rename = "WELLTECH")]
+    Welltech,
+    #[serde(rename = "CON-ELEC")]
+    ConElec,
+    #[serde(rename = "CON-INPF")]
+    ConInpf,
+    #[serde(rename = "CON-INST")]
+    ConInst,
+    #[serde(rename = "CON-LAGG")]
+    ConLagg,
+    #[serde(rename = "CON-NDTI")]
+    ConNdti,
+    #[serde(rename = "CON-SCAF")]
+    ConScaf,
+    #[serde(rename = "CON-PAIN")]
+    ConPain,
+    #[serde(rename = "CON-RIGG")]
+    ConRigg,
+    #[serde(rename = "CON-ROPE")]
+    ConRope,
+    #[serde(rename = "CON-WELD")]
+    ConWeld,
+    #[serde(rename = "MTN-ROUS")]
+    MtnRous,
     #[serde(rename = "MTN-CRAN")]
     MtnCran,
     #[serde(rename = "MTN-ELEC")]
     MtnElec,
     #[serde(rename = "MTN-INST")]
     MtnInst,
-    #[serde(rename = "MTN-LAGG")]
-    MtnLagg,
     #[serde(rename = "MTN-MECH")]
     MtnMech,
-    #[serde(rename = "MTN-PAIN")]
-    MtnPain,
-    #[serde(rename = "MTN-PIPF")]
-    MtnPipf,
     #[serde(rename = "MTN-RIGG")]
     MtnRigg,
-    #[serde(rename = "MTN-ROPE")]
-    MtnRope,
-    #[serde(rename = "MTN-ROUS")]
-    MtnRous,
-    #[serde(rename = "MTN-SAT")]
-    MtnSat,
     #[serde(rename = "MTN-SCAF")]
     MtnScaf,
+    #[serde(rename = "MTN-PAIN")]
+    MtnPain,
     #[serde(rename = "MTN-TELE")]
     MtnTele,
     #[serde(rename = "MTN-TURB")]
     MtnTurb,
-    #[serde(rename = "INP-SITE")]
-    InpSite,
+    #[serde(rename = "MEDIC")]
+    Medic,
     #[serde(rename = "PRODLABO")]
     Prodlabo,
     #[serde(rename = "PRODTECH")]
     Prodtech,
+    #[serde(rename = "MTN-SAT")]
+    MtnSat,
     #[serde(rename = "VEN-ACCO")]
     VenAcco,
     #[serde(rename = "VEN-COMM")]
@@ -153,68 +193,91 @@ pub enum Resources {
     VenElec,
     #[serde(rename = "VEN-HVAC")]
     VenHvac,
-    #[serde(rename = "VEN-INSP")]
-    VenInsp,
-    #[serde(rename = "VEN-INST")]
-    VenInst,
     #[serde(rename = "VEN-MECH")]
     VenMech,
     #[serde(rename = "VEN-METE")]
     VenMete,
-    #[serde(rename = "VEN-ROPE")]
-    VenRope,
-    #[serde(rename = "VEN-SCAF")]
-    VenScaf,
     #[serde(rename = "VEN-SUBS")]
     VenSubs,
+    #[serde(rename = "VEN-ROPE")]
+    VenRope,
     #[serde(rename = "QAQCELEC")]
-    QaqcElec,
+    Qaqcelec,
     #[serde(rename = "QAQCMECH")]
-    QaqcMech,
+    Qaqcmech,
     #[serde(rename = "QAQCPAIN")]
-    QaqcPain,
-    #[serde(rename = "WellSupv")]
-    WellSupv,
+    Qaqcpain,
+    #[serde(rename = "PRODCCR")]
+    Prodccr,
+    #[serde(rename = "VEN-FFEQ")]
+    VenFfeq,
+    #[serde(rename = "CMP-RIGG")]
+    CmpRigg,
+    #[serde(rename = "CMP-SCAF")]
+    CmpScaf,
+    #[serde(rename = "CON-NPT")]
+    ConNpt,
 }
 
 impl FromStr for Resources {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let resource = match s {
-            "MEDIC" => Resources::Medic,
+            "MTN-PIPF" => Resources::MtnPipf,
+            "VEN-TURB" => Resources::VenTurb,
+            "CON-VEN" => Resources::ConVen,
+            "MTN-LAGG" => Resources::MtnLagg,
+            "VEN-SCAF" => Resources::VenScaf,
+            "MTN-ROPE" => Resources::MtnRope,
+            "VEN-INSP" => Resources::VenInsp,
+            "INP-SITE" => Resources::InpSite,
+            "VEN-INST" => Resources::VenInst,
+            "MAINONSH" => Resources::Mainonsh,
+            "DRILLING" => Resources::Drilling,
+            "WELLMAIN" => Resources::Wellmain,
+            "WELLSUPV" => Resources::Wellsupv,
+            "WELLTECH" => Resources::Welltech,
+            "CON-ELEC" => Resources::ConElec,
+            "CON-INPF" => Resources::ConInpf,
+            "CON-INST" => Resources::ConInst,
+            "CON-LAGG" => Resources::ConLagg,
+            "CON-NDTI" => Resources::ConNdti,
+            "CON-SCAF" => Resources::ConScaf,
+            "CON-PAIN" => Resources::ConPain,
+            "CON-RIGG" => Resources::ConRigg,
+            "CON-ROPE" => Resources::ConRope,
+            "CON-WELD" => Resources::ConWeld,
+            "MTN-ROUS" => Resources::MtnRous,
             "MTN-CRAN" => Resources::MtnCran,
             "MTN-ELEC" => Resources::MtnElec,
             "MTN-INST" => Resources::MtnInst,
-            "MTN-LAGG" => Resources::MtnLagg,
             "MTN-MECH" => Resources::MtnMech,
-            "MTN-PAIN" => Resources::MtnPain,
-            "MTN-PIPF" => Resources::MtnPipf,
             "MTN-RIGG" => Resources::MtnRigg,
-            "MTN-ROPE" => Resources::MtnRope,
-            "MTN-ROUS" => Resources::MtnRous,
-            "MTN-SAT" => Resources::MtnSat,
             "MTN-SCAF" => Resources::MtnScaf,
+            "MTN-PAIN" => Resources::MtnPain,
             "MTN-TELE" => Resources::MtnTele,
             "MTN-TURB" => Resources::MtnTurb,
-            "INP-SITE" => Resources::InpSite,
+            "MEDIC" => Resources::Medic,
             "PRODLABO" => Resources::Prodlabo,
             "PRODTECH" => Resources::Prodtech,
+            "MTN-SAT" => Resources::MtnSat,
             "VEN-ACCO" => Resources::VenAcco,
             "VEN-COMM" => Resources::VenComm,
             "VEN-CRAN" => Resources::VenCran,
             "VEN-ELEC" => Resources::VenElec,
             "VEN-HVAC" => Resources::VenHvac,
-            "VEN-INSP" => Resources::VenInsp,
-            "VEN-INST" => Resources::VenInst,
             "VEN-MECH" => Resources::VenMech,
             "VEN-METE" => Resources::VenMete,
-            "VEN-ROPE" => Resources::VenRope,
-            "VEN-SCAF" => Resources::VenScaf,
             "VEN-SUBS" => Resources::VenSubs,
-            "QAQCELEC" => Resources::QaqcElec,
-            "QAQCMECH" => Resources::QaqcMech,
-            "QAQCPAIN" => Resources::QaqcPain,
-            "WELLSUPV" => Resources::WellSupv,
+            "VEN-ROPE" => Resources::VenRope,
+            "QAQCELEC" => Resources::Qaqcelec,
+            "QAQCMECH" => Resources::Qaqcmech,
+            "QAQCPAIN" => Resources::Qaqcpain,
+            "PRODCCR" => Resources::Prodccr,
+            "VEN-FFEQ" => Resources::VenFfeq,
+            "CMP-RIGG" => Resources::CmpRigg,
+            "CMP-SCAF" => Resources::CmpScaf,
+            "CON-NPT" => Resources::ConNpt,
             unknown => return Err(format!("Could not parse Resource: {}", unknown)),
         };
         Ok(resource)
@@ -254,10 +317,31 @@ impl Resources {
             Resources::VenRope => "VEN-ROPE".to_string(),
             Resources::VenScaf => "VEN-SCAF".to_string(),
             Resources::VenSubs => "VEN-SUBS".to_string(),
-            Resources::QaqcElec => "QAQCELEC".to_string(),
-            Resources::QaqcMech => "QAQCMECH".to_string(),
-            Resources::QaqcPain => "QAQCPAIN".to_string(),
-            Resources::WellSupv => "WELLSUPV".to_string(),
+            Resources::Qaqcelec => "QAQCELEC".to_string(),
+            Resources::Qaqcmech => "QAQCMECH".to_string(),
+            Resources::Qaqcpain => "QAQCPAIN".to_string(),
+            Resources::Wellsupv => "WELLSUPV".to_string(),
+            Resources::VenTurb => todo!(),
+            Resources::ConVen => todo!(),
+            Resources::Mainonsh => todo!(),
+            Resources::Drilling => todo!(),
+            Resources::Wellmain => todo!(),
+            Resources::Welltech => todo!(),
+            Resources::ConElec => todo!(),
+            Resources::ConInpf => todo!(),
+            Resources::ConInst => todo!(),
+            Resources::ConLagg => todo!(),
+            Resources::ConNdti => todo!(),
+            Resources::ConScaf => todo!(),
+            Resources::ConPain => todo!(),
+            Resources::ConRigg => todo!(),
+            Resources::ConRope => todo!(),
+            Resources::ConWeld => todo!(),
+            Resources::Prodccr => todo!(),
+            Resources::VenFfeq => todo!(),
+            Resources::CmpRigg => todo!(),
+            Resources::CmpScaf => todo!(),
+            Resources::ConNpt => todo!(),
         }
     }
 

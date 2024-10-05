@@ -1,6 +1,7 @@
 use shared_types::scheduling_environment::{
     work_order::{
         operation::{operation_info::NumberOfPeople, ActivityNumber},
+        work_order_type::WorkOrderType,
         WorkOrderActivity, WorkOrderNumber,
     },
     worker_environment::WorkerEnvironment,
@@ -98,7 +99,7 @@ impl CsvType for WorkCenterCsv {
     }
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Default, Deserialize, Debug, Clone)]
 #[allow(non_snake_case, dead_code)]
 pub struct WorkOperationsCsv {
     pub OPR_Routing_Number: String,
@@ -126,8 +127,12 @@ impl CsvType for WorkOperationsCsv {
     }
 
     fn make_entry(key: Self::KeyType, container: &mut Self::Container, value: Self) {
+        if value.OPR_WBS_ID == "0" {
+            return;
+        }
+        let key_0 = key.0.trim_end_matches(".0").to_string();
         container
-            .entry(key.0)
+            .entry(key_0)
             .and_modify(|inner_hash_map| {
                 inner_hash_map.entry(key.1.clone()).or_insert(value.clone());
             })
@@ -139,7 +144,7 @@ impl CsvType for WorkOperationsCsv {
     }
 }
 
-#[derive(Clone, Deserialize, Debug)]
+#[derive(Default, Clone, Deserialize, Debug)]
 #[allow(non_snake_case, dead_code)]
 pub struct WorkOrdersStatusCsv {
     pub WO_Object_Number: String,
@@ -179,13 +184,13 @@ pub struct OperationsStatusCsv {
 
 #[allow(non_snake_case, dead_code)]
 impl CsvType for OperationsStatusCsv {
-    fn get_and_clone_key(self: &Self) -> Self::KeyType {
-        self.OPR_Object_Number.clone()
-    }
-
     type KeyType = String;
 
     type Container = Vec<Self>;
+
+    fn get_and_clone_key(self: &Self) -> Self::KeyType {
+        self.OPR_Object_Number.clone()
+    }
 
     fn make_entry(key: Self::KeyType, container: &mut Self::Container, value: Self) {
         container.push(value);
@@ -272,15 +277,39 @@ pub struct WorkOrdersCsv {
 }
 
 impl CsvType for WorkOrdersCsv {
-    fn get_and_clone_key(self: &Self) -> Self::KeyType {
-        WorkOrderNumber(self.WO_Number.clone())
-    }
-
     type KeyType = WorkOrderNumber;
 
     type Container = HashMap<Self::KeyType, Self>;
 
+    fn get_and_clone_key(self: &Self) -> Self::KeyType {
+        WorkOrderNumber(self.WO_Number.clone())
+    }
+
     fn make_entry(key: Self::KeyType, container: &mut Self::Container, value: Self) {
+        // This is custom logic needed to handle incorrectly formatted csv data
+        // This is not a permanent solution
+        if ["", "0"].contains(&value.WO_Earliest_Allowed_Start_Date.trim_end_matches(".0")) {
+            return;
+        }
+        if ["", "0"].contains(&value.WO_Latest_Allowed_Finish_Date.trim_end_matches(".0")) {
+            return;
+        }
+        if ["", "0"].contains(&value.WO_Basic_Start_Date.trim_end_matches(".0")) {
+            return;
+        }
+        if ["", "0"].contains(&value.WO_Basic_End_Date.trim_end_matches(".0")) {
+            return;
+        }
+        if ["", "0"].contains(&value.WO_System_Condition.trim_end_matches(".0")) {
+            return;
+        }
+        if ["", "0"].contains(&value.WO_Order_Type.trim_end_matches(".0")) {
+            return;
+        }
+        if !WorkOrderType::valid_work_order_type(&value.WO_Order_Type) {
+            return;
+        }
+
         container.insert(key, value);
     }
 }
@@ -305,6 +334,8 @@ impl WorkOrdersStatusCsvAggregated {
                     work_order_status.WO_E_Status_Code + &work_order_status.WO_I_Status_Code,
                 );
         }
+
+        work_order_status_aggregated.retain(|_, agg_sta| agg_sta.contains("REL"));
 
         Self {
             inner: work_order_status_aggregated,
@@ -339,7 +370,7 @@ impl OperationsStatusCsvAggregated {
     }
 }
 pub struct WorkOperations {
-    pub inner: HashMap<WorkOrderActivity, WorkOperationsCsv>,
+    pub inner: HashMap<WorkOrderNumber, HashMap<ActivityNumber, WorkOperationsCsv>>,
 }
 
 impl WorkOperations {
@@ -350,13 +381,15 @@ impl WorkOperations {
         let mut work_operations = HashMap::new();
 
         for work_order_csv in work_orders_csv.iter() {
-            if let Some(value) = operations_csv.get(&work_order_csv.1.WO_Operation_ID) {
+            let wo_operation_id = work_order_csv.1.WO_Operation_ID.trim_end_matches(".0");
+            dbg!();
+            if let Some(value) = operations_csv.get(wo_operation_id) {
+                let mut inner_hash_map = HashMap::new();
                 for operation_csv in value {
-                    work_operations.insert(
-                        (*work_order_csv.0, operation_csv.1.OPR_Activity_Number),
-                        operation_csv.1.clone(),
-                    );
+                    inner_hash_map
+                        .insert(operation_csv.1.OPR_Activity_Number, operation_csv.1.clone());
                 }
+                work_operations.insert(*work_order_csv.0, inner_hash_map);
             }
         }
 

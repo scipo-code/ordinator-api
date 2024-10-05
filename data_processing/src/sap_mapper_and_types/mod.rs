@@ -51,17 +51,19 @@ impl TryFrom<DATS> for NaiveDate {
     type Error = String;
 
     fn try_from(value: DATS) -> Result<NaiveDate, Self::Error> {
-        let str = value.0.trim_end_matches(".0");
+        let string = value.0.trim_end_matches(".0");
 
-        if str == "0" {
+        if string == "0" {
+            dbg!(string, &value.0);
             return Err("Empty DATS value".to_string());
         };
 
-        let naive_date_result = NaiveDate::parse_from_str(str, "%Y%m%d");
+        let naive_date_result = NaiveDate::parse_from_str(&string, "%Y%m%d");
 
         match naive_date_result {
             Ok(naive_date) => Ok(naive_date),
             Err(_) => {
+                dbg!(&string);
                 panic!("DATS can, according to SAP documentation only be of the form 'YYYYMMDD' or '0' for empty");
             }
         }

@@ -64,10 +64,8 @@ pub fn load_csv_data(file_path: PathBuf, periods: &[Period]) -> WorkOrders {
 
     let operations_status_agg = OperationsStatusCsvAggregated::new(operations_status_csv.clone());
 
-    dbg!();
     let work_operations = WorkOperations::new(&work_orders_csv, &work_operations_csv);
 
-    dbg!();
     let work_orders_inner = create_work_orders(
         functional_locations_csv.clone(),
         operations_status_agg,
@@ -104,7 +102,9 @@ fn create_work_orders(
     work_orders: HashMap<WorkOrderNumber, WorkOrdersCsv>,
     work_orders_status: WorkOrdersStatusCsvAggregated,
 ) -> HashMap<WorkOrderNumber, WorkOrder> {
+    assert!(work_operations_csv.inner.len() > 0);
     let mut inner_work_orders = HashMap::new();
+
     let mut count = 0;
     for (work_order_number, work_order_csv) in work_orders {
         count += 1;
@@ -156,19 +156,29 @@ fn create_work_orders(
             false,
             status_codes,
         );
-        dbg!();
-        let earliest_allowed_start_date: NaiveDate =
-            DATS(work_order_csv.WO_Earliest_Allowed_Start_Date).try_into();
-        let latest_allowed_finish_date: NaiveDate =
-            DATS(work_order_csv.WO_Latest_Allowed_Finish_Date).try_into();
 
-        dbg!();
-        let basic_start: NaiveDate = DATS(work_order_csv.WO_Basic_Start_Date).try_into();
-        let basic_finish: NaiveDate = DATS(work_order_csv.WO_Basic_End_Date).try_into();
-        dbg!();
+        let earliest_allowed_start_date: NaiveDate =
+            DATS(work_order_csv.WO_Earliest_Allowed_Start_Date)
+                .try_into()
+                .expect("The WorkOrders that have invalid EASD are filtered out");
+
+        let latest_allowed_finish_date: NaiveDate =
+            DATS(work_order_csv.WO_Latest_Allowed_Finish_Date)
+                .try_into()
+                .expect("The WorkOrders that have invalid EASD are filtered out");
+
+        let basic_start: NaiveDate = DATS(work_order_csv.WO_Basic_Start_Date)
+            .try_into()
+            .expect("The WorkOrders that have invalid EASD are filtered out");
+
+        let basic_finish: NaiveDate = DATS(work_order_csv.WO_Basic_End_Date)
+            .try_into()
+            .expect("The WorkOrders that have invalid EASD are filtered out");
+
         let duration = basic_finish - basic_start;
 
         let earliest_allowed_start_period = date_to_period(periods, &earliest_allowed_start_date);
+
         let latest_allowed_finish_period = date_to_period(periods, &latest_allowed_finish_date);
 
         let work_order_dates: WorkOrderDates = WorkOrderDates::new(
@@ -184,10 +194,13 @@ fn create_work_orders(
             None,
         );
 
-        let functional_location = &functional_locations
-            .get(&work_order_csv.WO_Functional_Location_Number)
-            .unwrap()
-            .FLOC_Name;
+        let functional_location =
+            &functional_locations.get(&work_order_csv.WO_Functional_Location_Number);
+
+        let functional_location = match functional_location {
+            Some(functional_location_csv) => &functional_location_csv.FLOC_Name,
+            None => "WARN: FUNCTIONAL_LOCATION MISSING IS THIS CORRECT?",
+        };
 
         let work_order_text = WorkOrderText::new(
             None,
@@ -210,12 +223,13 @@ fn create_work_orders(
 
         let priority = Priority::dyn_new(Box::new(work_order_csv.WO_Priority));
 
-        let work_order_type = WorkOrderType::new(&work_order_csv.WO_Order_Type, priority.clone());
+        let work_order_type = WorkOrderType::new(&work_order_csv.WO_Order_Type, priority.clone())
+            .expect("Invalid WorkOrderType's should have been filtered out");
 
         let work_order_info: WorkOrderInfo = WorkOrderInfo::new(
             priority,
             work_order_type,
-            FunctionalLocation::new(functional_location.clone()),
+            FunctionalLocation::new(functional_location.to_string()),
             work_order_text,
             Revision::new(work_order_csv.WO_Revision),
             SystemCondition::from_str(&work_order_csv.WO_System_Condition).unwrap(),
@@ -223,7 +237,12 @@ fn create_work_orders(
         );
 
         let mut operations = HashMap::new();
-        for (work_order_activity, operation_csv) in &work_operations_csv.inner {
+        for (work_order_activity, operation_csv) in work_operations_csv
+            .inner
+            .get(&work_order_number)
+            .cloned()
+            .unwrap_or_default()
+        {
             let resources =
                 Resources::from_str(&work_center.get(&operation_csv.OPR_WBS_ID).unwrap().WBS_Name);
 
@@ -267,13 +286,12 @@ fn create_work_orders(
 
             // We need to use the DATS here! I think that is the only way forward! I think that to scale this
             // we also need to be very clear on the remaining types of the system.
-            dbg!();
-            let naive_start_DATS: NaiveDate = DATS(operation_csv.OPR_Start_Date.clone()).into();
-            let naive_start_TIMS: NaiveTime = TIMS(operation_csv.OPR_Start_Time.clone()).into();
-            dbg!();
-            let naive_end_DATS: NaiveDate = DATS(operation_csv.OPR_End_Date.clone()).into();
-            let naive_end_TIMS: NaiveTime = TIMS(operation_csv.OPR_End_Time.clone()).into();
-            dbg!();
+            let naive_start_DATS: NaiveDate = DATS(operation_csv.OPR_Start_Date.clone()).try_into().expect("The OPR_Start_Date should have been filtered out, we should not experience this error.");
+            let naive_start_TIMS: NaiveTime = TIMS(operation_csv.OPR_Start_Time.clone()).try_into().expect("The OPR_Start_Time should have been filtered out, we should not experience this error.");
+
+            let naive_end_DATS: NaiveDate = DATS(operation_csv.OPR_End_Date.clone()).try_into().expect("The OPR_End_Date should have been filtered out, we should not experience this error.");
+            let naive_end_TIMS: NaiveTime = TIMS(operation_csv.OPR_End_Time.clone()).try_into().expect("The OPR_End_Time should have been filtered out, we should not experience this error.");
+
             let naive_start_datetime = naive_start_DATS.and_time(naive_start_TIMS);
             let naive_end_datetime = naive_end_DATS.and_time(naive_end_TIMS);
 
@@ -288,14 +306,14 @@ fn create_work_orders(
             );
 
             let operation = Operation::new(
-                work_order_activity.1,
+                work_order_activity,
                 resources.unwrap(),
                 unloading_point,
                 operation_info,
                 operation_analytic,
                 operation_dates,
             );
-            operations.insert(work_order_activity.1, operation);
+            operations.insert(work_order_activity, operation);
         }
 
         let work_order = WorkOrder::new(
