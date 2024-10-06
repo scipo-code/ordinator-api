@@ -692,6 +692,7 @@ impl TacticalAlgorithm {
         work_remaining -= first_day_load;
 
         while work_remaining > Work::from(0.0) {
+            dbg!(&work_remaining);
             let load = operating_time.clone().min(work_remaining.clone());
             loadings.push(load.clone());
             work_remaining -= load;
@@ -894,7 +895,7 @@ pub mod tests {
         );
 
         let remaining_capacity = Work::from(3.0);
-        let operating_time = Work::from(0.0);
+        let operating_time = Work::from(3.0);
         let work_remaining = Work::from(10.0);
 
         let loadings =
@@ -902,8 +903,30 @@ pub mod tests {
 
         assert_eq!(
             loadings,
-            vec![Work::from(3.0), Work::from(4.0), Work::from(3.0)]
+            vec![
+                Work::from(3.0),
+                Work::from(3.0),
+                Work::from(3.0),
+                Work::from(1.0)
+            ]
         );
+    }
+
+    #[test]
+    fn test_work_min() {
+        let operating_time = Work::from(3.0);
+        let work_remaining = Work::from(10.0);
+
+        let min_work = operating_time.min(work_remaining);
+
+        assert_eq!(min_work, Work::from(3.0));
+
+        let operating_time = Work::from(12.0);
+        let work_remaining = Work::from(10.0);
+
+        let min_work = operating_time.min(work_remaining);
+
+        assert_eq!(min_work, Work::from(10.0));
     }
 
     #[test]

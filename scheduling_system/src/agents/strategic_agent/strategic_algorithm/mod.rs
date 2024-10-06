@@ -630,7 +630,7 @@ mod tests {
         let work_order_number = WorkOrderNumber(1212123212);
         let mut work_orders = WorkOrders::default();
 
-        let work_order = WorkOrder::default(     );
+        let work_order = WorkOrder::work_order_test(     );
 
         work_orders.insert(work_order.clone());
 
