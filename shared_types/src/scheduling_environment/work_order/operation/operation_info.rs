@@ -6,18 +6,18 @@ use super::Work;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct OperationInfo {
     pub number: NumberOfPeople,
-    pub work_remaining: Work,
-    pub work_actual: Work,
-    pub work: Work,
+    pub work_remaining: Option<Work>,
+    pub work_actual: Option<Work>,
+    pub work: Option<Work>,
     pub operating_time: Option<Work>,
 }
 
 impl OperationInfo {
     pub fn new(
         number: NumberOfPeople,
-        work_remaining: Work,
-        work_actual: Work,
-        work: Work,
+        work_remaining: Option<Work>,
+        work_actual: Option<Work>,
+        work: Option<Work>,
         operating_time: Option<Work>,
     ) -> Self {
         OperationInfo {
@@ -29,7 +29,7 @@ impl OperationInfo {
         }
     }
 
-    pub fn work_remaining(&self) -> &Work {
+    pub fn work_remaining(&self) -> &Option<Work> {
         &self.work_remaining
     }
 

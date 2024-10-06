@@ -31,10 +31,7 @@ use std::num::ParseIntError;
 use std::str::FromStr;
 use std::string::ParseError;
 // use crate::scheduling_environment::work_order::optimized_work_order::OptimizedWorkOrder;
-use crate::scheduling_environment::work_order::{
-    status_codes::MaterialStatus,
-    work_order_type::{WDFPriority, WGNPriority, WPMPriority},
-};
+use crate::scheduling_environment::work_order::status_codes::MaterialStatus;
 
 use crate::scheduling_environment::worker_environment::resources::Resources;
 
@@ -241,10 +238,6 @@ impl WorkOrder {
         self.operations.insert(operation.activity, operation);
     }
 
-    pub fn unloading_point(&self) -> &UnloadingPoint {
-        &self.work_order_info.unloading_point
-    }
-
     pub fn order_dates_mut(&mut self) -> &mut WorkOrderDates {
         &mut self.work_order_dates
     }
@@ -284,6 +277,21 @@ impl WorkOrder {
     pub fn relations(&self) -> &Vec<ActivityRelation> {
         &self.relations
     }
+
+    pub fn unloading_point_contains_period(&self, clone: Period) -> bool {
+        for operation in &self.operations {
+            if operation.1.unloading_point.period == Some(clone.clone()) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn unloading_point(&self) -> Option<Period> {
+        self.operations
+            .values()
+            .find_map(|opr| opr.unloading_point.period.clone())
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -298,10 +306,10 @@ pub enum ActivityRelation {
 pub struct WeightParams {
     order_type_weights: HashMap<String, u64>,
     status_weights: HashMap<String, u64>,
-    vis_priority_map: HashMap<String, u64>,
-    wdf_priority_map: HashMap<String, u64>,
-    wgn_priority_map: HashMap<String, u64>,
-    wpm_priority_map: HashMap<String, u64>,
+    vis_priority_map: HashMap<char, u64>,
+    wdf_priority_map: HashMap<u64, u64>,
+    wgn_priority_map: HashMap<u64, u64>,
+    wpm_priority_map: HashMap<char, u64>,
 }
 
 impl WeightParams {
@@ -330,58 +338,27 @@ impl WorkOrder {
 
         match &self.work_order_info.work_order_type {
             WorkOrderType::Wdf(wdf_priority) => match wdf_priority {
-                WDFPriority::One => {
+                Priority::Int(int) if int >= &0 && int <= &8 => {
+                    dbg!(int, &parameters.wdf_priority_map);
+
                     self.work_order_analytic.work_order_weight +=
-                        parameters.wdf_priority_map["1"] * parameters.order_type_weights["WDF"]
+                        parameters.wdf_priority_map[int] * parameters.order_type_weights["WDF"]
                 }
-                WDFPriority::Two => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wdf_priority_map["2"] * parameters.order_type_weights["WDF"]
-                }
-                WDFPriority::Three => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wdf_priority_map["3"] * parameters.order_type_weights["WDF"]
-                }
-                WDFPriority::Four => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wdf_priority_map["4"] * parameters.order_type_weights["WDF"]
-                }
+                _ => panic!("Received a wrong input number work order priority"),
             },
             WorkOrderType::Wgn(wgn_priority) => match wgn_priority {
-                WGNPriority::One => {
+                Priority::Int(int) if int >= &0 && int <= &8 => {
                     self.work_order_analytic.work_order_weight +=
-                        parameters.wgn_priority_map["1"] * parameters.order_type_weights["WGN"]
+                        parameters.wgn_priority_map[int] * parameters.order_type_weights["WGN"]
                 }
-                WGNPriority::Two => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wgn_priority_map["2"] * parameters.order_type_weights["WGN"]
-                }
-                WGNPriority::Three => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wgn_priority_map["3"] * parameters.order_type_weights["WGN"]
-                }
-                WGNPriority::Four => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wgn_priority_map["4"] * parameters.order_type_weights["WGN"]
-                }
+                _ => panic!("Received a wrong input number work order priority"),
             },
             WorkOrderType::Wpm(wpm_priority) => match wpm_priority {
-                WPMPriority::A => {
+                Priority::Char(char) if char >= &'A' && char <= &'D' => {
                     self.work_order_analytic.work_order_weight +=
-                        parameters.wpm_priority_map["A"] * parameters.order_type_weights["WPM"]
+                        parameters.wpm_priority_map[char] * parameters.order_type_weights["WPM"]
                 }
-                WPMPriority::B => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wpm_priority_map["B"] * parameters.order_type_weights["WPM"]
-                }
-                WPMPriority::C => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wpm_priority_map["C"] * parameters.order_type_weights["WPM"]
-                }
-                WPMPriority::D => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wpm_priority_map["D"] * parameters.order_type_weights["WPM"]
-                }
+                _ => panic!("Received a wrong input number work order priority"),
             },
             WorkOrderType::Wro(_) => (),
             WorkOrderType::Other => {
@@ -414,10 +391,11 @@ impl WorkOrder {
     pub fn initialize_work_load(&mut self) {
         let mut work_load: HashMap<Resources, Work> = HashMap::new();
 
+        dbg!(&self.operations);
         for (_, operation) in self.operations.iter() {
             *work_load
                 .entry(operation.resource().clone())
-                .or_insert(Work::from(0.0)) += operation.work_remaining().clone();
+                .or_insert(Work::from(0.0)) += operation.work_remaining().clone().unwrap();
         }
 
         self.work_order_analytic.work_order_work = work_load
@@ -477,14 +455,35 @@ impl Default for WorkOrder {
     fn default() -> Self {
         let mut operations = HashMap::new();
 
-        let operation_0010 =
-            Operation::builder(ActivityNumber(10), Resources::Prodtech, Work::from(10.0)).build();
-        let operation_0020 =
-            Operation::builder(ActivityNumber(20), Resources::MtnMech, Work::from(20.0)).build();
-        let operation_0030 =
-            Operation::builder(ActivityNumber(30), Resources::MtnMech, Work::from(30.0)).build();
-        let operation_0040 =
-            Operation::builder(ActivityNumber(40), Resources::Prodtech, Work::from(40.0)).build();
+        let unloading_point = UnloadingPoint::default();
+        let operation_0010 = Operation::builder(
+            ActivityNumber(10),
+            unloading_point.clone(),
+            Resources::Prodtech,
+            Some(Work::from(10.0)),
+        )
+        .build();
+        let operation_0020 = Operation::builder(
+            ActivityNumber(20),
+            unloading_point.clone(),
+            Resources::MtnMech,
+            Some(Work::from(20.0)),
+        )
+        .build();
+        let operation_0030 = Operation::builder(
+            ActivityNumber(30),
+            unloading_point.clone(),
+            Resources::MtnMech,
+            Some(Work::from(30.0)),
+        )
+        .build();
+        let operation_0040 = Operation::builder(
+            ActivityNumber(40),
+            unloading_point.clone(),
+            Resources::Prodtech,
+            Some(Work::from(40.0)),
+        )
+        .build();
 
         operations.insert(ActivityNumber(10), operation_0010);
         operations.insert(ActivityNumber(20), operation_0020);
@@ -502,10 +501,9 @@ impl Default for WorkOrder {
 
         let work_order_info = WorkOrderInfo::new(
             Priority::new_int(1),
-            WorkOrderType::Wdf(WDFPriority::new(1)),
+            WorkOrderType::Wdf(Priority::dyn_new(Box::new(1))),
             FunctionalLocation::default(),
             WorkOrderText::default(),
-            UnloadingPoint::default(),
             Revision::default(),
             SystemCondition::Unknown,
             WorkOrderInfoDetail::default(),
@@ -524,7 +522,7 @@ impl Default for WorkOrder {
 }
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, str::FromStr};
 
     use crate::scheduling_environment::worker_environment::resources::{MainResources, Resources};
 
@@ -538,7 +536,7 @@ mod tests {
         unloading_point::UnloadingPoint,
         work_order_dates::WorkOrderDates,
         work_order_text::WorkOrderText,
-        work_order_type::{WDFPriority, WorkOrderType},
+        work_order_type::WorkOrderType,
         WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderInfoDetail, WorkOrderNumber,
     };
 
@@ -551,14 +549,14 @@ mod tests {
         assert_eq!(
             *work_order
                 .work_load()
-                .get(&Resources::new_from_string("PRODTECH".to_string()))
+                .get(&Resources::from_str("PRODTECH").unwrap())
                 .unwrap(),
             Work::from(50.0)
         );
         assert_eq!(
             *work_order
                 .work_load()
-                .get(&Resources::new_from_string("MTN-MECH".to_string()))
+                .get(&Resources::from_str("MTN-MECH").unwrap())
                 .unwrap(),
             Work::from(50.0)
         );
@@ -568,18 +566,35 @@ mod tests {
         pub fn new_test() -> Self {
             let mut operations = HashMap::new();
 
-            let operation_0010 =
-                Operation::builder(ActivityNumber(10), Resources::Prodtech, Work::from(10.0))
-                    .build();
-            let operation_0020 =
-                Operation::builder(ActivityNumber(20), Resources::MtnMech, Work::from(20.0))
-                    .build();
-            let operation_0030 =
-                Operation::builder(ActivityNumber(30), Resources::MtnMech, Work::from(30.0))
-                    .build();
-            let operation_0040 =
-                Operation::builder(ActivityNumber(40), Resources::Prodtech, Work::from(40.0))
-                    .build();
+            let unloading_point = UnloadingPoint::default();
+            let operation_0010 = Operation::builder(
+                ActivityNumber(10),
+                unloading_point.clone(),
+                Resources::Prodtech,
+                Some(Work::from(10.0)),
+            )
+            .build();
+            let operation_0020 = Operation::builder(
+                ActivityNumber(20),
+                unloading_point.clone(),
+                Resources::MtnMech,
+                Some(Work::from(20.0)),
+            )
+            .build();
+            let operation_0030 = Operation::builder(
+                ActivityNumber(30),
+                unloading_point.clone(),
+                Resources::MtnMech,
+                Some(Work::from(30.0)),
+            )
+            .build();
+            let operation_0040 = Operation::builder(
+                ActivityNumber(40),
+                unloading_point.clone(),
+                Resources::Prodtech,
+                Some(Work::from(40.0)),
+            )
+            .build();
 
             operations.insert(ActivityNumber(10), operation_0010);
             operations.insert(ActivityNumber(20), operation_0020);
@@ -597,10 +612,9 @@ mod tests {
 
             let work_order_info = WorkOrderInfo::new(
                 Priority::new_int(1),
-                WorkOrderType::Wdf(WDFPriority::new(1)),
+                WorkOrderType::Wdf(Priority::dyn_new(Box::new(1))),
                 FunctionalLocation::default(),
                 WorkOrderText::default(),
-                UnloadingPoint::default(),
                 Revision::default(),
                 SystemCondition::Unknown,
                 WorkOrderInfoDetail::default(),

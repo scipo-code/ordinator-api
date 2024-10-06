@@ -11,6 +11,9 @@ pub enum SystemCondition {
     E,
     F,
     G,
+    H,
+    I,
+    J,
     #[default]
     Unknown,
 }
@@ -27,7 +30,13 @@ impl FromStr for SystemCondition {
             "E" => SystemCondition::E,
             "F" => SystemCondition::F,
             "G" => SystemCondition::G,
-            _ => panic!("SystemCondition should be a capital character between [A-G]"),
+            "H" => SystemCondition::H,
+            "I" => SystemCondition::I,
+            "J" => SystemCondition::J,
+            _ => {
+                dbg!(&s);
+                panic!("SystemCondition should be a capital character between [A-J]");
+            }
         };
         Ok(system_condition)
     }
@@ -43,6 +52,9 @@ impl Display for SystemCondition {
             SystemCondition::E => "E".to_string(),
             SystemCondition::F => "F".to_string(),
             SystemCondition::G => "G".to_string(),
+            SystemCondition::H => "H".to_string(),
+            SystemCondition::I => "I".to_string(),
+            SystemCondition::J => "J".to_string(),
             SystemCondition::Unknown => "Unknown".to_string(),
         };
         write!(f, "{}", string)

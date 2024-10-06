@@ -16,10 +16,10 @@ impl WorkOrderText {
         order_system_status: Option<String>,
         order_user_status: Option<String>,
         order_description: String,
-        operation_description: String,
-        object_description: String,
-        notes_1: String,
-        notes_2: u64,
+        operation_description: Option<String>,
+        object_description: Option<String>,
+        notes_1: Option<String>,
+        notes_2: Option<u64>,
     ) -> Self {
         Self {
             order_system_status,

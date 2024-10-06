@@ -1,24 +1,45 @@
+use std::any::Any;
+
 use rust_xlsxwriter::{ColNum, Format, IntoExcelData, RowNum, Worksheet, XlsxError};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum Priority {
-    IntValue(u64),
-    StringValue(String),
+    Int(u64),
+    Char(char),
 }
 
 impl Priority {
     pub fn get_priority_string(&self) -> String {
         match self {
-            Priority::IntValue(priority) => priority.to_string(),
-            Priority::StringValue(priority) => priority.to_string(),
+            Priority::Int(priority) => priority.to_string(),
+            Priority::Char(priority) => priority.to_string(),
         }
     }
-}
 
-impl Priority {
+    pub fn dyn_new(input: Box<dyn Any>) -> Self {
+        if let Some(int) = input.downcast_ref::<u64>() {
+            Priority::Int(*int)
+        } else if let Some(char) = input.downcast_ref::<char>() {
+            Priority::Char(*char)
+        } else {
+            let string_value = input.downcast_ref::<String>().unwrap();
+
+            match string_value.parse::<u64>() {
+                Ok(int) => Priority::Int(int),
+                Err(_) => {
+                    let char = string_value
+                        .parse::<char>()
+                        .expect("priority should be either parsed as an int or a char");
+
+                    Priority::Char(char)
+                }
+            }
+        }
+    }
+
     pub fn new_int(priority: u64) -> Self {
-        Self::IntValue(priority)
+        Self::Int(priority)
     }
 }
 

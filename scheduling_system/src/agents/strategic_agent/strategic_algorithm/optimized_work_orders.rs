@@ -134,7 +134,7 @@ impl OptimizedWorkOrderBuilder {
             .latest_allowed_finish_period
             .clone();
 
-        let unloading_point_period = work_order.unloading_point().period.clone();
+        let unloading_point_period = work_order.unloading_point().clone();
 
         if work_order.is_vendor()
             && (unloading_point_period.is_some() || work_order.status_codes().awsc)
@@ -212,7 +212,7 @@ impl OptimizedWorkOrderBuilder {
             return self;
         }
 
-        if work_order.unloading_point().period.is_some() {
+        if work_order.unloading_point().is_some() {
             let locked_in_period = unloading_point_period.clone().unwrap();
             if !periods[0..=1].contains(unloading_point_period.as_ref().unwrap()) {
                 self.locked_in_period = Some(locked_in_period.clone());

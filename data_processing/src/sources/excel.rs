@@ -5,28 +5,21 @@ use regex::Regex;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::Asset;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::PathBuf;
+use std::str::FromStr;
 use tracing::{debug, event, info, warn};
 
 use shared_types::scheduling_environment::time_environment::period::Period;
-use shared_types::scheduling_environment::time_environment::TimeEnvironment;
 use shared_types::scheduling_environment::work_order::system_condition::SystemCondition;
 
-use chrono::{
-    naive, DateTime, Datelike, Days, Duration, NaiveDate, NaiveTime, TimeZone, Timelike, Utc,
-};
+use chrono::{naive, DateTime, Duration, NaiveDate, NaiveTime, TimeZone, Utc};
 use shared_types::scheduling_environment::work_order::functional_location::FunctionalLocation;
 use shared_types::scheduling_environment::work_order::priority::Priority;
 use shared_types::scheduling_environment::work_order::revision::Revision;
 use shared_types::scheduling_environment::work_order::status_codes::{MaterialStatus, StatusCodes};
 use shared_types::scheduling_environment::work_order::work_order_dates::WorkOrderDates;
 use shared_types::scheduling_environment::work_order::work_order_text::WorkOrderText;
-use shared_types::scheduling_environment::work_order::work_order_type::{
-    WDFPriority, WGNPriority, WPMPriority,
-};
-use shared_types::scheduling_environment::work_order::work_order_type::{
-    WROPriority, WorkOrderType,
-};
+use shared_types::scheduling_environment::work_order::work_order_type::WorkOrderType;
 
 use shared_types::scheduling_environment::work_order::unloading_point::UnloadingPoint;
 use shared_types::scheduling_environment::work_order::{
@@ -47,84 +40,42 @@ use shared_types::scheduling_environment::work_order::operation::{
     ActivityNumber, Operation, OperationDates, Work,
 };
 
-use super::{SchedulingEnvironmentFactory, SchedulingEnvironmentFactoryError};
+use super::{
+    create_time_environment, SchedulingEnvironmentFactory, SchedulingEnvironmentFactoryError,
+    TimeInput,
+};
 
 #[derive(Clone)]
-pub struct TotalExcel<'a> {
-    file_path: &'a Path,
-    number_of_strategic_periods: u64,
-    number_of_tactical_periods: u64,
-    number_of_days: u64,
+pub struct TotalExcel {
+    pub file_path: PathBuf,
 }
 
-impl<'a> TotalExcel<'a> {
-    pub fn new(
-        file_path: &'a Path,
-        number_of_strategic_periods: u64,
-        number_of_tactical_periods: u64,
-        number_of_days: u64,
-    ) -> Self {
-        Self {
-            file_path,
-            number_of_strategic_periods,
-            number_of_tactical_periods,
-            number_of_days,
-        }
+impl TotalExcel {
+    pub fn new(file_path: PathBuf) -> Self {
+        Self { file_path }
     }
 }
 
-impl<'a> SchedulingEnvironmentFactory<TotalExcel<'a>> for SchedulingEnvironment {
+impl SchedulingEnvironmentFactory<TotalExcel> for SchedulingEnvironment {
     fn create_scheduling_environment(
-        data_source: TotalExcel<'a>,
+        data_source: TotalExcel,
+        time_input: TimeInput,
     ) -> Result<SchedulingEnvironment, SchedulingEnvironmentFactoryError> {
-        let file_path_str = data_source.file_path.to_str().unwrap();
-        let mut workbook: Xlsx<_> =
-            calamine::open_workbook(data_source.file_path).expect(&format!("{}", file_path_str));
+        let time_environment = create_time_environment(&time_input);
 
-        info!(
-            "Excel file from path {:?} successfully loaded",
-            data_source.file_path
-        );
+        let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
+
+        let mut workbook: Xlsx<_> = calamine::open_workbook(data_source.file_path)
+            .expect("An error occured while opening a xlsx workbook");
+
         let sheet: &calamine::Range<calamine::Data> = &workbook
             .worksheet_range_at(0)
             .ok_or(calamine::Error::Msg("Cannot find work order sheet"))?
             .expect("Could not load work order sheet.");
 
         let mut work_orders: WorkOrders = WorkOrders::default();
-        let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
-
-        let strategic_periods: Vec<Period> =
-            create_periods(data_source.number_of_strategic_periods).unwrap_or_else(|_| {
-                panic!(
-                    "Could not create periods in {} at line {}",
-                    file!(),
-                    line!()
-                )
-            });
-
-        let tactical_periods: &Vec<Period> =
-            &strategic_periods.clone()[0..data_source.number_of_tactical_periods as usize].to_vec();
-
-        let first_period = strategic_periods.first().unwrap().clone();
-
-        let tactical_days = |number_of_days: u64| -> Vec<Day> {
-            let mut days: Vec<Day> = Vec::new();
-            let mut date = first_period.start_date().to_owned();
-            for day_index in 0..number_of_days {
-                days.push(Day::new(day_index as usize, date.to_owned()));
-                date = date.checked_add_days(Days::new(1)).unwrap();
-            }
-            days
-        };
-
-        populate_work_orders(&mut work_orders, &strategic_periods, sheet)
+        populate_work_orders(&mut work_orders, &time_environment.strategic_periods, sheet)
             .expect("could not populate the work orders");
-
-        let time_environment = TimeEnvironment::new(
-            strategic_periods,
-            tactical_periods.to_vec(),
-            tactical_days(data_source.number_of_days),
-        );
 
         let scheduling_environment =
             SchedulingEnvironment::new(work_orders, worker_environment, time_environment);
@@ -237,15 +188,15 @@ fn create_new_work_order(
         )
         .cloned()
     {
-        Some(calamine::Data::Int(n)) => Priority::IntValue(n as u64),
+        Some(calamine::Data::Int(n)) => Priority::Int(n as u64),
         Some(calamine::Data::String(s)) => {
             match s.parse::<u64>() {
-                Ok(num) => Priority::IntValue(num), // If successful, use the integer value
-                Err(_) => Priority::StringValue(s), // If not, fall back to using the string
+                Ok(num) => Priority::Int(num), // If successful, use the integer value
+                Err(_) => Priority::Char(s.parse::<char>().unwrap()), // If not, fall back to using the string
             }
         }
-        Some(calamine::Data::Float(n)) => Priority::IntValue(n as u64),
-        _ => Priority::StringValue(String::new()),
+        Some(calamine::Data::Float(n)) => Priority::Int(n as u64),
+        _ => Priority::Char('X'),
     };
 
     let main_work_center = match main_work_center_data {
@@ -282,8 +233,6 @@ fn create_new_work_order(
         extract_functional_location(row, header_to_index)
             .expect("Failed to extract FunctionalLocation"),
         extract_order_text(row, header_to_index).expect("Failed to extract OrderText"),
-        extract_unloading_point(row, header_to_index, periods)
-            .expect("Failed to extract UnloadingPoint"),
         extract_revision(row, header_to_index).expect("Failed to extract Revision"),
         SystemCondition::default(),
         WorkOrderInfoDetail::default(),
@@ -392,27 +341,27 @@ fn create_new_operation(
             Some(calamine::Data::String(s)) => s.parse::<u64>().unwrap_or(1),
             _ => 1,
         },
-        match work_remaining_data.cloned() {
+        Some(match work_remaining_data.cloned() {
             Some(calamine::Data::Int(planned_work)) => Work::from(planned_work as f64),
             Some(calamine::Data::Float(planned_work)) => Work::from(planned_work),
             Some(calamine::Data::String(planned_work)) => {
                 planned_work.parse::<Work>().unwrap_or(Work::from(0.0))
             }
             _ => Work::from(100000.0),
-        },
-        match actual_work_data.cloned() {
+        }),
+        Some(match actual_work_data.cloned() {
             Some(calamine::Data::Int(actual_work)) => Work::from(actual_work as f64),
             Some(calamine::Data::Float(actual_work)) => Work::from(actual_work),
             Some(calamine::Data::String(s)) => s.parse::<Work>().unwrap_or(Work::from(0.0)),
             _ => Work::from(0.0),
-        },
-        Work::from(0.0),
-        operating_time,
+        }),
+        Some(Work::from(0.0)),
+        Some(operating_time),
     );
 
     let operation_analytic = OperationAnalytic::new(
         Work::from(0.0),
-        match header_to_index.get("OPR_Duration") {
+        Some(match header_to_index.get("OPR_Duration") {
             Some(index) => match row.get(*index).cloned() {
                 Some(calamine::Data::Int(duration)) => Work::from(duration as f64),
                 Some(calamine::Data::Float(duration)) => Work::from(duration),
@@ -425,12 +374,14 @@ fn create_new_operation(
                 if operation_info.number() != 0 {
                     operation_info
                         .work_remaining()
+                        .as_ref()
+                        .unwrap()
                         .cal_duration(operation_info.number())
                 } else {
                     Work::from(0.0)
                 }
             }
-        },
+        }),
     );
 
     let earliest_start_datetime = {
@@ -520,12 +471,14 @@ fn create_new_operation(
         earliest_finish_datetime,
     );
 
+    panic!("The UnloadingPoint below is not initialized correctly");
     Ok(Operation::new(
         activity,
         match work_center_data.cloned() {
-            Some(calamine::Data::String(s)) => Resources::new_from_string(s),
+            Some(calamine::Data::String(s)) => Resources::from_str(&s).unwrap(),
             _ => return Err(Error::Msg("Could not parse work center as string")),
         },
+        UnloadingPoint::default(),
         operation_info,
         operation_analytic,
         operation_dates,
@@ -1028,14 +981,20 @@ fn extract_order_text(
         _ => return Err(Error::Msg("Could not parse order_user_status as string")),
     };
 
+    // order_system_status: todo!(),
+    // order_user_status: todo!(),
+    // operation_description: todo!(),
+    // object_description: todo!(),
+    // notes_1: todo!(),
+    // notes_2: todo!(),
     Ok(WorkOrderText {
-        order_system_status,
-        order_user_status,
-        order_description,
-        operation_description,
-        object_description,
-        notes_1,
-        notes_2,
+        order_system_status: Some(order_system_status),
+        order_user_status: Some(order_user_status),
+        order_description: order_description,
+        operation_description: Some(operation_description),
+        object_description: Some(object_description),
+        notes_1: Some(notes_1),
+        notes_2: Some(notes_2),
     })
 }
 
@@ -1094,52 +1053,6 @@ fn get_data_from_headers<'a>(
     None
 }
 
-fn create_periods(number_of_periods: u64) -> Result<Vec<Period>, Error> {
-    let mut periods: Vec<Period> = Vec::<Period>::new();
-    let mut start_date = Utc::now();
-
-    // Get the ISO week number
-    let week_number = start_date.iso_week().week();
-    // Determine target week number: If current is even, target is the previous odd
-    let target_week = if week_number % 2 == 0 {
-        week_number - 1
-    } else {
-        week_number
-    };
-
-    // Compute the offset in days to reach Monday of the target week
-    let days_to_offset = (start_date.weekday().num_days_from_monday() as i64)
-        + (7 * (week_number - target_week) as i64);
-
-    start_date -= Duration::days(days_to_offset);
-
-    start_date = start_date
-        .with_hour(0)
-        .and_then(|d| d.with_minute(0))
-        .and_then(|d| d.with_second(0))
-        .and_then(|d| d.with_nanosecond(0))
-        .unwrap();
-
-    let mut end_date = start_date + Duration::weeks(2);
-
-    end_date -= Duration::days(1);
-
-    end_date = end_date
-        .with_hour(23)
-        .and_then(|d| d.with_minute(59))
-        .and_then(|d| d.with_second(59))
-        .and_then(|d| d.with_nanosecond(0))
-        .unwrap();
-
-    let mut period = Period::new(0, start_date, end_date);
-    periods.push(period.clone());
-    for _ in 1..number_of_periods {
-        period = period + Duration::weeks(2);
-        periods.push(period.clone());
-    }
-    Ok(periods)
-}
-
 fn excel_time_to_hh_mm_ss(serial_time: f64) -> NaiveTime {
     let total_seconds: u32 = (serial_time * 24.0 * 3600.0).round() as u32;
     let hours: u32 = total_seconds / 3600;
@@ -1157,7 +1070,7 @@ fn extract_order_type_and_priority(
     match work_order_type_data.cloned() {
         Some(calamine::Data::String(work_order_type)) => match work_order_type.as_str() {
             "WDF" => match &priority {
-                Priority::IntValue(value) => match value {
+                Priority::Int(value) => match value {
                     1 => Ok(WorkOrderType::Wdf(WDFPriority::One)),
                     2 => Ok(WorkOrderType::Wdf(WDFPriority::Two)),
                     3 => Ok(WorkOrderType::Wdf(WDFPriority::Three)),
@@ -1167,7 +1080,7 @@ fn extract_order_type_and_priority(
                 _ => Err(ExcelLoadError("Could not parse WDF priority as int".into())),
             },
             "WGN" => match &priority {
-                Priority::IntValue(value) => match value {
+                Priority::Int(value) => match value {
                     1 => Ok(WorkOrderType::Wgn(WGNPriority::One)),
                     2 => Ok(WorkOrderType::Wgn(WGNPriority::Two)),
                     3 => Ok(WorkOrderType::Wgn(WGNPriority::Three)),
@@ -1177,7 +1090,7 @@ fn extract_order_type_and_priority(
                 _ => Err(ExcelLoadError("Could not parse WGN priority as int".into())),
             },
             "WPM" => match &priority {
-                Priority::StringValue(value) => match value.as_str() {
+                Priority::Char(value) => match value.as_str() {
                     "A" => Ok(WorkOrderType::Wpm(WPMPriority::A)),
                     "B" => Ok(WorkOrderType::Wpm(WPMPriority::B)),
                     "C" => Ok(WorkOrderType::Wpm(WPMPriority::C)),
@@ -1187,7 +1100,7 @@ fn extract_order_type_and_priority(
                 _ => Err(ExcelLoadError("Could not parse WPM priority as int".into())),
             },
             "WRO" => match &priority {
-                Priority::IntValue(value) => match value {
+                Priority::Int(value) => match value {
                     1 => Ok(WorkOrderType::Wro(WROPriority::One)),
                     2 => Ok(WorkOrderType::Wro(WROPriority::Two)),
                     3 => Ok(WorkOrderType::Wro(WROPriority::Three)),
@@ -1286,20 +1199,21 @@ mod tests {
 
     #[test]
     fn test_create_scheduling_environment() {
-        let file_path = Path::new("test_data/input-ordinator-complete-2024-04-10.xlsx");
+        let mut file_path = PathBuf::new();
+        file_path.push("test_data/input-ordinator-complete-2024-04-10.xlsx");
         let number_of_strategic_periods = 26;
         let number_of_tactical_periods = 4;
         let number_of_days = 56;
 
-        let total_excel: TotalExcel = TotalExcel {
-            file_path,
+        let total_excel: TotalExcel = TotalExcel { file_path };
+        let time_input: TimeInput = TimeInput {
             number_of_strategic_periods,
             number_of_tactical_periods,
             number_of_days,
         };
 
         let scheduling_environment =
-            SchedulingEnvironment::create_scheduling_environment(total_excel.clone());
+            SchedulingEnvironment::create_scheduling_environment(total_excel.clone(), time_input);
 
         assert_eq!(
             scheduling_environment
@@ -1308,9 +1222,14 @@ mod tests {
                 .len(),
             number_of_strategic_periods as usize
         );
+        let time_input: TimeInput = TimeInput {
+            number_of_strategic_periods,
+            number_of_tactical_periods,
+            number_of_days,
+        };
 
         let scheduling_environment =
-            SchedulingEnvironment::create_scheduling_environment(total_excel);
+            SchedulingEnvironment::create_scheduling_environment(total_excel, time_input);
 
         let number_of_work_orders = scheduling_environment
             .as_ref()
