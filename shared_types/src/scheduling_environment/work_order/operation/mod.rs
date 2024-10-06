@@ -167,7 +167,6 @@ impl<'de> Deserialize<'de> for Work {
     where
         D: serde::Deserializer<'de>,
     {
-        struct WorkVisitorValue;
         struct WorkVisitorMap;
 
         impl<'de> Visitor<'de> for WorkVisitorMap {
@@ -186,7 +185,7 @@ impl<'de> Deserialize<'de> for Work {
                     match key.as_str() {
                         "work_value" => {
                             if value.is_some() {
-                                return Err(de::Error::duplicate_field("value"));
+                                return Err(de::Error::duplicate_field("work_value"));
                             }
 
                             let value_float: f64 = map.next_value()?;
@@ -195,7 +194,7 @@ impl<'de> Deserialize<'de> for Work {
                         }
                         "work_type" => {
                             if value.is_some() {
-                                return Err(de::Error::duplicate_field("type"));
+                                return Err(de::Error::duplicate_field("work_type"));
                             }
                             let value_str: String = map.next_value()?;
                             assert_eq!(value_str, "Decimal".to_string());

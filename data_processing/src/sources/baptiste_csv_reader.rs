@@ -335,8 +335,6 @@ impl WorkOrdersStatusCsvAggregated {
                 );
         }
 
-        work_order_status_aggregated.retain(|_, agg_sta| agg_sta.contains("REL"));
-
         Self {
             inner: work_order_status_aggregated,
         }

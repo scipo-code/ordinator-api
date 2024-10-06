@@ -1,3 +1,4 @@
+use rayon::prelude::*;
 use std::{collections::HashMap, fs, path::PathBuf, str::FromStr};
 
 use chrono::{Duration, NaiveDate, NaiveTime, Utc};
@@ -106,6 +107,7 @@ fn create_work_orders(
     let mut inner_work_orders = HashMap::new();
 
     let mut count = 0;
+
     for (work_order_number, work_order_csv) in work_orders {
         count += 1;
         dbg!(count);
@@ -121,6 +123,9 @@ fn create_work_orders(
 
         let status_codes = match status_codes_string {
             Some(string) => {
+                if !string.contains("REL") {
+                    continue;
+                }
                 let pcnf_pattern = regex::Regex::new(r"PCNF").unwrap();
                 let awsc_pattern = regex::Regex::new(r"AWSC").unwrap();
                 let well_pattern = regex::Regex::new(r"WELL").unwrap();

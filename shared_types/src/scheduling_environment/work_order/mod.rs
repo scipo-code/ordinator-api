@@ -338,26 +338,16 @@ impl WorkOrder {
 
         match &self.work_order_info.work_order_type {
             WorkOrderType::Wdf(wdf_priority) => match wdf_priority {
-                Priority::Int(int) => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wdf_priority_map[int] * parameters.order_type_weights["WDF"]
-                }
-                Priority::Int(int) => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wdf_priority_map[int] * parameters.order_type_weights["WDF"]
-                }
-                Priority::Int(int) => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wdf_priority_map[int] * parameters.order_type_weights["WDF"]
-                }
-                Priority::Int(int) => {
+                Priority::Int(int) if int >= &0 && int <= &8 => {
+                    dbg!(int, &parameters.wdf_priority_map);
+
                     self.work_order_analytic.work_order_weight +=
                         parameters.wdf_priority_map[int] * parameters.order_type_weights["WDF"]
                 }
                 _ => panic!("Received a wrong input number work order priority"),
             },
             WorkOrderType::Wgn(wgn_priority) => match wgn_priority {
-                Priority::Int(int) if int >= &0 && int <= &4 => {
+                Priority::Int(int) if int >= &0 && int <= &8 => {
                     self.work_order_analytic.work_order_weight +=
                         parameters.wgn_priority_map[int] * parameters.order_type_weights["WGN"]
                 }

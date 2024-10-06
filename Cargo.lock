@@ -1127,6 +1127,7 @@ dependencies = [
  "csv",
  "dotenvy",
  "polars",
+ "rayon",
  "regex",
  "rust_decimal",
  "rust_xlsxwriter",
