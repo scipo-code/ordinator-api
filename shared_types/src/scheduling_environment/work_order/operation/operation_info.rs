@@ -20,6 +20,7 @@ impl OperationInfo {
         work: Option<Work>,
         operating_time: Option<Work>,
     ) -> Self {
+        assert!(operating_time != Some(Work::from(0.0)));
         OperationInfo {
             number,
             work_remaining,

@@ -451,8 +451,9 @@ impl WorkOrder {
     }
 }
 
-impl Default for WorkOrder {
-    fn default() -> Self {
+//TODO This should not be the default tr
+impl WorkOrder {
+    pub fn work_order_test() -> Self {
         let mut operations = HashMap::new();
 
         let unloading_point = UnloadingPoint::default();
@@ -501,7 +502,7 @@ impl Default for WorkOrder {
 
         let work_order_info = WorkOrderInfo::new(
             Priority::new_int(1),
-            WorkOrderType::Wdf(Priority::dyn_new(Box::new(1))),
+            WorkOrderType::Wdf(Priority::dyn_new(Box::new(1 as u64))),
             FunctionalLocation::default(),
             WorkOrderText::default(),
             Revision::default(),
@@ -546,6 +547,7 @@ mod tests {
 
         work_order.initialize_work_load();
 
+        dbg!(work_order.work_load());
         assert_eq!(
             *work_order
                 .work_load()
@@ -612,7 +614,7 @@ mod tests {
 
             let work_order_info = WorkOrderInfo::new(
                 Priority::new_int(1),
-                WorkOrderType::Wdf(Priority::dyn_new(Box::new(1))),
+                WorkOrderType::Wdf(Priority::dyn_new(Box::new(1 as u64))),
                 FunctionalLocation::default(),
                 WorkOrderText::default(),
                 Revision::default(),
