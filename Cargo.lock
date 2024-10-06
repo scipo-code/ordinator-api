@@ -1123,15 +1123,18 @@ dependencies = [
  "atoi 1.0.0",
  "calamine",
  "chrono",
+ "chrono-tz 0.10.0",
  "csv",
  "dotenvy",
  "polars",
+ "rayon",
  "regex",
  "rust_decimal",
  "rust_xlsxwriter",
  "serde",
  "shared_types",
  "thiserror",
+ "toml",
  "tracing",
 ]
 

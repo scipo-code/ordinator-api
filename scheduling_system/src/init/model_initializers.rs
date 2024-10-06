@@ -1,9 +1,11 @@
-use std::env;
 use std::path::Path;
+use std::{env, path::PathBuf};
 
+use data_processing::sources::TimeInput;
+use dotenvy::dotenv;
 use tracing::info;
 
-use data_processing::sources::{excel::TotalExcel, SchedulingEnvironmentFactory};
+use data_processing::sources::{baptiste_csv_reader::TotalSap, SchedulingEnvironmentFactory};
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 pub fn initialize_scheduling_environment(
@@ -29,23 +31,29 @@ fn create_scheduling_environment(
     number_of_tactical_periods: u64,
     number_of_days: u64,
 ) -> Option<SchedulingEnvironment> {
-    let args: Vec<String> = env::args().collect();
+    let file_string = dotenvy::var("ORDINATOR_INPUT")
+        .expect("The ORDINATOR_INPUT environment variable have to be set");
 
-    println!("{:?}", args);
-    if args.len() > 1 {
-        let file_path = Path::new(&args[1]);
+    let mut file_path = PathBuf::new();
 
-        let total_excel = TotalExcel::new(
-            file_path,
-            number_of_strategic_periods,
-            number_of_tactical_periods,
-            number_of_days,
-        );
+    file_path.push(&file_string);
 
-        let scheduling_environment =
-            SchedulingEnvironment::create_scheduling_environment(total_excel)
-                .unwrap_or_else(|_| panic!("Could not load data file. File path: {:?} ", args));
-        return Some(scheduling_environment);
-    }
-    None
+    // let total_excel = TotalExcel::new(
+    //     file_path,
+    //     number_of_strategic_periods,
+    //     number_of_tactical_periods,
+    //     number_of_days,
+    // );
+    let time_input = TimeInput::new(
+        number_of_strategic_periods,
+        number_of_tactical_periods,
+        number_of_days,
+    );
+
+    let total_sap = TotalSap::new(file_path);
+
+    let scheduling_environment =
+        SchedulingEnvironment::create_scheduling_environment(total_sap, time_input)
+            .expect("Could not load the data from the data file");
+    return Some(scheduling_environment);
 }
