@@ -1,8 +1,7 @@
-use std::{fmt::Display, str::FromStr};
-
 use chrono::NaiveTime;
 use rust_xlsxwriter::IntoExcelData;
 use serde::{Deserialize, Serialize};
+use std::{fmt::Display, str::FromStr};
 use strum_macros::EnumIter;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, EnumIter, clap::ValueEnum)]
