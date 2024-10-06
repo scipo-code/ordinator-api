@@ -740,7 +740,7 @@ mod tests {
         operations.insert(20, operation_2);
         operations.insert(30, operation_3);
 
-        let work_order_1 = WorkOrder::default();
+        let work_order_1 = WorkOrder::work_order_test();
 
         let mut work_orders = WorkOrders::default();
 
