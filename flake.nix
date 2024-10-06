@@ -23,7 +23,6 @@
         devShells.default = pkgs.mkShell {
           buildInputs = [
             pythonEnv
-            (pkgs.rust-bin.stable."1.81.0".default)
             pkgs.git
             pkgs.helix
             pkgs.zellij
@@ -34,6 +33,7 @@
             pkgs.libxlsxwriter
             pkgs.pkg-config
             pkgs.python312Packages.python-lsp-server
+            pkgs.rustup
           ];
           pure = true;
         };
