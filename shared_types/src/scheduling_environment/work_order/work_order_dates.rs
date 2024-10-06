@@ -1,16 +1,16 @@
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Duration, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::scheduling_environment::time_environment::period::Period;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrderDates {
-    pub earliest_allowed_start_date: DateTime<Utc>,
-    pub latest_allowed_finish_date: DateTime<Utc>,
+    pub earliest_allowed_start_date: NaiveDate,
+    pub latest_allowed_finish_date: NaiveDate,
     pub earliest_allowed_start_period: Period,
     pub latest_allowed_finish_period: Period,
-    pub basic_start_date: DateTime<Utc>,
-    pub basic_finish_date: DateTime<Utc>,
+    pub basic_start_date: NaiveDate,
+    pub basic_finish_date: NaiveDate,
     #[serde(
         serialize_with = "serialize_duration",
         deserialize_with = "deserialize_duration"
@@ -23,12 +23,12 @@ pub struct WorkOrderDates {
 
 impl WorkOrderDates {
     pub fn new(
-        earliest_allowed_start_date: DateTime<Utc>,
-        latest_allowed_finish_date: DateTime<Utc>,
+        earliest_allowed_start_date: NaiveDate,
+        latest_allowed_finish_date: NaiveDate,
         earliest_allowed_start_period: Period,
         latest_allowed_finish_period: Period,
-        basic_start_date: DateTime<Utc>,
-        basic_finish_date: DateTime<Utc>,
+        basic_start_date: NaiveDate,
+        basic_finish_date: NaiveDate,
         duration: Duration,
         basic_start_scheduled: Option<DateTime<Utc>>,
         basic_finish_scheduled: Option<DateTime<Utc>>,
@@ -49,14 +49,13 @@ impl WorkOrderDates {
     }
 
     pub fn new_test() -> Self {
-        use chrono::TimeZone;
         Self {
-            earliest_allowed_start_date: Utc.with_ymd_and_hms(2023, 10, 20, 0, 0, 0).unwrap(),
-            latest_allowed_finish_date: Utc.with_ymd_and_hms(2023, 12, 20, 0, 0, 0).unwrap(),
+            earliest_allowed_start_date: NaiveDate::from_ymd_opt(2023, 10, 20).unwrap(),
+            latest_allowed_finish_date: NaiveDate::from_ymd_opt(2023, 12, 20).unwrap(),
             earliest_allowed_start_period: Period::default(),
             latest_allowed_finish_period: Period::default(),
-            basic_start_date: Utc.with_ymd_and_hms(2023, 11, 20, 0, 0, 0).unwrap(),
-            basic_finish_date: Utc.with_ymd_and_hms(2023, 11, 20, 0, 0, 0).unwrap(),
+            basic_start_date: NaiveDate::from_ymd_opt(2023, 11, 20).unwrap(),
+            basic_finish_date: NaiveDate::from_ymd_opt(2023, 11, 20).unwrap(),
             duration: Duration::seconds(0),
             basic_start_scheduled: None,
             basic_finish_scheduled: None,

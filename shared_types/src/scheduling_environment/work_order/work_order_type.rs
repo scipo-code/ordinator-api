@@ -1,44 +1,15 @@
 use rust_xlsxwriter::IntoExcelData;
 use serde::{Deserialize, Serialize};
 
+use super::priority::Priority;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum WorkOrderType {
-    Wdf(WDFPriority),
-    Wgn(WGNPriority),
-    Wpm(WPMPriority),
-    Wro(WROPriority),
+    Wdf(Priority),
+    Wgn(Priority),
+    Wpm(Priority),
+    Wro(Priority),
     Other,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub enum WDFPriority {
-    One,
-    Two,
-    Three,
-    Four,
-}
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub enum WGNPriority {
-    One,
-    Two,
-    Three,
-    Four,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub enum WROPriority {
-    One,
-    Two,
-    Three,
-    Four,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub enum WPMPriority {
-    A,
-    B,
-    C,
-    D,
 }
 
 impl WorkOrderType {
@@ -51,16 +22,27 @@ impl WorkOrderType {
             WorkOrderType::Other => "Other".to_owned(),
         }
     }
-}
 
-impl WDFPriority {
-    pub fn new(priority: u32) -> Self {
-        match priority {
-            1 => Self::One,
-            2 => Self::Two,
-            3 => Self::Three,
-            4 => Self::Four,
-            _ => Self::Four,
+    pub fn new(work_order_type_string: &str, priority: Priority) -> Result<Self, String> {
+        match work_order_type_string {
+            "WDF" => Ok(WorkOrderType::Wdf(priority)),
+            "WGN" => Ok(WorkOrderType::Wgn(priority)),
+            "WPM" => Ok(WorkOrderType::Wpm(priority)),
+            "WRO" => Ok(WorkOrderType::Wro(priority)),
+            _ => Err(format!(
+                "WorkOrderType: {} is not valid in Ordinator yet",
+                work_order_type_string
+            )),
+        }
+    }
+
+    pub fn valid_work_order_type(str: &str) -> bool {
+        match str {
+            "WDF" => true,
+            "WGN" => true,
+            "WPM" => true,
+            "WRO" => true,
+            _ => false,
         }
     }
 }

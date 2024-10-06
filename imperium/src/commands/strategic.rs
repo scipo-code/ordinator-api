@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::str::FromStr;
 
 use clap::Args;
 use clap::Subcommand;
@@ -189,7 +190,7 @@ impl StrategicCommands {
                         Some(select_resources) => {
                             let mut resources: Vec<Resources> = vec![];
                             for resource in select_resources {
-                                resources.push(Resources::new_from_string(resource.clone()));
+                                resources.push(Resources::from_str(resource).unwrap());
                             }
                             Some(resources)
                         }
@@ -219,7 +220,7 @@ impl StrategicCommands {
                         Some(select_resources) => {
                             let mut resources: Vec<Resources> = vec![];
                             for resource in select_resources {
-                                resources.push(Resources::new_from_string(resource.clone()));
+                                resources.push(Resources::from_str(resource).unwrap());
                             }
                             Some(resources)
                         }
@@ -250,7 +251,7 @@ impl StrategicCommands {
                         Some(select_resources) => {
                             let mut resources: Vec<Resources> = vec![];
                             for resource in select_resources {
-                                resources.push(Resources::new_from_string(resource.clone()));
+                                resources.push(Resources::from_str(resource).unwrap());
                             }
                             Some(resources)
                         }

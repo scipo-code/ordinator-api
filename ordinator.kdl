@@ -6,7 +6,7 @@ layout {
 				pane size="30%" split_direction="vertical" {
 					pane size="15%" name="Ordinator watch" {	
 			  			command "taskset"
-			      		args "-c" "4-8" "cargo" "watch" "-i" "\"*.xlsx\"" "-w" "scheduling_system" "-w" "shared_types" "-x" "run --bin scheduling_system -- $ORDINATOR_INPUT"
+			      		args "-c" "4-8" "cargo" "watch" "-i" "\"*.xlsx\"" "-w" "scheduling_system" "-w" "data_processing" "-w" "shared_types" "-x" "run --bin scheduling_system -- $ORDINATOR_INPUT"
 		    	  		cwd "$ORDINATOR_PATH"
 		    		}
 			    	pane size="3%" name="Imperium watch"{

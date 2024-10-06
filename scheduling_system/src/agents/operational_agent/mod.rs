@@ -360,10 +360,10 @@ impl
                     &initial_message.tactical_operation.scheduled,
                 );
 
-                assert!(operation.work_remaining() > &Work::from(0.0));
+                assert!(operation.work_remaining() > &Some(Work::from(0.0)));
 
                 let operational_parameter = OperationalParameter::new(
-                    operation.work_remaining().clone(),
+                    operation.work_remaining().clone().unwrap(),
                     operation.operation_analytic.preparation_time.clone(),
                     start_datetime,
                     end_datetime,
