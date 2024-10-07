@@ -10,9 +10,9 @@
   outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
+        overlays = [ rust-overlay.overlays.default ];
         pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ rust-overlay.overlays.default ];
+          inherit system overlays;
         };
         pythonEnv = pkgs.python3.withPackages (ps: with ps; [
           pandas
@@ -20,21 +20,21 @@
         ]);
         rustPkgs = pkgs.rustPlatform;
       in {
-        devShells.default = pkgs.mkShell {
+        devShells.default = with pkgs; mkShell {
           buildInputs = [
             pythonEnv
-            pkgs.git
-            pkgs.helix
-            pkgs.zellij
-            pkgs.nushell
-            pkgs.jq
-            pkgs.openssl_3_3
-            pkgs.clang
-            pkgs.libxlsxwriter
-            pkgs.pkg-config
-            pkgs.python312Packages.python-lsp-server
-            pkgs.rustup
-            pkgs.rust-analyzer
+            git
+            helix
+            zellij
+            nushell
+            jq
+            openssl_3_3
+            clang
+            libxlsxwriter
+            pkg-config
+            python312Packages.python-lsp-server
+            rust-bin.beta.latest.default
+
           ];
         
         };
