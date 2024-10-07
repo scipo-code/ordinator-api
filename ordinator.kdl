@@ -47,11 +47,6 @@ layout {
 	    	pane name="Orchestrator" {
 	    		cwd "$ORDINATOR_PATH"
 	    	}
-	    	pane name="Qutebrowser" {
-	    		command "qutebrowser"
-	    		args "&"
-	    	}
-			
 	    	pane name="Logging" {
 	    		cwd "$ORDINATOR_PATH"
 	    		command "./logging/operational_logging.sh"
