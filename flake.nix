@@ -4,19 +4,21 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = { self, nixpkgs, flake-utils,... }:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [ ];
+          overlays = [ rust-overlay.overlays.default ];
         };
         pythonEnv = pkgs.python3.withPackages (ps: with ps; [
           pandas
           openpyxl
         ]);
+        rustPkgs = pkgs.rustPlatform;
       in {
         devShells.default = pkgs.mkShell {
           buildInputs = [
@@ -26,7 +28,7 @@
             pkgs.zellij
             pkgs.nushell
             pkgs.jq
-            pkgs.openssl
+            pkgs.openssl_3_3
             pkgs.clang
             pkgs.libxlsxwriter
             pkgs.pkg-config
