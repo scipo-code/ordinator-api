@@ -1,35 +1,3 @@
-<!--toc:start-->
-- [Ordinator](#ordinator)
-  - [Important High Level Types](#important-high-level-types)
-    - [SchedulingEnvironment](#schedulingenvironment)
-      - [[WorkOrders](shared_types/src/scheduling_environment/mod.rs);](#workorderssharedtypessrcschedulingenvironmentmodrs)
-      - [WorkerEnvironment](#workerenvironment)
-      - [TimeEnvironment](#timeenvironment)
-    - [[Orchestrator](scheduling_system/src/agents/orchestrator.rs)](#orchestratorschedulingsystemsrcagentsorchestratorrs)
-
-    - [StrageticAgent](#strageticagent)
-    - [TacticalAgent](#tacticalagent)
-    - [SupervisorAgent](#supervisoragent)
-    - [OperationalAgent](#operationalagent)
-    - [Messages](#messages)
-      - [[SystemMessages](shared_types/src/lib.rs)](#systemmessagessharedtypessrclibrs)
-      - [[SystemResponses](shared_types/src/lib.rs)](#systemresponsessharedtypessrclibrs)
-      - [[StateLink](scheduling_system/src/agents/mod.rs)](#statelinkschedulingsystemsrcagentsmodrs)
-      - [[SetAddr](scheduling_system/src/agents/mod.rs)](#setaddrschedulingsystemsrcagentsmodrs)
-      - [[StopMessage](shared_types/src/lib.rs)](#stopmessagesharedtypessrclibrs)
-      - [[ScheduleIteration](scheduling_system/src/agents/mod.rs)](#scheduleiterationschedulingsystemsrcagentsmodrs)
-      - [[UpdateWorkOrder](scheduling_system/agents/mod.rs)](#updateworkorderschedulingsystemagentsmodrs)
-      - [[SolutionExportMessage](shared_types/src/lib.rs)](#solutionexportmessagesharedtypessrclibrs)
-      - [[TestRequest](scheduling_system/src/agents/strategic_agent/mod.rs)](#testrequestschedulingsystemsrcagentsstrategicagentmodrs)
-      - [[OperationSolution](scheduling_system/agents/tactical_agents/tactical_algorithm.rs)](#operationsolutionschedulingsystemagentstacticalagentstacticalalgorithmrs)
-      - [[StatusMessage](shared_types/src/lib.rs)](#statusmessagesharedtypessrclibrs)
-  - [[Imperium](imperium/src/main.rs)](#imperiumimperiumsrcmainrs)
-  - [Tracing](#tracing)
-- [Profiling and benchmarking](#profiling-and-benchmarking)
-  - [Profiling](#profiling)
-  - [Benchmarking](#benchmarking)
-<!--toc:end-->
-
 # Ordinator
 Ordinator is a multi-actor scheduling system. The system is based on actors
 that each schedule a specific part of the scheduling process in real-time and then communicates 
@@ -44,9 +12,11 @@ scheduling process.
 Below we see a small example of how to interact with the Ordinator scheduling system. The system is comprised
 of two components: The scheduling system itself, and corresponding CLI tool imperium
 ```rust
-cargo run -p scheduling_system -- <data_file> 
-  
+cargo run -p scheduling_system  
 ```
+To run the command above you will need to populate the ```temp_scheduling_environment_database``` with 
+the mid_*.csv files given by Baptiste.
+
 Running this will run the scheduling system run expose an IP and PORT as specified in the .env file.
 
 ```rust
@@ -77,7 +47,6 @@ The SchedulingEnvironment is implemented as the memory blackboard pattern, this 
 get the latest state in a scalable way and write to shared memory without corrupting state when writing. The SchedulingEnvironment is initialized
 from company data meaning that there is a specific implementation for each data source(s) that has (have) to
 implement the following trait: 
-
 
 ```rust
 pub trait SchedulingEnvironmentFactory<DataSource> {
@@ -110,7 +79,7 @@ The Orchestrator is has three main responsibilities
 * Manually change values in the [SchedulingEnvironment](shared_types/src/scheduling_environment/mod.rs) (Dangerous)
 * Control logging and tracing setting at runtime [LogHandles](scheduling_system/src/init/logging.rs)
 
-### [StrateticAgent](scheduling_system/src/agents/strategic_agent/mod.rs)
+### [StrategicAgent](scheduling_system/src/agents/strategic_agent/mod.rs)
 The StrategicAgent schedules [WorkOrder](shared_types/src/scheduling_environment/work_order/mod.rs)s into weekly or biweekly periods based on a version of the multi-compartment multi-knapsack problem,
 which is solved using an implementation of the actor-based large neighborhood search meta-heuristic.  
 
@@ -163,7 +132,6 @@ pub enum SystemResponses {
     Sap,
 }
 ```
-
 #### [StateLink](scheduling_system/src/agents/mod.rs)
 This is a fundamental message of the system as it contain all the ways that agent should communication with each other in what circumstances. That
 means that this types handles business logic and complex state management. DUE NOT CHANGE ANYTHING that is related to the [StateLink](scheduling_system/src/agents/mod.rs) unless you 
@@ -172,6 +140,7 @@ know both what you are changing programmatically and its implications in the dom
 #### [SetAddr](scheduling_system/src/agents/mod.rs)
 This is a simply Message type use to pass around [Addr<impl Actor>] (channel addresses) in the system. [SetAddr](scheduling_system/src/agents/mod.rs) allows agents to discover each other
 and communicate. The Message is most frequently used under the initialization of Agents. 
+
 #### [StopMessage](shared_types/src/lib.rs)
 This is a simple message to stop an agent. It is needed as Agent run in perpetuity.
 
@@ -179,7 +148,6 @@ This is a simple message to stop an agent. It is needed as Agent run in perpetui
 This is a loop back message telling itself to run a new iteration of its main scheudling loop. Ideally this functionality should not be implemented as 
 a Message type, but it eases the message implementation significantly as the [ScheduleIteration](scheduling_system/src/agents/mod.rs) message is put on top of an Agent's message queue meaning
 that any messages received during an scheduling iteration will be handled before the Agent is allow to continue optimizing.
-
 
 #### [UpdateWorkOrder](scheduling_system/agents/mod.rs)
 This is a stray Message, it should be part of the [OrchestratorRequest](shared_types/src/orchestrator/mod.rs) Message instead.
@@ -190,28 +158,16 @@ This is a stray Message, it should be part of the [OrchestratorRequest](shared_t
 This is a message that the user sends to a specific agent manually telling it to provide its current solution in a human-readable format for the end user.
 Each [Agent] should implement this so that the user gets a static solution based on the Agent matching him, ideally for printing or analysis etc.
 
-> Issue: 
-> - [ ] Implement Handler<SolutionExportMessage> for [SupervisorAgent](scheduling_system/src/agents/supervisor_agent/mod.rs)
-> Issue: 
-> - [ ] Implement Handler<SolutionExportMessage> for [OperationalAgent](scheduling_system/src/agents/supervisor_agent/mod.rs)
-
 #### [TestRequest](scheduling_system/src/agents/strategic_agent/mod.rs)
 All Agents implement this Message and it triggers a testing procedure of the given Agent's current state to verify that nothing is out of the ordinary.
-
-> Issue: TestRequest
-> - [ ] In the future I generally think that these should be incorporated into the assert! statements
 
 #### [OperationSolution](scheduling_system/agents/tactical_agents/tactical_algorithm.rs)
 This is another stray Message, it should be refactor under the [StateLink](scheduling_system/src/agents/mod.rs) Message as it is related to how the the [SupervisorAgent](scheduling_system/src/agents/supervisor_agent/mod.rs) handles
 and interprets the schedule/solution coming from the [TacticalAgent](scheduling_system/src/agents/tactical_agent/mod.rs). 
 
-> Issue: OperationSolution
->  - [ ] This should be changed. This is clearly a StateLink message
-
 #### [StatusMessage](shared_types/src/lib.rs)
 Another stary Message. Each Agent should implement a Handler<StatusMessage> but it should be part of the [SystemMessages](shared_types/src/lib.rs) on the Request side
 and the return value/result should be given by the [SystemResponses](shared_types/src/lib.rs) Message
->  - [ ] StatusMessage's are a part of the Request category
 
 ## [Imperium](imperium/src/main.rs) 
 Imperium is a command line tool to interact with the Ordinator scheduling system. It contains all the API (in the form of HTTP messages)
@@ -222,11 +178,6 @@ workspace that we will have static type guarantees on the HTTPs API that are com
 ## Tracing 
 Tracing is a crucial aspect of understand the workings of the code as it is highly parallel. The log level can be set dynamically using 
 Imperium. (Setting it to Level::TRACING, will overload your system due to extremely high number of writes to the hard drive)
-
-> Issue: 
-> - [ ] Correctly instrument the code base. This task seems like it requires a lot of experience.
-> Issue: 
-> - [ ] Update the ordinator.kdl and ordinator-laptop.kdl to allow for easy inspection of the logs and tracing information
 
 # Profiling and benchmarking
 
