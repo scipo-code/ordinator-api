@@ -151,8 +151,8 @@ impl Display for Asset {
 }
 
 impl Asset {
-    pub fn new_from_string(asset_string: String) -> Asset {
-        match asset_string.as_str() {
+    pub fn new_from_string(asset_string: &str) -> Asset {
+        match asset_string {
             "DF" => Asset::DF,
             "DM" => Asset::DM,
             "DE" => Asset::DE,

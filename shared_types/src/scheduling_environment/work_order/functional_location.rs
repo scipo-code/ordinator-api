@@ -10,7 +10,11 @@ pub struct FunctionalLocation {
 
 impl FunctionalLocation {
     pub fn new(string: String) -> Self {
-        let asset = Asset::new_from_string(string.clone());
+        let asset_string = string
+            .split(' ')
+            .next()
+            .expect("All work orders need to have an Asset");
+        let asset = Asset::new_from_string(asset_string);
         Self { string, asset }
     }
 }

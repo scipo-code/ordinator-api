@@ -1,5 +1,11 @@
 use rayon::prelude::*;
-use std::{collections::HashMap, fs, path::PathBuf, str::FromStr};
+use std::{
+    collections::HashMap,
+    fs,
+    path::PathBuf,
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 
 use chrono::{Duration, NaiveDate, NaiveTime, Utc};
 use serde::Deserialize;
@@ -93,6 +99,11 @@ struct BaptisteToml {
     mid_work_orders_status: PathBuf,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct TomlOperatingTime {
+    operating_time: f64,
+}
+
 #[allow(non_snake_case)]
 fn create_work_orders(
     functional_locations: HashMap<FLOCTechnicaID, FunctionalLocationsCsv>,
@@ -104,13 +115,12 @@ fn create_work_orders(
     work_orders_status: WorkOrdersStatusCsvAggregated,
 ) -> HashMap<WorkOrderNumber, WorkOrder> {
     assert!(work_operations_csv.inner.len() > 0);
-    let mut inner_work_orders = HashMap::new();
+    let mut arc_mutex_inner_work_orders = Arc::new(Mutex::new(HashMap::new()));
+    let toml_operating_time_string =
+        fs::read_to_string("./configuration/operating_time.toml").unwrap();
+    let operating_time: TomlOperatingTime = toml::from_str(&toml_operating_time_string).unwrap();
 
-    let mut count = 0;
-
-    for (work_order_number, work_order_csv) in work_orders {
-        count += 1;
-        dbg!(count);
+    work_orders.par_iter().for_each(|(work_order_number, work_order_csv)| {
         let main_work_center: MainResources = MainResources::new_from_string(
             work_center
                 .get(&work_order_csv.WO_WBS_ID)
@@ -124,7 +134,7 @@ fn create_work_orders(
         let status_codes = match status_codes_string {
             Some(string) => {
                 if !string.contains("REL") {
-                    continue;
+                    return;
                 }
                 let pcnf_pattern = regex::Regex::new(r"PCNF").unwrap();
                 let awsc_pattern = regex::Regex::new(r"AWSC").unwrap();
@@ -148,11 +158,6 @@ fn create_work_orders(
             None => StatusCodes::default(),
         };
 
-        // self.initialize_work_load();
-        // self.initialize_weight();
-        // self.initialize_vendor();
-        // self.initialize_material(periods);
-
         let work_order_analytic: WorkOrderAnalytic = WorkOrderAnalytic::new(
             0,
             Work::from(0.0),
@@ -163,20 +168,20 @@ fn create_work_orders(
         );
 
         let earliest_allowed_start_date: NaiveDate =
-            DATS(work_order_csv.WO_Earliest_Allowed_Start_Date)
+            DATS(work_order_csv.WO_Earliest_Allowed_Start_Date.clone())
                 .try_into()
                 .expect("The WorkOrders that have invalid EASD are filtered out");
 
         let latest_allowed_finish_date: NaiveDate =
-            DATS(work_order_csv.WO_Latest_Allowed_Finish_Date)
+            DATS(work_order_csv.WO_Latest_Allowed_Finish_Date.clone())
                 .try_into()
                 .expect("The WorkOrders that have invalid EASD are filtered out");
 
-        let basic_start: NaiveDate = DATS(work_order_csv.WO_Basic_Start_Date)
+        let basic_start: NaiveDate = DATS(work_order_csv.WO_Basic_Start_Date.clone())
             .try_into()
             .expect("The WorkOrders that have invalid EASD are filtered out");
 
-        let basic_finish: NaiveDate = DATS(work_order_csv.WO_Basic_End_Date)
+        let basic_finish: NaiveDate = DATS(work_order_csv.WO_Basic_End_Date.clone())
             .try_into()
             .expect("The WorkOrders that have invalid EASD are filtered out");
 
@@ -210,7 +215,7 @@ fn create_work_orders(
         let work_order_text = WorkOrderText::new(
             None,
             None,
-            work_order_csv.WO_Header_Description,
+            work_order_csv.WO_Header_Description.clone(),
             None,
             None,
             None,
@@ -218,15 +223,15 @@ fn create_work_orders(
         );
 
         let work_order_info_detail = work_order::WorkOrderInfoDetail::new(
-            work_order_csv.WO_SubNetwork_ID,
-            work_order_csv.WO_Plan_Maintenance_Number,
-            work_order_csv.WO_Planner_Group,
-            work_order_csv.WO_Maintenance_Plan_Name,
+            work_order_csv.WO_SubNetwork_ID.clone(),
+            work_order_csv.WO_Plan_Maintenance_Number.clone(),
+            work_order_csv.WO_Planner_Group.clone(),
+            work_order_csv.WO_Maintenance_Plan_Name.clone(),
             "PM_COLLECTIVE_MISSING_TODO".to_string(),
             "ROOM_MISSING_TODO".to_string(),
         );
 
-        let priority = Priority::dyn_new(Box::new(work_order_csv.WO_Priority));
+        let priority = Priority::dyn_new(Box::new(work_order_csv.WO_Priority.clone()));
 
         let work_order_type = WorkOrderType::new(&work_order_csv.WO_Order_Type, priority.clone())
             .expect("Invalid WorkOrderType's should have been filtered out");
@@ -236,7 +241,7 @@ fn create_work_orders(
             work_order_type,
             FunctionalLocation::new(functional_location.to_string()),
             work_order_text,
-            Revision::new(work_order_csv.WO_Revision),
+            Revision::new(work_order_csv.WO_Revision.clone()),
             SystemCondition::from_str(&work_order_csv.WO_System_Condition).unwrap(),
             work_order_info_detail,
         );
@@ -282,7 +287,7 @@ fn create_work_orders(
                 planned_work.clone(),
                 actual_work,
                 remaining_work,
-                None,
+                Some(Work::from(operating_time.operating_time)),
             );
 
             let operation_analytic = OperationAnalytic::new(Work::from(1.0), planned_work);
@@ -322,7 +327,7 @@ fn create_work_orders(
         }
 
         let work_order = WorkOrder::new(
-            work_order_number,
+            *work_order_number,
             main_work_center,
             operations,
             Vec::new(),
@@ -330,8 +335,9 @@ fn create_work_orders(
             work_order_dates,
             work_order_info,
         );
-        inner_work_orders.insert(work_order_number, work_order);
-    }
+        arc_mutex_inner_work_orders.lock().unwrap().insert(*work_order_number, work_order);
+    });
+    let inner_work_orders = arc_mutex_inner_work_orders.lock().unwrap().clone();
     inner_work_orders
 }
 
