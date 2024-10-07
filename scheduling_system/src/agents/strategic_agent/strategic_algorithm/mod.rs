@@ -41,7 +41,6 @@ pub struct StrategicAlgorithm {
 }
 
 impl StrategicAlgorithm {
-
     pub fn objective_value(&self) -> f64 {
         self.objective_value
     }
@@ -74,6 +73,8 @@ pub fn create_optimized_work_orders(
     periods: &[Period],
     asset: &Asset,
 ) {
+
+
     for (work_order_number, work_order) in work_orders.inner.iter() {
         if &work_order.functional_location().asset != asset {
             continue;

@@ -63,7 +63,7 @@ pub struct OperationParameters {
     work_order_number: WorkOrderNumber,
     number: NumberOfPeople,
     duration: Work,
-    operating_time: Option<Work>,
+    operating_time: Work,
     work_remaining: Work,
     resource: Resources,
 }
@@ -245,7 +245,7 @@ impl TacticalAlgorithm {
                 work_order_number: *work_order.work_order_number(),
                 number: operation.number(),
                 duration: operation.duration().clone().unwrap(),
-                operating_time: operation.operating_time().clone(),
+                operating_time: operation.operating_time().clone().unwrap(),
                 work_remaining: operation.work_remaining().clone().unwrap(),
                 resource: operation.resource().clone(),
             };
@@ -452,7 +452,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
                 let loadings = self.determine_load(
                     first_day_remaining_capacity,
-                    operation_parameters.operating_time.as_ref().unwrap(),
+                    &operation_parameters.operating_time,
                     operation_parameters.work_remaining.clone(),
                 );
 
@@ -692,7 +692,6 @@ impl TacticalAlgorithm {
         work_remaining -= first_day_load;
 
         while work_remaining > Work::from(0.0) {
-            dbg!(&work_remaining);
             let load = operating_time.clone().min(work_remaining.clone());
             loadings.push(load.clone());
             work_remaining -= load;
@@ -956,7 +955,7 @@ pub mod tests {
             work_order_number,
             1,
             Work::from(1.0),
-            Some(Work::from(1.0)),
+            Work::from(1.0),
             Work::from(1.0),
             Resources::MtnMech,
         );
@@ -1037,7 +1036,7 @@ pub mod tests {
             work_order_number,
             1,
             Work::from(1.0),
-            Some(Work::from(1.0)),
+            Work::from(1.0),
             Work::from(1.0),
             Resources::MtnMech,
         );
@@ -1119,7 +1118,7 @@ pub mod tests {
             work_order_number,
             1,
             Work::from(1.0),
-            Some(Work::from(1.0)),
+            Work::from(1.0),
             Work::from(1.0),
             Resources::MtnMech,
         );
@@ -1185,7 +1184,7 @@ pub mod tests {
             work_order_number: WorkOrderNumber,
             number: NumberOfPeople,
             duration: Work,
-            operating_time: Option<Work>,
+            operating_time: Work,
             work_remaining: Work,
             resource: Resources,
         ) -> Self {
