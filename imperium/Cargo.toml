@@ -6,7 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-atoi = "=1.0.0"
 clap = { version = "*", features = ["derive"] }
 clap_complete = "*"
 clap_complete_nushell = "*"
@@ -19,5 +18,3 @@ strum = "*"
 tokio = { version = "*", features = ["full"] }
 toml = "*"
 tracing = "*"
-url = "*"
-webbrowser = "*"
