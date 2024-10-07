@@ -15,6 +15,7 @@
 **.xlsx
 **.xlsx#
 **.tar*
+**.zip
 
 # Output of the scheduling_system
 /output/*.xlsx
