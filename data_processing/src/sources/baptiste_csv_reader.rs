@@ -49,7 +49,6 @@ where
     C::Container: Default,
 {
     let csv_file: File = std::fs::File::open(file_path)?;
-    dbg!(&csv_file);
     let mut reader = csv::Reader::from_reader(csv_file);
     let mut container = C::Container::default();
     for row in reader.deserialize() {
@@ -380,7 +379,6 @@ impl WorkOperations {
 
         for work_order_csv in work_orders_csv.iter() {
             let wo_operation_id = work_order_csv.1.WO_Operation_ID.trim_end_matches(".0");
-            dbg!();
             if let Some(value) = operations_csv.get(wo_operation_id) {
                 let mut inner_hash_map = HashMap::new();
                 for operation_csv in value {
