@@ -133,7 +133,9 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         temporary_schedule.calculate_objective_value();
 
         if temporary_schedule.objective_value() < self.strategic_agent_algorithm.objective_value() {
+            
             self.strategic_agent_algorithm = temporary_schedule;
+
 
             info!(strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
 

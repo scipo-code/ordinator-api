@@ -22,6 +22,7 @@
       in {
         devShells.default = with pkgs; mkShell {
           buildInputs = [
+            cargo-cross
             pythonEnv
             git
             helix
@@ -33,7 +34,7 @@
             libxlsxwriter
             pkg-config
             python312Packages.python-lsp-server
-            rust-bin.beta.latest.default
+            rustup
 
           ];
         
