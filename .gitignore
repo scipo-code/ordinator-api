@@ -6,7 +6,8 @@
 /logging/logs/*.log
 *.folded
 
-/temp_scheduling_environment_database
+/temp_scheduling_environment_database/*.json
+/temp_scheduling_environment_database/*.csv
 # Datafiles
 **.svg
 **.png
