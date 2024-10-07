@@ -33,11 +33,9 @@
             clang
             libxlsxwriter
             pkg-config
-            python312Packages.python-lsp-server
             rustup
-
+            rust-analyzer
           ];
-        
         };
         packages.default = pkgs.buildRustPackage {
           pname = "ordinator";
