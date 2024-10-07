@@ -143,15 +143,12 @@ impl AllRows {
                 .write(row_number, 32, row_values.room.clone())
                 .unwrap();
         }
-
         let xlsx_directory = dotenvy::var("EXCEL_DUMP_DIRECTORY").expect(
             "The excel dump directory environment path could not be found. Check the .env file",
         );
         let xlsx_name = format!("ordinator_dump_for_asset_{}.xlsx", asset);
-
         let xlsx_string = xlsx_directory + &xlsx_name;
         let xlsx_path = PathBuf::from(&xlsx_string);
-
         rust_dump.save(&xlsx_path)?;
         Ok(xlsx_path)
     }
