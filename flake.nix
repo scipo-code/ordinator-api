@@ -7,12 +7,11 @@
     rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
+  outputs = { self, nixpkgs, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs {
-          inherit system overlays;
+          inherit system;
         };
         pythonEnv = pkgs.python3.withPackages (ps: with ps; [
           pandas
@@ -22,7 +21,7 @@
         devShells.default = pkgs.mkShell {
           buildInputs = [
             pkgs.cargo-cross
-            pkgs.rust-bin.stable.latest.default
+            pkgs.rustup
             pythonEnv
             pkgs.git
             pkgs.helix
