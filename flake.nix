@@ -10,7 +10,7 @@
   outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        overlays = [ rust-overlay.overlays.default ];
+        overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs {
           inherit system overlays;
         };
@@ -18,23 +18,21 @@
           pandas
           openpyxl
         ]);
-        rustPkgs = pkgs.rustPlatform;
       in {
-        devShells.default = with pkgs; mkShell {
+        devShells.default = pkgs.mkShell {
           buildInputs = [
-            cargo-cross
+            pkgs.cargo-cross
+            pkgs.rust-bin.stable.latest.default
             pythonEnv
-            git
-            helix
-            zellij
-            nushell
-            jq
-            openssl_3_3
-            clang
-            libxlsxwriter
-            pkg-config
-            rustup
-            rust-analyzer
+            pkgs.git
+            pkgs.helix
+            pkgs.zellij
+            pkgs.nushell
+            pkgs.jq
+            pkgs.openssl_3_3
+            pkgs.clang
+            pkgs.libxlsxwriter
+            pkgs.pkg-config
           ];
         };
         packages.default = pkgs.buildRustPackage {
