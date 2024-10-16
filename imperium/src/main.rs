@@ -42,8 +42,10 @@ fn main() {
 
 fn send_http(client: &Client, system_message: SystemMessages) -> String {
     let url = "http://".to_string()
-        + &dotenvy::var("ORDINATOR_API_ADDRESS").expect("The environment variable ORDINATOR_API_ADDRESS is not set")
-        + &dotenvy::var("ORDINATOR_MAIN_ENDPOINT").expect("The environment variable ORDINATOR_MAIN_ENDPOINT is not set");
+        + &dotenvy::var("IMPERIUM_ADDRESS")
+            .expect("The environment variable IMPERIUM_ADDRESS is not set")
+        + &dotenvy::var("ORDINATOR_MAIN_ENDPOINT")
+            .expect("The environment variable ORDINATOR_MAIN_ENDPOINT is not set");
     let system_message_json_option = serde_json::to_string(&system_message);
     let system_message_json = match system_message_json_option {
         Ok(string) => string,
