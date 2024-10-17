@@ -61,10 +61,12 @@ pub fn setup_logging() -> (LogHandles, WorkerGuard) {
 
     let (file_layer, file_handle) = reload::Layer::new(file_layer);
 
-    let flame_layer = FlameLayer::with_file("PROFILING_FILE")
-        .unwrap()
-        .0
-        .with_filter(EnvFilter::from_env("PROFILING_LEVEL"));
+    let flame_layer = FlameLayer::with_file(
+        env::var("PROFILING_FILE").expect("A file name for the profiling data has to be set"),
+    )
+    .unwrap()
+    .0
+    .with_filter(EnvFilter::from_env("PROFILING_LEVEL"));
     let (flame_layer, flame_handle) = reload::Layer::new(flame_layer);
 
     let layers = vec![file_layer.boxed(), flame_layer.boxed()];
