@@ -36,6 +36,23 @@ impl Message for OrchestratorRequest {
     type Result = String;
 }
 
+#[derive(Clone, Debug)]
+pub struct OrchestratorMessage<T> {
+    pub message_from_orchestrator: T,
+}
+
+impl<T> OrchestratorMessage<T> {
+    pub fn new(message_from_orchestrator: T) -> Self {
+        Self {
+            message_from_orchestrator,
+        }
+    }
+}
+
+impl<T> Message for OrchestratorMessage<T> {
+    type Result = ();
+}
+
 #[derive(Serialize)]
 pub enum OrchestratorResponse {
     AgentStatus(AgentStatusResponse),

@@ -256,7 +256,7 @@ trait OperationalFunctions {
     type Key;
     type Sequence;
 
-    fn try_insert(&mut self, key: Self::Key, sequence: Self::Sequence, supervisor: Id);
+    fn try_insert(&mut self, key: Self::Key, sequence: Self::Sequence);
 
     fn containing_operational_solution(&self, time: DateTime<Utc>) -> ContainOrNextOrNone;
 }
@@ -265,7 +265,7 @@ impl OperationalFunctions for OperationalSolutions {
     type Key = WorkOrderActivity;
     type Sequence = Vec<Assignment>;
 
-    fn try_insert(&mut self, key: Self::Key, assignments: Self::Sequence, supervisor: Id) {
+    fn try_insert(&mut self, key: Self::Key, assignments: Self::Sequence) {
         for (index, operational_solution) in self
             .0
             .iter()
@@ -630,11 +630,8 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                 start_time,
             );
 
-            self.operational_solutions.try_insert(
-                *work_order_activity,
-                assignments,
-                operational_parameter.supervisor.clone(),
-            );
+            self.operational_solutions
+                .try_insert(*work_order_activity, assignments);
             event!(Level::TRACE, number_of_operations = ?self.operational_solutions.0.len());
         }
 

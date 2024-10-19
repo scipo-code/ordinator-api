@@ -41,7 +41,6 @@ async fn main() -> Result<(), io::Error> {
 
     orchestrator.add_asset(Asset::DF);
     orchestrator.initialize_agents_from_env(Asset::DF);
-
     // orchestrator.add_asset(Asset::HD);
 
     let arc_orchestrator = ArcOrchestrator(Arc::new(Mutex::new(orchestrator)));

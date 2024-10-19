@@ -70,7 +70,7 @@ pub struct SupervisorAlgorithm {
     objective_value: f64,
     _resource: MainResources,
     pub operational_state: OperationalStateMachine,
-    pub operational_agent_objectives: HashMap<Id, Arc<OperationalObjective>>,
+    pub operational_agent_objectives: HashMap<Id, OperationalObjective>,
     pub tactical_operations: HashMap<WorkOrderActivity, Arc<TacticalOperation>>,
 }
 

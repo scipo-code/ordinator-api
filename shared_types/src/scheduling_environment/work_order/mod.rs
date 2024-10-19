@@ -14,6 +14,7 @@ use crate::scheduling_environment::work_order::functional_location::FunctionalLo
 use crate::scheduling_environment::work_order::operation::Operation;
 use crate::scheduling_environment::work_order::priority::Priority;
 use crate::scheduling_environment::work_order::revision::Revision;
+use crate::scheduling_environment::work_order::status_codes::MaterialStatus;
 use crate::scheduling_environment::work_order::status_codes::StatusCodes;
 use crate::scheduling_environment::work_order::system_condition::SystemCondition;
 use crate::scheduling_environment::work_order::unloading_point::UnloadingPoint;
@@ -29,9 +30,6 @@ use std::env;
 use std::fs;
 use std::num::ParseIntError;
 use std::str::FromStr;
-use std::string::ParseError;
-// use crate::scheduling_environment::work_order::optimized_work_order::OptimizedWorkOrder;
-use crate::scheduling_environment::work_order::status_codes::MaterialStatus;
 
 use crate::scheduling_environment::worker_environment::resources::Resources;
 
