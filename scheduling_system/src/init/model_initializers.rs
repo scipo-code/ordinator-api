@@ -1,8 +1,6 @@
-use std::path::Path;
-use std::{env, path::PathBuf};
+use std::path::PathBuf;
 
 use data_processing::sources::TimeInput;
-use dotenvy::dotenv;
 use tracing::info;
 
 use data_processing::sources::{baptiste_csv_reader::TotalSap, SchedulingEnvironmentFactory};
@@ -38,12 +36,6 @@ fn create_scheduling_environment(
 
     file_path.push(&file_string);
 
-    // let total_excel = TotalExcel::new(
-    //     file_path,
-    //     number_of_strategic_periods,
-    //     number_of_tactical_periods,
-    //     number_of_days,
-    // );
     let time_input = TimeInput::new(
         number_of_strategic_periods,
         number_of_tactical_periods,

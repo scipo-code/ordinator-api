@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use crate::agents::operational_agent::algorithm::OperationalAlgorithm;
+use crate::agents::operational_agent::algorithm::{OperationalAlgorithm, OperationalObjective};
 use crate::agents::operational_agent::{OperationalAgent, OperationalAgentBuilder};
 use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::OptimizedWorkOrders;
 use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
@@ -181,13 +181,14 @@ impl AgentFactory {
         id_operational: Id,
         operational_configuration: OperationalConfiguration,
         supervisor_agent_addr: HashMap<Id, Addr<SupervisorAgent>>,
-    ) -> Addr<OperationalAgent> {
+    ) -> (OperationalObjective, Addr<OperationalAgent>) {
         let (sender, receiver) = std::sync::mpsc::channel::<Addr<OperationalAgent>>();
 
         let arc_scheduling_environment = self.scheduling_environment.clone();
 
         let operational_algorithm = OperationalAlgorithm::new(operational_configuration.clone());
 
+        let operational_objective = Arc::clone(&operational_algorithm.objective_value);
         Arbiter::new().spawn_fn(move || {
             let operational_agent_addr = OperationalAgentBuilder::new(
                 id_operational,
@@ -201,7 +202,8 @@ impl AgentFactory {
             .start();
             sender.send(operational_agent_addr).unwrap();
         });
-        receiver.recv().unwrap()
+
+        (operational_objective, receiver.recv().unwrap())
     }
 }
 

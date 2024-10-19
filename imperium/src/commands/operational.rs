@@ -1,11 +1,9 @@
 use clap::Subcommand;
 use shared_types::{
     operational::{
-        operational_request_scheduling::OperationalSchedulingRequest,
-        operational_request_status::OperationalStatusRequest, OperationalRequest,
-        OperationalRequestMessage, OperationalTarget,
+        operational_request_scheduling::OperationalSchedulingRequest, OperationalRequest,
+        OperationalRequestMessage,
     },
-    scheduling_environment::worker_environment::resources::Id,
     Asset, SystemMessages,
 };
 
@@ -41,11 +39,6 @@ impl OperationalCommands {
     pub fn execute(&self) -> SystemMessages {
         match self {
             OperationalCommands::Status { asset } => {
-                let operational_request_status = OperationalStatusRequest::General;
-
-                let operational_request_message =
-                    OperationalRequestMessage::Status(operational_request_status);
-
                 let operational_request = OperationalRequest::AllOperationalStatus(asset.clone());
 
                 SystemMessages::Operational(operational_request)
