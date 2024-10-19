@@ -430,7 +430,8 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
             }
             OperationalRequestMessage::Scheduling(operational_scheduling_request) => {
                 match operational_scheduling_request {
-                    OperationalSchedulingRequest::ListEvents => {
+                    OperationalSchedulingRequest::OperationalIds => todo!(),
+                    OperationalSchedulingRequest::OperationalState(_) => {
                         let mut json_assignments_events: Vec<JsonAssignmentEvents> = vec![];
 
                         for (work_order_activity, operational_solution) in
@@ -460,6 +461,7 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
                     }
                 }
             }
+
             OperationalRequestMessage::Resource(_) => todo!(),
             OperationalRequestMessage::Time(_) => todo!(),
             OperationalRequestMessage::Test => {
