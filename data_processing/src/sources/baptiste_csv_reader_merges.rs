@@ -92,7 +92,7 @@ pub fn load_csv_data(file_path: PathBuf, periods: &[Period]) -> WorkOrders {
 struct BaptisteToml {
     mid_functional_locations: PathBuf,
     mid_operations_status: PathBuf,
-    mid_secondary_locations: PathBuf,
+    _mid_secondary_locations: PathBuf,
     mid_work_center: PathBuf,
     mid_work_operations: PathBuf,
     mid_work_orders: PathBuf,
@@ -115,7 +115,7 @@ fn create_work_orders(
     work_orders_status: WorkOrdersStatusCsvAggregated,
 ) -> HashMap<WorkOrderNumber, WorkOrder> {
     assert!(work_operations_csv.inner.len() > 0);
-    let mut arc_mutex_inner_work_orders = Arc::new(Mutex::new(HashMap::new()));
+    let arc_mutex_inner_work_orders = Arc::new(Mutex::new(HashMap::new()));
     let toml_operating_time_string =
         fs::read_to_string("./configuration/operating_time.toml").unwrap();
     let operating_time: TomlOperatingTime = toml::from_str(&toml_operating_time_string).unwrap();

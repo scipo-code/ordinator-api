@@ -1,11 +1,9 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use data_processing::excel_dumps::create_excel_dump;
-use shared_types::operational::operational_request_resource::OperationalResourceRequest;
 use shared_types::operational::operational_request_status::OperationalStatusRequest;
 use shared_types::operational::operational_response_scheduling::OperationalSchedulingResponse;
 use shared_types::operational::{
     OperationalRequest, OperationalRequestMessage, OperationalResponse, OperationalResponseMessage,
-    OperationalTarget,
 };
 use shared_types::orchestrator::OrchestratorRequest;
 use shared_types::scheduling_environment::worker_environment::resources::Id;

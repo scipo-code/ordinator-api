@@ -2,7 +2,7 @@ use shared_types::scheduling_environment::{
     work_order::{
         operation::{operation_info::NumberOfPeople, ActivityNumber},
         work_order_type::WorkOrderType,
-        WorkOrderActivity, WorkOrderNumber,
+        WorkOrderNumber,
     },
     worker_environment::WorkerEnvironment,
     SchedulingEnvironment,
@@ -164,7 +164,7 @@ impl CsvType for WorkOrdersStatusCsv {
 
     type Container = Vec<Self>;
 
-    fn make_entry(key: Self::KeyType, container: &mut Self::Container, value: Self) {
+    fn make_entry(_key: Self::KeyType, container: &mut Self::Container, value: Self) {
         container.push(value);
     }
 }
@@ -191,7 +191,7 @@ impl CsvType for OperationsStatusCsv {
         self.OPR_Object_Number.clone()
     }
 
-    fn make_entry(key: Self::KeyType, container: &mut Self::Container, value: Self) {
+    fn make_entry(_key: Self::KeyType, container: &mut Self::Container, value: Self) {
         container.push(value);
     }
 }
@@ -214,7 +214,7 @@ impl CsvType for SecondaryLocationsCsv {
 
     type Container = Vec<Self>;
 
-    fn make_entry(key: Self::KeyType, container: &mut Self::Container, value: Self) {
+    fn make_entry(_key: Self::KeyType, _container: &mut Self::Container, _value: Self) {
         todo!()
     }
 }
