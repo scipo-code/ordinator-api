@@ -1,9 +1,14 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use data_processing::excel_dumps::create_excel_dump;
+use shared_types::operational::operational_request_resource::OperationalResourceRequest;
+use shared_types::operational::operational_request_status::OperationalStatusRequest;
+use shared_types::operational::operational_response_scheduling::OperationalSchedulingResponse;
 use shared_types::operational::{
-    OperationalResponse, OperationalResponseMessage, OperationalTarget,
+    OperationalRequest, OperationalRequestMessage, OperationalResponse, OperationalResponseMessage,
+    OperationalTarget,
 };
 use shared_types::orchestrator::OrchestratorRequest;
+use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::strategic::StrategicResponse;
 use shared_types::supervisor::SupervisorResponse;
 
@@ -173,30 +178,79 @@ pub async fn http_to_scheduling_system(
             SystemResponses::Supervisor(supervisor_response)
         }
         SystemMessages::Operational(operational_request) => {
-            match operational_request.operational_target {
-                OperationalTarget::Single(_id) => {
-                    todo!();
+            let operational_response = match operational_request {
+                OperationalRequest::GetIds(asset) => {
+                    let mut operational_ids_by_asset: Vec<Id> = Vec::new();
+                    orchestrator
+                        .lock()
+                        .unwrap()
+                        .agent_registries
+                        .get(&asset)
+                        .expect("This error should be handled higher up")
+                        .operational_agent_addrs
+                        .keys()
+                        .for_each(|ele| {
+                            operational_ids_by_asset.push(ele.clone());
+                        });
+
+                    OperationalResponse::OperationalIds(operational_ids_by_asset)
                 }
-                OperationalTarget::All => {
-                    let mut operational_infeasible_cases: Vec<OperationalResponseMessage> = vec![];
-                    for agent_registry in orchestrator.lock().unwrap().agent_registries.values() {
-                        for operational_addr in agent_registry.operational_agent_addrs.values() {
-                            operational_infeasible_cases.push(
-                                operational_addr
-                                    .send(operational_request.operational_request_message.clone())
-                                    .await
-                                    .unwrap()
-                                    .unwrap(),
-                            );
+
+                OperationalRequest::ForOperationalAgent((
+                    asset,
+                    operational_id,
+                    operational_request_message,
+                )) => {
+                    match orchestrator
+                        .lock()
+                        .unwrap()
+                        .agent_registries
+                        .get(&asset)
+                        .expect("This error should be handled higher up")
+                        .get_operational_addr(&operational_id)
+                    {
+                        Some(addr) => {
+                            let operational_response_message = match addr.send(operational_request_message).await.expect("Could not await the message sending, theard problems are the most likely") {
+                                Ok(operational_response_message) => {
+                                    operational_response_message
+                                },
+                                Err(e) => {
+                                    let operational_scheduling_message = OperationalSchedulingResponse::Error(e);
+                                    OperationalResponseMessage::Scheduling(operational_scheduling_message)
+                                },
+                            };
+                            OperationalResponse::OperationalState(operational_response_message)
                         }
+                        None => OperationalResponse::NoOperationalAgentFound(operational_id),
                     }
-                    let operational_response = OperationalResponse::new(
-                        OperationalTarget::All,
-                        operational_infeasible_cases,
-                    );
-                    SystemResponses::Operational(operational_response)
                 }
-            }
+                OperationalRequest::AllOperationalStatus(asset) => {
+                    let operational_request_status = OperationalStatusRequest::General;
+                    let operational_request_message =
+                        OperationalRequestMessage::Status(operational_request_status);
+                    let mut operational_responses: Vec<OperationalResponseMessage> = vec![];
+
+                    for operational_addr in orchestrator
+                        .lock()
+                        .unwrap()
+                        .agent_registries
+                        .get(&asset)
+                        .expect("If this fails it means that the error handling should have been done further up")
+                        .operational_agent_addrs
+                        .values()
+                    {
+                        operational_responses.push(
+                            operational_addr
+                                .send(operational_request_message.clone())
+                                .await
+                                .unwrap()
+                                .unwrap(),
+                        )
+                    }
+                    OperationalResponse::AllOperationalStatus(operational_responses)
+                }
+            };
+            SystemResponses::Operational(operational_response)
         }
         SystemMessages::Sap => SystemResponses::Sap,
     };

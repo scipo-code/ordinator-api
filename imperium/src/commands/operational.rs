@@ -5,58 +5,86 @@ use shared_types::{
         operational_request_status::OperationalStatusRequest, OperationalRequest,
         OperationalRequestMessage, OperationalTarget,
     },
-    SystemMessages,
+    scheduling_environment::worker_environment::resources::Id,
+    Asset, SystemMessages,
 };
 
 #[derive(Subcommand, Debug)]
 pub enum OperationalCommands {
     // Get the status of a specific operational agent
     Status {
-        operational_target: OperationalTarget,
+        asset: Asset,
     },
     // Access the scheduling commands for an OperationalAgent (Technicial)
     Scheduling {
-        operational_target: OperationalTarget,
+        #[clap(subcommand)]
+        scheduling_commands: SchedulingCommands,
     },
     // Test the state of all operational agents
     Test,
 }
 
+#[derive(Subcommand, Debug)]
+pub enum SchedulingCommands {
+    // Get all the IDs of technicians
+    OperationalIds {
+        asset: Asset,
+    },
+    // Get information on a specific OperationalAgent
+    OperationalAgent {
+        asset: Asset,
+        operational_id: String,
+    },
+}
+
 impl OperationalCommands {
     pub fn execute(&self) -> SystemMessages {
         match self {
-            OperationalCommands::Status { operational_target } => {
+            OperationalCommands::Status { asset } => {
                 let operational_request_status = OperationalStatusRequest::General;
 
                 let operational_request_message =
                     OperationalRequestMessage::Status(operational_request_status);
 
-                let operational_request = OperationalRequest::new(
-                    operational_target.clone(),
-                    operational_request_message,
-                );
+                let operational_request = OperationalRequest::AllOperationalStatus(asset.clone());
 
                 SystemMessages::Operational(operational_request)
             }
-            OperationalCommands::Scheduling { operational_target } => {
-                let operational_request_scheduling = OperationalSchedulingRequest::ListEvents;
+            OperationalCommands::Scheduling {
+                scheduling_commands,
+            } => {
+                match scheduling_commands {
+                    SchedulingCommands::OperationalIds { asset } => {
+                        let operational_request = OperationalRequest::GetIds(asset.clone());
+                        SystemMessages::Operational(operational_request)
+                    }
+                    SchedulingCommands::OperationalAgent {
+                        asset,
+                        operational_id,
+                    } => {
+                        // TODO: Send message to the orchestrator to retrieve all information on a specific operational agent
+                        let operational_request_scheduling =
+                            OperationalSchedulingRequest::OperationalState(operational_id.clone());
 
-                let operational_request_message =
-                    OperationalRequestMessage::Scheduling(operational_request_scheduling);
+                        let operational_request_message =
+                            OperationalRequestMessage::Scheduling(operational_request_scheduling);
 
-                let operational_request = OperationalRequest::new(
-                    operational_target.clone(),
-                    operational_request_message,
-                );
-                SystemMessages::Operational(operational_request)
+                        let operational_request = OperationalRequest::ForOperationalAgent((
+                            asset.clone(),
+                            operational_id.clone(),
+                            operational_request_message,
+                        ));
+                        SystemMessages::Operational(operational_request)
+                    }
+                }
             }
             OperationalCommands::Test => {
-                let operational_request_message = OperationalRequestMessage::Test;
+                todo!();
+                // let operational_request_message = OperationalRequestMessage::Test;
 
-                let operational_request =
-                    OperationalRequest::new(OperationalTarget::All, operational_request_message);
+                // let operational_request = OperationalRequest::(operational_request_message);
 
-                SystemMessages::Operational(operational_request)
+                // SystemMessages::Operational(operational_request)
             }
         }
     }
