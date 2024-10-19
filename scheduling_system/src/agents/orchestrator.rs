@@ -74,6 +74,16 @@ pub struct ActorRegistry {
     pub operational_agent_addrs: HashMap<Id, Addr<OperationalAgent>>,
 }
 
+impl ActorRegistry {
+    pub fn get_operational_addr(&self, operational_id: &String ) -> Option<Addr<OperationalAgent>> {
+
+        let option_id = self.operational_agent_addrs.iter().find(|(id, addr)| {
+            &id.0 == operational_id
+        }).map(|(_, addr)| addr);
+        option_id.cloned()
+    }
+}
+
 impl Orchestrator {
     #[instrument(level = "info", skip_all)]
     pub async fn handle(&mut self, orchestrator_request: OrchestratorRequest) -> Result<OrchestratorResponse, String> {
