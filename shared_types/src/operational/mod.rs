@@ -4,8 +4,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     agent_error::AgentError,
-    scheduling_environment::worker_environment::availability::{Availability, TomlAvailability},
-    AlgorithmState, ConstraintState,
+    scheduling_environment::worker_environment::{
+        availability::{Availability, TomlAvailability},
+        resources::Id,
+    },
+    AlgorithmState, Asset, ConstraintState,
 };
 
 use self::{
@@ -32,21 +35,10 @@ pub mod operational_request_time;
 type OperationalId = String;
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct OperationalRequest {
-    pub operational_target: OperationalTarget,
-    pub operational_request_message: OperationalRequestMessage,
-}
-
-impl OperationalRequest {
-    pub fn new(
-        operational_target: OperationalTarget,
-        operational_request_message: OperationalRequestMessage,
-    ) -> Self {
-        Self {
-            operational_target,
-            operational_request_message,
-        }
-    }
+pub enum OperationalRequest {
+    GetIds(Asset),
+    AllOperationalStatus(Asset),
+    ForOperationalAgent((Asset, String, OperationalRequestMessage)),
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
@@ -72,21 +64,16 @@ pub enum OperationalResponseMessage {
 }
 
 #[derive(Serialize)]
-pub struct OperationalResponse {
-    id: OperationalTarget,
-    operational_response_message: Vec<OperationalResponseMessage>,
+pub struct OperationalStatus {
+    objective: f64,
 }
 
-impl OperationalResponse {
-    pub fn new(
-        id: OperationalTarget,
-        operational_response_message: Vec<OperationalResponseMessage>,
-    ) -> Self {
-        Self {
-            id,
-            operational_response_message,
-        }
-    }
+#[derive(Serialize)]
+pub enum OperationalResponse {
+    AllOperationalStatus(Vec<OperationalResponseMessage>),
+    OperationalIds(Vec<Id>),
+    OperationalState(OperationalResponseMessage),
+    NoOperationalAgentFound(String),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
