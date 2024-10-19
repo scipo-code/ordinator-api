@@ -1,4 +1,5 @@
 use actix::prelude::*;
+use shared_types::orchestrator::OrchestratorMessage;
 use shared_types::orchestrator::OrchestratorRequest;
 
 use shared_types::scheduling_environment::time_environment::day::Day;
@@ -75,9 +76,8 @@ pub struct ActorRegistry {
 }
 
 impl ActorRegistry {
-    pub fn get_operational_addr(&self, operational_id: &String ) -> Option<Addr<OperationalAgent>> {
-
-        let option_id = self.operational_agent_addrs.iter().find(|(id, addr)| {
+    pub fn get_operational_addr(&self, operational_id: &String) -> Option<Addr<OperationalAgent>> {
+        let option_id = self.operational_agent_addrs.iter().find(|(id, _)| {
             &id.0 == operational_id
         }).map(|(_, addr)| addr);
         option_id.cloned()
@@ -404,9 +404,16 @@ impl Orchestrator {
 
     fn create_operational_agent(&mut self, asset: &Asset, id: Id, operational_configuration: OperationalConfiguration) {
     
-        let operational_agent_addr = self
+        let (operational_objective, operational_agent_addr) = self
             .agent_factory
             .build_operational_agent(id.clone(), operational_configuration, self.agent_registries.get(asset).unwrap().supervisor_agent_addrs.clone());
+
+        let operational_id_and_objective = OrchestratorMessage::new((id.clone(), operational_objective));
+
+        self.agent_registries.get(&asset).unwrap().supervisor_agent_addrs.iter().for_each(|(_, sup_addr)| {
+            sup_addr.do_send(operational_id_and_objective.clone())
+        });
+        
 
         self.agent_registries
             .get_mut(asset)

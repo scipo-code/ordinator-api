@@ -10,6 +10,7 @@ use std::{
 use actix::prelude::*;
 use shared_types::{
     agent_error::AgentError,
+    orchestrator::OrchestratorMessage,
     scheduling_environment::{
         work_order::{
             operation::{ActivityNumber, Work},
@@ -98,6 +99,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
         self.schedule();
         test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self).expect("The tactical_operations should always hold all the work_order_activities of the operational_state_machine");
 
+        // dbg!(&self.supervisor_algorithm.operational_agent_objectives);
         ctx.wait(
             tokio::time::sleep(tokio::time::Duration::from_millis(
                 dotenvy::var("SUPERVISOR_THROTTLING")
@@ -477,6 +479,24 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
         }
     }
 }
+
+impl Handler<OrchestratorMessage<(Id, OperationalObjective)>> for SupervisorAgent {
+    type Result = ();
+
+    fn handle(
+        &mut self,
+        msg: OrchestratorMessage<(Id, OperationalObjective)>,
+        _ctx: &mut Self::Context,
+    ) -> Self::Result {
+        self.supervisor_algorithm
+            .operational_agent_objectives
+            .insert(
+                msg.message_from_orchestrator.0,
+                msg.message_from_orchestrator.1,
+            );
+    }
+}
+
 impl TestAlgorithm for SupervisorAgent {
     type InfeasibleCases = SupervisorInfeasibleCases;
 
