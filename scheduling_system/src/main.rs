@@ -39,8 +39,14 @@ async fn main() -> Result<(), io::Error> {
 
     let mut orchestrator = Orchestrator::new(mutex_scheduling_environment.clone(), log_handles);
 
-    orchestrator.add_asset(Asset::DF);
-    orchestrator.initialize_agents_from_env(Asset::DF);
+    let asset_string = dotenvy::var("ASSET").expect("The ASSET environment variable should be set");
+
+    let asset = Asset::new_from_string(asset_string.as_str())
+        .expect("Please set a valid ASSET environment variables");
+
+    dbg!(&asset);
+    orchestrator.add_asset(asset.clone());
+    orchestrator.initialize_agents_from_env(asset);
     // orchestrator.add_asset(Asset::HD);
 
     let arc_orchestrator = ArcOrchestrator(Arc::new(Mutex::new(orchestrator)));

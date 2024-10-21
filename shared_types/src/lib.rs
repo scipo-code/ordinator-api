@@ -151,26 +151,26 @@ impl Display for Asset {
 }
 
 impl Asset {
-    pub fn new_from_string(asset_string: &str) -> Asset {
+    pub fn new_from_string(asset_string: &str) -> Option<Asset> {
         match asset_string {
-            "DF" => Asset::DF,
-            "DM" => Asset::DM,
-            "DE" => Asset::DE,
-            "GO" => Asset::GO,
-            "HB" => Asset::HB,
-            "HC" => Asset::HC,
-            "HD" => Asset::HD,
-            "HW" => Asset::HW,
-            "KR" => Asset::KR,
-            "RO" => Asset::RO,
-            "RF" => Asset::RF,
-            "SK" => Asset::SK,
-            "SV" => Asset::SV,
-            "TE" => Asset::TE,
-            "TS" => Asset::TS,
-            "VA" => Asset::VA,
-            "VB" => Asset::VB,
-            _ => Asset::Unknown,
+            "DF" => Some(Asset::DF),
+            "DM" => Some(Asset::DM),
+            "DE" => Some(Asset::DE),
+            "GO" => Some(Asset::GO),
+            "HB" => Some(Asset::HB),
+            "HC" => Some(Asset::HC),
+            "HD" => Some(Asset::HD),
+            "HW" => Some(Asset::HW),
+            "KR" => Some(Asset::KR),
+            "RO" => Some(Asset::RO),
+            "RF" => Some(Asset::RF),
+            "SK" => Some(Asset::SK),
+            "SV" => Some(Asset::SV),
+            "TE" => Some(Asset::TE),
+            "TS" => Some(Asset::TS),
+            "VA" => Some(Asset::VA),
+            "VB" => Some(Asset::VB),
+            _ => None,
         }
     }
 }
