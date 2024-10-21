@@ -17,9 +17,41 @@ pub fn initialize_scheduling_environment(
         number_of_days,
     )
     .expect("No data file was provided.");
+
+    scheduling_environment
+        .work_orders()
+        .inner
+        .iter()
+        .for_each(|(_, wo)| {
+            assert!(wo
+                .work_order_dates
+                .earliest_allowed_start_period
+                .contains_date(wo.work_order_dates.earliest_allowed_start_date))
+        });
+
     scheduling_environment
         .initialize_work_orders(&scheduling_environment.clone_strategic_periods());
+    scheduling_environment
+        .work_orders()
+        .inner
+        .iter()
+        .for_each(|(_, wo)| {
+            assert!(wo
+                .work_order_dates
+                .earliest_allowed_start_period
+                .contains_date(wo.work_order_dates.earliest_allowed_start_date))
+        });
     scheduling_environment.initialize_worker_environment();
+    scheduling_environment
+        .work_orders()
+        .inner
+        .iter()
+        .for_each(|(_, wo)| {
+            assert!(wo
+                .work_order_dates
+                .earliest_allowed_start_period
+                .contains_date(wo.work_order_dates.earliest_allowed_start_date))
+        });
     info!("{}", scheduling_environment);
     scheduling_environment
 }
