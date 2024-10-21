@@ -20,6 +20,9 @@ use shared_types::TomlAgents;
 use tracing::instrument;
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Mutex;
 use strum::IntoEnumIterator;
@@ -73,6 +76,7 @@ pub struct ActorRegistry {
     pub tactical_agent_addr: Addr<TacticalAgent>,
     pub supervisor_agent_addrs: HashMap<Id, Addr<SupervisorAgent>>,
     pub operational_agent_addrs: HashMap<Id, Addr<OperationalAgent>>,
+    pub number_of_operational_agents: Arc<AtomicU64>
 }
 
 impl ActorRegistry {
@@ -282,10 +286,14 @@ impl Orchestrator {
                     .tactical_agent_addr
                     .clone();
 
+                let number_of_operational_agents = Arc::clone(&self.agent_registries.get(&asset).unwrap().number_of_operational_agents);
                 let supervisor_agent_addr = self.agent_factory.build_supervisor_agent(
                     asset.clone(),
                     id_string.clone(),
                     tactical_agent_addr,
+                    number_of_operational_agents,
+
+
                 );
 
                 self.agent_registries
@@ -410,10 +418,12 @@ impl Orchestrator {
 
         let operational_id_and_objective = OrchestratorMessage::new((id.clone(), operational_objective));
 
+
         self.agent_registries.get(&asset).unwrap().supervisor_agent_addrs.iter().for_each(|(_, sup_addr)| {
             sup_addr.do_send(operational_id_and_objective.clone())
         });
-        
+
+        self.agent_registries.get(&asset).unwrap().number_of_operational_agents.fetch_add(1, Ordering::SeqCst);
 
         self.agent_registries
             .get_mut(asset)
@@ -427,12 +437,14 @@ impl ActorRegistry {
         strategic_agent_addr: Addr<StrategicAgent>,
         tactical_agent_addr: Addr<TacticalAgent>,
         supervisor_agent_addrs: HashMap<Id, Addr<SupervisorAgent>>,
+        number_of_operational_agents: Arc<AtomicU64>,
     ) -> Self {
         ActorRegistry {
             strategic_agent_addr,
             tactical_agent_addr,
             supervisor_agent_addrs,
             operational_agent_addrs: HashMap::new(),
+            number_of_operational_agents,
         }
     }
 
@@ -508,19 +520,22 @@ impl Orchestrator {
         );
 
         let mut supervisor_addrs = HashMap::<Id, Addr<SupervisorAgent>>::new();
+        let number_of_operational_agents = Arc::new(AtomicU64::new(0));
         for main_resource in resources::MainResources::iter() {
             let id = Id::new("default".to_string(), vec![], Some(main_resource));
+
             let supervisor_addr = self.agent_factory.build_supervisor_agent(
                 asset.clone(),
                 id.clone(),
                 tactical_agent_addr.clone(),
+                Arc::clone(&number_of_operational_agents),
             );
 
             supervisor_addrs.insert(id, supervisor_addr);
         }
 
         let agent_registry =
-            ActorRegistry::new(strategic_agent_addr, tactical_agent_addr, supervisor_addrs);
+            ActorRegistry::new(strategic_agent_addr, tactical_agent_addr, supervisor_addrs, number_of_operational_agents);
 
         self.agent_registries.insert(asset, agent_registry);
     }
