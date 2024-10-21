@@ -34,6 +34,16 @@ async fn main() -> Result<(), io::Error> {
         write_to_database(database_path)
             .expect("Could not write SchedulingEnvironment to database.")
     };
+    scheduling_environment
+        .work_orders()
+        .inner
+        .iter()
+        .for_each(|(_, wo)| {
+            assert!(wo
+                .work_order_dates
+                .earliest_allowed_start_period
+                .contains_date(wo.work_order_dates.earliest_allowed_start_date))
+        });
 
     let mutex_scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
 

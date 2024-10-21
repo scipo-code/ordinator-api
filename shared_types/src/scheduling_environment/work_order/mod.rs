@@ -323,10 +323,30 @@ impl WeightParams {
 
 impl WorkOrder {
     pub fn initialize(&mut self, periods: &[Period]) {
+        assert!(self
+            .work_order_dates
+            .earliest_allowed_start_period
+            .contains_date(self.work_order_dates.earliest_allowed_start_date));
         self.initialize_work_load();
+        assert!(self
+            .work_order_dates
+            .earliest_allowed_start_period
+            .contains_date(self.work_order_dates.earliest_allowed_start_date));
         self.initialize_weight();
+        assert!(self
+            .work_order_dates
+            .earliest_allowed_start_period
+            .contains_date(self.work_order_dates.earliest_allowed_start_date));
         self.initialize_vendor();
+        assert!(self
+            .work_order_dates
+            .earliest_allowed_start_period
+            .contains_date(self.work_order_dates.earliest_allowed_start_date));
         self.initialize_material(periods);
+        assert!(self
+            .work_order_dates
+            .earliest_allowed_start_period
+            .contains_date(self.work_order_dates.earliest_allowed_start_date));
         // TODO : Other fields
     }
 
@@ -412,22 +432,34 @@ impl WorkOrder {
     /// This method determines that earliest allow start date and period for the work order. This is
     /// a maximum of the material status and the earliest start period of the operations.
     /// TODO : A stance will have to be taken on the VEN, SHUTDOWN, and SUBNETWORKS.
+    /// We will get an error here! The problem is that after this the EASD will not be contained
+    /// anymore.
     fn initialize_material(&mut self, periods: &[Period]) {
         match self.status_codes().material_status {
             MaterialStatus::Nmat => {
-                self.order_dates_mut().earliest_allowed_start_period = periods[0].clone();
+                self.order_dates_mut().earliest_allowed_start_period = periods[0]
+                    .clone()
+                    .max(self.work_order_dates.earliest_allowed_start_period.clone());
             }
             MaterialStatus::Smat => {
-                self.order_dates_mut().earliest_allowed_start_period = periods[0].clone();
+                self.order_dates_mut().earliest_allowed_start_period = periods[0]
+                    .clone()
+                    .max(self.work_order_dates.earliest_allowed_start_period.clone());
             }
             MaterialStatus::Cmat => {
-                self.order_dates_mut().earliest_allowed_start_period = periods[2].clone();
+                self.order_dates_mut().earliest_allowed_start_period = periods[2]
+                    .clone()
+                    .max(self.work_order_dates.earliest_allowed_start_period.clone());
             }
             MaterialStatus::Pmat => {
-                self.order_dates_mut().earliest_allowed_start_period = periods[3].clone();
+                self.order_dates_mut().earliest_allowed_start_period = periods[3]
+                    .clone()
+                    .max(self.work_order_dates.earliest_allowed_start_period.clone());
             }
             MaterialStatus::Wmat => {
-                self.order_dates_mut().earliest_allowed_start_period = periods[3].clone();
+                self.order_dates_mut().earliest_allowed_start_period = periods[3]
+                    .clone()
+                    .max(self.work_order_dates.earliest_allowed_start_period.clone());
             }
             MaterialStatus::Unknown => {}
         }
@@ -439,6 +471,16 @@ impl WorkOrder {
                 || (self.is_vendor() && i <= 3)
                 || (self.revision().shutdown && i <= 3)
             {
+                assert!(&self
+                    .work_order_dates
+                    .earliest_allowed_start_period
+                    .contains_date(self.work_order_dates.earliest_allowed_start_date));
+                dbg!();
+                dbg!(
+                    period,
+                    &self.work_order_dates.earliest_allowed_start_period,
+                    &self.work_order_dates.earliest_allowed_start_date
+                );
                 excluded_periods.insert(period.clone());
             }
         }

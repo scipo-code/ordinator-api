@@ -168,6 +168,7 @@ fn create_work_orders(
         );
 
         let earliest_allowed_start_date: NaiveDate =
+
             DATS(work_order_csv.WO_Earliest_Allowed_Start_Date.clone())
                 .try_into()
                 .expect("The WorkOrders that have invalid EASD are filtered out");
@@ -188,7 +189,8 @@ fn create_work_orders(
         let duration = basic_finish - basic_start;
 
         let earliest_allowed_start_period = date_to_period(periods, &earliest_allowed_start_date);
-
+        
+        assert!(earliest_allowed_start_period.contains_date(earliest_allowed_start_date));
         let latest_allowed_finish_period = date_to_period(periods, &latest_allowed_finish_date);
 
         let work_order_dates: WorkOrderDates = WorkOrderDates::new(
@@ -268,18 +270,15 @@ fn create_work_orders(
             };
 
             let actual_work: Option<Work> = {
-                let parse_option = operation_csv.OPR_Planned_Work.clone().parse::<f64>();
+                let parse_option = operation_csv.OPR_Actual_Work.clone().parse::<f64>();
                 match parse_option {
                     Ok(work) => Some(Work::from(work)),
                     Err(_) => None,
                 }
             };
             let remaining_work: Option<Work> = {
-                let parse_option = operation_csv.OPR_Planned_Work.clone().parse::<f64>();
-                match parse_option {
-                    Ok(work) => Some(Work::from(work)),
-                    Err(_) => None,
-                }
+                let parse_option = operation_csv.OPR_Planned_Work.clone().parse::<f64>().unwrap_or_default() - operation_csv.OPR_Actual_Work.clone().parse::<f64>().unwrap_or_default();
+                Some(Work::from(parse_option))
             };
 
             let operation_info = OperationInfo::new(
@@ -335,6 +334,8 @@ fn create_work_orders(
             work_order_dates,
             work_order_info,
         );
+
+        assert!(work_order.work_order_dates.earliest_allowed_start_period.contains_date(work_order.work_order_dates.earliest_allowed_start_date));
         arc_mutex_inner_work_orders.lock().unwrap().insert(*work_order_number, work_order);
     });
     let inner_work_orders = arc_mutex_inner_work_orders.lock().unwrap().clone();
@@ -345,6 +346,11 @@ fn date_to_period(periods: &[Period], date_time: &NaiveDate) -> Period {
     let period: Option<Period> = periods
         .iter()
         .find(|period| {
+            // dbg!(
+            //     period.start_date().date_naive(),
+            //     *date_time,
+            //     &&period.end_date().date_naive(),
+            // );
             period.start_date().date_naive() <= *date_time
                 && period.end_date().date_naive() >= *date_time
         })
@@ -369,5 +375,38 @@ fn date_to_period(periods: &[Period], date_time: &NaiveDate) -> Period {
             }
             first_period.clone()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_date_to_period() {
+        let periods: Vec<Period> = vec![
+            Period::from_str("2024-W47-48").unwrap(),
+            Period::from_str("2024-W49-50").unwrap(),
+            Period::from_str("2024-W51-52").unwrap(),
+            Period::from_str("2025-W1-2").unwrap(),
+        ];
+
+        let period_1 = date_to_period(
+            periods.as_slice(),
+            &NaiveDate::from_ymd_opt(2024, 12, 5).unwrap(),
+        );
+        let period_2 = date_to_period(
+            periods.as_slice(),
+            &NaiveDate::from_ymd_opt(2024, 12, 27).unwrap(),
+        );
+        let period_3 = date_to_period(
+            periods.as_slice(),
+            &NaiveDate::from_ymd_opt(2025, 1, 3).unwrap(),
+        );
+
+        assert_eq!(period_1, periods.get(1).unwrap().clone());
+        assert_eq!(period_2, periods.get(2).unwrap().clone());
+        assert_eq!(period_3, periods.get(3).unwrap().clone());
     }
 }
