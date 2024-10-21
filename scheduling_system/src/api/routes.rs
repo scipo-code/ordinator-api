@@ -28,6 +28,7 @@ pub async fn http_to_scheduling_system(
     _req: HttpRequest,
     payload: web::Json<SystemMessages>,
 ) -> HttpResponse {
+    dbg!();
     let system_responses: SystemResponses = match payload.0 {
         SystemMessages::Orchestrator(orchestrator_request) => {
             let response = match orchestrator_request {
@@ -94,6 +95,7 @@ pub async fn http_to_scheduling_system(
             SystemResponses::Orchestrator(response.unwrap())
         }
         SystemMessages::Strategic(strategic_request) => {
+            dbg!();
             let strategic_agent_addr = match orchestrator
                 .lock()
                 .unwrap()
@@ -108,6 +110,7 @@ pub async fn http_to_scheduling_system(
                 }
             };
 
+            dbg!();
             let response = match strategic_agent_addr
                 .send(strategic_request.strategic_request_message.clone())
                 .await
@@ -116,6 +119,7 @@ pub async fn http_to_scheduling_system(
                 Ok(response) => response,
                 Err(e) => StrategicResponseMessage::Error(e),
             };
+            dbg!();
 
             let strategic_response =
                 StrategicResponse::new(strategic_request.asset().clone(), response);

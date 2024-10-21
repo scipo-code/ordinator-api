@@ -92,7 +92,7 @@ pub fn load_csv_data(file_path: PathBuf, periods: &[Period]) -> WorkOrders {
 struct BaptisteToml {
     mid_functional_locations: PathBuf,
     mid_operations_status: PathBuf,
-    _mid_secondary_locations: PathBuf,
+    mid_secondary_locations: PathBuf,
     mid_work_center: PathBuf,
     mid_work_operations: PathBuf,
     mid_work_orders: PathBuf,
