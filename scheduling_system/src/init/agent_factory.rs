@@ -6,6 +6,7 @@ use shared_types::strategic::{Periods, StrategicResources};
 use shared_types::tactical::{Days, TacticalResources};
 use shared_types::Asset;
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -157,6 +158,7 @@ impl AgentFactory {
         asset: Asset,
         id_supervisor: Id,
         tactical_agent_addr: Addr<TacticalAgent>,
+        number_of_operational_agents: Arc<AtomicU64>,
     ) -> Addr<SupervisorAgent> {
         let (sender, receiver) = std::sync::mpsc::channel::<Addr<SupervisorAgent>>();
 
@@ -168,6 +170,7 @@ impl AgentFactory {
                 asset,
                 scheduling_environment,
                 tactical_agent_addr,
+                number_of_operational_agents,
             )
             .start();
             sender.send(supervisor_addr).unwrap();
