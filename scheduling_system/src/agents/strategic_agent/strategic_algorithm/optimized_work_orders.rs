@@ -134,6 +134,10 @@ impl OptimizedWorkOrderBuilder {
             .latest_allowed_finish_period
             .clone();
 
+        assert!(&self
+            .latest_period
+            .contains_date(work_order.work_order_dates.latest_allowed_finish_date));
+
         let unloading_point_period = work_order.unloading_point().clone();
 
         if work_order.is_vendor()

@@ -4,6 +4,7 @@ pub mod strategic_algorithm;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborHoodSearch;
 use shared_types::scheduling_environment::work_order::operation::Work;
+use shared_types::scheduling_environment::work_order::WorkOrder;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
@@ -133,9 +134,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         temporary_schedule.calculate_objective_value();
 
         if temporary_schedule.objective_value() < self.strategic_agent_algorithm.objective_value() {
-            
             self.strategic_agent_algorithm = temporary_schedule;
-
 
             info!(strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
 
@@ -331,14 +330,12 @@ impl Handler<UpdateWorkOrderMessage> for StrategicAgent {
 
         let periods = locked_scheduling_environment.periods().clone();
 
-        let work_order = locked_scheduling_environment
+        let work_order: &WorkOrder = locked_scheduling_environment
             .work_orders()
             .inner
             .get(&update_work_order.0)
-            .unwrap()
-            .clone();
+            .unwrap();
 
-        drop(locked_scheduling_environment);
         let optimized_work_order_builder = OptimizedWorkOrder::builder();
 
         let optimized_work_order = optimized_work_order_builder
