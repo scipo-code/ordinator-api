@@ -66,7 +66,10 @@ pub enum WorkOrderCommands {
 pub enum WorkerEnvironmentCommands {}
 
 #[derive(Subcommand, Debug)]
-pub enum TimeEnvironmentCommands {}
+pub enum TimeEnvironmentCommands {
+    /// Get all the available periods in the TimeEnvironment
+    GetPeriods,
+}
 
 #[derive(Subcommand, Debug)]
 pub enum AgentCommands {}
@@ -126,8 +129,14 @@ impl OrchestratorCommands {
                     ) => {
                         todo!()
                     }
-                    SchedulingEnvironmentCommands::TimeEnvironment(_time_environment_commands) => {
-                        todo!()
+                    SchedulingEnvironmentCommands::TimeEnvironment(time_environment_commands) => {
+                        match time_environment_commands {
+                            TimeEnvironmentCommands::GetPeriods => {
+                                dbg!();
+                                println!("Debug message");
+                                SystemMessages::Orchestrator(OrchestratorRequest::GetPeriods)
+                            }
+                        }
                     }
                 }
             }

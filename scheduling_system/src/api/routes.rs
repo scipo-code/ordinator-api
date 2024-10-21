@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use data_processing::excel_dumps::create_excel_dump;
+use shared_types::agent_error::AgentError;
 use shared_types::operational::operational_request_status::OperationalStatusRequest;
 use shared_types::operational::operational_response_scheduling::OperationalSchedulingResponse;
 use shared_types::operational::{
@@ -7,7 +8,7 @@ use shared_types::operational::{
 };
 use shared_types::orchestrator::OrchestratorRequest;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
-use shared_types::strategic::StrategicResponse;
+use shared_types::strategic::{StrategicResponse, StrategicResponseMessage};
 use shared_types::supervisor::SupervisorResponse;
 
 use shared_types::tactical::TacticalResponse;
@@ -107,11 +108,14 @@ pub async fn http_to_scheduling_system(
                 }
             };
 
-            let response = strategic_agent_addr
+            let response = match strategic_agent_addr
                 .send(strategic_request.strategic_request_message.clone())
                 .await
                 .unwrap()
-                .unwrap();
+            {
+                Ok(response) => response,
+                Err(e) => StrategicResponseMessage::Error(e),
+            };
 
             let strategic_response =
                 StrategicResponse::new(strategic_request.asset().clone(), response);

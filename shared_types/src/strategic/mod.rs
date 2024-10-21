@@ -86,6 +86,7 @@ pub enum StrategicResponseMessage {
     Periods(StrategicResponsePeriods),
     WorkOrder(WorkOrdersStatus),
     Test(AlgorithmState<StrategicInfeasibleCases>),
+    Error(AgentError),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
