@@ -3,7 +3,10 @@ pub mod delegate;
 
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicU64, AtomicUsize},
+        Arc, Mutex,
+    },
     time::Instant,
 };
 
@@ -48,6 +51,7 @@ pub struct SupervisorAgent {
     pub supervisor_algorithm: SupervisorAlgorithm,
     tactical_agent_addr: Addr<TacticalAgent>,
     operational_agent_addrs: HashMap<Id, Addr<OperationalAgent>>,
+    number_of_operational_agents: Arc<AtomicU64>,
 }
 
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
@@ -99,7 +103,18 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
         self.schedule();
         test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self).expect("The tactical_operations should always hold all the work_order_activities of the operational_state_machine");
 
-        // dbg!(&self.supervisor_algorithm.operational_agent_objectives);
+        // assert_eq!(
+        //     self.supervisor_algorithm.operational_agent_objectives.len() as u64,
+        //     self.number_of_operational_agents
+        //         .load(std::sync::atomic::Ordering::SeqCst)
+        // );
+
+        event!(
+            Level::DEBUG,
+            number_of_operational_agents =
+                self.supervisor_algorithm.operational_agent_objectives.len()
+        );
+
         ctx.wait(
             tokio::time::sleep(tokio::time::Duration::from_millis(
                 dotenvy::var("SUPERVISOR_THROTTLING")
@@ -119,6 +134,7 @@ impl SupervisorAgent {
         asset: Asset,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         tactical_agent_addr: Addr<TacticalAgent>,
+        number_of_operational_agents: Arc<AtomicU64>,
     ) -> SupervisorAgent {
         let supervisor_resource = id_supervisor.2.clone().unwrap();
         SupervisorAgent {
@@ -128,6 +144,7 @@ impl SupervisorAgent {
             supervisor_algorithm: SupervisorAlgorithm::new(supervisor_resource),
             tactical_agent_addr,
             operational_agent_addrs: HashMap::new(),
+            number_of_operational_agents,
         }
     }
 
