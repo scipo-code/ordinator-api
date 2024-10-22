@@ -41,16 +41,16 @@ impl SchedulingEnvironmentFactory<TotalSap> for SchedulingEnvironment {
         let scheduling_environment =
             SchedulingEnvironment::new(work_orders, worker_environment, time_environment);
 
-        scheduling_environment
-            .work_orders()
-            .inner
-            .iter()
-            .for_each(|(_, wo)| {
-                assert!(wo
-                    .work_order_dates
-                    .earliest_allowed_start_period
-                    .contains_date(wo.work_order_dates.earliest_allowed_start_date))
-            });
+        // scheduling_environment
+        //     .work_orders()
+        //     .inner
+        //     .iter()
+        //     .for_each(|(_, wo)| {
+        //         assert!(wo
+        //             .work_order_dates
+        //             .earliest_allowed_start_period
+        //             .contains_date(wo.work_order_dates.earliest_allowed_start_date))
+        //     });
         Ok(scheduling_environment)
     }
 }

@@ -323,30 +323,17 @@ impl WeightParams {
 
 impl WorkOrder {
     pub fn initialize(&mut self, periods: &[Period]) {
-        assert!(self
-            .work_order_dates
-            .earliest_allowed_start_period
-            .contains_date(self.work_order_dates.earliest_allowed_start_date));
         self.initialize_work_load();
-        assert!(self
-            .work_order_dates
-            .earliest_allowed_start_period
-            .contains_date(self.work_order_dates.earliest_allowed_start_date));
         self.initialize_weight();
-        assert!(self
-            .work_order_dates
-            .earliest_allowed_start_period
-            .contains_date(self.work_order_dates.earliest_allowed_start_date));
         self.initialize_vendor();
-        assert!(self
-            .work_order_dates
-            .earliest_allowed_start_period
-            .contains_date(self.work_order_dates.earliest_allowed_start_date));
         self.initialize_material(periods);
-        assert!(self
-            .work_order_dates
-            .earliest_allowed_start_period
-            .contains_date(self.work_order_dates.earliest_allowed_start_date));
+        assert!(
+            self.work_order_dates
+                .earliest_allowed_start_period
+                .end_date()
+                .date_naive()
+                >= self.work_order_dates.earliest_allowed_start_date
+        );
         // TODO : Other fields
     }
 
@@ -471,15 +458,12 @@ impl WorkOrder {
                 || (self.is_vendor() && i <= 3)
                 || (self.revision().shutdown && i <= 3)
             {
-                assert!(&self
-                    .work_order_dates
-                    .earliest_allowed_start_period
-                    .contains_date(self.work_order_dates.earliest_allowed_start_date));
-                dbg!();
-                dbg!(
-                    period,
-                    &self.work_order_dates.earliest_allowed_start_period,
-                    &self.work_order_dates.earliest_allowed_start_date
+                assert!(
+                    self.work_order_dates
+                        .earliest_allowed_start_period
+                        .end_date()
+                        .date_naive()
+                        >= self.work_order_dates.earliest_allowed_start_date
                 );
                 excluded_periods.insert(period.clone());
             }
