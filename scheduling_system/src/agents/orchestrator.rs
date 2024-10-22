@@ -397,9 +397,12 @@ impl Orchestrator {
     pub fn initialize_agents_from_env(&mut self, asset: Asset) {
         dotenv().expect("Could not load in the .env file.");
         
-        let resource_path = std::env::var("RESOURCE_CONFIG_INITIALIZATION").expect("Could not read RESOURCE_CONFIG_INITIALIZATION");
+        let asset_string = dotenvy::var("ASSET").expect("ASSET environment variable should always be set");
 
-        let toml_agents_string: String = std::fs::read_to_string(resource_path).unwrap(); 
+        let resource_string = format!("./configuration/resources_{}.toml", asset_string.to_lowercase());
+
+
+        let toml_agents_string: String = std::fs::read_to_string(resource_string).unwrap(); 
         let toml_agents: TomlAgents = toml::from_str(&toml_agents_string).unwrap();
 
         for agent in toml_agents.operational {
@@ -500,10 +503,12 @@ impl Orchestrator {
     }
 
     pub fn add_asset(&mut self, asset: Asset) {
-        let toml_agents_string_path = std::env::var("RESOURCE_CONFIG_INITIALIZATION")
-            .expect("Could not read RESOURCE_CONFIG_INITIALIZATION");
 
-        let toml_agents_path = Path::new(&toml_agents_string_path);
+        let asset_string = dotenvy::var("ASSET").expect("ASSET environment variable should always be set");
+
+        let resource_string = format!("./configuration/resources_{}.toml", asset_string.to_lowercase());
+
+        let toml_agents_path = Path::new(&resource_string);
 
         let strategic_resources = self.generate_strategic_resources(toml_agents_path);
 

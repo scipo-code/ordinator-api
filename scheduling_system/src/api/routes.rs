@@ -236,15 +236,19 @@ pub async fn http_to_scheduling_system(
                         OperationalRequestMessage::Status(operational_request_status);
                     let mut operational_responses: Vec<OperationalResponseMessage> = vec![];
 
-                    for operational_addr in orchestrator
-                        .lock()
-                        .unwrap()
-                        .agent_registries
-                        .get(&asset)
-                        .expect("If this fails it means that the error handling should have been done further up")
-                        .operational_agent_addrs
-                        .values()
-                    {
+                    let agent_registry_guard = orchestrator.lock().unwrap();
+                    let agent_registry_option = agent_registry_guard.agent_registries.get(&asset);
+
+                    let agent_registry = match agent_registry_option {
+                        Some(agent_registry) => agent_registry,
+                        None => {
+                            warn!("AgentRegistry not created for {}", asset);
+                            return HttpResponse::BadRequest()
+                                .json("STRATEGIC: STRATEGIC AGENT NOT INITIALIZED FOR THE ASSET");
+                        }
+                    };
+
+                    for operational_addr in agent_registry.operational_agent_addrs.values() {
                         operational_responses.push(
                             operational_addr
                                 .send(operational_request_message.clone())
