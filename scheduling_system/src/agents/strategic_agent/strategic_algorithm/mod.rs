@@ -69,7 +69,7 @@ impl StrategicAlgorithm {
 
 pub fn create_optimized_work_orders(
     &mut self,
-    work_orders: &mut WorkOrders,
+    work_orders: &WorkOrders,
     periods: &[Period],
     asset: &Asset,
 ) {
@@ -79,6 +79,7 @@ pub fn create_optimized_work_orders(
         if &work_order.functional_location().asset != asset {
             continue;
         }
+
 
         let optimized_work_order = OptimizedWorkOrder::builder().build_from_work_order(work_order, periods).build();
         
