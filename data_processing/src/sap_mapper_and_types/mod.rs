@@ -148,9 +148,11 @@ impl IntoExcelData for DATS {
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveTime;
+    use chrono::{NaiveDate, NaiveTime};
 
     use crate::sap_mapper_and_types::TIMS;
+
+    use super::DATS;
 
     #[test]
     #[allow(non_snake_case)]
@@ -179,6 +181,7 @@ mod tests {
 
         assert_eq!(naive_time, NaiveTime::from_hms_opt(8, 0, 0).unwrap())
     }
+
     #[test]
     #[allow(non_snake_case)]
     fn test_TIMS_into_trait_impl_4() {
@@ -188,6 +191,7 @@ mod tests {
 
         assert_eq!(naive_time, NaiveTime::from_hms_opt(0, 0, 0).unwrap())
     }
+
     #[test]
     #[allow(non_snake_case)]
     fn test_TIMS_into_trait_impl_5() {
@@ -196,5 +200,14 @@ mod tests {
         let naive_time: NaiveTime = tims.into();
 
         assert_eq!(naive_time, NaiveTime::from_hms_opt(23, 59, 59).unwrap())
+    }
+
+    #[test]
+    fn test_DATS() {
+        let dats = DATS("20250103".to_string());
+
+        let naive_date: NaiveDate = dats.try_into().unwrap();
+
+        assert_eq!(naive_date, NaiveDate::from_ymd_opt(2025, 1, 3).unwrap());
     }
 }
