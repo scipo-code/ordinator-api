@@ -419,6 +419,3 @@ operational_configuration.availability.end_date = 2024-11-17T15:00:00Z
 # qaqcmech = 0.0
 # qaqcpain = 0.0
 # wellsupv = 0.0
-
-
->>>>>>> create-a-ASSET-dependent-resource-configuration-setup
