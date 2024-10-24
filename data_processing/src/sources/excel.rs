@@ -26,9 +26,7 @@ use shared_types::scheduling_environment::work_order::{
     ActivityRelation, WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderInfoDetail,
     WorkOrderNumber,
 };
-use shared_types::scheduling_environment::worker_environment::resources::{
-    MainResources, Resources,
-};
+use shared_types::scheduling_environment::worker_environment::resources::Resources;
 
 use shared_types::scheduling_environment::worker_environment::WorkerEnvironment;
 use shared_types::scheduling_environment::{SchedulingEnvironment, WorkOrders};
@@ -200,7 +198,7 @@ fn create_new_work_order(
     };
 
     let main_work_center = match main_work_center_data {
-        Some(calamine::Data::String(s)) => MainResources::new_from_string(s.clone()),
+        Some(calamine::Data::String(s)) => Resources::new_from_string(s.clone()),
         _ => return Err(Error::Msg("Could not parse Main Work Center as string")),
     };
 

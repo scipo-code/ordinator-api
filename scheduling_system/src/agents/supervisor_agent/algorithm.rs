@@ -1,10 +1,12 @@
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
+    iter::Map,
     sync::{atomic::AtomicUsize, Arc},
 };
 
 use actix::Addr;
+use proptest::strategy::statics::MapFn;
 use shared_types::{
     agent_error::AgentError,
     scheduling_environment::{
@@ -12,13 +14,14 @@ use shared_types::{
             operation::{operation_info::NumberOfPeople, ActivityNumber},
             WorkOrderActivity, WorkOrderNumber,
         },
-        worker_environment::resources::{Id, MainResources},
+        worker_environment::resources::{Id, Resources},
     },
     supervisor::{
         supervisor_response_resources::SupervisorResponseResources,
         supervisor_response_scheduling::SupervisorResponseScheduling,
         supervisor_response_time::SupervisorResponseTime,
     },
+    TomlSupervisor,
 };
 use tracing::{event, instrument, span, Level};
 
@@ -67,18 +70,18 @@ pub struct SupervisorResourceRequest;
 pub struct SupervisorTimeRequest;
 
 pub struct SupervisorAlgorithm {
-    objective_value: f64,
-    _resource: MainResources,
+    pub objective_value: f64,
+    _resource: TomlSupervisor,
     pub operational_state: OperationalStateMachine,
     pub operational_agent_objectives: HashMap<Id, OperationalObjective>,
     pub tactical_operations: HashMap<WorkOrderActivity, Arc<TacticalOperation>>,
 }
 
 impl SupervisorAlgorithm {
-    pub fn new(resource: MainResources) -> Self {
+    pub fn new(supervisor: TomlSupervisor) -> Self {
         Self {
             objective_value: f64::default(),
-            _resource: resource,
+            _resource: supervisor,
             operational_state: OperationalStateMachine::default(),
             operational_agent_objectives: HashMap::default(),
             tactical_operations: HashMap::default(),
@@ -170,6 +173,19 @@ impl OperationalStateMachine {
             TransitionTypes::Done(_) => {
                 panic!("You should never send a done request to an OperationalAgent");
             }
+        }
+    }
+
+    pub fn turn_work_order_into_delegate_assess(&mut self, work_order_number: WorkOrderNumber) {
+        let id_and_work_order_activities_to_turn_into_delegate_assess =
+            self.0.keys().filter(|(_, woa)| woa.0 == work_order_number);
+
+        for id_work_order_activity in id_and_work_order_activities_to_turn_into_delegate_assess {
+            self.0
+                .get(&id_work_order_activity)
+                .unwrap()
+                .0
+                .store(Delegate::Assess, std::sync::atomic::Ordering::SeqCst)
         }
     }
 
@@ -338,6 +354,17 @@ impl OperationalStateMachine {
     ) -> Option<&(Arc<AtomicDelegate>, MarginalFitness)> {
         self.0.get(&(key))
     }
+
+    pub(crate) fn get_assigned_and_unassigned_work_orders(&self) -> Vec<WorkOrderNumber> {
+        self.0
+            .iter()
+            .filter(|(_, del_fit)| {
+                let delegate = del_fit.0.load(std::sync::atomic::Ordering::Acquire);
+                delegate == Delegate::Assign || delegate == Delegate::Unassign
+            })
+            .map(|(id_woa, _)| id_woa.1 .0)
+            .collect()
+    }
 }
 
 impl LargeNeighborHoodSearch for SupervisorAgent {
@@ -349,7 +376,7 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
     type TimeRequest = SupervisorTimeRequest;
     type TimeResponse = SupervisorResponseTime;
 
-    type SchedulingUnit = (WorkOrderNumber, ActivityNumber);
+    type SchedulingUnit = WorkOrderNumber;
 
     type Error = AgentError;
 
@@ -451,8 +478,10 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
         }
     }
 
-    fn unschedule(&mut self, _message: Self::SchedulingUnit) {
-        todo!()
+    fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) {
+        self.supervisor_algorithm
+            .operational_state
+            .turn_work_order_into_delegate_assess(work_order_number);
     }
 
     fn update_scheduling_state(
@@ -486,4 +515,35 @@ fn is_assigned_part_of_all(
         .iter()
         .map(|(wo, ac)| all_woas.contains(&(*wo, *ac)))
         .all(|present_woa| present_woa)
+}
+
+pub fn assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess(
+    operational_state_machine: &OperationalStateMachine,
+) {
+    let work_order_numbers: HashSet<WorkOrderNumber> = operational_state_machine
+        .0
+        .iter()
+        .map(|(id_woa, _)| (id_woa.1 .0))
+        .collect();
+
+    for work_order_number in work_order_numbers {
+        let mut assess_work_orders: HashSet<WorkOrderNumber> = HashSet::new();
+        let mut assign_unassign_work_orders: HashSet<WorkOrderNumber> = HashSet::new();
+
+        operational_state_machine
+            .0
+            .iter()
+            .filter(|(id_woa, _)| id_woa.1 .0 == work_order_number)
+            .for_each(|osm| {
+                let delegate = osm.1 .0.load(std::sync::atomic::Ordering::Acquire);
+
+                if delegate == Delegate::Assess {
+                    assess_work_orders.insert(work_order_number);
+                } else if delegate == Delegate::Assign || delegate == Delegate::Unassign {
+                    assign_unassign_work_orders.insert(work_order_number);
+                }
+            });
+
+        assert!(!assess_work_orders.is_empty() || !assign_unassign_work_orders.is_empty());
+    }
 }

@@ -969,8 +969,12 @@ mod tests {
         operational::{OperationalConfiguration, TimeInterval},
         scheduling_environment::{
             work_order::operation::Work,
-            worker_environment::{availability::Availability, resources::Id},
+            worker_environment::{
+                availability::Availability,
+                resources::{Id, Resources},
+            },
         },
+        TomlSupervisor,
     };
 
     use crate::agents::{
@@ -1140,7 +1144,11 @@ mod tests {
             toolbox_interval.clone(),
         );
 
-        let supervisor: Id = Id::new("test_supervisor".to_string(), vec![], Some(shared_types::scheduling_environment::worker_environment::resources::MainResources::MtnMech));
+        let toml_supervisor = TomlSupervisor {
+            id: "test_supervisor".to_string(),
+            resource: Some(Resources::MtnMech),
+        };
+        let supervisor: Id = Id::new(toml_supervisor.id.clone(), vec![], Some(toml_supervisor));
 
         let operational_algorithm = OperationalAlgorithm::new(operational_configuration);
 
