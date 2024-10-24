@@ -1,7 +1,10 @@
 pub mod algorithm;
+pub mod assert_functions;
 pub mod delegate;
+pub mod operational_state_machine;
 
-use algorithm::assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess;
+use assert_functions::SupervisorAssertions;
+use operational_state_machine::assert_functions::OperationalStateMachineAssertions;
 use rand::{prelude::SliceRandom, rngs::ThreadRng};
 use std::{
     collections::{HashMap, HashSet},
@@ -81,7 +84,7 @@ impl Actor for SupervisorAgent {
 
     #[instrument(level = "trace", skip_all)]
     fn started(&mut self, ctx: &mut Self::Context) {
-        test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self).expect("The tactical_operations should always hold all the work_order_activities of the operational_state_machine");
+        self.test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
         ctx.set_mailbox_capacity(1000);
         self.tactical_agent_addr.do_send(SetAddr::Supervisor(
             self.supervisor_id.clone(),
@@ -96,7 +99,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 
     #[instrument(skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
-        test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self).expect("The tactical_operations should always hold all the work_order_activities of the operational_state_machine");
+        self.test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
         self.calculate_objective_value();
 
         let rng = rand::thread_rng();
@@ -105,10 +108,10 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
         self.unschedule_random_work_orders(number_of_removed_work_orders, rng);
 
         self.schedule();
-        test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self).expect("The tactical_operations should always hold all the work_order_activities of the operational_state_machine");
+        self.test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
 
         //TODO: Asset here that the state is correct inside of the OperationalState
-        assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess(&self.supervisor_algorithm.operational_state);
+        self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess();
 
         event!(
             Level::DEBUG,
@@ -412,63 +415,6 @@ impl
             StateLink::Supervisor(_) => Ok(()),
             StateLink::Operational(_operational_solution) => Ok(()),
         }
-    }
-}
-
-fn test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(
-    supervisor_agent: &SupervisorAgent,
-) -> Result<(), HashSet<WorkOrderActivity>> {
-    let tactical_operation_woas: HashSet<WorkOrderActivity> = supervisor_agent
-        .supervisor_algorithm
-        .tactical_operations
-        .keys()
-        .cloned()
-        .collect();
-    let operational_state_woas: HashSet<WorkOrderActivity> = supervisor_agent
-        .supervisor_algorithm
-        .operational_state
-        .get_iter()
-        .map(|(woa, _)| woa.1)
-        .collect();
-
-    if operational_state_woas.is_subset(&tactical_operation_woas) {
-        Ok(())
-    } else {
-        Err(operational_state_woas
-            .difference(&tactical_operation_woas)
-            .cloned()
-            .collect())
-    }
-}
-fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(
-    supervisor_agent: &SupervisorAgent,
-) -> Result<(), HashSet<WorkOrderActivity>> {
-    let tactical_operation_woas: HashSet<WorkOrderActivity> = supervisor_agent
-        .supervisor_algorithm
-        .tactical_operations
-        .keys()
-        .cloned()
-        .collect();
-    let operational_state_woas: HashSet<WorkOrderActivity> = supervisor_agent
-        .supervisor_algorithm
-        .operational_state
-        .get_iter()
-        .map(|(woa, _)| woa.1)
-        .collect();
-    let symmetric_difference = tactical_operation_woas
-        .symmetric_difference(&operational_state_woas)
-        .cloned()
-        .collect::<HashSet<WorkOrderActivity>>();
-
-    if symmetric_difference.is_empty() {
-        Ok(())
-    } else {
-        // event!(Level::ERROR,
-        //     non_corresponding_work_order_activities = ? symmetric_difference,
-        //     in_the_tactical_operations = ?symmetric_difference.intersection(&tactical_operation_woas),
-        //     in_the_operational_state_woas = ?symmetric_difference.intersection(&operational_state_woas),
-        // );
-        Err(symmetric_difference)
     }
 }
 
