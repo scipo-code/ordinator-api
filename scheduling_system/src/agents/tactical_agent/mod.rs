@@ -1,3 +1,4 @@
+pub mod assert_functions;
 pub mod messages;
 pub mod tactical_algorithm;
 

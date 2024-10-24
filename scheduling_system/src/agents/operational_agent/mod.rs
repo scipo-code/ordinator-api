@@ -1,4 +1,5 @@
 pub mod algorithm;
+pub mod assert_functions;
 pub mod operational_events;
 
 use std::{
@@ -34,10 +35,12 @@ use shared_types::scheduling_environment::{
     work_order::operation::Operation, SchedulingEnvironment,
 };
 
+use assert_functions::OperationalAssertions;
 use tracing::{event, info, instrument, warn, Level};
 
 use crate::agents::{
-    operational_agent::algorithm::OperationalParameter, StateLink, StateLinkWrapper,
+    operational_agent::algorithm::OperationalParameter, supervisor_agent::delegate::Delegate,
+    StateLink, StateLinkWrapper,
 };
 
 use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
@@ -194,6 +197,7 @@ impl Handler<ScheduleIteration> for OperationalAgent {
         //     .operational_parameters
         //     .no_delegate_drop_or_delegate_done());
 
+        // This is wrong! We need to implement the delta changes on the algorithm structs
         let mut temporary_schedule: OperationalAlgorithm = self.operational_algorithm.clone();
 
         temporary_schedule.unschedule_random_work_order_activies(&mut rng, 15);
