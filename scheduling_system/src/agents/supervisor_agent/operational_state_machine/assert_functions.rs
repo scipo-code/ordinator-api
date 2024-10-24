@@ -1,17 +1,21 @@
-use std::collections::HashSet;
-
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use tracing::{event, Level};
-
-use crate::agents::supervisor_agent::delegate::Delegate;
-
 use super::OperationalStateMachine;
+use crate::agents::{
+    supervisor_agent::{delegate::Delegate, CapturedSupervisorState},
+    AssertError,
+};
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use std::collections::HashSet;
+use tracing::{event, Level};
 
 pub trait OperationalStateMachineAssertions {
     fn assert_that_unassigned_woas_are_valid(&self);
     fn assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess(
         &self,
     );
+    fn assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(
+        &self,
+        current_state: &CapturedSupervisorState,
+    ) -> Result<(), AssertError>;
 }
 
 impl OperationalStateMachineAssertions for OperationalStateMachine {
@@ -71,6 +75,22 @@ impl OperationalStateMachineAssertions for OperationalStateMachine {
                 });
 
             assert!(!assess_work_orders.is_empty() || !assign_unassign_work_orders.is_empty());
+        }
+    }
+
+    fn assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(
+        &self,
+        current_state: &CapturedSupervisorState,
+    ) -> Result<(), AssertError> {
+        if self.0.iter().all(|(id_woa, del_fit)| {
+            current_state.state_of_each_agent.get(&id_woa).unwrap()
+                == &del_fit.0.load(std::sync::atomic::Ordering::SeqCst)
+        }) {
+            Err(AssertError(
+                "operational_state_machines are similar".to_string(),
+            ))
+        } else {
+            Ok(())
         }
     }
 }
