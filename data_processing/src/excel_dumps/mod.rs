@@ -10,7 +10,7 @@ use shared_types::{
             operation::{ActivityNumber, Work},
             priority::Priority,
             revision::Revision,
-            status_codes::StatusCodes,
+            status_codes::{MaterialStatus, StatusCodes},
             system_condition::SystemCondition,
             unloading_point::UnloadingPoint,
             work_order_type::WorkOrderType,
@@ -64,6 +64,9 @@ impl AllRows {
                 .unwrap();
             worksheet
                 .write(row_number, 9, row_values.operation_short_text.clone())
+                .unwrap();
+            worksheet
+                .write(row_number, 10, row_values.material_status.clone())
                 .unwrap();
             worksheet
                 .write(row_number, 10, row_values.system_status.clone())
@@ -165,6 +168,7 @@ struct RowNames {
     work_order_number: WorkOrderNumber,
     description_work_order: String,
     operation_short_text: String,
+    material_status: MaterialStatus,
     system_status: StatusCodes,
     user_status: StatusCodes,
     work: Work,
@@ -258,6 +262,7 @@ pub fn create_excel_dump(
                     .operation_description
                     .clone()
                     .unwrap_or("WE DO NOT HAVE THIS FIELD FROM SAP YET".to_string()),
+                material_status: work_order.status_codes().material_status.clone(),
                 system_status: work_order.status_codes().clone(),
                 user_status: work_order.status_codes().clone(),
                 work: activity.1.work_remaining().clone().unwrap(),
