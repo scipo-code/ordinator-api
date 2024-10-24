@@ -4,11 +4,15 @@ pub mod delegate;
 pub mod operational_state_machine;
 
 use assert_functions::SupervisorAssertions;
+use delegate::Delegate;
 use operational_state_machine::assert_functions::OperationalStateMachineAssertions;
 use rand::{prelude::SliceRandom, rngs::ThreadRng};
 use std::{
     collections::{HashMap, HashSet},
-    sync::{atomic::AtomicU64, Arc, Mutex},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, Mutex,
+    },
     time::Instant,
 };
 
@@ -100,17 +104,38 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     #[instrument(skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
         self.assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
-        self.supervisor_algorithm.calculate_objective_value();
 
         let rng = rand::thread_rng();
 
+        let current_state = self.capture_current_state();
+
+        let old_objective_value = current_state.objective_value.clone();
+
+        event!(
+            Level::WARN,
+            current_state = ?current_state.state_of_each_agent
+        );
         let number_of_removed_work_orders = 10;
         self.unschedule_random_work_orders(number_of_removed_work_orders, rng);
 
         self.supervisor_algorithm.schedule();
         self.assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
 
+        let new_objective_value = self.supervisor_algorithm.calculate_objective_value();
+
+        event!(
+            Level::WARN,
+            new_state = ?self.capture_current_state().state_of_each_agent
+        );
+
         self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess();
+
+        // self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&current_state).unwrap();
+
+        if self.supervisor_algorithm.objective_value < current_state.objective_value {
+            self.release_current_state(current_state);
+            self.supervisor_algorithm.calculate_objective_value();
+        }
 
         event!(
             Level::DEBUG,
@@ -133,6 +158,34 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
             .into_actor(self),
         );
         ctx.notify(ScheduleIteration {});
+    }
+}
+
+pub struct CapturedSupervisorState {
+    objective_value: f64,
+    state_of_each_agent: HashMap<(Id, WorkOrderActivity), Delegate>,
+}
+
+impl SupervisorAgent {
+    fn capture_current_state(&self) -> CapturedSupervisorState {
+        let mut state_of_each_agent = HashMap::new();
+        self.supervisor_algorithm
+            .operational_state
+            .get_iter()
+            .for_each(|(id_woa, del_fit)| {
+                state_of_each_agent.insert(id_woa.clone(), del_fit.0.load(Ordering::SeqCst));
+            });
+
+        CapturedSupervisorState {
+            objective_value: self.supervisor_algorithm.objective_value,
+            state_of_each_agent,
+        }
+    }
+
+    fn release_current_state(&mut self, captured_supervisor_state: CapturedSupervisorState) {
+        self.supervisor_algorithm
+            .operational_state
+            .set_operational_state(captured_supervisor_state);
     }
 }
 
@@ -166,10 +219,11 @@ impl SupervisorAgent {
             .choose_multiple(&mut rng, number_of_work_orders as usize)
             .collect::<Vec<_>>()
             .clone();
-
+        let old_state = self.capture_current_state();
         for work_order_number in sampled_work_order_numbers {
             self.supervisor_algorithm.unschedule(*work_order_number)
         }
+        self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&old_state);
     }
 
     fn make_transition_sets_from_tactical_state_link(
@@ -444,7 +498,7 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
                     self.supervisor_algorithm
                         .operational_state
                         .count_unique_woa(),
-                    self.supervisor_algorithm.objective_value(),
+                    self.supervisor_algorithm.objective_value,
                 );
                 event!(Level::WARN, "after creation of the supervisor_status");
 

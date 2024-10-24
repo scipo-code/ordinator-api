@@ -20,7 +20,7 @@ use crate::agents::{
 use super::{
     algorithm::MarginalFitness,
     delegate::{AtomicDelegate, Delegate},
-    TransitionTypes,
+    CapturedSupervisorState, TransitionTypes,
 };
 
 #[derive(Debug, Default)]
@@ -151,13 +151,15 @@ impl OperationalStateMachine {
             .collect()
     }
 
-    pub(crate) fn get_iter(
-        &self,
-    ) -> std::collections::hash_map::Iter<
-        (Id, WorkOrderActivity),
-        (Arc<AtomicDelegate>, MarginalFitness),
-    > {
-        self.0.iter()
+    pub fn set_operational_state(&mut self, captured_supervisor_state: CapturedSupervisorState) {
+        for (id_work_order_activity, delegate) in captured_supervisor_state.state_of_each_agent {
+            let self_delegate = self
+                .0
+                .get_mut(&id_work_order_activity)
+                .unwrap()
+                .0
+                .swap(delegate, std::sync::atomic::Ordering::SeqCst);
+        }
     }
 
     pub fn get(
@@ -165,6 +167,15 @@ impl OperationalStateMachine {
         key: &(Id, WorkOrderActivity),
     ) -> Option<&(Arc<AtomicDelegate>, MarginalFitness)> {
         self.0.get(&(key))
+    }
+
+    pub(crate) fn get_iter(
+        &self,
+    ) -> std::collections::hash_map::Iter<
+        (Id, WorkOrderActivity),
+        (Arc<AtomicDelegate>, MarginalFitness),
+    > {
+        self.0.iter()
     }
 
     pub(crate) fn get_assigned_and_unassigned_work_orders(&self) -> Vec<WorkOrderNumber> {

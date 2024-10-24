@@ -1,8 +1,13 @@
+pub mod operational_agent;
+pub mod orchestrator;
+pub mod strategic_agent;
+pub mod supervisor_agent;
+pub mod tactical_agent;
+pub mod traits;
+
 use actix::{Addr, Message};
-use shared_types::scheduling_environment::{
-    work_order::{WorkOrderActivity, WorkOrderNumber},
-    worker_environment::resources::Id,
-};
+use shared_types::scheduling_environment::work_order::{WorkOrderActivity, WorkOrderNumber};
+use shared_types::scheduling_environment::worker_environment::resources::Id;
 use tracing::Span;
 
 use self::{
@@ -10,12 +15,8 @@ use self::{
     supervisor_agent::SupervisorAgent, tactical_agent::TacticalAgent,
 };
 
-pub mod operational_agent;
-pub mod orchestrator;
-pub mod strategic_agent;
-pub mod supervisor_agent;
-pub mod tactical_agent;
-pub mod traits;
+#[derive(Debug)]
+pub struct AssertError(String);
 
 #[derive(Message)]
 #[rtype(result = "()")]
