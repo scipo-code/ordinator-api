@@ -152,65 +152,6 @@ impl OperationalStateMachine {
             .collect()
     }
 
-    pub fn get_unique_woa(&self) -> HashSet<WorkOrderActivity> {
-        self.0.keys().map(|(_, woa)| woa).cloned().collect()
-    }
-
-    #[allow(dead_code)]
-    fn determine_delegate_assign_and_drop(
-        &self,
-        number: HashMap<WorkOrderActivity, NumberOfPeople>,
-    ) -> Vec<(Id, TransitionTypes)> {
-        let mut transition_sequence = Vec::<(Id, TransitionTypes)>::new();
-
-        for (work_order_activity, _delegate) in &self
-            .0
-            .iter()
-            .map(|(key, value)| (&key.1, &value.0))
-            .collect::<Vec<(&WorkOrderActivity, &Arc<AtomicDelegate>)>>()
-        {
-            let number = number.get(work_order_activity).unwrap();
-
-            let mut operational_marginal_fitnai: Vec<_> =
-                self.operational_status_by_woa(*work_order_activity);
-
-            if operational_marginal_fitnai
-                .iter()
-                .all(|objectives| objectives.2.is_scheduled())
-            {
-                operational_marginal_fitnai.sort_by(|a, b| a.2.compare(&b.2));
-
-                let operational_solution_across_ids = operational_marginal_fitnai.iter().rev();
-
-                let (top_operational_agents, remaining_operational_agents): (Vec<_>, Vec<_>) =
-                    operational_solution_across_ids
-                        .into_iter()
-                        .enumerate()
-                        .partition(|&(i, _)| i < *number as usize);
-
-                // let tactical_operation = match delegate.load(std::sync::atomic::Ordering::Acquire) {
-                //     Delegate::Assess((_, ref os)) => os,
-                //     Delegate::Assign((_, ref os)) => os,
-                //     Delegate::Drop(_) => panic!("The method that caused this panic should not deal with Delegate::Drop variants"),
-                //     Delegate::Done(_) => panic!("Delegate::Done TacticalOperations should not be propagated through the system"),
-                //     Delegate::Fixed => todo!(),
-
-                // };
-
-                for toa in top_operational_agents {
-                    let transition_type = TransitionTypes::Unchanged(**work_order_activity);
-                    transition_sequence.push((toa.1 .0.clone(), transition_type));
-                }
-
-                for roa in remaining_operational_agents {
-                    let transition_type = TransitionTypes::Unchanged(**work_order_activity);
-                    transition_sequence.push((roa.1 .0.clone(), transition_type));
-                }
-            }
-        }
-        transition_sequence
-    }
-
     pub(crate) fn get_iter(
         &self,
     ) -> std::collections::hash_map::Iter<

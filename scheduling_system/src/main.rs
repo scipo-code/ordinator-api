@@ -44,10 +44,8 @@ async fn main() -> Result<(), io::Error> {
     let asset = Asset::new_from_string(asset_string.as_str())
         .expect("Please set a valid ASSET environment variable");
 
-    dbg!(&asset);
     orchestrator.add_asset(asset.clone());
     orchestrator.initialize_agents_from_env(asset);
-    // orchestrator.add_asset(Asset::HD);
 
     let arc_orchestrator = ArcOrchestrator(Arc::new(Mutex::new(orchestrator)));
 

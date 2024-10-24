@@ -8,7 +8,7 @@ use shared_types::{
     agent_error::AgentError,
     scheduling_environment::{
         work_order::{operation::ActivityNumber, WorkOrderActivity, WorkOrderNumber},
-        worker_environment::resources::{Id, Resources},
+        worker_environment::resources::Id,
     },
     supervisor::{
         supervisor_response_resources::SupervisorResponseResources,
@@ -17,19 +17,14 @@ use shared_types::{
     },
     TomlSupervisor,
 };
-use tracing::{event, instrument, span, Level};
 
 use crate::agents::{
-    operational_agent::{algorithm::OperationalObjective, InitialMessage, OperationalAgent},
-    tactical_agent::tactical_algorithm::TacticalOperation,
-    traits::LargeNeighborHoodSearch,
-    StateLink, StateLinkWrapper,
+    operational_agent::algorithm::OperationalObjective, tactical_agent::tactical_algorithm::TacticalOperation, traits::LargeNeighborHoodSearch
 };
 
 use super::{
-    delegate::{AtomicDelegate, Delegate},
-    operational_state_machine::OperationalStateMachine,
-    SupervisorAgent, TransitionTypes,
+    delegate::Delegate, operational_state_machine::OperationalStateMachine
+    
 };
 
 #[derive(Debug, Clone)]
@@ -104,12 +99,7 @@ impl SupervisorAlgorithm {
     }
 }
 
-/// This type will contain all the relevant information handles to the operational agents
-/// Delegation. This means that the code should... I think that it is simple the code should
-/// simply be created in such a way that we only need to change the OperaitonalState and then
-/// the correct messages will be sent out.
-
-impl LargeNeighborHoodSearch for SupervisorAgent {
+impl LargeNeighborHoodSearch for SupervisorAlgorithm {
     type BetterSolution = ();
     type SchedulingRequest = SupervisorSchedulingRequest;
     type SchedulingResponse = SupervisorResponseScheduling;
@@ -124,36 +114,36 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
 
     fn calculate_objective_value(&mut self) -> Self::BetterSolution {
         let assigned_woas = &self
-            .supervisor_algorithm
+            
             .operational_state
             .number_of_assigned_work_orders();
 
         let all_woas: HashSet<_> = self
-            .supervisor_algorithm
+            
             .operational_state
             .get_work_order_activities();
 
         assert!(is_assigned_part_of_all(assigned_woas, &all_woas));
 
-        self.supervisor_algorithm.objective_value =
+        self.objective_value =
             assigned_woas.len() as f64 / all_woas.len() as f64;
     }
 
     fn schedule(&mut self) {
         'next_work_order_activity: for work_order_activity in &self
-            .supervisor_algorithm
+            
             .operational_state
             .get_work_order_activities()
         {
             let number = self
-                .supervisor_algorithm
+                
                 .tactical_operations
                 .get(work_order_activity)
                 .expect("The Tactical Operation should be in present if present in the s.s.operational_state")
                 .number;
 
             let mut operational_status_by_woa = self
-                .supervisor_algorithm
+                
                 .operational_state
                 .operational_status_by_woa(&work_order_activity);
 
@@ -214,7 +204,7 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
     }
 
     fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) {
-        self.supervisor_algorithm
+        self
             .operational_state
             .turn_work_order_into_delegate_assess(work_order_number);
     }
@@ -241,7 +231,6 @@ impl LargeNeighborHoodSearch for SupervisorAgent {
     }
 }
 
-#[instrument(level = "trace", ret)]
 fn is_assigned_part_of_all(
     assigned_woas: &HashSet<(WorkOrderNumber, ActivityNumber)>,
     all_woas: &HashSet<(WorkOrderNumber, ActivityNumber)>,
