@@ -1,3 +1,4 @@
+pub mod assert_functions;
 pub mod display;
 pub mod strategic_algorithm;
 

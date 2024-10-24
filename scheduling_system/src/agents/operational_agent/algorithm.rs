@@ -65,23 +65,6 @@ impl OperationalParameters {
         (count_assign, count_assess, count_unassign)
     }
 
-    pub fn no_delegate_drop_or_delegate_done(&self) -> bool {
-        for (_, operational_parameters) in &self.0 {
-            match operational_parameters
-                .delegated
-                .load(std::sync::atomic::Ordering::Acquire)
-            {
-                Delegate::Assess => (),
-                Delegate::Assign => (),
-                Delegate::Unassign => (),
-                Delegate::Drop => return false,
-                Delegate::Done => panic!(),
-                Delegate::Fixed => (),
-            }
-        }
-        true
-    }
-
     fn remove_drop_delegates(&mut self) -> HashSet<WorkOrderActivity> {
         let mut removed_work_order_activities = HashSet::new();
         self.0.retain(|woa, op| {
