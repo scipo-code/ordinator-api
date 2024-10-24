@@ -39,8 +39,7 @@ use assert_functions::OperationalAssertions;
 use tracing::{event, info, instrument, warn, Level};
 
 use crate::agents::{
-    operational_agent::algorithm::OperationalParameter, supervisor_agent::delegate::Delegate,
-    StateLink, StateLinkWrapper,
+    operational_agent::algorithm::OperationalParameter, StateLink, StateLinkWrapper,
 };
 
 use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};

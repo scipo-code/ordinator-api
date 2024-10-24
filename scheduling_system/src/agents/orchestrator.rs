@@ -5,7 +5,6 @@ use shared_types::orchestrator::OrchestratorRequest;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::Work;
-use shared_types::scheduling_environment::worker_environment::resources;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
@@ -21,11 +20,9 @@ use tracing::instrument;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::AtomicU64;
-use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Mutex;
-use strum::IntoEnumIterator;
 
 use crate::agents::operational_agent::OperationalAgent;
 use crate::agents::strategic_agent::StrategicAgent;

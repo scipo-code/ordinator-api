@@ -84,7 +84,7 @@ impl Actor for SupervisorAgent {
 
     #[instrument(level = "trace", skip_all)]
     fn started(&mut self, ctx: &mut Self::Context) {
-        self.test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
+        self.assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
         ctx.set_mailbox_capacity(1000);
         self.tactical_agent_addr.do_send(SetAddr::Supervisor(
             self.supervisor_id.clone(),
@@ -99,18 +99,17 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 
     #[instrument(skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
-        self.test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
-        self.calculate_objective_value();
+        self.assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
+        self.supervisor_algorithm.calculate_objective_value();
 
         let rng = rand::thread_rng();
 
         let number_of_removed_work_orders = 10;
         self.unschedule_random_work_orders(number_of_removed_work_orders, rng);
 
-        self.schedule();
-        self.test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
+        self.supervisor_algorithm.schedule();
+        self.assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
 
-        //TODO: Asset here that the state is correct inside of the OperationalState
         self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess();
 
         event!(
@@ -169,7 +168,7 @@ impl SupervisorAgent {
             .clone();
 
         for work_order_number in sampled_work_order_numbers {
-            self.unschedule(*work_order_number)
+            self.supervisor_algorithm.unschedule(*work_order_number)
         }
     }
 
