@@ -7,7 +7,7 @@ use super::SupervisorAgent;
 
 pub trait SupervisorAssertions {
     fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(&self);
-    fn test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self);
+    fn assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self);
 }
 
 impl SupervisorAssertions for SupervisorAgent {
@@ -38,7 +38,7 @@ impl SupervisorAssertions for SupervisorAgent {
             panic!();
         }
     }
-    fn test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self) {
+    fn assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self) {
         let tactical_operation_woas: HashSet<WorkOrderActivity> = self
             .supervisor_algorithm
             .tactical_operations
