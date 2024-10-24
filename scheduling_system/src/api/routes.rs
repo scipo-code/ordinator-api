@@ -167,8 +167,8 @@ pub async fn http_to_scheduling_system(
             event!(Level::WARN, "agent registry found the correct supervisor");
             let supervisor_agent_addr = supervisor_agent_addrs
                 .iter()
-                .find(|(id, _)| id.2.as_ref().unwrap() == &supervisor_request.main_work_center)
-                .unwrap()
+                .find(|(id, _)| id.2.as_ref().unwrap().id == supervisor_request.supervisor.main)
+                .expect("This will error at somepoint you will need to handle if you have added additional supervisors")
                 .1;
 
             event!(Level::WARN, "supervisor addr extracted");

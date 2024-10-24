@@ -16,8 +16,8 @@ jobs:
           profile: complete
           toolchain: stable
           override: true
-      # - name: Run tests
-      #   run: cargo test --verbose
+      - name: Run tests
+        run: cargo test --verbose
       # - name: Run clippy
       #   run: cargo clippy --verbose
       # - name: Install cargo-audit

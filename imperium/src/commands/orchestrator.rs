@@ -6,31 +6,26 @@ use reqwest::blocking::Client;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
 
-use shared_types::scheduling_environment::worker_environment::resources::{
-    MainResources, Resources, Shift,
-};
+use shared_types::scheduling_environment::worker_environment::resources::{Resources, Shift};
 use shared_types::{
     orchestrator::OrchestratorRequest, scheduling_environment::worker_environment::resources::Id,
     SystemMessages,
 };
-use shared_types::{Asset, TomlAgents};
+use shared_types::{Asset, TomlAgents, TomlSupervisor};
 
 #[derive(Subcommand, Debug)]
 pub enum OrchestratorCommands {
     /// Status and changes to the scheduling environment
     #[clap(subcommand)]
     SchedulingEnvironment(SchedulingEnvironmentCommands),
-
     /// Status of the agents
     AgentStatus,
-
     /// Access the Supervisor agent factory
     #[clap(subcommand)]
     SupervisorAgent(SupervisorAgentCommands),
     /// Access the Operational agent factory
     #[clap(subcommand)]
     OperationalAgent(OperationalAgentCommands),
-
     /// Load a default setup
     InitializeCrewFromFile { asset: Asset, resource_toml: String },
 }
@@ -79,9 +74,9 @@ pub enum SupervisorAgentCommands {
     /// Create a new SupervisorAgent
     Create {
         asset: Asset,
-        id_supervisor: String,
         shift: Shift,
-        resource: MainResources,
+        supervisor_id: String,
+        resource: Option<Resources>,
     },
 
     /// Delete a SupervisorAgent
@@ -148,22 +143,28 @@ impl OrchestratorCommands {
                 match supervisor_agent_command {
                     SupervisorAgentCommands::Create {
                         asset,
-                        id_supervisor: id,
                         shift: _,
                         resource,
+                        supervisor_id,
                     } => {
+                        let toml_supervisor = TomlSupervisor {
+                            id: supervisor_id,
+                            resource,
+                        };
                         let create_supervisor_agent = OrchestratorRequest::CreateSupervisorAgent(
                             asset.clone(),
-                            Id::new(id.clone(), vec![], Some(resource.clone())),
+                            Id::new(toml_supervisor.id.clone(), vec![], Some(toml_supervisor)),
                         );
                         SystemMessages::Orchestrator(create_supervisor_agent)
                     }
                     SupervisorAgentCommands::Delete {
                         asset,
-                        id_supervisor: id,
+                        id_supervisor,
                     } => {
-                        let delete_supervisor_agent =
-                            OrchestratorRequest::DeleteSupervisorAgent(asset.clone(), id.clone());
+                        let delete_supervisor_agent = OrchestratorRequest::DeleteSupervisorAgent(
+                            asset.clone(),
+                            id_supervisor.clone(),
+                        );
                         SystemMessages::Orchestrator(delete_supervisor_agent)
                     }
                 }

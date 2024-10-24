@@ -526,8 +526,12 @@ impl Orchestrator {
 
         let mut supervisor_addrs = HashMap::<Id, Addr<SupervisorAgent>>::new();
         let number_of_operational_agents = Arc::new(AtomicU64::new(0));
-        for main_resource in resources::MainResources::iter() {
-            let id = Id::new("default".to_string(), vec![], Some(main_resource));
+
+        let resources_config_string = std::fs::read_to_string(toml_agents_path).unwrap();
+
+        let resources_config: TomlAgents = toml::from_str(&resources_config_string).unwrap();
+        for supervisor in resources_config.supervisors {
+            let id = Id::new("default".to_string(), vec![], Some(supervisor));
 
             let supervisor_addr = self.agent_factory.build_supervisor_agent(
                 asset.clone(),

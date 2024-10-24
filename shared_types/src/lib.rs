@@ -215,7 +215,14 @@ pub struct TomlResources {
 
 #[derive(Deserialize, Debug)]
 pub struct TomlAgents {
+    pub supervisors: Vec<TomlSupervisor>,
     pub operational: Vec<TomlOperational>,
+}
+
+#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug)]
+pub struct TomlSupervisor {
+    pub id: String,
+    pub resource: Option<Resources>,
 }
 
 #[derive(Deserialize, Debug)]

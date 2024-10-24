@@ -33,7 +33,8 @@ pub struct TacticalAgent {
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     tactical_algorithm: TacticalAlgorithm,
     strategic_addr: Addr<StrategicAgent>,
-    supervisor_addrs: HashMap<Id, Addr<SupervisorAgent>>,
+    main_supervisor_addr: Option<(Id, Addr<SupervisorAgent>)>,
+    _other_supervisor: Option<HashMap<Id, Addr<SupervisorAgent>>>,
 }
 
 impl TacticalAgent {
@@ -52,7 +53,8 @@ impl TacticalAgent {
             scheduling_environment: scheduling_environment.clone(),
             tactical_algorithm,
             strategic_addr,
-            supervisor_addrs: HashMap::new(),
+            main_supervisor_addr: None,
+            _other_supervisor: None,
         }
     }
 
@@ -79,6 +81,7 @@ impl Actor for TacticalAgent {
         );
         self.strategic_addr
             .do_send(SetAddr::Tactical(ctx.address()));
+
         ctx.notify(ScheduleIteration {});
     }
 }
@@ -101,38 +104,38 @@ impl Handler<ScheduleIteration> for TacticalAgent {
         {
             self.tactical_algorithm = temporary_schedule;
 
-            self.supervisor_addrs.iter().for_each(|(id, addr)| {
-                let mut work_orders_to_supervisor: HashMap<
-                    WorkOrderActivity,
-                    Arc<TacticalOperation>,
-                > = HashMap::new();
-                self.tactical_algorithm
-                    .optimized_work_orders()
-                    .iter()
-                    .for_each(|(work_order_number, optimized_work_order)| {
-                        if id.2.as_ref().unwrap() == &optimized_work_order.main_work_center {
-                            debug!(main_work_center = ?optimized_work_order.main_work_center);
-                            debug!(id_of_supervisor = ?id.2.as_ref());
-                            for (acn, os) in optimized_work_order
+            match self.main_supervisor_addr.as_ref() {
+                Some((_supervisor_id, supervisor_addr)) => {
+                    let mut work_orders_to_supervisor: HashMap<
+                        WorkOrderActivity,
+                        Arc<TacticalOperation>,
+                    > = HashMap::new();
+
+                    self.tactical_algorithm
+                        .optimized_work_orders()
+                        .iter()
+                        .for_each(|(work_order_number, optimized_work_order)| {
+                            for (acn, to) in optimized_work_order
                                 .operation_solutions
                                 .as_ref()
                                 .unwrap()
                                 .clone()
                             {
                                 work_orders_to_supervisor
-                                    .insert((*work_order_number, acn), Arc::new(os));
+                                    .insert((*work_order_number, acn), Arc::new(to));
                             }
-                        }
-                    });
-                info!(work_orders_to_supervisors = ?work_orders_to_supervisor);
-                let state_link = StateLink::Tactical(work_orders_to_supervisor);
+                        });
+                    info!(work_orders_to_supervisors = ?work_orders_to_supervisor);
+                    let state_link = StateLink::Tactical(work_orders_to_supervisor);
 
-                let span = span!(Level::INFO, "tactical_supervisor");
-                let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
+                    let span = span!(Level::INFO, "tactical_supervisor");
+                    let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
 
-                addr.do_send(state_link_wrapper);
-            });
-            info!(tactical_objective_value = %self.tactical_algorithm.get_objective_value());
+                    supervisor_addr.do_send(state_link_wrapper);
+                    info!(tactical_objective_value = %self.tactical_algorithm.get_objective_value());
+                }
+                None => (),
+            }
         };
 
         ctx.wait(
@@ -243,7 +246,7 @@ impl Handler<SetAddr> for TacticalAgent {
     fn handle(&mut self, msg: SetAddr, _ctx: &mut Context<Self>) {
         match msg {
             SetAddr::Supervisor(id, addr) => {
-                self.supervisor_addrs.insert(id, addr);
+                self.main_supervisor_addr = Some((id, addr));
             }
             _ => {
                 println!("The tactical agent received an Addr<T>, where T is not a valid Actor");
