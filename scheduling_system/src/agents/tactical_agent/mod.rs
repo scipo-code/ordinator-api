@@ -12,7 +12,7 @@ use shared_types::tactical::{TacticalRequestMessage, TacticalResponseMessage};
 use shared_types::{AgentExports, Asset, SolutionExportMessage};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tracing::{debug, info, instrument, span, warn, Level};
+use tracing::{event, instrument, span, Level};
 
 use crate::agents::tactical_agent::tactical_algorithm::{TacticalAlgorithm, TacticalOperation};
 use crate::agents::SetAddr;
@@ -76,7 +76,8 @@ impl Actor for TacticalAgent {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Context<Self>) {
-        warn!(
+        event!(
+            Level::DEBUG,
             "TacticalAgent {} has started, sending Its address to the StrategicAgent",
             self.id_tactical
         );
@@ -126,14 +127,14 @@ impl Handler<ScheduleIteration> for TacticalAgent {
                                     .insert((*work_order_number, acn), Arc::new(to));
                             }
                         });
-                    info!(work_orders_to_supervisors = ?work_orders_to_supervisor);
+                    event!(Level::DEBUG, work_orders_to_supervisors = ?work_orders_to_supervisor);
                     let state_link = StateLink::Tactical(work_orders_to_supervisor);
 
                     let span = span!(Level::INFO, "tactical_supervisor");
                     let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
 
                     supervisor_addr.do_send(state_link_wrapper);
-                    info!(tactical_objective_value = %self.tactical_algorithm.get_objective_value());
+                    event!(Level::INFO, tactical_objective_value = %self.tactical_algorithm.get_objective_value());
                 }
                 None => (),
             }
@@ -266,7 +267,10 @@ impl Handler<UpdateWorkOrderMessage> for TacticalAgent {
         _ctx: &mut Context<Self>,
     ) -> Self::Result {
         // todo!();
-        warn!("Update 'impl Handler<UpdateWorkOrderMessage> for TacticalAgent'");
+        event!(
+            Level::WARN,
+            "Update 'impl Handler<UpdateWorkOrderMessage> for TacticalAgent'"
+        );
     }
 }
 
