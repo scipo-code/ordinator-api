@@ -78,10 +78,6 @@ impl SupervisorAlgorithm {
         }
     }
 
-    pub fn objective_value(&self) -> f64 {
-        self.objective_value
-    }
-
     #[allow(dead_code)]
     pub fn is_assigned(&self, work_order_activity: WorkOrderActivity) -> bool {
         self.operational_state.get_iter().any(|(key, val)| {
@@ -100,7 +96,7 @@ impl SupervisorAlgorithm {
 }
 
 impl LargeNeighborHoodSearch for SupervisorAlgorithm {
-    type BetterSolution = ();
+    type BetterSolution = f64;
     type SchedulingRequest = SupervisorSchedulingRequest;
     type SchedulingResponse = SupervisorResponseScheduling;
     type ResourceRequest = SupervisorResourceRequest;
@@ -127,6 +123,7 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
 
         self.objective_value =
             assigned_woas.len() as f64 / all_woas.len() as f64;
+        self.objective_value
     }
 
     fn schedule(&mut self) {
