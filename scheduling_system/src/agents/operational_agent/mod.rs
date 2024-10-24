@@ -9,26 +9,23 @@ use std::{
 
 use actix::prelude::*;
 use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
+use shared_types::operational::operational_response_scheduling::{
+    EventInfo, JsonAssignment, JsonAssignmentEvents, OperationalSchedulingResponse,
+};
+use shared_types::operational::{
+    operational_request_scheduling::OperationalSchedulingRequest,
+    operational_response_status::OperationalStatusResponse, OperationalConfiguration,
+    OperationalInfeasibleCases, OperationalRequestMessage, OperationalResponseMessage,
+};
+use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
+use shared_types::scheduling_environment::work_order::{
+    operation::Work, WorkOrderActivity, WorkOrderNumber,
+};
+use shared_types::scheduling_environment::{
+    time_environment::day::Day, worker_environment::resources::Id,
+};
 use shared_types::{
-    agent_error::AgentError,
-    operational::{
-        operational_request_scheduling::OperationalSchedulingRequest,
-        operational_response_scheduling::{
-            EventInfo, JsonAssignment, JsonAssignmentEvents, OperationalSchedulingResponse,
-        },
-        operational_response_status::OperationalStatusResponse,
-        OperationalConfiguration, OperationalInfeasibleCases, OperationalRequestMessage,
-        OperationalResponseMessage,
-    },
-    scheduling_environment::{
-        time_environment::day::Day,
-        work_order::{
-            operation::{ActivityNumber, Work},
-            WorkOrderActivity, WorkOrderNumber,
-        },
-        worker_environment::resources::Id,
-    },
-    AlgorithmState, ConstraintState, StatusMessage, StopMessage,
+    agent_error::AgentError, AlgorithmState, ConstraintState, StatusMessage, StopMessage,
 };
 
 use shared_types::scheduling_environment::{
