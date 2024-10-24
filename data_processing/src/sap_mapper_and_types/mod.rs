@@ -203,6 +203,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)]
     fn test_DATS() {
         let dats = DATS("20250103".to_string());
 

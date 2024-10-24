@@ -4,92 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Display, str::FromStr};
 use strum_macros::EnumIter;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, EnumIter, clap::ValueEnum)]
-pub enum MainResources {
-    MtnMech,
-    MtnElec,
-    MtnInst,
-    MtnRope,
-    MtnPipf,
-    MtnCran,
-    Prodtech,
-    MtnTele,
-    MtnTurb,
-    MtnPain,
-    VenInsp,
-    Wellsupv,
-    InpSite,
-    MtnLagg,
-    MtnRous,
-    VenMech,
-    MtnSat,
-    Qaqcmech,
-    Prodlabo,
-    MtnScaf,
-    Wellmain,
-    VenInst,
-    VenElec,
-    VenSubs,
-    MtnRigg,
-    VenCran,
-    VenRope,
-    Welltech,
-    VenComm,
-    Qaqcelec,
-    Medic,
-    Unknown,
-}
-
-impl MainResources {
-    pub fn is_fmc(&self) -> bool {
-        matches!(
-            self,
-            Self::MtnRope
-                | Self::MtnScaf
-                | Self::MtnRigg
-                | Self::MtnLagg
-                | Self::MtnPipf
-                | Self::MtnPain
-        )
-    }
-
-    pub fn variant_name(&self) -> String {
-        match self {
-            MainResources::Medic => "MEDIC".to_string(),
-            MainResources::MtnCran => "MTN-CRAN".to_string(),
-            MainResources::MtnElec => "MTN-ELEC".to_string(),
-            MainResources::MtnInst => "MTN-INST".to_string(),
-            MainResources::MtnLagg => "MTN-LAGG".to_string(),
-            MainResources::MtnMech => "MTN-MECH".to_string(),
-            MainResources::MtnPain => "MTN-PAIN".to_string(),
-            MainResources::MtnPipf => "MTN-PIPF".to_string(),
-            MainResources::MtnRigg => "MTN-RIGG".to_string(),
-            MainResources::MtnRope => "MTN-ROPE".to_string(),
-            MainResources::MtnRous => "MTN-ROUS".to_string(),
-            MainResources::MtnSat => "MTN-SAT".to_string(),
-            MainResources::MtnScaf => "MTN-SCAF".to_string(),
-            MainResources::MtnTele => "MTN-TELE".to_string(),
-            MainResources::MtnTurb => "MTN-TURB".to_string(),
-            MainResources::InpSite => "INP-SITE".to_string(),
-            MainResources::Prodlabo => "PRODLABO".to_string(),
-            MainResources::Prodtech => "PRODTECH".to_string(),
-            MainResources::VenComm => "VEN-COMM".to_string(),
-            MainResources::VenCran => "VEN-CRAN".to_string(),
-            MainResources::VenElec => "VEN-ELEC".to_string(),
-            MainResources::VenInsp => "VEN-INSP".to_string(),
-            MainResources::VenInst => "VEN-INST".to_string(),
-            MainResources::VenMech => "VEN-MECH".to_string(),
-            MainResources::VenRope => "VEN-ROPE".to_string(),
-            MainResources::VenSubs => "VEN-SUBS".to_string(),
-            MainResources::Wellsupv => "WELLSUPV".to_string(),
-            MainResources::Qaqcmech => "QAQCMECH".to_string(),
-            MainResources::Wellmain => "WELLMAIN".to_string(),
-            MainResources::Welltech => "WELLTECH".to_string(),
-            MainResources::Qaqcelec => "QAQCELEC".to_string(),
-            MainResources::Unknown => "UNKNOWN".to_string(),
-        }
-    }
-}
+use crate::TomlSupervisor;
 
 /// This enum holds all the resources that are available needed to schedule work order.
 #[derive(
@@ -361,6 +276,17 @@ impl Resources {
                 | Resources::VenSubs
         )
     }
+    pub fn is_fmc(&self) -> bool {
+        matches!(
+            self,
+            Self::MtnRope
+                | Self::MtnScaf
+                | Self::MtnRigg
+                | Self::MtnLagg
+                | Self::MtnPipf
+                | Self::MtnPain
+        )
+    }
 }
 
 impl Display for Resources {
@@ -370,15 +296,15 @@ impl Display for Resources {
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug)]
-pub struct Id(pub String, pub Vec<Resources>, pub Option<MainResources>);
+pub struct Id(pub String, pub Vec<Resources>, pub Option<TomlSupervisor>);
 
 impl Id {
     pub fn new(
         id_employee: String,
         resources: Vec<Resources>,
-        main_resources: Option<MainResources>,
+        supervisor: Option<TomlSupervisor>,
     ) -> Self {
-        Id(id_employee, resources, main_resources)
+        Id(id_employee, resources, supervisor)
     }
 }
 
@@ -406,68 +332,6 @@ impl Shift {
 impl Display for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} | {:?}", self.0, self.1)
-    }
-}
-
-impl MainResources {
-    pub fn new_from_string(resource: String) -> Self {
-        match resource.as_str() {
-            "MTN-MECH" => MainResources::MtnMech,
-            "MTN-ELEC" => MainResources::MtnElec,
-            "MTN-INST" => MainResources::MtnInst,
-            "MTN-ROPE" => MainResources::MtnRope,
-            "MTN-PIPF" => MainResources::MtnPipf,
-            "MTN-CRAN" => MainResources::MtnCran,
-            "PRODTECH" => MainResources::Prodtech,
-            "MTN-TELE" => MainResources::MtnTele,
-            "MTN-TURB" => MainResources::MtnTurb,
-            "MTN-PAIN" => MainResources::MtnPain,
-            "VEN-INSP" => MainResources::VenInsp,
-            "WELLSUPV" => MainResources::Wellsupv,
-            "INP-SITE" => MainResources::InpSite,
-            "MTN-LAGG" => MainResources::MtnLagg,
-            "MTN-ROUS" => MainResources::MtnRous,
-            "VEN-MECH" => MainResources::VenMech,
-            "MTN-SAT" => MainResources::MtnSat,
-            "QAQCMECH" => MainResources::Qaqcmech,
-            "PRODLABO" => MainResources::Prodlabo,
-            "MTN-SCAF" => MainResources::MtnScaf,
-            "WELLMAIN" => MainResources::Wellmain,
-            "VEN-INST" => MainResources::VenInst,
-            "VEN-ELEC" => MainResources::VenElec,
-            "VEN-SUBS" => MainResources::VenSubs,
-            "MTN-RIGG" => MainResources::MtnRigg,
-            "VEN-CRAN" => MainResources::VenCran,
-            "VEN-ROPE" => MainResources::VenRope,
-            "WELLTECH" => MainResources::Welltech,
-            "VEN-COMM" => MainResources::VenComm,
-            "QAQCELEC" => MainResources::Qaqcelec,
-            "MEDIC" => MainResources::Medic,
-            _ => MainResources::Unknown,
-        }
-    }
-}
-
-impl IntoExcelData for MainResources {
-    fn write(
-        self,
-        worksheet: &mut rust_xlsxwriter::Worksheet,
-        row: rust_xlsxwriter::RowNum,
-        col: rust_xlsxwriter::ColNum,
-    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
-        let value = self.variant_name();
-        worksheet.write_string(row, col, value)
-    }
-
-    fn write_with_format<'a>(
-        self,
-        worksheet: &'a mut rust_xlsxwriter::Worksheet,
-        row: rust_xlsxwriter::RowNum,
-        col: rust_xlsxwriter::ColNum,
-        format: &rust_xlsxwriter::Format,
-    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
-        let value = self.variant_name();
-        worksheet.write_string_with_format(row, col, value, format)
     }
 }
 

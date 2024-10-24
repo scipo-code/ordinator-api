@@ -1,13 +1,13 @@
 use std::io::Read;
 
-use clap::{Args, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use reqwest::blocking::Client;
 use shared_types::{
-    scheduling_environment::worker_environment::resources::{Id, MainResources},
+    scheduling_environment::worker_environment::resources::{Id, Resources},
     supervisor::{
         supervisor_scheduling_message::SupervisorSchedulingMessage,
         supervisor_status_message::SupervisorStatusMessage, SupervisorRequest,
-        SupervisorRequestMessage,
+        SupervisorRequestMessage, SupervisorType,
     },
     Asset, SystemMessages,
 };
@@ -17,19 +17,16 @@ pub enum SupervisorCommands {
     /// Get the status of a SupervisorAgent
     Status {
         asset: Asset,
-        supervisor: MainResources,
+        #[command(flatten)]
+        supervisor: SupervisorType,
     },
     /// Get the commands for manually scheduling a work order activity.
     Scheduling {
         asset: Asset,
-        supervisor: MainResources,
+        #[command(flatten)]
+        supervisor_type: SupervisorType,
         #[clap(subcommand)]
         scheduling_commands: SchedulingCommands,
-    },
-    /// Test the Feasibility of the SupervisorAgent
-    Test {
-        asset: Asset,
-        supervisor: MainResources,
     },
 }
 
@@ -48,7 +45,6 @@ pub struct Assign {
 
 impl SupervisorCommands {
     pub fn execute(&self, client: &Client) -> SystemMessages {
-        dbg!("Start of the execute loop");
         match self {
             SupervisorCommands::Status { asset, supervisor } => {
                 let supervisor_status_message = SupervisorStatusMessage::General;
@@ -58,7 +54,7 @@ impl SupervisorCommands {
 
                 let supervisor_request = SupervisorRequest {
                     asset: asset.clone(),
-                    main_work_center: supervisor.clone(),
+                    supervisor: supervisor.clone(),
                     supervisor_request_message,
                 };
 
@@ -67,7 +63,7 @@ impl SupervisorCommands {
             }
             SupervisorCommands::Scheduling {
                 asset,
-                supervisor,
+                supervisor_type,
                 scheduling_commands,
             } => match scheduling_commands {
                 SchedulingCommands::Schedule(assign) => {
@@ -86,24 +82,13 @@ impl SupervisorCommands {
 
                     let supervisor_request = SupervisorRequest {
                         asset: asset.clone(),
-                        main_work_center: supervisor.clone(),
+                        supervisor: supervisor_type.clone(),
                         supervisor_request_message,
                     };
 
                     SystemMessages::Supervisor(supervisor_request)
                 }
             },
-            SupervisorCommands::Test { asset, supervisor } => {
-                let supervisor_request_message = SupervisorRequestMessage::Test;
-
-                let supervisor_request = SupervisorRequest {
-                    asset: asset.clone(),
-                    main_work_center: supervisor.clone(),
-                    supervisor_request_message,
-                };
-
-                SystemMessages::Supervisor(supervisor_request)
-            }
         }
     }
 }

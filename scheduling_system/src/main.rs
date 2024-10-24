@@ -42,7 +42,7 @@ async fn main() -> Result<(), io::Error> {
     let asset_string = dotenvy::var("ASSET").expect("The ASSET environment variable should be set");
 
     let asset = Asset::new_from_string(asset_string.as_str())
-        .expect("Please set a valid ASSET environment variables");
+        .expect("Please set a valid ASSET environment variable");
 
     dbg!(&asset);
     orchestrator.add_asset(asset.clone());

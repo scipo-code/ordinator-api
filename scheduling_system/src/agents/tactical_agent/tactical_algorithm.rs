@@ -10,7 +10,7 @@ use shared_types::{
             operation::{operation_info::NumberOfPeople, ActivityNumber, Work},
             WorkOrderActivity, WorkOrderNumber,
         },
-        worker_environment::resources::{MainResources, Resources},
+        worker_environment::resources::{Resources},
     },
     tactical::{
         tactical_resources_message::TacticalResourceRequest,
@@ -49,7 +49,7 @@ pub struct TacticalAlgorithm {
 
 #[derive(Clone, Serialize)]
 pub struct OptimizedTacticalWorkOrder {
-    pub main_work_center: MainResources,
+    pub main_work_center: Resources,
     pub operation_parameters: HashMap<ActivityNumber, OperationParameters>,
     pub weight: u64,
     pub relations: Vec<ActivityRelation>,
@@ -849,7 +849,7 @@ pub mod tests {
             operation::{operation_info::NumberOfPeople, ActivityNumber, Work},
             WorkOrderNumber,
         },
-        worker_environment::resources::{MainResources, Resources},
+        worker_environment::resources::{Resources},
     };
     use strum::IntoEnumIterator;
 
@@ -979,7 +979,7 @@ pub mod tests {
         operation_solutions.insert(ActivityNumber(1), operation_solution);
 
         let optimized_tactical_work_order = OptimizedTacticalWorkOrder::new(
-            MainResources::MtnMech,
+            Resources::MtnMech,
             operation_parameters,
             10,
             vec![],
@@ -1045,7 +1045,7 @@ pub mod tests {
         operation_parameters.insert(ActivityNumber(1), operation_parameter);
 
         let optimized_tactical_work_order = OptimizedTacticalWorkOrder::new(
-            MainResources::MtnMech,
+            Resources::MtnMech,
             operation_parameters,
             10,
             vec![],
@@ -1127,7 +1127,7 @@ pub mod tests {
         operation_parameters.insert(ActivityNumber(1), operation_parameter);
 
         let optimized_tactical_work_order = OptimizedTacticalWorkOrder::new(
-            MainResources::MtnMech,
+            Resources::MtnMech,
             operation_parameters,
             10,
             vec![],
@@ -1161,7 +1161,7 @@ pub mod tests {
     }
     impl OptimizedTacticalWorkOrder {
         pub fn new(
-            main_work_center: MainResources,
+            main_work_center: Resources,
             operation_parameters: HashMap<ActivityNumber, OperationParameters>,
             weight: u64,
             relations: Vec<ActivityRelation>,
