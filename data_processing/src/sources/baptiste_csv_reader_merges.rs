@@ -28,7 +28,7 @@ use shared_types::scheduling_environment::{
         work_order_type::WorkOrderType,
         WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderNumber,
     },
-    worker_environment::resources::{MainResources, Resources},
+    worker_environment::resources::{Resources},
     WorkOrders,
 };
 
@@ -121,13 +121,12 @@ fn create_work_orders(
     let operating_time: TomlOperatingTime = toml::from_str(&toml_operating_time_string).unwrap();
 
     work_orders.par_iter().for_each(|(work_order_number, work_order_csv)| {
-        let main_work_center: MainResources = MainResources::new_from_string(
+        let main_work_center: Resources = Resources::from_str(
             work_center
                 .get(&work_order_csv.WO_WBS_ID)
                 .unwrap()
-                .WBS_Name
-                .clone(),
-        );
+                .WBS_Name.as_str()
+        ).unwrap();
 
         let status_codes_string = work_orders_status.inner.get(&work_order_csv.WO_Status_ID);
 

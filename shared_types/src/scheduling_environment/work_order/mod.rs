@@ -21,7 +21,6 @@ use crate::scheduling_environment::work_order::unloading_point::UnloadingPoint;
 use crate::scheduling_environment::work_order::work_order_dates::WorkOrderDates;
 use crate::scheduling_environment::work_order::work_order_text::WorkOrderText;
 use crate::scheduling_environment::work_order::work_order_type::WorkOrderType;
-use crate::scheduling_environment::worker_environment::resources::MainResources;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -85,7 +84,7 @@ impl<'de> Deserialize<'de> for WorkOrderNumber {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrder {
     pub work_order_number: WorkOrderNumber,
-    pub main_work_center: MainResources,
+    pub main_work_center: Resources,
     pub operations: HashMap<ActivityNumber, Operation>,
     pub relations: Vec<ActivityRelation>,
     pub work_order_analytic: WorkOrderAnalytic,
@@ -202,7 +201,7 @@ impl Default for WorkOrderInfoDetail {
 impl WorkOrder {
     pub fn new(
         work_order_number: WorkOrderNumber,
-        main_work_center: MainResources,
+        main_work_center: Resources,
         operations: HashMap<ActivityNumber, Operation>,
         relations: Vec<ActivityRelation>,
         work_order_analytic: WorkOrderAnalytic,
@@ -533,7 +532,7 @@ impl WorkOrder {
 
         WorkOrder::new(
             WorkOrderNumber(2100000001),
-            MainResources::MtnMech,
+            Resources::MtnMech,
             operations,
             Vec::new(),
             work_order_analytic,
@@ -546,7 +545,7 @@ impl WorkOrder {
 mod tests {
     use std::{collections::HashMap, str::FromStr};
 
-    use crate::scheduling_environment::worker_environment::resources::{MainResources, Resources};
+    use crate::scheduling_environment::worker_environment::resources::Resources;
 
     use super::{
         functional_location::FunctionalLocation,
@@ -645,7 +644,7 @@ mod tests {
 
             WorkOrder::new(
                 WorkOrderNumber(2100023841),
-                MainResources::MtnMech,
+                Resources::MtnMech,
                 operations,
                 Vec::new(),
                 work_order_analytic,

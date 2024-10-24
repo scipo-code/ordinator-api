@@ -1,12 +1,11 @@
 pub mod algorithm;
 pub mod delegate;
 
+use algorithm::assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess;
+use rand::{prelude::SliceRandom, rngs::ThreadRng};
 use std::{
     collections::{HashMap, HashSet},
-    sync::{
-        atomic::{AtomicU64, AtomicUsize},
-        Arc, Mutex,
-    },
+    sync::{atomic::AtomicU64, Arc, Mutex},
     time::Instant,
 };
 
@@ -23,14 +22,14 @@ use shared_types::{
     },
     supervisor::{
         supervisor_response_scheduling::SupervisorResponseScheduling,
-        supervisor_response_status::SupervisorResponseStatus, SupervisorInfeasibleCases,
-        SupervisorRequestMessage, SupervisorResponseMessage,
+        supervisor_response_status::SupervisorResponseStatus, SupervisorRequestMessage,
+        SupervisorResponseMessage,
     },
-    AlgorithmState, Asset, ConstraintState, StopMessage,
+    Asset, StopMessage,
 };
 
 use shared_types::scheduling_environment::worker_environment::resources::Id;
-use tracing::{error, event, info, instrument, warn, Level};
+use tracing::{event, info, instrument, warn, Level};
 
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
@@ -39,7 +38,7 @@ use self::algorithm::SupervisorAlgorithm;
 use super::{
     operational_agent::{algorithm::OperationalObjective, OperationalAgent},
     tactical_agent::{tactical_algorithm::TacticalOperation, TacticalAgent},
-    traits::{LargeNeighborHoodSearch, TestAlgorithm},
+    traits::LargeNeighborHoodSearch,
     ScheduleIteration, SetAddr, StateLink, StateLinkError, StateLinkWrapper,
 };
 
@@ -100,19 +99,26 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
         test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self).expect("The tactical_operations should always hold all the work_order_activities of the operational_state_machine");
         self.calculate_objective_value();
 
+        let rng = rand::thread_rng();
+
+        let number_of_removed_work_orders = 10;
+        self.unschedule_random_work_orders(number_of_removed_work_orders, rng);
+
         self.schedule();
         test_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self).expect("The tactical_operations should always hold all the work_order_activities of the operational_state_machine");
 
-        // assert_eq!(
-        //     self.supervisor_algorithm.operational_agent_objectives.len() as u64,
-        //     self.number_of_operational_agents
-        //         .load(std::sync::atomic::Ordering::SeqCst)
-        // );
+        //TODO: Asset here that the state is correct inside of the OperationalState
+        assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess(&self.supervisor_algorithm.operational_state);
 
         event!(
             Level::DEBUG,
             number_of_operational_agents =
                 self.supervisor_algorithm.operational_agent_objectives.len()
+        );
+
+        event!(
+            Level::INFO,
+            supervisor_objective = self.supervisor_algorithm.objective_value
         );
 
         ctx.wait(
@@ -145,6 +151,22 @@ impl SupervisorAgent {
             tactical_agent_addr,
             operational_agent_addrs: HashMap::new(),
             number_of_operational_agents,
+        }
+    }
+
+    fn unschedule_random_work_orders(&mut self, number_of_work_orders: u64, mut rng: ThreadRng) {
+        let work_order_numbers = self
+            .supervisor_algorithm
+            .operational_state
+            .get_assigned_and_unassigned_work_orders();
+
+        let sampled_work_order_numbers = work_order_numbers
+            .choose_multiple(&mut rng, number_of_work_orders as usize)
+            .collect::<Vec<_>>()
+            .clone();
+
+        for work_order_number in sampled_work_order_numbers {
+            self.unschedule(*work_order_number)
         }
     }
 
@@ -473,7 +495,7 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
                     supervisor_status_message
                 );
                 let supervisor_status = SupervisorResponseStatus::new(
-                    self.supervisor_id.clone().2.unwrap(),
+                    self.supervisor_id.clone().2.unwrap().resource,
                     self.supervisor_algorithm
                         .operational_state
                         .count_unique_woa(),
@@ -487,12 +509,6 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
             SupervisorRequestMessage::Scheduling(_scheduling_message) => Ok(
                 SupervisorResponseMessage::Scheduling(SupervisorResponseScheduling {}),
             ),
-            SupervisorRequestMessage::Test => {
-                let algorithm_state = self.determine_algorithm_state();
-
-                let supervisor_test = SupervisorResponseMessage::Test(algorithm_state);
-                Ok(supervisor_test)
-            }
         }
     }
 }
@@ -511,44 +527,5 @@ impl Handler<OrchestratorMessage<(Id, OperationalObjective)>> for SupervisorAgen
                 msg.message_from_orchestrator.0,
                 msg.message_from_orchestrator.1,
             );
-    }
-}
-
-impl TestAlgorithm for SupervisorAgent {
-    type InfeasibleCases = SupervisorInfeasibleCases;
-
-    fn determine_algorithm_state(&self) -> AlgorithmState<Self::InfeasibleCases> {
-        let mut supervisor_state = SupervisorInfeasibleCases::default();
-
-        let mut feasible_main_resources: bool = true;
-        let work_orders = self
-            .scheduling_environment
-            .lock()
-            .unwrap()
-            .work_orders()
-            .clone();
-
-        for ((work_order_number, woa), _) in self.supervisor_algorithm.operational_state.get_iter()
-        {
-            let work_order_main_resource = work_orders
-                .inner
-                .get(&woa.0)
-                .unwrap()
-                .main_work_center
-                .clone();
-
-            if &work_order_main_resource == self.supervisor_id.2.as_ref().unwrap() {
-                continue;
-            } else {
-                error!(work_order_number = ?work_order_number, work_order_main_resource = ?work_order_main_resource, supervisor_trait = ?self.supervisor_id.2.as_ref().unwrap());
-                feasible_main_resources = false;
-                break;
-            }
-        }
-        if feasible_main_resources {
-            supervisor_state.respect_main_work_center = ConstraintState::Feasible;
-        }
-
-        AlgorithmState::Infeasible(supervisor_state)
     }
 }
