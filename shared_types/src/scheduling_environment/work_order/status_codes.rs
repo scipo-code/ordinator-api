@@ -144,11 +144,11 @@ impl IntoExcelData for StatusCodes {
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
     ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
-        let pcnf = if self.pcnf { "PCNF" } else { "" };
-        let awsc = if self.awsc { "AWSC" } else { "" };
-        let well = if self.well { "WELL" } else { "" };
-        let sch = if self.sch { "SCH" } else { "" };
-        let sece = if self.sece { "SECE" } else { "" };
+        let pcnf = if self.pcnf { "PCNF " } else { "" };
+        let awsc = if self.awsc { "AWSC " } else { "" };
+        let well = if self.well { "WELL " } else { "" };
+        let sch = if self.sch { "SCH " } else { "" };
+        let sece = if self.sece { "SECE " } else { "" };
 
         let string = String::new();
         let value: String = string + pcnf + awsc + well + sch + sece;
@@ -163,15 +163,36 @@ impl IntoExcelData for StatusCodes {
         col: rust_xlsxwriter::ColNum,
         format: &rust_xlsxwriter::Format,
     ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
-        let pcnf = if self.pcnf { "PCNF" } else { "" };
-        let awsc = if self.awsc { "AWSC" } else { "" };
-        let well = if self.well { "WELL" } else { "" };
-        let sch = if self.sch { "SCH" } else { "" };
-        let sece = if self.sece { "SECE" } else { "" };
+        let pcnf = if self.pcnf { "PCNF " } else { "" };
+        let awsc = if self.awsc { "AWSC " } else { "" };
+        let well = if self.well { "WELL " } else { "" };
+        let sch = if self.sch { "SCH " } else { "" };
+        let sece = if self.sece { "SECE " } else { "" };
 
         let string = String::new();
         let value: String = string + pcnf + awsc + well + sch + sece;
 
         worksheet.write_string_with_format(row, col, value, format)
+    }
+}
+
+impl IntoExcelData for MaterialStatus {
+    fn write(
+        self,
+        worksheet: &mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        worksheet.write_string(row, col, self.to_string())
+    }
+
+    fn write_with_format<'a>(
+        self,
+        worksheet: &'a mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+        format: &rust_xlsxwriter::Format,
+    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        worksheet.write_string_with_format(row, col, self.to_string(), format)
     }
 }
