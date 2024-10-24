@@ -1,3 +1,5 @@
+pub mod assert_functions;
+
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -5,7 +7,7 @@ use std::{
 
 use actix::Addr;
 use shared_types::scheduling_environment::{
-    work_order::{operation::operation_info::NumberOfPeople, WorkOrderActivity, WorkOrderNumber},
+    work_order::{WorkOrderActivity, WorkOrderNumber},
     worker_environment::resources::Id,
 };
 use tracing::{event, span, Level};
@@ -21,14 +23,11 @@ use super::{
     TransitionTypes,
 };
 
-pub mod assert_functions;
 #[derive(Debug, Default)]
 pub struct OperationalStateMachine(
     HashMap<(Id, WorkOrderActivity), (Arc<AtomicDelegate>, MarginalFitness)>,
 );
 
-/// This is a fundamental type. Where should we input the OperationalObjective? I think that keeping the
-/// code clean of these kind of things is exactly what is needed to make this work.
 impl OperationalStateMachine {
     pub fn update_operational_state(
         &mut self,
