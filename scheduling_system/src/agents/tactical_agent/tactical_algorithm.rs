@@ -808,7 +808,10 @@ impl TestAlgorithm for TacticalAlgorithm {
             .unwrap()
             .earliest_start_day = (|| {
             for (work_order_number, optimized_work_order) in self.optimized_work_orders.clone() {
-                let start_date_from_period = optimized_work_order.scheduled_period.start_date();
+                let start_date_from_period = match optimized_work_order.scheduled_period {
+                    Some(period) => period.start_date().date_naive(),
+                    None => optimized_work_order.earliest_allowed_start_date,
+                };
 
                 if let Some(operation_solutions) = optimized_work_order.operation_solutions {
                     let start_days: Vec<_> =
@@ -825,7 +828,7 @@ impl TestAlgorithm for TacticalAlgorithm {
                             .collect();
 
                     for start_day in start_days {
-                        if start_day.date().date_naive() < start_date_from_period.date_naive() {
+                        if start_day.date().date_naive() < start_date_from_period {
                             error!(start_day = ?start_day.date(), start_date_from_period = ?start_date_from_period);
                             return ConstraintState::Infeasible(format!(
                                 "{:?} is outside of its earliest start day: {}",
@@ -855,14 +858,15 @@ impl TestAlgorithm for TacticalAlgorithm {
             .unwrap()
             .respect_period_id = (|| {
             for (_work_order_number, optimized_work_order) in self.optimized_work_orders.clone() {
-                if !self
-                    .tactical_periods
-                    .contains(&optimized_work_order.scheduled_period)
-                {
-                    error!(work_order_number = ?_work_order_number, scheduled_period = ?optimized_work_order.scheduled_period, tactical_periods = ?self.tactical_periods, "Tactical period does not contain the scheduled period of the tactical work order");
+                let scheduled_period = match optimized_work_order.scheduled_period {
+                    Some(period) => period,
+                    None => return ConstraintState::Feasible,
+                };
+                if !self.tactical_periods.contains(&scheduled_period) {
+                    error!(work_order_number = ?_work_order_number, scheduled_period = ?scheduled_period, tactical_periods = ?self.tactical_periods, "Tactical period does not contain the scheduled period of the tactical work order");
                     return ConstraintState::Infeasible(format!(
                         "{:?} has a wrong scheduled period {}",
-                        _work_order_number, optimized_work_order.scheduled_period
+                        _work_order_number, scheduled_period
                     ));
                 }
             }
@@ -1029,6 +1033,7 @@ pub mod tests {
             vec![],
             Some(operation_solutions),
             Some(first_period),
+            NaiveDate::from_ymd_opt(2024, 10, 10).unwrap(),
         );
 
         tactical_algorithm
@@ -1095,6 +1100,7 @@ pub mod tests {
             vec![],
             None,
             Some(third_period.clone()),
+            NaiveDate::from_ymd_opt(2024, 10, 10).unwrap(),
         );
 
         tactical_algorithm
@@ -1177,6 +1183,7 @@ pub mod tests {
             vec![],
             None,
             Some(third_period.clone()),
+            NaiveDate::from_ymd_opt(2024, 10, 10).unwrap(),
         );
 
         tactical_algorithm

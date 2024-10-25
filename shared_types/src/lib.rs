@@ -285,6 +285,9 @@ mod tests {
     #[test]
     fn test_toml_operational_parsing() {
         let toml_operational_string = r#"
+            [[supervisors]]
+            id = "main"
+
             [[operational]]
             id = "OP-01-001"
             resources.resources = ["MTN-ELEC" ]
