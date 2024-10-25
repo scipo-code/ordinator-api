@@ -84,6 +84,7 @@ impl AgentFactory {
             &cloned_periods,
             &asset,
         );
+
         drop(locked_scheduling_environment);
 
         strategic_agent_algorithm.calculate_objective_value();

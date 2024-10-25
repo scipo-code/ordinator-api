@@ -28,7 +28,6 @@ use shared_types::scheduling_environment::worker_environment::resources::Resourc
 use self::optimized_work_orders::{OptimizedWorkOrder, OptimizedWorkOrders};
 
 
-
 #[derive(Debug, Clone)]
 pub struct StrategicAlgorithm {
     objective_value: f64,
