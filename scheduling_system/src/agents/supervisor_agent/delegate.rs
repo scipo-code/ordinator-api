@@ -15,27 +15,27 @@ pub enum Delegate {
 
 impl AtomicDelegate {
     pub fn state_change_to_drop(&self) {
-        let mut delegate_state = self.load(Ordering::Acquire);
+        let mut delegate_state = self.load(Ordering::SeqCst);
 
         delegate_state.state_change_to_drop();
 
-        self.store(delegate_state, Ordering::Release);
+        self.store(delegate_state, Ordering::SeqCst);
     }
 
     pub fn state_change_to_unassign(&self) {
-        let mut delegate_state = self.load(Ordering::Acquire);
+        let mut delegate_state = self.load(Ordering::SeqCst);
 
         delegate_state.state_change_to_unassign();
 
-        self.store(delegate_state, Ordering::Release);
+        self.store(delegate_state, Ordering::SeqCst);
     }
 
     pub fn state_change_to_assign(&self) {
-        let mut delegate_state = self.load(Ordering::Acquire);
+        let mut delegate_state = self.load(Ordering::SeqCst);
 
         delegate_state.state_change_to_assign();
 
-        self.store(delegate_state, Ordering::Release);
+        self.store(delegate_state, Ordering::SeqCst);
     }
 }
 

@@ -30,19 +30,19 @@ impl OperationalStateMachineAssertions for OperationalStateMachine {
 
             let is_all_assess = delegates_by_woa.all(|delegate| {
                 delegate
-                    .load(std::sync::atomic::Ordering::Acquire)
+                    .load(std::sync::atomic::Ordering::SeqCst)
                     .is_assess()
                     || delegate
-                        .load(std::sync::atomic::Ordering::Acquire)
+                        .load(std::sync::atomic::Ordering::SeqCst)
                         .is_done()
             });
 
             let is_all_drop = delegates_by_woa.all(|delegate| {
                 delegate
-                    .load(std::sync::atomic::Ordering::Acquire)
+                    .load(std::sync::atomic::Ordering::SeqCst)
                     .is_drop()
                     || delegate
-                        .load(std::sync::atomic::Ordering::Acquire)
+                        .load(std::sync::atomic::Ordering::SeqCst)
                         .is_done()
             });
 
@@ -65,7 +65,7 @@ impl OperationalStateMachineAssertions for OperationalStateMachine {
                 .iter()
                 .filter(|(id_woa, _)| id_woa.1 .0 == work_order_number)
                 .for_each(|osm| {
-                    let delegate = osm.1 .0.load(std::sync::atomic::Ordering::Acquire);
+                    let delegate = osm.1 .0.load(std::sync::atomic::Ordering::SeqCst);
 
                     if delegate == Delegate::Assess {
                         assess_work_orders.insert(work_order_number);
