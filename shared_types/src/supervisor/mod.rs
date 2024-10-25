@@ -25,12 +25,19 @@ pub struct SupervisorRequest {
     pub supervisor_request_message: SupervisorRequestMessage,
 }
 
-#[derive(Args, Debug, Serialize, Deserialize, Clone)]
-pub struct SupervisorType {
-    #[arg(name = "main")]
-    pub main: String,
-    #[arg(name = "other")]
-    pub other: String,
+#[derive(ValueEnum, Debug, Serialize, Deserialize, Clone)]
+pub enum SupervisorType {
+    main,
+    other,
+}
+
+impl ToString for SupervisorType {
+    fn to_string(&self) -> String {
+        match self {
+            SupervisorType::main => "main".to_string(),
+            SupervisorType::other => todo!(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
