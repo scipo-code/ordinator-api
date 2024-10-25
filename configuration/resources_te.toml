@@ -1,5 +1,5 @@
 [[supervisors]]
-id = "supervisor-general"
+id = "main"
 
 # [[supervisors]]
 # id = "supervisor-second"

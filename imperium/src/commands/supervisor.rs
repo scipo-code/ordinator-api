@@ -17,13 +17,11 @@ pub enum SupervisorCommands {
     /// Get the status of a SupervisorAgent
     Status {
         asset: Asset,
-        #[command(flatten)]
         supervisor: SupervisorType,
     },
     /// Get the commands for manually scheduling a work order activity.
     Scheduling {
         asset: Asset,
-        #[command(flatten)]
         supervisor_type: SupervisorType,
         #[clap(subcommand)]
         scheduling_commands: SchedulingCommands,
