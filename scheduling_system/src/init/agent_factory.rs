@@ -129,12 +129,13 @@ impl AgentFactory {
         let tactical_resources_loading =
             initialize_tactical_resources(&scheduling_environment_guard, Work::from(0.0));
 
-        let tactical_algorithm = TacticalAlgorithm::new(
+        let mut tactical_algorithm = TacticalAlgorithm::new(
             scheduling_environment_guard.tactical_days().clone(),
             tactical_periods.clone(),
             tactical_resources_capacity,
             tactical_resources_loading,
         );
+        tactical_algorithm.create_optimized_work_orders(&scheduling_environment_guard, &asset);
 
         drop(scheduling_environment_guard);
 

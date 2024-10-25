@@ -1,4 +1,5 @@
 use actix::Message;
+use chrono::NaiveDate;
 use priority_queue::PriorityQueue;
 use rand::seq::SliceRandom;
 use serde::Serialize;
@@ -10,7 +11,7 @@ use shared_types::{
             operation::{operation_info::NumberOfPeople, ActivityNumber, Work},
             WorkOrderActivity, WorkOrderNumber,
         },
-        worker_environment::resources::{Resources},
+        worker_environment::resources::Resources,
     },
     tactical::{
         tactical_resources_message::TacticalResourceRequest,
@@ -22,7 +23,7 @@ use shared_types::{
     },
     AlgorithmState, ConstraintState, LoadOperation,
 };
-use std::{borrow::Cow, cmp::Ordering, fmt::Display};
+use std::{borrow::Cow, cmp::Ordering, fmt::Display, rc::Rc};
 use std::{collections::HashMap, fmt};
 use strum::IntoEnumIterator;
 use tracing::{debug, error, info, instrument, warn};
@@ -54,7 +55,8 @@ pub struct OptimizedTacticalWorkOrder {
     pub weight: u64,
     pub relations: Vec<ActivityRelation>,
     pub operation_solutions: Option<HashMap<ActivityNumber, TacticalOperation>>,
-    pub scheduled_period: Period,
+    pub scheduled_period: Option<Period>,
+    pub earliest_allowed_start_date: NaiveDate,
 }
 
 #[allow(dead_code)]
@@ -180,15 +182,19 @@ impl TacticalAlgorithm {
             let work_order = work_order.inner.get(work_order_number).unwrap();
             match self.optimized_work_orders.contains_key(work_order_number) {
                 false => {
-                    self.create_new_optimized_work_order(work_order, period.clone());
+                    self.create_new_optimized_work_order(
+                        work_order,
+                        Some(period.clone()),
+                        work_order.work_order_dates.earliest_allowed_start_date,
+                    );
                 }
                 true => {
                     let optimized_work_order = self
                         .optimized_work_orders
                         .get_mut(work_order_number)
                         .unwrap();
-                    if period != &optimized_work_order.scheduled_period {
-                        optimized_work_order.scheduled_period = period.clone();
+                    if Some(period) != optimized_work_order.scheduled_period.as_ref() {
+                        optimized_work_order.scheduled_period = Some(period.clone());
                         self.unschedule(*work_order_number);
                     }
                 }
@@ -230,7 +236,12 @@ impl TacticalAlgorithm {
         );
     }
 
-    pub fn create_new_optimized_work_order(&mut self, work_order: &WorkOrder, period: Period) {
+    pub fn create_new_optimized_work_order(
+        &mut self,
+        work_order: &WorkOrder,
+        period: Option<Period>,
+        earliest_allowed_start_date: NaiveDate,
+    ) {
         let mut optimized_work_order = OptimizedTacticalWorkOrder {
             main_work_center: work_order.main_work_center.clone(),
             operation_parameters: HashMap::new(),
@@ -238,6 +249,7 @@ impl TacticalAlgorithm {
             weight: work_order.work_order_weight(),
             scheduled_period: period,
             operation_solutions: None,
+            earliest_allowed_start_date,
         };
 
         for (activity, operation) in work_order.operations() {
@@ -285,6 +297,25 @@ impl TacticalAlgorithm {
         }
         objective_value_from_excess
     }
+
+    pub(crate) fn create_optimized_work_orders(
+        &mut self,
+        scheduling_environment_guard: &std::sync::MutexGuard<
+            shared_types::scheduling_environment::SchedulingEnvironment,
+        >,
+        asset: &shared_types::Asset,
+    ) {
+        let work_orders = scheduling_environment_guard
+            .work_orders()
+            .work_orders_by_asset(asset);
+        for (work_order_number, work_order) in work_orders {
+            self.create_new_optimized_work_order(
+                work_order,
+                None,
+                work_order.work_order_dates.earliest_allowed_start_date,
+            );
+        }
+    }
 }
 
 impl LargeNeighborHoodSearch for TacticalAlgorithm {
@@ -303,10 +334,10 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
     fn calculate_objective_value(&mut self) -> Self::BetterSolution {
         let mut objective_value_from_tardiness = 0.0;
         for (_work_order_number, optimized_work_order) in self.optimized_work_orders.iter() {
-            let period_start_date = optimized_work_order
-                .scheduled_period
-                .start_date()
-                .date_naive();
+            let period_start_date = match &optimized_work_order.scheduled_period {
+                Some(period) => period.start_date().date_naive(),
+                None => optimized_work_order.earliest_allowed_start_date,
+            };
 
             let mut activity_keys: Vec<ActivityNumber> = optimized_work_order
                 .operation_solutions
@@ -387,14 +418,27 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             };
 
             let mut all_days = self.tactical_days.clone();
-            let allowed_starting_days: Vec<&Day> = all_days
-                .iter()
-                .filter(|date| {
-                    optimized_work_order
-                        .scheduled_period
-                        .contains_date(date.date().date_naive())
-                })
-                .collect();
+            let allowed_starting_days: Vec<&Day> = match &optimized_work_order.scheduled_period {
+                Some(period) => all_days
+                    .iter()
+                    .filter(|date| period.contains_date(date.date().date_naive()))
+                    .collect(),
+                None => {
+                    let mut allowed_starting_days: Vec<&Day> = self
+                        .tactical_days
+                        .iter()
+                        .filter(|day| {
+                            optimized_work_order.earliest_allowed_start_date
+                                <= day.date().date_naive()
+                        })
+                        .collect();
+
+                    allowed_starting_days.retain(|day| {
+                        optimized_work_order.earliest_allowed_start_date <= day.date().date_naive()
+                    });
+                    allowed_starting_days
+                }
+            };
 
             let start_day: Day = allowed_starting_days[start_day_index].clone();
 
@@ -843,13 +887,13 @@ impl TestAlgorithm for TacticalAlgorithm {
 pub mod tests {
     use std::{collections::HashMap, str::FromStr};
 
-    use chrono::{Days, Duration};
+    use chrono::{Days, Duration, NaiveDate};
     use shared_types::scheduling_environment::{
         work_order::{
             operation::{operation_info::NumberOfPeople, ActivityNumber, Work},
             WorkOrderNumber,
         },
-        worker_environment::resources::{Resources},
+        worker_environment::resources::Resources,
     };
     use strum::IntoEnumIterator;
 
@@ -984,7 +1028,7 @@ pub mod tests {
             10,
             vec![],
             Some(operation_solutions),
-            first_period,
+            Some(first_period),
         );
 
         tactical_algorithm
@@ -1050,7 +1094,7 @@ pub mod tests {
             10,
             vec![],
             None,
-            third_period.clone(),
+            Some(third_period.clone()),
         );
 
         tactical_algorithm
@@ -1132,7 +1176,7 @@ pub mod tests {
             10,
             vec![],
             None,
-            third_period.clone(),
+            Some(third_period.clone()),
         );
 
         tactical_algorithm
@@ -1166,7 +1210,8 @@ pub mod tests {
             weight: u64,
             relations: Vec<ActivityRelation>,
             operation_solutions: Option<HashMap<ActivityNumber, TacticalOperation>>,
-            scheduled_period: Period,
+            scheduled_period: Option<Period>,
+            earliest_allowed_start_date: NaiveDate,
         ) -> Self {
             OptimizedTacticalWorkOrder {
                 main_work_center,
@@ -1175,6 +1220,7 @@ pub mod tests {
                 relations,
                 operation_solutions,
                 scheduled_period,
+                earliest_allowed_start_date,
             }
         }
     }
