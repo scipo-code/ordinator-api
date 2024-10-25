@@ -16,6 +16,10 @@ pub trait OperationalStateMachineAssertions {
         &self,
         current_state: &CapturedSupervisorState,
     ) -> Result<(), AssertError>;
+    fn assert_that_operational_state_machine_is_equal_to_captured_operational_state_machine(
+        &self,
+        current_state: &CapturedSupervisorState,
+    ) -> Result<(), AssertError>;
 }
 
 impl OperationalStateMachineAssertions for OperationalStateMachine {
@@ -32,18 +36,12 @@ impl OperationalStateMachineAssertions for OperationalStateMachine {
                 delegate
                     .load(std::sync::atomic::Ordering::SeqCst)
                     .is_assess()
-                    || delegate
-                        .load(std::sync::atomic::Ordering::SeqCst)
-                        .is_done()
+                    || delegate.load(std::sync::atomic::Ordering::SeqCst).is_done()
             });
 
             let is_all_drop = delegates_by_woa.all(|delegate| {
-                delegate
-                    .load(std::sync::atomic::Ordering::SeqCst)
-                    .is_drop()
-                    || delegate
-                        .load(std::sync::atomic::Ordering::SeqCst)
-                        .is_done()
+                delegate.load(std::sync::atomic::Ordering::SeqCst).is_drop()
+                    || delegate.load(std::sync::atomic::Ordering::SeqCst).is_done()
             });
 
             if !(is_all_drop || is_all_assess) {
@@ -91,6 +89,22 @@ impl OperationalStateMachineAssertions for OperationalStateMachine {
             ))
         } else {
             Ok(())
+        }
+    }
+
+    fn assert_that_operational_state_machine_is_equal_to_captured_operational_state_machine(
+        &self,
+        current_state: &CapturedSupervisorState,
+    ) -> Result<(), AssertError> {
+        if self.0.iter().all(|(id_woa, del_fit)| {
+            current_state.state_of_each_agent.get(&id_woa).unwrap()
+                == &del_fit.0.load(std::sync::atomic::Ordering::SeqCst)
+        }) {
+            Ok(())
+        } else {
+            Err(AssertError(
+                "OperationalStateMachines are not similar".to_string(),
+            ))
         }
     }
 }
