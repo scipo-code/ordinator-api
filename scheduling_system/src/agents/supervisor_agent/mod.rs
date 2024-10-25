@@ -106,6 +106,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
         self.assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
 
         let rng = rand::thread_rng();
+        self.supervisor_algorithm.calculate_objective_value();
 
         let current_state = self.capture_current_state();
 
@@ -115,6 +116,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
             Level::WARN,
             current_state = ?current_state.state_of_each_agent
         );
+
         let number_of_removed_work_orders = 10;
         self.unschedule_random_work_orders(number_of_removed_work_orders, rng);
 
@@ -123,6 +125,10 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 
         let new_objective_value = self.supervisor_algorithm.calculate_objective_value();
 
+        assert_eq!(
+            new_objective_value,
+            self.supervisor_algorithm.calculate_objective_value()
+        );
         event!(
             Level::WARN,
             new_state = ?self.capture_current_state().state_of_each_agent
@@ -133,9 +139,11 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
         // self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&current_state).unwrap();
 
         if self.supervisor_algorithm.objective_value < current_state.objective_value {
-            self.release_current_state(current_state);
+            self.release_current_state(current_state.clone());
             self.supervisor_algorithm.calculate_objective_value();
         }
+
+        assert!(self.supervisor_algorithm.objective_value >= old_objective_value);
 
         event!(
             Level::DEBUG,
@@ -161,6 +169,7 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     }
 }
 
+#[derive(Clone)]
 pub struct CapturedSupervisorState {
     objective_value: f64,
     state_of_each_agent: HashMap<(Id, WorkOrderActivity), Delegate>,
