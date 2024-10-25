@@ -117,11 +117,11 @@ impl OperationalStateMachine {
 
         match value_option {
             Some(value) => {
-                if !value.0.load(std::sync::atomic::Ordering::Acquire).is_drop() {
+                if !value.0.load(std::sync::atomic::Ordering::SeqCst).is_drop() {
                     event!(
                         Level::ERROR,
                         value_in_atomic_delegate =
-                            ?value.0.load(std::sync::atomic::Ordering::Acquire)
+                            ?value.0.load(std::sync::atomic::Ordering::SeqCst)
                     );
                     panic!("You tried to remove a delegate that was not Delegate::Drop, doing this could lead to a situation where the remaining state could be wrong");
                 }
@@ -135,7 +135,7 @@ impl OperationalStateMachine {
     pub fn number_of_assigned_work_orders(&self) -> HashSet<WorkOrderActivity> {
         self.0
             .iter()
-            .filter(|(_, val)| val.0.load(std::sync::atomic::Ordering::Acquire).is_assign())
+            .filter(|(_, val)| val.0.load(std::sync::atomic::Ordering::SeqCst).is_assign())
             .map(|(key, _)| key.1)
             .collect()
     }
@@ -182,7 +182,7 @@ impl OperationalStateMachine {
         self.0
             .iter()
             .filter(|(_, del_fit)| {
-                let delegate = del_fit.0.load(std::sync::atomic::Ordering::Acquire);
+                let delegate = del_fit.0.load(std::sync::atomic::Ordering::SeqCst);
                 delegate == Delegate::Assign || delegate == Delegate::Unassign
             })
             .map(|(id_woa, _)| id_woa.1 .0)

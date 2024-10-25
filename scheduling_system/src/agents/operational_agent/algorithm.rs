@@ -52,7 +52,7 @@ impl OperationalParameters {
         for (_, operational_parameters) in &self.0 {
             match operational_parameters
                 .delegated
-                .load(std::sync::atomic::Ordering::Acquire)
+                .load(std::sync::atomic::Ordering::SeqCst)
             {
                 Delegate::Assess => count_assess += 1,
                 Delegate::Assign => count_assign += 1,
@@ -68,7 +68,7 @@ impl OperationalParameters {
     fn remove_drop_delegates(&mut self) -> HashSet<WorkOrderActivity> {
         let mut removed_work_order_activities = HashSet::new();
         self.0.retain(|woa, op| {
-            let delegate = op.delegated.load(Ordering::Acquire);
+            let delegate = op.delegated.load(Ordering::SeqCst);
             if delegate == Delegate::Drop {
                 removed_work_order_activities.insert(woa.clone());
             }
@@ -228,7 +228,7 @@ impl OperationalAlgorithm {
             .unwrap()
             .marginal_fitness
             .0
-            .store(time_delta_usize, std::sync::atomic::Ordering::Release);
+            .store(time_delta_usize, std::sync::atomic::Ordering::SeqCst);
     }
 }
 
@@ -592,10 +592,10 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             / (wrench_time + break_time + toolbox_time + non_productive_time).num_seconds()
                 as usize;
 
-        let old_value = self.objective_value.load(Ordering::Acquire);
+        let old_value = self.objective_value.load(Ordering::SeqCst);
 
         if new_value > old_value {
-            self.objective_value.store(new_value, Ordering::Release);
+            self.objective_value.store(new_value, Ordering::SeqCst);
             true
         } else {
             false

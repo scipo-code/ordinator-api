@@ -204,7 +204,7 @@ impl Handler<ScheduleIteration> for OperationalAgent {
 
         event!(
             Level::ERROR,
-            temp_obj = temporary_schedule.objective_value.load(Ordering::Acquire)
+            temp_obj = temporary_schedule.objective_value.load(Ordering::SeqCst)
         );
 
         event!(
@@ -212,7 +212,7 @@ impl Handler<ScheduleIteration> for OperationalAgent {
             temp_obj = self
                 .operational_algorithm
                 .objective_value
-                .load(Ordering::Acquire)
+                .load(Ordering::SeqCst)
         );
         if is_better_schedule {
             self.operational_algorithm = temporary_schedule;
@@ -340,7 +340,7 @@ impl
             .operational_parameters
             .0
             .iter()
-            .any(|(_, op)| op.delegated.load(Ordering::Acquire).is_done()));
+            .any(|(_, op)| op.delegated.load(Ordering::SeqCst).is_done()));
         event!(
             Level::INFO,
             self.operational_algorithm.operational_parameters =
@@ -382,7 +382,7 @@ impl
                         event!(Level::INFO, operational_parameter = ?operational_parameter, "An OperationalParameter was inserted into the OperationalAgent that was already present. If the WOA is not Delegate::Drop panic!() the thread.");
                         assert!(operational_parameter
                             .delegated
-                            .load(Ordering::Acquire)
+                            .load(Ordering::SeqCst)
                             .is_drop());
                     }
                     None => (),
@@ -421,7 +421,7 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
                     unassign,
                     self.operational_algorithm
                         .objective_value
-                        .load(Ordering::Acquire),
+                        .load(Ordering::SeqCst),
                 );
                 Ok(OperationalResponseMessage::Status(
                     operational_response_status,

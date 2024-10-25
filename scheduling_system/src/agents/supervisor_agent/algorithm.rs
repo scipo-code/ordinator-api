@@ -36,8 +36,8 @@ impl MarginalFitness {
     }
 
     pub fn compare(&self, other: &Self) -> Ordering {
-        let self_value = self.0.load(std::sync::atomic::Ordering::Acquire);
-        let other_value = other.0.load(std::sync::atomic::Ordering::Acquire);
+        let self_value = self.0.load(std::sync::atomic::Ordering::SeqCst);
+        let other_value = other.0.load(std::sync::atomic::Ordering::SeqCst);
 
         if self_value == other_value {
             return Ordering::Equal;
@@ -150,7 +150,7 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
             for operational_agent in &operational_status_by_woa {
                 if operational_agent
                     .1
-                    .load(std::sync::atomic::Ordering::Acquire)
+                    .load(std::sync::atomic::Ordering::SeqCst)
                     == Delegate::Assign
                 {
                     number_of_assigned += 1;
@@ -163,7 +163,7 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
             for operational_agent in &operational_status_by_woa {
                 if operational_agent
                     .1
-                    .load(std::sync::atomic::Ordering::Acquire)
+                    .load(std::sync::atomic::Ordering::SeqCst)
                     != Delegate::Assess
                 {
                     continue;
@@ -172,7 +172,7 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
                 if operational_agent
                     .2
                      .0
-                    .load(std::sync::atomic::Ordering::Acquire)
+                    .load(std::sync::atomic::Ordering::SeqCst)
                     == usize::MAX
                 {
                     continue 'next_work_order_activity;
@@ -186,7 +186,7 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
                 {
                     if operational_agent
                         .1
-                        .load(std::sync::atomic::Ordering::Acquire)
+                        .load(std::sync::atomic::Ordering::SeqCst)
                         == Delegate::Assign
                     {
                         continue;
