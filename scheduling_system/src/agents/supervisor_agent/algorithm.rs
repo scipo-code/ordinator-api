@@ -121,9 +121,13 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
 
         assert!(is_assigned_part_of_all(assigned_woas, &all_woas));
 
-        self.objective_value =
-            assigned_woas.len() as f64 / all_woas.len() as f64;
-        self.objective_value
+        let mut objective_value = assigned_woas.len() as f64 / all_woas.len() as f64;
+
+        if objective_value.is_nan() {
+            objective_value = 0.0
+        }
+        self.objective_value = objective_value;
+        objective_value
     }
 
     fn schedule(&mut self) {

@@ -49,6 +49,7 @@ impl OptimizedWorkOrders {
     ) {
         self.inner.insert(work_order_number, optimized_work_order);
     }
+
     #[instrument(level = "trace", skip_all)]
     pub fn set_scheduled_period(&mut self, work_order_number: WorkOrderNumber, period: Period) {
         let optimized_work_order = match self.inner.get_mut(&work_order_number) {
@@ -60,6 +61,7 @@ impl OptimizedWorkOrders {
         };
         optimized_work_order.scheduled_period = Some(period);
     }
+
     #[instrument(level = "trace", skip_all)]
     pub fn get_locked_in_period(&self, work_order_number: WorkOrderNumber) -> Period {
         let option_period = match self.inner.get(&work_order_number) {
