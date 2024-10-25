@@ -11,6 +11,7 @@ use crate::scheduling_environment::time_environment::day::Day;
 use crate::scheduling_environment::time_environment::period::Period;
 use crate::scheduling_environment::work_order::WorkOrder;
 use crate::scheduling_environment::worker_environment::WorkerEnvironment;
+use crate::Asset;
 
 use self::time_environment::TimeEnvironment;
 use self::work_order::operation::Operation;
@@ -114,6 +115,13 @@ impl WorkOrders {
 
     pub fn new_work_order(&self, work_order_number: WorkOrderNumber) -> bool {
         !self.inner.contains_key(&work_order_number)
+    }
+
+    pub fn work_orders_by_asset(&self, asset: &Asset) -> HashMap<&WorkOrderNumber, &WorkOrder> {
+        self.inner
+            .iter()
+            .filter(|(_, wo)| &wo.work_order_info.functional_location.asset == asset)
+            .collect()
     }
 }
 
