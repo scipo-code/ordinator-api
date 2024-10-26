@@ -10,7 +10,7 @@ use shared_types::{
             operation::{ActivityNumber, Work},
             priority::Priority,
             revision::Revision,
-            status_codes::{MaterialStatus, StatusCodes},
+            status_codes::{MaterialStatus, SystemStatusCodes, UserStatusCodes},
             system_condition::SystemCondition,
             unloading_point::UnloadingPoint,
             work_order_type::WorkOrderType,
@@ -112,38 +112,38 @@ impl AllRows {
             worksheet
                 .write(row_number, 21, row_values.activity.0.clone())
                 .unwrap();
+            // worksheet
+            //     .write(row_number, 22, row_values.opperation_system_status.clone())
+            //     .unwrap();
+            // worksheet
+            //     .write(row_number, 23, row_values.opereration_user_status.clone())
+            //     .unwrap();
             worksheet
-                .write(row_number, 22, row_values.opperation_system_status.clone())
+                .write(row_number, 22, row_values.functional_location.clone())
                 .unwrap();
             worksheet
-                .write(row_number, 23, row_values.opereration_user_status.clone())
+                .write(row_number, 23, row_values.description_operation.clone())
                 .unwrap();
             worksheet
-                .write(row_number, 24, row_values.functional_location.clone())
+                .write(row_number, 24, row_values.subnetwork_of.clone())
                 .unwrap();
             worksheet
-                .write(row_number, 25, row_values.description_operation.clone())
+                .write(row_number, 25, row_values.system_condition.clone())
                 .unwrap();
             worksheet
-                .write(row_number, 26, row_values.subnetwork_of.clone())
+                .write(row_number, 26, row_values.maintenance_plan.clone())
                 .unwrap();
             worksheet
-                .write(row_number, 27, row_values.system_condition.clone())
+                .write(row_number, 27, row_values.planner_group.clone())
                 .unwrap();
             worksheet
-                .write(row_number, 28, row_values.maintenance_plan.clone())
+                .write(row_number, 28, row_values.maintenance_plant.clone())
                 .unwrap();
             worksheet
-                .write(row_number, 29, row_values.planner_group.clone())
+                .write(row_number, 29, row_values.pm_collective.clone())
                 .unwrap();
             worksheet
-                .write(row_number, 30, row_values.maintenance_plant.clone())
-                .unwrap();
-            worksheet
-                .write(row_number, 31, row_values.pm_collective.clone())
-                .unwrap();
-            worksheet
-                .write(row_number, 32, row_values.room.clone())
+                .write(row_number, 30, row_values.room.clone())
                 .unwrap();
         }
         let xlsx_directory = dotenvy::var("EXCEL_DUMP_DIRECTORY").expect(
@@ -169,8 +169,8 @@ struct RowNames {
     description_work_order: String,
     operation_short_text: String,
     material_status: MaterialStatus,
-    system_status: StatusCodes,
-    user_status: StatusCodes,
+    system_status: SystemStatusCodes,
+    user_status: UserStatusCodes,
     work: Work,
     actual_work: Work,
     unloading_point: UnloadingPoint,
@@ -181,8 +181,8 @@ struct RowNames {
     earliest_allowed_start_date: DATS,
     latest_allowed_finish_date: DATS,
     activity: ActivityNumber,
-    opperation_system_status: StatusCodes,
-    opereration_user_status: StatusCodes,
+    // operation_system_status: SystemStatusCodes,
+    // operation_user_status: SystemStatusCodes,
     functional_location: FunctionalLocation,
     description_operation: String,
     subnetwork_of: String,
@@ -262,9 +262,13 @@ pub fn create_excel_dump(
                     .operation_description
                     .clone()
                     .unwrap_or("WE DO NOT HAVE THIS FIELD FROM SAP YET".to_string()),
-                material_status: work_order.status_codes().material_status.clone(),
-                system_status: work_order.status_codes().clone(),
-                user_status: work_order.status_codes().clone(),
+                material_status: work_order
+                    .work_order_analytic
+                    .user_status_codes
+                    .clone()
+                    .into(),
+                system_status: work_order.work_order_analytic.system_status_codes.clone(),
+                user_status: work_order.work_order_analytic.user_status_codes.clone(),
                 work: activity.1.work_remaining().clone().unwrap(),
                 actual_work: activity.1.operation_info.work_actual.clone().unwrap(),
                 unloading_point: activity.1.unloading_point.clone(),
@@ -291,8 +295,8 @@ pub fn create_excel_dump(
                     .latest_allowed_finish_date
                     .into(),
                 activity: activity.0.clone(),
-                opperation_system_status: work_order.status_codes().clone(),
-                opereration_user_status: work_order.status_codes().clone(),
+                // operation_system_status: work_order.status_codes().clone(),
+                // operation_user_status: work_order.status_codes().clone(),
                 functional_location: work_order.functional_location().clone(),
                 description_operation: work_order
                     .work_order_info

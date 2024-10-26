@@ -158,24 +158,3 @@ impl fmt::Display for SchedulingEnvironment {
         Ok(())
     }
 }
-
-impl fmt::Display for WorkOrders {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "The Work Orders are currently comprised of \n  work_orders: {}",
-            self.inner.len()
-        )?;
-        for (i, work_order) in self.inner.values().enumerate() {
-            if i % 10 == 0 {
-                writeln!(
-                f,
-                "                          |EARL-PERIOD| SCH|AWSC|SECE|REVISION|TYPE|PRIO|VEN*| MAT|  Unloading|Asset|",
-            )
-            .unwrap();
-            };
-            write!(f, "{}", work_order.to_string_normal())?;
-        }
-        Ok(())
-    }
-}
