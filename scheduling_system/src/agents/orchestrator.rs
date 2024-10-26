@@ -16,13 +16,13 @@ use shared_types::tactical::Days;
 use shared_types::tactical::TacticalResources;
 use shared_types::Asset;
 use shared_types::TomlAgents;
-use tracing::instrument;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Mutex;
+use tracing::instrument;
 
 use crate::agents::operational_agent::OperationalAgent;
 use crate::agents::strategic_agent::StrategicAgent;
@@ -37,8 +37,7 @@ use dotenvy::dotenv;
 use shared_types::operational::operational_request_status::OperationalStatusRequest;
 use shared_types::operational::operational_response_status::OperationalStatusResponse;
 use shared_types::operational::{
-    OperationalConfiguration, OperationalRequestMessage,
-    OperationalResponseMessage,
+    OperationalConfiguration, OperationalRequestMessage, OperationalResponseMessage,
 };
 use shared_types::orchestrator::{AgentStatus, AgentStatusResponse, OrchestratorResponse};
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
@@ -48,9 +47,7 @@ use shared_types::supervisor::supervisor_response_status::SupervisorResponseStat
 use shared_types::supervisor::supervisor_status_message::SupervisorStatusMessage;
 
 use shared_types::tactical::tactical_status_message::TacticalStatusMessage;
-use shared_types::tactical::{
-    TacticalRequestMessage,  TacticalResponseMessage,
-};
+use shared_types::tactical::{TacticalRequestMessage, TacticalResponseMessage};
 use tracing_subscriber::EnvFilter;
 
 use crate::agents::UpdateWorkOrderMessage;
@@ -73,44 +70,27 @@ pub struct ActorRegistry {
     pub tactical_agent_addr: Addr<TacticalAgent>,
     pub supervisor_agent_addrs: HashMap<Id, Addr<SupervisorAgent>>,
     pub operational_agent_addrs: HashMap<Id, Addr<OperationalAgent>>,
-    pub number_of_operational_agents: Arc<AtomicU64>
+    pub number_of_operational_agents: Arc<AtomicU64>,
 }
 
 impl ActorRegistry {
     pub fn get_operational_addr(&self, operational_id: &String) -> Option<Addr<OperationalAgent>> {
-        let option_id = self.operational_agent_addrs.iter().find(|(id, _)| {
-            &id.0 == operational_id
-        }).map(|(_, addr)| addr);
+        let option_id = self
+            .operational_agent_addrs
+            .iter()
+            .find(|(id, _)| &id.0 == operational_id)
+            .map(|(_, addr)| addr);
         option_id.cloned()
     }
 }
 
 impl Orchestrator {
     #[instrument(level = "info", skip_all)]
-    pub async fn handle(&mut self, orchestrator_request: OrchestratorRequest) -> Result<OrchestratorResponse, String> {
+    pub async fn handle(
+        &mut self,
+        orchestrator_request: OrchestratorRequest,
+    ) -> Result<OrchestratorResponse, String> {
         match orchestrator_request {
-            OrchestratorRequest::SetWorkOrderState(work_order_number, status_codes) => {
-                match self.scheduling_environment.lock().unwrap().work_orders_mut().inner.get_mut(&work_order_number) {
-                    Some(work_order) => {
-                        work_order.work_order_analytic.status_codes = status_codes;
-                        work_order.initialize_weight();
-                        let asset = work_order.functional_location().asset.clone();
-                        
-                        let update_work_order_message = UpdateWorkOrderMessage(work_order_number);
-                        let actor_registry = self.agent_registries.get(&asset).unwrap();
-                        actor_registry.strategic_agent_addr.do_send(update_work_order_message.clone());
-                        actor_registry.tactical_agent_addr.do_send(update_work_order_message.clone());
-
-                        panic!("Fix the bug below");
-                        // TODO actor_registry.supervisor_agent_addrs.iter().find(|id| id.0.2.as_ref().unwrap() == &main_resource).unwrap().1.do_send(update_work_order_message.clone());
-                        // for actor in actor_registry.operational_agent_addrs.values() {
-                        //     actor.do_send(update_work_order_message.clone());
-                        // };
-                        // Ok(OrchestratorResponse::RequestStatus(format!("Status codes for {:?} updated correctly", work_order_number)))
-                    }
-                    None => Err(format!("Tried to update the status code for {:?}, but it was not found in the scheduling environment", work_order_number))
-                }
-            }
             OrchestratorRequest::AgentStatusRequest => {
                 let _buffer = String::new();
 
@@ -130,26 +110,33 @@ impl Orchestrator {
                         .tactical_agent_addr
                         .clone();
 
-                    let strategic_agent_status = if let StrategicResponseMessage::Status(status) = strategic_agent_addr
-                        .send(shared_types::strategic::StrategicRequestMessage::Status(StrategicStatusMessage::General))
-                        .await
-                        .unwrap()
-                        .unwrap() {
+                    let strategic_agent_status = if let StrategicResponseMessage::Status(status) =
+                        strategic_agent_addr
+                            .send(shared_types::strategic::StrategicRequestMessage::Status(
+                                StrategicStatusMessage::General,
+                            ))
+                            .await
+                            .unwrap()
+                            .unwrap()
+                    {
                         status
                     } else {
                         panic!()
                     };
 
-                    let tactical_agent_status = if let TacticalResponseMessage::Status(status) = tactical_agent_addr
-                        .send(TacticalRequestMessage::Status(TacticalStatusMessage::General))
-                        .await
-                        .unwrap()
-                        .unwrap()
-                        { 
-                            status
-                        } else {
-                            panic!()
-                        };
+                    let tactical_agent_status = if let TacticalResponseMessage::Status(status) =
+                        tactical_agent_addr
+                            .send(TacticalRequestMessage::Status(
+                                TacticalStatusMessage::General,
+                            ))
+                            .await
+                            .unwrap()
+                            .unwrap()
+                    {
+                        status
+                    } else {
+                        panic!()
+                    };
 
                     let mut supervisor_statai: Vec<SupervisorResponseStatus> = vec![];
                     for (_id, addr) in self
@@ -159,8 +146,13 @@ impl Orchestrator {
                         .supervisor_agent_addrs
                         .iter()
                     {
-                        let supervisor_agent_response =
-                            addr.send(SupervisorRequestMessage::Status(SupervisorStatusMessage::General)).await.unwrap().unwrap();
+                        let supervisor_agent_response = addr
+                            .send(SupervisorRequestMessage::Status(
+                                SupervisorStatusMessage::General,
+                            ))
+                            .await
+                            .unwrap()
+                            .unwrap();
 
                         let supervisor_agent_status = supervisor_agent_response.status();
                         supervisor_statai.push(supervisor_agent_status);
@@ -174,20 +166,33 @@ impl Orchestrator {
                         .operational_agent_addrs
                         .iter()
                     {
-                        let operational_agent_response =
-                            addr.send(OperationalRequestMessage::Status(OperationalStatusRequest::General)).await.unwrap().unwrap();
+                        let operational_agent_response = addr
+                            .send(OperationalRequestMessage::Status(
+                                OperationalStatusRequest::General,
+                            ))
+                            .await
+                            .unwrap()
+                            .unwrap();
 
-                        if let OperationalResponseMessage::Status(status) = operational_agent_response {
-                            operational_statai.push(status) 
+                        if let OperationalResponseMessage::Status(status) =
+                            operational_agent_response
+                        {
+                            operational_statai.push(status)
                         } else {
                             panic!()
                         };
                     }
-                    let agent_status = AgentStatus::new(strategic_agent_status, tactical_agent_status, supervisor_statai, operational_statai);
+                    let agent_status = AgentStatus::new(
+                        strategic_agent_status,
+                        tactical_agent_status,
+                        supervisor_statai,
+                        operational_statai,
+                    );
                     agent_status_by_asset.insert(asset.clone(), agent_status);
                 }
                 let orchestrator_response_status = AgentStatusResponse::new(agent_status_by_asset);
-                let orchestrator_response = OrchestratorResponse::AgentStatus(orchestrator_response_status);
+                let orchestrator_response =
+                    OrchestratorResponse::AgentStatus(orchestrator_response_status);
                 Ok(orchestrator_response)
             }
             OrchestratorRequest::GetWorkOrderStatus(work_order_number, _level_of_detail) => {
@@ -196,34 +201,46 @@ impl Orchestrator {
                 let cloned_work_orders: WorkOrders =
                     scheduling_environment_guard.clone_work_orders();
 
-                let work_order_response:Option<(WorkOrderNumber, WorkOrderResponse)> = cloned_work_orders
-                    .inner
-                    .iter()
-                    .find(|(work_order_number_key, _)| work_order_number == **work_order_number_key)
-                    .map(|(work_order_number, work_order)| {
-                        let work_order_response = WorkOrderResponse::new(
-                            work_order.work_order_dates.earliest_allowed_start_period.clone(),
-                            work_order.work_order_info.clone(),
-                            work_order.work_order_analytic.vendor,
-                            work_order.work_order_analytic.work_order_weight,
-                            work_order.work_order_analytic.status_codes.clone(),
-                            None,
-                        );
-                        (*work_order_number, work_order_response)
-                    });
+                let work_order_response: Option<(WorkOrderNumber, WorkOrderResponse)> =
+                    cloned_work_orders
+                        .inner
+                        .iter()
+                        .find(|(work_order_number_key, _)| {
+                            work_order_number == **work_order_number_key
+                        })
+                        .map(|(work_order_number, work_order)| {
+                            let work_order_response = WorkOrderResponse::new(
+                                work_order
+                                    .work_order_dates
+                                    .earliest_allowed_start_period
+                                    .clone(),
+                                work_order.work_order_info.clone(),
+                                work_order.work_order_analytic.vendor,
+                                work_order.work_order_analytic.work_order_weight,
+                                work_order.work_order_analytic.system_status_codes.clone(),
+                                work_order.work_order_analytic.user_status_codes.clone(),
+                                None,
+                            );
+                            (*work_order_number, work_order_response)
+                        });
 
                 let work_order_response = match work_order_response {
                     Some(response) => {
-                        
                         let mut work_order_response = HashMap::new();
                         work_order_response.insert(response.0, response.1);
                         work_order_response
                     }
-                    None => return Err(format!("{:?} was not found for the asset", work_order_number)),
+                    None => {
+                        return Err(format!(
+                            "{:?} was not found for the asset",
+                            work_order_number
+                        ))
+                    }
                 };
-                
+
                 let work_orders_status = WorkOrdersStatus::new(work_order_response);
-                let orchestrator_response = OrchestratorResponse::WorkOrderStatus(work_orders_status);
+                let orchestrator_response =
+                    OrchestratorResponse::WorkOrderStatus(work_orders_status);
                 Ok(orchestrator_response)
             }
             OrchestratorRequest::GetWorkOrdersState(asset, _level_of_detail) => {
@@ -242,11 +259,15 @@ impl Orchestrator {
                     .iter()
                     .map(|(work_order_number, work_order)| {
                         let work_order_response = WorkOrderResponse::new(
-                            work_order.work_order_dates.earliest_allowed_start_period.clone(),
+                            work_order
+                                .work_order_dates
+                                .earliest_allowed_start_period
+                                .clone(),
                             work_order.work_order_info.clone(),
                             work_order.work_order_analytic.vendor,
                             work_order.work_order_analytic.work_order_weight,
-                            work_order.work_order_analytic.status_codes.clone(),
+                            work_order.work_order_analytic.system_status_codes.clone(),
+                            work_order.work_order_analytic.user_status_codes.clone(),
                             None,
                         );
                         (*work_order_number, work_order_response)
@@ -255,14 +276,14 @@ impl Orchestrator {
 
                 let work_orders_status = WorkOrdersStatus::new(work_order_responses);
 
-                let orchestrator_response = OrchestratorResponse::WorkOrderStatus(work_orders_status);
+                let orchestrator_response =
+                    OrchestratorResponse::WorkOrderStatus(work_orders_status);
                 Ok(orchestrator_response)
             }
             OrchestratorRequest::GetPeriods => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
                 let periods = scheduling_environment_guard.clone_strategic_periods();
-
 
                 let strategic_periods = OrchestratorResponse::Periods(periods);
                 Ok(strategic_periods)
@@ -283,14 +304,18 @@ impl Orchestrator {
                     .tactical_agent_addr
                     .clone();
 
-                let number_of_operational_agents = Arc::clone(&self.agent_registries.get(&asset).unwrap().number_of_operational_agents);
+                let number_of_operational_agents = Arc::clone(
+                    &self
+                        .agent_registries
+                        .get(&asset)
+                        .unwrap()
+                        .number_of_operational_agents,
+                );
                 let supervisor_agent_addr = self.agent_factory.build_supervisor_agent(
                     asset.clone(),
                     id_string.clone(),
                     tactical_agent_addr,
                     number_of_operational_agents,
-
-
                 );
 
                 self.agent_registries
@@ -371,7 +396,6 @@ impl Orchestrator {
                 let response_string = format!("Log level {}", log_level.to_level_string());
                 let orchestrator_response = OrchestratorResponse::RequestStatus(response_string);
                 Ok(orchestrator_response)
-
             }
             OrchestratorRequest::SetProfiling(log_level) => {
                 self.log_handles
@@ -393,37 +417,56 @@ impl Orchestrator {
 
     pub fn initialize_agents_from_env(&mut self, asset: Asset) {
         dotenv().expect("Could not load in the .env file.");
-        
-        let asset_string = dotenvy::var("ASSET").expect("ASSET environment variable should always be set");
 
-        let resource_string = format!("./configuration/resources_{}.toml", asset_string.to_lowercase());
+        let asset_string =
+            dotenvy::var("ASSET").expect("ASSET environment variable should always be set");
 
+        let resource_string = format!(
+            "./configuration/resources_{}.toml",
+            asset_string.to_lowercase()
+        );
 
-        let toml_agents_string: String = std::fs::read_to_string(resource_string).unwrap(); 
+        let toml_agents_string: String = std::fs::read_to_string(resource_string).unwrap();
         let toml_agents: TomlAgents = toml::from_str(&toml_agents_string).unwrap();
 
         for agent in toml_agents.operational {
             let id: Id = Id::new(agent.id, agent.resources.resources, None);
             self.create_operational_agent(&asset, id, agent.operational_configuration.into());
         }
-
-        
     }
 
-    fn create_operational_agent(&mut self, asset: &Asset, id: Id, operational_configuration: OperationalConfiguration) {
-    
-        let (operational_objective, operational_agent_addr) = self
-            .agent_factory
-            .build_operational_agent(id.clone(), operational_configuration, self.agent_registries.get(asset).unwrap().supervisor_agent_addrs.clone());
+    fn create_operational_agent(
+        &mut self,
+        asset: &Asset,
+        id: Id,
+        operational_configuration: OperationalConfiguration,
+    ) {
+        let (operational_objective, operational_agent_addr) =
+            self.agent_factory.build_operational_agent(
+                id.clone(),
+                operational_configuration,
+                self.agent_registries
+                    .get(asset)
+                    .unwrap()
+                    .supervisor_agent_addrs
+                    .clone(),
+            );
 
-        let operational_id_and_objective = OrchestratorMessage::new((id.clone(), operational_objective));
+        let operational_id_and_objective =
+            OrchestratorMessage::new((id.clone(), operational_objective));
 
+        self.agent_registries
+            .get(&asset)
+            .unwrap()
+            .supervisor_agent_addrs
+            .iter()
+            .for_each(|(_, sup_addr)| sup_addr.do_send(operational_id_and_objective.clone()));
 
-        self.agent_registries.get(&asset).unwrap().supervisor_agent_addrs.iter().for_each(|(_, sup_addr)| {
-            sup_addr.do_send(operational_id_and_objective.clone())
-        });
-
-        self.agent_registries.get(&asset).unwrap().number_of_operational_agents.fetch_add(1, Ordering::SeqCst);
+        self.agent_registries
+            .get(&asset)
+            .unwrap()
+            .number_of_operational_agents
+            .fetch_add(1, Ordering::SeqCst);
 
         self.agent_registries
             .get_mut(asset)
@@ -500,10 +543,13 @@ impl Orchestrator {
     }
 
     pub fn add_asset(&mut self, asset: Asset) {
+        let asset_string =
+            dotenvy::var("ASSET").expect("ASSET environment variable should always be set");
 
-        let asset_string = dotenvy::var("ASSET").expect("ASSET environment variable should always be set");
-
-        let resource_string = format!("./configuration/resources_{}.toml", asset_string.to_lowercase());
+        let resource_string = format!(
+            "./configuration/resources_{}.toml",
+            asset_string.to_lowercase()
+        );
 
         let toml_agents_path = Path::new(&resource_string);
 
@@ -540,8 +586,12 @@ impl Orchestrator {
             supervisor_addrs.insert(id, supervisor_addr);
         }
 
-        let agent_registry =
-            ActorRegistry::new(strategic_agent_addr, tactical_agent_addr, supervisor_addrs, number_of_operational_agents);
+        let agent_registry = ActorRegistry::new(
+            strategic_agent_addr,
+            tactical_agent_addr,
+            supervisor_addrs,
+            number_of_operational_agents,
+        );
 
         self.agent_registries.insert(asset, agent_registry);
     }
@@ -590,8 +640,9 @@ impl Orchestrator {
                 *resource_periods
                     .0
                     .entry(period.clone())
-                    .or_insert_with(|| Work::from(0.0)) +=
-                    Work::from(operational_agent.hours_per_day * days_in_period * gradual_reduction(i))
+                    .or_insert_with(|| Work::from(0.0)) += Work::from(
+                    operational_agent.hours_per_day * days_in_period * gradual_reduction(i),
+                )
             }
         }
 

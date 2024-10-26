@@ -5,6 +5,7 @@ pub mod strategic_algorithm;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborHoodSearch;
 use shared_types::scheduling_environment::work_order::operation::Work;
+use shared_types::scheduling_environment::work_order::status_codes::MaterialStatus;
 use shared_types::scheduling_environment::work_order::WorkOrder;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::SchedulingEnvironment;
@@ -235,7 +236,8 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                                         work_order.work_order_info.clone(),
                                         work_order.work_order_analytic.vendor,
                                         work_order.work_order_analytic.work_order_weight,
-                                        work_order.work_order_analytic.status_codes,
+                                        work_order.work_order_analytic.system_status_codes,
+                                        work_order.work_order_analytic.user_status_codes,
                                         Some(OptimizedWorkOrderResponse::new(
                                             optimized_work_order.scheduled_period.clone().unwrap(),
                                             optimized_work_order.locked_in_period.clone(),
@@ -343,11 +345,9 @@ impl Handler<UpdateWorkOrderMessage> for StrategicAgent {
             .build_from_work_order(&work_order, &periods)
             .build();
         assert!(work_order.work_order_analytic.work_order_weight == optimized_work_order.weight);
-        if let Some(period) = work_order
-            .work_order_analytic
-            .status_codes
-            .material_status
-            .period_delay(&periods)
+        if let Some(period) =
+            Into::<MaterialStatus>::into(work_order.work_order_analytic.user_status_codes.clone())
+                .period_delay(&periods)
         {
             assert!(&optimized_work_order.excluded_periods.contains(&period));
         }
@@ -399,7 +399,7 @@ impl TestAlgorithm for StrategicAgent {
 
             let basic_start_of_first_activity = work_order.order_dates().basic_start_date;
 
-            let awsc = work_order.status_codes().awsc;
+            let awsc = work_order.work_order_analytic.user_status_codes.awsc;
 
             match scheduled_period {
                 Some(scheduled_period) => {
@@ -410,11 +410,11 @@ impl TestAlgorithm for StrategicAgent {
                     {
                         strategic_state.infeasible_cases_mut().unwrap().respect_awsc =
                             ConstraintState::Infeasible(format!(
-                                "Work order {:?} does not respect AWSC. Period: {}, basic start date: {}, status codes: {}, unloading_point: {:?}, vendor: {}",
+                                "Work order {:?} does not respect AWSC. Period: {}, basic start date: {}, status codes: {:?}, unloading_point: {:?}, vendor: {}",
                                 work_order_number,
                                 scheduled_period,
                                 basic_start_of_first_activity,
-                                work_order.status_codes(),
+                                work_order.work_order_analytic.user_status_codes,
                                 work_order.operations.values().map(|opr| opr.unloading_point.period.clone()),
                                 if work_order.is_vendor() { "VEN" } else { "   " },
                             ));
@@ -442,18 +442,19 @@ impl TestAlgorithm for StrategicAgent {
                 .inner
                 .get(work_order_number)
                 .unwrap();
+
             let periods = scheduling_environment.periods();
 
             if work_order.unloading_point().is_some()
                 && work_order.unloading_point() != optimized_work_order.scheduled_period
                 && !periods[0..=1].contains(work_order.unloading_point().as_ref().unwrap())
-                && !work_order.status_codes().awsc
-                && !work_order.status_codes().sch
+                && !work_order.work_order_analytic.user_status_codes.awsc
+                && !work_order.work_order_analytic.user_status_codes.sch
             {
                 error!(
                     work_order_number = ?work_order_number,
                     work_order_unloading_point = ?work_order.unloading_point(),
-                    work_order_status_codes = ?work_order.status_codes(),
+                    work_order_status_codes = ?work_order.work_order_analytic.user_status_codes,
                     work_order_dates = ?work_order.order_dates().basic_start_date,
                     periods = ?periods[0..=1],
                     optimized_work_order_scheduled_period = ?optimized_work_order.scheduled_period,
@@ -487,7 +488,7 @@ impl TestAlgorithm for StrategicAgent {
                 .unwrap();
             let periods = scheduling_environment.periods();
 
-            if work_order.status_codes().sch
+            if work_order.work_order_analytic.user_status_codes.sch
                 && work_order.unloading_point().is_some()
                 && periods[0..=1].contains(work_order.unloading_point().as_ref().unwrap())
                 && optimized_work_order.scheduled_period != work_order.unloading_point()
@@ -495,7 +496,7 @@ impl TestAlgorithm for StrategicAgent {
                 error!(
                     work_order_number = ?work_order_number,
                     work_order_unloading_point = ?work_order.unloading_point(),
-                    work_order_status_codes = ?work_order.status_codes(),
+                    work_order_status_codes = ?work_order.work_order_analytic.user_status_codes,
                     work_order_dates = ?work_order.order_dates().basic_start_date,
                     periods = ?periods[0..=1],
                     optimized_work_order_scheduled_period = ?optimized_work_order.scheduled_period,
@@ -505,11 +506,11 @@ impl TestAlgorithm for StrategicAgent {
                     .infeasible_cases_mut()
                     .unwrap()
                     .respect_sch = ConstraintState::Infeasible(format!(
-                    "\t\t\nWork order number: {:?}\t\t\nwith scheduled period: {}\t\t\nwith locked period: {:?}\t\t\n work order status codes: {}\t\t\n work order unloading point: {:?}",
+                    "\t\t\nWork order number: {:?}\t\t\nwith scheduled period: {}\t\t\nwith locked period: {:?}\t\t\n work order status codes: {:?}\t\t\n work order unloading point: {:?}",
                     work_order_number,
                     optimized_work_order.scheduled_period.as_ref().unwrap(),
                     optimized_work_order.locked_in_period.as_ref(),
-                    work_order.status_codes(),
+                    work_order.work_order_analytic.user_status_codes,
                     work_order.unloading_point().as_ref(),
                 ));
                 break;

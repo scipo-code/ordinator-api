@@ -49,7 +49,9 @@ pub enum SchedulingEnvironmentCommands {
 #[derive(Subcommand, Debug)]
 pub enum WorkOrderCommands {
     /// Change the status codes of a work order
-    ModifyStatusCodes(shared_types::scheduling_environment::work_order::status_codes::StatusCodes),
+    ModifyStatusCodes(
+        shared_types::scheduling_environment::work_order::status_codes::SystemStatusCodes,
+    ),
 
     /// Change the unloading point of a work order
     ModifyUnloadingPoint(
@@ -109,11 +111,7 @@ impl OrchestratorCommands {
                         work_order_commands,
                     } => match work_order_commands {
                         WorkOrderCommands::ModifyStatusCodes(status_codes_input) => {
-                            let orchestrator_request = OrchestratorRequest::SetWorkOrderState(
-                                work_order_number.into(),
-                                status_codes_input,
-                            );
-                            SystemMessages::Orchestrator(orchestrator_request)
+                            todo!()
                         }
                         WorkOrderCommands::ModifyUnloadingPoint(_unloading_point) => {
                             todo!()
