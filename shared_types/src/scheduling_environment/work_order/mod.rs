@@ -15,7 +15,7 @@ use crate::scheduling_environment::work_order::operation::Operation;
 use crate::scheduling_environment::work_order::priority::Priority;
 use crate::scheduling_environment::work_order::revision::Revision;
 use crate::scheduling_environment::work_order::status_codes::MaterialStatus;
-use crate::scheduling_environment::work_order::status_codes::StatusCodes;
+use crate::scheduling_environment::work_order::status_codes::SystemStatusCodes;
 use crate::scheduling_environment::work_order::system_condition::SystemCondition;
 use crate::scheduling_environment::work_order::unloading_point::UnloadingPoint;
 use crate::scheduling_environment::work_order::work_order_dates::WorkOrderDates;
@@ -23,6 +23,7 @@ use crate::scheduling_environment::work_order::work_order_text::WorkOrderText;
 use crate::scheduling_environment::work_order::work_order_type::WorkOrderType;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use status_codes::UserStatusCodes;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
@@ -132,7 +133,8 @@ pub struct WorkOrderAnalytic {
     pub work_load: HashMap<Resources, Work>,
     pub fixed: bool,
     pub vendor: bool,
-    pub status_codes: StatusCodes,
+    pub system_status_codes: SystemStatusCodes,
+    pub user_status_codes: UserStatusCodes,
 }
 
 impl WorkOrderAnalytic {
@@ -142,7 +144,8 @@ impl WorkOrderAnalytic {
         work_load: HashMap<Resources, Work>,
         fixed: bool,
         vendor: bool,
-        status_codes: StatusCodes,
+        system_status_codes: SystemStatusCodes,
+        user_status_codes: UserStatusCodes,
     ) -> Self {
         WorkOrderAnalytic {
             work_order_weight,
@@ -150,7 +153,8 @@ impl WorkOrderAnalytic {
             work_load,
             fixed,
             vendor,
-            status_codes,
+            system_status_codes,
+            user_status_codes,
         }
     }
 }
@@ -241,10 +245,6 @@ impl WorkOrder {
 
     pub fn order_dates(&self) -> &WorkOrderDates {
         &self.work_order_dates
-    }
-
-    pub fn status_codes(&self) -> &StatusCodes {
-        &self.work_order_analytic.status_codes
     }
 
     pub fn revision(&self) -> &Revision {
@@ -368,17 +368,17 @@ impl WorkOrder {
             }
         };
 
-        if self.work_order_analytic.status_codes.awsc {
+        if self.work_order_analytic.user_status_codes.awsc {
             self.work_order_analytic.work_order_weight += parameters.status_weights["AWSC"];
         }
 
-        if self.work_order_analytic.status_codes.sece {
+        if self.work_order_analytic.user_status_codes.sece {
             self.work_order_analytic.work_order_weight += parameters.status_weights["SECE"];
         }
 
-        if self.work_order_analytic.status_codes.pcnf
-            && self.work_order_analytic.status_codes.material_status == MaterialStatus::Nmat
-            || self.work_order_analytic.status_codes.material_status == MaterialStatus::Smat
+        if self.work_order_analytic.system_status_codes.pcnf
+            && self.work_order_analytic.system_status_codes.nmat
+            || self.work_order_analytic.user_status_codes.smat
         {
             self.work_order_analytic.work_order_weight +=
                 parameters.status_weights["PCNF_NMAT_SMAT"];
@@ -421,7 +421,7 @@ impl WorkOrder {
     /// We will get an error here! The problem is that after this the EASD will not be contained
     /// anymore.
     fn initialize_material(&mut self, periods: &[Period]) {
-        match self.status_codes().material_status {
+        match &self.work_order_analytic.user_status_codes.clone().into() {
             MaterialStatus::Nmat => {
                 self.order_dates_mut().earliest_allowed_start_period = periods[0]
                     .clone()
@@ -517,7 +517,8 @@ impl WorkOrder {
             HashMap::new(),
             false,
             false,
-            StatusCodes::default(),
+            SystemStatusCodes::default(),
+            UserStatusCodes::default(),
         );
 
         let work_order_info = WorkOrderInfo::new(
@@ -552,7 +553,7 @@ mod tests {
         operation::{ActivityNumber, Operation, Work},
         priority::Priority,
         revision::Revision,
-        status_codes::StatusCodes,
+        status_codes::{SystemStatusCodes, UserStatusCodes},
         system_condition::SystemCondition,
         unloading_point::UnloadingPoint,
         work_order_dates::WorkOrderDates,
@@ -629,7 +630,8 @@ mod tests {
                 HashMap::new(),
                 false,
                 false,
-                StatusCodes::default(),
+                SystemStatusCodes::default(),
+                UserStatusCodes::default(),
             );
 
             let work_order_info = WorkOrderInfo::new(

@@ -27,15 +27,15 @@ pub struct SupervisorRequest {
 
 #[derive(ValueEnum, Debug, Serialize, Deserialize, Clone)]
 pub enum SupervisorType {
-    main,
-    other,
+    Main,
+    Other,
 }
 
 impl ToString for SupervisorType {
     fn to_string(&self) -> String {
         match self {
-            SupervisorType::main => "main".to_string(),
-            SupervisorType::other => todo!(),
+            SupervisorType::Main => "main".to_string(),
+            SupervisorType::Other => todo!(),
         }
     }
 }

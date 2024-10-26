@@ -144,7 +144,8 @@ impl OptimizedWorkOrderBuilder {
         let unloading_point_period = work_order.unloading_point().clone();
 
         if work_order.is_vendor()
-            && (unloading_point_period.is_some() || work_order.status_codes().awsc)
+            && (unloading_point_period.is_some()
+                || work_order.work_order_analytic.user_status_codes.awsc)
         {
             match unloading_point_period {
                 Some(unloading_point_period) => {
@@ -179,7 +180,7 @@ impl OptimizedWorkOrderBuilder {
             return self;
         };
 
-        if work_order.status_codes().sch {
+        if work_order.work_order_analytic.user_status_codes.sch {
             if unloading_point_period.is_some()
                 && periods[0..=1].contains(&unloading_point_period.clone().unwrap())
             {
@@ -202,7 +203,7 @@ impl OptimizedWorkOrderBuilder {
             return self;
         }
 
-        if work_order.status_codes().awsc {
+        if work_order.work_order_analytic.user_status_codes.awsc {
             let scheduled_period = periods
                 .iter()
                 .find(|period| period.contains_date(work_order.order_dates().basic_start_date));

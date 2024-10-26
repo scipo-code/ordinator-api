@@ -7,7 +7,7 @@ use crate::operational::operational_response_status::OperationalStatusResponse;
 use crate::operational::OperationalConfiguration;
 use crate::scheduling_environment::time_environment::day::Day;
 use crate::scheduling_environment::time_environment::period::Period;
-use crate::scheduling_environment::work_order::status_codes::StatusCodes;
+use crate::scheduling_environment::work_order::status_codes::SystemStatusCodes;
 use crate::scheduling_environment::work_order::WorkOrderNumber;
 use crate::scheduling_environment::worker_environment::resources::Id;
 use crate::strategic::strategic_response_status::{StrategicResponseStatus, WorkOrdersStatus};
@@ -17,7 +17,6 @@ use crate::{Asset, LevelOfDetail, LogLevel};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum OrchestratorRequest {
-    SetWorkOrderState(WorkOrderNumber, StatusCodes),
     GetWorkOrderStatus(WorkOrderNumber, LevelOfDetail),
     GetWorkOrdersState(Asset, LevelOfDetail),
     GetPeriods,
