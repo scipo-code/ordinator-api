@@ -423,21 +423,13 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     .iter()
                     .filter(|date| period.contains_date(date.date().date_naive()))
                     .collect(),
-                None => {
-                    let mut allowed_starting_days: Vec<&Day> = self
-                        .tactical_days
-                        .iter()
-                        .filter(|day| {
-                            optimized_work_order.earliest_allowed_start_date
-                                <= day.date().date_naive()
-                        })
-                        .collect();
-
-                    allowed_starting_days.retain(|day| {
+                None => self
+                    .tactical_days
+                    .iter()
+                    .filter(|day| {
                         optimized_work_order.earliest_allowed_start_date <= day.date().date_naive()
-                    });
-                    allowed_starting_days
-                }
+                    })
+                    .collect(),
             };
 
             let start_day: Day = allowed_starting_days[start_day_index].clone();
