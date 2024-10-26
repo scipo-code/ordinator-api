@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand};
 use reqwest::blocking::Client;
 use shared_types::{
     scheduling_environment::worker_environment::resources::{Id, Resources},

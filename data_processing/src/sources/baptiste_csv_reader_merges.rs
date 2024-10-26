@@ -20,7 +20,7 @@ use shared_types::scheduling_environment::{
         },
         priority::Priority,
         revision::Revision,
-        status_codes::{MaterialStatus, StatusCodes},
+        status_codes::{SystemStatusCodes, UserStatusCodes},
         system_condition::SystemCondition,
         unloading_point::UnloadingPoint,
         work_order_dates::WorkOrderDates,
@@ -28,7 +28,7 @@ use shared_types::scheduling_environment::{
         work_order_type::WorkOrderType,
         WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderNumber,
     },
-    worker_environment::resources::{Resources},
+    worker_environment::resources::Resources,
     WorkOrders,
 };
 
@@ -130,31 +130,161 @@ fn create_work_orders(
 
         let status_codes_string = work_orders_status.inner.get(&work_order_csv.WO_Status_ID);
 
-        let status_codes = match status_codes_string {
+        let system_status_codes = match status_codes_string {
             Some(string) => {
                 if !string.contains("REL") {
                     return;
                 }
-                let pcnf_pattern = regex::Regex::new(r"PCNF").unwrap();
-                let awsc_pattern = regex::Regex::new(r"AWSC").unwrap();
-                let well_pattern = regex::Regex::new(r"WELL").unwrap();
-                let sch_pattern = regex::Regex::new(r"SCH").unwrap();
-                let sece_pattern = regex::Regex::new(r"SECE").unwrap();
 
-                let material_status: MaterialStatus =
-                    MaterialStatus::from_status_code_string(&string);
+                    let rel_pattern = regex::Regex::new(r"REL").unwrap(); 
+                    let prc_pattern = regex::Regex::new(r"PRC").unwrap(); 
+                    let setc_pattern = regex::Regex::new(r"SETC").unwrap(); 
+                    let ssap_pattern = regex::Regex::new(r"SSAP").unwrap(); 
+                    let gmps_pattern = regex::Regex::new(r"GMPS").unwrap(); 
+                    let manc_pattern = regex::Regex::new(r"MANC").unwrap(); 
+                    let crtd_pattern = regex::Regex::new(r"CRTD").unwrap(); 
+                    let nmat_pattern = regex::Regex::new(r"NMAT").unwrap(); 
+                    let teco_pattern = regex::Regex::new(r"TECO").unwrap(); 
+                    let macm_pattern = regex::Regex::new(r"MACM").unwrap(); 
+                    let mspt_pattern = regex::Regex::new(r"MSPT").unwrap(); 
+                    let pprt_pattern = regex::Regex::new(r"PPRT").unwrap(); 
+                    let ncmp_pattern = regex::Regex::new(r"NCMP").unwrap(); 
+                    let clsd_pattern = regex::Regex::new(r"CLSD").unwrap(); 
+                    let pcnf_pattern = regex::Regex::new(r"PCNF").unwrap(); 
+                    let cser_pattern = regex::Regex::new(r"CSER").unwrap(); 
+                    let prt_pattern = regex::Regex::new(r"PRT").unwrap(); 
+                    let cnf_pattern = regex::Regex::new(r"CNF").unwrap(); 
+                    let ntup_pattern = regex::Regex::new(r"NTUP").unwrap(); 
+                    let estc_pattern = regex::Regex::new(r"ESTC").unwrap(); 
+                    let relr_pattern = regex::Regex::new(r"RELR").unwrap(); 
+                    let gmco_pattern = regex::Regex::new(r"GMCO").unwrap(); 
 
-                StatusCodes {
-                    material_status,
+                SystemStatusCodes {
+                    rel: rel_pattern.is_match(&string),
+                    prc: prc_pattern.is_match(&string),
+                    setc: setc_pattern.is_match(&string),
+                    ssap: ssap_pattern.is_match(&string),
+                    gmps: gmps_pattern.is_match(&string),
+                    manc: manc_pattern.is_match(&string),
+                    crtd: crtd_pattern.is_match(&string),
+                    nmat: nmat_pattern.is_match(&string),
+                    teco: teco_pattern.is_match(&string),
+                    macm: macm_pattern.is_match(&string),
+                    mspt: mspt_pattern.is_match(&string),
+                    pprt: pprt_pattern.is_match(&string),
+                    ncmp: ncmp_pattern.is_match(&string),
+                    clsd: clsd_pattern.is_match(&string),
                     pcnf: pcnf_pattern.is_match(&string),
-                    awsc: awsc_pattern.is_match(&string),
-                    well: well_pattern.is_match(&string),
+                    cser: cser_pattern.is_match(&string),
+                    prt: prt_pattern.is_match(&string),
+                    cnf: cnf_pattern.is_match(&string),
+                    ntup: ntup_pattern.is_match(&string),
+                    estc: estc_pattern.is_match(&string),
+                    relr: relr_pattern.is_match(&string),
+                    gmco: gmco_pattern.is_match(&string),
+                    }
+                },
+            None => SystemStatusCodes::default(),
+        };        
+    
+        let user_status_codes = match status_codes_string {
+            Some(string) => {
+                if !string.contains("REL") {
+                    return;
+                }
+        
+
+                    let appr_pattern = regex::Regex::new(r"APPR").unwrap();
+                    let smat_pattern = regex::Regex::new(r"SMAT").unwrap();
+                    let init_pattern = regex::Regex::new(r"INIT").unwrap();
+                    let rdbl_pattern = regex::Regex::new(r"RDBL").unwrap();
+                    let qcap_pattern = regex::Regex::new(r"QCAP").unwrap();
+                    let rfrz_pattern = regex::Regex::new(r"RFRZ").unwrap();
+                    let wmat_pattern = regex::Regex::new(r"WMAT").unwrap();
+                    let cmat_pattern = regex::Regex::new(r"CMAT").unwrap();
+                    let pmat_pattern = regex::Regex::new(r"PMAT").unwrap();
+                    let apog_pattern = regex::Regex::new(r"APOG").unwrap();
+                    let prok_pattern = regex::Regex::new(r"PROK").unwrap();
+                    let wrea_pattern = regex::Regex::new(r"WREA").unwrap();
+                    let exdo_pattern = regex::Regex::new(r"EXDO").unwrap();
+                    let swe_pattern = regex::Regex::new(r"SWE").unwrap();
+                    let awdo_pattern = regex::Regex::new(r"AWDO").unwrap();
+                    let rout_pattern = regex::Regex::new(r"ROUT").unwrap();
+                    let wta_pattern = regex::Regex::new(r"WTA").unwrap();
+                    let sch_pattern = regex::Regex::new(r"SCH").unwrap();
+                    let sece_pattern = regex::Regex::new(r"SECE").unwrap();
+                    let rel_pattern = regex::Regex::new(r"REL").unwrap();
+                    let rees_pattern = regex::Regex::new(r"REES").unwrap();
+                    let reap_pattern = regex::Regex::new(r"REAP").unwrap();
+                    let wrel_pattern = regex::Regex::new(r"WREL").unwrap();
+                    let awsd_pattern = regex::Regex::new(r"AWSD").unwrap();
+                    let sraa_pattern = regex::Regex::new(r"SRAA").unwrap();
+                    let qcrj_pattern = regex::Regex::new(r"QCRJ").unwrap();
+                    let awsc_pattern = regex::Regex::new(r"AWSC").unwrap();
+                    let lprq_pattern = regex::Regex::new(r"LPRQ").unwrap();
+                    let rrev_pattern = regex::Regex::new(r"RREV").unwrap();
+                    let awca_pattern = regex::Regex::new(r"AWCA").unwrap();
+                    let rreq_pattern = regex::Regex::new(r"RREQ").unwrap();
+                    let vfal_pattern = regex::Regex::new(r"VFAL").unwrap();
+                    let sreq_pattern = regex::Regex::new(r"SREQ").unwrap();
+                    let amcr_pattern = regex::Regex::new(r"AMCR").unwrap();
+                    let dfrj_pattern = regex::Regex::new(r"DFRJ").unwrap();
+                    let vpas_pattern = regex::Regex::new(r"VPAS").unwrap();
+                    let dfcr_pattern = regex::Regex::new(r"DFCR").unwrap();
+                    let ireq_pattern = regex::Regex::new(r"IREQ").unwrap();
+                    let atvd_pattern = regex::Regex::new(r"ATVD").unwrap();
+                    let awmd_pattern = regex::Regex::new(r"AWMD").unwrap();
+                    let dfex_pattern = regex::Regex::new(r"DFEX").unwrap();
+                    let dfap_pattern = regex::Regex::new(r"DFAP").unwrap();
+                    let awpr_pattern = regex::Regex::new(r"AWPR").unwrap();
+
+                UserStatusCodes {
+                    appr: appr_pattern.is_match(&string),
+                    smat: smat_pattern.is_match(&string),
+                    init: init_pattern.is_match(&string),
+                    rdbl: rdbl_pattern.is_match(&string),
+                    qcap: qcap_pattern.is_match(&string),
+                    rfrz: rfrz_pattern.is_match(&string),
+                    wmat: wmat_pattern.is_match(&string),
+                    cmat: cmat_pattern.is_match(&string),
+                    pmat: pmat_pattern.is_match(&string),
+                    apog: apog_pattern.is_match(&string),
+                    prok: prok_pattern.is_match(&string),
+                    wrea: wrea_pattern.is_match(&string),
+                    exdo: exdo_pattern.is_match(&string),
+                    swe: swe_pattern.is_match(&string),
+                    awdo: awdo_pattern.is_match(&string),
+                    rout: rout_pattern.is_match(&string),
+                    wta: wta_pattern.is_match(&string),
                     sch: sch_pattern.is_match(&string),
                     sece: sece_pattern.is_match(&string),
-                    unloading_point: false, // Assuming default value; modify as needed
+                    rel: rel_pattern.is_match(&string),
+                    rees: rees_pattern.is_match(&string),
+                    reap: reap_pattern.is_match(&string),
+                    wrel: wrel_pattern.is_match(&string),
+                    awsd: awsd_pattern.is_match(&string),
+                    sraa: sraa_pattern.is_match(&string),
+                    qcrj: qcrj_pattern.is_match(&string),
+                    awsc: awsc_pattern.is_match(&string),
+                    lprq: lprq_pattern.is_match(&string),
+                    rrev: rrev_pattern.is_match(&string),
+                    awca: awca_pattern.is_match(&string),
+                    rreq: rreq_pattern.is_match(&string),
+                    vfal: vfal_pattern.is_match(&string),
+                    sreq: sreq_pattern.is_match(&string),
+                    amcr: amcr_pattern.is_match(&string),
+                    dfrj: dfrj_pattern.is_match(&string),
+                    vpas: vpas_pattern.is_match(&string),
+                    dfcr: dfcr_pattern.is_match(&string),
+                    ireq: ireq_pattern.is_match(&string),
+                    atvd: atvd_pattern.is_match(&string),
+                    awmd: awmd_pattern.is_match(&string),
+                    dfex: dfex_pattern.is_match(&string),
+                    dfap: dfap_pattern.is_match(&string),
+                    awpr: awpr_pattern.is_match(&string),
                 }
             }
-            None => StatusCodes::default(),
+            None => UserStatusCodes::default(),
         };
 
         let work_order_analytic: WorkOrderAnalytic = WorkOrderAnalytic::new(
@@ -163,7 +293,8 @@ fn create_work_orders(
             HashMap::new(),
             false,
             false,
-            status_codes,
+            system_status_codes,
+            user_status_codes,
         );
 
         let earliest_allowed_start_date: NaiveDate =

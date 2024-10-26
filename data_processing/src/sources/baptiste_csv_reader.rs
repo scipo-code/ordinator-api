@@ -1,5 +1,4 @@
 use shared_types::scheduling_environment::{
-    self,
     work_order::{
         operation::{operation_info::NumberOfPeople, ActivityNumber},
         work_order_type::WorkOrderType,

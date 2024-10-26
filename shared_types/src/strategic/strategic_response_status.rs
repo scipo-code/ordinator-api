@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::scheduling_environment::time_environment::period::Period;
-use crate::scheduling_environment::work_order::status_codes::StatusCodes;
+use crate::scheduling_environment::work_order::status_codes::{SystemStatusCodes, UserStatusCodes};
 use crate::scheduling_environment::work_order::{WorkOrderInfo, WorkOrderNumber};
 use crate::Asset;
 use serde::{Deserialize, Serialize};
@@ -46,7 +46,8 @@ pub struct WorkOrderResponse {
     work_order_info: WorkOrderInfo,
     vendor: bool,
     weight: u64,
-    status_codes: StatusCodes,
+    system_status_codes: SystemStatusCodes,
+    user_status_codes: UserStatusCodes,
     optimized_work_order_response: Option<OptimizedWorkOrderResponse>,
 }
 
@@ -56,7 +57,8 @@ impl WorkOrderResponse {
         work_order_info: WorkOrderInfo,
         vendor: bool,
         weight: u64,
-        status_codes: StatusCodes,
+        system_status_codes: SystemStatusCodes,
+        user_status_codes: UserStatusCodes,
         optimized_work_order_response: Option<OptimizedWorkOrderResponse>,
     ) -> Self {
         Self {
@@ -64,7 +66,8 @@ impl WorkOrderResponse {
             work_order_info,
             vendor,
             weight,
-            status_codes,
+            system_status_codes,
+            user_status_codes,
             optimized_work_order_response,
         }
     }
