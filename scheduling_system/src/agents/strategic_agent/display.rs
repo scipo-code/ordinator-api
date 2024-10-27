@@ -7,9 +7,8 @@ impl Display for StrategicAgent {
         write!(
             f,
             "SchedulerAgent: \n
-            Platform: {}, \n
-            SchedulerAgentAlgorithm: {:?}, \n",
-            self.asset, self.strategic_agent_algorithm,
+            Platform: {}, \n",
+            self.asset,
         )
     }
 }

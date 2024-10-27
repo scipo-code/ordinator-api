@@ -6,7 +6,7 @@ pub mod supervisor_scheduling_message;
 pub mod supervisor_status_message;
 
 use actix::Message;
-use clap::{Args, Subcommand, ValueEnum};
+use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
 use self::supervisor_response_resources::SupervisorResponseResources;

@@ -1,9 +1,9 @@
 use std::io::Read;
 
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Subcommand};
 use reqwest::blocking::Client;
 use shared_types::{
-    scheduling_environment::worker_environment::resources::{Id, Resources},
+    scheduling_environment::worker_environment::resources::Id,
     supervisor::{
         supervisor_scheduling_message::SupervisorSchedulingMessage,
         supervisor_status_message::SupervisorStatusMessage, SupervisorRequest,

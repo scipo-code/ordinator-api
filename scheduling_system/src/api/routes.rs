@@ -1,6 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use data_processing::excel_dumps::create_excel_dump;
-use shared_types::agent_error::AgentError;
 use shared_types::operational::operational_request_status::OperationalStatusRequest;
 use shared_types::operational::operational_response_scheduling::OperationalSchedulingResponse;
 use shared_types::operational::{
