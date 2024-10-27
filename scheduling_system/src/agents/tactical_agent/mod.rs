@@ -94,6 +94,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
         let mut rng = rand::thread_rng();
 
+        //TODO
         let mut temporary_schedule: TacticalAlgorithm = self.tactical_algorithm.clone();
 
         temporary_schedule.unschedule_random_work_orders(&mut rng, 50);
@@ -114,7 +115,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
                     > = HashMap::new();
 
                     self.tactical_algorithm
-                        .optimized_work_orders()
+                        .optimized_work_orders_mut()
                         .iter()
                         .for_each(|(work_order_number, optimized_work_order)| {
                             for (acn, to) in optimized_work_order

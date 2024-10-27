@@ -31,9 +31,6 @@ use super::{
 pub struct MarginalFitness(pub Arc<AtomicUsize>);
 
 impl MarginalFitness {
-    pub fn is_scheduled(&self) -> bool {
-        self.0.load(std::sync::atomic::Ordering::SeqCst) == usize::MAX
-    }
 
     pub fn compare(&self, other: &Self) -> Ordering {
         let self_value = self.0.load(std::sync::atomic::Ordering::SeqCst);

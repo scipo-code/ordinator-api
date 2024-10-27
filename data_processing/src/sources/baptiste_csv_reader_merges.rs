@@ -88,6 +88,7 @@ pub fn load_csv_data(file_path: PathBuf, periods: &[Period]) -> WorkOrders {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 struct BaptisteToml {
     mid_functional_locations: PathBuf,
@@ -104,10 +105,11 @@ pub struct TomlOperatingTime {
     operating_time: f64,
 }
 
+#[allow(dead_code)]
 #[allow(non_snake_case)]
 fn create_work_orders(
     functional_locations: HashMap<FLOCTechnicaID, FunctionalLocationsCsv>,
-    operations_status: OperationsStatusCsvAggregated,
+    _operations_status: OperationsStatusCsvAggregated,
     periods: &[Period],
     work_center: HashMap<WBSID, WorkCenterCsv>,
     work_operations_csv: WorkOperations,

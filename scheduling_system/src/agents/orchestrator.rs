@@ -50,7 +50,6 @@ use shared_types::tactical::tactical_status_message::TacticalStatusMessage;
 use shared_types::tactical::{TacticalRequestMessage, TacticalResponseMessage};
 use tracing_subscriber::EnvFilter;
 
-use crate::agents::UpdateWorkOrderMessage;
 use shared_types::scheduling_environment::WorkOrders;
 
 #[derive(Clone, Debug)]
@@ -551,20 +550,26 @@ impl Orchestrator {
             asset_string.to_lowercase()
         );
 
+        let strategic_tactical_solutions_arc_swap =
+            AgentFactory::create_arc_swap_for_strategic_tactical();
+
         let toml_agents_path = Path::new(&resource_string);
 
         let strategic_resources = self.generate_strategic_resources(toml_agents_path);
 
         let tactical_resources = self.generate_tactical_resources(toml_agents_path);
 
-        let strategic_agent_addr = self
-            .agent_factory
-            .build_strategic_agent(asset.clone(), Some(strategic_resources));
+        let strategic_agent_addr = self.agent_factory.build_strategic_agent(
+            asset.clone(),
+            Some(strategic_resources),
+            strategic_tactical_solutions_arc_swap.clone(),
+        );
 
         let tactical_agent_addr = self.agent_factory.build_tactical_agent(
             asset.clone(),
             strategic_agent_addr.clone(),
             Some(tactical_resources),
+            strategic_tactical_solutions_arc_swap,
         );
 
         let mut supervisor_addrs = HashMap::<Id, Addr<SupervisorAgent>>::new();
