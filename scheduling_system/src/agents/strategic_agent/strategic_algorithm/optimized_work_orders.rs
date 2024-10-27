@@ -8,12 +8,12 @@ use tracing::instrument;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::{WorkOrder, WorkOrderNumber};
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct OptimizedWorkOrders {
-    pub inner: HashMap<WorkOrderNumber, OptimizedWorkOrder>,
+#[derive(Default, Debug, PartialEq, Clone)]
+pub struct OptimizedStrategicWorkOrders {
+    pub inner: HashMap<WorkOrderNumber, StrategicParameters>,
 }
 
-impl Hash for OptimizedWorkOrders {
+impl Hash for OptimizedStrategicWorkOrders {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Hash the length of the HashMap to ensure different lengths produce different hashes
         self.inner.len().hash(state);
@@ -26,7 +26,7 @@ impl Hash for OptimizedWorkOrders {
     }
 }
 
-impl Hash for OptimizedWorkOrder {
+impl Hash for StrategicParameters {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Hash the length of the HashMap to ensure different lengths produce different hashes
         self.scheduled_period.hash(state);
@@ -37,15 +37,15 @@ impl Hash for OptimizedWorkOrder {
     }
 }
 
-impl OptimizedWorkOrders {
-    pub fn new(inner: HashMap<WorkOrderNumber, OptimizedWorkOrder>) -> Self {
+impl OptimizedStrategicWorkOrders {
+    pub fn new(inner: HashMap<WorkOrderNumber, StrategicParameters>) -> Self {
         Self { inner }
     }
 
     pub fn insert_optimized_work_order(
         &mut self,
         work_order_number: WorkOrderNumber,
-        optimized_work_order: OptimizedWorkOrder,
+        optimized_work_order: StrategicParameters,
     ) {
         self.inner.insert(work_order_number, optimized_work_order);
     }
@@ -91,8 +91,7 @@ impl OptimizedWorkOrders {
 }
 
 #[derive(Debug, PartialEq, Clone, Default, Serialize)]
-pub struct OptimizedWorkOrder {
-    pub scheduled_period: Option<Period>,
+pub struct StrategicParameters {
     pub locked_in_period: Option<Period>,
     pub excluded_periods: HashSet<Period>,
     pub latest_period: Period,
@@ -101,37 +100,29 @@ pub struct OptimizedWorkOrder {
 }
 
 #[derive(Debug)]
-pub struct OptimizedWorkOrderBuilder {
-    pub scheduled_period: Option<Period>,
-    pub locked_in_period: Option<Period>,
-    pub excluded_periods: HashSet<Period>,
-    pub latest_period: Period,
-    pub weight: u64,
-    pub work_load: HashMap<Resources, Work>,
-}
+pub struct StrategicParametersBuilder(StrategicParameters);
 
-impl OptimizedWorkOrderBuilder {
+impl StrategicParametersBuilder {
     pub fn new() -> Self {
-        Self {
-            scheduled_period: None,
+        Self(StrategicParameters {
             locked_in_period: None,
             excluded_periods: HashSet::new(),
             latest_period: Period::from_str("2024-W01-02").unwrap(),
             weight: 0,
             work_load: HashMap::new(),
-        }
+        })
     }
 
     pub fn build_from_work_order(mut self, work_order: &WorkOrder, periods: &[Period]) -> Self {
-        self.scheduled_period = periods.last().cloned();
+        self.0.scheduled_period = periods.last().cloned();
 
-        self.excluded_periods = work_order.find_excluded_periods(periods);
+        self.0.excluded_periods = work_order.find_excluded_periods(periods);
 
-        self.weight = work_order.work_order_weight();
+        self.0.weight = work_order.work_order_weight();
 
-        self.work_load.clone_from(work_order.work_load());
+        self.0.work_load.clone_from(work_order.work_load());
 
-        self.latest_period = work_order
+        self.0.latest_period = work_order
             .work_order_dates
             .latest_allowed_finish_period
             .clone();
@@ -149,8 +140,8 @@ impl OptimizedWorkOrderBuilder {
         {
             match unloading_point_period {
                 Some(unloading_point_period) => {
-                    self.locked_in_period = Some(unloading_point_period.clone());
-                    self.scheduled_period = Some(unloading_point_period.clone());
+                    self.0.locked_in_period = Some(unloading_point_period.clone());
+                    self.0.scheduled_period = Some(unloading_point_period.clone());
                 }
                 None => {
                     let scheduled_period = periods
@@ -162,11 +153,11 @@ impl OptimizedWorkOrderBuilder {
 
                     match scheduled_period {
                         Some(scheduled_period) => {
-                            self.locked_in_period = Some(scheduled_period.clone());
-                            self.scheduled_period = Some(scheduled_period.clone());
+                            self.0.locked_in_period = Some(scheduled_period.clone());
+                            self.0.scheduled_period = Some(scheduled_period.clone());
                         }
                         None => {
-                            self.scheduled_period = periods.last().cloned();
+                            self.0.scheduled_period = periods.last().cloned();
                         }
                     }
                 }
@@ -175,8 +166,8 @@ impl OptimizedWorkOrderBuilder {
         }
 
         if work_order.is_vendor() {
-            self.locked_in_period = periods.last().cloned();
-            self.scheduled_period = periods.last().cloned();
+            self.0.locked_in_period = periods.last().cloned();
+            self.0.scheduled_period = periods.last().cloned();
             return self;
         };
 
@@ -184,19 +175,19 @@ impl OptimizedWorkOrderBuilder {
             if unloading_point_period.is_some()
                 && periods[0..=1].contains(&unloading_point_period.clone().unwrap())
             {
-                self.locked_in_period.clone_from(&unloading_point_period);
-                self.scheduled_period.clone_from(&unloading_point_period);
+                self.0.locked_in_period.clone_from(&unloading_point_period);
+                self.0.scheduled_period.clone_from(&unloading_point_period);
             } else {
                 let scheduled_period = periods[0..=1]
                     .iter()
                     .find(|period| period.contains_date(work_order.order_dates().basic_start_date));
                 match scheduled_period {
                     Some(scheduled_period) => {
-                        self.locked_in_period = Some(scheduled_period.clone());
-                        self.scheduled_period = Some(scheduled_period.clone());
+                        self.0.locked_in_period = Some(scheduled_period.clone());
+                        self.0.scheduled_period = Some(scheduled_period.clone());
                     }
                     None => {
-                        self.scheduled_period = periods.last().cloned();
+                        self.0.scheduled_period = periods.last().cloned();
                     }
                 }
             }
@@ -210,11 +201,11 @@ impl OptimizedWorkOrderBuilder {
 
             match scheduled_period {
                 Some(locked_in_period) => {
-                    self.locked_in_period = Some(locked_in_period.clone());
-                    self.scheduled_period = Some(locked_in_period.clone());
+                    self.0.locked_in_period = Some(locked_in_period.clone());
+                    self.0.scheduled_period = Some(locked_in_period.clone());
                 }
                 None => {
-                    self.scheduled_period = periods.last().cloned();
+                    self.0.scheduled_period = periods.last().cloned();
                 }
             }
             return self;
@@ -223,37 +214,32 @@ impl OptimizedWorkOrderBuilder {
         if work_order.unloading_point().is_some() {
             let locked_in_period = unloading_point_period.clone().unwrap();
             if !periods[0..=1].contains(unloading_point_period.as_ref().unwrap()) {
-                self.locked_in_period = Some(locked_in_period.clone());
-                self.scheduled_period = Some(locked_in_period.clone());
+                self.0.locked_in_period = Some(locked_in_period.clone());
+                self.0.scheduled_period = Some(locked_in_period.clone());
             }
             return self;
         }
         let period = periods.last().cloned();
         if work_order.main_work_center.is_fmc() {
-            self.locked_in_period.clone_from(&period);
-            self.scheduled_period.clone_from(&period);
+            self.0.locked_in_period.clone_from(&period);
+            self.0.scheduled_period.clone_from(&period);
         }
-        self.scheduled_period = periods.last().cloned();
+        self.0.scheduled_period = periods.last().cloned();
         self
     }
 
-    pub fn build(self) -> OptimizedWorkOrder {
-        OptimizedWorkOrder {
-            scheduled_period: self.scheduled_period,
-            locked_in_period: self.locked_in_period,
-            excluded_periods: self.excluded_periods,
-            latest_period: self.latest_period,
-            weight: self.weight,
-            work_load: self.work_load,
+    pub fn build(self) -> StrategicParameters {
+        StrategicParameters {
+            locked_in_period: self.0.locked_in_period,
+            excluded_periods: self.0.excluded_periods,
+            latest_period: self.0.latest_period,
+            weight: self.0.weight,
+            work_load: self.0.work_load,
         }
     }
 }
 
-impl OptimizedWorkOrder {
-    pub fn builder() -> OptimizedWorkOrderBuilder {
-        OptimizedWorkOrderBuilder::new()
-    }
-
+impl StrategicParameters {
     pub fn scheduled_period_mut(&mut self) -> &mut Option<Period> {
         &mut self.scheduled_period
     }
