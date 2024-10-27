@@ -16,6 +16,7 @@ use self::{
 };
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct AssertError(String);
 
 #[derive(Message)]

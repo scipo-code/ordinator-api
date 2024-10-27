@@ -32,7 +32,6 @@ use shared_types::scheduling_environment::{
     work_order::operation::Operation, SchedulingEnvironment,
 };
 
-use assert_functions::OperationalAssertions;
 use tracing::{event, info, instrument, warn, Level};
 
 use crate::agents::{

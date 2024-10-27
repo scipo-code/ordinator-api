@@ -1,6 +1,5 @@
 use crate::scheduling_environment::work_order::WorkOrder;
 use std::fmt;
-use std::fmt::Write;
 
 impl fmt::Display for WorkOrder {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

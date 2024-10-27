@@ -232,7 +232,7 @@ impl SupervisorAgent {
         for work_order_number in sampled_work_order_numbers {
             self.supervisor_algorithm.unschedule(*work_order_number)
         }
-        self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&old_state);
+        self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&old_state).unwrap();
     }
 
     fn make_transition_sets_from_tactical_state_link(

@@ -1,8 +1,12 @@
 use actix::prelude::*;
 
+use arc_swap::ArcSwap;
 use shared_types::operational::OperationalConfiguration;
-use shared_types::scheduling_environment::work_order::operation::Work;
-use shared_types::strategic::{Periods, StrategicResources};
+use shared_types::scheduling_environment::time_environment::day::Day;
+use shared_types::scheduling_environment::time_environment::period::Period;
+use shared_types::scheduling_environment::work_order::operation::{ActivityNumber, Work};
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::strategic::{strategic_request_scheduling_message, Periods, StrategicResources};
 use shared_types::tactical::{Days, TacticalResources};
 use shared_types::Asset;
 use std::collections::{HashMap, HashSet};
@@ -12,12 +16,12 @@ use std::sync::Mutex;
 
 use crate::agents::operational_agent::algorithm::{OperationalAlgorithm, OperationalObjective};
 use crate::agents::operational_agent::{OperationalAgent, OperationalAgentBuilder};
-use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::OptimizedWorkOrders;
+use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::OptimizedStrategicWorkOrders;
 use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::supervisor_agent::SupervisorAgent;
-use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
+use crate::agents::tactical_agent::tactical_algorithm::{TacticalAlgorithm, TacticalParameters};
 use crate::agents::tactical_agent::TacticalAgent;
 use crate::agents::traits::LargeNeighborHoodSearch;
 
@@ -29,6 +33,25 @@ pub struct AgentFactory {
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
 }
 
+#[derive(Default)]
+pub struct StrategicTacticalSolutionArcSwap(pub ArcSwap<StrategicTacticalSolutionArcSwapInner>);
+
+#[derive(Default)]
+pub struct StrategicTacticalSolutionArcSwapInner {
+    pub strategic: MetaStrategic,
+    pub tactical: MetaTactical,
+}
+
+#[derive(Default)]
+pub struct MetaStrategic {
+    pub scheduled_periods: HashMap<WorkOrderNumber, Option<Period>>,
+}
+
+#[derive(Default)]
+pub struct MetaTactical {
+    scheduled_days: HashMap<WorkOrderNumber, HashMap<ActivityNumber, Vec<Day>>>,
+}
+
 impl AgentFactory {
     pub fn new(scheduling_environment: Arc<Mutex<SchedulingEnvironment>>) -> Self {
         AgentFactory {
@@ -36,10 +59,22 @@ impl AgentFactory {
         }
     }
 
+    pub fn create_arc_swap_for_strategic_tactical() -> Arc<StrategicTacticalSolutionArcSwap> {
+        let strategic_tactical_solution_arc_swap = StrategicTacticalSolutionArcSwapInner {
+            strategic: MetaStrategic::default(),
+            tactical: MetaTactical::default(),
+        };
+
+        Arc::new(StrategicTacticalSolutionArcSwap(ArcSwap::from(Arc::new(
+            strategic_tactical_solution_arc_swap,
+        ))))
+    }
+
     pub fn build_strategic_agent(
         &self,
         asset: Asset,
         strategic_resources: Option<StrategicResources>,
+        strategic_tactical_optimized_work_orders: Arc<StrategicTacticalSolutionArcSwap>,
     ) -> Addr<StrategicAgent> {
         let mut cloned_work_orders = self
             .scheduling_environment
@@ -74,7 +109,8 @@ impl AgentFactory {
             resources_capacity,
             resources_loading,
             PriorityQueues::new(),
-            OptimizedWorkOrders::new(HashMap::new()),
+            OptimizedStrategicWorkOrders::new(HashMap::new()),
+            strategic_tactical_optimized_work_orders,
             period_locks,
             locked_scheduling_environment.clone_strategic_periods(),
         );
@@ -112,6 +148,7 @@ impl AgentFactory {
         asset: Asset,
         strategic_agent_addr: Addr<StrategicAgent>,
         tactical_resources: Option<TacticalResources>,
+        strategic_tactical_optimized_work_orders: Arc<StrategicTacticalSolutionArcSwap>,
     ) -> Addr<TacticalAgent> {
         let (sender, receiver) = std::sync::mpsc::channel::<Addr<TacticalAgent>>();
 
@@ -134,6 +171,7 @@ impl AgentFactory {
             tactical_periods.clone(),
             tactical_resources_capacity,
             tactical_resources_loading,
+            strategic_tactical_optimized_work_orders,
         );
         tactical_algorithm.create_optimized_work_orders(&scheduling_environment_guard, &asset);
 

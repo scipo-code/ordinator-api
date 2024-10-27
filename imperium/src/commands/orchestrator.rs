@@ -107,10 +107,10 @@ impl OrchestratorCommands {
             OrchestratorCommands::SchedulingEnvironment(scheduling_environment_commands) => {
                 match scheduling_environment_commands {
                     SchedulingEnvironmentCommands::WorkOrders {
-                        work_order_number,
+                        work_order_number: _,
                         work_order_commands,
                     } => match work_order_commands {
-                        WorkOrderCommands::ModifyStatusCodes(status_codes_input) => {
+                        WorkOrderCommands::ModifyStatusCodes(_status_codes_input) => {
                             todo!()
                         }
                         WorkOrderCommands::ModifyUnloadingPoint(_unloading_point) => {
