@@ -4,15 +4,14 @@ pub mod tactical_algorithm;
 
 use actix::prelude::*;
 use shared_types::agent_error::AgentError;
-use shared_types::scheduling_environment::time_environment::day::Day;
-use shared_types::scheduling_environment::work_order::{WorkOrderActivity, WorkOrderNumber};
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::tactical::tactical_response_status::TacticalResponseStatus;
 use shared_types::tactical::{TacticalRequestMessage, TacticalResponseMessage};
-use shared_types::{AgentExports, Asset, SolutionExportMessage};
+use shared_types::Asset;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tracing::{event, instrument, span, Level};
+use tracing::{event, instrument, Level};
 
 use crate::agents::tactical_agent::tactical_algorithm::{TacticalAlgorithm, TacticalOperation};
 use crate::agents::SetAddr;
@@ -94,51 +93,21 @@ impl Handler<ScheduleIteration> for TacticalAgent {
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
         let mut rng = rand::thread_rng();
 
-        //TODO
-        let mut temporary_schedule: TacticalAlgorithm = self.tactical_algorithm.clone();
+        // TODO:
+        let current_objective_value = self.tactical_algorithm.objective_value;
 
-        temporary_schedule.unschedule_random_work_orders(&mut rng, 50);
+        self.tactical_algorithm
+            .unschedule_random_work_orders(&mut rng, 50);
 
-        temporary_schedule.schedule();
+        self.tactical_algorithm.schedule();
 
-        temporary_schedule.calculate_objective_value();
+        self.tactical_algorithm.calculate_objective_value();
 
-        if temporary_schedule.get_objective_value() < self.tactical_algorithm.get_objective_value()
-        {
-            self.tactical_algorithm = temporary_schedule;
+        if self.tactical_algorithm.objective_value < current_objective_value {
+            self.tactical_algorithm
+                .make_atomic_pointer_swap_for_with_the_better_tactical_solution();
 
-            match self.main_supervisor_addr.as_ref() {
-                Some((_supervisor_id, supervisor_addr)) => {
-                    let mut work_orders_to_supervisor: HashMap<
-                        WorkOrderActivity,
-                        Arc<TacticalOperation>,
-                    > = HashMap::new();
-
-                    self.tactical_algorithm
-                        .optimized_work_orders_mut()
-                        .iter()
-                        .for_each(|(work_order_number, optimized_work_order)| {
-                            for (acn, to) in optimized_work_order
-                                .operation_solutions
-                                .as_ref()
-                                .unwrap()
-                                .clone()
-                            {
-                                work_orders_to_supervisor
-                                    .insert((*work_order_number, acn), Arc::new(to));
-                            }
-                        });
-                    event!(Level::DEBUG, work_orders_to_supervisors = ?work_orders_to_supervisor);
-                    let state_link = StateLink::Tactical(work_orders_to_supervisor);
-
-                    let span = span!(Level::INFO, "tactical_supervisor");
-                    let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
-
-                    supervisor_addr.do_send(state_link_wrapper);
-                    event!(Level::INFO, tactical_objective_value = %self.tactical_algorithm.get_objective_value());
-                }
-                None => (),
-            }
+            event!(Level::INFO, tactical_objective_value = ?self.tactical_algorithm.objective_value);
         };
 
         ctx.wait(
@@ -180,10 +149,6 @@ impl Handler<TacticalRequestMessage> for TacticalAgent {
             }
             TacticalRequestMessage::Days(_tactical_time_message) => {
                 todo!()
-            }
-            TacticalRequestMessage::Test => {
-                let algorithm_state = self.tactical_algorithm.determine_algorithm_state();
-                Ok(TacticalResponseMessage::Test(algorithm_state))
             }
         }
     }
@@ -272,25 +237,5 @@ impl Handler<UpdateWorkOrderMessage> for TacticalAgent {
             Level::WARN,
             "Update 'impl Handler<UpdateWorkOrderMessage> for TacticalAgent'"
         );
-    }
-}
-
-impl Handler<SolutionExportMessage> for TacticalAgent {
-    type Result = Option<AgentExports>;
-
-    fn handle(&mut self, _msg: SolutionExportMessage, _ctx: &mut Context<Self>) -> Self::Result {
-        let mut tactical_solution: HashMap<WorkOrderActivity, Day> = HashMap::new();
-        for (work_order_number, optimized_work_order) in
-            self.tactical_algorithm.optimized_work_orders()
-        {
-            for (activity, operation) in optimized_work_order.operation_solutions.as_ref().unwrap()
-            {
-                tactical_solution.insert(
-                    (*work_order_number, *activity),
-                    operation.scheduled.first().unwrap().0.clone(),
-                );
-            }
-        }
-        Some(AgentExports::Tactical(tactical_solution))
     }
 }

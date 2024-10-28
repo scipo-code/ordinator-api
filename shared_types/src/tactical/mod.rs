@@ -42,7 +42,6 @@ pub enum TacticalRequestMessage {
     Scheduling(TacticalSchedulingRequest),
     Resources(TacticalResourceRequest),
     Days(TacticalTimeRequest),
-    Test,
 }
 
 impl Message for TacticalRequestMessage {
