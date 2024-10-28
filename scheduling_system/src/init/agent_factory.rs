@@ -26,7 +26,9 @@ use crate::agents::tactical_agent::tactical_algorithm::{
 };
 use crate::agents::tactical_agent::TacticalAgent;
 use crate::agents::traits::LargeNeighborHoodSearch;
-use crate::agents::StrategicTacticalSolutionArcSwap;
+use crate::agents::{
+    MetaStrategic, MetaTactical, SharedSolution, StrategicTacticalSolutionArcSwap,
+};
 
 use shared_types::scheduling_environment::worker_environment::resources::{Id, Resources};
 use shared_types::scheduling_environment::SchedulingEnvironment;
@@ -44,10 +46,7 @@ impl AgentFactory {
     }
 
     pub fn create_arc_swap_for_strategic_tactical() -> Arc<StrategicTacticalSolutionArcSwap> {
-        let strategic_tactical_solution_arc_swap = SharedSolution {
-            strategic: MetaStrategic::default(),
-            tactical: MetaTactical::default(),
-        };
+        let strategic_tactical_solution_arc_swap = SharedSolution::default();
 
         Arc::new(StrategicTacticalSolutionArcSwap(ArcSwap::from(Arc::new(
             strategic_tactical_solution_arc_swap,
