@@ -42,12 +42,13 @@ pub async fn http_to_scheduling_system(
                         .await;
 
                     let tactical_agent_solution = orchestrator_lock
-                        .agent_registries
+                        .arc_swap_shared_solutions
                         .get(&asset)
                         .unwrap()
-                        .tactical_agent_addr
-                        .send(shared_types::SolutionExportMessage {})
-                        .await;
+                        .0
+                        .load()
+                        .tactical
+                        .tactical_solution;
 
                     let scheduling_environment_lock =
                         orchestrator_lock.scheduling_environment.lock().unwrap();
@@ -59,7 +60,7 @@ pub async fn http_to_scheduling_system(
                         asset.clone(),
                         work_orders,
                         strategic_agent_solution.unwrap().unwrap(),
-                        tactical_agent_solution.unwrap().unwrap(),
+                        tactical_agent_solution,
                     )
                     .unwrap();
 

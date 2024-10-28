@@ -50,28 +50,16 @@ impl StrategicParameters {
     }
 
     #[instrument(level = "trace", skip_all)]
-    pub fn set_scheduled_period(&mut self, work_order_number: WorkOrderNumber, period: Period) {
-        let optimized_work_order = match self.inner.get_mut(&work_order_number) {
-            Some(optimized_work_order) => optimized_work_order,
-            None => panic!(
-                "Work order number {:?} not found in optimized work orders",
-                work_order_number
-            ),
-        };
-        optimized_work_order.scheduled_period = Some(period);
-    }
-
-    #[instrument(level = "trace", skip_all)]
-    pub fn get_locked_in_period(&self, work_order_number: WorkOrderNumber) -> Period {
+    pub fn get_locked_in_period<'a>(&'a self, work_order_number: &'a WorkOrderNumber) -> &Period {
         let option_period = match self.inner.get(&work_order_number) {
-            Some(optimized_work_order) => optimized_work_order.locked_in_period.clone(),
+            Some(strategic_parameter) => &strategic_parameter.locked_in_period,
             None => panic!(
                 "Work order number {:?} not found in optimized work orders",
                 work_order_number
             ),
         };
         match option_period {
-            Some(period) => period,
+            Some(period) => &period,
             None => panic!("Work order number {:?} does not have a locked in period, but it is being called by the optimized_work_orders.schedule_forced_work_order", work_order_number)
         }
     }
@@ -113,8 +101,6 @@ impl StrategicParametersBuilder {
     }
 
     pub fn build_from_work_order(mut self, work_order: &WorkOrder, periods: &[Period]) -> Self {
-        self.0.scheduled_period = periods.last().cloned();
-
         self.0.excluded_periods = work_order.find_excluded_periods(periods);
 
         self.0.weight = work_order.work_order_weight();
@@ -140,7 +126,6 @@ impl StrategicParametersBuilder {
             match unloading_point_period {
                 Some(unloading_point_period) => {
                     self.0.locked_in_period = Some(unloading_point_period.clone());
-                    self.0.scheduled_period = Some(unloading_point_period.clone());
                 }
                 None => {
                     let scheduled_period = periods
@@ -150,14 +135,8 @@ impl StrategicParametersBuilder {
                         })
                         .cloned();
 
-                    match scheduled_period {
-                        Some(scheduled_period) => {
-                            self.0.locked_in_period = Some(scheduled_period.clone());
-                            self.0.scheduled_period = Some(scheduled_period.clone());
-                        }
-                        None => {
-                            self.0.scheduled_period = periods.last().cloned();
-                        }
+                    if let Some(locked_in_period) = scheduled_period {
+                        self.0.locked_in_period = Some(locked_in_period.clone());
                     }
                 }
             }
@@ -166,7 +145,6 @@ impl StrategicParametersBuilder {
 
         if work_order.is_vendor() {
             self.0.locked_in_period = periods.last().cloned();
-            self.0.scheduled_period = periods.last().cloned();
             return self;
         };
 
@@ -175,19 +153,13 @@ impl StrategicParametersBuilder {
                 && periods[0..=1].contains(&unloading_point_period.clone().unwrap())
             {
                 self.0.locked_in_period.clone_from(&unloading_point_period);
-                self.0.scheduled_period.clone_from(&unloading_point_period);
             } else {
                 let scheduled_period = periods[0..=1]
                     .iter()
                     .find(|period| period.contains_date(work_order.order_dates().basic_start_date));
-                match scheduled_period {
-                    Some(scheduled_period) => {
-                        self.0.locked_in_period = Some(scheduled_period.clone());
-                        self.0.scheduled_period = Some(scheduled_period.clone());
-                    }
-                    None => {
-                        self.0.scheduled_period = periods.last().cloned();
-                    }
+
+                if let Some(locked_in_period) = scheduled_period {
+                    self.0.locked_in_period = Some(locked_in_period.clone());
                 }
             }
             return self;
@@ -198,14 +170,8 @@ impl StrategicParametersBuilder {
                 .iter()
                 .find(|period| period.contains_date(work_order.order_dates().basic_start_date));
 
-            match scheduled_period {
-                Some(locked_in_period) => {
-                    self.0.locked_in_period = Some(locked_in_period.clone());
-                    self.0.scheduled_period = Some(locked_in_period.clone());
-                }
-                None => {
-                    self.0.scheduled_period = periods.last().cloned();
-                }
+            if let Some(locked_in_period) = scheduled_period {
+                self.0.locked_in_period = Some(locked_in_period.clone());
             }
             return self;
         }
@@ -214,16 +180,13 @@ impl StrategicParametersBuilder {
             let locked_in_period = unloading_point_period.clone().unwrap();
             if !periods[0..=1].contains(unloading_point_period.as_ref().unwrap()) {
                 self.0.locked_in_period = Some(locked_in_period.clone());
-                self.0.scheduled_period = Some(locked_in_period.clone());
             }
             return self;
         }
         let period = periods.last().cloned();
         if work_order.main_work_center.is_fmc() {
             self.0.locked_in_period.clone_from(&period);
-            self.0.scheduled_period.clone_from(&period);
         }
-        self.0.scheduled_period = periods.last().cloned();
         self
     }
 
@@ -239,15 +202,7 @@ impl StrategicParametersBuilder {
 }
 
 impl StrategicParameter {
-    pub fn scheduled_period_mut(&mut self) -> &mut Option<Period> {
-        &mut self.scheduled_period
-    }
-
     pub fn excluded_periods(&self) -> &HashSet<Period> {
         &self.excluded_periods
-    }
-
-    pub fn set_scheduled_period(&mut self, period: Option<Period>) {
-        self.scheduled_period = period;
     }
 }

@@ -5,9 +5,16 @@ pub mod supervisor_agent;
 pub mod tactical_agent;
 pub mod traits;
 
+use std::collections::HashMap;
+
 use actix::{Addr, Message};
+use arc_swap::ArcSwap;
+use shared_types::scheduling_environment::time_environment::day::Day;
+use shared_types::scheduling_environment::time_environment::period::Period;
+use shared_types::scheduling_environment::work_order::operation::{ActivityNumber, Work};
 use shared_types::scheduling_environment::work_order::{WorkOrderActivity, WorkOrderNumber};
 use shared_types::scheduling_environment::worker_environment::resources::Id;
+use tactical_agent::tactical_algorithm::TacticalOperation;
 use tracing::Span;
 
 use self::{
@@ -33,6 +40,111 @@ pub enum SetAddr {
 
 impl Message for SetAddr {
     type Result = ();
+}
+
+#[derive(Default)]
+pub struct StrategicTacticalSolutionArcSwap(pub ArcSwap<SharedSolution>);
+
+#[derive(Default, Clone)]
+pub struct SharedSolution {
+    strategic: MetaStrategic,
+    pub tactical: MetaTactical,
+}
+
+pub trait StrategicInteration {
+    fn strategic_scheduled_periods(&self) -> &HashMap<WorkOrderNumber, Option<Period>>;
+    fn strategic_scheduled_periods_mut(&mut self) -> &mut HashMap<WorkOrderNumber, Option<Period>>;
+    fn set_strategic_period(&mut self, work_order_number: WorkOrderNumber, period: Period);
+}
+
+impl StrategicInteration for SharedSolution {
+    fn strategic_scheduled_periods(&self) -> &HashMap<WorkOrderNumber, Option<Period>> {
+        &self.strategic.scheduled_periods
+    }
+
+    fn strategic_scheduled_periods_mut(&mut self) -> &mut HashMap<WorkOrderNumber, Option<Period>> {
+        &mut self.strategic.scheduled_periods
+    }
+
+    fn set_strategic_period(&mut self, work_order_number: WorkOrderNumber, period: Period) {
+        let previous_period = self
+            .strategic
+            .scheduled_periods
+            .insert(work_order_number, Some(period));
+        // TODO: Make assert here
+        // assert!(previous)
+    }
+}
+
+pub trait TacticalInteraction {
+    fn tactical_period_mut(&mut self, work_order_number: &WorkOrderNumber) -> &mut Option<Period>;
+    fn tactical_day(
+        &self,
+        work_order_number: &WorkOrderNumber,
+        activity_number: &ActivityNumber,
+    ) -> &Vec<(Day, Work)>;
+    fn tactical_period(&self, work_order_number: &WorkOrderNumber) -> &Option<Period>;
+    fn tactical_solution(
+        &self,
+        work_order_number: WorkOrderNumber,
+    ) -> Option<HashMap<ActivityNumber, TacticalOperation>>;
+}
+
+impl SharedSolution {
+    pub fn tactical_period_mut(
+        &mut self,
+        work_order_number: &WorkOrderNumber,
+    ) -> &mut Option<Period> {
+        self.tactical
+            .scheduled_period
+            .get_mut(work_order_number)
+            .unwrap()
+    }
+    pub fn tactical_period(&self, work_order_number: &WorkOrderNumber) -> &Option<Period> {
+        self.tactical
+            .scheduled_period
+            .get(work_order_number)
+            .unwrap()
+    }
+
+    pub fn tactical_day(
+        &self,
+        work_order_number: &WorkOrderNumber,
+        activity_number: &ActivityNumber,
+    ) -> &Vec<(Day, Work)> {
+        &self
+            .tactical
+            .tactical_solution
+            .get(&work_order_number)
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .get(&activity_number)
+            .unwrap()
+            .scheduled
+    }
+
+    pub fn tactical_solution(
+        &self,
+        work_order_number: WorkOrderNumber,
+    ) -> &Option<HashMap<ActivityNumber, TacticalOperation>> {
+        self.tactical
+            .tactical_solution
+            .get(&work_order_number)
+            .unwrap()
+    }
+}
+
+#[derive(Default, Clone)]
+pub struct MetaStrategic {
+    pub scheduled_periods: HashMap<WorkOrderNumber, Option<Period>>,
+}
+
+#[derive(Default, Clone)]
+pub struct MetaTactical {
+    pub tactical_solution:
+        HashMap<WorkOrderNumber, Option<HashMap<ActivityNumber, TacticalOperation>>>,
+    pub scheduled_period: HashMap<WorkOrderNumber, Option<Period>>,
 }
 
 /// The StateLink is a generic type that each type of Agent will implement.

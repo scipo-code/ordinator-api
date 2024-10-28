@@ -31,8 +31,6 @@ pub enum TacticalCommands {
     Scheduling,
     /// Access the days of the tactical agent
     Days,
-    /// Test the feasibility of the tactical schedule
-    Test { asset: Asset },
 }
 
 impl TacticalCommands {
@@ -133,15 +131,6 @@ impl TacticalCommands {
             }
             TacticalCommands::Days => {
                 todo!()
-            }
-            TacticalCommands::Test { asset } => {
-                let tactical_request_message = TacticalRequestMessage::Test;
-
-                let tactical_request = TacticalRequest {
-                    asset: asset.clone(),
-                    tactical_request_message,
-                };
-                SystemMessages::Tactical(tactical_request)
             }
         }
     }
