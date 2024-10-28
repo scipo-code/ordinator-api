@@ -9,11 +9,11 @@ use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::{WorkOrder, WorkOrderNumber};
 
 #[derive(Default, Debug, PartialEq, Clone)]
-pub struct OptimizedStrategicWorkOrders {
-    pub inner: HashMap<WorkOrderNumber, StrategicParameters>,
+pub struct StrategicParameters {
+    pub inner: HashMap<WorkOrderNumber, StrategicParameter>,
 }
 
-impl Hash for OptimizedStrategicWorkOrders {
+impl Hash for StrategicParameters {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Hash the length of the HashMap to ensure different lengths produce different hashes
         self.inner.len().hash(state);
@@ -26,10 +26,9 @@ impl Hash for OptimizedStrategicWorkOrders {
     }
 }
 
-impl Hash for StrategicParameters {
+impl Hash for StrategicParameter {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Hash the length of the HashMap to ensure different lengths produce different hashes
-        self.scheduled_period.hash(state);
         self.locked_in_period.hash(state);
         for period in &self.excluded_periods {
             period.hash(state);
@@ -37,15 +36,15 @@ impl Hash for StrategicParameters {
     }
 }
 
-impl OptimizedStrategicWorkOrders {
-    pub fn new(inner: HashMap<WorkOrderNumber, StrategicParameters>) -> Self {
+impl StrategicParameters {
+    pub fn new(inner: HashMap<WorkOrderNumber, StrategicParameter>) -> Self {
         Self { inner }
     }
 
     pub fn insert_optimized_work_order(
         &mut self,
         work_order_number: WorkOrderNumber,
-        optimized_work_order: StrategicParameters,
+        optimized_work_order: StrategicParameter,
     ) {
         self.inner.insert(work_order_number, optimized_work_order);
     }
@@ -91,7 +90,7 @@ impl OptimizedStrategicWorkOrders {
 }
 
 #[derive(Debug, PartialEq, Clone, Default, Serialize)]
-pub struct StrategicParameters {
+pub struct StrategicParameter {
     pub locked_in_period: Option<Period>,
     pub excluded_periods: HashSet<Period>,
     pub latest_period: Period,
@@ -100,11 +99,11 @@ pub struct StrategicParameters {
 }
 
 #[derive(Debug)]
-pub struct StrategicParametersBuilder(StrategicParameters);
+pub struct StrategicParametersBuilder(StrategicParameter);
 
 impl StrategicParametersBuilder {
     pub fn new() -> Self {
-        Self(StrategicParameters {
+        Self(StrategicParameter {
             locked_in_period: None,
             excluded_periods: HashSet::new(),
             latest_period: Period::from_str("2024-W01-02").unwrap(),
@@ -228,8 +227,8 @@ impl StrategicParametersBuilder {
         self
     }
 
-    pub fn build(self) -> StrategicParameters {
-        StrategicParameters {
+    pub fn build(self) -> StrategicParameter {
+        StrategicParameter {
             locked_in_period: self.0.locked_in_period,
             excluded_periods: self.0.excluded_periods,
             latest_period: self.0.latest_period,
@@ -239,7 +238,7 @@ impl StrategicParametersBuilder {
     }
 }
 
-impl StrategicParameters {
+impl StrategicParameter {
     pub fn scheduled_period_mut(&mut self) -> &mut Option<Period> {
         &mut self.scheduled_period
     }
