@@ -25,8 +25,6 @@ use shared_types::Asset;
 use shared_types::SolutionExportMessage;
 use strategic_algorithm::optimized_work_orders::StrategicParametersBuilder;
 use tracing::event;
-use tracing::info;
-use tracing::span;
 use tracing::Level;
 
 use std::collections::HashMap;
@@ -40,8 +38,6 @@ use crate::agents::tactical_agent::TacticalAgent;
 
 use super::ScheduleIteration;
 use super::SetAddr;
-use super::StateLink;
-use super::StateLinkWrapper;
 use super::UpdateWorkOrderMessage;
 
 pub struct StrategicAgent {
@@ -56,7 +52,11 @@ impl Actor for StrategicAgent {
 
     fn started(&mut self, ctx: &mut Context<Self>) {
         self.strategic_agent_algorithm.populate_priority_queues();
-        info!("StrategicAgent has started for asset: {}", self.asset);
+        event!(
+            Level::INFO,
+            "StrategicAgent has started for asset: {}",
+            self.asset
+        );
         ctx.notify(ScheduleIteration {})
     }
 
@@ -79,33 +79,6 @@ impl StrategicAgent {
             tactical_agent_addr,
         }
     }
-
-    pub fn update_tactical_agent(&self) {
-        let span = span!(Level::INFO, "strategic_tactical_state_link");
-        let _enter = span.enter();
-        let locked_scheduling_environment = self.scheduling_environment.lock().unwrap();
-
-        let tactical_periods = locked_scheduling_environment.tactical_periods();
-        let tactical_work_orders = self
-            .strategic_agent_algorithm
-            .tactical_work_orders(tactical_periods.to_vec());
-
-        match &self.tactical_agent_addr {
-            Some(tactical_agent_addr) => {
-                let state_link = StateLink::Strategic(tactical_work_orders);
-
-                event!(Level::INFO, state_link = ?state_link);
-                let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
-
-                tactical_agent_addr.do_send(state_link_wrapper);
-            }
-            None => {
-                error!(
-                    "The StrategicAgent cannot update the TacticalAgent as its address is not set"
-                );
-            }
-        }
-    }
 }
 
 impl Handler<ScheduleIteration> for StrategicAgent {
@@ -114,6 +87,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
     #[instrument(level = "trace", skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         self.strategic_agent_algorithm.schedule_forced_work_orders();
+        self.strategic_agent_algorithm.schedule();
 
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
 
@@ -132,9 +106,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
             self.strategic_agent_algorithm
                 .make_atomic_pointer_swap_for_with_the_better_strategic_solution();
 
-            info!(strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
-
-            self.update_tactical_agent();
+            event!(Level::INFO, strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
         }
 
         ctx.wait(
@@ -271,7 +243,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                     .update_scheduling_state(scheduling_message);
 
                 self.strategic_agent_algorithm.calculate_objective_value();
-                info!(strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
+                event!(Level::INFO, strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
                 Ok(StrategicResponseMessage::Scheduling(
                     scheduling_output.unwrap(),
                 ))
@@ -282,7 +254,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                     .update_resources_state(resources_message);
 
                 self.strategic_agent_algorithm.calculate_objective_value();
-                info!(strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
+                event!(Level::INFO, strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
                 Ok(StrategicResponseMessage::Resources(
                     resources_output.unwrap(),
                 ))
@@ -392,7 +364,7 @@ mod tests {
     use std::collections::HashSet;
     use std::str::FromStr;
 
-    use crate::init::agent_factory::StrategicTacticalSolutionArcSwap;
+    use crate::agents::StrategicTacticalSolutionArcSwap;
 
     use super::{strategic_algorithm::PriorityQueues, *};
     use shared_types::scheduling_environment::worker_environment::resources::Resources;
