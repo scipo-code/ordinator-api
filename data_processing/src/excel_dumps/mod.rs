@@ -1,10 +1,13 @@
 use crate::sap_mapper_and_types::DATS;
 use rust_xlsxwriter::Worksheet;
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use shared_types::{
     scheduling_environment::{
-        time_environment::{day::OptionDay, period::Period},
+        time_environment::{
+            day::{Day, OptionDay},
+            period::Period,
+        },
         work_order::{
             functional_location::FunctionalLocation,
             operation::{ActivityNumber, Work},
@@ -205,7 +208,7 @@ pub fn create_excel_dump(
     asset: Asset,
     work_orders: WorkOrders,
     strategic_solution: AgentExports,
-    tactical_solution: AgentExports,
+    tactical_solution: HashMap<WorkOrderNumber, HashMap<ActivityNumber, Day>>,
 ) -> Result<PathBuf, std::io::Error> {
     let mut all_rows: Vec<RowNames> = Vec::new();
 
@@ -230,16 +233,13 @@ pub fn create_excel_dump(
             AgentExports::Tactical(_) => panic!(),
         };
         for activity in sorted_operations {
-            let tactical_day = match tactical_solution.clone() {
-                AgentExports::Strategic(_) => panic!(),
-                AgentExports::Tactical(mut solution) => solution
-                    .remove(&(work_order.work_order_number, *activity.0))
-                    .clone(),
-            };
-
-            let option_day = match tactical_day {
-                Some(day) => OptionDay(Some(day)),
-                None => OptionDay(None),
+            let option_day = match tactical_solution.get(work_order.work_order_number()) {
+                Some(tactical_day) => {
+                    let mut days = tactical_day.iter().collect::<Vec<_>>();
+                    days.sort();
+                    OptionDay(Some(days[0].1.clone()))
+                }
+                None => continue,
             };
 
             let one_row = RowNames {
