@@ -57,7 +57,7 @@ pub struct TacticalAlgorithm {
 pub struct TacticalParameters(pub HashMap<WorkOrderNumber, TacticalParameters>);
 
 #[derive(Clone, Serialize)]
-pub struct TacticalParameters {
+pub struct TacticalParameter {
     pub main_work_center: Resources,
     pub operation_parameters: HashMap<ActivityNumber, OperationParameters>,
     pub weight: u64,

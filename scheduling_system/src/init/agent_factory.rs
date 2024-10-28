@@ -16,7 +16,7 @@ use std::sync::Mutex;
 
 use crate::agents::operational_agent::algorithm::{OperationalAlgorithm, OperationalObjective};
 use crate::agents::operational_agent::{OperationalAgent, OperationalAgentBuilder};
-use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::OptimizedStrategicWorkOrders;
+use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::StrategicParameters;
 use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::strategic_agent::StrategicAgent;
@@ -34,20 +34,26 @@ pub struct AgentFactory {
 }
 
 #[derive(Default)]
-pub struct StrategicTacticalSolutionArcSwap(pub ArcSwap<StrategicTacticalSolutionArcSwapInner>);
+pub struct StrategicTacticalSolutionArcSwap(pub ArcSwap<SharedSolution>);
 
-#[derive(Default)]
-pub struct StrategicTacticalSolutionArcSwapInner {
-    pub strategic: MetaStrategic,
-    pub tactical: MetaTactical,
+#[derive(Default, Clone)]
+pub struct SharedSolution {
+    strategic: MetaStrategic,
+    tactical: MetaTactical,
 }
 
-#[derive(Default)]
+impl SharedSolution {
+    pub fn strategic_scheduled_periods(&self) -> &HashMap<WorkOrderNumber, Option<Period>> {
+        &self.strategic.scheduled_periods
+    }
+}
+
+#[derive(Default, Clone)]
 pub struct MetaStrategic {
     pub scheduled_periods: HashMap<WorkOrderNumber, Option<Period>>,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct MetaTactical {
     scheduled_days: HashMap<WorkOrderNumber, HashMap<ActivityNumber, Vec<Day>>>,
 }
@@ -60,7 +66,7 @@ impl AgentFactory {
     }
 
     pub fn create_arc_swap_for_strategic_tactical() -> Arc<StrategicTacticalSolutionArcSwap> {
-        let strategic_tactical_solution_arc_swap = StrategicTacticalSolutionArcSwapInner {
+        let strategic_tactical_solution_arc_swap = SharedSolution {
             strategic: MetaStrategic::default(),
             tactical: MetaTactical::default(),
         };
@@ -109,7 +115,7 @@ impl AgentFactory {
             resources_capacity,
             resources_loading,
             PriorityQueues::new(),
-            OptimizedStrategicWorkOrders::new(HashMap::new()),
+            StrategicParameters::new(HashMap::new()),
             strategic_tactical_optimized_work_orders,
             period_locks,
             locked_scheduling_environment.clone_strategic_periods(),
