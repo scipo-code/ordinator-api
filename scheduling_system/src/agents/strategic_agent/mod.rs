@@ -4,7 +4,6 @@ pub mod strategic_algorithm;
 
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborHoodSearch;
-use arc_swap::access::Access;
 use shared_types::scheduling_environment::work_order::status_codes::MaterialStatus;
 use shared_types::scheduling_environment::work_order::WorkOrder;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
@@ -39,7 +38,6 @@ use tracing::warn;
 
 use crate::agents::tactical_agent::TacticalAgent;
 
-use super::traits::TestAlgorithm;
 use super::ScheduleIteration;
 use super::SetAddr;
 use super::StateLink;
@@ -119,16 +117,20 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
 
-        let mut temporary_schedule = self.strategic_agent_algorithm.clone();
+        let current_objective_value = self.strategic_agent_algorithm.objective_value();
 
-        temporary_schedule.unschedule_random_work_orders(50, rng);
+        self.strategic_agent_algorithm
+            .unschedule_random_work_orders(50, rng);
 
-        temporary_schedule.schedule();
+        self.strategic_agent_algorithm.schedule();
 
-        temporary_schedule.calculate_objective_value();
+        self.strategic_agent_algorithm.calculate_objective_value();
 
-        if temporary_schedule.objective_value() < self.strategic_agent_algorithm.objective_value() {
-            self.strategic_agent_algorithm = temporary_schedule;
+        if self.strategic_agent_algorithm.objective_value() < current_objective_value {
+            // TODO: If the solution is better we should make a pointer swap instead! Not a overwrite!
+            // This feels so much better!
+            self.strategic_agent_algorithm
+                .make_atomic_pointer_swap_for_with_the_better_strategic_solution();
 
             info!(strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
 
@@ -203,11 +205,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
 
                         let work_orders_by_period: HashMap<WorkOrderNumber, WorkOrderResponse> =
                             self.strategic_agent_algorithm
-                                .strategic_tactical_solution_arc_swap
-                                .0
-                                .load()
-                                .strategic
-                                .scheduled_periods
+                                .strategic_periods()
                                 .iter()
                                 .filter(|(_, sch_per)| match sch_per {
                                     Some(scheduled_period) => {
@@ -357,7 +355,7 @@ impl Handler<UpdateWorkOrderMessage> for StrategicAgent {
         }
 
         self.strategic_agent_algorithm
-            .optimized_work_orders
+            .strategic_parameters
             .inner
             .insert(update_work_order.0, optimized_work_order);
     }
@@ -368,14 +366,8 @@ impl Handler<SolutionExportMessage> for StrategicAgent {
 
     fn handle(&mut self, _msg: SolutionExportMessage, _ctx: &mut Self::Context) -> Self::Result {
         let mut strategic_solution = HashMap::new();
-        for (work_order_number, scheduled_period) in self
-            .strategic_agent_algorithm
-            .strategic_tactical_solution_arc_swap
-            .0
-            .load()
-            .strategic
-            .scheduled_periods
-            .iter()
+        for (work_order_number, scheduled_period) in
+            self.strategic_agent_algorithm.strategic_periods().iter()
         {
             strategic_solution.insert(*work_order_number, scheduled_period.clone().unwrap());
         }
@@ -392,7 +384,7 @@ mod tests {
     use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
     use shared_types::strategic::Periods;
     use shared_types::strategic::StrategicResources;
-    use tests::strategic_algorithm::optimized_work_orders::OptimizedStrategicWorkOrders;
+    use tests::strategic_algorithm::optimized_work_orders::StrategicParameter;
     use tests::strategic_algorithm::optimized_work_orders::StrategicParameters;
     use unloading_point::UnloadingPoint;
 
@@ -564,7 +556,7 @@ mod tests {
 
         let periods: Vec<Period> = vec![Period::from_str("2023-W47-48").unwrap()];
 
-        let optimized_work_orders = OptimizedStrategicWorkOrders::new(HashMap::new());
+        let optimized_work_orders = StrategicParameters::new(HashMap::new());
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             0.0,
             StrategicResources::default(),
@@ -576,7 +568,7 @@ mod tests {
             periods.clone(),
         );
 
-        let optimized_work_order = StrategicParameters::new(
+        let optimized_work_order = StrategicParameter::new(
             Some(periods[0].clone()),
             HashSet::new(),
             periods.first().unwrap().clone(),
@@ -658,13 +650,13 @@ mod tests {
             StrategicResources::new(capacities),
             StrategicResources::new(loadings),
             PriorityQueues::new(),
-            OptimizedStrategicWorkOrders::new(HashMap::new()),
+            StrategicParameters::new(HashMap::new()),
             StrategicTacticalSolutionArcSwap::default().into(),
             HashSet::new(),
             periods.clone(),
         );
 
-        let optimized_work_order = StrategicParameters::new(
+        let optimized_work_order = StrategicParameter::new(
             Some(periods[0].clone()),
             HashSet::new(),
             periods.first().unwrap().clone(),
@@ -687,11 +679,7 @@ mod tests {
         );
         assert_eq!(
             *scheduler_agent_algorithm
-                .strategic_tactical_solution_arc_swap
-                .0
-                .load()
-                .strategic
-                .scheduled_periods
+                .strategic_periods()
                 .get(&work_order_number)
                 .unwrap(),
             None
@@ -702,9 +690,9 @@ mod tests {
     //
     #[test]
     fn test_calculate_objective_value() {
-        let mut optimized_work_orders = OptimizedStrategicWorkOrders::new(HashMap::new());
+        let mut optimized_work_orders = StrategicParameters::new(HashMap::new());
 
-        let optimized_work_order = StrategicParameters::new(
+        let optimized_work_order = StrategicParameter::new(
             Some(Period::from_str("2023-W49-50").unwrap()),
             HashSet::new(),
             Period::from_str("2023-W47-48").unwrap(),
@@ -744,7 +732,7 @@ mod tests {
         pub manual_resources_capacity: HashMap<Resources, Periods>,
         pub manual_resources_loading: HashMap<Resources, Periods>,
         pub priority_queues: PriorityQueues<WorkOrderNumber, u64>,
-        pub optimized_work_orders: OptimizedStrategicWorkOrders,
+        pub optimized_work_orders: StrategicParameters,
         pub periods: Vec<Period>,
     }
 
@@ -765,7 +753,7 @@ mod tests {
                     .inner
                     .clone(),
                 priority_queues: PriorityQueues::new(),
-                optimized_work_orders: OptimizedStrategicWorkOrders::new(
+                optimized_work_orders: StrategicParameters::new(
                     self.strategic_agent_algorithm
                         .optimized_work_orders()
                         .clone(),
