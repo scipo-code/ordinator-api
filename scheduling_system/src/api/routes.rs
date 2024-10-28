@@ -6,6 +6,9 @@ use shared_types::operational::{
     OperationalRequest, OperationalRequestMessage, OperationalResponse, OperationalResponseMessage,
 };
 use shared_types::orchestrator::OrchestratorRequest;
+use shared_types::scheduling_environment::time_environment::day::Day;
+use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::strategic::{StrategicResponse, StrategicResponseMessage};
 use shared_types::supervisor::SupervisorResponse;
@@ -14,6 +17,7 @@ use shared_types::tactical::TacticalResponse;
 use shared_types::SystemMessages;
 use shared_types::SystemResponses;
 
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::sync::{Arc, Mutex};
@@ -48,7 +52,22 @@ pub async fn http_to_scheduling_system(
                         .0
                         .load()
                         .tactical
-                        .tactical_solution;
+                        .tactical_solution
+                        .iter()
+                        .filter(|(_, d)| d.is_some())
+                        .map(|(won, opt_acn_tac)| (won, opt_acn_tac.as_ref().unwrap()))
+                        .map(|(won, acn_tac)| {
+                            (
+                                *won,
+                                acn_tac
+                                    .iter()
+                                    .map(|(acn, tac)| {
+                                        (*acn, tac.scheduled.first().as_ref().unwrap().0.clone())
+                                    })
+                                    .collect::<HashMap<ActivityNumber, Day>>(),
+                            )
+                        })
+                        .collect::<HashMap<WorkOrderNumber, HashMap<ActivityNumber, Day>>>();
 
                     let scheduling_environment_lock =
                         orchestrator_lock.scheduling_environment.lock().unwrap();
