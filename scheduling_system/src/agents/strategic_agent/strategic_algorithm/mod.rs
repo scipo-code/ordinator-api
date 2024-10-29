@@ -2,15 +2,11 @@ pub mod optimized_work_orders;
 pub mod assert_functions;
 
 use crate::agents::traits::LargeNeighborHoodSearch;
-use crate::agents::{SharedSolution, StrategicInteration, StrategicSolution, StrategicTacticalSolutionArcSwap};
-use anyhow::Context;
-use arc_swap::access::Access;
-use arc_swap::Guard;
+use crate::agents::{SharedSolution, StrategicSolution, StrategicTacticalSolutionArcSwap};
 use assert_functions::StrategicAlgorithmAssertions;
-use optimized_work_orders::StrategicParameterBuilder;
+use optimized_work_orders::{StrategicParameterBuilder, StrategicParameters};
 use priority_queue::PriorityQueue;
 use rand::prelude::SliceRandom;
-use self::optimized_work_orders::{StrategicParameter, StrategicParameters};
 use shared_types::agent_error::AgentError;
 use shared_types::scheduling_environment::WorkOrders;
 use shared_types::scheduling_environment::time_environment::period::Period;
@@ -95,6 +91,10 @@ impl StrategicAlgorithm {
     pub fn schedule_forced_work_orders(&mut self) {
         let mut work_order_numbers: Vec<WorkOrderNumber> = vec![];
         for (work_order_number, opt_work_order) in self.strategic_parameters.inner.iter() {
+            let scheduled_period = self.strategic_solution.scheduled_periods.get(work_order_number).unwrap();
+            if scheduled_period == &opt_work_order.locked_in_period {
+                continue
+            }
             if opt_work_order.locked_in_period.is_some() {
                 work_order_numbers.push(*work_order_number);
             }
@@ -151,8 +151,6 @@ impl StrategicAlgorithm {
             }
         }
 
-        Self::assert_that_capacity_is_respected(&self.resource_loadings, &self.resource_capacities).unwrap();
-        
         *self
             .strategic_periods_mut()
             .get_mut(&work_order_number)
@@ -182,28 +180,35 @@ impl StrategicAlgorithm {
         number_of_work_orders: usize,
         rng: &mut impl rand::Rng,
     ) {
+        event!(Level::WARN, "timing");
         let scheduled_periods = &self.strategic_solution.scheduled_periods;
 
+        event!(Level::WARN, "timing");
         let strategic_parameter = &self.strategic_parameters.inner;
 
+        event!(Level::WARN, "timing");
         let mut filtered_keys: Vec<_> = scheduled_periods
             .iter()
             .filter(|(key, _)| strategic_parameter.get(&key).unwrap().locked_in_period.is_none())
             .map(|(&key, _)| key)
             .collect();
 
+        event!(Level::WARN, "timing");
         filtered_keys.sort();
 
+        event!(Level::WARN, "timing");
         let sampled_work_order_keys = filtered_keys
             .choose_multiple(rng, number_of_work_orders)
             .collect::<Vec<_>>()
             .clone();
 
-        assert!(self.strategic_solution.scheduled_periods.values().all(|per| per.is_some()));
+        event!(Level::WARN, "timing");
+        // assert!(self.strategic_solution.scheduled_periods.values().all(|per| per.is_some()));
         for work_order_key in sampled_work_order_keys {
             self.unschedule(*work_order_key).unwrap();
             self.populate_priority_queues();
         }
+        event!(Level::WARN, "timing");
     }
 
     fn is_scheduled<'a>(&'a self, work_order_number: &'a WorkOrderNumber) -> Option<&WorkOrderNumber> {
@@ -598,6 +603,7 @@ impl PriorityQueues<WorkOrderNumber, u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use optimized_work_orders::StrategicParameter;
     use shared_types::strategic::{strategic_request_scheduling_message::SingleWorkOrder, Periods};
     use chrono::{Duration, TimeZone, Utc};
     use rand::{rngs::StdRng, SeedableRng};

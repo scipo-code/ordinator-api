@@ -10,7 +10,7 @@ use shared_types::{
     LoadOperation,
 };
 use strum::IntoEnumIterator;
-use tracing::{error, event, Level};
+use tracing::{event, Level};
 
 #[allow(dead_code)]
 pub trait StrategicAssertions {
@@ -62,7 +62,10 @@ impl StrategicAssertions for StrategicAgent {
                 {
                     // Some(resource_load) if (*resource_load - load).abs() < 0.005 => continue,
                     Some(resource_load) => {
-                        event!(Level::ERROR, resource = %resource, period = %period, aggregated_load = %load, resource_load = %resource_load);
+                        if resource_load.0.round_dp(6) != load.0.round_dp(6) {
+                            event!(Level::ERROR, resource = %resource, period = %period, aggregated_load = %load, resource_load = %resource_load);
+                            bail!("aggregated load and loading are not the same");
+                        }
                     }
                     None => {
                         bail!("aggregated load and resource loading are not identically shaped")

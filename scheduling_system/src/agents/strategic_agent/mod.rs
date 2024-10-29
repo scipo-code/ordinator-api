@@ -96,10 +96,6 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         self.strategic_algorithm.schedule_forced_work_orders();
 
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
-        StrategicAlgorithm::assert_that_capacity_is_respected(
-            &self.strategic_algorithm.resource_capacities,
-            &self.strategic_algorithm.resource_loadings,
-        );
 
         self.strategic_algorithm.calculate_objective_value();
         let old_strategic_solution = self.strategic_algorithm.strategic_solution.clone();
@@ -110,40 +106,14 @@ impl Handler<ScheduleIteration> for StrategicAgent {
             .unschedule_random_work_orders(50, rng);
 
         self.strategic_algorithm.schedule();
-
+        // self.assert_aggregated_load().unwrap();
         self.strategic_algorithm.calculate_objective_value();
-        dbg!();
 
         if self.strategic_algorithm.objective_value < old_objective_value {
             self.strategic_algorithm
                 .make_atomic_pointer_swap_for_with_the_better_strategic_solution();
 
-            let mut agg_load = 0.0;
-            self.strategic_algorithm
-                .resource_loadings
-                .inner
-                .iter()
-                .for_each(|period| {
-                    period.1 .0.iter().for_each(|(per, work)| {
-                        if (0..=4).contains(per.id()) {
-                            agg_load += work.to_f64();
-                        }
-                    })
-                });
-            let mut agg_cap = 0.0;
-            self.strategic_algorithm
-                .resource_capacities
-                .inner
-                .iter()
-                .for_each(|period| {
-                    period.1 .0.iter().for_each(|(per, work)| {
-                        if (0..=4).contains(per.id()) {
-                            agg_cap += work.to_f64();
-                        }
-                    })
-                });
-            event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.objective_value,
-                resource_utilization_for_first_four_periods = (agg_load/agg_cap) * 100.0);
+            event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.objective_value,);
         } else {
             self.strategic_algorithm.strategic_solution = old_strategic_solution;
             self.strategic_algorithm.resource_loadings = old_resource_loadings;

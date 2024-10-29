@@ -94,6 +94,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
         let mut rng = rand::thread_rng();
 
         // TODO:
+        self.tactical_algorithm.load_and_clone_shared_solution();
         let current_objective_value = self.tactical_algorithm.objective_value;
 
         self.tactical_algorithm
