@@ -236,13 +236,13 @@ impl TacticalAlgorithm {
 
         let strategic_periods = self.loaded_shared_solution.strategic.scheduled_periods;
 
-        for (work_order_number, period) in &strategic_state {
+        for (work_order_number, period_match) in &strategic_periods {
             let work_order = work_order.inner.get(work_order_number).unwrap();
             match self.tactical_parameters().contains_key(work_order_number) {
                 false => {
                     self.create_tactical_parameter(
                         work_order,
-                        Some(period.clone()),
+                        period_match.clone(),
                         work_order.work_order_dates.earliest_allowed_start_date,
                     );
                 }
@@ -251,17 +251,17 @@ impl TacticalAlgorithm {
                         .tactical_solution
                         .tactical_period
                         .get_mut(work_order_number)
-                        .unwrap()
-                        .as_mut();
+                        .unwrap();
 
-                    if Some(period) != tactical_work_order_period {
-                        *tactical_work_order_period = Some(period.clone());
+                    if period_match != tactical_work_order_period {
+                        *tactical_work_order_period = period_match.clone();
                         self.unschedule(*work_order_number);
                     }
                 }
             };
         }
 
+        // TODO: Determine what todo about this state.
         let strategic_work_order_numbers: Vec<WorkOrderNumber> = strategic_state
             .iter()
             .map(|work_order_period| work_order_period.0)
@@ -384,15 +384,15 @@ impl TacticalAlgorithm {
     }
 
     pub(crate) fn make_atomic_pointer_swap_for_with_the_better_tactical_solution(&self) {
-        let shared_solution = Arc::new(self.tactical_solution.clone());
+        let mut shared_solution = (**self.loaded_shared_solution).clone();
+        shared_solution.tactical = self.tactical_solution;
         self.strategic_tactical_solution_arc_swap
             .0
-            .store(shared_solution);
+            .store(Arc::new(shared_solution));
     }
 
     pub fn load_and_clone_shared_solution(&mut self) {
-        let shared_solution = self.strategic_tactical_solution_arc_swap.0.load();
-        self.tactical_solution = (**shared_solution).clone()
+        self.loaded_shared_solution = self.strategic_tactical_solution_arc_swap.0.load();
     }
 }
 
@@ -411,9 +411,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
     fn calculate_objective_value(&mut self) -> Self::BetterSolution {
         let mut objective_value_from_tardiness = 0.0;
-        for (work_order_number, tactical_solution) in
-            self.tactical_solution.tactical.tactical_solution.iter()
-        {
+        for (work_order_number, tactical_solution) in self.tactical_solution.tactical_days.iter() {
             let tactical_parameter = self.tactical_parameters().get(work_order_number).unwrap();
             let period_start_date = match &self.tactical_solution.tactical_period(work_order_number)
             {
@@ -452,9 +450,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
     }
 
     fn schedule(&mut self) {
-        for (work_order_number, tactical_solution) in
-            &self.tactical_solution.tactical.tactical_solution
-        {
+        for (work_order_number, tactical_solution) in &self.tactical_solution.tactical_solution {
             let tactical_parameter = self
                 .tactical_parameters()
                 .get(work_order_number)
