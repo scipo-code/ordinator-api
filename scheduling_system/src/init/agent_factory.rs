@@ -2,11 +2,8 @@ use actix::prelude::*;
 
 use arc_swap::ArcSwap;
 use shared_types::operational::OperationalConfiguration;
-use shared_types::scheduling_environment::time_environment::day::Day;
-use shared_types::scheduling_environment::time_environment::period::Period;
-use shared_types::scheduling_environment::work_order::operation::{ActivityNumber, Work};
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::strategic::{strategic_request_scheduling_message, Periods, StrategicResources};
+use shared_types::scheduling_environment::work_order::operation::Work;
+use shared_types::strategic::{Periods, StrategicResources};
 use shared_types::tactical::{Days, TacticalResources};
 use shared_types::Asset;
 use std::collections::{HashMap, HashSet};
@@ -21,14 +18,9 @@ use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::supervisor_agent::SupervisorAgent;
-use crate::agents::tactical_agent::tactical_algorithm::{
-    TacticalAlgorithm, TacticalOperation, TacticalParameters,
-};
+use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
 use crate::agents::tactical_agent::TacticalAgent;
-use crate::agents::traits::LargeNeighborHoodSearch;
-use crate::agents::{
-    MetaStrategic, MetaTactical, SharedSolution, StrategicTacticalSolutionArcSwap,
-};
+use crate::agents::{SharedSolution, StrategicTacticalSolutionArcSwap};
 
 use shared_types::scheduling_environment::worker_environment::resources::{Id, Resources};
 use shared_types::scheduling_environment::SchedulingEnvironment;

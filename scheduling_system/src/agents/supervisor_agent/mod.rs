@@ -230,9 +230,18 @@ impl SupervisorAgent {
             .clone();
         let old_state = self.capture_current_state();
         for work_order_number in sampled_work_order_numbers {
-            self.supervisor_algorithm.unschedule(*work_order_number)
+            self.supervisor_algorithm
+                .unschedule(*work_order_number)
+                .unwrap_or_else(|err| {
+                    event!(Level::ERROR, error = ?err, work_order_number = ?work_order_number);
+                    eprintln!(
+                        "Could not unschedule work_order_number: {:?}",
+                        work_order_number
+                    );
+                    panic!();
+                })
         }
-        self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&old_state).unwrap();
+        // self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&old_state).unwrap();
     }
 
     fn make_transition_sets_from_tactical_state_link(

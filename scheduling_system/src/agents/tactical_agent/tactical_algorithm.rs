@@ -13,6 +13,7 @@ use shared_types::{
             WorkOrderActivity, WorkOrderNumber,
         },
         worker_environment::resources::Resources,
+        SchedulingEnvironment,
     },
     tactical::{
         tactical_resources_message::TacticalResourceRequest,
@@ -24,7 +25,12 @@ use shared_types::{
     },
     AlgorithmState, ConstraintState, LoadOperation,
 };
-use std::{borrow::Cow, cmp::Ordering, fmt::Display, sync::Arc};
+use std::{
+    borrow::Cow,
+    cmp::Ordering,
+    fmt::Display,
+    sync::{Arc, MutexGuard},
+};
 use std::{collections::HashMap, fmt};
 use strum::IntoEnumIterator;
 use tracing::{debug, error, info, instrument, warn};
@@ -46,7 +52,7 @@ pub struct TacticalAlgorithm {
     pub number_of_orders: u32,
     pub strategic_tactical_solution_arc_swap: Arc<StrategicTacticalSolutionArcSwap>,
     pub shared_solution: SharedSolution,
-    pub optimized_tactical_work_orders: TacticalParameters,
+    pub tactical_parameters: TacticalParameters,
     pub capacity: TacticalResources,
     pub loading: TacticalResources,
     pub priority_queue: PriorityQueue<WorkOrderNumber, u64>,
@@ -190,7 +196,7 @@ impl TacticalAlgorithm {
             number_of_orders: 0,
             strategic_tactical_solution_arc_swap,
             shared_solution,
-            optimized_tactical_work_orders: TacticalParameters::default(),
+            tactical_parameters: TacticalParameters::default(),
             capacity,
             loading,
             priority_queue: PriorityQueue::new(),
@@ -350,21 +356,30 @@ impl TacticalAlgorithm {
 
     pub(crate) fn create_tactical_parameters(
         &mut self,
-        scheduling_environment_guard: &std::sync::MutexGuard<
-            shared_types::scheduling_environment::SchedulingEnvironment,
-        >,
+        scheduling_environment_guard: &MutexGuard<SchedulingEnvironment>,
         asset: &shared_types::Asset,
     ) {
         let work_orders = scheduling_environment_guard
             .work_orders()
             .work_orders_by_asset(asset);
+
+        self.load_and_clone_shared_solution();
         for (work_order_number, work_order) in work_orders {
             self.create_tactical_parameter(
                 work_order,
                 None,
                 work_order.work_order_dates.earliest_allowed_start_date,
             );
+            self.shared_solution
+                .tactical
+                .tactical_solution
+                .insert(*work_order_number, None);
+            self.shared_solution
+                .tactical
+                .scheduled_period
+                .insert(*work_order_number, None);
         }
+        self.make_atomic_pointer_swap_for_with_the_better_tactical_solution();
     }
 
     pub(crate) fn make_atomic_pointer_swap_for_with_the_better_tactical_solution(&self) {
@@ -372,6 +387,11 @@ impl TacticalAlgorithm {
         self.strategic_tactical_solution_arc_swap
             .0
             .store(shared_solution);
+    }
+
+    pub fn load_and_clone_shared_solution(&mut self) {
+        let shared_solution = self.strategic_tactical_solution_arc_swap.0.load();
+        self.shared_solution = (**shared_solution).clone()
     }
 }
 
@@ -390,7 +410,10 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
     fn calculate_objective_value(&mut self) -> Self::BetterSolution {
         let mut objective_value_from_tardiness = 0.0;
-        for (work_order_number, tactical_parameter) in self.tactical_parameters().iter() {
+        for (work_order_number, tactical_solution) in
+            self.shared_solution.tactical.tactical_solution.iter()
+        {
+            let tactical_parameter = self.tactical_parameters().get(work_order_number).unwrap();
             let period_start_date = match &self.shared_solution.tactical_period(work_order_number) {
                 Some(period) => period.start_date().date_naive(),
                 None => tactical_parameter.earliest_allowed_start_date,
@@ -427,8 +450,14 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
     }
 
     fn schedule(&mut self) {
-        for (work_order_number, tactical_parameter) in &self.optimized_tactical_work_orders.0 {
-            match &self.shared_solution.tactical_solution(*work_order_number) {
+        for (work_order_number, tactical_solution) in
+            &self.shared_solution.tactical.tactical_solution
+        {
+            let tactical_parameter = self
+                .tactical_parameters()
+                .get(work_order_number)
+                .expect("TacticalParameter should ALWAYS be available for a TacticalSolution");
+            match tactical_solution {
                 None => {
                     self.priority_queue
                         .push(*work_order_number, tactical_parameter.weight);
@@ -452,7 +481,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     .tactical_parameters()
                     .get(&current_work_order_number)
                     .unwrap(),
-                LoopState::Scheduled => {
+                LoopState::ScheduledOrRemoved => {
                     start_day_index = 0;
 
                     current_work_order_number = match self.priority_queue.pop() {
@@ -486,7 +515,17 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     .collect(),
             };
 
-            let start_day: Day = allowed_starting_days[start_day_index].clone();
+            let start_day: Day = match allowed_starting_days.get(start_day_index) {
+                Some(start_day) => (*start_day).clone(),
+                None => {
+                    self.shared_solution
+                        .tactical
+                        .tactical_remove_work_order(&current_work_order_number);
+
+                    loop_state = LoopState::ScheduledOrRemoved;
+                    continue 'main;
+                }
+            };
 
             let allowed_days: Vec<_> = all_days
                 .iter_mut()
@@ -606,7 +645,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 start_day.day_index()
             );
             self.update_loadings(&operation_solutions, LoadOperation::Add);
-            loop_state = LoopState::Scheduled;
+            loop_state = LoopState::ScheduledOrRemoved;
 
             *self
                 .shared_solution
@@ -636,23 +675,29 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
         }
     }
 
-    fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) {
+    fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) -> Result<(), Self::Error> {
         let tactical_solution = self
             .shared_solution
             .tactical
             .tactical_solution
-            .get_mut(&work_order_number)
-            .unwrap();
+            .get_mut(&work_order_number);
+
+        let tactical_solution = match tactical_solution {
+            Some(tactical_solution) => tactical_solution,
+            None => return Err(AgentError::TacticalMissingState),
+        };
 
         match tactical_solution.take() {
             Some(operation_solutions) => {
                 self.update_loadings(&operation_solutions, LoadOperation::Sub);
+                Ok(())
             }
             None => {
                 debug!(
                     "Work order {:?} was not scheduled before leaving the tactical schedule",
                     work_order_number
                 );
+                Ok(())
             }
         }
     }
@@ -738,7 +783,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
 enum LoopState {
     Unscheduled,
-    Scheduled,
+    ScheduledOrRemoved,
 }
 
 impl TacticalAlgorithm {
@@ -800,11 +845,11 @@ impl TacticalAlgorithm {
     }
 
     pub fn tactical_parameters_mut(&mut self) -> &mut HashMap<WorkOrderNumber, TacticalParameter> {
-        &mut self.optimized_tactical_work_orders.0
+        &mut self.tactical_parameters.0
     }
 
     pub fn tactical_parameters(&self) -> &HashMap<WorkOrderNumber, TacticalParameter> {
-        &self.optimized_tactical_work_orders.0
+        &self.tactical_parameters.0
     }
 }
 

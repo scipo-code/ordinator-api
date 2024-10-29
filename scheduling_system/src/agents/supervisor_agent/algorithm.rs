@@ -201,10 +201,11 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
         }
     }
 
-    fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) {
+    fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) -> Result<(), AgentError> {
         self
             .operational_state
             .turn_work_order_into_delegate_assess(work_order_number);
+        Ok(())
     }
 
     fn update_scheduling_state(
