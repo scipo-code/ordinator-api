@@ -144,6 +144,24 @@ impl TacticalSolution {
         self.tactical_days.remove(work_order_number);
         self.tactical_period.remove(work_order_number);
     }
+    pub fn tactical_day(
+        &self,
+        work_order_number: &WorkOrderNumber,
+        activity_number: &ActivityNumber,
+    ) -> &Vec<(Day, Work)> {
+        &self
+            .tactical_days
+            .get(&work_order_number)
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .get(&activity_number)
+            .unwrap()
+            .scheduled
+    }
+    pub fn tactical_period(&self, work_order_number: &WorkOrderNumber) -> &Option<Period> {
+        self.tactical_period.get(work_order_number).unwrap()
+    }
 }
 
 /// The StateLink is a generic type that each type of Agent will implement.
