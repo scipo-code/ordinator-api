@@ -9,6 +9,7 @@ use std::collections::HashMap;
 
 use actix::{Addr, Message};
 use arc_swap::ArcSwap;
+use shared_types::agent_error::AgentError;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::{ActivityNumber, Work};
@@ -45,12 +46,13 @@ impl Message for SetAddr {
 #[derive(Default)]
 pub struct StrategicTacticalSolutionArcSwap(pub ArcSwap<SharedSolution>);
 
-#[derive(Default, Clone)]
+#[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct SharedSolution {
-    strategic: MetaStrategic,
-    pub tactical: MetaTactical,
+    strategic: StrategicSolution,
+    pub tactical: TacticalSolution,
 }
 
+// Should you delete these? I think that we should
 pub trait StrategicInteration {
     fn strategic_scheduled_periods(&self) -> &HashMap<WorkOrderNumber, Option<Period>>;
     fn strategic_scheduled_periods_mut(&mut self) -> &mut HashMap<WorkOrderNumber, Option<Period>>;
@@ -131,20 +133,28 @@ impl SharedSolution {
         self.tactical
             .tactical_solution
             .get(&work_order_number)
+            .ok_or(AgentError::TacticalMissingState)
             .unwrap()
     }
 }
 
-#[derive(Default, Clone)]
-pub struct MetaStrategic {
+#[derive(PartialEq, Eq, Debug, Default, Clone)]
+pub struct StrategicSolution {
     pub scheduled_periods: HashMap<WorkOrderNumber, Option<Period>>,
 }
 
-#[derive(Default, Clone)]
-pub struct MetaTactical {
+#[derive(PartialEq, Eq, Debug, Default, Clone)]
+pub struct TacticalSolution {
     pub tactical_solution:
         HashMap<WorkOrderNumber, Option<HashMap<ActivityNumber, TacticalOperation>>>,
     pub scheduled_period: HashMap<WorkOrderNumber, Option<Period>>,
+}
+
+impl TacticalSolution {
+    pub fn tactical_remove_work_order(&mut self, work_order_number: &WorkOrderNumber) {
+        self.tactical_solution.remove(work_order_number);
+        self.scheduled_period.remove(work_order_number);
+    }
 }
 
 /// The StateLink is a generic type that each type of Agent will implement.
