@@ -52,7 +52,7 @@ pub async fn http_to_scheduling_system(
                         .0
                         .load()
                         .tactical
-                        .tactical_solution
+                        .tactical_days
                         .iter()
                         .filter(|(_, d)| d.is_some())
                         .map(|(won, opt_acn_tac)| (won, opt_acn_tac.as_ref().unwrap()))
