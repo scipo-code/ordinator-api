@@ -23,16 +23,13 @@ use shared_types::strategic::StrategicResponseMessage;
 use shared_types::AgentExports;
 use shared_types::Asset;
 use shared_types::SolutionExportMessage;
-use strategic_algorithm::assert_functions::StrategicAlgorithmAssertions;
 use strategic_algorithm::optimized_work_orders::StrategicParameterBuilder;
 use tracing::event;
 use tracing::Level;
 
 use std::collections::HashMap;
-use std::ops::RangeBounds;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::time::Instant;
 use tracing::error;
 use tracing::instrument;
 use tracing::warn;
