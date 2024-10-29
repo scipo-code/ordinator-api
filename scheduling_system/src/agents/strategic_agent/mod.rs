@@ -23,13 +23,16 @@ use shared_types::strategic::StrategicResponseMessage;
 use shared_types::AgentExports;
 use shared_types::Asset;
 use shared_types::SolutionExportMessage;
-use strategic_algorithm::optimized_work_orders::StrategicParametersBuilder;
+use strategic_algorithm::assert_functions::StrategicAlgorithmAssertions;
+use strategic_algorithm::optimized_work_orders::StrategicParameterBuilder;
 use tracing::event;
 use tracing::Level;
 
 use std::collections::HashMap;
+use std::ops::RangeBounds;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::time::Instant;
 use tracing::error;
 use tracing::instrument;
 use tracing::warn;
@@ -43,7 +46,7 @@ use super::UpdateWorkOrderMessage;
 pub struct StrategicAgent {
     asset: Asset,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-    pub strategic_agent_algorithm: StrategicAlgorithm,
+    pub strategic_algorithm: StrategicAlgorithm,
     pub tactical_agent_addr: Option<Addr<TacticalAgent>>,
 }
 
@@ -51,12 +54,13 @@ impl Actor for StrategicAgent {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Context<Self>) {
-        self.strategic_agent_algorithm.populate_priority_queues();
+        self.strategic_algorithm.populate_priority_queues();
         event!(
             Level::INFO,
             "StrategicAgent has started for asset: {}",
             self.asset
         );
+        self.strategic_algorithm.schedule();
         ctx.notify(ScheduleIteration {})
     }
 
@@ -75,7 +79,7 @@ impl StrategicAgent {
         Self {
             asset,
             scheduling_environment,
-            strategic_agent_algorithm,
+            strategic_algorithm: strategic_agent_algorithm,
             tactical_agent_addr,
         }
     }
@@ -86,27 +90,68 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 
     #[instrument(level = "trace", skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
-        self.strategic_agent_algorithm.schedule_forced_work_orders();
-        self.strategic_agent_algorithm.schedule();
+        // So here we should load instead! Yes we should load in the data and then continue
+        self.strategic_algorithm.load_shared_solution();
+
+        self.strategic_algorithm.schedule_forced_work_orders();
 
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
+        StrategicAlgorithm::assert_that_capacity_is_respected(
+            &self.strategic_algorithm.resource_capacities,
+            &self.strategic_algorithm.resource_loadings,
+        );
 
-        let current_objective_value = self.strategic_agent_algorithm.objective_value();
+        self.strategic_algorithm.calculate_objective_value();
+        let old_strategic_solution = self.strategic_algorithm.strategic_solution.clone();
+        let old_resource_loadings = self.strategic_algorithm.resource_loadings.clone();
+        let old_objective_value = self.strategic_algorithm.objective_value.clone();
 
-        self.strategic_agent_algorithm
+        self.strategic_algorithm
             .unschedule_random_work_orders(50, rng);
 
-        self.strategic_agent_algorithm.schedule();
+        self.strategic_algorithm.schedule();
 
-        self.strategic_agent_algorithm.calculate_objective_value();
+        self.strategic_algorithm.calculate_objective_value();
+        dbg!();
 
-        if self.strategic_agent_algorithm.objective_value() < current_objective_value {
-            // TODO: If the solution is better we should make a pointer swap instead! Not a overwrite!
-            // This feels so much better!
-            self.strategic_agent_algorithm
+        if self.strategic_algorithm.objective_value < old_objective_value {
+            self.strategic_algorithm
                 .make_atomic_pointer_swap_for_with_the_better_strategic_solution();
 
-            event!(Level::INFO, strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
+            let mut agg_load = 0.0;
+            self.strategic_algorithm
+                .resource_loadings
+                .inner
+                .iter()
+                .for_each(|period| {
+                    period.1 .0.iter().for_each(|(per, work)| {
+                        if (0..=4).contains(per.id()) {
+                            agg_load += work.to_f64();
+                        }
+                    })
+                });
+            let mut agg_cap = 0.0;
+            self.strategic_algorithm
+                .resource_capacities
+                .inner
+                .iter()
+                .for_each(|period| {
+                    period.1 .0.iter().for_each(|(per, work)| {
+                        if (0..=4).contains(per.id()) {
+                            agg_cap += work.to_f64();
+                        }
+                    })
+                });
+            event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.objective_value,
+                resource_utilization_for_first_four_periods = (agg_load/agg_cap) * 100.0);
+        } else {
+            self.strategic_algorithm.strategic_solution = old_strategic_solution;
+            self.strategic_algorithm.resource_loadings = old_resource_loadings;
+            self.strategic_algorithm.calculate_objective_value();
+            assert_eq!(
+                old_objective_value,
+                self.strategic_algorithm.objective_value
+            );
         }
 
         ctx.wait(
@@ -136,16 +181,15 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
             StrategicRequestMessage::Status(strategic_status_message) => {
                 match strategic_status_message {
                     StrategicStatusMessage::General => {
-                        let strategic_objective = self.strategic_agent_algorithm.objective_value();
+                        let strategic_objective = self.strategic_algorithm.objective_value;
 
-                        let optimized_work_orders =
-                            self.strategic_agent_algorithm.optimized_work_orders();
+                        let strategic_parameters = &self.strategic_algorithm.strategic_parameters;
 
-                        let number_of_strategic_work_orders = optimized_work_orders.len();
+                        let number_of_strategic_work_orders = strategic_parameters.inner.len();
 
                         let asset = &self.asset;
 
-                        let number_of_periods = self.strategic_agent_algorithm.periods().len();
+                        let number_of_periods = self.strategic_algorithm.periods().len();
 
                         let strategic_response_status = StrategicResponseStatus::new(
                             asset.clone(),
@@ -159,11 +203,11 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                         Ok(strategic_response_message)
                     }
                     StrategicStatusMessage::Period(period) => {
-                        let optimized_work_orders =
-                            self.strategic_agent_algorithm.optimized_work_orders();
+                        let strategic_parameters =
+                            &self.strategic_algorithm.strategic_parameters.inner;
 
                         if !self
-                            .strategic_agent_algorithm
+                            .strategic_algorithm
                             .periods()
                             .iter()
                             .map(|period| period.period_string())
@@ -176,7 +220,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                         }
 
                         let work_orders_by_period: HashMap<WorkOrderNumber, WorkOrderResponse> =
-                            self.strategic_agent_algorithm
+                            self.strategic_algorithm
                                 .strategic_periods()
                                 .iter()
                                 .filter(|(_, sch_per)| match sch_per {
@@ -207,17 +251,17 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                                         work_order.work_order_analytic.user_status_codes,
                                         Some(OptimizedWorkOrderResponse::new(
                                             scheduled_period.clone().unwrap(),
-                                            optimized_work_orders
+                                            strategic_parameters
                                                 .get(&work_order_number)
                                                 .unwrap()
                                                 .locked_in_period
                                                 .clone(),
-                                            optimized_work_orders
+                                            strategic_parameters
                                                 .get(&work_order_number)
                                                 .unwrap()
                                                 .excluded_periods
                                                 .clone(),
-                                            optimized_work_orders
+                                            strategic_parameters
                                                 .get(&work_order_number)
                                                 .unwrap()
                                                 .latest_period
@@ -239,22 +283,22 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
             }
             StrategicRequestMessage::Scheduling(scheduling_message) => {
                 let scheduling_output: Result<StrategicResponseScheduling, AgentError> = self
-                    .strategic_agent_algorithm
+                    .strategic_algorithm
                     .update_scheduling_state(scheduling_message);
 
-                self.strategic_agent_algorithm.calculate_objective_value();
-                event!(Level::INFO, strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
+                self.strategic_algorithm.calculate_objective_value();
+                event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.objective_value);
                 Ok(StrategicResponseMessage::Scheduling(
                     scheduling_output.unwrap(),
                 ))
             }
             StrategicRequestMessage::Resources(resources_message) => {
                 let resources_output = self
-                    .strategic_agent_algorithm
+                    .strategic_algorithm
                     .update_resources_state(resources_message);
 
-                self.strategic_agent_algorithm.calculate_objective_value();
-                event!(Level::INFO, strategic_objective_value = %self.strategic_agent_algorithm.objective_value());
+                self.strategic_algorithm.calculate_objective_value();
+                event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.objective_value);
                 Ok(StrategicResponseMessage::Resources(
                     resources_output.unwrap(),
                 ))
@@ -273,7 +317,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                         error!("periods not handled correctly");
                     }
                 }
-                self.strategic_agent_algorithm.set_periods(periods.to_vec());
+                self.strategic_algorithm.set_periods(periods.to_vec());
                 let strategic_response_periods = StrategicResponsePeriods::new(periods.clone());
                 Ok(StrategicResponseMessage::Periods(
                     strategic_response_periods,
@@ -313,7 +357,7 @@ impl Handler<UpdateWorkOrderMessage> for StrategicAgent {
             .get(&update_work_order.0)
             .unwrap();
 
-        let optimized_work_order_builder = StrategicParametersBuilder::new();
+        let optimized_work_order_builder = StrategicParameterBuilder::new();
 
         let optimized_work_order = optimized_work_order_builder
             .build_from_work_order(&work_order, &periods)
@@ -326,7 +370,7 @@ impl Handler<UpdateWorkOrderMessage> for StrategicAgent {
             assert!(&optimized_work_order.excluded_periods.contains(&period));
         }
 
-        self.strategic_agent_algorithm
+        self.strategic_algorithm
             .strategic_parameters
             .inner
             .insert(update_work_order.0, optimized_work_order);
@@ -339,7 +383,7 @@ impl Handler<SolutionExportMessage> for StrategicAgent {
     fn handle(&mut self, _msg: SolutionExportMessage, _ctx: &mut Self::Context) -> Self::Result {
         let mut strategic_solution = HashMap::new();
         for (work_order_number, scheduled_period) in
-            self.strategic_agent_algorithm.strategic_periods().iter()
+            self.strategic_algorithm.strategic_periods().iter()
         {
             strategic_solution.insert(*work_order_number, scheduled_period.clone().unwrap());
         }
@@ -556,7 +600,8 @@ mod tests {
 
         assert_eq!(
             scheduler_agent_algorithm
-                .optimized_work_orders()
+                .strategic_parameters
+                .inner
                 .get(&work_order_number)
                 .as_ref()
                 .unwrap()
@@ -673,7 +718,7 @@ mod tests {
         );
 
         optimized_work_orders
-            .insert_optimized_work_order(WorkOrderNumber(2100023841), optimized_work_order);
+            .insert_strategic_parameter(WorkOrderNumber(2100023841), optimized_work_order);
 
         let mut strategic_agent_algorithm = StrategicAlgorithm::new(
             0.0,
@@ -689,7 +734,7 @@ mod tests {
         strategic_agent_algorithm.calculate_objective_value();
 
         // This test fails because the objective value in not initialized
-        assert_eq!(strategic_agent_algorithm.objective_value(), 2000.0);
+        assert_eq!(strategic_agent_algorithm.objective_value, 2000.0);
     }
 
     pub struct TestRequest {}
@@ -713,24 +758,22 @@ mod tests {
 
         fn handle(&mut self, _msg: TestRequest, _: &mut Context<Self>) -> Self::Result {
             Some(TestResponse {
-                objective_value: self.strategic_agent_algorithm.objective_value(),
+                objective_value: self.strategic_algorithm.objective_value,
                 manual_resources_capacity: self
-                    .strategic_agent_algorithm
+                    .strategic_algorithm
                     .resources_capacities()
                     .inner
                     .clone(),
                 manual_resources_loading: self
-                    .strategic_agent_algorithm
+                    .strategic_algorithm
                     .resources_loadings()
                     .inner
                     .clone(),
                 priority_queues: PriorityQueues::new(),
                 optimized_work_orders: StrategicParameters::new(
-                    self.strategic_agent_algorithm
-                        .optimized_work_orders()
-                        .clone(),
+                    self.strategic_algorithm.strategic_parameters.inner.clone(),
                 ),
-                periods: self.strategic_agent_algorithm.periods().clone(),
+                periods: self.strategic_algorithm.periods().clone(),
             })
         }
     }

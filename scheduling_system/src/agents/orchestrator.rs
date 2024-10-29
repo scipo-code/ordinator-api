@@ -573,7 +573,7 @@ impl Orchestrator {
             asset.clone(),
             strategic_agent_addr.clone(),
             Some(tactical_resources),
-            strategic_tactical_solutions_arc_swap,
+            strategic_tactical_solutions_arc_swap.clone(),
         );
 
         let mut supervisor_addrs = HashMap::<Id, Addr<SupervisorAgent>>::new();
@@ -601,6 +601,8 @@ impl Orchestrator {
             supervisor_addrs,
             number_of_operational_agents,
         );
+        self.arc_swap_shared_solutions
+            .insert(asset.clone(), strategic_tactical_solutions_arc_swap);
 
         self.agent_registries.insert(asset, agent_registry);
     }

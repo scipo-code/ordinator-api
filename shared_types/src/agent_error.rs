@@ -7,4 +7,8 @@ pub enum AgentError {
     StateUpdateError(String),
     #[error("StrategicRequest failed to produce a Response")]
     StrategicResponseError,
+    #[error("TacticalAgent was missing state")]
+    TacticalMissingState,
+    #[error("StrategicAgent could not update resources")]
+    StrategicAgentCouldNotUnschedule,
 }

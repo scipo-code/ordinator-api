@@ -18,7 +18,7 @@ pub trait LargeNeighborHoodSearch {
 
     fn schedule(&mut self);
 
-    fn unschedule(&mut self, message: Self::SchedulingUnit);
+    fn unschedule(&mut self, message: Self::SchedulingUnit) -> Result<(), Self::Error>;
 
     fn update_scheduling_state(
         &mut self,
