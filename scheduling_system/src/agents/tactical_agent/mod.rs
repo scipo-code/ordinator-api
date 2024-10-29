@@ -13,14 +13,14 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{event, instrument, Level};
 
-use crate::agents::tactical_agent::tactical_algorithm::{TacticalAlgorithm, TacticalOperation};
+use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
 use crate::agents::SetAddr;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use super::strategic_agent::StrategicAgent;
 use super::supervisor_agent::SupervisorAgent;
-use super::traits::{LargeNeighborHoodSearch, TestAlgorithm};
+use super::traits::LargeNeighborHoodSearch;
 use super::{
     ScheduleIteration, StateLink, StateLinkError, StateLinkWrapper, UpdateWorkOrderMessage,
 };
@@ -188,12 +188,11 @@ impl
         let _enter = state_link_wrapper.span.enter();
 
         match state_link {
-            // Strategic(Vec<(WorkOrderNumber, Period)>),
             StateLink::Strategic(strategic_state) => {
                 let work_orders = scheduling_environment_guard.work_orders().clone();
                 drop(scheduling_environment_guard);
                 self.tactical_algorithm
-                    .update_state_based_on_strategic(&work_orders, strategic_state);
+                    .update_state_based_on_strategic(&work_orders);
                 Ok(())
             }
             StateLink::Tactical(_) => {

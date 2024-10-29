@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use shared_types::scheduling_environment::work_order::WorkOrderActivity;
 use tracing::{event, Level};
 
-use super::{CapturedSupervisorState, SupervisorAgent};
+use super::SupervisorAgent;
 
 pub trait SupervisorAssertions {
     fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(&self);
