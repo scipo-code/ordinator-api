@@ -31,7 +31,7 @@ pub struct Operation {
 }
 
 #[derive(Hash, Eq, PartialOrd, Ord, PartialEq, Debug, Clone)]
-pub struct Work(Decimal);
+pub struct Work(pub Decimal);
 
 impl FromStr for Work {
     type Err = ParseFloatError;
