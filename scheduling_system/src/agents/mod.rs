@@ -56,7 +56,6 @@ pub struct SharedSolution {
 pub trait StrategicInteration {
     fn strategic_scheduled_periods(&self) -> &HashMap<WorkOrderNumber, Option<Period>>;
     fn strategic_scheduled_periods_mut(&mut self) -> &mut HashMap<WorkOrderNumber, Option<Period>>;
-    fn set_strategic_period(&mut self, work_order_number: WorkOrderNumber, period: Period);
 }
 
 impl StrategicInteration for SharedSolution {
@@ -66,15 +65,6 @@ impl StrategicInteration for SharedSolution {
 
     fn strategic_scheduled_periods_mut(&mut self) -> &mut HashMap<WorkOrderNumber, Option<Period>> {
         &mut self.strategic.scheduled_periods
-    }
-
-    fn set_strategic_period(&mut self, work_order_number: WorkOrderNumber, period: Period) {
-        let previous_period = self
-            .strategic
-            .scheduled_periods
-            .insert(work_order_number, Some(period));
-        // TODO: Make assert here
-        // assert!(previous)
     }
 }
 
@@ -98,13 +88,13 @@ impl SharedSolution {
         work_order_number: &WorkOrderNumber,
     ) -> &mut Option<Period> {
         self.tactical
-            .scheduled_period
+            .tactical_period
             .get_mut(work_order_number)
             .unwrap()
     }
     pub fn tactical_period(&self, work_order_number: &WorkOrderNumber) -> &Option<Period> {
         self.tactical
-            .scheduled_period
+            .tactical_period
             .get(work_order_number)
             .unwrap()
     }
@@ -116,7 +106,7 @@ impl SharedSolution {
     ) -> &Vec<(Day, Work)> {
         &self
             .tactical
-            .tactical_solution
+            .tactical_days
             .get(&work_order_number)
             .unwrap()
             .as_ref()
@@ -131,7 +121,7 @@ impl SharedSolution {
         work_order_number: WorkOrderNumber,
     ) -> &Option<HashMap<ActivityNumber, TacticalOperation>> {
         self.tactical
-            .tactical_solution
+            .tactical_days
             .get(&work_order_number)
             .ok_or(AgentError::TacticalMissingState)
             .unwrap()
@@ -145,15 +135,14 @@ pub struct StrategicSolution {
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct TacticalSolution {
-    pub tactical_solution:
-        HashMap<WorkOrderNumber, Option<HashMap<ActivityNumber, TacticalOperation>>>,
-    pub scheduled_period: HashMap<WorkOrderNumber, Option<Period>>,
+    pub tactical_days: HashMap<WorkOrderNumber, Option<HashMap<ActivityNumber, TacticalOperation>>>,
+    pub tactical_period: HashMap<WorkOrderNumber, Option<Period>>,
 }
 
 impl TacticalSolution {
     pub fn tactical_remove_work_order(&mut self, work_order_number: &WorkOrderNumber) {
-        self.tactical_solution.remove(work_order_number);
-        self.scheduled_period.remove(work_order_number);
+        self.tactical_days.remove(work_order_number);
+        self.tactical_period.remove(work_order_number);
     }
 }
 
