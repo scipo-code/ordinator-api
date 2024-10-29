@@ -668,7 +668,10 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         }
     }
 
-    fn unschedule(&mut self, work_order_and_activity_number: Self::SchedulingUnit) {
+    fn unschedule(
+        &mut self,
+        work_order_and_activity_number: Self::SchedulingUnit,
+    ) -> Result<(), AgentError> {
         let unscheduled_operational_solution = self
             .operational_solutions
             .0
@@ -676,6 +679,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             .find(|operational_solution| operational_solution.0 == work_order_and_activity_number)
             .take();
         unscheduled_operational_solution.expect("There was nothing in the operational solution");
+        Ok(())
     }
 
     fn update_scheduling_state(

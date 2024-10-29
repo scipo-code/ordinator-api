@@ -1,9 +1,78 @@
+use std::collections::HashMap;
+
 use super::StrategicAgent;
+use anyhow::{bail, Result};
+use shared_types::{
+    scheduling_environment::{
+        work_order::operation::Work, worker_environment::resources::Resources,
+    },
+    strategic::StrategicResources,
+    LoadOperation,
+};
+use strum::IntoEnumIterator;
+use tracing::{error, event, Level};
 
 #[allow(dead_code)]
-trait StrategicAssertions {}
+pub trait StrategicAssertions {
+    fn assert_aggregated_load(&self) -> Result<()>;
+}
 
-impl StrategicAssertions for StrategicAgent {}
+impl StrategicAssertions for StrategicAgent {
+    fn assert_aggregated_load(&self) -> Result<()> {
+        let mut aggregated_strategic_load = StrategicResources::new(HashMap::new());
+        for period in self.strategic_algorithm.periods() {
+            for (work_order_number, strategic_solution) in self
+                .strategic_algorithm
+                .strategic_solution
+                .scheduled_periods
+                .iter()
+            {
+                let strategic_parameter = self
+                    .strategic_algorithm
+                    .strategic_parameters
+                    .inner
+                    .get(work_order_number)
+                    .unwrap();
+                if strategic_solution.as_ref().unwrap() == &period.clone() {
+                    let work_load = &strategic_parameter.work_load;
+                    for resource in Resources::iter() {
+                        let load: Work =
+                            work_load.get(&resource).cloned().unwrap_or(Work::from(0.0));
+                        aggregated_strategic_load.update_load(
+                            &resource,
+                            period,
+                            load,
+                            LoadOperation::Add,
+                        );
+                    }
+                }
+            }
+        }
+
+        for (resource, periods) in aggregated_strategic_load.inner {
+            for (period, load) in periods.0 {
+                match self
+                    .strategic_algorithm
+                    .resources_loadings()
+                    .inner
+                    .get(&resource)
+                    .unwrap()
+                    .0
+                    .get(&period)
+                {
+                    // Some(resource_load) if (*resource_load - load).abs() < 0.005 => continue,
+                    Some(resource_load) => {
+                        event!(Level::ERROR, resource = %resource, period = %period, aggregated_load = %load, resource_load = %resource_load);
+                    }
+                    None => {
+                        bail!("aggregated load and resource loading are not identically shaped")
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
 
 // impl TestAlgorithm for StrategicAgent {
 //     type InfeasibleCases = StrategicInfeasibleCases;
@@ -155,66 +224,6 @@ impl StrategicAssertions for StrategicAgent {}
 //                 break;
 //             }
 //             strategic_state.infeasible_cases_mut().unwrap().respect_sch = ConstraintState::Feasible;
-//         }
-
-//         let mut aggregated_strategic_load = StrategicResources::new(HashMap::new());
-//         for period in self.strategic_agent_algorithm.periods() {
-//             for optimized_work_order in self
-//                 .strategic_agent_algorithm
-//                 .optimized_work_orders()
-//                 .values()
-//             {
-//                 if optimized_work_order.scheduled_period.as_ref().unwrap() == &period.clone() {
-//                     let work_load = &optimized_work_order.work_load;
-//                     for resource in Resources::iter() {
-//                         let load: Work =
-//                             work_load.get(&resource).cloned().unwrap_or(Work::from(0.0));
-//                         aggregated_strategic_load.update_load(
-//                             &resource,
-//                             period,
-//                             load,
-//                             LoadOperation::Add,
-//                         );
-//                     }
-//                 }
-//             }
-//         }
-
-//         let mut feasible: bool = true;
-//         for (resource, periods) in aggregated_strategic_load.inner {
-//             for (period, load) in periods.0 {
-//                 match self
-//                     .strategic_agent_algorithm
-//                     .resources_loadings()
-//                     .inner
-//                     .get(&resource)
-//                     .unwrap()
-//                     .0
-//                     .get(&period)
-//                 {
-//                     // Some(resource_load) if (*resource_load - load).abs() < 0.005 => continue,
-//                     Some(resource_load) => {
-//                         strategic_state
-//                             .infeasible_cases_mut()
-//                             .unwrap()
-//                             .respect_aggregated_load = ConstraintState::Infeasible(format!(
-//                             "resource = {}, period = {}, aggregated_load = {}, resource_load = {}",
-//                             resource, period, load, resource_load
-//                         ));
-//                         error!(resource = %resource, period = %period, aggregated_load = %load, resource_load = %resource_load);
-//                         feasible = false
-//                     }
-//                     None => {
-//                         panic!("aggregated load and resource loading are not identically shaped")
-//                     }
-//                 }
-//             }
-//         }
-//         if feasible {
-//             strategic_state
-//                 .infeasible_cases_mut()
-//                 .unwrap()
-//                 .respect_aggregated_load = ConstraintState::Feasible
 //         }
 
 //         strategic_state

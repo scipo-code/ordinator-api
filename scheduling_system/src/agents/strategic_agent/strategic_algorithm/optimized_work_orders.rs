@@ -41,20 +41,19 @@ impl StrategicParameters {
         Self { inner }
     }
 
-    pub fn insert_optimized_work_order(
+    pub fn insert_strategic_parameter(
         &mut self,
         work_order_number: WorkOrderNumber,
-        optimized_work_order: StrategicParameter,
+        strategic_parameter: StrategicParameter,
     ) {
-        self.inner.insert(work_order_number, optimized_work_order);
+        self.inner.insert(work_order_number, strategic_parameter);
     }
 
-    #[instrument(level = "trace", skip_all)]
     pub fn get_locked_in_period<'a>(&'a self, work_order_number: &'a WorkOrderNumber) -> &Period {
         let option_period = match self.inner.get(&work_order_number) {
             Some(strategic_parameter) => &strategic_parameter.locked_in_period,
             None => panic!(
-                "Work order number {:?} not found in optimized work orders",
+                "Work order number {:?} not found in StrategicParameters",
                 work_order_number
             ),
         };
@@ -87,9 +86,16 @@ pub struct StrategicParameter {
 }
 
 #[derive(Debug)]
-pub struct StrategicParametersBuilder(StrategicParameter);
+pub struct StrategicParameterBuilder(StrategicParameter);
 
-impl StrategicParametersBuilder {
+enum StrategicParameterStates {
+    Scheduled,
+    BasicStart,
+    VendorWithUnloadingPoint,
+    FMCMainWorkCenter,
+}
+
+impl StrategicParameterBuilder {
     pub fn new() -> Self {
         Self(StrategicParameter {
             locked_in_period: None,
@@ -111,11 +117,6 @@ impl StrategicParametersBuilder {
             .work_order_dates
             .latest_allowed_finish_period
             .clone();
-
-        // assert!(
-        //     self.latest_period.end_date().date_naive()
-        //         >= work_order.work_order_dates.latest_allowed_finish_date
-        // );
 
         let unloading_point_period = work_order.unloading_point().clone();
 
@@ -182,10 +183,6 @@ impl StrategicParametersBuilder {
                 self.0.locked_in_period = Some(locked_in_period.clone());
             }
             return self;
-        }
-        let period = periods.last().cloned();
-        if work_order.main_work_center.is_fmc() {
-            self.0.locked_in_period.clone_from(&period);
         }
         self
     }
