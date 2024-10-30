@@ -15,10 +15,13 @@ impl SupervisorAssertions for SupervisorAgent {
     fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(&self) {
         let tactical_operation_woas: HashSet<WorkOrderActivity> = self
             .supervisor_algorithm
-            .tactical_operations
+            .loaded_shared_solution
+            .tactical
+            .get_work_order_activities()
             .keys()
             .cloned()
             .collect();
+
         let operational_state_woas: HashSet<WorkOrderActivity> = self
             .supervisor_algorithm
             .operational_state
@@ -42,7 +45,9 @@ impl SupervisorAssertions for SupervisorAgent {
     fn assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self) {
         let tactical_operation_woas: HashSet<WorkOrderActivity> = self
             .supervisor_algorithm
-            .tactical_operations
+            .loaded_shared_solution
+            .tactical
+            .get_work_order_activities()
             .keys()
             .cloned()
             .collect();
