@@ -14,6 +14,7 @@ use tracing::{event, span, Level};
 
 use crate::agents::{
     operational_agent::{InitialMessage, OperationalAgent},
+    tactical_agent::tactical_algorithm::TacticalOperation,
     StateLink, StateLinkWrapper,
 };
 
@@ -33,10 +34,11 @@ impl OperationalStateMachine {
         &mut self,
         transition_type: TransitionTypes,
         operational_agent: (&Id, &Addr<OperationalAgent>),
+        tactical_operation: Arc<TacticalOperation>,
         supervisor_id: Id,
     ) {
         match transition_type {
-            TransitionTypes::Entering((work_order_activity, tactical_operation)) => {
+            TransitionTypes::Entering(work_order_activity) => {
                 let delegate = Arc::new(AtomicDelegate::new(Delegate::new()));
                 let marginal_fitness = MarginalFitness::default();
 
