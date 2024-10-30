@@ -9,7 +9,7 @@ use arc_swap::Guard;
 use shared_types::{
     agent_error::AgentError,
     scheduling_environment::{
-        work_order::{operation::ActivityNumber, WorkOrderActivity, WorkOrderNumber},
+        work_order::{operation::ActivityNumber, WorkOrderNumber},
         worker_environment::resources::Id,
     },
     supervisor::{
@@ -21,7 +21,7 @@ use shared_types::{
 };
 
 use crate::agents::{
-    operational_agent::algorithm::OperationalObjective, tactical_agent::tactical_algorithm::TacticalOperation, traits::LargeNeighborHoodSearch, ArcSwapSharedSolution, SharedSolution
+    operational_agent::algorithm::OperationalObjective,  traits::LargeNeighborHoodSearch, ArcSwapSharedSolution, SharedSolution
 };
 
 use super::{
@@ -65,7 +65,6 @@ pub struct SupervisorAlgorithm {
     arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
     pub loaded_shared_solution: Guard<Arc<SharedSolution>>,
     pub operational_agent_objectives: HashMap<Id, OperationalObjective>,
-    pub tactical_operations: HashMap<WorkOrderActivity, Arc<TacticalOperation>>,
 }
 
 impl SupervisorAlgorithm {
@@ -78,7 +77,6 @@ impl SupervisorAlgorithm {
             operational_state: OperationalStateMachine::default(),
             operational_agent_objectives: HashMap::default(),
             arc_swap_shared_solution,
-            tactical_operations: HashMap::default(),
             loaded_shared_solution,
         }
     }
@@ -133,8 +131,7 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
         {
             let number = self
                 
-                .tactical_operations
-                .get(work_order_activity)
+                .loaded_shared_solution.tactical.tactical_days.get(&work_order_activity.0).unwrap().as_ref().unwrap().get(&work_order_activity.1)
                 .expect("The Tactical Operation should be in present if present in the s.s.operational_state")
                 .number;
 
