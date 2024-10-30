@@ -590,7 +590,7 @@ impl Orchestrator {
                 asset.clone(),
                 id.clone(),
                 tactical_agent_addr.clone(),
-                self.arc_swap_shared_solutions.get(&asset).unwrap().clone(),
+                strategic_tactical_solutions_arc_swap.clone(),
                 Arc::clone(&number_of_operational_agents),
             );
 
