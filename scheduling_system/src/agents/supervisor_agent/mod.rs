@@ -249,31 +249,18 @@ impl SupervisorAgent {
         // self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&old_state).unwrap();
     }
 
-    fn make_transition_sets_from_tactical_state_link(
-        &self,
-        tactical_supervisor_link: HashMap<
-            (WorkOrderNumber, ActivityNumber),
-            Arc<TacticalOperation>,
-        >,
-    ) -> TransitionSets {
+    fn make_transition_sets_from_tactical_state_link(&self) -> TransitionSets {
         let tactical_supervisor_link = self
             .supervisor_algorithm
             .loaded_shared_solution
             .tactical
-            .tactical_days;
-
-        let tactical_supervisor_link: HashMap<WorkOrderActivity, TacticalOperation> =
-            tactical_supervisor_link
-                .iter()
-                // Here we only extract the map from the option
-                .filter_map(|(won, opt_map)| opt_map.map(|map| (won, map)))
-                // Now we want to extract the data from the inners HashMap,
-                .flat_map(|(won, map)| map.into_iter().map(move |(acn, to)| ((*won, acn), to)))
-                .collect();
+            .get_work_order_activities();
 
         let supervisor_set: HashSet<WorkOrderActivity> = self
             .supervisor_algorithm
-            .tactical_operations
+            .loaded_shared_solution
+            .tactical
+            .get_work_order_activities()
             .keys()
             .cloned()
             .collect();
@@ -306,12 +293,14 @@ impl SupervisorAgent {
             .for_each(|woa| {
                 let tactical_operation = self
                     .supervisor_algorithm
-                    .tactical_operations
+                    .loaded_shared_solution
+                    .tactical
+                    .get_work_order_activities()
                     .get(&woa)
                     .unwrap()
                     .clone();
 
-                if tactical_operation == tactical_supervisor_link.get(&woa).unwrap() {
+                if &tactical_operation == tactical_supervisor_link.get(&woa).unwrap() {
                     let transition_type = TransitionTypes::Unchanged(woa);
                     unchanged_woas.insert(transition_type);
                 } else {
@@ -461,7 +450,7 @@ impl Handler<SetAddr> for SupervisorAgent {
 }
 
 type StrategicMessage = ();
-type TacticalMessage = HashMap<(WorkOrderNumber, ActivityNumber), Arc<TacticalOperation>>;
+type TacticalMessage = ();
 type SupervisorMessage = ();
 // Why do we send this message? I am not really sure?
 type OperationalMessage = ((Id, WorkOrderActivity), OperationalObjective);
@@ -491,10 +480,8 @@ impl
 
         match state_link {
             StateLink::Strategic(_) => Ok(()),
-            StateLink::Tactical(tactical_supervisor_link) => {
-                let transition_sets = self.make_transition_sets_from_tactical_state_link(
-                    tactical_supervisor_link.clone(),
-                );
+            StateLink::Tactical(_) => {
+                let transition_sets = self.make_transition_sets_from_tactical_state_link();
 
                 self.handle_transition_sets(transition_sets)
                     .context("TranstionSets were not handled correctly")?;
