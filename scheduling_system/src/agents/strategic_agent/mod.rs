@@ -4,6 +4,8 @@ pub mod strategic_algorithm;
 
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborHoodSearch;
+use anyhow::bail;
+use anyhow::Result;
 use shared_types::scheduling_environment::work_order::status_codes::MaterialStatus;
 use shared_types::scheduling_environment::work_order::WorkOrder;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
@@ -83,7 +85,7 @@ impl StrategicAgent {
 }
 
 impl Handler<ScheduleIteration> for StrategicAgent {
-    type Result = ();
+    type Result = Result<()>;
 
     #[instrument(level = "trace", skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
@@ -132,6 +134,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         );
 
         ctx.notify(ScheduleIteration {});
+        Ok(())
     }
 }
 
@@ -249,7 +252,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                 }
             }
             StrategicRequestMessage::Scheduling(scheduling_message) => {
-                let scheduling_output: Result<StrategicResponseScheduling, AgentError> = self
+                let scheduling_output: Result<StrategicResponseScheduling> = self
                     .strategic_algorithm
                     .update_scheduling_state(scheduling_message);
 
@@ -295,16 +298,16 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
 }
 
 impl Handler<SetAddr> for StrategicAgent {
-    type Result = ();
+    type Result = Result<()>;
 
-    fn handle(&mut self, msg: SetAddr, _ctx: &mut Context<Self>) {
+    fn handle(&mut self, msg: SetAddr, _ctx: &mut actix::Context<Self>) -> Self::Result {
         match msg {
             SetAddr::Tactical(addr) => {
                 self.tactical_agent_addr = Some(addr);
+                Ok(())
             }
             _ => {
-                println!("The strategic agent received an Addr<T>, where T is not a valid Actor");
-                todo!()
+                bail!("Could not set the tactical Addr")
             }
         }
     }
@@ -375,7 +378,7 @@ mod tests {
     use std::collections::HashSet;
     use std::str::FromStr;
 
-    use crate::agents::StrategicTacticalSolutionArcSwap;
+    use crate::agents::ArcSwapSharedSolution;
 
     use super::{strategic_algorithm::PriorityQueues, *};
     use shared_types::scheduling_environment::worker_environment::resources::Resources;
@@ -546,7 +549,7 @@ mod tests {
             StrategicResources::default(),
             PriorityQueues::new(),
             optimized_work_orders,
-            StrategicTacticalSolutionArcSwap::default().into(),
+            ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             periods.clone(),
         );
@@ -635,7 +638,7 @@ mod tests {
             StrategicResources::new(loadings),
             PriorityQueues::new(),
             StrategicParameters::new(HashMap::new()),
-            StrategicTacticalSolutionArcSwap::default().into(),
+            ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             periods.clone(),
         );
@@ -693,7 +696,7 @@ mod tests {
             StrategicResources::default(),
             PriorityQueues::new(),
             optimized_work_orders,
-            StrategicTacticalSolutionArcSwap::default().into(),
+            ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             vec![],
         );

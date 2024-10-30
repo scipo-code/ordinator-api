@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 actix = "*"
 actix-web = "*"
+anyhow ="*"
 atoi = "=1.0.0"
 chrono = { version = "*", features = ["serde", "arbitrary"] }
 chrono-tz = "*"

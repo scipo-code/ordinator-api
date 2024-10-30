@@ -2,7 +2,8 @@ pub mod optimized_work_orders;
 pub mod assert_functions;
 
 use crate::agents::traits::LargeNeighborHoodSearch;
-use crate::agents::{SharedSolution, StrategicSolution, StrategicTacticalSolutionArcSwap};
+use crate::agents::{SharedSolution, StrategicSolution, ArcSwapSharedSolution};
+use anyhow::{bail, Context, Result};
 use assert_functions::StrategicAlgorithmAssertions;
 use optimized_work_orders::{StrategicParameterBuilder, StrategicParameters};
 use priority_queue::PriorityQueue;
@@ -30,7 +31,7 @@ pub struct StrategicAlgorithm {
     priority_queues: PriorityQueues<WorkOrderNumber, u64>,
     pub strategic_parameters: StrategicParameters,
     pub strategic_solution: StrategicSolution,
-    arc_swap_shared_solution: Arc<StrategicTacticalSolutionArcSwap>,
+    arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
     loaded_shared_solution: arc_swap::Guard<Arc<SharedSolution>>,
     period_locks: HashSet<Period>,
     periods: Vec<Period>,
@@ -345,7 +346,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
         }
     }
     
-    fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) -> Result<(), AgentError> {
+    fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) -> Result<()> {
   
         // Why can this not unschedule?
         let scheduled_period= self
@@ -358,15 +359,14 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 self.update_loadings(work_order_number, unschedule_from_period, LoadOperation::Sub);
                 Ok(())
             }
-            None => Err(AgentError::StrategicAgentCouldNotUnschedule),
+            None => bail!("could not unschedule strategic work order and update resources"),
         }
     }
 
-    #[instrument(skip_all, level = "info")]
     fn update_resources_state(
         &mut self,
         strategic_resources_message: Self::ResourceRequest,
-    ) -> Result<Self::ResourceResponse, AgentError> 
+    ) -> Result<Self::ResourceResponse> 
     {
     //tracing::info!("update_resources_state called");
         match strategic_resources_message {
@@ -407,21 +407,21 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 let capacities = self.resources_capacities();
                 let loadings = self.resources_loadings();
 
-                Self::assert_that_capacity_is_respected(loadings, capacities);
+                Self::assert_that_capacity_is_respected(loadings, capacities).context("Loadings exceed the capacities")?;
                 Ok(StrategicResponseResources::Percentage(capacities.clone(), loadings.clone()))
             }
         }
     }
 
     #[allow(dead_code)]
-    fn update_time_state(&mut self, _time_message: Self::TimeRequest) -> Result<Self::TimeResponse, AgentError> 
+    fn update_time_state(&mut self, _time_message: Self::TimeRequest) -> Result<Self::TimeResponse> 
         { todo!() }
 
     #[instrument(level = "info", skip_all)]
     fn update_scheduling_state(
         &mut self,
         strategic_scheduling_message: StrategicSchedulingRequest,
-    ) -> Result<Self::SchedulingResponse, AgentError>
+    ) -> Result<Self::SchedulingResponse>
 {
         match strategic_scheduling_message {
             StrategicSchedulingRequest::Schedule(schedule_work_order) => {
@@ -441,7 +441,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
              
                         Ok(StrategicResponseScheduling::new(vec![*work_order_number], vec![period]))
                     }
-                    None => Err(AgentError::StateUpdateError("Could not update strategic scheduling state".to_string())),
+                    None => bail!("Could not update strategic scheduling state".to_string()),
                 }
             }
             StrategicSchedulingRequest::ScheduleMultiple(schedule_work_orders) => {
@@ -467,8 +467,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                             periods.push(period);
                         }
                         None => {
-                   
-                            return Err(AgentError::StateUpdateError("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.".to_string()))
+                            bail!("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.".to_string())
                         }
                     }
                 }
@@ -514,7 +513,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                             
                         Ok(StrategicResponseScheduling::new(vec![*work_order_number], vec![period.clone()]))
                     }
-                    None => Err(AgentError::StateUpdateError("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.".to_string())),
+                    None => bail!("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.".to_string()),
                 }
             }
         }
@@ -528,7 +527,7 @@ impl StrategicAlgorithm {
         resources_loading: StrategicResources,
         priority_queues: PriorityQueues<WorkOrderNumber, u64>,
         strategic_parameters: StrategicParameters,
-        strategic_tactical_solution_arc_swap: Arc<StrategicTacticalSolutionArcSwap>,
+        strategic_tactical_solution_arc_swap: Arc<ArcSwapSharedSolution>,
         period_locks: HashSet<Period>,
         periods: Vec<Period>,
     ) -> Self {
@@ -670,7 +669,7 @@ mod tests {
             StrategicResources::default(),
             PriorityQueues::new(),
             StrategicParameters::new(HashMap::new()),
-            StrategicTacticalSolutionArcSwap::default().into(),
+            ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             periods,
         );
@@ -799,7 +798,7 @@ mod tests {
             StrategicResources::new(resource_loadings),
             PriorityQueues::new(),
             optimized_work_orders,
-            StrategicTacticalSolutionArcSwap::default().into(),
+            ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             vec![period.clone()],
         );
@@ -852,7 +851,7 @@ mod tests {
             StrategicResources::new(resource_loadings),
             PriorityQueues::new(),
             optimized_work_orders,
-            StrategicTacticalSolutionArcSwap::default().into(),
+            ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             vec![period.clone()],
         );
@@ -903,7 +902,7 @@ mod tests {
             StrategicResources::new(resource_loadings),
             PriorityQueues::new(),
             StrategicParameters::new(HashMap::new()),
-            StrategicTacticalSolutionArcSwap::default().into(),
+            ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             vec![],
         );
@@ -1002,7 +1001,7 @@ mod tests {
             StrategicResources::new(resource_loadings),
             PriorityQueues::new(),
             optimized_work_orders,
-            StrategicTacticalSolutionArcSwap::default().into(),
+            ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             periods,
         );
@@ -1103,7 +1102,7 @@ mod tests {
            Work::from( 60.0)
         );
 
-        strategic_agent_algorithm.unschedule(work_order_number);
+        strategic_agent_algorithm.unschedule(work_order_number).unwrap();
         assert_eq!(
             *strategic_agent_algorithm
                 .resources_loading(&Resources::MtnMech, &period_1),
@@ -1202,7 +1201,7 @@ Period::from_str("2023-W49-50").unwrap(),
             StrategicResources::default(),
             PriorityQueues::new(),
             optimized_work_orders,
-            StrategicTacticalSolutionArcSwap::default().into(),
+            ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             periods,
         );
@@ -1292,12 +1291,12 @@ Period::from_str("2023-W49-50").unwrap(),
             StrategicResources::default(),
             PriorityQueues::new(),
             optimized_work_orders,
-            StrategicTacticalSolutionArcSwap::default().into(),
+            ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             vec![Period::from_str("2023-W47-48").unwrap()],
         );
 
-        strategic_agent_algorithm.unschedule(work_order_number);
+        strategic_agent_algorithm.unschedule(work_order_number).unwrap();
         assert_eq!(
             *strategic_agent_algorithm
                 .strategic_periods()

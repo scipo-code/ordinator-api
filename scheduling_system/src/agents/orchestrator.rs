@@ -52,7 +52,7 @@ use tracing_subscriber::EnvFilter;
 
 use shared_types::scheduling_environment::WorkOrders;
 
-use super::StrategicTacticalSolutionArcSwap;
+use super::ArcSwapSharedSolution;
 
 #[derive(Clone)]
 pub struct ArcOrchestrator(pub Arc<Mutex<Orchestrator>>);
@@ -60,7 +60,7 @@ pub struct ArcOrchestrator(pub Arc<Mutex<Orchestrator>>);
 #[derive(Clone)]
 pub struct Orchestrator {
     pub scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-    pub arc_swap_shared_solutions: HashMap<Asset, Arc<StrategicTacticalSolutionArcSwap>>,
+    pub arc_swap_shared_solutions: HashMap<Asset, Arc<ArcSwapSharedSolution>>,
     pub agent_factory: AgentFactory,
     pub agent_registries: HashMap<Asset, ActorRegistry>,
     pub log_handles: LogHandles,
@@ -317,6 +317,7 @@ impl Orchestrator {
                     asset.clone(),
                     id_string.clone(),
                     tactical_agent_addr,
+                    self.arc_swap_shared_solutions.get(&asset).unwrap().clone(),
                     number_of_operational_agents,
                 );
 
@@ -589,6 +590,7 @@ impl Orchestrator {
                 asset.clone(),
                 id.clone(),
                 tactical_agent_addr.clone(),
+                self.arc_swap_shared_solutions.get(&asset).unwrap().clone(),
                 Arc::clone(&number_of_operational_agents),
             );
 
