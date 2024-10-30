@@ -1,5 +1,5 @@
 use actix::Message;
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use arc_swap::Guard;
 use chrono::NaiveDate;
 use priority_queue::PriorityQueue;
@@ -32,7 +32,7 @@ use std::{
     sync::{Arc, MutexGuard},
 };
 use std::{collections::HashMap, fmt};
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, event, info, instrument, warn, Level};
 
 use crate::agents::{
     traits::LargeNeighborHoodSearch, ArcSwapSharedSolution, SharedSolution, TacticalSolution,
@@ -145,10 +145,6 @@ impl TacticalOperation {
             work_remaining,
             work_order_activity: (work_order_number, activity_number),
         }
-    }
-
-    pub(crate) fn get_resource(&self) -> &Resources {
-        &self.resource
     }
 }
 
@@ -263,8 +259,12 @@ impl TacticalAlgorithm {
         rng: &mut impl rand::Rng,
         number_of_work_orders: u32,
     ) -> Result<()> {
-        let work_order_numbers: Vec<WorkOrderNumber> =
-            self.tactical_parameters().clone().into_keys().collect();
+        let work_order_numbers: Vec<WorkOrderNumber> = self
+            .tactical_solution
+            .tactical_days
+            .clone()
+            .into_keys()
+            .collect();
 
         let random_work_order_numbers =
             work_order_numbers.choose_multiple(rng, number_of_work_orders as usize);
@@ -273,7 +273,7 @@ impl TacticalAlgorithm {
                 format!(
                     "Could not unschedule tactical work order: {:?} on line: {}",
                     work_order_number,
-                    line!()
+                    line!(),
                 )
             })?;
         }
@@ -303,7 +303,8 @@ impl TacticalAlgorithm {
             .work_orders()
             .work_orders_by_asset(asset);
 
-        self.load_and_clone_shared_solution();
+        self.load_shared_solution();
+
         for (work_order_number, work_order) in work_orders {
             self.create_tactical_parameter(
                 work_order,
@@ -327,7 +328,7 @@ impl TacticalAlgorithm {
             .store(Arc::new(shared_solution));
     }
 
-    pub fn load_and_clone_shared_solution(&mut self) {
+    pub fn load_shared_solution(&mut self) {
         self.loaded_shared_solution = self.strategic_tactical_solution_arc_swap.0.load();
     }
 }
@@ -610,12 +611,10 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
         let tactical_solution = self
             .tactical_solution
             .tactical_days
-            .get_mut(&work_order_number);
-
-        let tactical_solution = match tactical_solution {
-            Some(tactical_solution) => tactical_solution,
-            None => bail!("missing tactical state"),
-        };
+            .get_mut(&work_order_number)
+            .with_context(|| {
+                format!("This means that the TacticalAlgorithm has been initialized wrong")
+            })?;
 
         match tactical_solution.take() {
             Some(operation_solutions) => {

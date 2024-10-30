@@ -92,14 +92,13 @@ impl Handler<ScheduleIteration> for TacticalAgent {
 
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut actix::Context<Self>) -> Self::Result {
         let mut rng = rand::thread_rng();
-
-        // TODO:
-        self.tactical_algorithm.load_and_clone_shared_solution();
+        self.tactical_algorithm.load_shared_solution();
         let current_objective_value = self.tactical_algorithm.objective_value;
 
         self.tactical_algorithm
             .unschedule_random_work_orders(&mut rng, 50)
-            .context("random unschedule failed")?;
+            .context("random unschedule failed")
+            .expect("Error in the Handler<ScheduleIteration>");
 
         self.tactical_algorithm.schedule();
 
@@ -110,6 +109,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
                 .make_atomic_pointer_swap_for_with_the_better_tactical_solution();
 
             event!(Level::INFO, tactical_objective_value = ?self.tactical_algorithm.objective_value);
+        } else {
         };
 
         ctx.wait(
