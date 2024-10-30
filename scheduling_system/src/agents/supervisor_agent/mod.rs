@@ -20,13 +20,7 @@ use actix::prelude::*;
 use shared_types::{
     agent_error::AgentError,
     orchestrator::OrchestratorMessage,
-    scheduling_environment::{
-        work_order::{
-            operation::{ActivityNumber, Work},
-            WorkOrderActivity, WorkOrderNumber,
-        },
-        worker_environment::resources::Resources,
-    },
+    scheduling_environment::work_order::{operation::Work, WorkOrderActivity},
     supervisor::{
         supervisor_response_scheduling::SupervisorResponseScheduling,
         supervisor_response_status::SupervisorResponseStatus, SupervisorRequestMessage,
@@ -44,7 +38,7 @@ use self::algorithm::SupervisorAlgorithm;
 
 use super::{
     operational_agent::{algorithm::OperationalObjective, OperationalAgent},
-    tactical_agent::{tactical_algorithm::TacticalOperation, TacticalAgent},
+    tactical_agent::TacticalAgent,
     traits::LargeNeighborHoodSearch,
     ArcSwapSharedSolution, ScheduleIteration, SetAddr, StateLink, StateLinkWrapper,
 };
@@ -61,23 +55,11 @@ pub struct SupervisorAgent {
 
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum TransitionTypes {
-    Entering((WorkOrderActivity, Arc<TacticalOperation>)),
+    Entering(WorkOrderActivity),
     Leaving(WorkOrderActivity),
     Unchanged(WorkOrderActivity),
-    Changed((WorkOrderActivity, Arc<TacticalOperation>)),
-    Done((WorkOrderActivity, Arc<TacticalOperation>)),
-}
-
-impl TransitionTypes {
-    pub fn resource(&self) -> &Resources {
-        match self {
-            TransitionTypes::Entering((_, tac)) => (**tac).get_resource(),
-            TransitionTypes::Leaving(_) => panic!(),
-            TransitionTypes::Unchanged(_) => panic!(),
-            TransitionTypes::Changed((_, tac)) => (**tac).get_resource(),
-            TransitionTypes::Done(_) => panic!(),
-        }
-    }
+    Changed(WorkOrderActivity),
+    Done(WorkOrderActivity),
 }
 
 type TransitionSets = HashSet<TransitionTypes>;
@@ -277,10 +259,7 @@ impl SupervisorAgent {
 
         let done_woas: HashSet<TransitionTypes> = done_set
             .into_iter()
-            .map(|woa| {
-                let tactical_operation = tactical_supervisor_link.get(&woa).unwrap();
-                TransitionTypes::Done((woa, Arc::clone(tactical_operation)))
-            })
+            .map(|woa| TransitionTypes::Done(woa))
             .collect();
 
         let mut changed_woas = HashSet::new();
@@ -304,7 +283,7 @@ impl SupervisorAgent {
                     let transition_type = TransitionTypes::Unchanged(woa);
                     unchanged_woas.insert(transition_type);
                 } else {
-                    let transition_type = TransitionTypes::Changed((woa, tactical_operation));
+                    let transition_type = TransitionTypes::Changed(woa);
                     changed_woas.insert(transition_type);
                 }
             });
@@ -318,10 +297,7 @@ impl SupervisorAgent {
         let entering_woas = tactical_set
             .difference(&supervisor_set)
             .cloned()
-            .map(|woa| {
-                let tactical_operation = tactical_supervisor_link.get(&woa).unwrap().clone();
-                TransitionTypes::Entering((woa, tactical_operation))
-            })
+            .map(|woa| TransitionTypes::Entering(woa))
             .collect::<HashSet<TransitionTypes>>();
 
         assert!(leaving_woas.is_disjoint(&entering_woas));
@@ -340,44 +316,83 @@ impl SupervisorAgent {
         final_set
     }
     fn handle_transition_sets(&mut self, transition_sets: HashSet<TransitionTypes>) -> Result<()> {
+        let locked_scheduling_environment = self
+            .scheduling_environment
+            .lock()
+            .expect("SchedulingEnvironment lock should never be poisoned");
+
         for transition_type in &transition_sets {
             match transition_type {
-                TransitionTypes::Entering((work_order_activity, tactical_operation)) => {
-                    let insert_option = self
-                        .supervisor_algorithm
-                        .tactical_operations
-                        .insert(*work_order_activity, tactical_operation.clone());
-                    match insert_option {
-                        Some(_) => panic!(),
-                        None => (),
-                    }
+                TransitionTypes::Entering(work_order_activity) => {
+                    // TODO: 2024-10-31: Check that this is actually needed
+                    // let insert_option = self
+                    //     .supervisor_algorithm
+                    //     .tactical_operations
+                    //     .insert(*work_order_activity, tactical_operation.clone());
+                    // match insert_option {
+                    //     Some(_) => panic!(),
+                    //     None => (),
+                    // }
+                    self.supervisor_algorithm
+                        .supervisor_parameters
+                        .create(&locked_scheduling_environment, work_order_activity);
+
+                    let tactical_operation = Arc::new(
+                        self.supervisor_algorithm
+                            .loaded_shared_solution
+                            .tactical
+                            .tactical_days
+                            .get(&work_order_activity.0)
+                            .unwrap()
+                            .as_ref()
+                            .unwrap()
+                            .get(&work_order_activity.1)
+                            .unwrap()
+                            .clone(),
+                    );
 
                     for operational_agent in &self.operational_agent_addrs {
-                        if operational_agent.0 .1.contains(transition_type.resource()) {
+                        if operational_agent.0 .1.contains(
+                            &self
+                                .supervisor_algorithm
+                                .supervisor_parameters
+                                .strategic_parameter(work_order_activity)
+                                .context("The SupervisorParameter was not found")?
+                                .resource,
+                        ) {
                             self.supervisor_algorithm
                                 .operational_state
                                 .update_operational_state(
                                     transition_type.clone(),
                                     operational_agent,
+                                    tactical_operation.clone(),
                                     self.supervisor_id.clone(),
                                 )
                         }
                     }
                 }
                 TransitionTypes::Leaving(work_order_activity) => {
-                    let remove_option = self
-                        .supervisor_algorithm
-                        .tactical_operations
-                        .remove(work_order_activity);
-                    match remove_option {
-                        Some(_) => {
-                            event!(Level::DEBUG, work_order_activity = ?work_order_activity, "TacticalOperation left the SupervisorAgent");
-                        }
-                        None => {
-                            event!(Level::ERROR, work_order_activity = ?work_order_activity, all_work_order_activities = ?self.supervisor_algorithm.tactical_operations.keys());
-                            panic!();
-                        }
-                    }
+                    self.supervisor_algorithm
+                        .supervisor_parameters
+                        .remove_strategic_parameter(work_order_activity)
+                        .context(
+                            "TransitionTypes::Leaving(WorkOrderActivity): {:?} was not present",
+                        )?;
+
+                    let tactical_operation = Arc::new(
+                        self.supervisor_algorithm
+                            .loaded_shared_solution
+                            .tactical
+                            .tactical_days
+                            .get(&work_order_activity.0)
+                            .unwrap()
+                            .as_ref()
+                            .unwrap()
+                            .get(&work_order_activity.1)
+                            .unwrap()
+                            .clone(),
+                    );
+
                     for operational_agent in &self.operational_agent_addrs {
                         let leaving_delegate_option = self
                             .supervisor_algorithm
@@ -391,6 +406,7 @@ impl SupervisorAgent {
                                 .update_operational_state(
                                     transition_type.clone(),
                                     operational_agent,
+                                    tactical_operation.clone(),
                                     self.supervisor_id.clone(),
                                 ),
                             None => {
@@ -408,19 +424,10 @@ impl SupervisorAgent {
                 TransitionTypes::Changed(_delegate) => {
                     todo!();
                 }
-                TransitionTypes::Done((work_order_activity, tactical_operation)) => {
-                    let insert_option = self
-                        .supervisor_algorithm
-                        .tactical_operations
-                        .insert(*work_order_activity, tactical_operation.clone());
-                    match insert_option {
-                        Some(previous_entry) => bail!(
-                            "A TransitionTypes::Done should not already be present: {:?}",
-                            previous_entry
-                        ), //panic!(),
-                        None => (),
-                    }
-                }
+                TransitionTypes::Done(work_order_activity) => self
+                    .supervisor_algorithm
+                    .supervisor_parameters
+                    .create(&locked_scheduling_environment, work_order_activity),
             }
         }
         Ok(())
