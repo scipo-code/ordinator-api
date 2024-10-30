@@ -3,6 +3,9 @@ pub mod messages;
 pub mod tactical_algorithm;
 
 use actix::prelude::*;
+use anyhow::bail;
+use anyhow::Context;
+use anyhow::Result;
 use shared_types::agent_error::AgentError;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
@@ -21,11 +24,8 @@ use shared_types::scheduling_environment::SchedulingEnvironment;
 use super::strategic_agent::StrategicAgent;
 use super::supervisor_agent::SupervisorAgent;
 use super::traits::LargeNeighborHoodSearch;
-use super::{
-    ScheduleIteration, StateLink, StateLinkError, StateLinkWrapper, UpdateWorkOrderMessage,
-};
+use super::{ScheduleIteration, StateLink, StateLinkWrapper, UpdateWorkOrderMessage};
 
-#[allow(dead_code)]
 pub struct TacticalAgent {
     asset: Asset,
     id_tactical: i32,
@@ -72,9 +72,9 @@ impl TacticalAgent {
 }
 
 impl Actor for TacticalAgent {
-    type Context = Context<Self>;
+    type Context = actix::Context<Self>;
 
-    fn started(&mut self, ctx: &mut Context<Self>) {
+    fn started(&mut self, ctx: &mut actix::Context<Self>) {
         event!(
             Level::DEBUG,
             "TacticalAgent {} has started, sending Its address to the StrategicAgent",
@@ -88,9 +88,9 @@ impl Actor for TacticalAgent {
 }
 
 impl Handler<ScheduleIteration> for TacticalAgent {
-    type Result = ();
+    type Result = Result<()>;
 
-    fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Context<Self>) {
+    fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut actix::Context<Self>) -> Self::Result {
         let mut rng = rand::thread_rng();
 
         // TODO:
@@ -98,7 +98,8 @@ impl Handler<ScheduleIteration> for TacticalAgent {
         let current_objective_value = self.tactical_algorithm.objective_value;
 
         self.tactical_algorithm
-            .unschedule_random_work_orders(&mut rng, 50);
+            .unschedule_random_work_orders(&mut rng, 50)
+            .context("random unschedule failed")?;
 
         self.tactical_algorithm.schedule();
 
@@ -121,17 +122,18 @@ impl Handler<ScheduleIteration> for TacticalAgent {
             .into_actor(self),
         );
         ctx.notify(ScheduleIteration {});
+        Ok(())
     }
 }
 
 impl Handler<TacticalRequestMessage> for TacticalAgent {
-    type Result = Result<TacticalResponseMessage, AgentError>;
+    type Result = Result<TacticalResponseMessage>;
 
     #[instrument(level = "info", skip_all)]
     fn handle(
         &mut self,
         tactical_request: TacticalRequestMessage,
-        _ctx: &mut Context<Self>,
+        _ctx: &mut actix::Context<Self>,
     ) -> Self::Result {
         match tactical_request {
             TacticalRequestMessage::Status(_tactical_status_message) => {
@@ -170,8 +172,7 @@ impl
         >,
     > for TacticalAgent
 {
-    // Strategic(Vec<(WorkOrderNumber, Period)>),
-    type Result = Result<(), StateLinkError>;
+    type Result = Result<()>;
 
     fn handle(
         &mut self,
@@ -181,20 +182,13 @@ impl
             SupervisorMessage,
             OperationalMessage,
         >,
-        _ctx: &mut Context<Self>,
+        _ctx: &mut actix::Context<Self>,
     ) -> Self::Result {
-        let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
         let state_link = state_link_wrapper.state_link;
         let _enter = state_link_wrapper.span.enter();
 
         match state_link {
-            StateLink::Strategic(strategic_state) => {
-                let work_orders = scheduling_environment_guard.work_orders().clone();
-                drop(scheduling_environment_guard);
-                self.tactical_algorithm
-                    .update_state_based_on_strategic(&work_orders);
-                Ok(())
-            }
+            StateLink::Strategic(_strategic_state) => Ok(()),
             StateLink::Tactical(_) => {
                 todo!()
             }
@@ -209,16 +203,16 @@ impl
 }
 
 impl Handler<SetAddr> for TacticalAgent {
-    type Result = ();
+    type Result = Result<()>;
 
-    fn handle(&mut self, msg: SetAddr, _ctx: &mut Context<Self>) {
+    fn handle(&mut self, msg: SetAddr, _ctx: &mut actix::Context<Self>) -> Self::Result {
         match msg {
             SetAddr::Supervisor(id, addr) => {
                 self.main_supervisor_addr = Some((id, addr));
+                Ok(())
             }
             _ => {
-                println!("The tactical agent received an Addr<T>, where T is not a valid Actor");
-                todo!()
+                bail!("The tactical agent received an Addr<T>, where T is not a valid Actor")
             }
         }
     }
@@ -230,7 +224,7 @@ impl Handler<UpdateWorkOrderMessage> for TacticalAgent {
     fn handle(
         &mut self,
         _update_work_order: UpdateWorkOrderMessage,
-        _ctx: &mut Context<Self>,
+        _ctx: &mut actix::Context<Self>,
     ) -> Self::Result {
         // todo!();
         event!(

@@ -6,6 +6,7 @@ use std::{
     },
 };
 
+use anyhow::Result;
 use chrono::{DateTime, TimeDelta, Utc};
 use rand::seq::SliceRandom;
 use shared_types::{
@@ -668,10 +669,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         }
     }
 
-    fn unschedule(
-        &mut self,
-        work_order_and_activity_number: Self::SchedulingUnit,
-    ) -> Result<(), AgentError> {
+    fn unschedule(&mut self, work_order_and_activity_number: Self::SchedulingUnit) -> Result<()> {
         let unscheduled_operational_solution = self
             .operational_solutions
             .0
@@ -685,21 +683,18 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
     fn update_scheduling_state(
         &mut self,
         _message: Self::SchedulingRequest,
-    ) -> Result<Self::SchedulingResponse, Self::Error> {
+    ) -> Result<Self::SchedulingResponse> {
         todo!()
     }
 
-    fn update_time_state(
-        &mut self,
-        _message: Self::TimeRequest,
-    ) -> Result<Self::TimeResponse, Self::Error> {
+    fn update_time_state(&mut self, _message: Self::TimeRequest) -> Result<Self::TimeResponse> {
         todo!()
     }
 
     fn update_resources_state(
         &mut self,
         _message: Self::ResourceRequest,
-    ) -> Result<Self::ResourceResponse, Self::Error> {
+    ) -> Result<Self::ResourceResponse> {
         todo!();
     }
 }
@@ -795,7 +790,8 @@ impl OperationalAlgorithm {
             .collect();
 
         for operational_solution in operational_solutions {
-            self.unschedule((operational_solution.0, operational_solution.1));
+            self.unschedule((operational_solution.0, operational_solution.1))
+                .expect("OperationalAgent could not unschedule correctly");
         }
     }
 

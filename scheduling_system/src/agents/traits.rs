@@ -1,3 +1,4 @@
+use anyhow::Result;
 use shared_types::AlgorithmState;
 
 #[allow(dead_code)]
@@ -18,22 +19,19 @@ pub trait LargeNeighborHoodSearch {
 
     fn schedule(&mut self);
 
-    fn unschedule(&mut self, message: Self::SchedulingUnit) -> Result<(), Self::Error>;
+    fn unschedule(&mut self, message: Self::SchedulingUnit) -> Result<()>;
 
     fn update_scheduling_state(
         &mut self,
         message: Self::SchedulingRequest,
-    ) -> Result<Self::SchedulingResponse, Self::Error>;
+    ) -> Result<Self::SchedulingResponse>;
 
-    fn update_time_state(
-        &mut self,
-        message: Self::TimeRequest,
-    ) -> Result<Self::TimeResponse, Self::Error>;
+    fn update_time_state(&mut self, message: Self::TimeRequest) -> Result<Self::TimeResponse>;
 
     fn update_resources_state(
         &mut self,
         message: Self::ResourceRequest,
-    ) -> Result<Self::ResourceResponse, Self::Error>;
+    ) -> Result<Self::ResourceResponse>;
 }
 
 /// TestAlgorithm is a trait that all algorithms should implement. Running `feasible()` tests if the solution

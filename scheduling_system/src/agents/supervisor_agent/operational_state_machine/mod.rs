@@ -159,6 +159,7 @@ impl OperationalStateMachine {
                 .unwrap()
                 .0
                 .swap(delegate, std::sync::atomic::Ordering::SeqCst);
+            debug_assert_ne!(self_delegate, delegate);
         }
     }
 
