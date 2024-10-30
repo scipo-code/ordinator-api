@@ -88,12 +88,13 @@ pub struct StrategicParameter {
 #[derive(Debug)]
 pub struct StrategicParameterBuilder(StrategicParameter);
 
-enum StrategicParameterStates {
-    Scheduled,
-    BasicStart,
-    VendorWithUnloadingPoint,
-    FMCMainWorkCenter,
-}
+// TODO: Use this for testing the scheduling program
+// enum StrategicParameterStates {
+//     Scheduled,
+//     BasicStart,
+//     VendorWithUnloadingPoint,
+//     FMCMainWorkCenter,
+// }
 
 impl StrategicParameterBuilder {
     pub fn new() -> Self {

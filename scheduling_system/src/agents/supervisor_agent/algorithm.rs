@@ -4,6 +4,8 @@ use std::{
     sync::{atomic::AtomicUsize, Arc},
 };
 
+use anyhow::Result;
+use arc_swap::Guard;
 use shared_types::{
     agent_error::AgentError,
     scheduling_environment::{
@@ -19,7 +21,7 @@ use shared_types::{
 };
 
 use crate::agents::{
-    operational_agent::algorithm::OperationalObjective, tactical_agent::tactical_algorithm::TacticalOperation, traits::LargeNeighborHoodSearch
+    operational_agent::algorithm::OperationalObjective, tactical_agent::tactical_algorithm::TacticalOperation, traits::LargeNeighborHoodSearch, ArcSwapSharedSolution, SharedSolution
 };
 
 use super::{
@@ -60,36 +62,32 @@ pub struct SupervisorAlgorithm {
     pub objective_value: f64,
     _resource: TomlSupervisor,
     pub operational_state: OperationalStateMachine,
+    arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
+    pub loaded_shared_solution: Guard<Arc<SharedSolution>>,
     pub operational_agent_objectives: HashMap<Id, OperationalObjective>,
     pub tactical_operations: HashMap<WorkOrderActivity, Arc<TacticalOperation>>,
 }
 
 impl SupervisorAlgorithm {
-    pub fn new(supervisor: TomlSupervisor) -> Self {
+    pub fn new(supervisor: TomlSupervisor, arc_swap_shared_solution: Arc<ArcSwapSharedSolution>) -> Self {
+
+        let loaded_shared_solution = arc_swap_shared_solution.0.load();
         Self {
             objective_value: f64::default(),
             _resource: supervisor,
             operational_state: OperationalStateMachine::default(),
             operational_agent_objectives: HashMap::default(),
+            arc_swap_shared_solution,
             tactical_operations: HashMap::default(),
+            loaded_shared_solution,
         }
     }
 
-    #[allow(dead_code)]
-    pub fn is_assigned(&self, work_order_activity: WorkOrderActivity) -> bool {
-        self.operational_state.get_iter().any(|(key, val)| {
-            work_order_activity == key.1
-                && val.0.load(std::sync::atomic::Ordering::Relaxed) == Delegate::Assign
-        })
+    pub fn load_shared_solution(&mut self) {
+        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
+
     }
 
-    #[allow(dead_code)]
-    pub fn number_woas_for_agent(&self, operational_agent: &Id) -> usize {
-        self.operational_state
-            .get_iter()
-            .filter(|id| id.0 .0 == *operational_agent)
-            .count()
-    }
 }
 
 impl LargeNeighborHoodSearch for SupervisorAlgorithm {
@@ -201,7 +199,7 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
         }
     }
 
-    fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) -> Result<(), AgentError> {
+    fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) -> Result<()> {
         self
             .operational_state
             .turn_work_order_into_delegate_assess(work_order_number);
@@ -211,21 +209,21 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
     fn update_scheduling_state(
         &mut self,
         _message: Self::SchedulingRequest,
-    ) -> Result<Self::SchedulingResponse, Self::Error> {
+    ) -> Result<Self::SchedulingResponse> {
         todo!()
     }
 
     fn update_time_state(
         &mut self,
         _message: Self::TimeRequest,
-    ) -> Result<Self::TimeResponse, Self::Error> {
+    ) -> Result<Self::TimeResponse> {
         todo!()
     }
 
     fn update_resources_state(
         &mut self,
         _message: Self::ResourceRequest,
-    ) -> Result<Self::ResourceResponse, Self::Error> {
+    ) -> Result<Self::ResourceResponse> {
         todo!()
     }
 }
