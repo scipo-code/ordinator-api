@@ -13,7 +13,7 @@ use arc_swap::ArcSwap;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::{ActivityNumber, Work};
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::work_order::{WorkOrderActivity, WorkOrderNumber};
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 use tactical_agent::tactical_algorithm::TacticalOperation;
 use tracing::Span;
@@ -85,6 +85,15 @@ impl TacticalSolution {
     }
     pub fn tactical_period(&self, work_order_number: &WorkOrderNumber) -> &Option<Period> {
         self.tactical_period.get(work_order_number).unwrap()
+    }
+    pub fn get_work_order_activities(&self) -> HashMap<WorkOrderActivity, TacticalOperation> {
+        self.tactical_days
+            .iter()
+            // Here we only extract the map from the option
+            .filter_map(|(won, opt_map)| opt_map.as_ref().map(|map| (won, map)))
+            // Now we want to extract the data from the inners HashMap,
+            .flat_map(|(won, map)| map.iter().map(|(acn, to)| ((*won, *acn), to.clone())))
+            .collect()
     }
 }
 
