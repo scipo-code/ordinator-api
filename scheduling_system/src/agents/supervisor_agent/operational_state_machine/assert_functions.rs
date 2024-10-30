@@ -7,6 +7,7 @@ use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use std::collections::HashSet;
 use tracing::{event, Level};
 
+#[allow(dead_code)]
 pub trait OperationalStateMachineAssertions {
     fn assert_that_unassigned_woas_are_valid(&self);
     fn assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess(

@@ -2,10 +2,10 @@ use std::sync::atomic::Ordering;
 
 use shared_types::scheduling_environment::work_order::WorkOrderActivity;
 
+use super::OperationalAgent;
 use crate::agents::supervisor_agent::delegate::Delegate;
 
-use super::OperationalAgent;
-
+#[allow(dead_code)]
 pub trait OperationalAssertions {
     fn assert_operational_solutions_does_not_have_delegate_unassign(&self);
 }

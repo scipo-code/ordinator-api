@@ -1,5 +1,6 @@
 use super::TacticalAgent;
 
+#[allow(dead_code)]
 trait TacticalAssertions {}
 
 impl TacticalAssertions for TacticalAgent {}

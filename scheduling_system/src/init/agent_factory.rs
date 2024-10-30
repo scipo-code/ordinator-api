@@ -20,7 +20,7 @@ use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::supervisor_agent::SupervisorAgent;
 use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
 use crate::agents::tactical_agent::TacticalAgent;
-use crate::agents::{SharedSolution, StrategicTacticalSolutionArcSwap};
+use crate::agents::{ArcSwapSharedSolution, SharedSolution};
 
 use shared_types::scheduling_environment::worker_environment::resources::{Id, Resources};
 use shared_types::scheduling_environment::SchedulingEnvironment;
@@ -37,10 +37,10 @@ impl AgentFactory {
         }
     }
 
-    pub fn create_arc_swap_for_strategic_tactical() -> Arc<StrategicTacticalSolutionArcSwap> {
+    pub fn create_arc_swap_for_strategic_tactical() -> Arc<ArcSwapSharedSolution> {
         let strategic_tactical_solution_arc_swap = SharedSolution::default();
 
-        Arc::new(StrategicTacticalSolutionArcSwap(ArcSwap::from(Arc::new(
+        Arc::new(ArcSwapSharedSolution(ArcSwap::from(Arc::new(
             strategic_tactical_solution_arc_swap,
         ))))
     }
@@ -49,7 +49,7 @@ impl AgentFactory {
         &self,
         asset: Asset,
         strategic_resources: Option<StrategicResources>,
-        strategic_tactical_optimized_work_orders: Arc<StrategicTacticalSolutionArcSwap>,
+        strategic_tactical_optimized_work_orders: Arc<ArcSwapSharedSolution>,
     ) -> Addr<StrategicAgent> {
         let mut cloned_work_orders = self
             .scheduling_environment
@@ -121,7 +121,7 @@ impl AgentFactory {
         asset: Asset,
         strategic_agent_addr: Addr<StrategicAgent>,
         tactical_resources: Option<TacticalResources>,
-        strategic_tactical_optimized_work_orders: Arc<StrategicTacticalSolutionArcSwap>,
+        strategic_tactical_optimized_work_orders: Arc<ArcSwapSharedSolution>,
     ) -> Addr<TacticalAgent> {
         let (sender, receiver) = std::sync::mpsc::channel::<Addr<TacticalAgent>>();
 
@@ -172,6 +172,7 @@ impl AgentFactory {
         asset: Asset,
         id_supervisor: Id,
         tactical_agent_addr: Addr<TacticalAgent>,
+        arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
         number_of_operational_agents: Arc<AtomicU64>,
     ) -> Addr<SupervisorAgent> {
         let (sender, receiver) = std::sync::mpsc::channel::<Addr<SupervisorAgent>>();
@@ -184,6 +185,7 @@ impl AgentFactory {
                 asset,
                 scheduling_environment,
                 tactical_agent_addr,
+                arc_swap_shared_solution,
                 number_of_operational_agents,
             )
             .start();

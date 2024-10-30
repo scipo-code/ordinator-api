@@ -10,7 +10,6 @@ pub mod tactical_time_message;
 use std::collections::HashMap;
 
 use crate::{
-    agent_error::AgentError,
     scheduling_environment::{
         time_environment::day::Day, work_order::operation::Work,
         worker_environment::resources::Resources,
@@ -18,6 +17,7 @@ use crate::{
     AlgorithmState, Asset, ConstraintState,
 };
 use actix::Message;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::*;
 
@@ -45,7 +45,7 @@ pub enum TacticalRequestMessage {
 }
 
 impl Message for TacticalRequestMessage {
-    type Result = Result<TacticalResponseMessage, AgentError>;
+    type Result = Result<TacticalResponseMessage>;
 }
 
 #[derive(Serialize)]

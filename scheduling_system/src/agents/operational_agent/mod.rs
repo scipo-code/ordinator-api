@@ -2,6 +2,7 @@ pub mod algorithm;
 pub mod assert_functions;
 pub mod operational_events;
 
+use anyhow::Result;
 use std::{
     collections::HashMap,
     sync::{atomic::Ordering, Arc, Mutex},
@@ -43,7 +44,6 @@ use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
 use super::traits::TestAlgorithm;
 use super::ScheduleIteration;
 use super::SetAddr;
-use super::StateLinkError;
 use super::UpdateWorkOrderMessage;
 use super::{supervisor_agent::delegate::AtomicDelegate, traits::LargeNeighborHoodSearch};
 use super::{
@@ -178,7 +178,7 @@ impl Actor for OperationalAgent {
 }
 
 impl Handler<ScheduleIteration> for OperationalAgent {
-    type Result = ();
+    type Result = Result<()>;
 
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         let mut rng = rand::thread_rng();
@@ -229,6 +229,7 @@ impl Handler<ScheduleIteration> for OperationalAgent {
         );
 
         ctx.notify(ScheduleIteration {});
+        Ok(())
     }
 }
 
@@ -317,7 +318,7 @@ impl
         StateLinkWrapper<StrategicMessage, TacticalMessage, SupervisorMessage, OperationalMessage>,
     > for OperationalAgent
 {
-    type Result = Result<(), StateLinkError>;
+    type Result = Result<()>;
 
     #[instrument(skip_all)]
     fn handle(

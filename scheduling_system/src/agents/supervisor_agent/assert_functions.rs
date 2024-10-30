@@ -5,6 +5,7 @@ use tracing::{event, Level};
 
 use super::SupervisorAgent;
 
+#[allow(dead_code)]
 pub trait SupervisorAssertions {
     fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(&self);
     fn assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self);
