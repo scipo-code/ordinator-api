@@ -3,13 +3,13 @@ use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    agent_error::AgentError,
     scheduling_environment::worker_environment::{
         availability::{Availability, TomlAvailability},
         resources::Id,
     },
-    AlgorithmState, Asset, ConstraintState,
+    Asset, ConstraintState,
 };
+use anyhow::Result;
 
 use self::{
     operational_request_resource::OperationalResourceRequest,
@@ -47,11 +47,10 @@ pub enum OperationalRequestMessage {
     Scheduling(OperationalSchedulingRequest),
     Resource(OperationalResourceRequest),
     Time(OperationalTimeRequest),
-    Test,
 }
 
 impl Message for OperationalRequestMessage {
-    type Result = Result<OperationalResponseMessage, AgentError>;
+    type Result = Result<OperationalResponseMessage>;
 }
 
 #[derive(Serialize)]
@@ -60,7 +59,6 @@ pub enum OperationalResponseMessage {
     Scheduling(OperationalSchedulingResponse),
     Resource(OperationalResourceResponse),
     Time(OperationalTimeResponse),
-    Test(AlgorithmState<OperationalInfeasibleCases>),
 }
 
 #[derive(Serialize)]

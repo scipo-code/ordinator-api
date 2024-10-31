@@ -2,7 +2,8 @@ pub mod algorithm;
 pub mod assert_functions;
 pub mod operational_events;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use assert_functions::OperationalAssertions;
 use std::{
     collections::HashMap,
     sync::{atomic::Ordering, Arc, Mutex},
@@ -16,7 +17,7 @@ use shared_types::operational::operational_response_scheduling::{
 use shared_types::operational::{
     operational_request_scheduling::OperationalSchedulingRequest,
     operational_response_status::OperationalStatusResponse, OperationalConfiguration,
-    OperationalInfeasibleCases, OperationalRequestMessage, OperationalResponseMessage,
+    OperationalRequestMessage, OperationalResponseMessage,
 };
 use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
 use shared_types::scheduling_environment::work_order::{
@@ -25,9 +26,7 @@ use shared_types::scheduling_environment::work_order::{
 use shared_types::scheduling_environment::{
     time_environment::day::Day, worker_environment::resources::Id,
 };
-use shared_types::{
-    agent_error::AgentError, AlgorithmState, ConstraintState, StatusMessage, StopMessage,
-};
+use shared_types::{StatusMessage, StopMessage};
 
 use shared_types::scheduling_environment::{
     work_order::operation::Operation, SchedulingEnvironment,
@@ -41,7 +40,6 @@ use crate::agents::{
 
 use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
 
-use super::traits::TestAlgorithm;
 use super::ScheduleIteration;
 use super::SetAddr;
 use super::UpdateWorkOrderMessage;
@@ -51,7 +49,6 @@ use super::{
     tactical_agent::tactical_algorithm::TacticalOperation,
 };
 
-#[allow(dead_code)]
 pub struct OperationalAgent {
     id_operational: Id,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
@@ -63,7 +60,6 @@ pub struct OperationalAgent {
     main_supervisor: Option<Addr<SupervisorAgent>>,
     supervisor_agent_addr: HashMap<Id, Addr<SupervisorAgent>>,
 }
-
 impl OperationalAgent {
     fn determine_start_and_finish_times(
         &self,
@@ -99,47 +95,10 @@ impl OperationalAgent {
             )
         }
     }
-
-    fn determine_operation_overlap(
-        &self,
-        operational_infeasible_cases: &mut OperationalInfeasibleCases,
-    ) {
-        for (_, operational_solution_1) in self
-            .operational_algorithm
-            .operational_solutions
-            .0
-            .iter()
-            .enumerate()
-        {
-            for (_, operational_solution_2) in self
-                .operational_algorithm
-                .operational_solutions
-                .0
-                .iter()
-                .enumerate()
-            {
-                if operational_solution_1.1.start_time() > operational_solution_2.1.finish_time()
-                    && operational_solution_2.1.finish_time()
-                        > operational_solution_1.1.start_time()
-                {
-                    operational_infeasible_cases.operation_overlap =
-                        ConstraintState::Infeasible(format!(
-                            "{:?} : {:?} is overlapping with {:?} : {:?}",
-                            operational_solution_1.0,
-                            operational_solution_1.1,
-                            operational_solution_2.0,
-                            operational_solution_2.1
-                        ));
-                    return;
-                }
-            }
-        }
-        operational_infeasible_cases.operation_overlap = ConstraintState::Feasible;
-    }
 }
 
 impl Actor for OperationalAgent {
-    type Context = Context<Self>;
+    type Context = actix::Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
         self.supervisor_agent_addr.iter().for_each(|(_, addr)| {
@@ -227,7 +186,14 @@ impl Handler<ScheduleIteration> for OperationalAgent {
             ))
             .into_actor(self),
         );
-
+        self.assert_no_operation_overlap()
+            .with_context(|| {
+                format!(
+                    "OperationalAgent: {} is having overlaps in his state",
+                    self.id_operational
+                )
+            })
+            .expect("");
         ctx.notify(ScheduleIteration {});
         Ok(())
     }
@@ -254,18 +220,6 @@ impl OperationalAgentBuilder {
             main_supervisor,
             supervisor_agent_addr,
         })
-    }
-
-    #[allow(dead_code)]
-    pub fn with_capacity(mut self, capacity: f32) -> Self {
-        self.0.capacity = Some(capacity);
-        self
-    }
-
-    #[allow(dead_code)]
-    pub fn with_backup_activities(mut self, backup_activities: HashMap<u32, Operation>) -> Self {
-        self.0.backup_activities = Some(backup_activities);
-        self
     }
 
     pub fn build(self) -> OperationalAgent {
@@ -401,7 +355,7 @@ impl
 }
 
 impl Handler<OperationalRequestMessage> for OperationalAgent {
-    type Result = Result<OperationalResponseMessage, AgentError>;
+    type Result = Result<OperationalResponseMessage>;
 
     fn handle(
         &mut self,
@@ -463,27 +417,6 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
 
             OperationalRequestMessage::Resource(_) => todo!(),
             OperationalRequestMessage::Time(_) => todo!(),
-            OperationalRequestMessage::Test => {
-                let operational_algorithm_state = self.determine_algorithm_state();
-                Ok(OperationalResponseMessage::Test(
-                    operational_algorithm_state,
-                ))
-            }
-        }
-    }
-}
-
-impl TestAlgorithm for OperationalAgent {
-    type InfeasibleCases = OperationalInfeasibleCases;
-
-    fn determine_algorithm_state(&self) -> shared_types::AlgorithmState<Self::InfeasibleCases> {
-        let mut operational_infeasible_cases = OperationalInfeasibleCases::default();
-        self.determine_operation_overlap(&mut operational_infeasible_cases);
-
-        if operational_infeasible_cases.all_feasible() {
-            AlgorithmState::Feasible
-        } else {
-            AlgorithmState::Infeasible(operational_infeasible_cases)
         }
     }
 }

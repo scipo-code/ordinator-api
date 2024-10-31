@@ -7,7 +7,6 @@ use std::{
 use anyhow::{bail, Context, Result};
 use arc_swap::Guard;
 use shared_types::{
-    agent_error::AgentError,
     scheduling_environment::{
         work_order::{operation::{operation_info::NumberOfPeople, ActivityNumber}, WorkOrderActivity, WorkOrderNumber},
         worker_environment::resources::{Id, Resources}, SchedulingEnvironment,
@@ -148,8 +147,6 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
     type TimeResponse = SupervisorResponseTime;
 
     type SchedulingUnit = WorkOrderNumber;
-
-    type Error = AgentError;
 
     fn calculate_objective_value(&mut self) -> Self::BetterSolution {
         let assigned_woas = &self

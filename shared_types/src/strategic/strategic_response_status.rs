@@ -6,10 +6,12 @@ use crate::scheduling_environment::work_order::{WorkOrderInfo, WorkOrderNumber};
 use crate::Asset;
 use serde::{Deserialize, Serialize};
 
+use super::StrategicObjectiveValue;
+
 #[derive(Serialize, Deserialize)]
 pub struct StrategicResponseStatus {
     pub asset: Asset,
-    pub strategic_objective: f64,
+    pub strategic_objective: StrategicObjectiveValue,
     pub number_of_strategic_work_orders: usize,
     pub number_of_periods: usize,
 }
@@ -17,7 +19,7 @@ pub struct StrategicResponseStatus {
 impl StrategicResponseStatus {
     pub fn new(
         asset: Asset,
-        strategic_objective: f64,
+        strategic_objective: StrategicObjectiveValue,
         number_of_strategic_work_orders: usize,
         number_of_periods: usize,
     ) -> Self {

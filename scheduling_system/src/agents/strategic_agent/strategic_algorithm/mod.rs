@@ -8,12 +8,11 @@ use assert_functions::StrategicAlgorithmAssertions;
 use optimized_work_orders::{StrategicParameterBuilder, StrategicParameters};
 use priority_queue::PriorityQueue;
 use rand::prelude::SliceRandom;
-use shared_types::agent_error::AgentError;
 use shared_types::scheduling_environment::WorkOrders;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::work_order::operation::Work;use shared_types::scheduling_environment::worker_environment::resources::Resources;
-use shared_types::strategic::StrategicResources;
+use shared_types::strategic::{StrategicObjectiveValue, StrategicResources};
 use shared_types::strategic::strategic_request_periods_message::StrategicTimeRequest;
 use shared_types::strategic::strategic_request_resources_message::StrategicResourceRequest;
 use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
@@ -21,7 +20,7 @@ use shared_types::strategic::strategic_response_periods::StrategicResponsePeriod
 use shared_types::strategic::strategic_response_scheduling::StrategicResponseScheduling;
 use shared_types::{Asset, LoadOperation};
 use std::collections::{HashMap, HashSet};
-use std::fmt::Display;use std::hash::Hash;
+use std::hash::Hash;
 use std::sync::Arc;use tracing::{error, event, info, instrument, trace, Level};
 
 pub struct StrategicAlgorithm {
@@ -83,6 +82,31 @@ impl StrategicAlgorithm {
             }
         }
     }
+
+    fn strategic_capacity(&self, resource: &Resources, period: &Period) -> &Work {
+        self
+            .strategic_parameters
+            .strategic_capacity
+            .inner
+            .get(&resource.clone())
+            .unwrap()
+            .0
+            .get(&period.clone())
+            .unwrap()
+    }
+
+    fn strategic_loading(&self, resource: &Resources, period: &Period) -> &Work {
+        self
+            .strategic_solution
+            .strategic_loadings
+            .inner
+            .get(&resource.clone())
+            .unwrap()
+            .0
+            .get(&period.clone())
+            .unwrap()
+
+    }
 }
 
 impl StrategicAlgorithm {
@@ -108,7 +132,7 @@ impl StrategicAlgorithm {
         work_order_number: WorkOrderNumber,
         period: &Period,
     ) -> Option<WorkOrderNumber> {
-        let optimized_work_order = self
+        let strategic_parameter = self
             .strategic_parameters
             .strategic_work_order_parameters
             .get(&work_order_number)
@@ -116,30 +140,16 @@ impl StrategicAlgorithm {
             .clone();
 
         if period != self.periods().last().unwrap() {
-            for (resource, resource_needed) in optimized_work_order.work_load.iter() {
-                let resource_capacity: &Work = self
-                    .resource_capacities
-                    .inner
-                    .get(&resource.clone())
-                    .unwrap()
-                    .0
-                    .get(&period.clone())
-                    .unwrap();
+            for (resource, resource_needed) in strategic_parameter.work_load.iter() {
+                let resource_capacity: &Work = self.strategic_capacity(resource, period);
 
-                let resource_loading: &Work = self
-                    .resource_loadings
-                    .inner
-                    .get(&resource.clone())
-                    .unwrap()
-                    .0
-                    .get(&period.clone())
-                    .unwrap();
+                let resource_loading: &Work = self.strategic_loading(resource, period);
 
                 if *resource_needed > resource_capacity - resource_loading {
                     return Some(work_order_number);
                 }
 
-                if optimized_work_order.excluded_periods().contains(period) {
+                if strategic_parameter.excluded_periods().contains(period) {
                     return Some(work_order_number);
                 }
 
@@ -221,7 +231,7 @@ impl StrategicAlgorithm {
 
     fn update_loadings(&mut self, work_order_number: WorkOrderNumber, target_period: Period, load_operation: LoadOperation) {
         let work_load = self.strategic_parameters.strategic_work_order_parameters.get(&work_order_number).unwrap().work_load.clone();
-        for (resource, periods) in self.resource_loadings.inner.iter_mut() {
+        for (resource, periods) in self.strategic_solution.strategic_loadings.inner.iter_mut() {
             for (period, loading) in &mut periods.0 {
                 if *period == target_period {
                     match load_operation {
@@ -242,26 +252,6 @@ pub fn calculate_period_difference(scheduled_period: Period, latest_period: &Per
     days / 7
 }
 
-impl Display for StrategicAlgorithm {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "SchedulerAgentAlgorithm: \n
-            objective_value: {}, \n
-            manual_resources_capacity: {:?}, \n
-            manual_resources_loading: {:?}, \n
-            priority_queues: {:?}, \n
-            optimized_work_orders: {:?}, \n
-            periods: {:?}",
-            self.objective_value,
-            self.resource_capacities,
-            self.resource_loadings,
-            self.priority_queues,
-            self.strategic_parameters,
-            self.periods
-        )
-    }
-}
 
 impl LargeNeighborHoodSearch for StrategicAlgorithm {
     type BetterSolution = ();
@@ -272,11 +262,10 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
     type TimeRequest = StrategicTimeRequest;
     type TimeResponse = StrategicResponsePeriods;
     type SchedulingUnit = WorkOrderNumber;
-    type Error = AgentError;
     
     fn calculate_objective_value(&mut self) -> Self::BetterSolution {
-        let mut period_penalty_contribution: f64 = 0.0;
-        let mut excess_penalty_contribution: f64 = 0.0;
+        let mut period_penalty_contribution: StrategicObjectiveValue = 0;
+        let mut excess_penalty_contribution: StrategicObjectiveValue = 0;
 
         for (work_order_number, scheduled_period) in &self.strategic_solution.scheduled_periods {
             let optimized_period = match scheduled_period {
@@ -295,13 +284,13 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 work_order_latest_allowed_finish_period,
             );
             
-            let period_penalty = std::cmp::max(period_difference, 0) as f64
+            let period_penalty = std::cmp::max(period_difference, 0) as u64  
                 * self
                     .strategic_parameters
                     .strategic_work_order_parameters
                     .get(work_order_number)
                     .unwrap()
-                    .weight as f64;
+                    .weight;
 
             period_penalty_contribution += period_penalty;
         }
@@ -312,13 +301,13 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                     .resources_loading(resource, period);
 
                 if loading - capacity > Work::from(0.0) {
-                    excess_penalty_contribution += (loading - capacity).to_f64()
+                    excess_penalty_contribution += (loading - capacity).to_f64() as u64
                 }
             }
         }
 
-        self.objective_value = 
-            period_penalty_contribution + 0.0 * excess_penalty_contribution;
+        self.strategic_solution.objective_value = 
+            period_penalty_contribution + 0 * excess_penalty_contribution;
 
     }
 
@@ -372,7 +361,8 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 for (resource, periods) in manual_resources.inner {
                     for (period_imperium, capacity) in periods.0 {
                         let period = self.periods.iter().find(|period| **period == period_imperium).expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
-                        self.resource_capacities
+                        self.strategic_parameters. 
+                            strategic_capacity
                             .inner
                             .get_mut(&resource.clone())
                             .expect("The resource was not found in the self.resources_capacity vector. Somehow a message was sent form the frontend without the resource being initialized correctly.")
@@ -654,12 +644,10 @@ mod tests {
             inner: manual_resource_capacity.clone(),
         };
 
-        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
-            0.0,
-            resource_capacity,
-            StrategicResources::default(),
+        let mut strategic_algorithm = StrategicAlgorithm::new(
+            
             PriorityQueues::new(),
-            StrategicParameters::new(HashMap::new()),
+            StrategicParameters::new(HashMap::new(), resource_capacity),
             ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             periods,
@@ -674,7 +662,7 @@ mod tests {
                 HashMap::new()
                 );
 
-        scheduler_agent_algorithm.set_optimized_work_order(work_order_number, optimized_work_order);
+        strategic_algorithm.set_optimized_work_order(work_order_number, optimized_work_order);
 
         let strategic_scheduling_message = StrategicSchedulingRequest::Schedule(
             SingleWorkOrder::new(work_order_number, "2023-W47-48".to_string()),
@@ -682,7 +670,7 @@ mod tests {
         let strategic_resources_message = StrategicResourceRequest::new_test();
 
         assert_eq!(
-            scheduler_agent_algorithm.resource_capacities.inner
+            strategic_algorithm.strategic_parameters.strategic_capacity.inner
                 .get(&Resources::MtnMech)
                 .unwrap()
                 .0
@@ -691,7 +679,7 @@ mod tests {
             Some(&Work::from(150.0))
         );
         assert_eq!(
-            scheduler_agent_algorithm
+            strategic_algorithm
                 .strategic_parameters
                 .strategic_work_order_parameters
                 .get(&work_order_number),
@@ -704,11 +692,11 @@ mod tests {
             ))
         );
 
-        scheduler_agent_algorithm.update_scheduling_state(strategic_scheduling_message).unwrap();
-        scheduler_agent_algorithm.update_resources_state(strategic_resources_message).unwrap();
+        strategic_algorithm.update_scheduling_state(strategic_scheduling_message).unwrap();
+        strategic_algorithm.update_resources_state(strategic_resources_message).unwrap();
 
         assert_eq!(
-            scheduler_agent_algorithm.resource_capacities.inner
+            strategic_algorithm.strategic_parameters.strategic_capacity.inner
                 .get(&Resources::MtnMech)
                 .unwrap()
                 .0
@@ -717,14 +705,14 @@ mod tests {
             Some(&Work::from(300.0))
         );
         assert_eq!(
-            *scheduler_agent_algorithm
+            *strategic_algorithm
                 .strategic_periods()
                 .get(&work_order_number)
                 .unwrap(),
             None
         );
         assert_eq!(
-            scheduler_agent_algorithm
+            strategic_algorithm
                 .strategic_parameters
                 .strategic_work_order_parameters
                 .get(&work_order_number)
@@ -760,12 +748,6 @@ mod tests {
 
         let period = Period::new(1, start_date, end_date);
 
-        let mut optimized_work_orders = StrategicParameters::new(HashMap::new());
-
-        let optimized_work_order =
-            StrategicParameter::new( None, HashSet::new(), period.clone(), 1000, HashMap::new());
-
-        optimized_work_orders.insert_strategic_parameter(work_order_number, optimized_work_order);
 
         let mut resource_capacity = HashMap::new();
         let mut resource_loadings = HashMap::new();
@@ -783,21 +765,28 @@ mod tests {
         resource_loadings.insert(Resources::MtnMech, period_hash_map_0.clone());
         resource_loadings.insert(Resources::MtnElec, period_hash_map_0.clone());
         resource_loadings.insert(Resources::Prodtech, period_hash_map_0.clone());
-        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
-            0.0,
-            StrategicResources::new(resource_capacity),
-            StrategicResources::new(resource_loadings),
+
+        let mut strategic_parameters = StrategicParameters::new(HashMap::new(), StrategicResources::new(resource_capacity));
+
+        let strategic_parameter =
+            StrategicParameter::new( None, HashSet::new(), period.clone(), 1000, HashMap::new());
+
+
+
+        strategic_parameters.insert_strategic_parameter(work_order_number, strategic_parameter);
+        let mut strategic_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
-            optimized_work_orders,
+            strategic_parameters,
             ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             vec![period.clone()],
         );
+        strategic_algorithm.strategic_solution.strategic_loadings = StrategicResources::new(resource_loadings);
 
-        scheduler_agent_algorithm.schedule_normal_work_order(work_order_number, &period);
+        strategic_algorithm.schedule_normal_work_order(work_order_number, &period);
 
         assert_eq!(
-            *scheduler_agent_algorithm
+            *strategic_algorithm
             .strategic_periods()
                 .get(&work_order_number)
                 .unwrap(),
@@ -817,14 +806,10 @@ mod tests {
 
         work_load.insert(Resources::MtnMech,Work::from( 100.0));
 
-        let mut optimized_work_orders = StrategicParameters::new(HashMap::new());
 
         let optimized_work_order =
             StrategicParameter::new( None, HashSet::new(), period.clone(), 1000, work_load);
 
-        optimized_work_orders
-            .strategic_work_order_parameters
-            .insert(work_order_number, optimized_work_order);
 
         let mut resource_capacity = HashMap::new();
         let mut resource_loadings = HashMap::new();
@@ -836,24 +821,27 @@ mod tests {
         resource_capacity.insert(Resources::MtnMech, period_hash_map_0.clone());
         resource_loadings.insert(Resources::MtnMech, period_hash_map_0.clone());
 
-        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
-            0.0,
-            StrategicResources::new(resource_capacity),
-            StrategicResources::new(resource_loadings),
+        let mut strategic_parameters = StrategicParameters::new(HashMap::new(), StrategicResources::new(resource_capacity));
+        strategic_parameters
+            .strategic_work_order_parameters
+            .insert(work_order_number, optimized_work_order);
+
+        let mut strategic_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
-            optimized_work_orders,
+            strategic_parameters,
             ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             vec![period.clone()],
         );
-        scheduler_agent_algorithm.schedule_normal_work_order(work_order_number, &period);
+        strategic_algorithm.strategic_solution.strategic_loadings = StrategicResources::new(resource_loadings);
+        strategic_algorithm.schedule_normal_work_order(work_order_number, &period);
 
         assert_eq!(
-            *scheduler_agent_algorithm
+            *strategic_algorithm
             .strategic_periods()
                 .get(&work_order_number)
                 .unwrap(),
-            scheduler_agent_algorithm.periods().last().cloned()
+            strategic_algorithm.periods().last().cloned()
         );
     }
 
@@ -887,16 +875,15 @@ mod tests {
         resource_loadings.insert(Resources::MtnElec, period_hash_map_0.clone());
         resource_loadings.insert(Resources::Prodtech, period_hash_map_0.clone());
 
-        let mut strategic_agent_algorithm = StrategicAlgorithm::new(
-            0.0,
-            StrategicResources::new(resource_capacity),
-            StrategicResources::new(resource_loadings),
+        let mut strategic_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
-            StrategicParameters::new(HashMap::new()),
+            StrategicParameters::new(HashMap::new(), StrategicResources::new(resource_capacity)),
             ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             vec![],
         );
+
+        strategic_algorithm.strategic_solution.strategic_loadings = StrategicResources::new(resource_loadings);
 
         let work_order_number = WorkOrderNumber(2100000001);
         
@@ -908,28 +895,29 @@ mod tests {
             work_load,
         );
 
-        strategic_agent_algorithm.strategic_parameters.strategic_work_order_parameters.insert(work_order_number, work_order);
-        strategic_agent_algorithm.update_loadings(work_order_number, period.clone(), LoadOperation::Add);
+        strategic_algorithm.strategic_parameters.strategic_work_order_parameters.insert(work_order_number, work_order);
+        strategic_algorithm.update_loadings(work_order_number, period.clone(), LoadOperation::Add);
 
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::MtnMech, &period),
            Work::from( 20.0)
         );
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::MtnElec, &period),
            Work::from( 40.0)
         );
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::Prodtech, &period),
            Work::from( 60.0)
         );
 
         assert!(
-            !strategic_agent_algorithm
-                .resource_loadings
+            !strategic_algorithm
+                .strategic_solution
+                .strategic_loadings
                 .inner
                 .contains_key(&Resources::MtnScaf),
                 
@@ -972,7 +960,7 @@ mod tests {
             }
         }
 
-        let mut optimized_work_orders = StrategicParameters::new(HashMap::new());
+        let mut strategic_parameters = StrategicParameters::new(HashMap::new(), StrategicResources::new(resource_capacity));
 
         let optimized_work_order = StrategicParameter::new(
             Some(period_1.clone()),
@@ -982,146 +970,143 @@ mod tests {
             work_load,
         );
 
-        optimized_work_orders
+        strategic_parameters
             .strategic_work_order_parameters
             .insert(work_order_number, optimized_work_order);
 
-        let mut strategic_agent_algorithm = StrategicAlgorithm::new(
-            0.0,
-            StrategicResources::new(resource_capacity),
-            StrategicResources::new(resource_loadings),
+        let mut strategic_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
-            optimized_work_orders,
+            strategic_parameters,
             ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             periods,
         );
 
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::MtnMech, &period_1),
            Work::from( 0.0)
         );
-        strategic_agent_algorithm.schedule_normal_work_order(work_order_number, &period_1);
+        strategic_algorithm.schedule_normal_work_order(work_order_number, &period_1);
 
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::MtnMech, &period_1),
            Work::from( 20.0)
         );
 
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::MtnElec, &period_1),
            Work::from( 40.0)
         );
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::Prodtech, &period_1),
            Work::from( 60.0)
         );
 
-        strategic_agent_algorithm.unschedule(work_order_number).unwrap();
+        strategic_algorithm.unschedule(work_order_number).unwrap();
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::MtnMech, &period_1),
            Work::from( 0.0)
         );
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::MtnElec, &period_1),
            Work::from( 0.0)
         );
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::Prodtech, &period_1),
            Work::from( 0.0)
         );
 
-        strategic_agent_algorithm.schedule_forced_work_order(&work_order_number);
+        strategic_algorithm.schedule_forced_work_order(&work_order_number);
 
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::MtnMech, &period_1),
            Work::from( 20.0)
         );
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::MtnElec, &period_1),
            Work::from( 40.0)
         );
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::Prodtech, &period_1),
            Work::from( 60.0)
         );
 
-        strategic_agent_algorithm
+        strategic_algorithm
             .strategic_parameters
             .set_locked_in_period(work_order_number, period_2.clone());
-        strategic_agent_algorithm.schedule_forced_work_order(&work_order_number);
+        strategic_algorithm.schedule_forced_work_order(&work_order_number);
 
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::MtnMech, &period_1),
            Work::from( 0.0)
         );
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::MtnElec, &period_1),
            Work::from( 0.0)
         );
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::Prodtech, &period_1),
            Work::from( 0.0)
         );
 
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::MtnMech, &period_2),
            Work::from( 20.0)
         );
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::MtnElec, &period_2),
            Work::from( 40.0)
         );
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::Prodtech, &period_2),
            Work::from( 60.0)
         );
 
-        strategic_agent_algorithm.unschedule(work_order_number).unwrap();
+        strategic_algorithm.unschedule(work_order_number).unwrap();
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::MtnMech, &period_1),
            Work::from( 0.0)
         );
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::MtnElec, &period_1),
            Work::from( 0.0)
         );
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::Prodtech, &period_1),
            Work::from( 0.0)
         );
 
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::MtnMech, &period_1),
            Work::from( 0.0)
         );
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::MtnElec, &period_1),
            Work::from( 0.0)
         );
         assert_eq!(
-            *strategic_agent_algorithm
+            *strategic_algorithm
                 .resources_loading(&Resources::Prodtech, &period_1),
            Work::from( 0.0)
         );
@@ -1145,7 +1130,7 @@ mod tests {
         work_load_3.insert(Resources::MtnElec,Work::from( 30.0));
         work_load_3.insert(Resources::Prodtech,Work::from( 30.0));
 
-        let mut optimized_work_orders = StrategicParameters::new(HashMap::new());
+        let mut optimized_work_orders = StrategicParameters::new(HashMap::new(), StrategicResources::default());
 
         let optimized_work_order_1 = StrategicParameter::new(
             None,
@@ -1186,10 +1171,7 @@ Period::from_str("2023-W49-50").unwrap(),
             Period::from_str("2023-W49-50").unwrap(),
         ];
 
-        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
-            0.0,
-            StrategicResources::default(),
-            StrategicResources::default(),
+        let mut strategic_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
             optimized_work_orders,
             ArcSwapSharedSolution::default().into(),
@@ -1204,10 +1186,10 @@ Period::from_str("2023-W49-50").unwrap(),
 
         let mut rng = StdRng::from_seed(seed);
 
-        scheduler_agent_algorithm.unschedule_random_work_orders(2, &mut rng);
+        strategic_algorithm.unschedule_random_work_orders(2, &mut rng);
 
         assert_eq!(
-            *scheduler_agent_algorithm
+            *strategic_algorithm
                 .strategic_periods()
                 .get(&WorkOrderNumber(2200000001))
                 .unwrap(),
@@ -1215,7 +1197,7 @@ Period::from_str("2023-W49-50").unwrap(),
         );
 
         assert_eq!(
-            *scheduler_agent_algorithm
+            *strategic_algorithm
                 .strategic_periods()
                 .get(&WorkOrderNumber(2200000002))
                 .unwrap(),
@@ -1224,7 +1206,7 @@ Period::from_str("2023-W49-50").unwrap(),
 
         assert_eq!(
 
-            *scheduler_agent_algorithm
+            *strategic_algorithm
                 .strategic_periods()
                 .get(&WorkOrderNumber(2200000003))
                 .unwrap(),
@@ -1262,7 +1244,7 @@ Period::from_str("2023-W49-50").unwrap(),
     #[test]
     fn test_unschedule_work_order_none_in_scheduled_period() {
         let work_order_number = WorkOrderNumber(2100000001);
-        let mut optimized_work_orders = StrategicParameters::new(HashMap::new());
+        let mut optimized_work_orders = StrategicParameters::new(HashMap::new(), StrategicResources::default());
 
         let optimized_work_order = StrategicParameter::new(
             None,
@@ -1277,9 +1259,6 @@ Period::from_str("2023-W49-50").unwrap(),
             .insert(work_order_number, optimized_work_order);
 
         let mut strategic_agent_algorithm = StrategicAlgorithm::new(
-            0.0,
-            StrategicResources::default(),
-            StrategicResources::default(),
             PriorityQueues::new(),
             optimized_work_orders,
             ArcSwapSharedSolution::default().into(),

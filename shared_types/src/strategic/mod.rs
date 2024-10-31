@@ -8,6 +8,7 @@ pub mod strategic_response_resources;
 pub mod strategic_response_scheduling;
 pub mod strategic_response_status;
 
+use anyhow::Result;
 use std::{
     collections::{hash_map::Entry, HashMap},
     fmt::{self},
@@ -18,7 +19,6 @@ use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
 use crate::{
-    agent_error::AgentError,
     scheduling_environment::{
         time_environment::period::Period, work_order::operation::Work,
         worker_environment::resources::Resources,
@@ -36,6 +36,8 @@ use self::{
     strategic_response_scheduling::StrategicResponseScheduling,
     strategic_response_status::{StrategicResponseStatus, WorkOrdersStatus},
 };
+
+pub type StrategicObjectiveValue = u64;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "strategic_message_type")]
@@ -59,7 +61,7 @@ pub enum StrategicRequestMessage {
 }
 
 impl Message for StrategicRequestMessage {
-    type Result = Result<StrategicResponseMessage, AgentError>;
+    type Result = Result<StrategicResponseMessage>;
 }
 
 #[derive(Serialize)]
@@ -85,7 +87,6 @@ pub enum StrategicResponseMessage {
     Periods(StrategicResponsePeriods),
     WorkOrder(WorkOrdersStatus),
     Test(AlgorithmState<StrategicInfeasibleCases>),
-    Error(AgentError),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]

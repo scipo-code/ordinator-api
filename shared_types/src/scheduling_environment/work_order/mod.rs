@@ -551,7 +551,7 @@ mod tests {
 
     use super::{
         functional_location::FunctionalLocation,
-        operation::{ActivityNumber, Operation, OperationBuilder, Work},
+        operation::{ActivityNumber, OperationBuilder, Work},
         priority::Priority,
         revision::Revision,
         status_codes::{SystemStatusCodes, UserStatusCodes},

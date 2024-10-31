@@ -6,7 +6,6 @@ use priority_queue::PriorityQueue;
 use rand::seq::SliceRandom;
 use serde::Serialize;
 use shared_types::{
-    agent_error::AgentError,
     scheduling_environment::{
         time_environment::day::Day,
         work_order::{
@@ -22,7 +21,7 @@ use shared_types::{
         tactical_response_scheduling::TacticalResponseScheduling,
         tactical_response_time::TacticalResponseTime,
         tactical_scheduling_message::TacticalSchedulingRequest,
-        tactical_time_message::TacticalTimeRequest, TacticalResources,
+        tactical_time_message::TacticalTimeRequest, TacticalObjectiveValue, TacticalResources,
     },
     LoadOperation,
 };
@@ -44,7 +43,6 @@ use shared_types::scheduling_environment::{
 };
 
 pub struct TacticalAlgorithm {
-    pub objective_value: f64,
     pub tactical_periods: Vec<Period>,
     pub strategic_tactical_solution_arc_swap: Arc<ArcSwapSharedSolution>,
     pub loaded_shared_solution: Guard<Arc<SharedSolution>>,
@@ -183,8 +181,7 @@ impl TacticalAlgorithm {
         strategic_tactical_solution_arc_swap: Arc<ArcSwapSharedSolution>,
     ) -> Self {
         let loaded_shared_solution = strategic_tactical_solution_arc_swap.0.load();
-        TacticalAlgorithm {
-            objective_value: f64::INFINITY,
+        let mut tactical_algorithm = TacticalAlgorithm {
             tactical_periods: time_horizon,
             strategic_tactical_solution_arc_swap,
             loaded_shared_solution,
@@ -192,11 +189,15 @@ impl TacticalAlgorithm {
             tactical_parameters: TacticalParameters::default(),
             priority_queue: PriorityQueue::new(),
             tactical_days,
-        }
+        };
+
+        tactical_algorithm.tactical_solution.tactical_loadings = loading;
+        tactical_algorithm.tactical_parameters.tactical_capacity = capacity;
+        tactical_algorithm
     }
 
-    pub fn get_objective_value(&self) -> &f64 {
-        &self.objective_value
+    pub fn get_objective_value(&self) -> &TacticalObjectiveValue {
+        &self.tactical_solution.objective_value
     }
 
     pub fn capacity(&self, resource: &Resources, day: &Day) -> &Work {
@@ -291,14 +292,14 @@ impl TacticalAlgorithm {
         Ok(())
     }
 
-    fn determine_aggregate_excess(&mut self) -> f64 {
-        let mut objective_value_from_excess = 0.0;
+    fn determine_aggregate_excess(&mut self) -> u64 {
+        let mut objective_value_from_excess = 0;
         for resource in self.tactical_parameters.tactical_capacity.resources.keys() {
             for day in self.tactical_days.clone() {
                 let excess_capacity = self.loading(resource, &day) - self.capacity(resource, &day);
 
                 if excess_capacity > Work::from(0.0) {
-                    objective_value_from_excess += excess_capacity.to_f64();
+                    objective_value_from_excess += excess_capacity.to_f64() as u64;
                 }
             }
         }
@@ -355,10 +356,8 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
     type SchedulingUnit = WorkOrderNumber;
 
-    type Error = AgentError;
-
     fn calculate_objective_value(&mut self) -> Self::BetterSolution {
-        let mut objective_value_from_tardiness = 0.0;
+        let mut objective_value_from_tardiness = 0;
         for (work_order_number, _tactical_solution) in self.tactical_solution.tactical_days.iter() {
             let tactical_parameter = self.tactical_parameters().get(work_order_number).unwrap();
             let period_start_date = match &self.tactical_solution.tactical_period(work_order_number)
@@ -389,12 +388,13 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             let day_difference = last_day - period_start_date;
 
             objective_value_from_tardiness +=
-                (tactical_parameter.weight as i64 * day_difference.num_days()) as f64;
+                tactical_parameter.weight as i64 * day_difference.num_days();
         }
 
         // Calculate penalty for exceeding the capacity
-        let objective_value_from_excess = 1000000.0 * self.determine_aggregate_excess();
-        self.objective_value = objective_value_from_tardiness + objective_value_from_excess;
+        let objective_value_from_excess = 1000000 * self.determine_aggregate_excess();
+        self.tactical_solution.objective_value =
+            objective_value_from_tardiness as u64 + objective_value_from_excess;
     }
 
     fn schedule(&mut self) {
@@ -955,7 +955,7 @@ pub mod tests {
 
         tactical_algorithm.calculate_objective_value();
 
-        assert_eq!(tactical_algorithm.get_objective_value(), &270.0);
+        assert_eq!(tactical_algorithm.get_objective_value(), &270);
     }
 
     #[test]
