@@ -453,6 +453,7 @@ impl Orchestrator {
                     .unwrap()
                     .supervisor_agent_addrs
                     .clone(),
+                self.arc_swap_shared_solutions.get(&asset).unwrap().clone(),
             );
 
         let operational_id_and_objective =
