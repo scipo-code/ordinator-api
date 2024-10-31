@@ -17,14 +17,14 @@ impl SupervisorAssertions for SupervisorAgent {
             .supervisor_algorithm
             .loaded_shared_solution
             .tactical
-            .get_work_order_activities()
+            .supervisor_activities()
             .keys()
             .cloned()
             .collect();
 
         let operational_state_woas: HashSet<WorkOrderActivity> = self
             .supervisor_algorithm
-            .operational_state
+            .operational_state_machine
             .get_iter()
             .map(|(woa, _)| woa.1)
             .collect();
@@ -47,13 +47,13 @@ impl SupervisorAssertions for SupervisorAgent {
             .supervisor_algorithm
             .loaded_shared_solution
             .tactical
-            .get_work_order_activities()
+            .supervisor_activities()
             .keys()
             .cloned()
             .collect();
         let operational_state_woas: HashSet<WorkOrderActivity> = self
             .supervisor_algorithm
-            .operational_state
+            .operational_state_machine
             .get_iter()
             .map(|(woa, _)| woa.1)
             .collect();

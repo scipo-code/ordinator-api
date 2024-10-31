@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use actix::{Addr, Message};
 use anyhow::Result;
 use arc_swap::ArcSwap;
+use itertools::Itertools;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::{ActivityNumber, Work};
@@ -18,16 +19,12 @@ use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::strategic::{StrategicObjectiveValue, StrategicResources};
 use shared_types::tactical::{TacticalObjectiveValue, TacticalResources};
 use tactical_agent::tactical_algorithm::TacticalOperation;
-use tracing::Span;
+use tracing::{event, Level, Span};
 
 use self::{
     operational_agent::OperationalAgent, strategic_agent::StrategicAgent,
     supervisor_agent::SupervisorAgent, tactical_agent::TacticalAgent,
 };
-
-#[derive(Debug)]
-#[allow(dead_code)]
-pub struct AssertError(String);
 
 #[derive(Message)]
 #[rtype(result = "Result<()>")]
@@ -89,17 +86,38 @@ impl TacticalSolution {
             .unwrap()
             .scheduled
     }
+
     pub fn tactical_period(&self, work_order_number: &WorkOrderNumber) -> &Option<Period> {
         self.tactical_period.get(work_order_number).unwrap()
     }
-    pub fn get_work_order_activities(&self) -> HashMap<WorkOrderActivity, TacticalOperation> {
+
+    pub fn supervisor_activities(&self) -> HashMap<WorkOrderActivity, TacticalOperation> {
+        let mut hash_map = HashMap::new();
+        self.tactical_period.iter().for_each(|(wo, map)| match map {
+            Some(period) => {
+                if self.period 
+                let tactical_operation
+                self
+                    .tactical_days
+                    .get(wo)
+                    .expect("This tactical_days-tactical_periods invariant should always hold")
+                    .unwrap()
+            },
+
+            None => todo!(),
+        });
+    }
+
+    fn tactical_insert_work_order(
+        &mut self,
+        work_order_number: WorkOrderNumber,
+        tactical_period: Option<Period>,
+        tactical_days: HashMap<ActivityNumber, TacticalOperation>,
+    ) {
+        self.tactical_period
+            .insert(work_order_number, tactical_period);
         self.tactical_days
-            .iter()
-            // Here we only extract the map from the option
-            .filter_map(|(won, opt_map)| opt_map.as_ref().map(|map| (won, map)))
-            // Now we want to extract the data from the inners HashMap,
-            .flat_map(|(won, map)| map.iter().map(|(acn, to)| ((*won, *acn), to.clone())))
-            .collect()
+            .insert(work_order_number, Some(tactical_days));
     }
 }
 

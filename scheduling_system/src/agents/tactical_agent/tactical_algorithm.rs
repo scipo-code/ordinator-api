@@ -196,10 +196,6 @@ impl TacticalAlgorithm {
         tactical_algorithm
     }
 
-    pub fn get_objective_value(&self) -> &TacticalObjectiveValue {
-        &self.tactical_solution.objective_value
-    }
-
     pub fn capacity(&self, resource: &Resources, day: &Day) -> &Work {
         self.tactical_solution
             .tactical_loadings
@@ -343,6 +339,10 @@ impl TacticalAlgorithm {
     pub fn load_shared_solution(&mut self) {
         self.loaded_shared_solution = self.strategic_tactical_solution_arc_swap.0.load();
     }
+
+    pub(crate) fn objective_value(&self) -> TacticalObjectiveValue {
+        self.tactical_solution.objective_value.clone()
+    }
 }
 
 impl LargeNeighborHoodSearch for TacticalAlgorithm {
@@ -393,7 +393,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
         // Calculate penalty for exceeding the capacity
         let objective_value_from_excess = 1000000 * self.determine_aggregate_excess();
-        self.tactical_solution.objective_value =
+        self.tactical_solution.objective_value.0 =
             objective_value_from_tardiness as u64 + objective_value_from_excess;
     }
 
@@ -489,6 +489,9 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
             sorted_activities.sort();
 
+            let mut work_order_scheduled_period_bool = true;
+            let mut work_order_scheduled_period = None;
+
             for activity in sorted_activities {
                 let operation_parameters = tactical_parameter
                     .operation_parameters
@@ -573,6 +576,11 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     per.contains_date(activity_load.first().unwrap().0.date().date_naive())
                 });
 
+                if work_order_scheduled_period_bool {
+                    work_order_scheduled_period = scheduled_period.cloned();
+                    work_order_scheduled_period_bool = false;
+                }
+
                 let operation_solution = TacticalOperation::new(
                     activity_load,
                     scheduled_period.cloned(),
@@ -593,12 +601,14 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             self.update_loadings(&operation_solutions, LoadOperation::Add);
             loop_state = LoopState::ScheduledOrRemoved;
 
-            *self
-                .tactical_solution
-                .tactical_days
-                .get_mut(&current_work_order_number)
-                .unwrap() = Some(operation_solutions.clone());
+            self.tactical_solution.tactical_insert_work_order(
+                current_work_order_number,
+                work_order_scheduled_period,
+                operation_solutions,
+            );
 
+            // TODO: This should be removed. The parameters are not guiding.
+            // the solutions are! That is important to remember!
             if self
                 .tactical_parameters_mut()
                 .get_mut(&current_work_order_number)
@@ -793,7 +803,6 @@ impl TacticalAlgorithm {
     }
 }
 
-#[allow(dead_code)]
 enum OperationDifference {
     SameDay,
     DiffDay,
@@ -955,7 +964,7 @@ pub mod tests {
 
         tactical_algorithm.calculate_objective_value();
 
-        assert_eq!(tactical_algorithm.get_objective_value(), &270);
+        assert_eq!(tactical_algorithm.objective_value().0, 270);
     }
 
     #[test]

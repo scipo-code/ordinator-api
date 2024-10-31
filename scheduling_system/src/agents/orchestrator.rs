@@ -517,15 +517,6 @@ impl ActorRegistry {
             .unwrap()
             .clone()
     }
-
-    #[allow(dead_code)]
-    pub fn operational_by_id_string(&self, id_string: String) -> Id {
-        self.operational_agent_addrs
-            .keys()
-            .find(|id| id.0 == id_string)
-            .unwrap()
-            .clone()
-    }
 }
 
 impl Orchestrator {
