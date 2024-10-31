@@ -195,12 +195,14 @@ impl AgentFactory {
         id_operational: Id,
         operational_configuration: OperationalConfiguration,
         supervisor_agent_addr: HashMap<Id, Addr<SupervisorAgent>>,
+        arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
     ) -> (OperationalObjective, Addr<OperationalAgent>) {
         let (sender, receiver) = std::sync::mpsc::channel::<Addr<OperationalAgent>>();
 
         let arc_scheduling_environment = self.scheduling_environment.clone();
 
-        let operational_algorithm = OperationalAlgorithm::new(operational_configuration.clone());
+        let operational_algorithm =
+            OperationalAlgorithm::new(operational_configuration.clone(), arc_swap_shared_solution);
 
         let operational_objective = Arc::clone(&operational_algorithm.objective_value);
         Arbiter::new().spawn_fn(move || {
