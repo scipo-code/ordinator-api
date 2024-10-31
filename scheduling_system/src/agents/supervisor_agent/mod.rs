@@ -18,7 +18,6 @@ use std::{
 
 use actix::prelude::*;
 use shared_types::{
-    agent_error::AgentError,
     orchestrator::OrchestratorMessage,
     scheduling_environment::work_order::{operation::Work, WorkOrderActivity},
     supervisor::{
@@ -502,7 +501,7 @@ impl
 }
 
 impl Handler<SupervisorRequestMessage> for SupervisorAgent {
-    type Result = Result<SupervisorResponseMessage, AgentError>;
+    type Result = Result<SupervisorResponseMessage>;
 
     #[instrument(level = "trace", skip_all)]
     fn handle(

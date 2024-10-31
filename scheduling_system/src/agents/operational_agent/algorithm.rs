@@ -10,7 +10,6 @@ use anyhow::Result;
 use chrono::{DateTime, TimeDelta, Utc};
 use rand::seq::SliceRandom;
 use shared_types::{
-    agent_error::AgentError,
     operational::{
         operational_request_resource::OperationalResourceRequest,
         operational_request_scheduling::OperationalSchedulingRequest,
@@ -487,8 +486,6 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
     type TimeResponse = OperationalTimeResponse;
 
     type SchedulingUnit = (WorkOrderNumber, ActivityNumber);
-
-    type Error = AgentError;
 
     fn calculate_objective_value(&mut self) -> Self::BetterSolution {
         // Here we should determine the objective based on the highest needed skill. Meaning that a MTN-TURB should not bid highly
