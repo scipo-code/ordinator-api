@@ -7,6 +7,7 @@ use std::{
 };
 
 use anyhow::Result;
+use arc_swap::Guard;
 use chrono::{DateTime, TimeDelta, Utc};
 use rand::seq::SliceRandom;
 use shared_types::{
@@ -35,6 +36,7 @@ use crate::agents::{
         delegate::{AtomicDelegate, Delegate},
     },
     traits::LargeNeighborHoodSearch,
+    ArcSwapSharedSolution, SharedSolution,
 };
 
 use super::{operational_events::OperationalEvents, OperationalConfiguration};
@@ -78,13 +80,14 @@ impl OperationalParameters {
     }
 }
 
-#[derive(Clone)]
 pub struct OperationalAlgorithm {
     pub objective_value: OperationalObjective,
     pub operational_solutions: OperationalSolutions,
     pub operational_non_productive: OperationalNonProductive,
     pub operational_parameters: OperationalParameters,
     pub history_of_dropped_operational_parameters: HashSet<WorkOrderActivity>,
+    pub arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
+    pub loaded_shared_solution: Guard<Arc<SharedSolution>>,
     pub availability: Availability,
     pub off_shift_interval: TimeInterval,
     pub break_interval: TimeInterval,
@@ -95,7 +98,11 @@ pub struct OperationalAlgorithm {
 pub struct OperationalNonProductive(Vec<Assignment>);
 
 impl OperationalAlgorithm {
-    pub fn new(operational_configuration: OperationalConfiguration) -> Self {
+    pub fn new(
+        operational_configuration: OperationalConfiguration,
+        arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
+    ) -> Self {
+        let loaded_shared_solution = arc_swap_shared_solution.0.load();
         Self {
             objective_value: Arc::new(AtomicUsize::new(0)),
             operational_solutions: OperationalSolutions(Vec::new()),
@@ -106,6 +113,8 @@ impl OperationalAlgorithm {
             off_shift_interval: operational_configuration.off_shift_interval,
             break_interval: operational_configuration.break_interval,
             toolbox_interval: operational_configuration.toolbox_interval,
+            arc_swap_shared_solution,
+            loaded_shared_solution,
         }
     }
 
@@ -961,6 +970,7 @@ mod tests {
             algorithm::MarginalFitness,
             delegate::{AtomicDelegate, Delegate},
         },
+        ArcSwapSharedSolution,
     };
 
     use super::{OperationalAlgorithm, OperationalParameter};
@@ -995,7 +1005,10 @@ mod tests {
             toolbox_interval,
         );
 
-        let operational_algorithm = OperationalAlgorithm::new(operational_configuration);
+        let operational_algorithm = OperationalAlgorithm::new(
+            operational_configuration,
+            Arc::new(ArcSwapSharedSolution::default()),
+        );
 
         let current_time = DateTime::parse_from_rfc3339("2024-05-20T12:00:00Z")
             .unwrap()
@@ -1038,7 +1051,10 @@ mod tests {
             toolbox_interval.clone(),
         );
 
-        let operational_algorithm = OperationalAlgorithm::new(operational_configuration);
+        let operational_algorithm = OperationalAlgorithm::new(
+            operational_configuration,
+            Arc::new(ArcSwapSharedSolution::default()),
+        );
 
         let current_time = DateTime::parse_from_rfc3339("2024-05-20T00:00:00Z")
             .unwrap()
@@ -1080,7 +1096,10 @@ mod tests {
             toolbox_interval.clone(),
         );
 
-        let operational_algorithm = OperationalAlgorithm::new(operational_configuration);
+        let operational_algorithm = OperationalAlgorithm::new(
+            operational_configuration,
+            Arc::new(ArcSwapSharedSolution::default()),
+        );
 
         let current_time = DateTime::parse_from_rfc3339("2024-05-20T01:00:00Z")
             .unwrap()
@@ -1128,7 +1147,10 @@ mod tests {
         };
         let supervisor: Id = Id::new(toml_supervisor.id.clone(), vec![], Some(toml_supervisor));
 
-        let operational_algorithm = OperationalAlgorithm::new(operational_configuration);
+        let operational_algorithm = OperationalAlgorithm::new(
+            operational_configuration,
+            Arc::new(ArcSwapSharedSolution::default()),
+        );
 
         let start_window = DateTime::parse_from_rfc3339("2024-05-16T01:00:00Z")
             .unwrap()

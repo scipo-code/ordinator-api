@@ -252,229 +252,55 @@ impl SupervisorAgent {
     }
 
     fn update_operational_state_machine(&mut self) -> Result<()> {
-        event!(Level::WARN, "FIND STOP POINT");
-        let transition_sets = self.make_transition_sets_from_tactical_state_link();
+        let loaded_tactical_solution = &self.supervisor_algorithm.loaded_shared_solution.tactical;
 
-        event!(Level::WARN, "FIND STOP POINT");
-        self.handle_transition_sets(transition_sets)
-            .context("TranstionSets were not handled correctly")?;
-        event!(Level::WARN, "FIND STOP POINT");
+        let supervisor_work_order_activities = loaded_tactical_solution.supervisor_activities(
+            &self
+                .supervisor_algorithm
+                .supervisor_parameters
+                .supervisor_periods,
+        );
+
+        let transition_sets = self.update_supervisor_solution();
+
         Ok(())
     }
 
-    fn make_transition_sets_from_tactical_state_link(&self) -> TransitionSets {
+    fn update_supervisor_solution(&self) -> Result<()> {
         event!(Level::WARN, "FIND STOP POINT");
-        let tactical_supervisor_link = self
+        let work_order_coming_from_tactical = self
             .supervisor_algorithm
             .loaded_shared_solution
             .tactical
-            .supervisor_activities();
-
-        let tactical_activities = event!(Level::WARN, "FIND STOP POINT");
-
-        let supervisor_set: HashSet<WorkOrderActivity> = self
-            .supervisor_algorithm
-            .loaded_shared_solution
-            .tactical
-            .supervisor_activities()
-            .keys()
-            .cloned()
-            .collect();
-
-        event!(Level::WARN, "FIND STOP POINT");
-        let tactical_set: HashSet<WorkOrderActivity> = tactical_supervisor_link
-            .keys()
-            .cloned()
-            .collect::<HashSet<_>>();
-
-        event!(Level::WARN, "FIND STOP POINT");
-        let (done_set, tactical_set): (HashSet<WorkOrderActivity>, HashSet<WorkOrderActivity>) =
-            tactical_set.into_iter().partition(|woa| {
-                tactical_supervisor_link.get(woa).unwrap().work_remaining == Work::from(0.0)
-            });
-
-        event!(Level::WARN, "FIND STOP POINT");
-        let done_woas: HashSet<TransitionTypes> = done_set
-            .into_iter()
-            .map(|woa| TransitionTypes::Done(woa))
-            .collect();
-
-        event!(Level::WARN, "FIND STOP POINT");
-        let mut changed_woas = HashSet::new();
-
-        event!(Level::WARN, "FIND STOP POINT");
-        let mut unchanged_woas = HashSet::new();
-
-        event!(Level::WARN, "FIND STOP POINT");
-        supervisor_set
-            .intersection(&tactical_set)
-            .cloned()
-            .for_each(|woa| {
-                event!(Level::WARN, "FIND STOP POINT");
-                let tactical_operation = self
-                    .supervisor_algorithm
-                    .loaded_shared_solution
-                    .tactical
-                    .supervisor_activities()
-                    .get(&woa)
-                    .unwrap()
-                    .clone();
-
-                event!(Level::WARN, "FIND STOP POINT");
-                if &tactical_operation == tactical_supervisor_link.get(&woa).unwrap() {
-                    let transition_type = TransitionTypes::Unchanged(woa);
-                    unchanged_woas.insert(transition_type);
-                } else {
-                    let transition_type = TransitionTypes::Changed(woa);
-                    changed_woas.insert(transition_type);
-                }
-                event!(Level::WARN, "FIND STOP POINT");
-            });
-
-        event!(Level::WARN, "FIND STOP POINT");
-        let leaving_woas = supervisor_set
-            .difference(&tactical_set)
-            .cloned()
-            .map(|woa| TransitionTypes::Leaving(woa))
-            .collect::<HashSet<TransitionTypes>>();
-
-        event!(Level::WARN, "FIND STOP POINT");
-        let entering_woas = tactical_set
-            .difference(&supervisor_set)
-            .cloned()
-            .map(|woa| TransitionTypes::Entering(woa))
-            .collect::<HashSet<TransitionTypes>>();
-
-        assert!(leaving_woas.is_disjoint(&entering_woas));
-        assert!(entering_woas.is_disjoint(&done_woas));
-        assert!(leaving_woas.is_disjoint(&done_woas));
-
-        assert!(unchanged_woas.is_disjoint(&done_woas));
-        assert!(changed_woas.is_disjoint(&done_woas));
-
-        let mut final_set = entering_woas;
-
-        final_set.extend(unchanged_woas);
-        final_set.extend(leaving_woas);
-        final_set.extend(done_woas);
-
-        final_set
-    }
-    fn handle_transition_sets(&mut self, transition_sets: HashSet<TransitionTypes>) -> Result<()> {
-        event!(Level::WARN, "FIND STOP POINT");
-        let locked_scheduling_environment = self
-            .scheduling_environment
-            .lock()
-            .expect("SchedulingEnvironment lock should never be poisoned");
-        event!(Level::WARN, "FIND STOP POINT");
-
-        for transition_type in &transition_sets {
-            match transition_type {
-                TransitionTypes::Entering(work_order_activity) => {
-                    // TODO: 2024-10-31: Check that this is actually needed
-                    // let insert_option = self
-                    //     .supervisor_algorithm
-                    //     .tactical_operations
-                    //     .insert(*work_order_activity, tactical_operation.clone());
-                    // match insert_option {
-                    //     Some(_) => panic!(),
-                    //     None => (),
-                    // }
-                    self.supervisor_algorithm
-                        .supervisor_parameters
-                        .create(&locked_scheduling_environment, work_order_activity);
-
-                    let tactical_operation = Arc::new(
-                        self.supervisor_algorithm
-                            .loaded_shared_solution
-                            .tactical
-                            .tactical_days
-                            .get(&work_order_activity.0)
-                            .unwrap()
-                            .as_ref()
-                            .unwrap()
-                            .get(&work_order_activity.1)
-                            .unwrap()
-                            .clone(),
-                    );
-
-                    for operational_agent in &self.operational_agent_addrs {
-                        if operational_agent.0 .1.contains(
-                            &self
-                                .supervisor_algorithm
-                                .supervisor_parameters
-                                .strategic_parameter(work_order_activity)
-                                .context("The SupervisorParameter was not found")?
-                                .resource,
-                        ) {
-                            self.supervisor_algorithm
-                                .operational_state_machine
-                                .update_operational_state(
-                                    transition_type.clone(),
-                                    operational_agent,
-                                    tactical_operation.clone(),
-                                    self.supervisor_id.clone(),
-                                )
-                        }
-                    }
-                }
-                TransitionTypes::Leaving(work_order_activity) => {
-                    self.supervisor_algorithm
-                        .supervisor_parameters
-                        .remove_strategic_parameter(work_order_activity)
-                        .context(
-                            "TransitionTypes::Leaving(WorkOrderActivity): {:?} was not present",
-                        )?;
-
-                    let tactical_operation = Arc::new(
-                        self.supervisor_algorithm
-                            .loaded_shared_solution
-                            .tactical
-                            .tactical_days
-                            .get(&work_order_activity.0)
-                            .unwrap()
-                            .as_ref()
-                            .unwrap()
-                            .get(&work_order_activity.1)
-                            .unwrap()
-                            .clone(),
-                    );
-
-                    for operational_agent in &self.operational_agent_addrs {
-                        let leaving_delegate_option = self
-                            .supervisor_algorithm
-                            .operational_state_machine
-                            .get(&(operational_agent.0.clone(), *work_order_activity));
-
-                        match leaving_delegate_option {
-                            Some(_woa) => self
-                                .supervisor_algorithm
-                                .operational_state_machine
-                                .update_operational_state(
-                                    transition_type.clone(),
-                                    operational_agent,
-                                    tactical_operation.clone(),
-                                    self.supervisor_id.clone(),
-                                ),
-                            None => {
-                                event!(Level::DEBUG, "If you get this, and suspect an error, check that the woa that is being dropped does not match the resource of operational agent. This could be a very pernicious bug if true, but a significant rewrite of the type system is needed to assert! this")
-                            }
-                        }
-                    }
-
-                    assert!(!self
-                        .supervisor_algorithm
-                        .operational_state_machine
-                        .is_work_order_activity_present(work_order_activity))
-                }
-                TransitionTypes::Unchanged(_delegate) => {}
-                TransitionTypes::Changed(_delegate) => {
-                    todo!();
-                }
-                TransitionTypes::Done(work_order_activity) => self
+            .supervisor_activities(
+                &self
                     .supervisor_algorithm
                     .supervisor_parameters
-                    .create(&locked_scheduling_environment, work_order_activity),
+                    .supervisor_periods,
+            );
+
+        for work_order_activity in work_order_coming_from_tactical {
+            self.supervisor_algorithm
+                .supervisor_parameters
+                .create(&locked_scheduling_environment, &work_order_activity);
+
+            for operational_agent in &self.operational_agent_addrs {
+                if operational_agent.0 .1.contains(
+                    &self
+                        .supervisor_algorithm
+                        .supervisor_parameters
+                        .strategic_parameter(&work_order_activity)
+                        .context("The SupervisorParameter was not found")?
+                        .resource,
+                ) {
+                    self.supervisor_algorithm
+                        .operational_state_machine
+                        .update_operational_state(
+                            transition_type.clone(),
+                            operational_agent,
+                            self.supervisor_id.clone(),
+                        )
+                }
             }
         }
         Ok(())

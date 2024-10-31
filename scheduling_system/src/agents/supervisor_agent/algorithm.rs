@@ -8,8 +8,7 @@ use anyhow::{bail, Context, Result};
 use arc_swap::Guard;
 use shared_types::{
     scheduling_environment::{
-        work_order::{operation::{operation_info::NumberOfPeople, ActivityNumber}, WorkOrderActivity, WorkOrderNumber},
-        worker_environment::resources::{Id, Resources}, SchedulingEnvironment,
+        time_environment::period::Period, work_order::{operation::{operation_info::NumberOfPeople, ActivityNumber}, WorkOrderActivity, WorkOrderNumber}, worker_environment::resources::{Id, Resources}, SchedulingEnvironment
     },
     supervisor::{
         supervisor_response_resources::SupervisorResponseResources,
@@ -68,11 +67,14 @@ pub struct SupervisorAlgorithm {
 }
 
 #[derive(Default)]
-pub struct SupervisorParameters(HashMap<WorkOrderNumber, HashMap<ActivityNumber, SupervisorParameter>>);
+pub struct SupervisorParameters {
+    pub supervisor_work_orders: HashMap<WorkOrderNumber, HashMap<ActivityNumber, SupervisorParameter>>,
+    pub supervisor_periods: Vec<Period>,
+}
 
 impl SupervisorParameters {
     pub(crate) fn strategic_parameter(&self, work_order_activity: &WorkOrderActivity) -> Result<&SupervisorParameter> {
-        Ok(self.0
+        Ok(self.supervisor_work_orders
             .get(&work_order_activity.0)
             .context(format!("WorkOrderNumber: {:?} was not part of the SupervisorParameters", work_order_activity.0))?
             .get(&work_order_activity.1)
@@ -80,7 +82,7 @@ impl SupervisorParameters {
     }
 
     pub(crate) fn remove_strategic_parameter(&mut self, work_order_activity: &WorkOrderActivity) -> Result<SupervisorParameter> {
-        match self.0.get_mut(&work_order_activity.0) {
+        match self.supervisor_work_orders.get_mut(&work_order_activity.0) {
             Some(inner) => {
                 Ok(inner.remove(&work_order_activity.1).context("SupervisorParameter entry did not exist")?)
             },
@@ -98,7 +100,7 @@ impl SupervisorParameters {
             operation.operation_info.number,
         
     );
-        self.0.entry(work_order_activity.0)
+        self.supervisor_work_orders.entry(work_order_activity.0)
             .or_insert_with(HashMap::new)
             .insert(work_order_activity.1, supervisor_parameter);
 

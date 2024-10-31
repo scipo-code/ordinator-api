@@ -5,12 +5,11 @@ pub mod supervisor_agent;
 pub mod tactical_agent;
 pub mod traits;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use actix::{Addr, Message};
 use anyhow::Result;
 use arc_swap::ArcSwap;
-use itertools::Itertools;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::{ActivityNumber, Work};
@@ -91,21 +90,30 @@ impl TacticalSolution {
         self.tactical_period.get(work_order_number).unwrap()
     }
 
-    pub fn supervisor_activities(&self) -> HashMap<WorkOrderActivity, TacticalOperation> {
-        let mut hash_map = HashMap::new();
-        self.tactical_period.iter().for_each(|(wo, map)| match map {
-            Some(period) => {
-                if self.period 
-                let tactical_operation
-                self
-                    .tactical_days
-                    .get(wo)
-                    .expect("This tactical_days-tactical_periods invariant should always hold")
-                    .unwrap()
-            },
+    pub fn supervisor_activities(
+        &self,
+        supervisor_periods: &[Period],
+    ) -> HashSet<WorkOrderActivity> {
+        let mut supervisor_work_orders: HashSet<WorkOrderActivity> = HashSet::new();
+        self.tactical_period.iter().for_each(|(won, opt_per)| {
+            if let Some(period) = opt_per {
+                if supervisor_periods.contains(period) {
+                    let activities: Vec<_> = self
+                        .tactical_days
+                        .get(won)
+                        .expect("Should always be valid")
+                        .as_ref()
+                        .unwrap()
+                        .keys()
+                        .collect();
 
-            None => todo!(),
+                    for activity in activities {
+                        supervisor_work_orders.insert((*won, *activity));
+                    }
+                }
+            }
         });
+        supervisor_work_orders
     }
 
     fn tactical_insert_work_order(
