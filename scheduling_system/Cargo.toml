@@ -28,6 +28,7 @@ data_processing = { path = "../data_processing" }
 dotenvy = "*"
 futures = "*"
 futures-util = "*"
+itertools = "*"
 priority-queue = "*"
 proptest = "*"
 rand = "*"

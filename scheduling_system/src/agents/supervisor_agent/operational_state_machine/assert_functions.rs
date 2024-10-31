@@ -1,8 +1,6 @@
 use super::OperationalStateMachine;
-use crate::agents::{
-    supervisor_agent::{delegate::Delegate, CapturedSupervisorState},
-    AssertError,
-};
+use crate::agents::supervisor_agent::{delegate::Delegate, CapturedSupervisorState};
+use anyhow::{bail, Result};
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use std::collections::HashSet;
 use tracing::{event, Level};
@@ -16,11 +14,11 @@ pub trait OperationalStateMachineAssertions {
     fn assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(
         &self,
         current_state: &CapturedSupervisorState,
-    ) -> Result<(), AssertError>;
+    ) -> Result<()>;
     fn assert_that_operational_state_machine_is_equal_to_captured_operational_state_machine(
         &self,
         current_state: &CapturedSupervisorState,
-    ) -> Result<(), AssertError>;
+    ) -> Result<()>;
 }
 
 impl OperationalStateMachineAssertions for OperationalStateMachine {
@@ -80,14 +78,12 @@ impl OperationalStateMachineAssertions for OperationalStateMachine {
     fn assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(
         &self,
         current_state: &CapturedSupervisorState,
-    ) -> Result<(), AssertError> {
+    ) -> Result<()> {
         if self.0.iter().all(|(id_woa, del_fit)| {
             current_state.state_of_each_agent.get(&id_woa).unwrap()
                 == &del_fit.0.load(std::sync::atomic::Ordering::SeqCst)
         }) {
-            Err(AssertError(
-                "operational_state_machines are similar".to_string(),
-            ))
+            bail!("operational_state_machines are similar")
         } else {
             Ok(())
         }
@@ -96,16 +92,14 @@ impl OperationalStateMachineAssertions for OperationalStateMachine {
     fn assert_that_operational_state_machine_is_equal_to_captured_operational_state_machine(
         &self,
         current_state: &CapturedSupervisorState,
-    ) -> Result<(), AssertError> {
+    ) -> Result<()> {
         if self.0.iter().all(|(id_woa, del_fit)| {
             current_state.state_of_each_agent.get(&id_woa).unwrap()
                 == &del_fit.0.load(std::sync::atomic::Ordering::SeqCst)
         }) {
             Ok(())
         } else {
-            Err(AssertError(
-                "OperationalStateMachines are not similar".to_string(),
-            ))
+            bail!("OperationalStateMachines are not similar");
         }
     }
 }

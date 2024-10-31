@@ -46,26 +46,30 @@ impl OperationalAssertions for OperationalAgent {
     }
 
     fn assert_no_operation_overlap(&self) -> Result<()> {
-        for (_, operational_solution_1) in self
+        for (index_1, operational_solution_1) in self
             .operational_algorithm
             .operational_solutions
             .0
             .iter()
             .enumerate()
         {
-            for (_, operational_solution_2) in self
+            for (index_2, operational_solution_2) in self
                 .operational_algorithm
                 .operational_solutions
                 .0
                 .iter()
                 .enumerate()
             {
+                if index_1 == index_2 {
+                    continue;
+                }
                 ensure!(
-                    operational_solution_1.1.start_time() > operational_solution_2.1.finish_time()
+                    !(operational_solution_1.1.start_time()
+                        > operational_solution_2.1.finish_time()
                         && operational_solution_2.1.finish_time()
-                            > operational_solution_1.1.start_time(),
+                            > operational_solution_1.1.start_time()),
                     format!(
-                        "{:?} : {:?} is overlapping with {:?} : {:?}",
+                        "{:?}\n : {:?}\n is overlapping with \n{:?}\n : {:?}",
                         operational_solution_1.0,
                         operational_solution_1.1,
                         operational_solution_2.0,

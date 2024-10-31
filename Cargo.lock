@@ -2456,6 +2456,7 @@ dependencies = [
  "dotenvy",
  "futures",
  "futures-util",
+ "itertools",
  "priority-queue",
  "proptest",
  "rand",
