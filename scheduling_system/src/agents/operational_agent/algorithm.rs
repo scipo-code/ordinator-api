@@ -95,7 +95,6 @@ pub struct OperationalAlgorithm {
 #[derive(Clone)]
 pub struct OperationalNonProductive(Vec<Assignment>);
 
-#[allow(dead_code)]
 impl OperationalAlgorithm {
     pub fn new(operational_configuration: OperationalConfiguration) -> Self {
         Self {
@@ -434,7 +433,6 @@ pub enum Unavailability {
 }
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct OperationalParameter {
     work: Work,
     preparation: Work,
