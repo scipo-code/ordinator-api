@@ -30,7 +30,7 @@ pub struct Operation {
     pub operation_dates: OperationDates,
 }
 
-#[derive(Hash, Eq, PartialOrd, Ord, PartialEq, Debug, Clone)]
+#[derive(Default, Hash, Eq, PartialOrd, Ord, PartialEq, Debug, Clone)]
 pub struct Work(pub Decimal);
 
 impl FromStr for Work {
@@ -366,26 +366,6 @@ impl OperationBuilder {
             operation_analytic,
             operation_dates,
         })
-    }
-
-    fn with_operation_info(
-        mut self,
-        number: NumberOfPeople,
-        work_remaining: Option<Work>,
-        work_performed: Option<Work>,
-        work_adjusted: Option<Work>,
-        operating_time: Option<Work>,
-    ) -> Self {
-        let operation_info = OperationInfo::new(
-            number,
-            work_remaining,
-            work_performed,
-            work_adjusted,
-            operating_time,
-        );
-
-        self.0.operation_info = operation_info;
-        self
     }
 
     pub fn build(self) -> Operation {

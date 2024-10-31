@@ -29,6 +29,7 @@ use self::{
     tactical_scheduling_message::TacticalSchedulingRequest,
     tactical_status_message::TacticalStatusMessage, tactical_time_message::TacticalTimeRequest,
 };
+pub type TacticalObjectiveValue = u64;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TacticalRequest {

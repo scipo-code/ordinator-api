@@ -12,7 +12,6 @@ chrono = { version = "0", features = ["serde", "arbitrary"] }
 chrono-tz = "0.10.0"
 csv = "*"
 dotenvy = "*"
-polars = "*"
 rayon = "*"
 regex = "*"
 rust_decimal = "*"

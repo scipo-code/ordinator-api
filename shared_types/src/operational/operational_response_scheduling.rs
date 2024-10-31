@@ -1,12 +1,11 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use crate::{agent_error::AgentError, scheduling_environment::work_order::WorkOrderActivity};
+use crate::scheduling_environment::work_order::WorkOrderActivity;
 
 #[derive(Serialize)]
 pub enum OperationalSchedulingResponse {
     EventList(Vec<JsonAssignmentEvents>),
-    Error(AgentError),
 }
 
 #[derive(Serialize)]

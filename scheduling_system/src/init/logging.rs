@@ -14,11 +14,10 @@ type LogLayer =
     Filtered<Layer<Registry, JsonFields, Format<Json>, NonBlocking>, EnvFilter, Registry>;
 type ProfilingLayer = Filtered<FlameLayer<Registry, BufWriter<File>>, EnvFilter, Registry>;
 
-#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct LogHandles {
     pub file_handle: Handle<LogLayer, Registry>,
-    pub flame_handle: Handle<ProfilingLayer, Registry>,
+    pub _flame_handle: Handle<ProfilingLayer, Registry>,
 }
 
 pub fn setup_logging() -> (LogHandles, WorkerGuard) {
@@ -67,7 +66,7 @@ pub fn setup_logging() -> (LogHandles, WorkerGuard) {
     .unwrap()
     .0
     .with_filter(EnvFilter::from_env("PROFILING_LEVEL"));
-    let (flame_layer, flame_handle) = reload::Layer::new(flame_layer);
+    let (flame_layer, _flame_handle) = reload::Layer::new(flame_layer);
 
     let layers = vec![file_layer.boxed(), flame_layer.boxed()];
 
@@ -76,7 +75,7 @@ pub fn setup_logging() -> (LogHandles, WorkerGuard) {
     event!(Level::INFO, "starting loging");
     let log_handles = LogHandles {
         file_handle,
-        flame_handle,
+        _flame_handle,
     };
     (log_handles, _guard)
 }

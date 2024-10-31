@@ -6,6 +6,7 @@ pub mod supervisor_scheduling_message;
 pub mod supervisor_status_message;
 
 use actix::Message;
+use anyhow::Result;
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +16,7 @@ use self::supervisor_response_status::SupervisorResponseStatus;
 use self::supervisor_response_time::SupervisorResponseTime;
 use self::supervisor_scheduling_message::SupervisorSchedulingMessage;
 use self::supervisor_status_message::SupervisorStatusMessage;
-use crate::{agent_error::AgentError, Asset};
+use crate::Asset;
 use crate::{AlgorithmState, ConstraintState};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -47,7 +48,7 @@ pub enum SupervisorRequestMessage {
 }
 
 impl Message for SupervisorRequestMessage {
-    type Result = Result<SupervisorResponseMessage, AgentError>;
+    type Result = Result<SupervisorResponseMessage>;
 }
 
 #[derive(Serialize)]
