@@ -22,6 +22,7 @@ use crate::scheduling_environment::work_order::work_order_dates::WorkOrderDates;
 use crate::scheduling_environment::work_order::work_order_text::WorkOrderText;
 use crate::scheduling_environment::work_order::work_order_type::WorkOrderType;
 use chrono::{DateTime, Utc};
+use operation::OperationBuilder;
 use serde::{Deserialize, Serialize};
 use status_codes::UserStatusCodes;
 use std::collections::HashMap;
@@ -477,28 +478,28 @@ impl WorkOrder {
         let mut operations = HashMap::new();
 
         let unloading_point = UnloadingPoint::default();
-        let operation_0010 = Operation::builder(
+        let operation_0010 = OperationBuilder::new(
             ActivityNumber(10),
             unloading_point.clone(),
             Resources::Prodtech,
             Some(Work::from(10.0)),
         )
         .build();
-        let operation_0020 = Operation::builder(
+        let operation_0020 = OperationBuilder::new(
             ActivityNumber(20),
             unloading_point.clone(),
             Resources::MtnMech,
             Some(Work::from(20.0)),
         )
         .build();
-        let operation_0030 = Operation::builder(
+        let operation_0030 = OperationBuilder::new(
             ActivityNumber(30),
             unloading_point.clone(),
             Resources::MtnMech,
             Some(Work::from(30.0)),
         )
         .build();
-        let operation_0040 = Operation::builder(
+        let operation_0040 = OperationBuilder::new(
             ActivityNumber(40),
             unloading_point.clone(),
             Resources::Prodtech,
@@ -550,7 +551,7 @@ mod tests {
 
     use super::{
         functional_location::FunctionalLocation,
-        operation::{ActivityNumber, Operation, Work},
+        operation::{ActivityNumber, Operation, OperationBuilder, Work},
         priority::Priority,
         revision::Revision,
         status_codes::{SystemStatusCodes, UserStatusCodes},
@@ -590,28 +591,28 @@ mod tests {
             let mut operations = HashMap::new();
 
             let unloading_point = UnloadingPoint::default();
-            let operation_0010 = Operation::builder(
+            let operation_0010 = OperationBuilder::new(
                 ActivityNumber(10),
                 unloading_point.clone(),
                 Resources::Prodtech,
                 Some(Work::from(10.0)),
             )
             .build();
-            let operation_0020 = Operation::builder(
+            let operation_0020 = OperationBuilder::new(
                 ActivityNumber(20),
                 unloading_point.clone(),
                 Resources::MtnMech,
                 Some(Work::from(20.0)),
             )
             .build();
-            let operation_0030 = Operation::builder(
+            let operation_0030 = OperationBuilder::new(
                 ActivityNumber(30),
                 unloading_point.clone(),
                 Resources::MtnMech,
                 Some(Work::from(30.0)),
             )
             .build();
-            let operation_0040 = Operation::builder(
+            let operation_0040 = OperationBuilder::new(
                 ActivityNumber(40),
                 unloading_point.clone(),
                 Resources::Prodtech,

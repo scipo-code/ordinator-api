@@ -81,10 +81,8 @@ impl AgentFactory {
 
         let mut strategic_agent_algorithm = StrategicAlgorithm::new(
             0.0,
-            resources_capacity,
-            resources_loading,
             PriorityQueues::new(),
-            StrategicParameters::new(HashMap::new()),
+            StrategicParameters::new(HashMap::new(), resources_capacity),
             strategic_tactical_optimized_work_orders,
             period_locks,
             locked_scheduling_environment.clone_strategic_periods(),

@@ -30,7 +30,7 @@ impl StrategicAssertions for StrategicAgent {
                 let strategic_parameter = self
                     .strategic_algorithm
                     .strategic_parameters
-                    .inner
+                    .strategic_work_order_parameters
                     .get(work_order_number)
                     .unwrap();
                 if strategic_solution.as_ref().unwrap() == &period.clone() {

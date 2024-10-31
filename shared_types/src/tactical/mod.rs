@@ -89,13 +89,13 @@ impl Default for TacticalInfeasibleCases {
         }
     }
 }
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Eq, PartialEq, Default, Serialize, Deserialize, Debug, Clone)]
 pub struct TacticalResources {
     #[serde(with = "any_key_map")]
     pub resources: HashMap<Resources, Days>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone)]
 pub struct Days {
     #[serde(with = "any_key_map")]
     pub days: HashMap<Day, Work>,
