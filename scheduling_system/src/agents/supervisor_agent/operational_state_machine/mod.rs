@@ -30,6 +30,10 @@ pub struct OperationalStateMachine(
 );
 
 impl OperationalStateMachine {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
     pub fn update_operational_state(
         &mut self,
         transition_type: TransitionTypes,
