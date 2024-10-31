@@ -79,8 +79,7 @@ impl AgentFactory {
         let resources_loading =
             initialize_strategic_resources(&locked_scheduling_environment, Work::from(0.0));
 
-        let mut strategic_agent_algorithm = StrategicAlgorithm::new(
-            0.0,
+        let mut strategic_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
             StrategicParameters::new(HashMap::new(), resources_capacity),
             strategic_tactical_optimized_work_orders,
@@ -88,7 +87,9 @@ impl AgentFactory {
             locked_scheduling_environment.clone_strategic_periods(),
         );
 
-        strategic_agent_algorithm.create_strategic_parameters(
+        strategic_algorithm.strategic_solution.strategic_loadings = resources_loading;
+
+        strategic_algorithm.create_strategic_parameters(
             &mut cloned_work_orders,
             &cloned_periods,
             &asset,
@@ -101,13 +102,9 @@ impl AgentFactory {
         let arc_scheduling_environment = self.scheduling_environment.clone();
 
         Arbiter::new().spawn_fn(move || {
-            let strategic_addr = StrategicAgent::new(
-                asset,
-                arc_scheduling_environment,
-                strategic_agent_algorithm,
-                None,
-            )
-            .start();
+            let strategic_addr =
+                StrategicAgent::new(asset, arc_scheduling_environment, strategic_algorithm, None)
+                    .start();
             sender.send(strategic_addr).unwrap();
         });
 

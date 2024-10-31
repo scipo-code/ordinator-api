@@ -12,7 +12,6 @@ use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use actix::prelude::*;
-use shared_types::agent_error::AgentError;
 use shared_types::strategic::strategic_request_status_message::StrategicStatusMessage;
 use shared_types::strategic::strategic_response_periods::StrategicResponsePeriods;
 use shared_types::strategic::strategic_response_scheduling::StrategicResponseScheduling;
@@ -133,7 +132,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 }
 
 impl Handler<StrategicRequestMessage> for StrategicAgent {
-    type Result = Result<StrategicResponseMessage, AgentError>;
+    type Result = Result<StrategicResponseMessage>;
 
     #[instrument(level = "info", skip_all)]
     fn handle(
@@ -182,9 +181,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                             .collect::<Vec<_>>()
                             .contains(&period)
                         {
-                            return Err(AgentError::StateUpdateError(
-                                "Period not found in the the scheduling environment".to_string(),
-                            ));
+                            bail!("Period not found in the the scheduling environment".to_string());
                         }
 
                         let work_orders_by_period: HashMap<WorkOrderNumber, WorkOrderResponse> =
@@ -255,7 +252,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                     .update_scheduling_state(scheduling_message);
 
                 self.strategic_algorithm.calculate_objective_value();
-                event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.objective_value);
+                event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value);
                 Ok(StrategicResponseMessage::Scheduling(
                     scheduling_output.unwrap(),
                 ))
@@ -266,7 +263,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                     .update_resources_state(resources_message);
 
                 self.strategic_algorithm.calculate_objective_value();
-                event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.objective_value);
+                event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value);
                 Ok(StrategicResponseMessage::Resources(
                     resources_output.unwrap(),
                 ))
@@ -368,6 +365,7 @@ mod tests {
     use shared_types::strategic::strategic_request_scheduling_message::SingleWorkOrder;
     use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
     use shared_types::strategic::Periods;
+    use shared_types::strategic::StrategicObjectiveValue;
     use shared_types::strategic::StrategicResources;
     use tests::strategic_algorithm::optimized_work_orders::StrategicParameter;
     use tests::strategic_algorithm::optimized_work_orders::StrategicParameters;
@@ -630,12 +628,9 @@ mod tests {
 
         loadings.insert(Resources::VenMech, Periods(periods_hash_map_0));
 
-        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
-            0.0,
-            StrategicResources::new(capacities),
-            StrategicResources::new(loadings),
+        let mut strategic_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
-            StrategicParameters::new(HashMap::new()),
+            StrategicParameters::new(HashMap::new(), StrategicResources::default()),
             ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             periods.clone(),
@@ -649,21 +644,21 @@ mod tests {
             work_load,
         );
 
-        scheduler_agent_algorithm.set_optimized_work_order(work_order_number, optimized_work_order);
+        strategic_algorithm.set_optimized_work_order(work_order_number, optimized_work_order);
 
-        scheduler_agent_algorithm
+        strategic_algorithm
             .update_scheduling_state(strategic_scheduling_message)
             .unwrap();
 
         assert_eq!(
-            scheduler_agent_algorithm
+            strategic_algorithm
                 .optimized_work_order(&work_order_number)
                 .unwrap()
                 .locked_in_period,
             Some(Period::from_str("2023-W49-50").unwrap())
         );
         assert_eq!(
-            *scheduler_agent_algorithm
+            *strategic_algorithm
                 .strategic_periods()
                 .get(&work_order_number)
                 .unwrap(),
@@ -672,10 +667,10 @@ mod tests {
         // assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("VEN_MECH".to_string(), "2023-W49-50".to_string()), 16.0);
     }
 
-    //
     #[test]
     fn test_calculate_objective_value() {
-        let mut optimized_work_orders = StrategicParameters::new(HashMap::new());
+        let mut strategic_parameters =
+            StrategicParameters::new(HashMap::new(), StrategicResources::default());
 
         let optimized_work_order = StrategicParameter::new(
             Some(Period::from_str("2023-W49-50").unwrap()),
@@ -685,24 +680,20 @@ mod tests {
             HashMap::new(),
         );
 
-        optimized_work_orders
+        strategic_parameters
             .insert_strategic_parameter(WorkOrderNumber(2100023841), optimized_work_order);
 
-        let mut strategic_agent_algorithm = StrategicAlgorithm::new(
-            0.0,
-            StrategicResources::default(),
-            StrategicResources::default(),
+        let mut strategic_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
-            optimized_work_orders,
+            strategic_parameters,
             ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             vec![],
         );
 
-        strategic_agent_algorithm.calculate_objective_value();
+        strategic_algorithm.calculate_objective_value();
 
-        // This test fails because the objective value in not initialized
-        assert_eq!(strategic_agent_algorithm.objective_value, 2000.0);
+        assert_eq!(strategic_algorithm.strategic_solution.objective_value, 2000);
     }
 
     pub struct TestRequest {}
@@ -713,7 +704,7 @@ mod tests {
 
     #[allow(dead_code)]
     pub struct TestResponse {
-        pub objective_value: f64,
+        pub objective_value: StrategicObjectiveValue,
         pub manual_resources_capacity: HashMap<Resources, Periods>,
         pub manual_resources_loading: HashMap<Resources, Periods>,
         pub priority_queues: PriorityQueues<WorkOrderNumber, u64>,
@@ -726,7 +717,7 @@ mod tests {
 
         fn handle(&mut self, _msg: TestRequest, _: &mut Context<Self>) -> Self::Result {
             Some(TestResponse {
-                objective_value: self.strategic_algorithm.objective_value,
+                objective_value: self.strategic_algorithm.strategic_solution.objective_value,
                 manual_resources_capacity: self
                     .strategic_algorithm
                     .resources_capacities()
@@ -743,6 +734,7 @@ mod tests {
                         .strategic_parameters
                         .strategic_work_order_parameters
                         .clone(),
+                    StrategicResources::default(),
                 ),
                 periods: self.strategic_algorithm.periods().clone(),
             })

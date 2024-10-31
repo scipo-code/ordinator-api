@@ -20,6 +20,7 @@
       in {
         devShells.default = pkgs.mkShell {
           buildInputs = [
+            pkgs.linuxKernel.packages.linux_zen.perf
             pkgs.cargo-cross
             pkgs.rustup
             pythonEnv

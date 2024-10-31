@@ -1,7 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use data_processing::excel_dumps::create_excel_dump;
 use shared_types::operational::operational_request_status::OperationalStatusRequest;
-use shared_types::operational::operational_response_scheduling::OperationalSchedulingResponse;
 use shared_types::operational::{
     OperationalRequest, OperationalRequestMessage, OperationalResponse, OperationalResponseMessage,
 };
@@ -10,7 +9,7 @@ use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
-use shared_types::strategic::{StrategicResponse, StrategicResponseMessage};
+use shared_types::strategic::StrategicResponse;
 use shared_types::supervisor::SupervisorResponse;
 
 use shared_types::tactical::TacticalResponse;
@@ -114,7 +113,6 @@ pub async fn http_to_scheduling_system(
             SystemResponses::Orchestrator(response.unwrap())
         }
         SystemMessages::Strategic(strategic_request) => {
-            dbg!();
             let strategic_agent_addr = match orchestrator
                 .lock()
                 .unwrap()
@@ -129,16 +127,14 @@ pub async fn http_to_scheduling_system(
                 }
             };
 
-            dbg!();
             let response = match strategic_agent_addr
                 .send(strategic_request.strategic_request_message.clone())
                 .await
                 .unwrap()
             {
                 Ok(response) => response,
-                Err(e) => StrategicResponseMessage::Error(e),
+                Err(e) => return HttpResponse::InternalServerError().body(e.to_string()),
             };
-            dbg!();
 
             let strategic_response =
                 StrategicResponse::new(strategic_request.asset().clone(), response);
@@ -240,8 +236,7 @@ pub async fn http_to_scheduling_system(
                                     operational_response_message
                                 },
                                 Err(e) => {
-                                    let operational_scheduling_message = OperationalSchedulingResponse::Error(e);
-                                    OperationalResponseMessage::Scheduling(operational_scheduling_message)
+                                    return HttpResponse::InternalServerError().body(e.to_string())
                                 },
                             };
                             OperationalResponse::OperationalState(operational_response_message)

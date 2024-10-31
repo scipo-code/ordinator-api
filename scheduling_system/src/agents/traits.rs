@@ -1,5 +1,4 @@
 use anyhow::Result;
-use shared_types::AlgorithmState;
 
 #[allow(dead_code)]
 pub trait LargeNeighborHoodSearch {
@@ -12,8 +11,6 @@ pub trait LargeNeighborHoodSearch {
     type TimeResponse;
 
     type SchedulingUnit;
-
-    type Error;
 
     fn calculate_objective_value(&mut self) -> Self::BetterSolution;
 
@@ -32,12 +29,4 @@ pub trait LargeNeighborHoodSearch {
         &mut self,
         message: Self::ResourceRequest,
     ) -> Result<Self::ResourceResponse>;
-}
-
-/// TestAlgorithm is a trait that all algorithms should implement. Running `feasible()` tests if the solution
-/// violates any constraints of the problem, or if the objective is not correctly calcalated.
-pub trait TestAlgorithm {
-    type InfeasibleCases;
-
-    fn determine_algorithm_state(&self) -> AlgorithmState<Self::InfeasibleCases>;
 }
