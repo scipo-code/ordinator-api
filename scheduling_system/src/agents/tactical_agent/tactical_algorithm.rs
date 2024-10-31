@@ -1,5 +1,5 @@
 use actix::Message;
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use arc_swap::Guard;
 use chrono::NaiveDate;
 use priority_queue::PriorityQueue;
@@ -32,7 +32,7 @@ use std::{
     sync::{Arc, MutexGuard},
 };
 use std::{collections::HashMap, fmt};
-use tracing::{debug, error, event, info, instrument, warn, Level};
+use tracing::{event, instrument, Level};
 
 use crate::agents::{
     traits::LargeNeighborHoodSearch, ArcSwapSharedSolution, SharedSolution, TacticalSolution,
@@ -489,7 +489,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 let current_day_peek = match current_day.peek() {
                     Some(day) => day,
                     None => {
-                        debug!(
+                        event!(Level::DEBUG,
                             current_work_order_number = ?current_work_order_number,
                             operation_parameters = ?operation_parameters,
                             operation_solutions = ?operation_solutions,
@@ -522,7 +522,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     let day = match current_day.peek() {
                         Some(day) => (*day).clone(),
                         None => {
-                            debug!(
+                            event!(Level::DEBUG,
                                 current_work_order_number = ?current_work_order_number,
                                 operation_parameters = ?operation_parameters,
                                 operation_solutions = ?operation_solutions,
@@ -539,7 +539,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     let current_day = match peek_next_day {
                         Some(next_day) => next_day,
                         None => {
-                            debug!(
+                            event!(Level::DEBUG,
                                 current_work_order_number = ?current_work_order_number,
                                 operation_parameters = ?operation_parameters,
                                 operation_solutions = ?operation_solutions,
@@ -573,7 +573,8 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 );
                 operation_solutions.insert(*activity, operation_solution);
             }
-            debug!(
+            event!(
+                Level::DEBUG,
                 "Tactical {:?} has been scheduled starting on day {}",
                 current_work_order_number,
                 start_day.day_index()
@@ -592,7 +593,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 .get_mut(&current_work_order_number)
                 .is_none()
             {
-                error!(unscheduled_work_order = ?current_work_order_number);
+                event!(Level::ERROR, unscheduled_work_order = ?current_work_order_number);
                 panic!("Unscheduled work order got through the schedule function");
             }
         }
@@ -622,7 +623,8 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 Ok(())
             }
             None => {
-                debug!(
+                event!(
+                    Level::DEBUG,
                     "Work order {:?} was not scheduled before leaving the tactical schedule",
                     work_order_number
                 );
@@ -679,7 +681,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             } => {
                 let loadings = self.loading.clone();
 
-                info!(loadings = ?loadings);
+                event!(Level::DEBUG,loadings = ?loadings);
                 let tactical_response_resources = TacticalResponseResources::Loading(loadings);
                 Ok(tactical_response_resources)
             }
