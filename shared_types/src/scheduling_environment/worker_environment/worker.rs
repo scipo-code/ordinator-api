@@ -4,27 +4,24 @@ use std::fmt::{self, Formatter};
 
 use crate::scheduling_environment::worker_environment::availability::Availability;
 
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize)]
 enum AssignedOrder {
     OrderInt(i32),
     None,
 }
 
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize)]
 enum AssignedActivity {
     ActivityInt(i32),
     None,
 }
-#[allow(dead_code)]
+
 #[derive(Serialize, Deserialize)]
 enum AssignedTime {
     TimeFloat(f64),
     None,
 }
 
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize)]
 struct AssignedWork {
     order: AssignedOrder,
@@ -32,7 +29,6 @@ struct AssignedWork {
     time: AssignedTime,
 }
 
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize)]
 pub struct Worker {
     name: String,

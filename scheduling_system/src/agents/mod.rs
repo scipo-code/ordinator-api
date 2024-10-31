@@ -15,6 +15,8 @@ use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::{ActivityNumber, Work};
 use shared_types::scheduling_environment::work_order::{WorkOrderActivity, WorkOrderNumber};
 use shared_types::scheduling_environment::worker_environment::resources::Id;
+use shared_types::strategic::StrategicResources;
+use shared_types::tactical::TacticalResources;
 use tactical_agent::tactical_algorithm::TacticalOperation;
 use tracing::Span;
 
@@ -22,6 +24,8 @@ use self::{
     operational_agent::OperationalAgent, strategic_agent::StrategicAgent,
     supervisor_agent::SupervisorAgent, tactical_agent::TacticalAgent,
 };
+
+pub type StrategicObjectiveValue = u64;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -54,13 +58,16 @@ pub struct SharedSolution {
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct StrategicSolution {
+    pub objective_value: StrategicObjectiveValue,
     pub scheduled_periods: HashMap<WorkOrderNumber, Option<Period>>,
+    pub strategic_loadings: StrategicResources,
 }
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct TacticalSolution {
     pub tactical_days: HashMap<WorkOrderNumber, Option<HashMap<ActivityNumber, TacticalOperation>>>,
     pub tactical_period: HashMap<WorkOrderNumber, Option<Period>>,
+    pub tactical_loadings: TacticalResources,
 }
 
 impl TacticalSolution {

@@ -158,13 +158,13 @@ impl Default for StrategicInfeasibleCases {
         }
     }
 }
-#[derive(Default, Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Eq, Default, Serialize, Deserialize, Debug, Clone)]
 pub struct StrategicResources {
     #[serde(with = "any_key_map")]
     pub inner: HashMap<Resources, Periods>,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Default, Debug, Clone)]
 pub struct Periods(#[serde(with = "any_key_map")] pub HashMap<Period, Work>);
 
 impl Periods {

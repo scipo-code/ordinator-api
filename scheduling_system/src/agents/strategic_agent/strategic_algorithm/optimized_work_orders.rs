@@ -1,6 +1,7 @@
 use serde::Serialize;
 use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
+use shared_types::strategic::StrategicResources;
 use std::str::FromStr;
 use std::{collections::HashMap, collections::HashSet, hash::Hash, hash::Hasher};
 use tracing::instrument;
@@ -10,16 +11,17 @@ use shared_types::scheduling_environment::work_order::{WorkOrder, WorkOrderNumbe
 
 #[derive(Default, Debug, PartialEq, Clone)]
 pub struct StrategicParameters {
-    pub inner: HashMap<WorkOrderNumber, StrategicParameter>,
+    pub strategic_work_order_parameters: HashMap<WorkOrderNumber, StrategicParameter>,
+    pub strategic_capacity: StrategicResources,
 }
 
 impl Hash for StrategicParameters {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Hash the length of the HashMap to ensure different lengths produce different hashes
-        self.inner.len().hash(state);
+        self.strategic_work_order_parameters.len().hash(state);
 
         // Iterate over the HashMap and hash each key-value pair
-        for (key, value) in &self.inner {
+        for (key, value) in &self.strategic_work_order_parameters {
             key.hash(state);
             value.hash(state);
         }
@@ -37,8 +39,14 @@ impl Hash for StrategicParameter {
 }
 
 impl StrategicParameters {
-    pub fn new(inner: HashMap<WorkOrderNumber, StrategicParameter>) -> Self {
-        Self { inner }
+    pub fn new(
+        strategic_work_order_parameters: HashMap<WorkOrderNumber, StrategicParameter>,
+        strategic_capacity: StrategicResources,
+    ) -> Self {
+        Self {
+            strategic_work_order_parameters,
+            strategic_capacity,
+        }
     }
 
     pub fn insert_strategic_parameter(
@@ -46,11 +54,12 @@ impl StrategicParameters {
         work_order_number: WorkOrderNumber,
         strategic_parameter: StrategicParameter,
     ) {
-        self.inner.insert(work_order_number, strategic_parameter);
+        self.strategic_work_order_parameters
+            .insert(work_order_number, strategic_parameter);
     }
 
     pub fn get_locked_in_period<'a>(&'a self, work_order_number: &'a WorkOrderNumber) -> &Period {
-        let option_period = match self.inner.get(&work_order_number) {
+        let option_period = match self.strategic_work_order_parameters.get(&work_order_number) {
             Some(strategic_parameter) => &strategic_parameter.locked_in_period,
             None => panic!(
                 "Work order number {:?} not found in StrategicParameters",
@@ -65,7 +74,10 @@ impl StrategicParameters {
 
     #[instrument(level = "trace", skip_all)]
     pub fn set_locked_in_period(&mut self, work_order_number: WorkOrderNumber, period: Period) {
-        let optimized_work_order = match self.inner.get_mut(&work_order_number) {
+        let optimized_work_order = match self
+            .strategic_work_order_parameters
+            .get_mut(&work_order_number)
+        {
             Some(optimized_work_order) => optimized_work_order,
             None => panic!(
                 "Work order number {:?} not found in optimized work orders",

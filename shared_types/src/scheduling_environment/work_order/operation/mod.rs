@@ -332,13 +332,15 @@ impl Display for Operation {
     }
 }
 
-impl Operation {
-    pub fn builder(
+pub struct OperationBuilder(Operation);
+
+impl OperationBuilder {
+    pub fn new(
         activity: ActivityNumber,
         unloading_point: UnloadingPoint,
         resource: Resources,
         work_remaining: Option<Work>,
-    ) -> OperationBuilder {
+    ) -> Self {
         let operation_info = OperationInfo::new(
             1,
             work_remaining,
@@ -356,28 +358,16 @@ impl Operation {
             Utc::now(),
         );
 
-        OperationBuilder {
+        OperationBuilder(Operation {
             activity,
             resource,
             unloading_point,
             operation_info,
             operation_analytic,
             operation_dates,
-        }
+        })
     }
-}
 
-pub struct OperationBuilder {
-    activity: ActivityNumber,
-    resource: Resources,
-    unloading_point: UnloadingPoint,
-    operation_info: OperationInfo,
-    operation_analytic: OperationAnalytic,
-    operation_dates: OperationDates,
-}
-
-#[allow(dead_code)]
-impl OperationBuilder {
     fn with_operation_info(
         mut self,
         number: NumberOfPeople,
@@ -394,30 +384,18 @@ impl OperationBuilder {
             operating_time,
         );
 
-        self.operation_info = operation_info;
-        self
-    }
-
-    fn with_operation_dates(mut self) -> Self {
-        let operation_dates = OperationDates::new(
-            Day::new(0, Utc::now()),
-            Day::new(0, Utc::now()),
-            Utc::now(),
-            Utc::now(),
-        );
-
-        self.operation_dates = operation_dates;
+        self.0.operation_info = operation_info;
         self
     }
 
     pub fn build(self) -> Operation {
         Operation {
-            activity: self.activity,
-            resource: self.resource,
-            unloading_point: self.unloading_point,
-            operation_info: self.operation_info,
-            operation_analytic: self.operation_analytic,
-            operation_dates: self.operation_dates,
+            activity: self.0.activity,
+            resource: self.0.resource,
+            unloading_point: self.0.unloading_point,
+            operation_info: self.0.operation_info,
+            operation_analytic: self.0.operation_analytic,
+            operation_dates: self.0.operation_dates,
         }
     }
 }
