@@ -2,9 +2,10 @@ use std::sync::atomic::Ordering;
 
 use atomic_enum::atomic_enum;
 
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Default, Hash, Eq, PartialEq, PartialOrd, Ord)]
 #[atomic_enum]
 pub enum Delegate {
+    #[default]
     Assess,
     Assign,
     Unassign,

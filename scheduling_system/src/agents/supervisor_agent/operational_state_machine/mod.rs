@@ -14,7 +14,6 @@ use tracing::{event, span, Level};
 
 use crate::agents::{
     operational_agent::{InitialMessage, OperationalAgent},
-    tactical_agent::tactical_algorithm::TacticalOperation,
     StateLink, StateLinkWrapper,
 };
 
@@ -25,6 +24,8 @@ use super::{
 };
 
 #[derive(Debug, Default)]
+/// This is the StateMachine for the SupervisorAgent.
+/// Here we will hold all the relevant state for the
 pub struct OperationalStateMachine(
     HashMap<(Id, WorkOrderActivity), (Arc<AtomicDelegate>, MarginalFitness)>,
 );
@@ -38,7 +39,6 @@ impl OperationalStateMachine {
         &mut self,
         transition_type: TransitionTypes,
         operational_agent: (&Id, &Addr<OperationalAgent>),
-        tactical_operation: Arc<TacticalOperation>,
         supervisor_id: Id,
     ) {
         match transition_type {
@@ -56,12 +56,9 @@ impl OperationalStateMachine {
                     "SupervisorSpan.OperationalState.TransitionType::Entering"
                 );
 
-                let _entered = span.enter();
-
                 let state_link = StateLink::Supervisor(InitialMessage::new(
                     work_order_activity,
                     delegate.clone(),
-                    tactical_operation,
                     marginal_fitness,
                     supervisor_id,
                 ));
@@ -69,8 +66,6 @@ impl OperationalStateMachine {
 
                 operational_agent.1.do_send(state_link_wrapper)
             }
-            TransitionTypes::Unchanged(_delegate) => {}
-            TransitionTypes::Changed(_delegate) => {}
             TransitionTypes::Leaving(woa) => {
                 let delegate_option = self.0.get(&(operational_agent.0.clone(), woa));
 

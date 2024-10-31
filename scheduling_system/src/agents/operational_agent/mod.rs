@@ -23,9 +23,7 @@ use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
 use shared_types::scheduling_environment::work_order::{
     operation::Work, WorkOrderActivity, WorkOrderNumber,
 };
-use shared_types::scheduling_environment::{
-    time_environment::day::Day, worker_environment::resources::Id,
-};
+use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::{StatusMessage, StopMessage};
 
 use shared_types::scheduling_environment::{
@@ -40,14 +38,11 @@ use crate::agents::{
 
 use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
 
+use super::supervisor_agent::{algorithm::MarginalFitness, SupervisorAgent};
 use super::ScheduleIteration;
 use super::SetAddr;
 use super::UpdateWorkOrderMessage;
 use super::{supervisor_agent::delegate::AtomicDelegate, traits::LargeNeighborHoodSearch};
-use super::{
-    supervisor_agent::{algorithm::MarginalFitness, SupervisorAgent},
-    tactical_agent::tactical_algorithm::TacticalOperation,
-};
 
 pub struct OperationalAgent {
     id_operational: Id,
@@ -63,8 +58,21 @@ pub struct OperationalAgent {
 impl OperationalAgent {
     fn determine_start_and_finish_times(
         &self,
-        days: &[(Day, Work)],
+        work_order_activity: &WorkOrderActivity,
     ) -> (DateTime<Utc>, DateTime<Utc>) {
+        let days = &self
+            .operational_algorithm
+            .loaded_shared_solution
+            .tactical
+            .tactical_days
+            .get(&work_order_activity.0)
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .get(&work_order_activity.1)
+            .unwrap()
+            .scheduled;
+
         if days.len() == 1 {
             let start_of_time_window = Utc.from_utc_datetime(&NaiveDateTime::new(
                 days.first().unwrap().0.date().date_naive(),
@@ -239,7 +247,6 @@ impl OperationalAgentBuilder {
 pub struct InitialMessage {
     work_order_activity: WorkOrderActivity,
     delegate: Arc<AtomicDelegate>,
-    tactical_operation: Arc<TacticalOperation>,
     marginal_fitness: MarginalFitness,
     supervisor_id: Id,
 }
@@ -248,14 +255,12 @@ impl InitialMessage {
     pub fn new(
         work_order_activity: WorkOrderActivity,
         delegate: Arc<AtomicDelegate>,
-        tactical_operation: Arc<TacticalOperation>,
         marginal_fitness: MarginalFitness,
         supervisor_id: Id,
     ) -> Self {
         Self {
             work_order_activity,
             delegate,
-            tactical_operation,
             marginal_fitness,
             supervisor_id,
         }
@@ -309,9 +314,8 @@ impl
                 let operation: &Operation =
                     scheduling_environment.operation(&initial_message.work_order_activity);
 
-                let (start_datetime, end_datetime) = self.determine_start_and_finish_times(
-                    &initial_message.tactical_operation.scheduled,
-                );
+                let (start_datetime, end_datetime) =
+                    self.determine_start_and_finish_times(&initial_message.work_order_activity);
 
                 assert!(operation.work_remaining() > &Some(Work::from(0.0)));
 
