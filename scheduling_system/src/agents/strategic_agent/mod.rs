@@ -98,8 +98,6 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 
         self.strategic_algorithm.calculate_objective_value();
         let old_strategic_solution = self.strategic_algorithm.strategic_solution.clone();
-        let old_resource_loadings = self.strategic_algorithm.resource_loadings.clone();
-        let old_objective_value = self.strategic_algorithm.objective_value.clone();
 
         self.strategic_algorithm
             .unschedule_random_work_orders(50, rng);
@@ -108,19 +106,15 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         // self.assert_aggregated_load().unwrap();
         self.strategic_algorithm.calculate_objective_value();
 
-        if self.strategic_algorithm.objective_value < old_objective_value {
+        if self.strategic_algorithm.strategic_solution.objective_value
+            < old_strategic_solution.objective_value
+        {
             self.strategic_algorithm
                 .make_atomic_pointer_swap_for_with_the_better_strategic_solution();
 
-            event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.objective_value,);
+            event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value,);
         } else {
             self.strategic_algorithm.strategic_solution = old_strategic_solution;
-            self.strategic_algorithm.resource_loadings = old_resource_loadings;
-            self.strategic_algorithm.calculate_objective_value();
-            assert_eq!(
-                old_objective_value,
-                self.strategic_algorithm.objective_value
-            );
         }
 
         ctx.wait(
@@ -151,11 +145,13 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
             StrategicRequestMessage::Status(strategic_status_message) => {
                 match strategic_status_message {
                     StrategicStatusMessage::General => {
-                        let strategic_objective = self.strategic_algorithm.objective_value;
+                        let strategic_objective =
+                            self.strategic_algorithm.strategic_solution.objective_value;
 
                         let strategic_parameters = &self.strategic_algorithm.strategic_parameters;
 
-                        let number_of_strategic_work_orders = strategic_parameters.inner.len();
+                        let number_of_strategic_work_orders =
+                            strategic_parameters.strategic_work_order_parameters.len();
 
                         let asset = &self.asset;
 
@@ -173,8 +169,10 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                         Ok(strategic_response_message)
                     }
                     StrategicStatusMessage::Period(period) => {
-                        let strategic_parameters =
-                            &self.strategic_algorithm.strategic_parameters.inner;
+                        let strategic_parameters = &self
+                            .strategic_algorithm
+                            .strategic_parameters
+                            .strategic_work_order_parameters;
 
                         if !self
                             .strategic_algorithm
@@ -342,7 +340,7 @@ impl Handler<UpdateWorkOrderMessage> for StrategicAgent {
 
         self.strategic_algorithm
             .strategic_parameters
-            .inner
+            .strategic_work_order_parameters
             .insert(update_work_order.0, optimized_work_order);
     }
 }
@@ -364,6 +362,7 @@ impl Handler<SolutionExportMessage> for StrategicAgent {
 #[cfg(test)]
 mod tests {
 
+    use operation::OperationBuilder;
     use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
     use shared_types::scheduling_environment::work_order::operation::Work;
     use shared_types::strategic::strategic_request_scheduling_message::SingleWorkOrder;
@@ -495,7 +494,7 @@ mod tests {
         let mut operations: HashMap<u32, Operation> = HashMap::new();
 
         let unloading_point = UnloadingPoint::default();
-        let operation_1 = Operation::builder(
+        let operation_1 = OperationBuilder::new(
             ActivityNumber(10),
             unloading_point.clone(),
             Resources::MtnMech,
@@ -503,7 +502,7 @@ mod tests {
         )
         .build();
 
-        let operation_2 = Operation::builder(
+        let operation_2 = OperationBuilder::new(
             ActivityNumber(20),
             unloading_point.clone(),
             Resources::MtnMech,
@@ -511,7 +510,7 @@ mod tests {
         )
         .build();
 
-        let operation_3 = Operation::builder(
+        let operation_3 = OperationBuilder::new(
             ActivityNumber(30),
             unloading_point.clone(),
             Resources::MtnMech,
@@ -542,11 +541,10 @@ mod tests {
 
         let periods: Vec<Period> = vec![Period::from_str("2023-W47-48").unwrap()];
 
-        let optimized_work_orders = StrategicParameters::new(HashMap::new());
+        let optimized_work_orders =
+            StrategicParameters::new(HashMap::new(), StrategicResources::default());
+
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
-            0.0,
-            StrategicResources::default(),
-            StrategicResources::default(),
             PriorityQueues::new(),
             optimized_work_orders,
             ArcSwapSharedSolution::default().into(),
@@ -571,7 +569,7 @@ mod tests {
         assert_eq!(
             scheduler_agent_algorithm
                 .strategic_parameters
-                .inner
+                .strategic_work_order_parameters
                 .get(&work_order_number)
                 .as_ref()
                 .unwrap()
@@ -741,7 +739,10 @@ mod tests {
                     .clone(),
                 priority_queues: PriorityQueues::new(),
                 optimized_work_orders: StrategicParameters::new(
-                    self.strategic_algorithm.strategic_parameters.inner.clone(),
+                    self.strategic_algorithm
+                        .strategic_parameters
+                        .strategic_work_order_parameters
+                        .clone(),
                 ),
                 periods: self.strategic_algorithm.periods().clone(),
             })

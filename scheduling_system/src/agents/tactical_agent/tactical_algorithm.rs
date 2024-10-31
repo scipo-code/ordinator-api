@@ -50,14 +50,15 @@ pub struct TacticalAlgorithm {
     pub loaded_shared_solution: Guard<Arc<SharedSolution>>,
     pub tactical_solution: TacticalSolution,
     pub tactical_parameters: TacticalParameters,
-    pub capacity: TacticalResources,
-    pub loading: TacticalResources,
     pub priority_queue: PriorityQueue<WorkOrderNumber, u64>,
     pub tactical_days: Vec<Day>,
 }
 
 #[derive(Default, Clone)]
-pub struct TacticalParameters(pub HashMap<WorkOrderNumber, TacticalParameter>);
+pub struct TacticalParameters {
+    pub tactical_work_orders: HashMap<WorkOrderNumber, TacticalParameter>,
+    pub tactical_capacity: TacticalResources,
+}
 
 #[derive(Clone, Serialize)]
 pub struct TacticalParameter {
@@ -189,8 +190,6 @@ impl TacticalAlgorithm {
             loaded_shared_solution,
             tactical_solution: TacticalSolution::default(),
             tactical_parameters: TacticalParameters::default(),
-            capacity,
-            loading,
             priority_queue: PriorityQueue::new(),
             tactical_days,
         }
@@ -201,11 +200,17 @@ impl TacticalAlgorithm {
     }
 
     pub fn capacity(&self, resource: &Resources, day: &Day) -> &Work {
-        self.capacity.resources.get(resource).unwrap().get(day)
+        self.tactical_solution
+            .tactical_loadings
+            .resources
+            .get(resource)
+            .unwrap()
+            .get(day)
     }
 
     pub fn capacity_mut(&mut self, resource: &Resources, day: &Day) -> &mut Work {
-        self.capacity
+        self.tactical_parameters
+            .tactical_capacity
             .resources
             .get_mut(resource)
             .unwrap()
@@ -213,11 +218,17 @@ impl TacticalAlgorithm {
     }
 
     pub fn loading(&self, resource: &Resources, day: &Day) -> &Work {
-        self.loading.resources.get(resource).unwrap().get(day)
+        self.tactical_solution
+            .tactical_loadings
+            .resources
+            .get(resource)
+            .unwrap()
+            .get(day)
     }
 
     pub fn loading_mut(&mut self, resource: &Resources, day: &Day) -> &mut Work {
-        self.loading
+        self.tactical_solution
+            .tactical_loadings
             .resources
             .get_mut(resource)
             .unwrap()
@@ -282,7 +293,7 @@ impl TacticalAlgorithm {
 
     fn determine_aggregate_excess(&mut self) -> f64 {
         let mut objective_value_from_excess = 0.0;
-        for resource in self.capacity.resources.keys() {
+        for resource in self.tactical_parameters.tactical_capacity.resources.keys() {
             for day in self.tactical_days.clone() {
                 let excess_capacity = self.loading(resource, &day) - self.capacity(resource, &day);
 
@@ -679,7 +690,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 days_end: _,
                 select_resources: _,
             } => {
-                let loadings = self.loading.clone();
+                let loadings = self.tactical_solution.tactical_loadings.clone();
 
                 event!(Level::DEBUG,loadings = ?loadings);
                 let tactical_response_resources = TacticalResponseResources::Loading(loadings);
@@ -689,7 +700,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 days_end: _,
                 select_resources: _,
             } => {
-                let capacities = self.capacity.clone();
+                let capacities = self.tactical_parameters.tactical_capacity.clone();
 
                 let tactical_response_resources = TacticalResponseResources::Capacity(capacities);
 
@@ -699,8 +710,8 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 days_end: _,
                 resources: _,
             } => {
-                let capacities = &self.capacity;
-                let loadings = &self.loading;
+                let capacities = &self.tactical_parameters.tactical_capacity;
+                let loadings = &self.tactical_solution.tactical_loadings;
 
                 let tactical_response_resources =
                     TacticalResponseResources::Percentage((capacities.clone(), loadings.clone()));
@@ -774,11 +785,11 @@ impl TacticalAlgorithm {
     }
 
     pub fn tactical_parameters_mut(&mut self) -> &mut HashMap<WorkOrderNumber, TacticalParameter> {
-        &mut self.tactical_parameters.0
+        &mut self.tactical_parameters.tactical_work_orders
     }
 
     pub fn tactical_parameters(&self) -> &HashMap<WorkOrderNumber, TacticalParameter> {
-        &self.tactical_parameters.0
+        &self.tactical_parameters.tactical_work_orders
     }
 }
 
