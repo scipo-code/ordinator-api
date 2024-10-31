@@ -61,7 +61,7 @@ pub struct SupervisorAlgorithm {
     pub objective_value: f64,
     _resource: TomlSupervisor,
     pub supervisor_parameters: SupervisorParameters, 
-    pub operational_state: OperationalStateMachine,
+    pub operational_state_machine: OperationalStateMachine,
     arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
     pub loaded_shared_solution: Guard<Arc<SharedSolution>>,
     pub operational_agent_objectives: HashMap<Id, OperationalObjective>,
@@ -123,7 +123,7 @@ impl SupervisorAlgorithm {
             objective_value: f64::default(),
             _resource: supervisor,
             supervisor_parameters: SupervisorParameters::default(),
-            operational_state: OperationalStateMachine::default(),
+            operational_state_machine: OperationalStateMachine::default(),
             operational_agent_objectives: HashMap::default(),
             arc_swap_shared_solution,
             loaded_shared_solution,
@@ -132,7 +132,6 @@ impl SupervisorAlgorithm {
 
     pub fn load_shared_solution(&mut self) {
         self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
-
     }
 
 }
@@ -151,12 +150,12 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
     fn calculate_objective_value(&mut self) -> Self::BetterSolution {
         let assigned_woas = &self
             
-            .operational_state
+            .operational_state_machine
             .number_of_assigned_work_orders();
 
         let all_woas: HashSet<_> = self
             
-            .operational_state
+            .operational_state_machine
             .get_work_order_activities();
 
         assert!(is_assigned_part_of_all(assigned_woas, &all_woas));
@@ -173,7 +172,7 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
     fn schedule(&mut self) {
         'next_work_order_activity: for work_order_activity in &self
             
-            .operational_state
+            .operational_state_machine
             .get_work_order_activities()
         {
             let number = self
@@ -184,7 +183,7 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
 
             let mut operational_status_by_woa = self
                 
-                .operational_state
+                .operational_state_machine
                 .operational_status_by_woa(&work_order_activity);
 
             operational_status_by_woa.sort_by(|a, b| a.2.compare(&b.2));
@@ -245,7 +244,7 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
 
     fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) -> Result<()> {
         self
-            .operational_state
+            .operational_state_machine
             .turn_work_order_into_delegate_assess(work_order_number);
         Ok(())
     }

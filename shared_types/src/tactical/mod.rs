@@ -29,7 +29,15 @@ use self::{
     tactical_scheduling_message::TacticalSchedulingRequest,
     tactical_status_message::TacticalStatusMessage, tactical_time_message::TacticalTimeRequest,
 };
-pub type TacticalObjectiveValue = u64;
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Clone)]
+pub struct TacticalObjectiveValue(pub u64);
+
+impl Default for TacticalObjectiveValue {
+    fn default() -> Self {
+        Self(u64::MAX)
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TacticalRequest {

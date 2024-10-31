@@ -64,7 +64,7 @@ impl TacticalAgent {
     pub fn status(&self) -> Result<TacticalResponseStatus> {
         Ok(TacticalResponseStatus::new(
             self.id_tactical,
-            *self.tactical_algorithm.get_objective_value(),
+            self.tactical_algorithm.objective_value(),
             self.time_horizon.clone(),
         ))
     }
@@ -92,8 +92,9 @@ impl Handler<ScheduleIteration> for TacticalAgent {
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut actix::Context<Self>) -> Self::Result {
         let mut rng = rand::thread_rng();
         self.tactical_algorithm.load_shared_solution();
-        let current_objective_value = self.tactical_algorithm.tactical_solution.objective_value;
+        let current_tactical_solution = self.tactical_algorithm.tactical_solution.clone();
 
+        event!(Level::INFO, tactical_objective_value = ?current_tactical_solution.objective_value);
         self.tactical_algorithm
             .unschedule_random_work_orders(&mut rng, 50)
             .context("random unschedule failed")
@@ -103,12 +104,15 @@ impl Handler<ScheduleIteration> for TacticalAgent {
 
         self.tactical_algorithm.calculate_objective_value();
 
-        if self.tactical_algorithm.tactical_solution.objective_value < current_objective_value {
+        if self.tactical_algorithm.tactical_solution.objective_value
+            < current_tactical_solution.objective_value
+        {
             self.tactical_algorithm
                 .make_atomic_pointer_swap_for_with_the_better_tactical_solution();
 
             event!(Level::INFO, tactical_objective_value = ?self.tactical_algorithm.tactical_solution.objective_value);
         } else {
+            self.tactical_algorithm.tactical_solution = current_tactical_solution;
         };
 
         ctx.wait(
