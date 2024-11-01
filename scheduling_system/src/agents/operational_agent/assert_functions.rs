@@ -17,7 +17,7 @@ impl OperationalAssertions for OperationalAgent {
         let work_order_solutions = self
             .operational_algorithm
             .operational_solutions
-            .0
+            .work_order_activities
             .iter()
             .map(|(woa, _)| woa)
             .cloned()
@@ -25,13 +25,13 @@ impl OperationalAssertions for OperationalAgent {
 
         self.operational_algorithm
             .operational_parameters
-            .0
+            .work_order_parameters
             .keys()
             .for_each(|woa| {
                 if self
                     .operational_algorithm
                     .operational_parameters
-                    .0
+                    .work_order_parameters
                     .get(woa)
                     .unwrap()
                     .delegated
@@ -49,14 +49,14 @@ impl OperationalAssertions for OperationalAgent {
         for (index_1, operational_solution_1) in self
             .operational_algorithm
             .operational_solutions
-            .0
+            .work_order_activities
             .iter()
             .enumerate()
         {
             for (index_2, operational_solution_2) in self
                 .operational_algorithm
                 .operational_solutions
-                .0
+                .work_order_activities
                 .iter()
                 .enumerate()
             {

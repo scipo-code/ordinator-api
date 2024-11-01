@@ -2,6 +2,7 @@ pub mod algorithm;
 pub mod assert_functions;
 pub mod operational_events;
 
+use algorithm::OperationalSolutions;
 use anyhow::{Context, Result};
 use assert_functions::OperationalAssertions;
 use std::{
@@ -130,15 +131,21 @@ impl Actor for OperationalAgent {
 
         let unavailability_end_event = OperationalSolution::new(vec![end_event]);
 
-        self.operational_algorithm.operational_solutions.0.push((
-            (WorkOrderNumber(0), ActivityNumber(0)),
-            unavailability_start_event,
-        ));
+        self.operational_algorithm
+            .operational_solutions
+            .work_order_activities
+            .push((
+                (WorkOrderNumber(0), ActivityNumber(0)),
+                unavailability_start_event,
+            ));
 
-        self.operational_algorithm.operational_solutions.0.push((
-            (WorkOrderNumber(0), ActivityNumber(0)),
-            unavailability_end_event,
-        ));
+        self.operational_algorithm
+            .operational_solutions
+            .work_order_activities
+            .push((
+                (WorkOrderNumber(0), ActivityNumber(0)),
+                unavailability_end_event,
+            ));
 
         ctx.notify(ScheduleIteration {})
     }
@@ -160,29 +167,38 @@ impl Handler<ScheduleIteration> for OperationalAgent {
         //     .no_delegate_drop_or_delegate_done());
 
         // This is wrong! We need to implement the delta changes on the algorithm structs
-        let mut temporary_schedule: OperationalAlgorithm = self.operational_algorithm.clone();
+        // What should be changed here?
+        // TODO: Not copy the whole algorithm
+        let temporary_solution: OperationalSolutions =
+            self.operational_algorithm.operational_solutions.clone();
 
-        temporary_schedule.unschedule_random_work_order_activies(&mut rng, 15);
+        self.operational_algorithm
+            .unschedule_random_work_order_activies(&mut rng, 15);
 
-        temporary_schedule.schedule();
+        self.operational_algorithm.schedule();
 
-        let is_better_schedule = temporary_schedule.calculate_objective_value();
+        let is_better_schedule = self.operational_algorithm.calculate_objective_value();
 
         event!(
             Level::ERROR,
-            temp_obj = temporary_schedule.objective_value.load(Ordering::SeqCst)
+            temp_obj = self
+                .operational_algorithm
+                .operational_solutions
+                .objective_value
+                .load(Ordering::SeqCst)
         );
 
         event!(
             Level::ERROR,
             temp_obj = self
                 .operational_algorithm
+                .operational_solutions
                 .objective_value
                 .load(Ordering::SeqCst)
         );
         if is_better_schedule {
-            self.operational_algorithm = temporary_schedule;
-            info!(operational_objective = ?self.operational_algorithm.objective_value);
+            self.operational_algorithm.operational_solutions = temporary_solution;
+            info!(operational_objective = ?self.operational_algorithm.operational_solutions.objective_value);
         };
 
         ctx.wait(
@@ -251,21 +267,7 @@ pub struct InitialMessage {
     supervisor_id: Id,
 }
 
-impl InitialMessage {
-    pub fn new(
-        work_order_activity: WorkOrderActivity,
-        delegate: Arc<AtomicDelegate>,
-        marginal_fitness: MarginalFitness,
-        supervisor_id: Id,
-    ) -> Self {
-        Self {
-            work_order_activity,
-            delegate,
-            marginal_fitness,
-            supervisor_id,
-        }
-    }
-}
+impl InitialMessage {}
 
 type StrategicMessage = ();
 type TacticalMessage = ();
@@ -297,13 +299,16 @@ impl
         assert!(!self
             .operational_algorithm
             .operational_parameters
-            .0
+            .work_order_parameters
             .iter()
             .any(|(_, op)| op.delegated.load(Ordering::SeqCst).is_done()));
         event!(
             Level::INFO,
-            self.operational_algorithm.operational_parameters =
-                self.operational_algorithm.operational_parameters.0.len()
+            self.operational_algorithm.operational_parameters = self
+                .operational_algorithm
+                .operational_parameters
+                .work_order_parameters
+                .len()
         );
         match state_link {
             StateLink::Strategic(_) => todo!(),
@@ -350,7 +355,7 @@ impl
                     .history_of_dropped_operational_parameters
                     .insert(initial_message.work_order_activity);
 
-                info!(id = ?self.id_operational, tactical_operation = ?initial_message.tactical_operation);
+                info!(id = ?self.id_operational, tactical_operation = ?self.operational_algorithm.loaded_shared_solution.tactical.tactical_days.get(&initial_message.work_order_activity.0).unwrap());
                 Ok(())
             }
             StateLink::Operational(_) => todo!(),
@@ -368,7 +373,7 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
     ) -> Self::Result {
         match request {
             OperationalRequestMessage::Status(_) => {
-                let (assign, assess, unassign): (usize, usize, usize) = self
+                let (assign, assess, unassign): (u64, u64, u64) = self
                     .operational_algorithm
                     .operational_parameters
                     .count_delegate_types();
@@ -378,6 +383,7 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
                     assess,
                     unassign,
                     self.operational_algorithm
+                        .operational_solutions
                         .objective_value
                         .load(Ordering::SeqCst),
                 );
@@ -391,8 +397,10 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
                     OperationalSchedulingRequest::OperationalState(_) => {
                         let mut json_assignments_events: Vec<JsonAssignmentEvents> = vec![];
 
-                        for (work_order_activity, operational_solution) in
-                            &self.operational_algorithm.operational_solutions.0
+                        for (work_order_activity, operational_solution) in &self
+                            .operational_algorithm
+                            .operational_solutions
+                            .work_order_activities
                         {
                             let mut json_assignments = vec![];
                             for assignment in &operational_solution.assignments {
@@ -438,7 +446,9 @@ impl Handler<StatusMessage> for OperationalAgent {
                 .map(|resource| resource.to_string())
                 .collect::<Vec<String>>()
                 .join(", "),
-            self.operational_algorithm.objective_value
+            self.operational_algorithm
+                .operational_solutions
+                .objective_value
         )
     }
 }

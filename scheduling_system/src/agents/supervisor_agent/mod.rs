@@ -9,7 +9,7 @@ use delegate::Delegate;
 use operational_state_machine::assert_functions::OperationalStateMachineAssertions;
 use rand::{prelude::SliceRandom, rngs::ThreadRng};
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc, Mutex,
@@ -19,7 +19,7 @@ use std::{
 use actix::prelude::*;
 use shared_types::{
     orchestrator::OrchestratorMessage,
-    scheduling_environment::work_order::{operation::Work, WorkOrderActivity},
+    scheduling_environment::work_order::WorkOrderActivity,
     supervisor::{
         supervisor_response_scheduling::SupervisorResponseScheduling,
         supervisor_response_status::SupervisorResponseStatus, SupervisorRequestMessage,
@@ -43,7 +43,7 @@ use super::{
 };
 
 pub struct SupervisorAgent {
-    supervisor_id: Id,
+    supervisor_id: String,
     asset: Asset,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub supervisor_algorithm: SupervisorAlgorithm,
@@ -51,17 +51,6 @@ pub struct SupervisorAgent {
     operational_agent_addrs: HashMap<Id, Addr<OperationalAgent>>,
     number_of_operational_agents: Arc<AtomicU64>,
 }
-
-#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
-pub enum TransitionTypes {
-    Entering(WorkOrderActivity),
-    Leaving(WorkOrderActivity),
-    Unchanged(WorkOrderActivity),
-    Changed(WorkOrderActivity),
-    Done(WorkOrderActivity),
-}
-
-type TransitionSets = HashSet<TransitionTypes>;
 
 impl Actor for SupervisorAgent {
     type Context = actix::Context<Self>;
@@ -85,15 +74,18 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut actix::Context<Self>) -> Self::Result {
         self.assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
         self.supervisor_algorithm.load_shared_solution();
-        event!(Level::WARN, "FIND STOP POINT");
-        self.update_operational_state_machine()
+        self.update_supervisor_solution()
             .expect("Could not load the data from the load SharedSolution");
 
-        event!(Level::WARN, "FIND STOP POINT");
         event!(
             Level::WARN,
             number_of_operational_states =
                 self.supervisor_algorithm.operational_state_machine.len()
+        );
+
+        event!(
+            Level::INFO,
+            number_of_operational_agents = ?self.number_of_operational_agents
         );
 
         let rng = rand::thread_rng();
@@ -109,17 +101,13 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
         );
 
         let number_of_removed_work_orders = 10;
-        event!(Level::WARN, "FIND STOP POINT");
         self.unschedule_random_work_orders(number_of_removed_work_orders, rng);
 
         self.supervisor_algorithm.schedule();
-        event!(Level::WARN, "FIND STOP POINT");
         self.assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
 
-        event!(Level::WARN, "FIND STOP POINT");
         let new_objective_value = self.supervisor_algorithm.calculate_objective_value();
 
-        event!(Level::WARN, "FIND STOP POINT");
         assert_eq!(
             new_objective_value,
             self.supervisor_algorithm.calculate_objective_value()
@@ -129,23 +117,17 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
             new_state = ?self.capture_current_state().state_of_each_agent
         );
 
-        event!(Level::WARN, "FIND STOP POINT");
         self.supervisor_algorithm.operational_state_machine.assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess();
 
         // self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&current_state).unwrap();
 
-        event!(Level::WARN, "FIND STOP POINT");
         if self.supervisor_algorithm.objective_value < current_state.objective_value {
-            event!(Level::WARN, "FIND STOP POINT");
             self.release_current_state(current_state.clone());
-            event!(Level::WARN, "FIND STOP POINT");
             self.supervisor_algorithm.calculate_objective_value();
         }
 
-        event!(Level::WARN, "FIND STOP POINT");
         assert!(self.supervisor_algorithm.objective_value >= old_objective_value);
 
-        event!(Level::WARN, "FIND STOP POINT");
         event!(
             Level::DEBUG,
             number_of_operational_agents =
@@ -203,26 +185,39 @@ impl SupervisorAgent {
 
 impl SupervisorAgent {
     pub fn new(
-        id_supervisor: Id,
+        supervisor_id: Id,
         asset: Asset,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         tactical_agent_addr: Addr<TacticalAgent>,
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
         number_of_operational_agents: Arc<AtomicU64>,
-    ) -> SupervisorAgent {
-        let supervisor_resource = id_supervisor.2.clone().unwrap();
-        SupervisorAgent {
-            supervisor_id: id_supervisor,
+    ) -> Result<SupervisorAgent> {
+        let Id(id, resources, toml_supervisor) = supervisor_id;
+
+        let number_of_supervisor_periods = toml_supervisor
+            .context("Error with the supervisor configuration file")?
+            .number_of_supervisor_periods;
+
+        let supervisor_periods = &scheduling_environment
+            .lock()
+            .expect("SchedulingEnvironment lock poisoned")
+            .time_environment()
+            .strategic_periods[0..=number_of_supervisor_periods as usize]
+            .to_vec();
+
+        Ok(SupervisorAgent {
+            supervisor_id: id,
             asset,
             scheduling_environment,
             supervisor_algorithm: SupervisorAlgorithm::new(
-                supervisor_resource,
+                resources,
                 arc_swap_shared_solution,
+                supervisor_periods,
             ),
             tactical_agent_addr,
             operational_agent_addrs: HashMap::new(),
             number_of_operational_agents,
-        }
+        })
     }
 
     fn unschedule_random_work_orders(&mut self, number_of_work_orders: u64, mut rng: ThreadRng) {
@@ -251,22 +246,7 @@ impl SupervisorAgent {
         // self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&old_state).unwrap();
     }
 
-    fn update_operational_state_machine(&mut self) -> Result<()> {
-        let loaded_tactical_solution = &self.supervisor_algorithm.loaded_shared_solution.tactical;
-
-        let supervisor_work_order_activities = loaded_tactical_solution.supervisor_activities(
-            &self
-                .supervisor_algorithm
-                .supervisor_parameters
-                .supervisor_periods,
-        );
-
-        let transition_sets = self.update_supervisor_solution();
-
-        Ok(())
-    }
-
-    fn update_supervisor_solution(&self) -> Result<()> {
+    fn update_supervisor_solution(&mut self) -> Result<()> {
         event!(Level::WARN, "FIND STOP POINT");
         let work_order_coming_from_tactical = self
             .supervisor_algorithm
@@ -279,6 +259,13 @@ impl SupervisorAgent {
                     .supervisor_periods,
             );
 
+        event!(Level::WARN, number_coming_from_tactical = ?work_order_coming_from_tactical);
+
+        let locked_scheduling_environment = self
+            .scheduling_environment
+            .lock()
+            .expect("Could not acquire SchedulingEnvironment lock");
+
         for work_order_activity in work_order_coming_from_tactical {
             self.supervisor_algorithm
                 .supervisor_parameters
@@ -289,17 +276,14 @@ impl SupervisorAgent {
                     &self
                         .supervisor_algorithm
                         .supervisor_parameters
-                        .strategic_parameter(&work_order_activity)
+                        .supervisor_parameter(&work_order_activity)
                         .context("The SupervisorParameter was not found")?
                         .resource,
                 ) {
                     self.supervisor_algorithm
                         .operational_state_machine
-                        .update_operational_state(
-                            transition_type.clone(),
-                            operational_agent,
-                            self.supervisor_id.clone(),
-                        )
+                        .insert_supervisor_solution(operational_agent, work_order_activity)
+                        .context("Supervisor could not insert operational solution correctly")?;
                 }
             }
         }
@@ -390,7 +374,7 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
                     supervisor_status_message
                 );
                 let supervisor_status = SupervisorResponseStatus::new(
-                    self.supervisor_id.clone().2.unwrap().resource,
+                    self.supervisor_algorithm.resources.clone(),
                     self.supervisor_algorithm
                         .operational_state_machine
                         .count_unique_woa(),

@@ -1,5 +1,6 @@
 use actix::prelude::*;
 
+use anyhow::{Context, Result};
 use arc_swap::ArcSwap;
 use shared_types::operational::OperationalConfiguration;
 use shared_types::scheduling_environment::work_order::operation::Work;
@@ -169,7 +170,7 @@ impl AgentFactory {
         tactical_agent_addr: Addr<TacticalAgent>,
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
         number_of_operational_agents: Arc<AtomicU64>,
-    ) -> Addr<SupervisorAgent> {
+    ) -> Result<Addr<SupervisorAgent>> {
         let (sender, receiver) = std::sync::mpsc::channel::<Addr<SupervisorAgent>>();
 
         let scheduling_environment = Arc::clone(&self.scheduling_environment);
@@ -183,11 +184,12 @@ impl AgentFactory {
                 arc_swap_shared_solution,
                 number_of_operational_agents,
             )
+            .expect("Could not create SupervisorAgent in AgentFactory")
             .start();
             sender.send(supervisor_addr).unwrap();
         });
 
-        receiver.recv().unwrap()
+        Ok(receiver.recv().unwrap())
     }
 
     pub fn build_operational_agent(
@@ -204,7 +206,8 @@ impl AgentFactory {
         let operational_algorithm =
             OperationalAlgorithm::new(operational_configuration.clone(), arc_swap_shared_solution);
 
-        let operational_objective = Arc::clone(&operational_algorithm.objective_value);
+        let operational_objective =
+            Arc::clone(&operational_algorithm.operational_solutions.objective_value);
         Arbiter::new().spawn_fn(move || {
             let operational_agent_addr = OperationalAgentBuilder::new(
                 id_operational,
