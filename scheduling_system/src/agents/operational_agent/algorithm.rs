@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     sync::{
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU64, Ordering},
         Arc,
     },
 };
@@ -41,17 +41,19 @@ use crate::agents::{
 
 use super::{operational_events::OperationalEvents, OperationalConfiguration};
 
-pub type OperationalObjective = Arc<AtomicUsize>;
+pub type OperationalObjective = Arc<AtomicU64>;
 
 #[derive(Clone, Default)]
-pub struct OperationalParameters(pub HashMap<WorkOrderActivity, OperationalParameter>);
+pub struct OperationalParameters {
+    pub work_order_parameters: HashMap<WorkOrderActivity, OperationalParameter>,
+}
 
 impl OperationalParameters {
-    pub fn count_delegate_types(&self) -> (usize, usize, usize) {
+    pub fn count_delegate_types(&self) -> (u64, u64, u64) {
         let mut count_assign = 0;
         let mut count_assess = 0;
         let mut count_unassign = 0;
-        for (_, operational_parameters) in &self.0 {
+        for (_, operational_parameters) in &self.work_order_parameters {
             match operational_parameters
                 .delegated
                 .load(std::sync::atomic::Ordering::SeqCst)
@@ -69,7 +71,7 @@ impl OperationalParameters {
 
     fn remove_drop_delegates(&mut self) -> HashSet<WorkOrderActivity> {
         let mut removed_work_order_activities = HashSet::new();
-        self.0.retain(|woa, op| {
+        self.work_order_parameters.retain(|woa, op| {
             let delegate = op.delegated.load(Ordering::SeqCst);
             if delegate == Delegate::Drop {
                 removed_work_order_activities.insert(woa.clone());
@@ -81,7 +83,6 @@ impl OperationalParameters {
 }
 
 pub struct OperationalAlgorithm {
-    pub objective_value: OperationalObjective,
     pub operational_solutions: OperationalSolutions,
     pub operational_non_productive: OperationalNonProductive,
     pub operational_parameters: OperationalParameters,
@@ -104,8 +105,7 @@ impl OperationalAlgorithm {
     ) -> Self {
         let loaded_shared_solution = arc_swap_shared_solution.0.load();
         Self {
-            objective_value: Arc::new(AtomicUsize::new(0)),
-            operational_solutions: OperationalSolutions(Vec::new()),
+            operational_solutions: OperationalSolutions::new(Vec::new()),
             operational_non_productive: OperationalNonProductive(Vec::new()),
             operational_parameters: OperationalParameters::default(),
             history_of_dropped_operational_parameters: HashSet::new(),
@@ -123,7 +123,7 @@ impl OperationalAlgorithm {
 
         for work_order_activity in woas_to_be_deleted {
             self.operational_solutions
-                .0
+                .work_order_activities
                 .retain(|os| os.0 != work_order_activity)
         }
     }
@@ -134,7 +134,7 @@ impl OperationalAlgorithm {
         operational_parameters: OperationalParameter,
     ) -> Option<OperationalParameter> {
         self.operational_parameters
-            .0
+            .work_order_parameters
             .insert(work_order_activity, operational_parameters)
     }
 
@@ -231,7 +231,7 @@ impl OperationalAlgorithm {
         let time_delta_usize = time_delta.num_seconds() as usize;
 
         self.operational_parameters
-            .0
+            .work_order_parameters
             .get(&work_order_activity_previous)
             .unwrap()
             .marginal_fitness
@@ -241,7 +241,10 @@ impl OperationalAlgorithm {
 }
 
 #[derive(Clone)]
-pub struct OperationalSolutions(pub Vec<(WorkOrderActivity, OperationalSolution)>);
+pub struct OperationalSolutions {
+    pub objective_value: OperationalObjective,
+    pub work_order_activities: Vec<(WorkOrderActivity, OperationalSolution)>,
+}
 
 trait OperationalFunctions {
     type Key;
@@ -258,7 +261,7 @@ impl OperationalFunctions for OperationalSolutions {
 
     fn try_insert(&mut self, key: Self::Key, assignments: Self::Sequence) {
         for (index, operational_solution) in self
-            .0
+            .work_order_activities
             .iter()
             .map(|os| os.1.clone())
             .collect::<Vec<_>>()
@@ -290,9 +293,13 @@ impl OperationalFunctions for OperationalSolutions {
                 let operational_solution = OperationalSolution { assignments };
 
                 if !self.is_operational_solution_already_scheduled(key) {
-                    self.0.insert(index + 1, (key, operational_solution));
-                    let assignments: Vec<&Assignment> =
-                        self.0.iter().flat_map(|(_, os)| &os.assignments).collect();
+                    self.work_order_activities
+                        .insert(index + 1, (key, operational_solution));
+                    let assignments: Vec<&Assignment> = self
+                        .work_order_activities
+                        .iter()
+                        .flat_map(|(_, os)| &os.assignments)
+                        .collect();
 
                     assert!(no_overlap(assignments));
                 }
@@ -303,7 +310,7 @@ impl OperationalFunctions for OperationalSolutions {
 
     fn containing_operational_solution(&self, time: DateTime<Utc>) -> ContainOrNextOrNone {
         let containing: Option<OperationalSolution> = self
-            .0
+            .work_order_activities
             .iter()
             .find(|operational_solution| operational_solution.1.contains(time))
             .map(|(_, os)| os)
@@ -313,7 +320,7 @@ impl OperationalFunctions for OperationalSolutions {
             Some(containing) => ContainOrNextOrNone::Contain(containing),
             None => {
                 let next: Option<OperationalSolution> = self
-                    .0
+                    .work_order_activities
                     .iter()
                     .map(|os| os.1.clone())
                     .find(|start| start.start_time() > time);
@@ -328,11 +335,20 @@ impl OperationalFunctions for OperationalSolutions {
 }
 
 impl OperationalSolutions {
+    pub fn new(work_order_activities: Vec<(WorkOrderActivity, OperationalSolution)>) -> Self {
+        Self {
+            objective_value: Arc::new(AtomicU64::new(0)),
+            work_order_activities,
+        }
+    }
+
     fn is_operational_solution_already_scheduled(
         &self,
         work_order_activity: WorkOrderActivity,
     ) -> bool {
-        self.0.iter().any(|(woa, _)| *woa == work_order_activity)
+        self.work_order_activities
+            .iter()
+            .any(|(woa, _)| *woa == work_order_activity)
     }
 }
 
@@ -501,7 +517,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         // on a MTN-MECH job. I think that this will be very interesting to solve.
         let operational_events: Vec<Assignment> = self
             .operational_solutions
-            .0
+            .work_order_activities
             .iter()
             .flat_map(|(_, os)| os.assignments.iter())
             .cloned()
@@ -593,14 +609,18 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         event!(Level::TRACE, break_time = ?break_time);
         event!(Level::TRACE, toolbox_time = ?toolbox_time);
         event!(Level::TRACE, non_productive_time = ?non_productive_time);
-        let new_value = ((wrench_time).num_seconds() * 100) as usize
-            / (wrench_time + break_time + toolbox_time + non_productive_time).num_seconds()
-                as usize;
+        let new_value = ((wrench_time).num_seconds() * 100) as u64
+            / (wrench_time + break_time + toolbox_time + non_productive_time).num_seconds() as u64;
 
-        let old_value = self.objective_value.load(Ordering::SeqCst);
+        let old_value = self
+            .operational_solutions
+            .objective_value
+            .load(Ordering::SeqCst);
 
         if new_value > old_value {
-            self.objective_value.store(new_value, Ordering::SeqCst);
+            self.operational_solutions
+                .objective_value
+                .store(new_value, Ordering::SeqCst);
             true
         } else {
             false
@@ -609,7 +629,9 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
     fn schedule(&mut self) {
         self.operational_non_productive.0.clear();
-        for (work_order_activity, operational_parameter) in &self.operational_parameters.0 {
+        for (work_order_activity, operational_parameter) in
+            &self.operational_parameters.work_order_parameters
+        {
             let start_time = self.determine_first_available_start_time(operational_parameter);
 
             let assignments = self.determine_wrench_time_assignment(
@@ -620,7 +642,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
             self.operational_solutions
                 .try_insert(*work_order_activity, assignments);
-            event!(Level::TRACE, number_of_operations = ?self.operational_solutions.0.len());
+            event!(Level::TRACE, number_of_operations = ?self.operational_solutions.work_order_activities.len());
         }
 
         // fill the schedule
@@ -676,7 +698,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
     fn unschedule(&mut self, work_order_and_activity_number: Self::SchedulingUnit) -> Result<()> {
         let unscheduled_operational_solution = self
             .operational_solutions
-            .0
+            .work_order_activities
             .iter()
             .find(|operational_solution| operational_solution.0 == work_order_and_activity_number)
             .take();
@@ -788,7 +810,7 @@ impl OperationalAlgorithm {
     ) {
         let operational_solutions: Vec<WorkOrderActivity> = self
             .operational_solutions
-            .0
+            .work_order_activities
             .choose_multiple(rng, number_of_activities)
             .map(|operational_solution| operational_solution.0)
             .collect();
@@ -803,7 +825,7 @@ impl OperationalAlgorithm {
         &self,
         operational_parameter: &OperationalParameter,
     ) -> DateTime<Utc> {
-        for operational_solution in self.operational_solutions.0.windows(2) {
+        for operational_solution in self.operational_solutions.work_order_activities.windows(2) {
             let start_of_interval = {
                 let mut current_time = operational_solution[0].1.assignments.last().unwrap().finish;
 
@@ -1144,6 +1166,7 @@ mod tests {
         let toml_supervisor = TomlSupervisor {
             id: "test_supervisor".to_string(),
             resource: Some(Resources::MtnMech),
+            number_of_supervisor_periods: 3,
         };
         let supervisor: Id = Id::new(toml_supervisor.id.clone(), vec![], Some(toml_supervisor));
 

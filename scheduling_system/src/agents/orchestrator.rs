@@ -1,4 +1,6 @@
 use actix::prelude::*;
+use anyhow::Context;
+use anyhow::Result;
 use shared_types::orchestrator::OrchestratorMessage;
 use shared_types::orchestrator::OrchestratorRequest;
 
@@ -324,7 +326,12 @@ impl Orchestrator {
                 self.agent_registries
                     .get_mut(&asset)
                     .unwrap()
-                    .add_supervisor_agent(id_string.clone(), supervisor_agent_addr.clone());
+                    .add_supervisor_agent(
+                        id_string.clone(),
+                        supervisor_agent_addr
+                            .expect("Could not create SupervisorAgent")
+                            .clone(),
+                    );
                 let response_string = format!("Supervisor agent created with id {}", id_string);
                 let orchestrator_response = OrchestratorResponse::RequestStatus(response_string);
                 Ok(orchestrator_response)
@@ -578,13 +585,16 @@ impl Orchestrator {
         for supervisor in resources_config.supervisors {
             let id = Id::new("default".to_string(), vec![], Some(supervisor));
 
-            let supervisor_addr = self.agent_factory.build_supervisor_agent(
-                asset.clone(),
-                id.clone(),
-                tactical_agent_addr.clone(),
-                strategic_tactical_solutions_arc_swap.clone(),
-                Arc::clone(&number_of_operational_agents),
-            );
+            let supervisor_addr = self
+                .agent_factory
+                .build_supervisor_agent(
+                    asset.clone(),
+                    id.clone(),
+                    tactical_agent_addr.clone(),
+                    strategic_tactical_solutions_arc_swap.clone(),
+                    Arc::clone(&number_of_operational_agents),
+                )
+                .expect("AgentFactory could not build the specified supervisor agent");
 
             supervisor_addrs.insert(id, supervisor_addr);
         }

@@ -15,14 +15,6 @@ pub enum Delegate {
 }
 
 impl AtomicDelegate {
-    pub fn state_change_to_drop(&self) {
-        let mut delegate_state = self.load(Ordering::SeqCst);
-
-        delegate_state.state_change_to_drop();
-
-        self.store(delegate_state, Ordering::SeqCst);
-    }
-
     pub fn state_change_to_unassign(&self) {
         let mut delegate_state = self.load(Ordering::SeqCst);
 
@@ -59,29 +51,6 @@ impl Delegate {
 
     pub fn is_drop(&self) -> bool {
         matches!(self, Self::Drop)
-    }
-
-    pub fn state_change_to_drop(&mut self) {
-        match self {
-            Delegate::Assign => {
-                *self = Delegate::Drop;
-            }
-            Delegate::Assess => {
-                let delegate = Delegate::Drop;
-                *self = delegate;
-            }
-            Delegate::Done => {
-                // Specify specific logic
-                *self = Delegate::Drop
-            }
-            Delegate::Unassign => {
-                // Specify specific logic
-                *self = Delegate::Drop
-            }
-            val => {
-                panic!("Only Delegate::Assess and Delegate::Assign and Delegate::Drop can be converted to a Delegate::Drop. Got {:?} ", val);
-            }
-        }
     }
 
     pub fn state_change_to_unassign(&mut self) {
