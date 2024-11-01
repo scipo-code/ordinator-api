@@ -32,7 +32,7 @@ pub struct TacticalAgent {
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     tactical_algorithm: TacticalAlgorithm,
     strategic_addr: Addr<StrategicAgent>,
-    main_supervisor_addr: Option<(Id, Addr<SupervisorAgent>)>,
+    main_supervisor_addr: Option<(String, Addr<SupervisorAgent>)>,
     _other_supervisor: Option<HashMap<Id, Addr<SupervisorAgent>>>,
 }
 

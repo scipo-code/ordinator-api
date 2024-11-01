@@ -79,6 +79,7 @@ pub enum SupervisorAgentCommands {
         shift: Shift,
         supervisor_id: String,
         resource: Option<Resources>,
+        number_of_supervisor_periods: u64,
     },
 
     /// Delete a SupervisorAgent
@@ -144,10 +145,12 @@ impl OrchestratorCommands {
                         shift: _,
                         resource,
                         supervisor_id,
+                        number_of_supervisor_periods,
                     } => {
                         let toml_supervisor = TomlSupervisor {
                             id: supervisor_id,
                             resource,
+                            number_of_supervisor_periods,
                         };
                         let create_supervisor_agent = OrchestratorRequest::CreateSupervisorAgent(
                             asset.clone(),

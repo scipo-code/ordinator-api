@@ -1,6 +1,6 @@
 [[supervisors]]
 id = "main"
-
+number_of_supervisor_periods = 3
 # [[supervisors]]
 # id = "supervisor-second"
 ################################

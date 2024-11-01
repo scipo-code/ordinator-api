@@ -15,7 +15,6 @@ use shared_types::{
         supervisor_response_scheduling::SupervisorResponseScheduling,
         supervisor_response_time::SupervisorResponseTime,
     },
-    TomlSupervisor,
 };
 
 use crate::agents::{
@@ -58,7 +57,7 @@ pub struct SupervisorTimeRequest;
 
 pub struct SupervisorAlgorithm {
     pub objective_value: f64,
-    _resource: TomlSupervisor,
+    pub resources: Vec<Resources>,
     pub supervisor_parameters: SupervisorParameters, 
     pub operational_state_machine: OperationalStateMachine,
     arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
@@ -66,14 +65,17 @@ pub struct SupervisorAlgorithm {
     pub operational_agent_objectives: HashMap<Id, OperationalObjective>,
 }
 
-#[derive(Default)]
 pub struct SupervisorParameters {
     pub supervisor_work_orders: HashMap<WorkOrderNumber, HashMap<ActivityNumber, SupervisorParameter>>,
     pub supervisor_periods: Vec<Period>,
 }
 
 impl SupervisorParameters {
-    pub(crate) fn strategic_parameter(&self, work_order_activity: &WorkOrderActivity) -> Result<&SupervisorParameter> {
+    pub fn new( supervisor_periods: Vec<Period>) -> Self {
+        Self { supervisor_work_orders: HashMap::new(), supervisor_periods }
+    }
+
+    pub(crate) fn supervisor_parameter(&self, work_order_activity: &WorkOrderActivity) -> Result<&SupervisorParameter> {
         Ok(self.supervisor_work_orders
             .get(&work_order_activity.0)
             .context(format!("WorkOrderNumber: {:?} was not part of the SupervisorParameters", work_order_activity.0))?
@@ -81,7 +83,7 @@ impl SupervisorParameters {
             .context(format!("WorkOrderNumber: {:?} with ActivityNumber: {:?} was not part of the SupervisorParameters", work_order_activity.0, work_order_activity.1))?)
     }
 
-    pub(crate) fn remove_strategic_parameter(&mut self, work_order_activity: &WorkOrderActivity) -> Result<SupervisorParameter> {
+    pub(crate) fn remove_supervisor_parameter(&mut self, work_order_activity: &WorkOrderActivity) -> Result<SupervisorParameter> {
         match self.supervisor_work_orders.get_mut(&work_order_activity.0) {
             Some(inner) => {
                 Ok(inner.remove(&work_order_activity.1).context("SupervisorParameter entry did not exist")?)
@@ -119,12 +121,12 @@ impl SupervisorParameter {
 }
 
 impl SupervisorAlgorithm {
-    pub fn new(supervisor: TomlSupervisor, arc_swap_shared_solution: Arc<ArcSwapSharedSolution>) -> Self {
+    pub fn new(resources: Vec<Resources>, arc_swap_shared_solution: Arc<ArcSwapSharedSolution>, supervisor_periods: &[Period]) -> Self {
         let loaded_shared_solution = arc_swap_shared_solution.0.load();
         Self {
             objective_value: f64::default(),
-            _resource: supervisor,
-            supervisor_parameters: SupervisorParameters::default(),
+            resources,
+            supervisor_parameters: SupervisorParameters::new(supervisor_periods.to_vec()),
             operational_state_machine: OperationalStateMachine::default(),
             operational_agent_objectives: HashMap::default(),
             arc_swap_shared_solution,

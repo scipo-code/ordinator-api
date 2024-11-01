@@ -33,7 +33,7 @@ pub struct ScheduleIteration {}
 pub enum SetAddr {
     Strategic(Addr<StrategicAgent>),
     Tactical(Addr<TacticalAgent>),
-    Supervisor(Id, Addr<SupervisorAgent>),
+    Supervisor(String, Addr<SupervisorAgent>),
     Operational(Id, Addr<OperationalAgent>),
 }
 
@@ -95,6 +95,10 @@ impl TacticalSolution {
         supervisor_periods: &[Period],
     ) -> HashSet<WorkOrderActivity> {
         let mut supervisor_work_orders: HashSet<WorkOrderActivity> = HashSet::new();
+        event!(
+            Level::WARN,
+            number_of_tactical_work_orders_by_period = self.tactical_period.len()
+        );
         self.tactical_period.iter().for_each(|(won, opt_per)| {
             if let Some(period) = opt_per {
                 if supervisor_periods.contains(period) {
@@ -146,11 +150,7 @@ pub struct StateLinkWrapper<S, T, Su, O> {
     span: Span,
 }
 
-impl<S, T, Su, O> StateLinkWrapper<S, T, Su, O> {
-    pub fn new(state_link: StateLink<S, T, Su, O>, span: Span) -> Self {
-        Self { state_link, span }
-    }
-}
+impl<S, T, Su, O> StateLinkWrapper<S, T, Su, O> {}
 
 #[allow(dead_code)]
 #[derive(Debug)]

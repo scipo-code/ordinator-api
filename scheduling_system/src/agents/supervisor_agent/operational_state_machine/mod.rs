@@ -6,21 +6,18 @@ use std::{
 };
 
 use actix::Addr;
+use anyhow::Result;
 use shared_types::scheduling_environment::{
     work_order::{WorkOrderActivity, WorkOrderNumber},
     worker_environment::resources::Id,
 };
-use tracing::{event, span, Level};
 
-use crate::agents::{
-    operational_agent::{InitialMessage, OperationalAgent},
-    StateLink, StateLinkWrapper,
-};
+use crate::agents::operational_agent::OperationalAgent;
 
 use super::{
     algorithm::MarginalFitness,
     delegate::{AtomicDelegate, Delegate},
-    CapturedSupervisorState, TransitionTypes,
+    CapturedSupervisorState,
 };
 
 #[derive(Debug, Default)]
@@ -35,53 +32,19 @@ impl OperationalStateMachine {
         self.0.len()
     }
 
-    pub fn update_operational_state(
+    pub fn insert_supervisor_solution(
         &mut self,
-        transition_type: TransitionTypes,
         operational_agent: (&Id, &Addr<OperationalAgent>),
-        supervisor_id: Id,
-    ) {
-        match transition_type {
-            TransitionTypes::Entering(work_order_activity) => {
-                let delegate = Arc::new(AtomicDelegate::new(Delegate::new()));
-                let marginal_fitness = MarginalFitness::default();
+        work_order_activity: WorkOrderActivity,
+    ) -> Result<()> {
+        let delegate = Arc::new(AtomicDelegate::new(Delegate::new()));
+        let marginal_fitness = MarginalFitness::default();
 
-                self.0.insert(
-                    (operational_agent.0.clone(), work_order_activity),
-                    (Arc::clone(&delegate), marginal_fitness.clone()),
-                );
-
-                let span = span!(
-                    Level::DEBUG,
-                    "SupervisorSpan.OperationalState.TransitionType::Entering"
-                );
-
-                let state_link = StateLink::Supervisor(InitialMessage::new(
-                    work_order_activity,
-                    delegate.clone(),
-                    marginal_fitness,
-                    supervisor_id,
-                ));
-                let state_link_wrapper = StateLinkWrapper::new(state_link, span.clone());
-
-                operational_agent.1.do_send(state_link_wrapper)
-            }
-            TransitionTypes::Leaving(woa) => {
-                let delegate_option = self.0.get(&(operational_agent.0.clone(), woa));
-
-                let delegate = delegate_option
-                    .expect("Cannot Delegate::Drop a WOA that is not in the already in the OperationalState")
-                    .0
-                    .clone();
-
-                delegate.state_change_to_drop();
-
-                self.remove_an_operational_state(woa, operational_agent.0.clone());
-            }
-            TransitionTypes::Done(_) => {
-                panic!("You should never send a done request to an OperationalAgent");
-            }
-        }
+        self.0.insert(
+            (operational_agent.0.clone(), work_order_activity),
+            (Arc::clone(&delegate), marginal_fitness.clone()),
+        );
+        Ok(())
     }
 
     pub fn turn_work_order_into_delegate_assess(&mut self, work_order_number: WorkOrderNumber) {
@@ -97,40 +60,8 @@ impl OperationalStateMachine {
         }
     }
 
-    pub fn is_work_order_activity_present(&self, work_order_activity: &WorkOrderActivity) -> bool {
-        self.0
-            .keys()
-            .map(|key| key.1)
-            .collect::<HashSet<_>>()
-            .contains(work_order_activity)
-    }
-
     pub fn count_unique_woa(&self) -> usize {
         self.0.keys().map(|(_, woa)| woa).len()
-    }
-
-    pub fn remove_an_operational_state(
-        &mut self,
-        work_order_activity: WorkOrderActivity,
-        operational_id: Id,
-    ) {
-        let value_option = self.0.remove(&(operational_id, work_order_activity));
-
-        match value_option {
-            Some(value) => {
-                if !value.0.load(std::sync::atomic::Ordering::SeqCst).is_drop() {
-                    event!(
-                        Level::ERROR,
-                        value_in_atomic_delegate =
-                            ?value.0.load(std::sync::atomic::Ordering::SeqCst)
-                    );
-                    panic!("You tried to remove a delegate that was not Delegate::Drop, doing this could lead to a situation where the remaining state could be wrong");
-                }
-            }
-            None => {
-                panic!("You tried to remove an entry of the SupervisorAlgorithm OperationalState, which did not exist. This is a major violation of the internal consistency of the SupervisorAgent and all its OperationalAgents")
-            }
-        }
     }
 
     pub fn number_of_assigned_work_orders(&self) -> HashSet<WorkOrderActivity> {
@@ -162,13 +93,6 @@ impl OperationalStateMachine {
                 .swap(delegate, std::sync::atomic::Ordering::SeqCst);
             debug_assert_ne!(self_delegate, delegate);
         }
-    }
-
-    pub fn get(
-        &self,
-        key: &(Id, WorkOrderActivity),
-    ) -> Option<&(Arc<AtomicDelegate>, MarginalFitness)> {
-        self.0.get(&(key))
     }
 
     pub(crate) fn get_iter(

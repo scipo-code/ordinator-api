@@ -221,6 +221,7 @@ pub struct TomlAgents {
 pub struct TomlSupervisor {
     pub id: String,
     pub resource: Option<Resources>,
+    pub number_of_supervisor_periods: u64,
 }
 
 #[derive(Deserialize, Debug)]
