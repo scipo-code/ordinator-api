@@ -17,6 +17,7 @@ use shared_types::scheduling_environment::work_order::{WorkOrderActivity, WorkOr
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::strategic::{StrategicObjectiveValue, StrategicResources};
 use shared_types::tactical::{TacticalObjectiveValue, TacticalResources};
+use supervisor_agent::delegate::Delegate;
 use tactical_agent::tactical_algorithm::TacticalOperation;
 use tracing::{event, Level, Span};
 
@@ -48,6 +49,7 @@ pub struct ArcSwapSharedSolution(pub ArcSwap<SharedSolution>);
 pub struct SharedSolution {
     strategic: StrategicSolution,
     pub tactical: TacticalSolution,
+    pub supervisor: SupervisorSolution,
 }
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
@@ -61,8 +63,40 @@ pub struct StrategicSolution {
 pub struct TacticalSolution {
     pub objective_value: TacticalObjectiveValue,
     pub tactical_days: HashMap<WorkOrderNumber, Option<HashMap<ActivityNumber, TacticalOperation>>>,
-    pub tactical_period: HashMap<WorkOrderNumber, Option<Period>>,
     pub tactical_loadings: TacticalResources,
+}
+
+#[derive(PartialEq, Eq, Debug, Default, Clone)]
+pub struct SupervisorSolution {
+    objective_value: u64,
+    state_of_each_agent: HashMap<(Id, WorkOrderActivity), Delegate>,
+}
+
+impl SupervisorSolution {
+    pub fn state_of_agent(&self, operational_agent: &Id) -> HashMap<WorkOrderActivity, Delegate> {
+        self.state_of_each_agent
+            .iter()
+            .filter(|(id_woa, _)| &id_woa.0 == operational_agent)
+            .map(|(id_woa, del)| (id_woa.1, *del))
+            .collect()
+    }
+
+    pub fn count_delegate_types(&self, operational_agent: &Id) -> (u64, u64, u64) {
+        let mut count_assign = 0;
+        let mut count_assess = 0;
+        let mut count_unassign = 0;
+        for (_, delegate) in &self.state_of_agent(operational_agent) {
+            match delegate {
+                Delegate::Assess => count_assess += 1,
+                Delegate::Assign => count_assign += 1,
+                Delegate::Unassign => count_unassign += 1,
+                Delegate::Drop => (),
+                Delegate::Done => (),
+                Delegate::Fixed => (),
+            }
+        }
+        (count_assign, count_assess, count_unassign)
+    }
 }
 
 impl TacticalSolution {
@@ -95,13 +129,16 @@ impl TacticalSolution {
         supervisor_periods: &[Period],
     ) -> HashSet<WorkOrderActivity> {
         let mut supervisor_work_orders: HashSet<WorkOrderActivity> = HashSet::new();
+
         event!(
             Level::WARN,
             number_of_tactical_work_orders_by_period = self.tactical_period.len()
         );
+
         self.tactical_period.iter().for_each(|(won, opt_per)| {
             if let Some(period) = opt_per {
                 if supervisor_periods.contains(period) {
+                    event!(Level::WARN, period = ?period);
                     let activities: Vec<_> = self
                         .tactical_days
                         .get(won)

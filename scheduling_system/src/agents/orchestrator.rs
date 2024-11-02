@@ -463,7 +463,7 @@ impl Orchestrator {
                 self.arc_swap_shared_solutions.get(&asset).unwrap().clone(),
             );
 
-        let operational_id_and_objective =
+        let operational_id_and_objective_value =
             OrchestratorMessage::new((id.clone(), operational_objective));
 
         self.agent_registries
@@ -471,7 +471,7 @@ impl Orchestrator {
             .unwrap()
             .supervisor_agent_addrs
             .iter()
-            .for_each(|(_, sup_addr)| sup_addr.do_send(operational_id_and_objective.clone()));
+            .for_each(|(_, sup_addr)| sup_addr.do_send(operational_id_and_objective_value.clone()));
 
         self.agent_registries
             .get(&asset)

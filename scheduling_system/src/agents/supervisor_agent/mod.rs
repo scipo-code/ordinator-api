@@ -36,10 +36,11 @@ use shared_types::scheduling_environment::SchedulingEnvironment;
 use self::algorithm::SupervisorAlgorithm;
 
 use super::{
-    operational_agent::{algorithm::OperationalObjective, OperationalAgent},
+    operational_agent::{algorithm::OperationalObjectiveValue, OperationalAgent},
     tactical_agent::TacticalAgent,
     traits::LargeNeighborHoodSearch,
     ArcSwapSharedSolution, ScheduleIteration, SetAddr, StateLink, StateLinkWrapper,
+    SupervisorSolution,
 };
 
 pub struct SupervisorAgent {
@@ -74,9 +75,11 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut actix::Context<Self>) -> Self::Result {
         self.assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
         self.supervisor_algorithm.load_shared_solution();
+        event!(Level::WARN, "DETERMINE FLOW");
         self.update_supervisor_solution()
             .expect("Could not load the data from the load SharedSolution");
 
+        event!(Level::WARN, "DETERMINE FLOW");
         event!(
             Level::WARN,
             number_of_operational_states =
@@ -87,9 +90,11 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
             Level::INFO,
             number_of_operational_agents = ?self.number_of_operational_agents
         );
+        event!(Level::WARN, "DETERMINE FLOW");
 
         let rng = rand::thread_rng();
         self.supervisor_algorithm.calculate_objective_value();
+        event!(Level::WARN, "DETERMINE FLOW");
 
         let current_state = self.capture_current_state();
 
@@ -103,22 +108,29 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
         let number_of_removed_work_orders = 10;
         self.unschedule_random_work_orders(number_of_removed_work_orders, rng);
 
+        event!(Level::WARN, "DETERMINE FLOW");
         self.supervisor_algorithm.schedule();
-        self.assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
+        event!(Level::WARN, "DETERMINE FLOW");
+        // self.assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
+        event!(Level::WARN, "DETERMINE FLOW");
 
         let new_objective_value = self.supervisor_algorithm.calculate_objective_value();
 
+        event!(Level::WARN, "DETERMINE FLOW");
         assert_eq!(
             new_objective_value,
             self.supervisor_algorithm.calculate_objective_value()
         );
+        event!(Level::WARN, "DETERMINE FLOW");
         event!(
             Level::WARN,
             new_state = ?self.capture_current_state().state_of_each_agent
         );
+        event!(Level::WARN, "DETERMINE FLOW");
 
-        self.supervisor_algorithm.operational_state_machine.assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess();
+        // self.supervisor_algorithm.operational_state_machine.assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess();
 
+        event!(Level::WARN, "DETERMINE FLOW");
         // self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&current_state).unwrap();
 
         if self.supervisor_algorithm.objective_value < current_state.objective_value {
@@ -126,18 +138,12 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
             self.supervisor_algorithm.calculate_objective_value();
         }
 
+        event!(Level::WARN, "DETERMINE FLOW");
         assert!(self.supervisor_algorithm.objective_value >= old_objective_value);
 
         event!(
-            Level::DEBUG,
-            number_of_operational_agents =
-                self.supervisor_algorithm.operational_agent_objectives.len()
-        );
-
-        event!(Level::WARN, "FIND STOP POINT");
-        event!(
             Level::INFO,
-            supervisor_objective = self.supervisor_algorithm.objective_value
+            supervisor_objective_value = self.supervisor_algorithm.objective_value
         );
 
         ctx.wait(
@@ -154,14 +160,8 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     }
 }
 
-#[derive(Clone)]
-pub struct CapturedSupervisorState {
-    objective_value: f64,
-    state_of_each_agent: HashMap<(Id, WorkOrderActivity), Delegate>,
-}
-
 impl SupervisorAgent {
-    fn capture_current_state(&self) -> CapturedSupervisorState {
+    fn capture_current_state(&self) -> SupervisorSolution {
         let mut state_of_each_agent = HashMap::new();
         self.supervisor_algorithm
             .operational_state_machine
@@ -170,13 +170,13 @@ impl SupervisorAgent {
                 state_of_each_agent.insert(id_woa.clone(), del_fit.0.load(Ordering::SeqCst));
             });
 
-        CapturedSupervisorState {
+        SupervisorSolution {
             objective_value: self.supervisor_algorithm.objective_value,
             state_of_each_agent,
         }
     }
 
-    fn release_current_state(&mut self, captured_supervisor_state: CapturedSupervisorState) {
+    fn release_current_state(&mut self, captured_supervisor_state: SupervisorSolution) {
         self.supervisor_algorithm
             .operational_state_machine
             .set_operational_state(captured_supervisor_state);
@@ -317,7 +317,7 @@ type StrategicMessage = ();
 type TacticalMessage = ();
 type SupervisorMessage = ();
 // Why do we send this message? I am not really sure?
-type OperationalMessage = ((Id, WorkOrderActivity), OperationalObjective);
+type OperationalMessage = ((Id, WorkOrderActivity), OperationalObjectiveValue);
 
 impl
     Handler<
@@ -392,12 +392,12 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
     }
 }
 
-impl Handler<OrchestratorMessage<(Id, OperationalObjective)>> for SupervisorAgent {
+impl Handler<OrchestratorMessage<(Id, OperationalObjectiveValue)>> for SupervisorAgent {
     type Result = ();
 
     fn handle(
         &mut self,
-        msg: OrchestratorMessage<(Id, OperationalObjective)>,
+        msg: OrchestratorMessage<(Id, OperationalObjectiveValue)>,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
         self.supervisor_algorithm

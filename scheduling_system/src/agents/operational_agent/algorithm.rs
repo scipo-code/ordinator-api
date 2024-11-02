@@ -9,6 +9,7 @@ use std::{
 use anyhow::Result;
 use arc_swap::Guard;
 use chrono::{DateTime, TimeDelta, Utc};
+use itertools::Itertools;
 use rand::seq::SliceRandom;
 use shared_types::{
     operational::{
@@ -41,46 +42,14 @@ use crate::agents::{
 
 use super::{operational_events::OperationalEvents, OperationalConfiguration};
 
-pub type OperationalObjective = Arc<AtomicU64>;
+pub type OperationalObjectiveValue = Arc<AtomicU64>;
 
 #[derive(Clone, Default)]
 pub struct OperationalParameters {
     pub work_order_parameters: HashMap<WorkOrderActivity, OperationalParameter>,
 }
 
-impl OperationalParameters {
-    pub fn count_delegate_types(&self) -> (u64, u64, u64) {
-        let mut count_assign = 0;
-        let mut count_assess = 0;
-        let mut count_unassign = 0;
-        for (_, operational_parameters) in &self.work_order_parameters {
-            match operational_parameters
-                .delegated
-                .load(std::sync::atomic::Ordering::SeqCst)
-            {
-                Delegate::Assess => count_assess += 1,
-                Delegate::Assign => count_assign += 1,
-                Delegate::Unassign => count_unassign += 1,
-                Delegate::Drop => (),
-                Delegate::Done => (),
-                Delegate::Fixed => (),
-            }
-        }
-        (count_assign, count_assess, count_unassign)
-    }
-
-    fn remove_drop_delegates(&mut self) -> HashSet<WorkOrderActivity> {
-        let mut removed_work_order_activities = HashSet::new();
-        self.work_order_parameters.retain(|woa, op| {
-            let delegate = op.delegated.load(Ordering::SeqCst);
-            if delegate == Delegate::Drop {
-                removed_work_order_activities.insert(woa.clone());
-            }
-            delegate != Delegate::Drop
-        });
-        removed_work_order_activities
-    }
-}
+impl OperationalParameters {}
 
 pub struct OperationalAlgorithm {
     pub operational_solutions: OperationalSolutions,
@@ -118,8 +87,30 @@ impl OperationalAlgorithm {
         }
     }
 
-    pub fn remove_delegate_drop(&mut self) {
-        let woas_to_be_deleted = self.operational_parameters.remove_drop_delegates();
+    fn remove_drop_delegates(&mut self, operational_agent: &Id) -> HashSet<WorkOrderActivity> {
+        let mut removed_work_order_activities = HashSet::new();
+
+        let mut operational_shared_solution = self
+            .loaded_shared_solution
+            .supervisor
+            .state_of_agent(operational_agent)
+            .into_keys();
+
+        self.operational_parameters
+            .work_order_parameters
+            .retain(|woa, _| {
+                if operational_shared_solution.contains(woa) {
+                    removed_work_order_activities.insert(woa.clone());
+                    true
+                } else {
+                    false
+                }
+            });
+        removed_work_order_activities
+    }
+
+    pub fn remove_delegate_drop(&mut self, operational_agent: &Id) {
+        let woas_to_be_deleted = self.remove_drop_delegates(operational_agent);
 
         for work_order_activity in woas_to_be_deleted {
             self.operational_solutions
@@ -128,7 +119,7 @@ impl OperationalAlgorithm {
         }
     }
 
-    pub fn insert_optimized_operation(
+    pub fn insert_operational_parameter(
         &mut self,
         work_order_activity: WorkOrderActivity,
         operational_parameters: OperationalParameter,
@@ -230,19 +221,24 @@ impl OperationalAlgorithm {
         assert_eq!(time_delta.num_nanoseconds().unwrap(), 0);
         let time_delta_usize = time_delta.num_seconds() as usize;
 
-        self.operational_parameters
-            .work_order_parameters
-            .get(&work_order_activity_previous)
+        self.operational_solutions
+            .work_order_activities
+            .iter()
+            .find(|oper_sol| oper_sol.0 == work_order_activity_previous)
             .unwrap()
+            .1
             .marginal_fitness
-            .0
-            .store(time_delta_usize, std::sync::atomic::Ordering::SeqCst);
+            .store(time_delta_usize)
+    }
+
+    pub(crate) fn load_shared_solution(&mut self) {
+        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
     }
 }
 
 #[derive(Clone)]
 pub struct OperationalSolutions {
-    pub objective_value: OperationalObjective,
+    pub objective_value: OperationalObjectiveValue,
     pub work_order_activities: Vec<(WorkOrderActivity, OperationalSolution)>,
 }
 
@@ -290,7 +286,7 @@ impl OperationalFunctions for OperationalSolutions {
                     .start
                 && assignments.last().unwrap().finish < end_of_solution_window
             {
-                let operational_solution = OperationalSolution { assignments };
+                let operational_solution = OperationalSolution::new(assignments);
 
                 if !self.is_operational_solution_already_scheduled(key) {
                     self.work_order_activities
@@ -360,12 +356,16 @@ enum ContainOrNextOrNone {
 
 #[derive(Clone, Debug)]
 pub struct OperationalSolution {
+    pub marginal_fitness: MarginalFitness,
     pub assignments: Vec<Assignment>,
 }
 
 impl OperationalSolution {
     pub fn new(assignments: Vec<Assignment>) -> Self {
-        Self { assignments }
+        Self {
+            assignments,
+            marginal_fitness: MarginalFitness::default(),
+        }
     }
 
     pub fn start_time(&self) -> DateTime<Utc> {
@@ -461,22 +461,20 @@ pub struct OperationalParameter {
     work: Work,
     preparation: Work,
     operation_time_delta: TimeDelta,
-    start_window: DateTime<Utc>,
-    end_window: DateTime<Utc>,
-    pub delegated: Arc<AtomicDelegate>,
-    marginal_fitness: MarginalFitness,
-    supervisor: Id,
+    // start_window: DateTime<Utc>,
+    // end_window: DateTime<Utc>,
+    // pub delegated: Delegate,
+    // marginal_fitness: MarginalFitness,
 }
 
 impl OperationalParameter {
     pub fn new(
         work: Work,
         preparation: Work,
-        start_window: DateTime<Utc>,
-        end_window: DateTime<Utc>,
-        delegated: Arc<AtomicDelegate>,
-        marginal_fitness: MarginalFitness,
-        supervisor: Id,
+        // start_window: DateTime<Utc>,
+        // end_window: DateTime<Utc>,
+        // delegated: Delegate,
+        // marginal_fitness: MarginalFitness,
     ) -> Self {
         let combined_time = (&work + &preparation).in_seconds();
         let operation_time_delta = TimeDelta::new(combined_time as i64, 0).unwrap();
@@ -487,11 +485,10 @@ impl OperationalParameter {
             work,
             preparation,
             operation_time_delta,
-            start_window,
-            end_window,
-            delegated,
-            marginal_fitness,
-            supervisor,
+            // start_window,
+            // end_window,
+            // delegated,
+            // marginal_fitness,
         }
     }
 }
@@ -632,7 +629,8 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         for (work_order_activity, operational_parameter) in
             &self.operational_parameters.work_order_parameters
         {
-            let start_time = self.determine_first_available_start_time(operational_parameter);
+            let start_time = self
+                .determine_first_available_start_time(work_order_activity, operational_parameter);
 
             let assignments = self.determine_wrench_time_assignment(
                 *work_order_activity,
@@ -823,14 +821,31 @@ impl OperationalAlgorithm {
 
     fn determine_first_available_start_time(
         &self,
+        work_order_activity: &WorkOrderActivity,
         operational_parameter: &OperationalParameter,
     ) -> DateTime<Utc> {
+        let (start_window, end_window) = match self
+            .loaded_shared_solution
+            .tactical
+            .tactical_days
+            .get(&work_order_activity.0)
+            .unwrap()
+        {
+            Some(activities) => {
+                let scheduled_days = &activities.get(&work_order_activity.1).unwrap().scheduled;
+
+                let start = scheduled_days.first().unwrap().0.date();
+                let end = scheduled_days.last().unwrap().0.date();
+                (start, end)
+            }
+            None => (&self.availability.start_date, &self.availability.end_date),
+        };
         for operational_solution in self.operational_solutions.work_order_activities.windows(2) {
             let start_of_interval = {
                 let mut current_time = operational_solution[0].1.assignments.last().unwrap().finish;
 
-                if current_time < operational_parameter.start_window {
-                    current_time = operational_parameter.start_window;
+                if current_time < *start_window {
+                    current_time = *start_window;
                 }
 
                 let current_time_option = self.update_current_time_based_on_event(current_time);
@@ -853,15 +868,14 @@ impl OperationalAlgorithm {
 
             let end_of_interval = operational_solution[1].1.assignments.first().unwrap().start;
 
-            if operational_parameter.end_window.min(end_of_interval)
-                - operational_parameter.start_window.max(start_of_interval)
+            if (*end_window).min(end_of_interval) - (*start_window).max(start_of_interval)
                 > operational_parameter.operation_time_delta
             {
-                return operational_parameter.start_window.max(start_of_interval);
+                return *start_window.max(&start_of_interval);
             }
         }
 
-        let mut current_time = operational_parameter.start_window;
+        let mut current_time = *start_window;
 
         let current_time_option = self.update_current_time_based_on_event(current_time);
 
@@ -977,7 +991,10 @@ mod tests {
     use shared_types::{
         operational::{OperationalConfiguration, TimeInterval},
         scheduling_environment::{
-            work_order::operation::Work,
+            work_order::{
+                operation::{ActivityNumber, Work},
+                WorkOrderActivity, WorkOrderNumber,
+            },
             worker_environment::{
                 availability::Availability,
                 resources::{Id, Resources},
@@ -1168,34 +1185,18 @@ mod tests {
             resource: Some(Resources::MtnMech),
             number_of_supervisor_periods: 3,
         };
-        let supervisor: Id = Id::new(toml_supervisor.id.clone(), vec![], Some(toml_supervisor));
 
         let operational_algorithm = OperationalAlgorithm::new(
             operational_configuration,
             Arc::new(ArcSwapSharedSolution::default()),
         );
 
-        let start_window = DateTime::parse_from_rfc3339("2024-05-16T01:00:00Z")
-            .unwrap()
-            .to_utc();
-        let end_window = DateTime::parse_from_rfc3339("2024-05-19T01:00:00Z")
-            .unwrap()
-            .to_utc();
+        let operational_parameter = OperationalParameter::new(Work::from(20.0), Work::from(0.0));
 
-        let delegated = Arc::new(AtomicDelegate::new(Delegate::Fixed));
-
-        let operational_parameter = OperationalParameter::new(
-            Work::from(20.0),
-            Work::from(0.0),
-            start_window,
-            end_window,
-            delegated,
-            MarginalFitness::default(),
-            supervisor,
+        let start_time = operational_algorithm.determine_first_available_start_time(
+            &(WorkOrderNumber(0), ActivityNumber(0)),
+            &operational_parameter,
         );
-
-        let start_time =
-            operational_algorithm.determine_first_available_start_time(&operational_parameter);
 
         assert_eq!(
             start_time,
