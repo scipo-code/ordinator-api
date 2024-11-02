@@ -8,32 +8,45 @@ use anyhow::{bail, Context, Result};
 use arc_swap::Guard;
 use shared_types::{
     scheduling_environment::{
-        time_environment::period::Period, work_order::{operation::{operation_info::NumberOfPeople, ActivityNumber}, WorkOrderActivity, WorkOrderNumber}, worker_environment::resources::{Id, Resources}, SchedulingEnvironment
+        time_environment::period::Period,
+        work_order::{
+            operation::{operation_info::NumberOfPeople, ActivityNumber},
+            WorkOrderActivity, WorkOrderNumber,
+        },
+        worker_environment::resources::{Id, Resources},
+        SchedulingEnvironment,
     },
     supervisor::{
         supervisor_response_resources::SupervisorResponseResources,
         supervisor_response_scheduling::SupervisorResponseScheduling,
-        supervisor_response_time::SupervisorResponseTime,
+        supervisor_response_time::SupervisorResponseTime, SupervisorObjectiveValue,
     },
 };
+use tracing::{event, Level};
 
 use crate::agents::{
-    operational_agent::algorithm::OperationalObjective,  traits::LargeNeighborHoodSearch, ArcSwapSharedSolution, SharedSolution
+    operational_agent::algorithm::OperationalObjectiveValue, traits::LargeNeighborHoodSearch,
+    ArcSwapSharedSolution, SharedSolution,
 };
 
-use super::{
-    delegate::Delegate, operational_state_machine::OperationalStateMachine
-    
-};
+use super::{delegate::Delegate, operational_state_machine::OperationalStateMachine};
 
 #[derive(Debug, Clone)]
-pub struct MarginalFitness(pub Arc<AtomicUsize>);
+pub struct MarginalFitness(Arc<AtomicUsize>);
+// pub struct MarginalFitness(pub Arc<AtomicUsize>);
 
 impl MarginalFitness {
+    pub fn inner(&self) -> usize {
+        self.0.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    pub fn store(&self, value: usize) {
+        self.0.store(value, std::sync::atomic::Ordering::SeqCst)
+    }
 
     pub fn compare(&self, other: &Self) -> Ordering {
-        let self_value = self.0.load(std::sync::atomic::Ordering::SeqCst);
-        let other_value = other.0.load(std::sync::atomic::Ordering::SeqCst);
+        let self_value = self.inner();
+        let other_value = other.inner();
 
         if self_value == other_value {
             return Ordering::Equal;
@@ -56,26 +69,33 @@ pub struct SupervisorResourceRequest;
 pub struct SupervisorTimeRequest;
 
 pub struct SupervisorAlgorithm {
-    pub objective_value: f64,
+    pub objective_value: SupervisorObjectiveValue,
     pub resources: Vec<Resources>,
-    pub supervisor_parameters: SupervisorParameters, 
+    pub supervisor_parameters: SupervisorParameters,
     pub operational_state_machine: OperationalStateMachine,
     arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
     pub loaded_shared_solution: Guard<Arc<SharedSolution>>,
-    pub operational_agent_objectives: HashMap<Id, OperationalObjective>,
+    pub operational_agent_objectives: HashMap<Id, OperationalObjectiveValue>,
 }
 
 pub struct SupervisorParameters {
-    pub supervisor_work_orders: HashMap<WorkOrderNumber, HashMap<ActivityNumber, SupervisorParameter>>,
+    pub supervisor_work_orders:
+        HashMap<WorkOrderNumber, HashMap<ActivityNumber, SupervisorParameter>>,
     pub supervisor_periods: Vec<Period>,
 }
 
 impl SupervisorParameters {
-    pub fn new( supervisor_periods: Vec<Period>) -> Self {
-        Self { supervisor_work_orders: HashMap::new(), supervisor_periods }
+    pub fn new(supervisor_periods: Vec<Period>) -> Self {
+        Self {
+            supervisor_work_orders: HashMap::new(),
+            supervisor_periods,
+        }
     }
 
-    pub(crate) fn supervisor_parameter(&self, work_order_activity: &WorkOrderActivity) -> Result<&SupervisorParameter> {
+    pub(crate) fn supervisor_parameter(
+        &self,
+        work_order_activity: &WorkOrderActivity,
+    ) -> Result<&SupervisorParameter> {
         Ok(self.supervisor_work_orders
             .get(&work_order_activity.0)
             .context(format!("WorkOrderNumber: {:?} was not part of the SupervisorParameters", work_order_activity.0))?
@@ -83,29 +103,36 @@ impl SupervisorParameters {
             .context(format!("WorkOrderNumber: {:?} with ActivityNumber: {:?} was not part of the SupervisorParameters", work_order_activity.0, work_order_activity.1))?)
     }
 
-    pub(crate) fn remove_supervisor_parameter(&mut self, work_order_activity: &WorkOrderActivity) -> Result<SupervisorParameter> {
+    pub(crate) fn remove_supervisor_parameter(
+        &mut self,
+        work_order_activity: &WorkOrderActivity,
+    ) -> Result<SupervisorParameter> {
         match self.supervisor_work_orders.get_mut(&work_order_activity.0) {
-            Some(inner) => {
-                Ok(inner.remove(&work_order_activity.1).context("SupervisorParameter entry did not exist")?)
-            },
+            Some(inner) => Ok(inner
+                .remove(&work_order_activity.1)
+                .context("SupervisorParameter entry did not exist")?),
             None => {
-                bail!("SupervisorParameter for WorkOrderNumber: {:?} did not exist", work_order_activity.0)
-            },
+                bail!(
+                    "SupervisorParameter for WorkOrderNumber: {:?} did not exist",
+                    work_order_activity.0
+                )
+            }
         }
     }
 
-    pub(crate) fn create(&mut self, scheduling_environment_lock: &MutexGuard<SchedulingEnvironment>, work_order_activity: &WorkOrderActivity)  {
+    pub(crate) fn create(
+        &mut self,
+        scheduling_environment_lock: &MutexGuard<SchedulingEnvironment>,
+        work_order_activity: &WorkOrderActivity,
+    ) {
         let operation = scheduling_environment_lock.operation(work_order_activity);
 
-        let supervisor_parameter = SupervisorParameter::new(
-            operation.resource.clone(),
-            operation.operation_info.number,
-        
-    );
-        self.supervisor_work_orders.entry(work_order_activity.0)
+        let supervisor_parameter =
+            SupervisorParameter::new(operation.resource.clone(), operation.operation_info.number);
+        self.supervisor_work_orders
+            .entry(work_order_activity.0)
             .or_insert_with(HashMap::new)
             .insert(work_order_activity.1, supervisor_parameter);
-
     }
 }
 
@@ -121,10 +148,14 @@ impl SupervisorParameter {
 }
 
 impl SupervisorAlgorithm {
-    pub fn new(resources: Vec<Resources>, arc_swap_shared_solution: Arc<ArcSwapSharedSolution>, supervisor_periods: &[Period]) -> Self {
+    pub fn new(
+        resources: Vec<Resources>,
+        arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
+        supervisor_periods: &[Period],
+    ) -> Self {
         let loaded_shared_solution = arc_swap_shared_solution.0.load();
         Self {
-            objective_value: f64::default(),
+            objective_value: SupervisorObjectiveValue::default(),
             resources,
             supervisor_parameters: SupervisorParameters::new(supervisor_periods.to_vec()),
             operational_state_machine: OperationalStateMachine::default(),
@@ -137,11 +168,10 @@ impl SupervisorAlgorithm {
     pub fn load_shared_solution(&mut self) {
         self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
     }
-
 }
 
 impl LargeNeighborHoodSearch for SupervisorAlgorithm {
-    type BetterSolution = f64;
+    type BetterSolution = SupervisorObjectiveValue;
     type SchedulingRequest = SupervisorSchedulingRequest;
     type SchedulingResponse = SupervisorResponseScheduling;
     type ResourceRequest = SupervisorResourceRequest;
@@ -153,40 +183,40 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
 
     fn calculate_objective_value(&mut self) -> Self::BetterSolution {
         let assigned_woas = &self
-            
             .operational_state_machine
             .number_of_assigned_work_orders();
 
-        let all_woas: HashSet<_> = self
-            
-            .operational_state_machine
-            .get_work_order_activities();
+        let all_woas: HashSet<_> = self.operational_state_machine.get_work_order_activities();
 
         assert!(is_assigned_part_of_all(assigned_woas, &all_woas));
 
-        let mut objective_value = assigned_woas.len() as f64 / all_woas.len() as f64;
+        let mut intermediate = assigned_woas.len() as f64 / all_woas.len() as f64;
+        if intermediate.is_nan() {
+            intermediate = 0.0;
+        };
 
-        if objective_value.is_nan() {
-            objective_value = 0.0
-        }
+        let objective_value = (intermediate * 1000.0) as u64;
+
         self.objective_value = objective_value;
         objective_value
     }
 
     fn schedule(&mut self) {
-        'next_work_order_activity: for work_order_activity in &self
-            
-            .operational_state_machine
-            .get_work_order_activities()
+        'next_work_order_activity: for work_order_activity in
+            &self.operational_state_machine.get_work_order_activities()
         {
+            event!(Level::WARN, "DETERMINE FLOW");
             let number = self
-                
-                .loaded_shared_solution.tactical.tactical_days.get(&work_order_activity.0).unwrap().as_ref().unwrap().get(&work_order_activity.1)
-                .expect("The Tactical Operation should be in present if present in the s.s.operational_state")
+                .supervisor_parameters
+                .supervisor_work_orders
+                .get(&work_order_activity.0)
+                .expect("The supervisor parameter should always be available")
+                .get(&work_order_activity.1)
+                .expect("The SupervisorParameter should always be available")
                 .number;
 
+            event!(Level::WARN, "DETERMINE FLOW");
             let mut operational_status_by_woa = self
-                
                 .operational_state_machine
                 .operational_status_by_woa(&work_order_activity);
 
@@ -206,6 +236,7 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
             let mut remaining_work_order_activities_to_be_state_changed_to_delegate_assign =
                 number - number_of_assigned;
 
+            event!(Level::WARN, "DETERMINE FLOW");
             for operational_agent in &operational_status_by_woa {
                 if operational_agent
                     .1
@@ -247,8 +278,7 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
     }
 
     fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) -> Result<()> {
-        self
-            .operational_state_machine
+        self.operational_state_machine
             .turn_work_order_into_delegate_assess(work_order_number);
         Ok(())
     }
@@ -260,10 +290,7 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
         todo!()
     }
 
-    fn update_time_state(
-        &mut self,
-        _message: Self::TimeRequest,
-    ) -> Result<Self::TimeResponse> {
+    fn update_time_state(&mut self, _message: Self::TimeRequest) -> Result<Self::TimeResponse> {
         todo!()
     }
 

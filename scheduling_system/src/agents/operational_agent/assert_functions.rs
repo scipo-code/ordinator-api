@@ -14,33 +14,15 @@ pub trait OperationalAssertions {
 
 impl OperationalAssertions for OperationalAgent {
     fn assert_operational_solutions_does_not_have_delegate_unassign(&self) -> Result<()> {
-        let work_order_solutions = self
+        for delegate in self
             .operational_algorithm
-            .operational_solutions
-            .work_order_activities
-            .iter()
-            .map(|(woa, _)| woa)
-            .cloned()
-            .collect::<Vec<WorkOrderActivity>>();
-
-        self.operational_algorithm
-            .operational_parameters
-            .work_order_parameters
-            .keys()
-            .for_each(|woa| {
-                if self
-                    .operational_algorithm
-                    .operational_parameters
-                    .work_order_parameters
-                    .get(woa)
-                    .unwrap()
-                    .delegated
-                    .load(Ordering::SeqCst)
-                    == Delegate::Unassign
-                {
-                    assert!(!work_order_solutions.contains(woa));
-                }
-            });
+            .loaded_shared_solution
+            .supervisor
+            .state_of_agent(&self.operational_id)
+            .values()
+        {
+            ensure!(delegate != &Delegate::Unassign)
+        }
 
         Ok(())
     }

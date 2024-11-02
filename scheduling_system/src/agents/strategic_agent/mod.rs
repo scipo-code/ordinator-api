@@ -144,7 +144,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
             StrategicRequestMessage::Status(strategic_status_message) => {
                 match strategic_status_message {
                     StrategicStatusMessage::General => {
-                        let strategic_objective =
+                        let strategic_objective_value =
                             self.strategic_algorithm.strategic_solution.objective_value;
 
                         let strategic_parameters = &self.strategic_algorithm.strategic_parameters;
@@ -158,7 +158,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
 
                         let strategic_response_status = StrategicResponseStatus::new(
                             asset.clone(),
-                            strategic_objective,
+                            strategic_objective_value,
                             number_of_strategic_work_orders,
                             number_of_periods,
                         );
