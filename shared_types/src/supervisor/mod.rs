@@ -19,6 +19,8 @@ use self::supervisor_status_message::SupervisorStatusMessage;
 use crate::Asset;
 use crate::{AlgorithmState, ConstraintState};
 
+pub type SupervisorObjectiveValue = u64;
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SupervisorRequest {
     pub asset: Asset,
