@@ -427,7 +427,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     .tactical_parameters()
                     .get(&current_work_order_number)
                     .unwrap(),
-                LoopState::ScheduledOrRemoved => {
+                LoopState::Scheduled => {
                     start_day_index = 0;
 
                     current_work_order_number = match self.priority_queue.pop() {
@@ -440,6 +440,23 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     self.tactical_parameters()
                         .get(&current_work_order_number)
                         .unwrap()
+                }
+                LoopState::ReleasedFromTactical => {
+                    // What should happen in here? I think that we need to create something that
+                    // will allow us to make the code run with
+                    self.tactical_solution
+                        .tactical_remove_work_order(&current_work_order_number);
+                    // So what should happen when this occurs? I think that the best approach here...
+                    // There are two things that can happen! Either we set the SchedulePeriod to None
+                    // or the scheduled_days to None, or both.. I think that there should always be
+                    // complete correspondence between the tactical and the Strategic here. What is
+                    // the best way of ensuring this? I think that it is to make the
+
+                    // When it is released it should go to the strategic agent! Yes! But is there
+                    // a way that we can reuse the state of the Period so that the Tactical and
+                    // Strategic does not both have a Period? Also, the tactical should always be
+                    // able to pull in work orders from the strategic and schedule them as well as
+                    // they possible can.
                 }
             };
 
@@ -464,10 +481,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             let start_day: Day = match allowed_starting_days.get(start_day_index) {
                 Some(start_day) => (*start_day).clone(),
                 None => {
-                    self.tactical_solution
-                        .tactical_remove_work_order(&current_work_order_number);
-
-                    loop_state = LoopState::ScheduledOrRemoved;
+                    loop_state = LoopState::ReleasedFromTactical;
                     continue 'main;
                 }
             };
@@ -599,7 +613,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 start_day.day_index()
             );
             self.update_loadings(&operation_solutions, LoadOperation::Add);
-            loop_state = LoopState::ScheduledOrRemoved;
+            loop_state = LoopState::Scheduled;
 
             self.tactical_solution.tactical_insert_work_order(
                 current_work_order_number,
@@ -733,7 +747,8 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
 enum LoopState {
     Unscheduled,
-    ScheduledOrRemoved,
+    Scheduled,
+    ReleasedFromTactical,
 }
 
 impl TacticalAlgorithm {

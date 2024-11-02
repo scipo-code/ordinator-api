@@ -12,12 +12,11 @@ use shared_types::scheduling_environment::{
     worker_environment::resources::Id,
 };
 
-use crate::agents::operational_agent::OperationalAgent;
+use crate::agents::{operational_agent::OperationalAgent, SupervisorSolution};
 
 use super::{
     algorithm::MarginalFitness,
     delegate::{AtomicDelegate, Delegate},
-    CapturedSupervisorState,
 };
 
 #[derive(Debug, Default)]
@@ -83,7 +82,7 @@ impl OperationalStateMachine {
             .collect()
     }
 
-    pub fn set_operational_state(&mut self, captured_supervisor_state: CapturedSupervisorState) {
+    pub fn set_operational_state(&mut self, captured_supervisor_state: SupervisorSolution) {
         for (id_work_order_activity, delegate) in captured_supervisor_state.state_of_each_agent {
             let self_delegate = self
                 .0
