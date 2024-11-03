@@ -1,5 +1,4 @@
 use actix::prelude::*;
-use anyhow::Context;
 use anyhow::Result;
 use shared_types::orchestrator::OrchestratorMessage;
 use shared_types::orchestrator::OrchestratorRequest;

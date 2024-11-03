@@ -39,11 +39,11 @@ use crate::agents::{
 
 use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
 
-use super::supervisor_agent::{algorithm::MarginalFitness, delegate::Delegate, SupervisorAgent};
+use super::supervisor_agent::SupervisorAgent;
+use super::traits::LargeNeighborHoodSearch;
 use super::ScheduleIteration;
 use super::SetAddr;
 use super::UpdateWorkOrderMessage;
-use super::{supervisor_agent::delegate::AtomicDelegate, traits::LargeNeighborHoodSearch};
 
 pub struct OperationalAgent {
     operational_id: Id,
@@ -86,6 +86,7 @@ impl OperationalAgent {
         event!(Level::INFO, id = ?self.operational_id, tactical_operation = ?self.operational_algorithm.loaded_shared_solution.tactical.tactical_days.get(&work_order_activity.0).unwrap());
         Ok(())
     }
+
     //TODO: DO NOT DELETE THIS FUNCTION!!!
     fn determine_start_and_finish_times(
         &self,
@@ -333,18 +334,9 @@ impl OperationalAgentBuilder {
     }
 }
 
-pub struct InitialMessage {
-    work_order_activity: WorkOrderActivity,
-    delegate: Arc<AtomicDelegate>,
-    marginal_fitness: MarginalFitness,
-    supervisor_id: Id,
-}
-
-impl InitialMessage {}
-
 type StrategicMessage = ();
 type TacticalMessage = ();
-type SupervisorMessage = InitialMessage;
+type SupervisorMessage = ();
 type OperationalMessage = ();
 
 impl

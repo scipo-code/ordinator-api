@@ -5,8 +5,6 @@ pub mod operational_state_machine;
 
 use anyhow::{bail, Context, Result};
 use assert_functions::SupervisorAssertions;
-use delegate::Delegate;
-use operational_state_machine::assert_functions::OperationalStateMachineAssertions;
 use rand::{prelude::SliceRandom, rngs::ThreadRng};
 use std::{
     collections::HashMap,
@@ -251,7 +249,7 @@ impl SupervisorAgent {
         let work_order_coming_from_tactical = self
             .supervisor_algorithm
             .loaded_shared_solution
-            .tactical
+            .strategic
             .supervisor_activities(
                 &self
                     .supervisor_algorithm
@@ -266,7 +264,18 @@ impl SupervisorAgent {
             .lock()
             .expect("Could not acquire SchedulingEnvironment lock");
 
-        for work_order_activity in work_order_coming_from_tactical {
+        let work_order_activities: Vec<_> = self
+            .scheduling_environment
+            .lock()
+            .unwrap()
+            .work_orders()
+            .inner
+            .iter()
+            .filter(|(won, _)| work_order_coming_from_tactical.contains(won))
+            .flat_map(|(won, wo)| wo.operations.keys().map(move |acn| (*won, *acn)))
+            .collect();
+
+        for work_order_activity in work_order_activities {
             self.supervisor_algorithm
                 .supervisor_parameters
                 .create(&locked_scheduling_environment, &work_order_activity);

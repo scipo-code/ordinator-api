@@ -1,57 +1,93 @@
+use anyhow::{bail, ensure, Result};
+use std::{borrow::Cow, collections::HashMap};
+use strum::IntoEnumIterator;
+use tracing::{event, Level};
+
+use shared_types::scheduling_environment::{
+    time_environment::day::Day, work_order::operation::Work,
+    worker_environment::resources::Resources,
+};
+
 use super::TacticalAgent;
 
 #[allow(dead_code)]
-trait TacticalAssertions {}
+pub trait TacticalAssertions {
+    fn asset_that_loading_matches_scheduled(&self) -> Result<()>;
 
-impl TacticalAssertions for TacticalAgent {}
-// impl TestAlgorithm for TacticalAlgorithm {
-//     type InfeasibleCases = TacticalInfeasibleCases;
+    fn asset_that_capacity_is_not_exceeded(&self) -> Result<()>;
+}
 
-//     #[instrument(level = "info", skip(self))]
-//     fn determine_algorithm_state(&self) -> AlgorithmState<Self::InfeasibleCases> {
-//         let mut algorithm_state = AlgorithmState::Infeasible(TacticalInfeasibleCases::default());
+impl TacticalAssertions for TacticalAlgorithm {
+    fn asset_that_loading_matches_scheduled(&self) -> Result<()> {
+        let mut aggregated_load: HashMap<Resources, HashMap<Day, Work>> = HashMap::new();
 
-//         let mut aggregated_load: HashMap<Resources, HashMap<Day, Work>> = HashMap::new();
-//         for (_work_order_number, optimized_work_order) in self.tactical_parameters().clone() {
-//             for (_activity, operation_solution) in
-//                 optimized_work_order.operation_solutions.unwrap_or_default()
-//             {
-//                 let resource = operation_solution.resource;
+        for (_work_order_number, tactical_solution) in &self
+            .tactical_solution
+            .tactical_days
+            .iter()
+            .filter(|(_, val)| val.is_some())
+            .collect::<Vec<_>>()
+        {
+            for (_activity, operation_solution) in tactical_solution.as_ref().unwrap() {
+                let resource = &operation_solution.resource;
 
-//                 for (day, load) in operation_solution.scheduled {
-//                     *aggregated_load
-//                         .entry(resource.clone())
-//                         .or_default()
-//                         .entry(day)
-//                         .or_insert(Work::from(0.0)) += load;
-//                 }
-//             }
-//         }
+                for (day, load) in &operation_solution.scheduled {
+                    *aggregated_load
+                        .entry(resource.clone())
+                        .or_default()
+                        .entry(day.clone())
+                        .or_insert(Work::from(0.0)) += load;
+                }
+            }
+        }
 
-//         algorithm_state
-//             .infeasible_cases_mut()
-//             .unwrap()
-//             .aggregated_load = (|| {
-//             for resource in Resources::iter() {
-//                 for day in &self.tactical_days {
-//                     let resource_map = match aggregated_load.get(&resource) {
-//                         Some(map) => Cow::Borrowed(map),
-//                         None => Cow::Owned(HashMap::new()),
-//                     };
+        for resource in Resources::iter() {
+            for day in &self.tactical_days {
+                let resource_map = match aggregated_load.get(&resource) {
+                    Some(map) => Cow::Borrowed(map),
+                    None => Cow::Owned(HashMap::new()),
+                };
 
-//                     let zero_work = Work::from(0.0);
-//                     let agg_load = resource_map.get(day).unwrap_or(&zero_work);
-//                     let sch_load = self.loading(&resource, day);
-//                     if (agg_load - sch_load) > Work::from(0.0)
-//                         || (agg_load - sch_load) < Work::from(0.0)
-//                     {
-//                         error!(agg_load = ?agg_load, sch_load = ?sch_load, resource = ?resource, day = ?day);
-//                         return ConstraintState::Infeasible(format!("Loads does not match on: day {}\nresource: {}\nscheduled load: {}\naggregated_load: {}", day, resource, sch_load, agg_load));
-//                     }
-//                 }
-//             }
-//             ConstraintState::Feasible
-//         })();
+                let zero_work = Work::from(0.0);
+                let agg_load = resource_map.get(day).unwrap_or(&zero_work);
+                let sch_load = self
+                    .tactical_solution
+                    .tactical_loadings
+                    .get_resource(&resource, day);
+                if (agg_load - sch_load).0.round_dp(9) != Work::from(0.0).0 {
+                    event!(Level::ERROR, agg_load = ?agg_load, sch_load = ?sch_load, resource = ?resource, day = ?day);
+                    bail!("Loads does not match on: day {}\nresource: {}\nscheduled load: {}\naggregated_load: {}", day, resource, sch_load, agg_load);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn asset_that_capacity_is_not_exceeded(&self) -> Result<()> {
+        for (resource, days) in &self
+            .tactical_solution
+            .tactical_loadings
+            .resources
+        {
+            for (day, load) in &days.days {
+                let capacity = self
+                    .tactical_parameters
+                    .tactical_capacity
+                    .get_resource(resource, day);
+
+                ensure!(
+                    load <= capacity,
+                    format!(
+                        "Load exceeds Capacity for resource: {:?} on day: {:?} with load {:?} and capacity {:?}",
+                        resource, day, load, capacity
+                    )
+                );
+            }
+        }
+        Ok(())
+    }
+}
 
 //         algorithm_state
 //             .infeasible_cases_mut()

@@ -1,6 +1,6 @@
 use actix::prelude::*;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use arc_swap::ArcSwap;
 use shared_types::operational::OperationalConfiguration;
 use shared_types::scheduling_environment::work_order::operation::Work;
