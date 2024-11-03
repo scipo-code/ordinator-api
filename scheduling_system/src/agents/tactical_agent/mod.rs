@@ -6,6 +6,7 @@ use actix::prelude::*;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use assert_functions::TacticalAssertions;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::tactical::tactical_response_status::TacticalResponseStatus;
@@ -125,6 +126,8 @@ impl Handler<ScheduleIteration> for TacticalAgent {
             .into_actor(self),
         );
         ctx.notify(ScheduleIteration {});
+        self.asset_that_loading_matches_scheduled().unwrap();
+        self.asset_that_capacity_is_not_exceeded().unwrap();
         Ok(())
     }
 }

@@ -1,7 +1,4 @@
-use std::sync::atomic::Ordering;
-
 use anyhow::{ensure, Result};
-use shared_types::scheduling_environment::work_order::WorkOrderActivity;
 
 use super::OperationalAgent;
 use crate::agents::supervisor_agent::delegate::Delegate;

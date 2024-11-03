@@ -8,7 +8,7 @@ pub mod traits;
 use std::collections::{HashMap, HashSet};
 
 use actix::{Addr, Message};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use arc_swap::ArcSwap;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
@@ -72,6 +72,22 @@ pub struct SupervisorSolution {
     state_of_each_agent: HashMap<(Id, WorkOrderActivity), Delegate>,
 }
 
+impl StrategicSolution {
+    pub fn supervisor_activities(&self, supervisor_periods: &[Period]) -> HashSet<WorkOrderNumber> {
+        let mut supervisor_work_orders: HashSet<WorkOrderNumber> = HashSet::new();
+
+        self.scheduled_periods.iter().for_each(|(won, opt_per)| {
+            if let Some(period) = opt_per {
+                if supervisor_periods.contains(period) {
+                    event!(Level::WARN, period = ?period);
+                    supervisor_work_orders.insert(*won);
+                }
+            }
+        });
+        supervisor_work_orders
+    }
+}
+
 impl SupervisorSolution {
     pub fn state_of_agent(&self, operational_agent: &Id) -> HashMap<WorkOrderActivity, Delegate> {
         self.state_of_each_agent
@@ -101,70 +117,49 @@ impl SupervisorSolution {
 
 impl TacticalSolution {
     pub fn tactical_remove_work_order(&mut self, work_order_number: &WorkOrderNumber) {
-        self.tactical_days.remove(work_order_number);
-        self.tactical_period.remove(work_order_number);
+        *self
+            .tactical_days
+            .get_mut(work_order_number)
+            .expect("Tacical State is wrong") = None;
     }
     pub fn tactical_day(
         &self,
         work_order_number: &WorkOrderNumber,
         activity_number: &ActivityNumber,
-    ) -> &Vec<(Day, Work)> {
-        &self
+    ) -> Result<&Vec<(Day, Work)>> {
+        let tactical_day = &self
             .tactical_days
             .get(&work_order_number)
-            .unwrap()
+            .with_context(|| {
+                format!(
+                    "WorkOrderNumber: {:?} was not present in the tactical solution",
+                    work_order_number
+                )
+            })?
             .as_ref()
-            .unwrap()
+            .with_context(|| {
+                format!(
+                    "WorkOrderNumber: {:?} was not scheduled for the tactical solution",
+                    work_order_number
+                )
+            })?
             .get(&activity_number)
-            .unwrap()
-            .scheduled
-    }
+            .with_context(|| {
+                format!(
+                    "ActivityNumber: {:?} was not present in the tactical solution",
+                    activity_number
+                )
+            })?
+            .scheduled;
 
-    pub fn tactical_period(&self, work_order_number: &WorkOrderNumber) -> &Option<Period> {
-        self.tactical_period.get(work_order_number).unwrap()
-    }
-
-    pub fn supervisor_activities(
-        &self,
-        supervisor_periods: &[Period],
-    ) -> HashSet<WorkOrderActivity> {
-        let mut supervisor_work_orders: HashSet<WorkOrderActivity> = HashSet::new();
-
-        event!(
-            Level::WARN,
-            number_of_tactical_work_orders_by_period = self.tactical_period.len()
-        );
-
-        self.tactical_period.iter().for_each(|(won, opt_per)| {
-            if let Some(period) = opt_per {
-                if supervisor_periods.contains(period) {
-                    event!(Level::WARN, period = ?period);
-                    let activities: Vec<_> = self
-                        .tactical_days
-                        .get(won)
-                        .expect("Should always be valid")
-                        .as_ref()
-                        .unwrap()
-                        .keys()
-                        .collect();
-
-                    for activity in activities {
-                        supervisor_work_orders.insert((*won, *activity));
-                    }
-                }
-            }
-        });
-        supervisor_work_orders
+        Ok(tactical_day)
     }
 
     fn tactical_insert_work_order(
         &mut self,
         work_order_number: WorkOrderNumber,
-        tactical_period: Option<Period>,
         tactical_days: HashMap<ActivityNumber, TacticalOperation>,
     ) {
-        self.tactical_period
-            .insert(work_order_number, tactical_period);
         self.tactical_days
             .insert(work_order_number, Some(tactical_days));
     }
