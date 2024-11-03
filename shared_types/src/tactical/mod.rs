@@ -129,47 +129,9 @@ impl TacticalResources {
         TacticalResources { resources }
     }
 
-    // fn to_string(&self, number_of_periods: u32) -> String {
-    //     let mut string = String::new();
-    //     let mut days = self
-    //         .resources
-    //         .values()
-    //         .flat_map(|inner_map| inner_map.keys())
-    //         .collect::<Vec<_>>();
-    //     days.sort();
-    //     days.dedup();
-
-    //     write!(string, "{:<12}", "Resource").ok();
-    //     for (nr_day, day) in days.iter().enumerate().take(number_of_periods as usize) {
-    //         match nr_day {
-    //             0..=13 => write!(string, "{:>12}", day.date().date_naive().to_string()).ok(),
-    //             14..=27 => write!(string, "{:>12}", day.date().date_naive().to_string()).ok(),
-    //             _ => write!(string, "{:>12}", day.date().date_naive().to_string()).ok(),
-    //         }
-    //         .unwrap()
-    //     }
-    //     writeln!(string).ok();
-
-    //     let mut sorted_resources: Vec<_> = self.resources.iter().collect();
-    //     sorted_resources.sort_by(|resource_a, resource_b| {
-    //         resource_a.0.to_string().cmp(&resource_b.0.to_string())
-    //     });
-    //     for resource in sorted_resources {
-    //         let inner_map = self.resources.get(resource.0).unwrap();
-    //         write!(string, "{:<12}", resource.0.variant_name()).unwrap();
-    //         for (nr_day, day) in days.iter().enumerate().take(number_of_periods as usize) {
-    //             let value = inner_map.get(day).unwrap();
-    //             match nr_day {
-    //                 0..=13 => write!(string, "{:>12}", value.round().to_string()).ok(),
-    //                 14..=27 => write!(string, "{:>12}", value.round().to_string()).ok(),
-    //                 _ => write!(string, "{:>12}", value.round()).ok(),
-    //             }
-    //             .unwrap();
-    //         }
-    //         writeln!(string).ok();
-    // }
-    // string
-    // }
+    pub fn get_resource(&self, resource: &Resources, day: &Day) -> &Work {
+        self.resources.get(resource).unwrap().get(day)
+    }
 
     pub fn new_from_data(resources: Vec<Resources>, tactical_days: Vec<Day>, load: Work) -> Self {
         let mut resource_capacity: HashMap<Resources, Days> = HashMap::new();

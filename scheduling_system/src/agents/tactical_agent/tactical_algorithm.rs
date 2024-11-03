@@ -119,7 +119,6 @@ impl OperationParameter {
 #[derive(Hash, PartialEq, PartialOrd, Ord, Eq, Clone, Debug, Serialize)]
 pub struct TacticalOperation {
     pub scheduled: Vec<(Day, Work)>,
-    pub scheduled_period: Option<Period>,
     pub resource: Resources,
     pub number: NumberOfPeople,
     pub work_remaining: Work,
@@ -129,7 +128,6 @@ pub struct TacticalOperation {
 impl TacticalOperation {
     pub fn new(
         scheduled: Vec<(Day, Work)>,
-        scheduled_period: Option<Period>,
         resource: Resources,
         number: NumberOfPeople,
         work_remaining: Work,
@@ -138,7 +136,6 @@ impl TacticalOperation {
     ) -> TacticalOperation {
         TacticalOperation {
             scheduled,
-            scheduled_period,
             resource,
             number,
             work_remaining,
@@ -321,9 +318,6 @@ impl TacticalAlgorithm {
             self.tactical_solution
                 .tactical_days
                 .insert(*work_order_number, None);
-            self.tactical_solution
-                .tactical_period
-                .insert(*work_order_number, None);
         }
         self.make_atomic_pointer_swap_for_with_the_better_tactical_solution();
     }
@@ -358,9 +352,20 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
     fn calculate_objective_value(&mut self) -> Self::BetterSolution {
         let mut objective_value_from_tardiness = 0;
-        for (work_order_number, _tactical_solution) in self.tactical_solution.tactical_days.iter() {
+        for (work_order_number, _tactical_solution) in self
+            .tactical_solution
+            .tactical_days
+            .iter()
+            .filter(|(_, ts)| ts.is_some())
+        {
             let tactical_parameter = self.tactical_parameters().get(work_order_number).unwrap();
-            let period_start_date = match &self.tactical_solution.tactical_period(work_order_number)
+            let period_start_date = match &self
+                .loaded_shared_solution
+                .strategic
+                .scheduled_periods
+                .get(work_order_number)
+                .expect("The strategic and tactical solution should have the same WorkOrderNumber's available at all times")
+
             {
                 Some(period) => period.start_date().date_naive(),
                 None => tactical_parameter.earliest_allowed_start_date,
@@ -379,6 +384,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             let last_day = self
                 .tactical_solution
                 .tactical_day(work_order_number, last_activity)
+                .expect("Missing state from the tactical agent when calculating objective value")
                 .last()
                 .unwrap()
                 .0
@@ -457,26 +463,35 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     // Strategic does not both have a Period? Also, the tactical should always be
                     // able to pull in work orders from the strategic and schedule them as well as
                     // they possible can.
+                    start_day_index = 0;
+
+                    current_work_order_number = match self.priority_queue.pop() {
+                        Some((work_order_number, _)) => work_order_number,
+                        None => {
+                            break;
+                        }
+                    };
+
+                    self.tactical_parameters()
+                        .get(&current_work_order_number)
+                        .unwrap()
                 }
             };
 
             let mut all_days = self.tactical_days.clone();
-            let allowed_starting_days: Vec<&Day> = match self
-                .tactical_solution
-                .tactical_period(&current_work_order_number)
-            {
-                Some(period) => all_days
-                    .iter()
-                    .filter(|date| period.contains_date(date.date().date_naive()))
-                    .collect(),
-                None => self
-                    .tactical_days
-                    .iter()
-                    .filter(|day| {
-                        tactical_parameter.earliest_allowed_start_date <= day.date().date_naive()
-                    })
-                    .collect(),
-            };
+            // What should happen here? I think that the general idea is that the tactical algorithm should
+            // simply try its best to schedule completely ignoreing the strategic in its valid domain. I think
+            // that this is the best course of action.
+            // What is it that you want? It main loop in here should simply be scheduling all relevant work orders
+            // That means that we should strive to. What should happen here then? I think that the best approach
+            // would be
+            let allowed_starting_days: Vec<&Day> = self
+                .tactical_days
+                .iter()
+                .filter(|day| {
+                    tactical_parameter.earliest_allowed_start_date <= day.date().date_naive()
+                })
+                .collect();
 
             let start_day: Day = match allowed_starting_days.get(start_day_index) {
                 Some(start_day) => (*start_day).clone(),
@@ -502,9 +517,6 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 .collect::<Vec<&ActivityNumber>>();
 
             sorted_activities.sort();
-
-            let mut work_order_scheduled_period_bool = true;
-            let mut work_order_scheduled_period = None;
 
             for activity in sorted_activities {
                 let operation_parameters = tactical_parameter
@@ -586,18 +598,8 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     };
                 }
 
-                let scheduled_period = self.tactical_periods.iter().find(|per| {
-                    per.contains_date(activity_load.first().unwrap().0.date().date_naive())
-                });
-
-                if work_order_scheduled_period_bool {
-                    work_order_scheduled_period = scheduled_period.cloned();
-                    work_order_scheduled_period_bool = false;
-                }
-
                 let operation_solution = TacticalOperation::new(
                     activity_load,
-                    scheduled_period.cloned(),
                     resource,
                     operation_parameters.number,
                     operation_parameters.work_remaining.clone(),
@@ -615,11 +617,8 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             self.update_loadings(&operation_solutions, LoadOperation::Add);
             loop_state = LoopState::Scheduled;
 
-            self.tactical_solution.tactical_insert_work_order(
-                current_work_order_number,
-                work_order_scheduled_period,
-                operation_solutions,
-            );
+            self.tactical_solution
+                .tactical_insert_work_order(current_work_order_number, operation_solutions);
 
             // TODO: This should be removed. The parameters are not guiding.
             // the solutions are! That is important to remember!
@@ -631,15 +630,6 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 event!(Level::ERROR, unscheduled_work_order = ?current_work_order_number);
                 panic!("Unscheduled work order got through the schedule function");
             }
-        }
-
-        if self
-            .tactical_solution
-            .tactical_days
-            .iter()
-            .any(|wo| wo.1.is_none())
-        {
-            panic!("The TacticalAlgorithm.schedule() did not schedule all work orders");
         }
     }
 
@@ -951,7 +941,6 @@ pub mod tests {
                 tactical_algorithm.tactical_days[27].clone(),
                 Work::from(1.0),
             )],
-            None,
             Resources::MtnMech,
             operation_parameter.number,
             operation_parameter.work_remaining.clone(),
@@ -1048,6 +1037,7 @@ pub mod tests {
         let scheduled_date = tactical_algorithm
             .tactical_solution
             .tactical_day(&work_order_number, &ActivityNumber(1))
+            .expect("")
             .first()
             .unwrap()
             .0
@@ -1123,6 +1113,7 @@ pub mod tests {
         let scheduled_date = tactical_algorithm
             .tactical_solution
             .tactical_day(&work_order_number, &ActivityNumber(1))
+            .unwrap()
             .first()
             .unwrap()
             .0
