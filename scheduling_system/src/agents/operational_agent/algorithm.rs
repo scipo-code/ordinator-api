@@ -32,11 +32,7 @@ use shared_types::{
 use tracing::{event, Level};
 
 use crate::agents::{
-    supervisor_agent::{
-        algorithm::MarginalFitness,
-        delegate::{AtomicDelegate, Delegate},
-    },
-    traits::LargeNeighborHoodSearch,
+    supervisor_agent::algorithm::MarginalFitness, traits::LargeNeighborHoodSearch,
     ArcSwapSharedSolution, SharedSolution,
 };
 
@@ -993,24 +989,13 @@ mod tests {
         scheduling_environment::{
             work_order::{
                 operation::{ActivityNumber, Work},
-                WorkOrderActivity, WorkOrderNumber,
+                WorkOrderNumber,
             },
-            worker_environment::{
-                availability::Availability,
-                resources::{Id, Resources},
-            },
+            worker_environment::availability::Availability,
         },
-        TomlSupervisor,
     };
 
-    use crate::agents::{
-        operational_agent::algorithm::OperationalEvents,
-        supervisor_agent::{
-            algorithm::MarginalFitness,
-            delegate::{AtomicDelegate, Delegate},
-        },
-        ArcSwapSharedSolution,
-    };
+    use crate::agents::{operational_agent::algorithm::OperationalEvents, ArcSwapSharedSolution};
 
     use super::{OperationalAlgorithm, OperationalParameter};
 
@@ -1179,12 +1164,6 @@ mod tests {
             off_shift_interval.clone(),
             toolbox_interval.clone(),
         );
-
-        let toml_supervisor = TomlSupervisor {
-            id: "test_supervisor".to_string(),
-            resource: Some(Resources::MtnMech),
-            number_of_supervisor_periods: 3,
-        };
 
         let operational_algorithm = OperationalAlgorithm::new(
             operational_configuration,

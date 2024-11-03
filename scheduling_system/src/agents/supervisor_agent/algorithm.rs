@@ -103,23 +103,6 @@ impl SupervisorParameters {
             .context(format!("WorkOrderNumber: {:?} with ActivityNumber: {:?} was not part of the SupervisorParameters", work_order_activity.0, work_order_activity.1))?)
     }
 
-    pub(crate) fn remove_supervisor_parameter(
-        &mut self,
-        work_order_activity: &WorkOrderActivity,
-    ) -> Result<SupervisorParameter> {
-        match self.supervisor_work_orders.get_mut(&work_order_activity.0) {
-            Some(inner) => Ok(inner
-                .remove(&work_order_activity.1)
-                .context("SupervisorParameter entry did not exist")?),
-            None => {
-                bail!(
-                    "SupervisorParameter for WorkOrderNumber: {:?} did not exist",
-                    work_order_activity.0
-                )
-            }
-        }
-    }
-
     pub(crate) fn create(
         &mut self,
         scheduling_environment_lock: &MutexGuard<SchedulingEnvironment>,
