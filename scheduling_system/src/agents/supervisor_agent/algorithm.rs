@@ -4,7 +4,7 @@ use std::{
     sync::{atomic::AtomicUsize, Arc, MutexGuard},
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use arc_swap::Guard;
 use shared_types::{
     scheduling_environment::{

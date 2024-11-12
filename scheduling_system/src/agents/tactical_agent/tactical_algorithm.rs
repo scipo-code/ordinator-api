@@ -1,7 +1,7 @@
 use actix::Message;
 use anyhow::{bail, Context, Result};
 use arc_swap::Guard;
-use chrono::NaiveDate;
+use chrono::{NaiveDate, TimeDelta};
 use priority_queue::PriorityQueue;
 use rand::seq::SliceRandom;
 use serde::Serialize;
@@ -41,6 +41,8 @@ use shared_types::scheduling_environment::{
     time_environment::period::Period,
     work_order::{ActivityRelation, WorkOrder},
 };
+
+use super::assert_functions::TacticalAssertions;
 
 pub struct TacticalAlgorithm {
     pub tactical_periods: Vec<Period>,
@@ -194,8 +196,8 @@ impl TacticalAlgorithm {
     }
 
     pub fn capacity(&self, resource: &Resources, day: &Day) -> &Work {
-        self.tactical_solution
-            .tactical_loadings
+        self.tactical_parameters
+            .tactical_capacity
             .resources
             .get(resource)
             .unwrap()
@@ -273,6 +275,7 @@ impl TacticalAlgorithm {
 
         let random_work_order_numbers =
             work_order_numbers.choose_multiple(rng, number_of_work_orders as usize);
+
         for work_order_number in random_work_order_numbers {
             self.unschedule(*work_order_number).with_context(|| {
                 format!(
@@ -296,6 +299,7 @@ impl TacticalAlgorithm {
                 }
             }
         }
+
         objective_value_from_excess
     }
 
@@ -340,7 +344,7 @@ impl TacticalAlgorithm {
 }
 
 impl LargeNeighborHoodSearch for TacticalAlgorithm {
-    type BetterSolution = ();
+    type BetterSolution = TacticalObjectiveValue;
     type SchedulingRequest = TacticalSchedulingRequest;
     type SchedulingResponse = TacticalResponseScheduling;
     type ResourceRequest = TacticalResourceRequest;
@@ -391,16 +395,24 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 .date()
                 .date_naive();
 
-            let day_difference = last_day - period_start_date;
+            let day_difference = (last_day - period_start_date).max(TimeDelta::zero());
 
             objective_value_from_tardiness +=
-                tactical_parameter.weight as i64 * day_difference.num_days();
+                tactical_parameter.weight as u64 * day_difference.num_days() as u64;
         }
 
         // Calculate penalty for exceeding the capacity
-        let objective_value_from_excess = 1000000 * self.determine_aggregate_excess();
+        let objective_value_from_excess = 1000000000 * self.determine_aggregate_excess();
         self.tactical_solution.objective_value.0 =
             objective_value_from_tardiness as u64 + objective_value_from_excess;
+        event!(
+            Level::WARN,
+            objective_value_from_excess = ?objective_value_from_excess,
+            objective_value_from_tardiness = ?objective_value_from_tardiness,
+            tactical_objective_value = ?self.tactical_solution.objective_value
+        );
+
+        self.tactical_solution.objective_value.clone()
     }
 
     fn schedule(&mut self) {
@@ -422,12 +434,24 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
 
         let mut loop_state: LoopState = LoopState::Unscheduled;
 
+        event!(
+            Level::INFO,
+            scheduled_work_orders = self
+                .tactical_solution
+                .tactical_days
+                .iter()
+                .filter(|ele| ele.1.is_some())
+                .count(),
+            all_work_orders = self.tactical_solution.tactical_days.len()
+        );
         let mut current_work_order_number = match self.priority_queue.pop() {
             Some((work_order_number, _)) => work_order_number,
             None => return,
         };
 
         'main: loop {
+            let mut operation_solutions = HashMap::<ActivityNumber, TacticalOperation>::new();
+
             let tactical_parameter = match loop_state {
                 LoopState::Unscheduled => self
                     .tactical_parameters()
@@ -439,6 +463,17 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     current_work_order_number = match self.priority_queue.pop() {
                         Some((work_order_number, _)) => work_order_number,
                         None => {
+                            event!(
+                                Level::INFO,
+                                scheduled_work_orders = self
+                                    .tactical_solution
+                                    .tactical_days
+                                    .iter()
+                                    .filter(|ele| ele.1.is_some())
+                                    .count(),
+                                all_work_orders = self.tactical_solution.tactical_days.len()
+                            );
+
                             break;
                         }
                     };
@@ -479,12 +514,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             };
 
             let mut all_days = self.tactical_days.clone();
-            // What should happen here? I think that the general idea is that the tactical algorithm should
-            // simply try its best to schedule completely ignoreing the strategic in its valid domain. I think
-            // that this is the best course of action.
-            // What is it that you want? It main loop in here should simply be scheduling all relevant work orders
-            // That means that we should strive to. What should happen here then? I think that the best approach
-            // would be
+
             let allowed_starting_days: Vec<&Day> = self
                 .tactical_days
                 .iter()
@@ -506,8 +536,6 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 .filter(|date| start_day.date() <= date.date())
                 .collect();
 
-            let mut operation_solutions = HashMap::<ActivityNumber, TacticalOperation>::new();
-
             let mut current_day = allowed_days.into_iter().peekable();
 
             let mut sorted_activities = tactical_parameter
@@ -519,11 +547,13 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             sorted_activities.sort();
 
             for activity in sorted_activities {
+                let mut activity_load = Vec::<(Day, Work)>::new();
+
                 let operation_parameters = tactical_parameter
                     .operation_parameters
                     .get(activity)
                     .expect("The work order should always have its corresponding parameters");
-                let mut activity_load = Vec::<(Day, Work)>::new();
+
                 let resource = operation_parameters.resource.clone();
 
                 let current_day_peek = match current_day.peek() {
@@ -535,7 +565,11 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                             operation_solutions = ?operation_solutions,
                             "Work order did not fit in the tactical schedule"
                         );
-                        break;
+                        // Why do we break here? Because we ran out of days!
+
+                        // loop_state
+                        loop_state = LoopState::ReleasedFromTactical;
+                        continue 'main;
                     }
                 };
 
@@ -543,12 +577,9 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                     match self.remaining_capacity(&resource, current_day_peek) {
                         Some(remaining_capacity) => remaining_capacity,
                         None => {
-                            if start_day_index <= 12 {
-                                start_day_index += 1;
-                                loop_state = LoopState::Unscheduled;
-                                continue 'main;
-                            }
-                            Work::from(0.0)
+                            start_day_index += 1;
+                            loop_state = LoopState::Unscheduled;
+                            continue 'main;
                         }
                     };
 
@@ -585,13 +616,14 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                                 operation_solutions = ?operation_solutions,
                                 "Work order did not fit in the tactical schedule"
                             );
-                            // brak should schedule what is possible and cut the rest out.
+                            // brake should schedule what is possible and cut the rest out.
                             break;
                         }
                     };
-                    if start_day_index <= 12
-                        && self.remaining_capacity(&resource, current_day).is_none()
-                    {
+
+                    // This is the problem! It says that if the start day index is the last day of the schedule
+                    // then we should just go ahead, act like nothing and schedule it
+                    if self.remaining_capacity(&resource, current_day).is_none() {
                         start_day_index += 1;
                         loop_state = LoopState::Unscheduled;
                         continue 'main;
@@ -617,6 +649,8 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             self.update_loadings(&operation_solutions, LoadOperation::Add);
             loop_state = LoopState::Scheduled;
 
+            // This is always called. For each work order... As long as the days are inside of the
+            // period.
             self.tactical_solution
                 .tactical_insert_work_order(current_work_order_number, operation_solutions);
 

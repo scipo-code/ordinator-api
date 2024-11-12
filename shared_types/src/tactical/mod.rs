@@ -17,7 +17,7 @@ use crate::{
     AlgorithmState, Asset, ConstraintState,
 };
 use actix::Message;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::*;
 
@@ -158,5 +158,23 @@ impl TacticalResources {
                     .unwrap() = day.1;
             }
         }
+    }
+
+    pub fn determine_period_load(
+        &self,
+        resource: &Resources,
+        period: &crate::scheduling_environment::time_environment::period::Period,
+    ) -> Result<Work> {
+        let days = &self
+            .resources
+            .get(resource)
+            .with_context(|| format!("The resources between the strategic and the tactical should always correspond, unless that the tactical has not been initialized yet"))?
+            .days;
+
+        Ok(days
+            .iter()
+            .filter(|(day, _)| period.contains_date(day.date().date_naive()))
+            .map(|(_, work)| work)
+            .fold(Work::from(0.0), |acc, work| &acc + work))
     }
 }

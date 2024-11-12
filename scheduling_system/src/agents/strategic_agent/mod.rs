@@ -111,7 +111,10 @@ impl Handler<ScheduleIteration> for StrategicAgent {
             self.strategic_algorithm
                 .make_atomic_pointer_swap_for_with_the_better_strategic_solution();
 
-            event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value,);
+            event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value,
+                scheduled_work_orders = ?self.strategic_algorithm.strategic_solution.scheduled_periods.iter().filter(|ele| ele.1.is_some()).count(),
+                total_work_orders = ?self.strategic_algorithm.strategic_solution.scheduled_periods.len()
+            );
         } else {
             self.strategic_algorithm.strategic_solution = old_strategic_solution;
         }

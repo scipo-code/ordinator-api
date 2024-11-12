@@ -257,6 +257,7 @@ impl SupervisorAgent {
                     .supervisor_periods,
             );
 
+        event!(Level::WARN, "FIND STOP POINT");
         event!(Level::WARN, number_coming_from_tactical = ?work_order_coming_from_tactical);
 
         let locked_scheduling_environment = self
@@ -264,10 +265,9 @@ impl SupervisorAgent {
             .lock()
             .expect("Could not acquire SchedulingEnvironment lock");
 
-        let work_order_activities: Vec<_> = self
-            .scheduling_environment
-            .lock()
-            .unwrap()
+        event!(Level::WARN, "FIND STOP POINT");
+        dbg!(&work_order_coming_from_tactical);
+        let work_order_activities: Vec<_> = locked_scheduling_environment
             .work_orders()
             .inner
             .iter()
@@ -275,11 +275,13 @@ impl SupervisorAgent {
             .flat_map(|(won, wo)| wo.operations.keys().map(move |acn| (*won, *acn)))
             .collect();
 
+        event!(Level::WARN, "FIND STOP POINT");
         for work_order_activity in work_order_activities {
             self.supervisor_algorithm
                 .supervisor_parameters
                 .create(&locked_scheduling_environment, &work_order_activity);
 
+            event!(Level::WARN, "FIND STOP POINT");
             for operational_agent in &self.operational_agent_addrs {
                 if operational_agent.0 .1.contains(
                     &self

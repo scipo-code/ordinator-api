@@ -7,6 +7,7 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use assert_functions::TacticalAssertions;
+use itertools::Itertools;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::tactical::tactical_response_status::TacticalResponseStatus;
@@ -93,9 +94,9 @@ impl Handler<ScheduleIteration> for TacticalAgent {
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut actix::Context<Self>) -> Self::Result {
         let mut rng = rand::thread_rng();
         self.tactical_algorithm.load_shared_solution();
+
         let current_tactical_solution = self.tactical_algorithm.tactical_solution.clone();
 
-        event!(Level::INFO, tactical_objective_value = ?current_tactical_solution.objective_value);
         self.tactical_algorithm
             .unschedule_random_work_orders(&mut rng, 50)
             .context("random unschedule failed")
@@ -103,16 +104,41 @@ impl Handler<ScheduleIteration> for TacticalAgent {
 
         self.tactical_algorithm.schedule();
 
-        self.tactical_algorithm.calculate_objective_value();
+        let new_objective_value = self.tactical_algorithm.calculate_objective_value();
 
+        let total_excess_hours = self.tactical_algorithm.asset_that_capacity_is_not_exceeded().ok();
+        
         if self.tactical_algorithm.tactical_solution.objective_value
             < current_tactical_solution.objective_value
         {
             self.tactical_algorithm
                 .make_atomic_pointer_swap_for_with_the_better_tactical_solution();
 
-            event!(Level::INFO, tactical_objective_value = ?self.tactical_algorithm.tactical_solution.objective_value);
+
+            event!(Level::INFO,
+                 new_tactical_objective_value = ?self.tactical_algorithm.tactical_solution.objective_value,
+                 tactical_objective_value = ?current_tactical_solution.objective_value,
+                 difference_in_objective_value = self.tactical_algorithm.tactical_solution.objective_value.0 as i64 - current_tactical_solution.objective_value.0 as i64, 
+                 total_excess_hours = ?total_excess_hours,
+                 scheduled_work_orders = self
+                .tactical_algorithm
+                .tactical_solution
+                .tactical_days
+                .iter()
+                .filter(|ele| ele.1.is_some())
+                .count(),
+                all_work_orders = self
+                    .tactical_algorithm
+                    .tactical_solution
+                    .tactical_days
+                    .len());
+
+
         } else {
+            // event!(Level::INFO,
+            //      new_tactical_objective_value = ?self.tactical_algorithm.tactical_solution.objective_value,
+            //      tactical_objective_value = ?current_tactical_solution.objective_value,
+            //      difference_in_objective_value = self.tactical_algorithm.tactical_solution.objective_value.0 - current_tactical_solution.objective_value.0,  "worse solution, reverting back to initial solution");
             self.tactical_algorithm.tactical_solution = current_tactical_solution;
         };
 
@@ -126,8 +152,9 @@ impl Handler<ScheduleIteration> for TacticalAgent {
             .into_actor(self),
         );
         ctx.notify(ScheduleIteration {});
-        self.asset_that_loading_matches_scheduled().unwrap();
-        self.asset_that_capacity_is_not_exceeded().unwrap();
+        self.tactical_algorithm
+            .asset_that_loading_matches_scheduled()
+            .unwrap();
         Ok(())
     }
 }

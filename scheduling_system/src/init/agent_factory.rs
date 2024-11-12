@@ -252,6 +252,9 @@ fn initialize_tactical_resources(
     start_value: Work,
 ) -> TacticalResources {
     let mut resource_capacity: HashMap<Resources, Days> = HashMap::new();
+    dbg!(&scheduling_environment
+        .worker_environment()
+        .get_work_centers());
     for resource in scheduling_environment
         .worker_environment()
         .get_work_centers()

@@ -109,17 +109,44 @@ impl StrategicAlgorithm {
     }
 }
 
+pub enum ForcedWorkOrder {
+    Locked,
+    FromTactical(Period),
+}
+
 impl StrategicAlgorithm {
     pub fn schedule_forced_work_orders(&mut self) {
-        let mut work_order_numbers: Vec<WorkOrderNumber> = vec![];
+        let tactical_work_orders = &self.loaded_shared_solution.tactical.tactical_days;
+        let mut work_order_numbers: Vec<(WorkOrderNumber, ForcedWorkOrder)> = vec![];
         for (work_order_number, opt_work_order) in self.strategic_parameters.strategic_work_order_parameters.iter() {
             let scheduled_period = self.strategic_solution.scheduled_periods.get(work_order_number).unwrap();
+
+            let tactical_work_order = tactical_work_orders.get(work_order_number).expect("State should always be present except if the TacticalAgent has not had time to initialize yet");
+
             if scheduled_period == &opt_work_order.locked_in_period {
                 continue
             }
+
             if opt_work_order.locked_in_period.is_some() {
-                work_order_numbers.push(*work_order_number);
-            }
+                work_order_numbers.push((*work_order_number, ForcedWorkOrder::Locked));
+            } else if tactical_work_order.is_some() {
+                let first_day = tactical_work_order
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .min_by(|ele1 , ele2| {
+                        ele1.1.scheduled[0].0.date().date_naive().cmp(&ele2.1.scheduled[0].0.date().date_naive())
+                    }).unwrap()
+                    .1
+                    .scheduled[0].0.date().date_naive();
+
+                let tactical_period = self.periods.iter().find(|per| per.contains_date(first_day)).expect("This result would come directly from the tactical agent. It should always find a Period in the Vec<Period>");
+
+                work_order_numbers.push((*work_order_number, ForcedWorkOrder::FromTactical(tactical_period.clone())));
+            } 
+            
+
+             
         }
 
         for work_order_number in work_order_numbers {
@@ -143,9 +170,11 @@ impl StrategicAlgorithm {
             for (resource, resource_needed) in strategic_parameter.work_load.iter() {
                 let resource_capacity: &Work = self.strategic_capacity(resource, period);
 
-                let resource_loading: &Work = self.strategic_loading(resource, period);
+                let loading_coming_from_the_tactical_agent = self.loaded_shared_solution.tactical.tactical_loadings.determine_period_load(resource, period).unwrap_or_default();
 
-                if *resource_needed > resource_capacity - resource_loading {
+                let resource_loading: Work = self.strategic_loading(resource, period) + &loading_coming_from_the_tactical_agent;
+
+                if *resource_needed > resource_capacity - &resource_loading {
                     return Some(work_order_number);
                 }
 
@@ -169,18 +198,22 @@ impl StrategicAlgorithm {
         None
     }
 
-    pub fn schedule_forced_work_order(&mut self, work_order_number: &WorkOrderNumber) {
-        if let Some(work_order_number) = self.is_scheduled(work_order_number) {
+    pub fn schedule_forced_work_order(&mut self, work_order_number: &(WorkOrderNumber, ForcedWorkOrder)) {
+        
+        if let Some(work_order_number) = self.is_scheduled(&work_order_number.0) {
             self.unschedule(*work_order_number).unwrap();
         }
 
-        let target_period = self
+        let locked_period = match &work_order_number.1 {
+            ForcedWorkOrder::Locked => self
             .strategic_parameters
-            .get_locked_in_period(work_order_number);
+            .get_locked_in_period(&work_order_number.0),
+            ForcedWorkOrder::FromTactical(period) => period ,
+        };
 
-        *self.strategic_solution.scheduled_periods.get_mut(work_order_number).unwrap() = Some(target_period.clone());
+        *self.strategic_solution.scheduled_periods.get_mut(&work_order_number.0).unwrap() = Some(locked_period.clone());
 
-        self.update_loadings(*work_order_number, target_period.clone(), LoadOperation::Add);
+        self.update_loadings(work_order_number.0, locked_period.clone(), LoadOperation::Add);
     }
 
     pub fn unschedule_random_work_orders(
@@ -306,8 +339,10 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
             }
         }
 
+
+        dbg!(&period_penalty_contribution, &excess_penalty_contribution);
         self.strategic_solution.objective_value = 
-            period_penalty_contribution + 0 * excess_penalty_contribution;
+            period_penalty_contribution + 2 * excess_penalty_contribution;
 
     }
 
@@ -1023,7 +1058,7 @@ mod tests {
            Work::from( 0.0)
         );
 
-        strategic_algorithm.schedule_forced_work_order(&work_order_number);
+        strategic_algorithm.schedule_forced_work_order(&(work_order_number, ForcedWorkOrder::Locked));
 
         assert_eq!(
             *strategic_algorithm
@@ -1044,7 +1079,7 @@ mod tests {
         strategic_algorithm
             .strategic_parameters
             .set_locked_in_period(work_order_number, period_2.clone());
-        strategic_algorithm.schedule_forced_work_order(&work_order_number);
+        strategic_algorithm.schedule_forced_work_order(&(work_order_number, ForcedWorkOrder::Locked));
 
         assert_eq!(
             *strategic_algorithm
