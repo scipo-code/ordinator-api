@@ -12,9 +12,7 @@ use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use crate::agents::operational_agent::algorithm::{
-    OperationalAlgorithm, OperationalObjectiveValue,
-};
+use crate::agents::operational_agent::algorithm::OperationalAlgorithm;
 use crate::agents::operational_agent::{OperationalAgent, OperationalAgentBuilder};
 use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::StrategicParameters;
 use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
@@ -125,8 +123,6 @@ impl AgentFactory {
 
         let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
-        let tactical_periods = scheduling_environment_guard.tactical_periods().clone();
-
         let mut tactical_resources_capacity =
             initialize_tactical_resources(&scheduling_environment_guard, Work::from(0.0));
 
@@ -139,7 +135,6 @@ impl AgentFactory {
 
         let mut tactical_algorithm = TacticalAlgorithm::new(
             scheduling_environment_guard.tactical_days().clone(),
-            tactical_periods.clone(),
             tactical_resources_capacity,
             tactical_resources_loading,
             strategic_tactical_optimized_work_orders,
@@ -154,7 +149,6 @@ impl AgentFactory {
             let tactical_addr = TacticalAgent::new(
                 asset,
                 0,
-                tactical_periods,
                 strategic_agent_addr,
                 tactical_algorithm,
                 arc_scheduling_environment,
@@ -196,11 +190,11 @@ impl AgentFactory {
 
     pub fn build_operational_agent(
         &self,
-        id_operational: Id,
+        operational_id: Id,
         operational_configuration: OperationalConfiguration,
         supervisor_agent_addr: HashMap<Id, Addr<SupervisorAgent>>,
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
-    ) -> (OperationalObjectiveValue, Addr<OperationalAgent>) {
+    ) -> Addr<OperationalAgent> {
         let (sender, receiver) = std::sync::mpsc::channel::<Addr<OperationalAgent>>();
 
         let arc_scheduling_environment = self.scheduling_environment.clone();
@@ -208,11 +202,21 @@ impl AgentFactory {
         let operational_algorithm =
             OperationalAlgorithm::new(operational_configuration.clone(), arc_swap_shared_solution);
 
-        let operational_objective_value =
-            Arc::clone(&operational_algorithm.operational_solutions.objective_value);
+        let mut shared_solution_clone = (**operational_algorithm.loaded_shared_solution).clone();
+
+        shared_solution_clone.operational.insert(
+            operational_id.clone(),
+            operational_algorithm.operational_solution.clone(),
+        );
+
+        operational_algorithm
+            .arc_swap_shared_solution
+            .0
+            .store(Arc::new(shared_solution_clone));
+
         Arbiter::new().spawn_fn(move || {
             let operational_agent_addr = OperationalAgentBuilder::new(
-                id_operational,
+                operational_id,
                 arc_scheduling_environment,
                 operational_configuration,
                 operational_algorithm,
@@ -224,7 +228,7 @@ impl AgentFactory {
             sender.send(operational_agent_addr).unwrap();
         });
 
-        (operational_objective_value, receiver.recv().unwrap())
+        receiver.recv().unwrap()
     }
 }
 
@@ -252,9 +256,6 @@ fn initialize_tactical_resources(
     start_value: Work,
 ) -> TacticalResources {
     let mut resource_capacity: HashMap<Resources, Days> = HashMap::new();
-    dbg!(&scheduling_environment
-        .worker_environment()
-        .get_work_centers());
     for resource in scheduling_environment
         .worker_environment()
         .get_work_centers()

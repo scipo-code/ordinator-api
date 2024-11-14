@@ -2,12 +2,11 @@ pub mod algorithm;
 pub mod assert_functions;
 pub mod operational_events;
 
-use algorithm::OperationalSolutions;
 use anyhow::{Context, Result};
 use assert_functions::OperationalAssertions;
 use std::{
     collections::HashMap,
-    sync::{atomic::Ordering, Arc, Mutex},
+    sync::{Arc, Mutex},
 };
 
 use actix::prelude::*;
@@ -34,10 +33,11 @@ use shared_types::scheduling_environment::{
 use tracing::{event, info, instrument, warn, Level};
 
 use crate::agents::{
-    operational_agent::algorithm::OperationalParameter, StateLink, StateLinkWrapper,
+    operational_agent::algorithm::OperationalParameter, OperationalSolution, StateLink,
+    StateLinkWrapper,
 };
 
-use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
+use self::algorithm::{Assignment, OperationalAlgorithm, OperationalAssignment};
 
 use super::supervisor_agent::SupervisorAgent;
 use super::traits::LargeNeighborHoodSearch;
@@ -56,6 +56,7 @@ pub struct OperationalAgent {
     main_supervisor: Option<Addr<SupervisorAgent>>,
     supervisor_agent_addr: HashMap<Id, Addr<SupervisorAgent>>,
 }
+
 impl OperationalAgent {
     pub fn create_operational_parameter(
         &mut self,
@@ -158,12 +159,12 @@ impl Actor for OperationalAgent {
             &self.operational_configuration.availability,
         );
 
-        let unavailability_start_event = OperationalSolution::new(vec![start_event]);
+        let unavailability_start_event = OperationalAssignment::new(vec![start_event]);
 
-        let unavailability_end_event = OperationalSolution::new(vec![end_event]);
+        let unavailability_end_event = OperationalAssignment::new(vec![end_event]);
 
         self.operational_algorithm
-            .operational_solutions
+            .operational_solution
             .work_order_activities
             .push((
                 (WorkOrderNumber(0), ActivityNumber(0)),
@@ -171,7 +172,7 @@ impl Actor for OperationalAgent {
             ));
 
         self.operational_algorithm
-            .operational_solutions
+            .operational_solution
             .work_order_activities
             .push((
                 (WorkOrderNumber(0), ActivityNumber(0)),
@@ -233,7 +234,7 @@ impl Handler<ScheduleIteration> for OperationalAgent {
             Level::WARN,
             operational_solutions = self
                 .operational_algorithm
-                .operational_solutions
+                .operational_solution
                 .work_order_activities
                 .len(),
             operational_parameters = self
@@ -243,36 +244,21 @@ impl Handler<ScheduleIteration> for OperationalAgent {
                 .len()
         );
 
-        let temporary_solution: OperationalSolutions =
-            self.operational_algorithm.operational_solutions.clone();
+        let temporary_solution: OperationalSolution =
+            self.operational_algorithm.operational_solution.clone();
 
         self.operational_algorithm
             .unschedule_random_work_order_activies(&mut rng, 15);
 
-        self.operational_algorithm.schedule();
+        self.operational_algorithm
+            .schedule()
+            .expect("Operational.schedule() method failed");
 
         let is_better_schedule = self.operational_algorithm.calculate_objective_value();
 
-        event!(
-            Level::ERROR,
-            temp_obj = self
-                .operational_algorithm
-                .operational_solutions
-                .objective_value
-                .load(Ordering::SeqCst)
-        );
-
-        event!(
-            Level::ERROR,
-            temp_obj = self
-                .operational_algorithm
-                .operational_solutions
-                .objective_value
-                .load(Ordering::SeqCst)
-        );
         if is_better_schedule {
-            self.operational_algorithm.operational_solutions = temporary_solution;
-            info!(operational_objective_value = ?self.operational_algorithm.operational_solutions.objective_value);
+            self.operational_algorithm.operational_solution = temporary_solution;
+            info!(operational_objective_value = ?self.operational_algorithm.operational_solution.objective_value);
         };
 
         ctx.wait(
@@ -400,9 +386,8 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
                     assess,
                     unassign,
                     self.operational_algorithm
-                        .operational_solutions
-                        .objective_value
-                        .load(Ordering::SeqCst),
+                        .operational_solution
+                        .objective_value,
                 );
                 Ok(OperationalResponseMessage::Status(
                     operational_response_status,
@@ -416,7 +401,7 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
 
                         for (work_order_activity, operational_solution) in &self
                             .operational_algorithm
-                            .operational_solutions
+                            .operational_solution
                             .work_order_activities
                         {
                             let mut json_assignments = vec![];
@@ -464,7 +449,7 @@ impl Handler<StatusMessage> for OperationalAgent {
                 .collect::<Vec<String>>()
                 .join(", "),
             self.operational_algorithm
-                .operational_solutions
+                .operational_solution
                 .objective_value
         )
     }

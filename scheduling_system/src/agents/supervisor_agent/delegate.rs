@@ -1,5 +1,3 @@
-use std::sync::atomic::Ordering;
-
 use atomic_enum::atomic_enum;
 
 #[derive(Default, Hash, Eq, PartialEq, PartialOrd, Ord)]
@@ -12,24 +10,6 @@ pub enum Delegate {
     Drop,
     Done,
     Fixed,
-}
-
-impl AtomicDelegate {
-    pub fn state_change_to_unassign(&self) {
-        let mut delegate_state = self.load(Ordering::SeqCst);
-
-        delegate_state.state_change_to_unassign();
-
-        self.store(delegate_state, Ordering::SeqCst);
-    }
-
-    pub fn state_change_to_assign(&self) {
-        let mut delegate_state = self.load(Ordering::SeqCst);
-
-        delegate_state.state_change_to_assign();
-
-        self.store(delegate_state, Ordering::SeqCst);
-    }
 }
 
 impl Delegate {

@@ -7,7 +7,6 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use assert_functions::TacticalAssertions;
-use itertools::Itertools;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::tactical::tactical_response_status::TacticalResponseStatus;
@@ -30,7 +29,6 @@ use super::{ScheduleIteration, StateLink, StateLinkWrapper, UpdateWorkOrderMessa
 pub struct TacticalAgent {
     asset: Asset,
     id_tactical: i32,
-    time_horizon: Vec<Period>,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     tactical_algorithm: TacticalAlgorithm,
     strategic_addr: Addr<StrategicAgent>,
@@ -42,7 +40,6 @@ impl TacticalAgent {
     pub fn new(
         asset: Asset,
         id_tactical: i32,
-        time_horizon: Vec<Period>,
         strategic_addr: Addr<StrategicAgent>,
         tactical_algorithm: TacticalAlgorithm,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
@@ -50,7 +47,6 @@ impl TacticalAgent {
         TacticalAgent {
             asset,
             id_tactical,
-            time_horizon,
             scheduling_environment: scheduling_environment.clone(),
             tactical_algorithm,
             strategic_addr,
@@ -59,15 +55,11 @@ impl TacticalAgent {
         }
     }
 
-    pub fn time_horizon(&self) -> &Vec<Period> {
-        &self.time_horizon
-    }
-
     pub fn status(&self) -> Result<TacticalResponseStatus> {
         Ok(TacticalResponseStatus::new(
             self.id_tactical,
             self.tactical_algorithm.objective_value(),
-            self.time_horizon.clone(),
+            self.tactical_algorithm.tactical_days.clone(),
         ))
     }
 }
@@ -102,9 +94,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
             .context("random unschedule failed")
             .expect("Error in the Handler<ScheduleIteration>");
 
-        self.tactical_algorithm.schedule();
-
-        let new_objective_value = self.tactical_algorithm.calculate_objective_value();
+        self.tactical_algorithm.schedule().expect("TacticalAlgorithm.schedule method failed");
 
         let total_excess_hours = self.tactical_algorithm.asset_that_capacity_is_not_exceeded().ok();
         

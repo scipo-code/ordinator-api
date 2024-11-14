@@ -30,7 +30,6 @@ pub async fn http_to_scheduling_system(
     _req: HttpRequest,
     payload: web::Json<SystemMessages>,
 ) -> HttpResponse {
-    dbg!();
     let system_responses: SystemResponses = match payload.0 {
         SystemMessages::Orchestrator(orchestrator_request) => {
             let response = match orchestrator_request {

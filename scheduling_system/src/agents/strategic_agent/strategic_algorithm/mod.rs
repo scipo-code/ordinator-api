@@ -45,11 +45,11 @@ impl StrategicAlgorithm {
     } 
 
     pub fn strategic_periods(&self) -> &HashMap<WorkOrderNumber, Option<Period>> {
-        &self.strategic_solution.scheduled_periods
+        &self.strategic_solution.strategic_periods
     }
 
     pub fn strategic_periods_mut(&mut self) -> &mut HashMap<WorkOrderNumber, Option<Period>> {
-        &mut self.strategic_solution.scheduled_periods
+        &mut self.strategic_solution.strategic_periods
     }
 
     pub fn set_periods(&mut self, periods: Vec<Period>) {
@@ -71,11 +71,11 @@ impl StrategicAlgorithm {
         
             // What should be coded here? 
             self.load_shared_solution();
-            self.strategic_solution.scheduled_periods.insert(*work_order_number, None);
+            self.strategic_solution.strategic_periods.insert(*work_order_number, None);
             
             self.strategic_parameters.insert_strategic_parameter(*work_order_number, strategic_parameter);
             self.make_atomic_pointer_swap_for_with_the_better_strategic_solution();
-            let scheduled_period_option = self.strategic_solution.scheduled_periods.get(&work_order_number).unwrap().clone();
+            let scheduled_period_option = self.strategic_solution.strategic_periods.get(&work_order_number).unwrap().clone();
 
             if let Some(scheduled_period) = scheduled_period_option {
                 self.update_loadings(*work_order_number, scheduled_period, LoadOperation::Add);
@@ -119,7 +119,7 @@ impl StrategicAlgorithm {
         let tactical_work_orders = &self.loaded_shared_solution.tactical.tactical_days;
         let mut work_order_numbers: Vec<(WorkOrderNumber, ForcedWorkOrder)> = vec![];
         for (work_order_number, opt_work_order) in self.strategic_parameters.strategic_work_order_parameters.iter() {
-            let scheduled_period = self.strategic_solution.scheduled_periods.get(work_order_number).unwrap();
+            let scheduled_period = self.strategic_solution.strategic_periods.get(work_order_number).unwrap();
 
             let tactical_work_order = tactical_work_orders.get(work_order_number).expect("State should always be present except if the TacticalAgent has not had time to initialize yet");
 
@@ -211,7 +211,7 @@ impl StrategicAlgorithm {
             ForcedWorkOrder::FromTactical(period) => period ,
         };
 
-        *self.strategic_solution.scheduled_periods.get_mut(&work_order_number.0).unwrap() = Some(locked_period.clone());
+        *self.strategic_solution.strategic_periods.get_mut(&work_order_number.0).unwrap() = Some(locked_period.clone());
 
         self.update_loadings(work_order_number.0, locked_period.clone(), LoadOperation::Add);
     }
@@ -222,7 +222,7 @@ impl StrategicAlgorithm {
         rng: &mut impl rand::Rng,
     ) {
         event!(Level::WARN, "timing");
-        let scheduled_periods = &self.strategic_solution.scheduled_periods;
+        let scheduled_periods = &self.strategic_solution.strategic_periods;
 
         event!(Level::WARN, "timing");
         let strategic_parameter = &self.strategic_parameters.strategic_work_order_parameters;
@@ -300,7 +300,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
         let mut period_penalty_contribution: StrategicObjectiveValue = 0;
         let mut excess_penalty_contribution: StrategicObjectiveValue = 0;
 
-        for (work_order_number, scheduled_period) in &self.strategic_solution.scheduled_periods {
+        for (work_order_number, scheduled_period) in &self.strategic_solution.strategic_periods {
             let optimized_period = match scheduled_period {
                 Some(optimized_period) => optimized_period.clone(),
                 None => {
@@ -340,14 +340,13 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
         }
 
 
-        dbg!(&period_penalty_contribution, &excess_penalty_contribution);
         self.strategic_solution.objective_value = 
-            period_penalty_contribution + 2 * excess_penalty_contribution;
+            period_penalty_contribution + 1000000 * excess_penalty_contribution;
 
     }
 
     #[instrument(level = "trace", skip_all)]
-    fn schedule(&mut self) {
+    fn schedule(&mut self) -> Result<()> {
         while !self.priority_queues.normal.is_empty() {
             for period in self.periods.clone() {
                 let (work_order_number, weight) = match self.priority_queues.normal.pop() {
@@ -365,6 +364,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                 }
             }
         }
+        Ok(())
     }
     
     fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) -> Result<()> {
@@ -520,7 +520,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                             if optimized_work_order.excluded_periods.contains(locked_in_period) {
                                 optimized_work_order.locked_in_period = None;
                                 let last_period = self.periods.iter().last().cloned();
-                                *self.strategic_solution.scheduled_periods.get_mut(work_order_number).unwrap() = last_period;
+                                *self.strategic_solution.strategic_periods.get_mut(work_order_number).unwrap() = last_period;
                                 true
                             } else {
                                 false
@@ -583,7 +583,7 @@ impl StrategicAlgorithm {
     }
 
     pub fn populate_priority_queues(&mut self) {
-        for work_order_number in self.strategic_solution.scheduled_periods.keys() {
+        for work_order_number in self.strategic_solution.strategic_periods.keys() {
             trace!("Work order {:?} has been added to the normal queue", work_order_number);
             let strategic_work_order_weight = self.strategic_parameters.strategic_work_order_parameters.get(work_order_number).expect("The StrategicParameter should always be available for the StrategicSolution").weight;
 

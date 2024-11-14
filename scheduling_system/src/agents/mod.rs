@@ -10,6 +10,7 @@ use std::collections::{HashMap, HashSet};
 use actix::{Addr, Message};
 use anyhow::{Context, Result};
 use arc_swap::ArcSwap;
+use operational_agent::algorithm::{OperationalAssignment, OperationalObjectiveValue};
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::{ActivityNumber, Work};
@@ -17,6 +18,7 @@ use shared_types::scheduling_environment::work_order::{WorkOrderActivity, WorkOr
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::strategic::{StrategicObjectiveValue, StrategicResources};
 use shared_types::tactical::{TacticalObjectiveValue, TacticalResources};
+use supervisor_agent::algorithm::MarginalFitness;
 use supervisor_agent::delegate::Delegate;
 use tactical_agent::tactical_algorithm::TacticalOperation;
 use tracing::{event, Level, Span};
@@ -50,12 +52,13 @@ pub struct SharedSolution {
     strategic: StrategicSolution,
     pub tactical: TacticalSolution,
     pub supervisor: SupervisorSolution,
+    pub operational: HashMap<Id, OperationalSolution>,
 }
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct StrategicSolution {
     pub objective_value: StrategicObjectiveValue,
-    pub scheduled_periods: HashMap<WorkOrderNumber, Option<Period>>,
+    pub strategic_periods: HashMap<WorkOrderNumber, Option<Period>>,
     pub strategic_loadings: StrategicResources,
 }
 
@@ -69,14 +72,23 @@ pub struct TacticalSolution {
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct SupervisorSolution {
     objective_value: u64,
-    state_of_each_agent: HashMap<(Id, WorkOrderActivity), Delegate>,
+    operational_state_machine: HashMap<(Id, WorkOrderActivity), Delegate>,
+}
+
+#[derive(PartialEq, Eq, Debug, Default, Clone)]
+pub struct OperationalSolution {
+    pub objective_value: OperationalObjectiveValue,
+    pub work_order_activities: Vec<(WorkOrderActivity, OperationalAssignment)>,
 }
 
 impl StrategicSolution {
-    pub fn supervisor_activities(&self, supervisor_periods: &[Period]) -> HashSet<WorkOrderNumber> {
+    pub fn supervisor_work_orders_from_strategic(
+        &self,
+        supervisor_periods: &[Period],
+    ) -> HashSet<WorkOrderNumber> {
         let mut supervisor_work_orders: HashSet<WorkOrderNumber> = HashSet::new();
 
-        self.scheduled_periods.iter().for_each(|(won, opt_per)| {
+        self.strategic_periods.iter().for_each(|(won, opt_per)| {
             if let Some(period) = opt_per {
                 if supervisor_periods.contains(period) {
                     event!(Level::WARN, period = ?period);
@@ -90,7 +102,7 @@ impl StrategicSolution {
 
 impl SupervisorSolution {
     pub fn state_of_agent(&self, operational_agent: &Id) -> HashMap<WorkOrderActivity, Delegate> {
-        self.state_of_each_agent
+        self.operational_state_machine
             .iter()
             .filter(|(id_woa, _)| &id_woa.0 == operational_agent)
             .map(|(id_woa, del)| (id_woa.1, *del))
@@ -112,6 +124,24 @@ impl SupervisorSolution {
             }
         }
         (count_assign, count_assess, count_unassign)
+    }
+
+    fn remove_leaving_work_order_activities(
+        &mut self,
+        entering_work_orders_from_strategic: &HashSet<WorkOrderNumber>,
+    ) {
+        let supervisor_work_orders: HashSet<WorkOrderNumber> = self
+            .operational_state_machine
+            .iter()
+            .map(|((_, woa), _)| woa.0)
+            .collect();
+
+        let leaving: HashSet<_> = supervisor_work_orders
+            .difference(entering_work_orders_from_strategic)
+            .collect();
+
+        self.operational_state_machine
+            .retain(|(_, woa), _| !leaving.contains(&woa.0));
     }
 }
 
@@ -162,6 +192,38 @@ impl TacticalSolution {
     ) {
         self.tactical_days
             .insert(work_order_number, Some(tactical_days));
+    }
+}
+
+pub trait GetMarginalFitness {
+    fn marginal_fitness(
+        &self,
+        operational_agent: &Id,
+        work_order_activity: &WorkOrderActivity,
+    ) -> Result<&MarginalFitness>;
+}
+
+impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
+    fn marginal_fitness(
+        &self,
+        operational_agent: &Id,
+        work_order_activity: &WorkOrderActivity,
+    ) -> Result<&MarginalFitness> {
+        let marginal_fitness = &self
+            .get(operational_agent)
+            .with_context(|| {
+                format!(
+                    "Could not find <Auxiliary Objective> for operational agent: {:?} on {:?}",
+                    operational_agent, work_order_activity
+                )
+            })?
+            .work_order_activities
+            .iter()
+            .find(|ele| ele.0 == *work_order_activity)
+            .map(|os| &os.1.marginal_fitness)
+            .unwrap_or(&MarginalFitness::MAX);
+
+        Ok(marginal_fitness)
     }
 }
 

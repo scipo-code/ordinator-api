@@ -1,9 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc,
-    },
+    sync::Arc,
 };
 
 use anyhow::Result;
@@ -33,12 +30,12 @@ use tracing::{event, Level};
 
 use crate::agents::{
     supervisor_agent::algorithm::MarginalFitness, traits::LargeNeighborHoodSearch,
-    ArcSwapSharedSolution, SharedSolution,
+    ArcSwapSharedSolution, OperationalSolution, SharedSolution,
 };
 
 use super::{operational_events::OperationalEvents, OperationalConfiguration};
 
-pub type OperationalObjectiveValue = Arc<AtomicU64>;
+pub type OperationalObjectiveValue = u64;
 
 #[derive(Clone, Default)]
 pub struct OperationalParameters {
@@ -48,7 +45,7 @@ pub struct OperationalParameters {
 impl OperationalParameters {}
 
 pub struct OperationalAlgorithm {
-    pub operational_solutions: OperationalSolutions,
+    pub operational_solution: OperationalSolution,
     pub operational_non_productive: OperationalNonProductive,
     pub operational_parameters: OperationalParameters,
     pub history_of_dropped_operational_parameters: HashSet<WorkOrderActivity>,
@@ -70,7 +67,7 @@ impl OperationalAlgorithm {
     ) -> Self {
         let loaded_shared_solution = arc_swap_shared_solution.0.load();
         Self {
-            operational_solutions: OperationalSolutions::new(Vec::new()),
+            operational_solution: OperationalSolution::new(Vec::new()),
             operational_non_productive: OperationalNonProductive(Vec::new()),
             operational_parameters: OperationalParameters::default(),
             history_of_dropped_operational_parameters: HashSet::new(),
@@ -109,7 +106,7 @@ impl OperationalAlgorithm {
         let woas_to_be_deleted = self.remove_drop_delegates(operational_agent);
 
         for work_order_activity in woas_to_be_deleted {
-            self.operational_solutions
+            self.operational_solution
                 .work_order_activities
                 .retain(|os| os.0 != work_order_activity)
         }
@@ -128,7 +125,7 @@ impl OperationalAlgorithm {
     fn determine_next_event_non_productive(
         &mut self,
         current_time: &mut DateTime<Utc>,
-        next_operation: Option<OperationalSolution>,
+        next_operation: Option<OperationalAssignment>,
     ) -> (DateTime<Utc>, OperationalEvents) {
         if self.break_interval.contains(current_time) {
             let time_interval = self.determine_time_interval_of_function(
@@ -188,7 +185,7 @@ impl OperationalAlgorithm {
     // schedule for the OperationalAgent.
     fn determine_time_interval_of_function(
         &mut self,
-        next_operation: Option<OperationalSolution>,
+        next_operation: Option<OperationalAssignment>,
         current_time: &DateTime<Utc>,
         interval: TimeInterval,
     ) -> TimeInterval {
@@ -210,32 +207,26 @@ impl OperationalAlgorithm {
     }
 
     fn update_marginal_fitness(
-        &self,
+        &mut self,
         work_order_activity_previous: (WorkOrderNumber, ActivityNumber),
         time_delta: TimeDelta,
     ) {
         assert_eq!(time_delta.num_nanoseconds().unwrap(), 0);
-        let time_delta_usize = time_delta.num_seconds() as usize;
+        let time_delta_usize = time_delta.num_seconds() as u64;
 
-        self.operational_solutions
+        self.operational_solution
             .work_order_activities
-            .iter()
+            .iter_mut()
             .find(|oper_sol| oper_sol.0 == work_order_activity_previous)
             .unwrap()
             .1
             .marginal_fitness
-            .store(time_delta_usize)
+            .0 = time_delta_usize;
     }
 
     pub(crate) fn load_shared_solution(&mut self) {
         self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
     }
-}
-
-#[derive(Clone)]
-pub struct OperationalSolutions {
-    pub objective_value: OperationalObjectiveValue,
-    pub work_order_activities: Vec<(WorkOrderActivity, OperationalSolution)>,
 }
 
 trait OperationalFunctions {
@@ -247,7 +238,7 @@ trait OperationalFunctions {
     fn containing_operational_solution(&self, time: DateTime<Utc>) -> ContainOrNextOrNone;
 }
 
-impl OperationalFunctions for OperationalSolutions {
+impl OperationalFunctions for OperationalSolution {
     type Key = WorkOrderActivity;
     type Sequence = Vec<Assignment>;
 
@@ -282,18 +273,18 @@ impl OperationalFunctions for OperationalSolutions {
                     .start
                 && assignments.last().unwrap().finish < end_of_solution_window
             {
-                let operational_solution = OperationalSolution::new(assignments);
+                let operational_solution = OperationalAssignment::new(assignments);
 
                 if !self.is_operational_solution_already_scheduled(key) {
                     self.work_order_activities
                         .insert(index + 1, (key, operational_solution));
-                    let assignments: Vec<&Assignment> = self
+                    let assignments = self
                         .work_order_activities
                         .iter()
                         .flat_map(|(_, os)| &os.assignments)
                         .collect();
 
-                    assert!(no_overlap(assignments));
+                    assert!(no_overlap_by_ref(assignments));
                 }
                 break;
             }
@@ -301,7 +292,7 @@ impl OperationalFunctions for OperationalSolutions {
     }
 
     fn containing_operational_solution(&self, time: DateTime<Utc>) -> ContainOrNextOrNone {
-        let containing: Option<OperationalSolution> = self
+        let containing: Option<OperationalAssignment> = self
             .work_order_activities
             .iter()
             .find(|operational_solution| operational_solution.1.contains(time))
@@ -311,7 +302,7 @@ impl OperationalFunctions for OperationalSolutions {
         match containing {
             Some(containing) => ContainOrNextOrNone::Contain(containing),
             None => {
-                let next: Option<OperationalSolution> = self
+                let next: Option<OperationalAssignment> = self
                     .work_order_activities
                     .iter()
                     .map(|os| os.1.clone())
@@ -326,10 +317,10 @@ impl OperationalFunctions for OperationalSolutions {
     }
 }
 
-impl OperationalSolutions {
-    pub fn new(work_order_activities: Vec<(WorkOrderActivity, OperationalSolution)>) -> Self {
+impl OperationalSolution {
+    pub fn new(work_order_activities: Vec<(WorkOrderActivity, OperationalAssignment)>) -> Self {
         Self {
-            objective_value: Arc::new(AtomicU64::new(0)),
+            objective_value: 0,
             work_order_activities,
         }
     }
@@ -345,18 +336,18 @@ impl OperationalSolutions {
 }
 
 enum ContainOrNextOrNone {
-    Contain(OperationalSolution),
-    Next(OperationalSolution),
+    Contain(OperationalAssignment),
+    Next(OperationalAssignment),
     None,
 }
 
-#[derive(Clone, Debug)]
-pub struct OperationalSolution {
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct OperationalAssignment {
     pub marginal_fitness: MarginalFitness,
     pub assignments: Vec<Assignment>,
 }
 
-impl OperationalSolution {
+impl OperationalAssignment {
     pub fn new(assignments: Vec<Assignment>) -> Self {
         Self {
             assignments,
@@ -509,7 +500,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         // Here we should determine the objective based on the highest needed skill. Meaning that a MTN-TURB should not bid highly
         // on a MTN-MECH job. I think that this will be very interesting to solve.
         let operational_events: Vec<Assignment> = self
-            .operational_solutions
+            .operational_solution
             .work_order_activities
             .iter()
             .flat_map(|(_, os)| os.assignments.iter())
@@ -519,8 +510,8 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         event!(Level::DEBUG, operational_events_len = ?operational_events.iter().filter(|val| val.event_type.is_wrench_time()).collect::<Vec<_>>().len());
 
         let all_events = operational_events
-            .iter()
-            .chain(&self.operational_non_productive.0);
+            .into_iter()
+            .chain(self.operational_non_productive.0.clone());
 
         let mut current_time = self.availability.start_date;
 
@@ -534,6 +525,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         let mut next_fitness: TimeDelta = TimeDelta::zero();
         let mut first_fitness: bool = true;
         let mut current_work_order_activity: Option<WorkOrderActivity> = None;
+
         for assignment in all_events.clone() {
             match &assignment.event_type {
                 OperationalEvents::WrenchTime((time_interval, work_order_activity)) => {
@@ -584,14 +576,14 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
         // assert_eq!(current_time, self.availability.end_date);
 
-        equality_between_time_interval_and_assignments(all_events.clone().collect::<Vec<_>>());
+        equality_between_time_interval_and_assignments(&all_events.clone().collect::<Vec<_>>());
 
         assert!(is_assignments_in_bounds(
-            all_events.clone().collect::<Vec<_>>(),
+            &all_events.clone().collect(),
             &self.availability
         ));
 
-        assert!(no_overlap(all_events.collect::<Vec<_>>()));
+        assert!(no_overlap(&all_events.collect::<Vec<_>>()));
 
         let total_time =
             wrench_time + break_time + off_shift_time + toolbox_time + non_productive_time;
@@ -605,22 +597,17 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         let new_value = ((wrench_time).num_seconds() * 100) as u64
             / (wrench_time + break_time + toolbox_time + non_productive_time).num_seconds() as u64;
 
-        let old_value = self
-            .operational_solutions
-            .objective_value
-            .load(Ordering::SeqCst);
+        let old_value = self.operational_solution.objective_value;
 
         if new_value > old_value {
-            self.operational_solutions
-                .objective_value
-                .store(new_value, Ordering::SeqCst);
+            self.operational_solution.objective_value = new_value;
             true
         } else {
             false
         }
     }
 
-    fn schedule(&mut self) {
+    fn schedule(&mut self) -> Result<()> {
         self.operational_non_productive.0.clear();
         for (work_order_activity, operational_parameter) in
             &self.operational_parameters.work_order_parameters
@@ -634,9 +621,9 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                 start_time,
             );
 
-            self.operational_solutions
+            self.operational_solution
                 .try_insert(*work_order_activity, assignments);
-            event!(Level::TRACE, number_of_operations = ?self.operational_solutions.work_order_activities.len());
+            event!(Level::TRACE, number_of_operations = ?self.operational_solution.work_order_activities.len());
         }
 
         // fill the schedule
@@ -644,7 +631,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
         loop {
             match self
-                .operational_solutions
+                .operational_solution
                 .containing_operational_solution(current_time)
             {
                 ContainOrNextOrNone::Contain(operational_solution) => {
@@ -687,11 +674,12 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                 break;
             };
         }
+        Ok(())
     }
 
     fn unschedule(&mut self, work_order_and_activity_number: Self::SchedulingUnit) -> Result<()> {
         let unscheduled_operational_solution = self
-            .operational_solutions
+            .operational_solution
             .work_order_activities
             .iter()
             .find(|operational_solution| operational_solution.0 == work_order_and_activity_number)
@@ -803,7 +791,7 @@ impl OperationalAlgorithm {
         number_of_activities: usize,
     ) {
         let operational_solutions: Vec<WorkOrderActivity> = self
-            .operational_solutions
+            .operational_solution
             .work_order_activities
             .choose_multiple(rng, number_of_activities)
             .map(|operational_solution| operational_solution.0)
@@ -836,7 +824,7 @@ impl OperationalAlgorithm {
             }
             None => (&self.availability.start_date, &self.availability.end_date),
         };
-        for operational_solution in self.operational_solutions.work_order_activities.windows(2) {
+        for operational_solution in self.operational_solution.work_order_activities.windows(2) {
             let start_of_interval = {
                 let mut current_time = operational_solution[0].1.assignments.last().unwrap().finish;
 
@@ -931,7 +919,26 @@ impl OperationalAlgorithm {
     }
 }
 
-fn no_overlap(events: Vec<&Assignment>) -> bool {
+fn no_overlap(events: &Vec<Assignment>) -> bool {
+    for event_1 in events {
+        for event_2 in events {
+            if event_1 == event_2 {
+                continue;
+            }
+
+            if (event_1.finish <= event_2.start) || (event_2.finish <= event_1.start) {
+                continue;
+            } else {
+                dbg!(event_1);
+                dbg!(event_2);
+                return false;
+            }
+        }
+    }
+    true
+}
+
+fn no_overlap_by_ref(events: Vec<&Assignment>) -> bool {
     for event_1 in &events {
         for event_2 in &events {
             if event_1 == event_2 {
@@ -950,7 +957,7 @@ fn no_overlap(events: Vec<&Assignment>) -> bool {
     true
 }
 
-fn is_assignments_in_bounds(events: Vec<&Assignment>, availability: &Availability) -> bool {
+fn is_assignments_in_bounds(events: &Vec<Assignment>, availability: &Availability) -> bool {
     for event in events {
         if event.start < availability.start_date && !event.event_type.unavail() {
             dbg!(event, availability);
@@ -964,7 +971,7 @@ fn is_assignments_in_bounds(events: Vec<&Assignment>, availability: &Availabilit
     true
 }
 
-fn equality_between_time_interval_and_assignments(all_events: Vec<&Assignment>) {
+fn equality_between_time_interval_and_assignments(all_events: &Vec<Assignment>) {
     for assignment in all_events {
         assert_eq!(assignment.start.time(), assignment.event_type.start_time());
         assert_eq!(

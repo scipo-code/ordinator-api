@@ -478,11 +478,6 @@ fn date_to_period(periods: &[Period], date_time: &NaiveDate) -> Period {
     let period: Option<Period> = periods
         .iter()
         .find(|period| {
-            // dbg!(
-            //     period.start_date().date_naive(),
-            //     *date_time,
-            //     &&period.end_date().date_naive(),
-            // );
             period.start_date().date_naive() <= *date_time
                 && period.end_date().date_naive() >= *date_time
         })

@@ -58,7 +58,9 @@ impl Actor for StrategicAgent {
             "StrategicAgent has started for asset: {}",
             self.asset
         );
-        self.strategic_algorithm.schedule();
+        self.strategic_algorithm
+            .schedule()
+            .expect("StrategicAlgorithm.schedule() method failed");
         ctx.notify(ScheduleIteration {})
     }
 
@@ -101,7 +103,9 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         self.strategic_algorithm
             .unschedule_random_work_orders(50, rng);
 
-        self.strategic_algorithm.schedule();
+        self.strategic_algorithm
+            .schedule()
+            .expect("StrategicAlgorithm.schedule method failed");
         // self.assert_aggregated_load().unwrap();
         self.strategic_algorithm.calculate_objective_value();
 
@@ -112,8 +116,8 @@ impl Handler<ScheduleIteration> for StrategicAgent {
                 .make_atomic_pointer_swap_for_with_the_better_strategic_solution();
 
             event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value,
-                scheduled_work_orders = ?self.strategic_algorithm.strategic_solution.scheduled_periods.iter().filter(|ele| ele.1.is_some()).count(),
-                total_work_orders = ?self.strategic_algorithm.strategic_solution.scheduled_periods.len()
+                scheduled_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.iter().filter(|ele| ele.1.is_some()).count(),
+                total_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.len()
             );
         } else {
             self.strategic_algorithm.strategic_solution = old_strategic_solution;

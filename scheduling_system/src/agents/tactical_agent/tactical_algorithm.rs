@@ -37,15 +37,9 @@ use crate::agents::{
     traits::LargeNeighborHoodSearch, ArcSwapSharedSolution, SharedSolution, TacticalSolution,
 };
 
-use shared_types::scheduling_environment::{
-    time_environment::period::Period,
-    work_order::{ActivityRelation, WorkOrder},
-};
-
-use super::assert_functions::TacticalAssertions;
+use shared_types::scheduling_environment::work_order::{ActivityRelation, WorkOrder};
 
 pub struct TacticalAlgorithm {
-    pub tactical_periods: Vec<Period>,
     pub strategic_tactical_solution_arc_swap: Arc<ArcSwapSharedSolution>,
     pub loaded_shared_solution: Guard<Arc<SharedSolution>>,
     pub tactical_solution: TacticalSolution,
@@ -174,14 +168,12 @@ impl Display for OperationParameter {
 impl TacticalAlgorithm {
     pub fn new(
         tactical_days: Vec<Day>,
-        time_horizon: Vec<Period>,
         capacity: TacticalResources,
         loading: TacticalResources,
         strategic_tactical_solution_arc_swap: Arc<ArcSwapSharedSolution>,
     ) -> Self {
         let loaded_shared_solution = strategic_tactical_solution_arc_swap.0.load();
         let mut tactical_algorithm = TacticalAlgorithm {
-            tactical_periods: time_horizon,
             strategic_tactical_solution_arc_swap,
             loaded_shared_solution,
             tactical_solution: TacticalSolution::default(),
@@ -366,7 +358,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             let period_start_date = match &self
                 .loaded_shared_solution
                 .strategic
-                .scheduled_periods
+                .strategic_periods
                 .get(work_order_number)
                 .expect("The strategic and tactical solution should have the same WorkOrderNumber's available at all times")
 
@@ -415,7 +407,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
         self.tactical_solution.objective_value.clone()
     }
 
-    fn schedule(&mut self) {
+    fn schedule(&mut self) -> Result<()> {
         for (work_order_number, tactical_solution) in &self.tactical_solution.tactical_days {
             let tactical_parameter = self
                 .tactical_parameters()
@@ -446,7 +438,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
         );
         let mut current_work_order_number = match self.priority_queue.pop() {
             Some((work_order_number, _)) => work_order_number,
-            None => return,
+            None => return Ok(()),
         };
 
         'main: loop {
@@ -665,6 +657,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 panic!("Unscheduled work order got through the schedule function");
             }
         }
+        Ok(())
     }
 
     fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) -> Result<()> {
@@ -873,7 +866,6 @@ pub mod tests {
     fn test_determine_load_1() {
         let tactical_algorithm = super::TacticalAlgorithm::new(
             vec![],
-            vec![],
             super::TacticalResources::new(HashMap::new()),
             super::TacticalResources::new(HashMap::new()),
             ArcSwapSharedSolution::default().into(),
@@ -895,7 +887,6 @@ pub mod tests {
     #[test]
     fn test_determine_load_2() {
         let tactical_algorithm = super::TacticalAlgorithm::new(
-            vec![],
             vec![],
             super::TacticalResources::new(HashMap::new()),
             super::TacticalResources::new(HashMap::new()),
@@ -955,7 +946,6 @@ pub mod tests {
 
         let mut tactical_algorithm = super::TacticalAlgorithm::new(
             tactical_days(56),
-            vec![first_period.clone()],
             super::TacticalResources::new(HashMap::new()),
             super::TacticalResources::new(HashMap::new()),
             ArcSwapSharedSolution::default().into(),
@@ -1024,11 +1014,6 @@ pub mod tests {
 
         let mut tactical_algorithm = super::TacticalAlgorithm::new(
             tactical_days(56),
-            vec![
-                first_period.clone(),
-                second_period.clone(),
-                third_period.clone(),
-            ],
             super::TacticalResources::new_from_data(
                 Resources::iter().collect(),
                 tactical_days(56),
@@ -1066,7 +1051,7 @@ pub mod tests {
             .tactical_parameters_mut()
             .insert(work_order_number, optimized_tactical_work_order);
 
-        tactical_algorithm.schedule();
+        tactical_algorithm.schedule().unwrap();
 
         let scheduled_date = tactical_algorithm
             .tactical_solution
@@ -1100,11 +1085,6 @@ pub mod tests {
 
         let mut tactical_algorithm = super::TacticalAlgorithm::new(
             tactical_days(56),
-            vec![
-                first_period.clone(),
-                second_period.clone(),
-                third_period.clone(),
-            ],
             super::TacticalResources::new_from_data(
                 Resources::iter().collect(),
                 tactical_days(56),
@@ -1142,7 +1122,7 @@ pub mod tests {
             .tactical_parameters_mut()
             .insert(work_order_number, optimized_tactical_work_order);
 
-        tactical_algorithm.schedule();
+        tactical_algorithm.schedule().unwrap();
 
         let scheduled_date = tactical_algorithm
             .tactical_solution
