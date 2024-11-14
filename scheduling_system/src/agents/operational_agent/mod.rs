@@ -69,7 +69,27 @@ impl OperationalAgent {
         // let (start_datetime, end_datetime) =
         //     self.determine_start_and_finish_times(work_order_activity);
 
-        assert!(operation.work_remaining() > &Some(Work::from(0.0)));
+        dbg!(
+            &self
+                .operational_algorithm
+                .loaded_shared_solution
+                .supervisor
+                .operational_state_machine
+                .get(&(self.operational_id.clone(), *work_order_activity))
+                .unwrap(),
+            operation.work_remaining()
+        );
+        assert!(
+            operation.work_remaining() > &Some(Work::from(0.0))
+                || self
+                    .operational_algorithm
+                    .loaded_shared_solution
+                    .supervisor
+                    .operational_state_machine
+                    .get(&(self.operational_id.clone(), *work_order_activity))
+                    .unwrap()
+                    .is_done()
+        );
 
         // TODO: move this around
         let operational_parameter = OperationalParameter::new(

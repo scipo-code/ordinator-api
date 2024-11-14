@@ -68,14 +68,12 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     #[instrument(skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut actix::Context<Self>) -> Self::Result {
         self.supervisor_algorithm.load_shared_solution();
-        event!(Level::WARN, "DETERMINE FLOW");
         self.update_supervisor_solution_and_parameters()
             .expect("Could not load the data from the load SharedSolution");
 
         self.assert_operational_state_machine_woas_is_subset_of_tactical_shared_solution()
             .expect("OperationalStates should correspond with TacticalOperations");
 
-        event!(Level::WARN, "DETERMINE FLOW");
         event!(
             Level::WARN,
             number_of_operational_states = self.supervisor_algorithm.supervisor_solution.len()
@@ -85,35 +83,27 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
             Level::INFO,
             number_of_operational_agents = ?self.number_of_operational_agents
         );
-        event!(Level::WARN, "DETERMINE FLOW");
 
         let rng = rand::thread_rng();
         self.supervisor_algorithm.calculate_objective_value();
-        event!(Level::WARN, "DETERMINE FLOW");
 
-        let current_state = self.supervisor_algorithm.supervisor_solution.clone();
-
-        let old_objective_value = current_state.objective_value.clone();
+        let old_supervisor_solution = self.supervisor_algorithm.supervisor_solution.clone();
 
         event!(
             Level::WARN,
-            current_state = ?current_state.operational_state_machine
+            current_state = ?old_supervisor_solution.operational_state_machine
         );
 
         let number_of_removed_work_orders = 10;
         self.unschedule_random_work_orders(number_of_removed_work_orders, rng);
 
-        event!(Level::WARN, "DETERMINE FLOW");
         self.supervisor_algorithm
             .schedule()
             .expect("SupervisorAlgorithm.schedule method failed");
-        event!(Level::WARN, "DETERMINE FLOW");
         // self.assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
-        event!(Level::WARN, "DETERMINE FLOW");
 
         let new_objective_value = self.supervisor_algorithm.calculate_objective_value();
 
-        event!(Level::WARN, "DETERMINE FLOW");
         assert_eq!(
             new_objective_value,
             self.supervisor_algorithm.calculate_objective_value()
@@ -122,13 +112,18 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
         // self.supervisor_algorithm.operational_state_machine.assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess();
         // self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&current_state).unwrap();
 
-        if self.supervisor_algorithm.objective_value < current_state.objective_value {
-            self.supervisor_algorithm.supervisor_solution = current_state;
+        if self.supervisor_algorithm.objective_value >= old_supervisor_solution.objective_value {
+            self.supervisor_algorithm.make_atomic_pointer_swap();
+        } else if self.supervisor_algorithm.objective_value
+            < old_supervisor_solution.objective_value
+        {
+            assert!(
+                self.supervisor_algorithm.objective_value
+                    >= old_supervisor_solution.objective_value
+            );
+            self.supervisor_algorithm.supervisor_solution = old_supervisor_solution;
             self.supervisor_algorithm.calculate_objective_value();
         }
-
-        event!(Level::WARN, "DETERMINE FLOW");
-        assert!(self.supervisor_algorithm.objective_value >= old_objective_value);
 
         event!(
             Level::INFO,
@@ -247,6 +242,12 @@ impl SupervisorAgent {
             self.supervisor_algorithm
                 .supervisor_parameters
                 .create(&locked_scheduling_environment, &work_order_activity);
+
+            // TODO START HERE
+            self.supervisor_algorithm
+                .supervisor_parameters
+                .supervisor_work_orders
+                .get();
 
             for operational_agent in &self.operational_agent_addrs {
                 if operational_agent.0 .1.contains(

@@ -200,7 +200,7 @@ pub trait GetMarginalFitness {
         &self,
         operational_agent: &Id,
         work_order_activity: &WorkOrderActivity,
-    ) -> Result<&MarginalFitness>;
+    ) -> Result<MarginalFitness>;
 }
 
 impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
@@ -208,7 +208,7 @@ impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
         &self,
         operational_agent: &Id,
         work_order_activity: &WorkOrderActivity,
-    ) -> Result<&MarginalFitness> {
+    ) -> Result<MarginalFitness> {
         let marginal_fitness = &self
             .get(operational_agent)
             .with_context(|| {
@@ -220,10 +220,10 @@ impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
             .work_order_activities
             .iter()
             .find(|ele| ele.0 == *work_order_activity)
-            .map(|os| &os.1.marginal_fitness)
-            .unwrap_or(&MarginalFitness::MAX);
+            .map(|os| os.1.marginal_fitness.clone())
+            .unwrap_or(MarginalFitness::MAX);
 
-        Ok(marginal_fitness)
+        Ok(marginal_fitness.clone())
     }
 }
 

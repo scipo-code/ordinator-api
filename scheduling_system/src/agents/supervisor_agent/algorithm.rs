@@ -160,6 +160,18 @@ impl SupervisorAlgorithm {
     pub fn load_shared_solution(&mut self) {
         self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
     }
+
+    pub fn make_atomic_pointer_swap(&self) {
+        let best_supervisor_solution = self.supervisor_solution.clone();
+
+        let mut loaded_shared_solution = (**self.loaded_shared_solution).clone();
+
+        loaded_shared_solution.supervisor = best_supervisor_solution;
+
+        self.arc_swap_shared_solution
+            .0
+            .store(Arc::new(loaded_shared_solution))
+    }
 }
 
 impl LargeNeighborHoodSearch for SupervisorAlgorithm {
@@ -210,9 +222,14 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
             let operational = &self.loaded_shared_solution.operational;
 
             operational_status_by_work_order_activity.sort_by_cached_key(|(agent_id, _)| {
-                operational
-                    .marginal_fitness(agent_id, work_order_activity)
-                    .expect("Could not determine marginal fitness")
+                match operational
+                    .marginal_fitness(agent_id, work_order_activity) {
+                        Ok(marginal_fitness) => marginal_fitness,
+                        Err(e) => {
+                            event!(Level::WARN, operational_agent_marginal_fitness_error = ?e, "Could be that the OperationalAgent did not have time to initialize. A bug could be hiding here");
+                            MarginalFitness::MAX
+                        },
+                    }
             });
 
             let number_of_assigned = operational_status_by_work_order_activity
@@ -231,9 +248,9 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
                     .loaded_shared_solution
                     .operational
                     .marginal_fitness(&agent_id, work_order_activity)
-                    .context("auxiliary objective could not be calculated")?;
+                    .unwrap_or_default();
 
-                if *marginal_fitness == MarginalFitness::MAX {
+                if marginal_fitness == MarginalFitness::MAX {
                     continue 'next_work_order_activity;
                 }
 
