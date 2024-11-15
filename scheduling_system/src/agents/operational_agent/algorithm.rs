@@ -212,6 +212,7 @@ impl OperationalAlgorithm {
         time_delta: TimeDelta,
     ) {
         assert_eq!(time_delta.num_nanoseconds().unwrap(), 0);
+
         let time_delta_usize = time_delta.num_seconds() as u64;
 
         self.operational_solution
@@ -226,6 +227,30 @@ impl OperationalAlgorithm {
 
     pub(crate) fn load_shared_solution(&mut self) {
         self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
+    }
+
+    pub(crate) fn make_atomic_pointer_swap(&self, operational_id: &Id) {
+        // Performance enhancements:
+        // * COW:
+        //      #[derive(Clone)]
+        //      struct SharedSolution<'a> {
+        //          tactical: Cow<'a, TacticalSolution>,
+        //          // other fields...
+        //      }
+        //
+        // * Reuse the old SharedSolution, cloning only the fields that are needed.
+        //     let shared_solution = Arc::new(SharedSolution {
+        //             tactical: self.tactical_solution.clone(),
+        //             // Copy over other fields without cloning
+        //             ..(**old).clone()
+        //         });
+        self.arc_swap_shared_solution.0.rcu(|old| {
+            let mut shared_solution = (**old).clone();
+            shared_solution
+                .operational
+                .insert(operational_id.clone(), self.operational_solution.clone());
+            Arc::new(shared_solution)
+        });
     }
 }
 
@@ -511,7 +536,8 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
         let all_events = operational_events
             .into_iter()
-            .chain(self.operational_non_productive.0.clone());
+            .chain(self.operational_non_productive.0.clone())
+            .sorted_unstable_by_key(|ass| ass.start);
 
         let mut current_time = self.availability.start_date;
 
@@ -525,12 +551,17 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         let mut next_fitness: TimeDelta = TimeDelta::zero();
         let mut first_fitness: bool = true;
         let mut current_work_order_activity: Option<WorkOrderActivity> = None;
-
+        event!(Level::ERROR, operational_event = ?all_events);
         for assignment in all_events.clone() {
             match &assignment.event_type {
                 OperationalEvents::WrenchTime((time_interval, work_order_activity)) => {
                     wrench_time += time_interval.duration();
                     current_time += time_interval.duration();
+                    if prev_fitness.num_seconds() > 0 {
+                        panic!()
+                    }
+
+                    // What does this do?
                     current_work_order_activity = match current_work_order_activity {
                         Some(work_order_activity_previous) => {
                             if work_order_activity_previous != *work_order_activity {
@@ -623,6 +654,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
             self.operational_solution
                 .try_insert(*work_order_activity, assignments);
+
             event!(Level::TRACE, number_of_operations = ?self.operational_solution.work_order_activities.len());
         }
 

@@ -5,6 +5,7 @@ pub mod operational_state_machine;
 
 use anyhow::{bail, Context, Result};
 use assert_functions::SupervisorAssertions;
+use delegate::Delegate;
 use rand::{prelude::SliceRandom, rngs::ThreadRng};
 use std::{
     collections::HashMap,
@@ -243,12 +244,6 @@ impl SupervisorAgent {
                 .supervisor_parameters
                 .create(&locked_scheduling_environment, &work_order_activity);
 
-            // TODO START HERE
-            self.supervisor_algorithm
-                .supervisor_parameters
-                .supervisor_work_orders
-                .get();
-
             for operational_agent in &self.operational_agent_addrs {
                 if operational_agent.0 .1.contains(
                     &self
@@ -258,9 +253,15 @@ impl SupervisorAgent {
                         .context("The SupervisorParameter was not found")?
                         .resource,
                 ) {
+                    let operation = locked_scheduling_environment.operation(&work_order_activity);
+                    let delegate = Delegate::build(operation);
                     self.supervisor_algorithm
                         .supervisor_solution
-                        .insert_supervisor_solution(operational_agent, work_order_activity)
+                        .insert_supervisor_solution(
+                            operational_agent,
+                            delegate,
+                            work_order_activity,
+                        )
                         .context("Supervisor could not insert operational solution correctly")?;
                 }
             }

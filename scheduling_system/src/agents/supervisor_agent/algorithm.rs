@@ -162,15 +162,25 @@ impl SupervisorAlgorithm {
     }
 
     pub fn make_atomic_pointer_swap(&self) {
-        let best_supervisor_solution = self.supervisor_solution.clone();
-
-        let mut loaded_shared_solution = (**self.loaded_shared_solution).clone();
-
-        loaded_shared_solution.supervisor = best_supervisor_solution;
-
-        self.arc_swap_shared_solution
-            .0
-            .store(Arc::new(loaded_shared_solution))
+        // Performance enhancements:
+        // * COW:
+        //      #[derive(Clone)]
+        //      struct SharedSolution<'a> {
+        //          tactical: Cow<'a, TacticalSolution>,
+        //          // other fields...
+        //      }
+        //
+        // * Reuse the old SharedSolution, cloning only the fields that are needed.
+        //     let shared_solution = Arc::new(SharedSolution {
+        //             tactical: self.tactical_solution.clone(),
+        //             // Copy over other fields without cloning
+        //             ..(**old).clone()
+        //         });
+        self.arc_swap_shared_solution.0.rcu(|old| {
+            let mut shared_solution = (**old).clone();
+            shared_solution.supervisor = self.supervisor_solution.clone();
+            Arc::new(shared_solution)
+        });
     }
 }
 
@@ -239,6 +249,7 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
 
             let mut remaining_to_assign = number - number_of_assigned;
 
+            event!(Level::WARN, remaining_to_assign = ?remaining_to_assign);
             for (agent_id, delegate_status) in &mut operational_status_by_work_order_activity {
                 if *delegate_status != Delegate::Assess {
                     continue;

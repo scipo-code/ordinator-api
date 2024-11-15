@@ -40,7 +40,7 @@ use crate::agents::{
 use shared_types::scheduling_environment::work_order::{ActivityRelation, WorkOrder};
 
 pub struct TacticalAlgorithm {
-    pub strategic_tactical_solution_arc_swap: Arc<ArcSwapSharedSolution>,
+    pub arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
     pub loaded_shared_solution: Guard<Arc<SharedSolution>>,
     pub tactical_solution: TacticalSolution,
     pub tactical_parameters: TacticalParameters,
@@ -174,7 +174,7 @@ impl TacticalAlgorithm {
     ) -> Self {
         let loaded_shared_solution = strategic_tactical_solution_arc_swap.0.load();
         let mut tactical_algorithm = TacticalAlgorithm {
-            strategic_tactical_solution_arc_swap,
+            arc_swap_shared_solution: strategic_tactical_solution_arc_swap,
             loaded_shared_solution,
             tactical_solution: TacticalSolution::default(),
             tactical_parameters: TacticalParameters::default(),
@@ -315,19 +315,33 @@ impl TacticalAlgorithm {
                 .tactical_days
                 .insert(*work_order_number, None);
         }
-        self.make_atomic_pointer_swap_for_with_the_better_tactical_solution();
+        self.make_atomic_pointer_swap();
     }
 
-    pub(crate) fn make_atomic_pointer_swap_for_with_the_better_tactical_solution(&self) {
-        let mut shared_solution = (**self.loaded_shared_solution).clone();
-        shared_solution.tactical = self.tactical_solution.clone();
-        self.strategic_tactical_solution_arc_swap
-            .0
-            .store(Arc::new(shared_solution));
+    pub(crate) fn make_atomic_pointer_swap(&self) {
+        // Performance enhancements:
+        // * COW:
+        //      #[derive(Clone)]
+        //      struct SharedSolution<'a> {
+        //          tactical: Cow<'a, TacticalSolution>,
+        //          // other fields...
+        //      }
+        //
+        // * Reuse the old SharedSolution, cloning only the fields that are needed.
+        //     let shared_solution = Arc::new(SharedSolution {
+        //             tactical: self.tactical_solution.clone(),
+        //             // Copy over other fields without cloning
+        //             ..(**old).clone()
+        //         });
+        self.arc_swap_shared_solution.0.rcu(|old| {
+            let mut shared_solution = (**old).clone();
+            shared_solution.tactical = self.tactical_solution.clone();
+            Arc::new(shared_solution)
+        });
     }
 
     pub fn load_shared_solution(&mut self) {
-        self.loaded_shared_solution = self.strategic_tactical_solution_arc_swap.0.load();
+        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
     }
 
     pub(crate) fn objective_value(&self) -> TacticalObjectiveValue {

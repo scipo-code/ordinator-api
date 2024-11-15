@@ -16,7 +16,6 @@ use super::delegate::Delegate;
 /// The SupervisorSolution is a state machine that keeps track of all the
 /// states of the operational agents. It is a solution representation of
 /// a **iterative combinatorial auction algorithms**.
-
 impl SupervisorSolution {
     pub fn len(&self) -> usize {
         self.operational_state_machine.len()
@@ -25,10 +24,9 @@ impl SupervisorSolution {
     pub fn insert_supervisor_solution(
         &mut self,
         operational_agent: (&Id, &Addr<OperationalAgent>),
+        delegate: Delegate,
         work_order_activity: WorkOrderActivity,
     ) -> Result<()> {
-        let delegate = Delegate::new();
-
         self.operational_state_machine
             .insert((operational_agent.0.clone(), work_order_activity), delegate);
         Ok(())

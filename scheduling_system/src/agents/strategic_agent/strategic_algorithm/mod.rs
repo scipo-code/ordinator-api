@@ -38,10 +38,27 @@ impl StrategicAlgorithm {
         self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
     }
 
-    pub fn make_atomic_pointer_swap_for_with_the_better_strategic_solution(&self) {
-        let mut shared_solution = (**self.loaded_shared_solution).clone();
-        shared_solution.strategic = self.strategic_solution.clone();
-        self.arc_swap_shared_solution.0.store(Arc::new(shared_solution));
+    pub fn make_atomic_pointer_swap(&self) {
+        // Performance enhancements:
+        // * COW:
+        //      #[derive(Clone)]
+        //      struct SharedSolution<'a> {
+        //          tactical: Cow<'a, TacticalSolution>,
+        //          // other fields...
+        //      }
+        //
+        // * Reuse the old SharedSolution, cloning only the fields that are needed.
+        //     let shared_solution = Arc::new(SharedSolution {
+        //             tactical: self.tactical_solution.clone(),
+        //             // Copy over other fields without cloning
+        //             ..(**old).clone()
+        //         });
+        self.arc_swap_shared_solution.0.rcu(|old| {
+            let mut shared_solution = (**old).clone();
+            shared_solution.strategic = self.strategic_solution.clone();
+            Arc::new(shared_solution)
+        });
+    
     } 
 
     pub fn strategic_periods(&self) -> &HashMap<WorkOrderNumber, Option<Period>> {
@@ -74,7 +91,7 @@ impl StrategicAlgorithm {
             self.strategic_solution.strategic_periods.insert(*work_order_number, None);
             
             self.strategic_parameters.insert_strategic_parameter(*work_order_number, strategic_parameter);
-            self.make_atomic_pointer_swap_for_with_the_better_strategic_solution();
+            self.make_atomic_pointer_swap();
             let scheduled_period_option = self.strategic_solution.strategic_periods.get(&work_order_number).unwrap().clone();
 
             if let Some(scheduled_period) = scheduled_period_option {

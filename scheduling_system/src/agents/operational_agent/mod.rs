@@ -33,8 +33,9 @@ use shared_types::scheduling_environment::{
 use tracing::{event, info, instrument, warn, Level};
 
 use crate::agents::{
-    operational_agent::algorithm::OperationalParameter, OperationalSolution, StateLink,
-    StateLinkWrapper,
+    operational_agent::algorithm::OperationalParameter,
+    supervisor_agent::{algorithm::MarginalFitness, delegate::Delegate},
+    OperationalSolution, StateLink, StateLinkWrapper,
 };
 
 use self::algorithm::{Assignment, OperationalAlgorithm, OperationalAssignment};
@@ -69,16 +70,6 @@ impl OperationalAgent {
         // let (start_datetime, end_datetime) =
         //     self.determine_start_and_finish_times(work_order_activity);
 
-        dbg!(
-            &self
-                .operational_algorithm
-                .loaded_shared_solution
-                .supervisor
-                .operational_state_machine
-                .get(&(self.operational_id.clone(), *work_order_activity))
-                .unwrap(),
-            operation.work_remaining()
-        );
         assert!(
             operation.work_remaining() > &Some(Work::from(0.0))
                 || self
@@ -224,31 +215,21 @@ impl Handler<ScheduleIteration> for OperationalAgent {
                 .state_of_agent(&self.operational_id)
         );
 
-        for (work_order_activity, _) in self
-            .operational_algorithm
-            .loaded_shared_solution
-            .supervisor
-            .state_of_agent(&self.operational_id)
+        let loaded_supervisor_solution =
+            &self.operational_algorithm.loaded_shared_solution.supervisor;
+
+        for (work_order_activity, delegate) in
+            loaded_supervisor_solution.state_of_agent(&self.operational_id)
         {
+            if delegate == Delegate::Done {
+                continue;
+            }
             self.create_operational_parameter(&work_order_activity)
                 .expect("Could not create OperationalParameter");
         }
 
         self.operational_algorithm
             .remove_delegate_drop(&self.operational_id);
-
-        // This is for testing only. There is a small chance that the supervisor
-        // sets a Delegate::Drop in the short time span between the line above
-        // and the assert! below
-        // assert!(self
-        //     .operational_algorithm
-        //     .operational_parameters
-        //     .no_delegate_drop_or_delegate_done());
-
-        // This is wrong! We need to implement the delta changes on the algorithm structs
-        // What should be changed here?
-        // TODO: Not copy the whole algorithm
-        event!(Level::WARN, "DETERMINE FLOW");
 
         event!(
             Level::WARN,
@@ -264,7 +245,7 @@ impl Handler<ScheduleIteration> for OperationalAgent {
                 .len()
         );
 
-        let temporary_solution: OperationalSolution =
+        let temporary_operational_solution: OperationalSolution =
             self.operational_algorithm.operational_solution.clone();
 
         self.operational_algorithm
@@ -277,7 +258,11 @@ impl Handler<ScheduleIteration> for OperationalAgent {
         let is_better_schedule = self.operational_algorithm.calculate_objective_value();
 
         if is_better_schedule {
-            self.operational_algorithm.operational_solution = temporary_solution;
+            self.operational_algorithm
+                .make_atomic_pointer_swap(&self.operational_id);
+        } else {
+            self.operational_algorithm.operational_solution = temporary_operational_solution;
+
             info!(operational_objective_value = ?self.operational_algorithm.operational_solution.objective_value);
         };
 

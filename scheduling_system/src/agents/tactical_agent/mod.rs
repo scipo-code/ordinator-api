@@ -102,7 +102,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
             < current_tactical_solution.objective_value
         {
             self.tactical_algorithm
-                .make_atomic_pointer_swap_for_with_the_better_tactical_solution();
+                .make_atomic_pointer_swap();
 
 
             event!(Level::INFO,

@@ -1,4 +1,5 @@
 use atomic_enum::atomic_enum;
+use shared_types::scheduling_environment::work_order::operation::Operation;
 
 #[derive(Default, Hash, Eq, PartialEq, PartialOrd, Ord)]
 #[atomic_enum]
@@ -13,6 +14,20 @@ pub enum Delegate {
 }
 
 impl Delegate {
+    pub fn build(operation: &Operation) -> Delegate {
+        if operation
+            .operation_info
+            .work_remaining
+            .as_ref()
+            .unwrap()
+            .0
+            .is_zero()
+        {
+            return Delegate::Done;
+        }
+        Delegate::Assess
+    }
+
     pub fn new() -> Delegate {
         Delegate::Assess
     }

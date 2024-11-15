@@ -112,8 +112,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         if self.strategic_algorithm.strategic_solution.objective_value
             < old_strategic_solution.objective_value
         {
-            self.strategic_algorithm
-                .make_atomic_pointer_swap_for_with_the_better_strategic_solution();
+            self.strategic_algorithm.make_atomic_pointer_swap();
 
             event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value,
                 scheduled_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.iter().filter(|ele| ele.1.is_some()).count(),
