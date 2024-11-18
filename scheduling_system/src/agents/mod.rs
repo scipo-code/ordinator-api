@@ -55,6 +55,22 @@ pub struct SharedSolution {
     pub operational: HashMap<Id, OperationalSolution>,
 }
 
+impl SharedSolution {
+    pub fn new(
+        strategic: Option<StrategicSolution>,
+        tactical: Option<TacticalSolution>,
+        supervisor: Option<SupervisorSolution>,
+        operational: Option<HashMap<Id, OperationalSolution>>,
+    ) -> Self {
+        Self {
+            strategic: strategic.unwrap_or_default(),
+            tactical: tactical.unwrap_or_default(),
+            supervisor: supervisor.unwrap_or_default(),
+            operational: operational.unwrap_or_default(),
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct StrategicSolution {
     pub objective_value: StrategicObjectiveValue,
@@ -67,6 +83,31 @@ pub struct TacticalSolution {
     pub objective_value: TacticalObjectiveValue,
     pub tactical_days: HashMap<WorkOrderNumber, Option<HashMap<ActivityNumber, TacticalOperation>>>,
     pub tactical_loadings: TacticalResources,
+}
+
+#[derive(Default)]
+pub struct TacticalSolutionBuilder(TacticalSolution);
+
+impl TacticalSolutionBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_tactical_days(
+        mut self,
+        tactical_days: HashMap<WorkOrderNumber, Option<HashMap<ActivityNumber, TacticalOperation>>>,
+    ) -> Self {
+        self.0.tactical_days = tactical_days;
+        self
+    }
+
+    pub fn build(self) -> TacticalSolution {
+        TacticalSolution {
+            objective_value: self.0.objective_value,
+            tactical_days: self.0.tactical_days,
+            tactical_loadings: self.0.tactical_loadings,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]

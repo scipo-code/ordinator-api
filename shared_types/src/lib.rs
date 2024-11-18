@@ -286,6 +286,7 @@ mod tests {
         let toml_operational_string = r#"
             [[supervisors]]
             id = "main"
+            number_of_supervisor_periods = 3
 
             [[operational]]
             id = "OP-01-001"

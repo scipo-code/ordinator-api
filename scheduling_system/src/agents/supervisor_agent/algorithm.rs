@@ -267,13 +267,18 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
 
                 if remaining_to_assign >= 1 {
                     remaining_to_assign -= 1;
-                    delegate_status.state_change_to_assign();
+                    self.supervisor_solution
+                        .operational_state_machine
+                        .get_mut(&(agent_id.clone(), *work_order_activity)).expect("This value should always be present. Check the generation of keys and values if this fails")
+                        .state_change_to_assign();
                 } else {
                     if *delegate_status == Delegate::Assign {
                         continue;
                     }
-
-                    delegate_status.state_change_to_unassign()
+                    self.supervisor_solution
+                        .operational_state_machine
+                        .get_mut(&(agent_id.clone(), *work_order_activity)).expect("This value should always be present. Check the generation of keys and values if this fails")
+                        .state_change_to_unassign();
                 }
             }
         }

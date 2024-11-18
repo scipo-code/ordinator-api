@@ -211,8 +211,6 @@ impl OperationalAlgorithm {
         work_order_activity_previous: (WorkOrderNumber, ActivityNumber),
         time_delta: TimeDelta,
     ) {
-        assert_eq!(time_delta.num_nanoseconds().unwrap(), 0);
-
         let time_delta_usize = time_delta.num_seconds() as u64;
 
         self.operational_solution
@@ -557,11 +555,6 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                 OperationalEvents::WrenchTime((time_interval, work_order_activity)) => {
                     wrench_time += time_interval.duration();
                     current_time += time_interval.duration();
-                    if prev_fitness.num_seconds() > 0 {
-                        panic!()
-                    }
-
-                    // What does this do?
                     current_work_order_activity = match current_work_order_activity {
                         Some(work_order_activity_previous) => {
                             if work_order_activity_previous != *work_order_activity {
@@ -840,21 +833,36 @@ impl OperationalAlgorithm {
         work_order_activity: &WorkOrderActivity,
         operational_parameter: &OperationalParameter,
     ) -> DateTime<Utc> {
-        let (start_window, end_window) = match self
+        // What should be done here? I think that the goal is to create a
+        let tactical_days_option = self
             .loaded_shared_solution
             .tactical
             .tactical_days
             .get(&work_order_activity.0)
-            .unwrap()
-        {
-            Some(activities) => {
+            .expect("This should always be present. If this occurs you should check the initialization. The implementation is that the tactical and strategic algorithm always provide a key for each WorkOrderNumber");
+
+        let strategic_period_option = self
+            .loaded_shared_solution
+            .strategic
+            .strategic_periods
+            .get(&work_order_activity.0)
+            .expect("This should always be present. If this occurs you should check the initialization. The implementation is that the tactical and strategic algorithm always provide a key for each WorkOrderNumber");
+
+        let (start_window, end_window) = match (strategic_period_option, tactical_days_option) {
+            (Some(_period), Some(activities)) => {
                 let scheduled_days = &activities.get(&work_order_activity.1).unwrap().scheduled;
 
                 let start = scheduled_days.first().unwrap().0.date();
                 let end = scheduled_days.last().unwrap().0.date();
+
+                assert!(_period.contains_date(start.date_naive()));
                 (start, end)
             }
-            None => (&self.availability.start_date, &self.availability.end_date),
+            (Some(period), None) => (period.start_date(), period.end_date()),
+
+            (None, Some(days)) => todo!(),
+            // (&self.availability.start_date, &self.availability.end_date)
+            (None, None) => panic!("This should not happen yet, either the tactical xor the strategic has a solution available"),
         };
         for operational_solution in self.operational_solution.work_order_activities.windows(2) {
             let start_of_interval = {
@@ -1019,13 +1027,14 @@ fn equality_between_time_interval_and_assignments(all_events: &Vec<Assignment>) 
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{str::FromStr, sync::Arc};
 
     use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
     use proptest::prelude::*;
     use shared_types::{
         operational::{OperationalConfiguration, TimeInterval},
         scheduling_environment::{
+            time_environment::period::Period,
             work_order::{
                 operation::{ActivityNumber, Work},
                 WorkOrderNumber,
@@ -1177,10 +1186,10 @@ mod tests {
     #[test]
     fn test_determine_first_available_start_time() {
         let availability_start: DateTime<Utc> =
-            DateTime::parse_from_rfc3339("2024-05-16T07:00:00Z")
+            DateTime::parse_from_rfc3339("2024-10-07T07:00:00Z")
                 .unwrap()
                 .to_utc();
-        let availability_end: DateTime<Utc> = DateTime::parse_from_rfc3339("2024-05-30T15:00:00Z")
+        let availability_end: DateTime<Utc> = DateTime::parse_from_rfc3339("2024-10-20T15:00:00Z")
             .unwrap()
             .to_utc();
 
@@ -1204,10 +1213,44 @@ mod tests {
             toolbox_interval.clone(),
         );
 
-        let operational_algorithm = OperationalAlgorithm::new(
+        let mut operational_algorithm = OperationalAlgorithm::new(
             operational_configuration,
             Arc::new(ArcSwapSharedSolution::default()),
         );
+
+        operational_algorithm.load_shared_solution();
+
+        let mut strategic_updated_shared_solution =
+            (**operational_algorithm.loaded_shared_solution).clone();
+
+        strategic_updated_shared_solution
+            .strategic
+            .strategic_periods
+            .insert(
+                WorkOrderNumber(0),
+                Some(Period::from_str("2024-W41-42").unwrap()),
+            );
+
+        operational_algorithm
+            .arc_swap_shared_solution
+            .0
+            .store(Arc::new(strategic_updated_shared_solution));
+
+        operational_algorithm.load_shared_solution();
+        let mut tactical_updated_shared_solution =
+            (**operational_algorithm.loaded_shared_solution).clone();
+
+        tactical_updated_shared_solution
+            .tactical
+            .tactical_days
+            .insert(WorkOrderNumber(0), None);
+
+        operational_algorithm
+            .arc_swap_shared_solution
+            .0
+            .store(Arc::new(tactical_updated_shared_solution));
+
+        operational_algorithm.load_shared_solution();
 
         let operational_parameter = OperationalParameter::new(Work::from(20.0), Work::from(0.0));
 
@@ -1218,7 +1261,7 @@ mod tests {
 
         assert_eq!(
             start_time,
-            DateTime::parse_from_rfc3339("2024-05-16T08:00:00Z")
+            DateTime::parse_from_rfc3339("2024-10-07T08:00:00Z")
                 .unwrap()
                 .to_utc()
         );
