@@ -10,7 +10,6 @@ use std::{
 };
 
 use actix::prelude::*;
-use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use shared_types::operational::operational_response_scheduling::{
     EventInfo, JsonAssignment, JsonAssignmentEvents, OperationalSchedulingResponse,
 };
@@ -33,8 +32,7 @@ use shared_types::scheduling_environment::{
 use tracing::{event, info, instrument, warn, Level};
 
 use crate::agents::{
-    operational_agent::algorithm::OperationalParameter,
-    supervisor_agent::{algorithm::MarginalFitness, delegate::Delegate},
+    operational_agent::algorithm::OperationalParameter, supervisor_agent::delegate::Delegate,
     OperationalSolution, StateLink, StateLinkWrapper,
 };
 
@@ -67,9 +65,6 @@ impl OperationalAgent {
 
         let operation: &Operation = scheduling_environment.operation(work_order_activity);
 
-        // let (start_datetime, end_datetime) =
-        //     self.determine_start_and_finish_times(work_order_activity);
-
         assert!(
             operation.work_remaining() > &Some(Work::from(0.0))
                 || self
@@ -97,55 +92,6 @@ impl OperationalAgent {
 
         event!(Level::INFO, id = ?self.operational_id, tactical_operation = ?self.operational_algorithm.loaded_shared_solution.tactical.tactical_days.get(&work_order_activity.0).unwrap());
         Ok(())
-    }
-
-    //TODO: DO NOT DELETE THIS FUNCTION!!!
-    fn determine_start_and_finish_times(
-        &self,
-        work_order_activity: &WorkOrderActivity,
-    ) -> (DateTime<Utc>, DateTime<Utc>) {
-        let days = &self
-            .operational_algorithm
-            .loaded_shared_solution
-            .tactical
-            .tactical_days
-            .get(&work_order_activity.0)
-            .unwrap()
-            .as_ref()
-            .unwrap()
-            .get(&work_order_activity.1)
-            .unwrap()
-            .scheduled;
-
-        if days.len() == 1 {
-            let start_of_time_window = Utc.from_utc_datetime(&NaiveDateTime::new(
-                days.first().unwrap().0.date().date_naive(),
-                self.operational_configuration.off_shift_interval.start,
-            ));
-            let end_of_time_window = Utc.from_utc_datetime(&NaiveDateTime::new(
-                days.last().unwrap().0.date().date_naive(),
-                self.operational_configuration.off_shift_interval.end,
-            ));
-            (start_of_time_window, end_of_time_window)
-        } else {
-            let start_day = days[0].0.date().date_naive();
-            let end_day = days.last().unwrap().0.date().date_naive();
-            let start_datetime = NaiveDateTime::new(
-                start_day,
-                self.operational_configuration.off_shift_interval.end
-                    - Duration::seconds(days[0].1.in_seconds() as i64),
-            );
-            let end_datetime = NaiveDateTime::new(
-                end_day,
-                self.operational_configuration.off_shift_interval.start
-                    + Duration::seconds(days.last().unwrap().1.in_seconds() as i64),
-            );
-
-            (
-                Utc.from_utc_datetime(&start_datetime),
-                Utc.from_utc_datetime(&end_datetime),
-            )
-        }
     }
 }
 

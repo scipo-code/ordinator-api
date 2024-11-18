@@ -21,7 +21,9 @@ use shared_types::strategic::strategic_response_scheduling::StrategicResponseSch
 use shared_types::{Asset, LoadOperation};
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
-use std::sync::Arc;use tracing::{error, event, info, instrument, trace, Level};
+use std::sync::Arc;
+
+use tracing::{event, instrument, Level};
 
 pub struct StrategicAlgorithm {
     priority_queues: PriorityQueues<WorkOrderNumber, u64>,
@@ -312,7 +314,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
             let optimized_period = match scheduled_period {
                 Some(optimized_period) => optimized_period.clone(),
                 None => {
-                    error!("{:?} does not have a scheduled period", work_order_number);
+                    event!(Level::ERROR, "{:?} does not have a scheduled period", work_order_number);
                     panic!("{:?} does not have a scheduled period", work_order_number);
                 }
             };
@@ -538,7 +540,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                         };
 
                         if overwrite {
-                            info!("{:?} has been excluded from period {} and the locked in period has been removed", work_order_number, period.period_string());
+                            event!(Level::INFO, "{:?} has been excluded from period {} and the locked in period has been removed", work_order_number, period.period_string());
                         }
                             
                         Ok(StrategicResponseScheduling::new(vec![*work_order_number], vec![period.clone()]))
@@ -592,7 +594,7 @@ impl StrategicAlgorithm {
 
     pub fn populate_priority_queues(&mut self) {
         for work_order_number in self.strategic_solution.strategic_periods.keys() {
-            trace!("Work order {:?} has been added to the normal queue", work_order_number);
+            event!(Level::TRACE, "Work order {:?} has been added to the normal queue", work_order_number);
             let strategic_work_order_weight = self.strategic_parameters.strategic_work_order_parameters.get(work_order_number).expect("The StrategicParameter should always be available for the StrategicSolution").weight;
 
             if self.strategic_periods().get(work_order_number).unwrap().is_none() {
@@ -636,7 +638,7 @@ mod tests {
 
     use crate::agents::{strategic_agent::strategic_algorithm::{
             PriorityQueues, StrategicAlgorithm, StrategicParameters
-        }, TacticalSolution, TacticalSolutionBuilder};
+        }, TacticalSolutionBuilder};
 
     use std::{collections::HashMap, str::FromStr};
 
@@ -1324,7 +1326,10 @@ Period::from_str("2023-W49-50").unwrap(),
         
         let tactical_solution = tactical_solution_builder.with_tactical_days(tactical_days).build();
 
-        let shared_solution = SharedSolution::new(None, Some(tactical_solution), None, None);
+        let shared_solution = SharedSolution {
+            tactical: tactical_solution,
+            ..SharedSolution::default()
+        };
 
         let arc_swap_shared_solution = ArcSwapSharedSolution(ArcSwap::from_pointee(shared_solution));
 

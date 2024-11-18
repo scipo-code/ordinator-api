@@ -62,6 +62,7 @@ impl TacticalAgent {
             self.tactical_algorithm.tactical_days.clone(),
         ))
     }
+
 }
 
 impl Actor for TacticalAgent {
@@ -165,6 +166,7 @@ impl Handler<TacticalRequestMessage> for TacticalAgent {
             }
             TacticalRequestMessage::Scheduling(_tactical_scheduling_message) => {
                 todo!()
+                    
             }
             TacticalRequestMessage::Resources(tactical_resources_message) => {
                 let resource_response = self
@@ -176,6 +178,14 @@ impl Handler<TacticalRequestMessage> for TacticalAgent {
             TacticalRequestMessage::Days(_tactical_time_message) => {
                 todo!()
             }
+            TacticalRequestMessage::Update => {
+                let locked_scheduling_environment = &self.scheduling_environment.lock().unwrap();
+                let asset = &self.asset;
+
+                self.tactical_algorithm.create_tactical_parameters(&locked_scheduling_environment, asset);
+                Ok(TacticalResponseMessage::Update)
+            }
+
         }
     }
 }

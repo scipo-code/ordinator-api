@@ -28,10 +28,6 @@ impl Delegate {
         Delegate::Assess
     }
 
-    pub fn new() -> Delegate {
-        Delegate::Assess
-    }
-
     pub fn is_assess(&self) -> bool {
         matches!(self, Self::Assess)
     }

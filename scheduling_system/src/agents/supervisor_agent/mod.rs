@@ -367,6 +367,12 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
             SupervisorRequestMessage::Scheduling(_scheduling_message) => Ok(
                 SupervisorResponseMessage::Scheduling(SupervisorResponseScheduling {}),
             ),
+            SupervisorRequestMessage::Update => {
+                bail!(
+                    "IMPLEMENT update logic for Supervisor for Asset: {:?}",
+                    self.asset
+                );
+            }
         }
     }
 }

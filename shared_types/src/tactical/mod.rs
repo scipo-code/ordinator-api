@@ -3,9 +3,11 @@ pub mod tactical_response_resources;
 pub mod tactical_response_scheduling;
 pub mod tactical_response_status;
 pub mod tactical_response_time;
+pub mod tactical_response_update;
 pub mod tactical_scheduling_message;
 pub mod tactical_status_message;
 pub mod tactical_time_message;
+pub mod tactical_update_message;
 
 use std::collections::HashMap;
 
@@ -14,7 +16,7 @@ use crate::{
         time_environment::day::Day, work_order::operation::Work,
         worker_environment::resources::Resources,
     },
-    AlgorithmState, Asset, ConstraintState,
+    Asset, ConstraintState,
 };
 use actix::Message;
 use anyhow::{Context, Result};
@@ -51,6 +53,7 @@ pub enum TacticalRequestMessage {
     Scheduling(TacticalSchedulingRequest),
     Resources(TacticalResourceRequest),
     Days(TacticalTimeRequest),
+    Update,
 }
 
 impl Message for TacticalRequestMessage {
@@ -78,8 +81,9 @@ pub enum TacticalResponseMessage {
     Scheduling(TacticalResponseScheduling),
     Resources(TacticalResponseResources),
     Time(TacticalResponseTime),
-    Test(AlgorithmState<TacticalInfeasibleCases>),
+    Update,
 }
+
 #[derive(Debug, Clone, Serialize)]
 pub struct TacticalInfeasibleCases {
     pub aggregated_load: ConstraintState<String>,

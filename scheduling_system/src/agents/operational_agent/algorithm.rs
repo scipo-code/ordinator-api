@@ -469,7 +469,8 @@ pub enum Unavailability {
 #[derive(Debug, Clone)]
 pub struct OperationalParameter {
     work: Work,
-    preparation: Work,
+    // TODO: INCLUDE PREPARATION
+    _preparation: Work,
     operation_time_delta: TimeDelta,
     // start_window: DateTime<Utc>,
     // end_window: DateTime<Utc>,
@@ -480,20 +481,23 @@ pub struct OperationalParameter {
 impl OperationalParameter {
     pub fn new(
         work: Work,
-        preparation: Work,
+        _preparation: Work,
         // start_window: DateTime<Utc>,
         // end_window: DateTime<Utc>,
         // delegated: Delegate,
         // marginal_fitness: MarginalFitness,
     ) -> Self {
-        let combined_time = (&work + &preparation).in_seconds();
+        let combined_time = (&work + &_preparation).in_seconds();
         let operation_time_delta = TimeDelta::new(combined_time as i64, 0).unwrap();
         assert_ne!(work.to_f64(), 0.0);
         assert!(!operation_time_delta.is_zero());
-        assert_eq!(combined_time, work.in_seconds() + &preparation.in_seconds());
+        assert_eq!(
+            combined_time,
+            work.in_seconds() + &_preparation.in_seconds()
+        );
         Self {
             work,
-            preparation,
+            _preparation,
             operation_time_delta,
             // start_window,
             // end_window,
@@ -860,7 +864,7 @@ impl OperationalAlgorithm {
             }
             (Some(period), None) => (period.start_date(), period.end_date()),
 
-            (None, Some(days)) => todo!(),
+            (None, Some(_)) => todo!(),
             // (&self.availability.start_date, &self.availability.end_date)
             (None, None) => panic!("This should not happen yet, either the tactical xor the strategic has a solution available"),
         };

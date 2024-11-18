@@ -55,22 +55,6 @@ pub struct SharedSolution {
     pub operational: HashMap<Id, OperationalSolution>,
 }
 
-impl SharedSolution {
-    pub fn new(
-        strategic: Option<StrategicSolution>,
-        tactical: Option<TacticalSolution>,
-        supervisor: Option<SupervisorSolution>,
-        operational: Option<HashMap<Id, OperationalSolution>>,
-    ) -> Self {
-        Self {
-            strategic: strategic.unwrap_or_default(),
-            tactical: tactical.unwrap_or_default(),
-            supervisor: supervisor.unwrap_or_default(),
-            operational: operational.unwrap_or_default(),
-        }
-    }
-}
-
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct StrategicSolution {
     pub objective_value: StrategicObjectiveValue,
@@ -86,8 +70,10 @@ pub struct TacticalSolution {
 }
 
 #[derive(Default)]
+#[allow(dead_code)]
 pub struct TacticalSolutionBuilder(TacticalSolution);
 
+#[allow(dead_code)]
 impl TacticalSolutionBuilder {
     pub fn new() -> Self {
         Self::default()

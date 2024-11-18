@@ -849,6 +849,7 @@ impl TacticalAlgorithm {
     }
 }
 
+#[allow(dead_code)]
 enum OperationDifference {
     SameDay,
     DiffDay,
@@ -858,7 +859,7 @@ enum OperationDifference {
 pub mod tests {
     use std::{collections::HashMap, str::FromStr};
 
-    use chrono::{Days, Duration, NaiveDate};
+    use chrono::{Days, NaiveDate};
     use shared_types::{
         scheduling_environment::{
             work_order::{
@@ -1016,8 +1017,6 @@ pub mod tests {
     fn test_schedule_1() {
         let work_order_number = WorkOrderNumber(2100000001);
         let first_period = Period::from_str("2024-W13-14").unwrap();
-        let second_period = first_period.clone() + Duration::weeks(2);
-        let third_period = second_period.clone() + Duration::weeks(2);
 
         let tactical_days = |number_of_days: u32| -> Vec<Day> {
             let mut days: Vec<Day> = Vec::new();
@@ -1103,8 +1102,6 @@ pub mod tests {
         let work_order_number = WorkOrderNumber(2100000010);
         let activity_number = ActivityNumber(1);
         let first_period = Period::from_str("2024-W13-14").unwrap();
-        let second_period = first_period.clone() + Duration::weeks(2);
-        let third_period = second_period.clone() + Duration::weeks(2);
 
         let tactical_days = |number_of_days: u32| -> Vec<Day> {
             let mut days: Vec<Day> = Vec::new();
