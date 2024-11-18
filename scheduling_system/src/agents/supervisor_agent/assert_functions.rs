@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use anyhow::{bail, Result};
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use tracing::{event, Level};
 
@@ -7,17 +8,23 @@ use super::SupervisorAgent;
 
 #[allow(dead_code)]
 pub trait SupervisorAssertions {
-    fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(&self);
-    fn assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self);
+    fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(
+        &self,
+    ) -> Result<()>;
+    fn assert_operational_state_machine_woas_is_subset_of_tactical_shared_solution(
+        &self,
+    ) -> Result<()>;
 }
 
 impl SupervisorAssertions for SupervisorAgent {
-    fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(&self) {
+    fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(
+        &self,
+    ) -> Result<()> {
         let tactical_operation_woas: HashSet<WorkOrderNumber> = self
             .supervisor_algorithm
             .loaded_shared_solution
             .strategic
-            .supervisor_activities(
+            .supervisor_work_orders_from_strategic(
                 &self
                     .supervisor_algorithm
                     .supervisor_parameters
@@ -26,7 +33,7 @@ impl SupervisorAssertions for SupervisorAgent {
 
         let operational_state_woas: HashSet<WorkOrderNumber> = self
             .supervisor_algorithm
-            .operational_state_machine
+            .supervisor_solution
             .get_iter()
             .map(|(woa, _)| woa.1 .0)
             .collect();
@@ -42,37 +49,43 @@ impl SupervisorAssertions for SupervisorAgent {
                 in_the_tactical_operations = ?symmetric_difference.intersection(&tactical_operation_woas),
                 in_the_operational_state_woas = ?symmetric_difference.intersection(&operational_state_woas),
             );
-            panic!();
+            bail!("If the symmetric difference is empty it means that there are state inconsistencies");
         }
+        Ok(())
     }
-    fn assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations(&self) {
-        let tactical_operation_woas: HashSet<WorkOrderNumber> = self
+
+    // This assertion tests that
+    fn assert_operational_state_machine_woas_is_subset_of_tactical_shared_solution(
+        &self,
+    ) -> Result<()> {
+        let strategic_work_orders: HashSet<WorkOrderNumber> = self
             .supervisor_algorithm
             .loaded_shared_solution
             .strategic
-            .supervisor_activities(
+            .supervisor_work_orders_from_strategic(
                 &self
                     .supervisor_algorithm
                     .supervisor_parameters
                     .supervisor_periods,
             );
 
-        let operational_state_woas: HashSet<WorkOrderNumber> = self
+        let operational_state_work_order_activities: HashSet<WorkOrderNumber> = self
             .supervisor_algorithm
-            .operational_state_machine
+            .supervisor_solution
             .get_iter()
             .map(|(woa, _)| woa.1 .0)
             .collect();
 
-        if !operational_state_woas.is_subset(&tactical_operation_woas) {
+        if !operational_state_work_order_activities.is_subset(&strategic_work_orders) {
             event!(
                 Level::ERROR,
-                operational_difference_with_tactical_operations = ?operational_state_woas
-                    .difference(&tactical_operation_woas)
+                operational_difference_with_tactical_operations = ?operational_state_work_order_activities
+                    .difference(&strategic_work_orders)
                     .cloned()
                     .collect::<HashSet<_>>()
             );
-            panic!("The tactical_operations should always hold all the work_order_activities of the operational_state_machine");
+            bail!("The tactical_operations should always hold all the work_order_activities of the operational_state_machine");
         }
+        Ok(())
     }
 }

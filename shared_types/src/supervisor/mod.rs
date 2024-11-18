@@ -47,6 +47,7 @@ impl ToString for SupervisorType {
 pub enum SupervisorRequestMessage {
     Status(SupervisorStatusMessage),
     Scheduling(SupervisorSchedulingMessage),
+    Update,
 }
 
 impl Message for SupervisorRequestMessage {

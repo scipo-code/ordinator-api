@@ -1,10 +1,9 @@
 use std::{
-    cmp::Ordering,
     collections::{HashMap, HashSet},
-    sync::{atomic::AtomicUsize, Arc, MutexGuard},
+    sync::{Arc, MutexGuard},
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use arc_swap::Guard;
 use shared_types::{
     scheduling_environment::{
@@ -13,7 +12,7 @@ use shared_types::{
             operation::{operation_info::NumberOfPeople, ActivityNumber},
             WorkOrderActivity, WorkOrderNumber,
         },
-        worker_environment::resources::{Id, Resources},
+        worker_environment::resources::Resources,
         SchedulingEnvironment,
     },
     supervisor::{
@@ -22,47 +21,59 @@ use shared_types::{
         supervisor_response_time::SupervisorResponseTime, SupervisorObjectiveValue,
     },
 };
+
+#[allow(unused_imports)]
 use tracing::{event, Level};
 
 use crate::agents::{
-    operational_agent::algorithm::OperationalObjectiveValue, traits::LargeNeighborHoodSearch,
-    ArcSwapSharedSolution, SharedSolution,
+    traits::LargeNeighborHoodSearch, ArcSwapSharedSolution, GetMarginalFitness, SharedSolution,
+    SupervisorSolution,
 };
 
-use super::{delegate::Delegate, operational_state_machine::OperationalStateMachine};
+use super::delegate::Delegate;
 
-#[derive(Debug, Clone)]
-pub struct MarginalFitness(Arc<AtomicUsize>);
-// pub struct MarginalFitness(pub Arc<AtomicUsize>);
+#[derive(Eq, PartialEq, PartialOrd, Ord, Debug, Clone)]
+pub struct MarginalFitness(pub u64);
 
 impl MarginalFitness {
-    pub fn inner(&self) -> usize {
-        self.0.load(std::sync::atomic::Ordering::SeqCst)
-    }
-
-    pub fn store(&self, value: usize) {
-        self.0.store(value, std::sync::atomic::Ordering::SeqCst)
-    }
-
-    pub fn compare(&self, other: &Self) -> Ordering {
-        let self_value = self.inner();
-        let other_value = other.inner();
-
-        if self_value == other_value {
-            return Ordering::Equal;
-        } else if self_value > other_value {
-            return Ordering::Greater;
-        } else {
-            return Ordering::Less;
-        }
-    }
+    pub const MAX: Self = Self(u64::MAX);
 }
 
 impl Default for MarginalFitness {
     fn default() -> Self {
-        MarginalFitness(Arc::new(AtomicUsize::new(usize::MAX)))
+        Self(u64::MAX)
     }
 }
+// pub struct MarginalFitness(pub Arc<AtomicUsize>);
+
+// impl MarginalFitness {
+//     pub fn inner(&self) -> u64 {
+//         self.0
+//     }
+
+//     pub fn store(&self, value: usize) {
+//         self.0.store(value, std::sync::atomic::Ordering::SeqCst)
+//     }
+
+//     pub fn compare(&self, other: &Self) -> Ordering {
+//         let self_value = self.inner();
+//         let other_value = other.inner();
+
+//         if self_value == other_value {
+//             return Ordering::Equal;
+//         } else if self_value > other_value {
+//             return Ordering::Greater;
+//         } else {
+//             return Ordering::Less;
+//         }
+//     }
+// }
+
+// impl Default for MarginalFitness {
+//     fn default() -> Self {
+//         MarginalFitness(Arc::new(AtomicUsize::new(usize::MAX)))
+//     }
+// }
 
 pub struct SupervisorSchedulingRequest;
 pub struct SupervisorResourceRequest;
@@ -72,10 +83,9 @@ pub struct SupervisorAlgorithm {
     pub objective_value: SupervisorObjectiveValue,
     pub resources: Vec<Resources>,
     pub supervisor_parameters: SupervisorParameters,
-    pub operational_state_machine: OperationalStateMachine,
+    pub supervisor_solution: SupervisorSolution,
     arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
     pub loaded_shared_solution: Guard<Arc<SharedSolution>>,
-    pub operational_agent_objectives: HashMap<Id, OperationalObjectiveValue>,
 }
 
 pub struct SupervisorParameters {
@@ -141,8 +151,7 @@ impl SupervisorAlgorithm {
             objective_value: SupervisorObjectiveValue::default(),
             resources,
             supervisor_parameters: SupervisorParameters::new(supervisor_periods.to_vec()),
-            operational_state_machine: OperationalStateMachine::default(),
-            operational_agent_objectives: HashMap::default(),
+            supervisor_solution: SupervisorSolution::default(),
             arc_swap_shared_solution,
             loaded_shared_solution,
         }
@@ -150,6 +159,28 @@ impl SupervisorAlgorithm {
 
     pub fn load_shared_solution(&mut self) {
         self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
+    }
+
+    pub fn make_atomic_pointer_swap(&self) {
+        // Performance enhancements:
+        // * COW:
+        //      #[derive(Clone)]
+        //      struct SharedSolution<'a> {
+        //          tactical: Cow<'a, TacticalSolution>,
+        //          // other fields...
+        //      }
+        //
+        // * Reuse the old SharedSolution, cloning only the fields that are needed.
+        //     let shared_solution = Arc::new(SharedSolution {
+        //             tactical: self.tactical_solution.clone(),
+        //             // Copy over other fields without cloning
+        //             ..(**old).clone()
+        //         });
+        self.arc_swap_shared_solution.0.rcu(|old| {
+            let mut shared_solution = (**old).clone();
+            shared_solution.supervisor = self.supervisor_solution.clone();
+            Arc::new(shared_solution)
+        });
     }
 }
 
@@ -165,11 +196,9 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
     type SchedulingUnit = WorkOrderNumber;
 
     fn calculate_objective_value(&mut self) -> Self::BetterSolution {
-        let assigned_woas = &self
-            .operational_state_machine
-            .number_of_assigned_work_orders();
+        let assigned_woas = &self.supervisor_solution.number_of_assigned_work_orders();
 
-        let all_woas: HashSet<_> = self.operational_state_machine.get_work_order_activities();
+        let all_woas: HashSet<_> = self.supervisor_solution.get_work_order_activities();
 
         assert!(is_assigned_part_of_all(assigned_woas, &all_woas));
 
@@ -184,84 +213,80 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
         objective_value
     }
 
-    fn schedule(&mut self) {
+    fn schedule(&mut self) -> Result<()> {
         'next_work_order_activity: for work_order_activity in
-            &self.operational_state_machine.get_work_order_activities()
+            &self.supervisor_solution.get_work_order_activities()
         {
-            event!(Level::WARN, "DETERMINE FLOW");
             let number = self
                 .supervisor_parameters
                 .supervisor_work_orders
                 .get(&work_order_activity.0)
-                .expect("The supervisor parameter should always be available")
-                .get(&work_order_activity.1)
+                .and_then(|activities| activities.get(&work_order_activity.1))
                 .expect("The SupervisorParameter should always be available")
                 .number;
 
-            event!(Level::WARN, "DETERMINE FLOW");
-            let mut operational_status_by_woa = self
-                .operational_state_machine
-                .operational_status_by_woa(&work_order_activity);
+            let mut operational_status_by_work_order_activity = self
+                .supervisor_solution
+                .operational_status_by_work_order_activity(&work_order_activity);
 
-            operational_status_by_woa.sort_by(|a, b| a.2.compare(&b.2));
+            let operational = &self.loaded_shared_solution.operational;
 
-            let mut number_of_assigned: u64 = 0;
-            for operational_agent in &operational_status_by_woa {
-                if operational_agent
-                    .1
-                    .load(std::sync::atomic::Ordering::SeqCst)
-                    == Delegate::Assign
-                {
-                    number_of_assigned += 1;
-                }
-            }
+            operational_status_by_work_order_activity.sort_by_cached_key(|(agent_id, _)| {
+                match operational
+                    .marginal_fitness(agent_id, work_order_activity) {
+                        Ok(marginal_fitness) => marginal_fitness,
+                        Err(e) => {
+                            event!(Level::WARN, operational_agent_marginal_fitness_error = ?e, "Could be that the OperationalAgent did not have time to initialize. A bug could be hiding here");
+                            MarginalFitness::MAX
+                        },
+                    }
+            });
 
-            let mut remaining_work_order_activities_to_be_state_changed_to_delegate_assign =
-                number - number_of_assigned;
+            let number_of_assigned = operational_status_by_work_order_activity
+                .iter()
+                .filter(|(_, delegate)| *delegate == Delegate::Assign)
+                .count() as u64;
 
-            event!(Level::WARN, "DETERMINE FLOW");
-            for operational_agent in &operational_status_by_woa {
-                if operational_agent
-                    .1
-                    .load(std::sync::atomic::Ordering::SeqCst)
-                    != Delegate::Assess
-                {
+            let mut remaining_to_assign = number - number_of_assigned;
+
+            event!(Level::WARN, remaining_to_assign = ?remaining_to_assign);
+            for (agent_id, delegate_status) in &mut operational_status_by_work_order_activity {
+                if *delegate_status != Delegate::Assess {
                     continue;
                 }
 
-                if operational_agent
-                    .2
-                     .0
-                    .load(std::sync::atomic::Ordering::SeqCst)
-                    == usize::MAX
-                {
+                let marginal_fitness = self
+                    .loaded_shared_solution
+                    .operational
+                    .marginal_fitness(&agent_id, work_order_activity)
+                    .unwrap_or_default();
+
+                if marginal_fitness == MarginalFitness::MAX {
                     continue 'next_work_order_activity;
                 }
 
-                if remaining_work_order_activities_to_be_state_changed_to_delegate_assign >= 1 {
-                    remaining_work_order_activities_to_be_state_changed_to_delegate_assign -= 1;
-                    operational_agent.1.state_change_to_assign();
-                } else if remaining_work_order_activities_to_be_state_changed_to_delegate_assign
-                    == 0
-                {
-                    if operational_agent
-                        .1
-                        .load(std::sync::atomic::Ordering::SeqCst)
-                        == Delegate::Assign
-                    {
+                if remaining_to_assign >= 1 {
+                    remaining_to_assign -= 1;
+                    self.supervisor_solution
+                        .operational_state_machine
+                        .get_mut(&(agent_id.clone(), *work_order_activity)).expect("This value should always be present. Check the generation of keys and values if this fails")
+                        .state_change_to_assign();
+                } else {
+                    if *delegate_status == Delegate::Assign {
                         continue;
                     }
-
-                    operational_agent.1.state_change_to_unassign()
-                } else {
-                    panic!();
+                    self.supervisor_solution
+                        .operational_state_machine
+                        .get_mut(&(agent_id.clone(), *work_order_activity)).expect("This value should always be present. Check the generation of keys and values if this fails")
+                        .state_change_to_unassign();
                 }
             }
         }
+        Ok(())
     }
 
     fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) -> Result<()> {
-        self.operational_state_machine
+        self.supervisor_solution
             .turn_work_order_into_delegate_assess(work_order_number);
         Ok(())
     }

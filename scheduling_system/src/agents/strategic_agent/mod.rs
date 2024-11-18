@@ -58,7 +58,9 @@ impl Actor for StrategicAgent {
             "StrategicAgent has started for asset: {}",
             self.asset
         );
-        self.strategic_algorithm.schedule();
+        self.strategic_algorithm
+            .schedule()
+            .expect("StrategicAlgorithm.schedule() method failed");
         ctx.notify(ScheduleIteration {})
     }
 
@@ -99,19 +101,24 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         let old_strategic_solution = self.strategic_algorithm.strategic_solution.clone();
 
         self.strategic_algorithm
-            .unschedule_random_work_orders(50, rng);
+            .unschedule_random_work_orders(50, rng)
+            .expect("Unscheduling random work order should always be possible");
 
-        self.strategic_algorithm.schedule();
+        self.strategic_algorithm
+            .schedule()
+            .expect("StrategicAlgorithm.schedule method failed");
         // self.assert_aggregated_load().unwrap();
         self.strategic_algorithm.calculate_objective_value();
 
         if self.strategic_algorithm.strategic_solution.objective_value
             < old_strategic_solution.objective_value
         {
-            self.strategic_algorithm
-                .make_atomic_pointer_swap_for_with_the_better_strategic_solution();
+            self.strategic_algorithm.make_atomic_pointer_swap();
 
-            event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value,);
+            event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value,
+                scheduled_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.iter().filter(|ele| ele.1.is_some()).count(),
+                total_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.len()
+            );
         } else {
             self.strategic_algorithm.strategic_solution = old_strategic_solution;
         }
@@ -367,6 +374,7 @@ mod tests {
     use shared_types::strategic::Periods;
     use shared_types::strategic::StrategicObjectiveValue;
     use shared_types::strategic::StrategicResources;
+    use strategic_algorithm::ForcedWorkOrder;
     use tests::strategic_algorithm::optimized_work_orders::StrategicParameter;
     use tests::strategic_algorithm::optimized_work_orders::StrategicParameters;
     use unloading_point::UnloadingPoint;
@@ -558,7 +566,7 @@ mod tests {
             HashMap::new(),
         );
 
-        scheduler_agent_algorithm.set_optimized_work_order(work_order_number, optimized_work_order);
+        scheduler_agent_algorithm.set_strategic_parameter(work_order_number, optimized_work_order);
 
         scheduler_agent_algorithm
             .update_scheduling_state(strategic_scheduling_internal)
@@ -636,7 +644,7 @@ mod tests {
             periods.clone(),
         );
 
-        let optimized_work_order = StrategicParameter::new(
+        let strategic_parameter = StrategicParameter::new(
             Some(periods[0].clone()),
             HashSet::new(),
             periods.first().unwrap().clone(),
@@ -644,7 +652,7 @@ mod tests {
             work_load,
         );
 
-        strategic_algorithm.set_optimized_work_order(work_order_number, optimized_work_order);
+        strategic_algorithm.set_strategic_parameter(work_order_number, strategic_parameter);
 
         strategic_algorithm
             .update_scheduling_state(strategic_scheduling_message)
@@ -652,16 +660,16 @@ mod tests {
 
         assert_eq!(
             strategic_algorithm
-                .optimized_work_order(&work_order_number)
+                .strategic_parameter(&work_order_number)
                 .unwrap()
                 .locked_in_period,
             Some(Period::from_str("2023-W49-50").unwrap())
         );
+
         assert_eq!(
-            *strategic_algorithm
+            strategic_algorithm
                 .strategic_periods()
-                .get(&work_order_number)
-                .unwrap(),
+                .get(&work_order_number),
             None
         );
         // assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("VEN_MECH".to_string(), "2023-W49-50".to_string()), 16.0);
@@ -669,10 +677,11 @@ mod tests {
 
     #[test]
     fn test_calculate_objective_value() {
+        let work_order_number = WorkOrderNumber(2100023841);
         let mut strategic_parameters =
             StrategicParameters::new(HashMap::new(), StrategicResources::default());
 
-        let optimized_work_order = StrategicParameter::new(
+        let strategic_parameter = StrategicParameter::new(
             Some(Period::from_str("2023-W49-50").unwrap()),
             HashSet::new(),
             Period::from_str("2023-W47-48").unwrap(),
@@ -681,7 +690,7 @@ mod tests {
         );
 
         strategic_parameters
-            .insert_strategic_parameter(WorkOrderNumber(2100023841), optimized_work_order);
+            .insert_strategic_parameter(WorkOrderNumber(2100023841), strategic_parameter);
 
         let mut strategic_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
@@ -690,6 +699,14 @@ mod tests {
             HashSet::new(),
             vec![],
         );
+
+        strategic_algorithm
+            .strategic_solution
+            .strategic_periods
+            .insert(work_order_number, None);
+
+        strategic_algorithm
+            .schedule_forced_work_order(&(work_order_number, ForcedWorkOrder::Locked));
 
         strategic_algorithm.calculate_objective_value();
 

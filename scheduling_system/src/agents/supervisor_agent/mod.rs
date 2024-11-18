@@ -5,18 +5,15 @@ pub mod operational_state_machine;
 
 use anyhow::{bail, Context, Result};
 use assert_functions::SupervisorAssertions;
+use delegate::Delegate;
 use rand::{prelude::SliceRandom, rngs::ThreadRng};
 use std::{
     collections::HashMap,
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc, Mutex,
-    },
+    sync::{atomic::AtomicU64, Arc, Mutex},
 };
 
 use actix::prelude::*;
 use shared_types::{
-    orchestrator::OrchestratorMessage,
     scheduling_environment::work_order::WorkOrderActivity,
     supervisor::{
         supervisor_response_scheduling::SupervisorResponseScheduling,
@@ -38,7 +35,6 @@ use super::{
     tactical_agent::TacticalAgent,
     traits::LargeNeighborHoodSearch,
     ArcSwapSharedSolution, ScheduleIteration, SetAddr, StateLink, StateLinkWrapper,
-    SupervisorSolution,
 };
 
 pub struct SupervisorAgent {
@@ -56,7 +52,8 @@ impl Actor for SupervisorAgent {
 
     #[instrument(level = "trace", skip_all)]
     fn started(&mut self, ctx: &mut Self::Context) {
-        self.assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
+        self.assert_operational_state_machine_woas_is_subset_of_tactical_shared_solution()
+            .unwrap();
         ctx.set_mailbox_capacity(1000);
         self.tactical_agent_addr.do_send(SetAddr::Supervisor(
             self.supervisor_id.clone(),
@@ -71,73 +68,63 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
 
     #[instrument(skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut actix::Context<Self>) -> Self::Result {
-        self.assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
         self.supervisor_algorithm.load_shared_solution();
-        event!(Level::WARN, "DETERMINE FLOW");
-        self.update_supervisor_solution()
+        self.update_supervisor_solution_and_parameters()
             .expect("Could not load the data from the load SharedSolution");
 
-        event!(Level::WARN, "DETERMINE FLOW");
+        self.assert_operational_state_machine_woas_is_subset_of_tactical_shared_solution()
+            .expect("OperationalStates should correspond with TacticalOperations");
+
         event!(
             Level::WARN,
-            number_of_operational_states =
-                self.supervisor_algorithm.operational_state_machine.len()
+            number_of_operational_states = self.supervisor_algorithm.supervisor_solution.len()
         );
 
         event!(
             Level::INFO,
             number_of_operational_agents = ?self.number_of_operational_agents
         );
-        event!(Level::WARN, "DETERMINE FLOW");
 
         let rng = rand::thread_rng();
         self.supervisor_algorithm.calculate_objective_value();
-        event!(Level::WARN, "DETERMINE FLOW");
 
-        let current_state = self.capture_current_state();
-
-        let old_objective_value = current_state.objective_value.clone();
+        let old_supervisor_solution = self.supervisor_algorithm.supervisor_solution.clone();
 
         event!(
             Level::WARN,
-            current_state = ?current_state.state_of_each_agent
+            current_state = ?old_supervisor_solution.operational_state_machine
         );
 
         let number_of_removed_work_orders = 10;
         self.unschedule_random_work_orders(number_of_removed_work_orders, rng);
 
-        event!(Level::WARN, "DETERMINE FLOW");
-        self.supervisor_algorithm.schedule();
-        event!(Level::WARN, "DETERMINE FLOW");
+        self.supervisor_algorithm
+            .schedule()
+            .expect("SupervisorAlgorithm.schedule method failed");
         // self.assert_that_operational_state_machine_woas_are_a_subset_of_tactical_operations();
-        event!(Level::WARN, "DETERMINE FLOW");
 
         let new_objective_value = self.supervisor_algorithm.calculate_objective_value();
 
-        event!(Level::WARN, "DETERMINE FLOW");
         assert_eq!(
             new_objective_value,
             self.supervisor_algorithm.calculate_objective_value()
         );
-        event!(Level::WARN, "DETERMINE FLOW");
-        event!(
-            Level::WARN,
-            new_state = ?self.capture_current_state().state_of_each_agent
-        );
-        event!(Level::WARN, "DETERMINE FLOW");
 
         // self.supervisor_algorithm.operational_state_machine.assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess();
-
-        event!(Level::WARN, "DETERMINE FLOW");
         // self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&current_state).unwrap();
 
-        if self.supervisor_algorithm.objective_value < current_state.objective_value {
-            self.release_current_state(current_state.clone());
+        if self.supervisor_algorithm.objective_value >= old_supervisor_solution.objective_value {
+            self.supervisor_algorithm.make_atomic_pointer_swap();
+        } else if self.supervisor_algorithm.objective_value
+            < old_supervisor_solution.objective_value
+        {
+            assert!(
+                self.supervisor_algorithm.objective_value
+                    >= old_supervisor_solution.objective_value
+            );
+            self.supervisor_algorithm.supervisor_solution = old_supervisor_solution;
             self.supervisor_algorithm.calculate_objective_value();
         }
-
-        event!(Level::WARN, "DETERMINE FLOW");
-        assert!(self.supervisor_algorithm.objective_value >= old_objective_value);
 
         event!(
             Level::INFO,
@@ -155,29 +142,6 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
         );
         ctx.notify(ScheduleIteration {});
         Ok(())
-    }
-}
-
-impl SupervisorAgent {
-    fn capture_current_state(&self) -> SupervisorSolution {
-        let mut state_of_each_agent = HashMap::new();
-        self.supervisor_algorithm
-            .operational_state_machine
-            .get_iter()
-            .for_each(|(id_woa, del_fit)| {
-                state_of_each_agent.insert(id_woa.clone(), del_fit.0.load(Ordering::SeqCst));
-            });
-
-        SupervisorSolution {
-            objective_value: self.supervisor_algorithm.objective_value,
-            state_of_each_agent,
-        }
-    }
-
-    fn release_current_state(&mut self, captured_supervisor_state: SupervisorSolution) {
-        self.supervisor_algorithm
-            .operational_state_machine
-            .set_operational_state(captured_supervisor_state);
     }
 }
 
@@ -221,7 +185,7 @@ impl SupervisorAgent {
     fn unschedule_random_work_orders(&mut self, number_of_work_orders: u64, mut rng: ThreadRng) {
         let work_order_numbers = self
             .supervisor_algorithm
-            .operational_state_machine
+            .supervisor_solution
             .get_assigned_and_unassigned_work_orders();
 
         let sampled_work_order_numbers = work_order_numbers
@@ -244,34 +208,34 @@ impl SupervisorAgent {
         // self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&old_state).unwrap();
     }
 
-    fn update_supervisor_solution(&mut self) -> Result<()> {
-        event!(Level::WARN, "FIND STOP POINT");
-        let work_order_coming_from_tactical = self
+    fn update_supervisor_solution_and_parameters(&mut self) -> Result<()> {
+        let entering_work_orders_from_strategic = self
             .supervisor_algorithm
             .loaded_shared_solution
             .strategic
-            .supervisor_activities(
+            .supervisor_work_orders_from_strategic(
                 &self
                     .supervisor_algorithm
                     .supervisor_parameters
                     .supervisor_periods,
             );
 
-        event!(Level::WARN, number_coming_from_tactical = ?work_order_coming_from_tactical);
+        self.supervisor_algorithm
+            .supervisor_solution
+            .remove_leaving_work_order_activities(&entering_work_orders_from_strategic);
+
+        event!(Level::WARN, number_coming_from_tactical = ?entering_work_orders_from_strategic);
 
         let locked_scheduling_environment = self
             .scheduling_environment
             .lock()
             .expect("Could not acquire SchedulingEnvironment lock");
 
-        let work_order_activities: Vec<_> = self
-            .scheduling_environment
-            .lock()
-            .unwrap()
+        let work_order_activities: Vec<_> = locked_scheduling_environment
             .work_orders()
             .inner
             .iter()
-            .filter(|(won, _)| work_order_coming_from_tactical.contains(won))
+            .filter(|(won, _)| entering_work_orders_from_strategic.contains(won))
             .flat_map(|(won, wo)| wo.operations.keys().map(move |acn| (*won, *acn)))
             .collect();
 
@@ -289,9 +253,15 @@ impl SupervisorAgent {
                         .context("The SupervisorParameter was not found")?
                         .resource,
                 ) {
+                    let operation = locked_scheduling_environment.operation(&work_order_activity);
+                    let delegate = Delegate::build(operation);
                     self.supervisor_algorithm
-                        .operational_state_machine
-                        .insert_supervisor_solution(operational_agent, work_order_activity)
+                        .supervisor_solution
+                        .insert_supervisor_solution(
+                            operational_agent,
+                            delegate,
+                            work_order_activity,
+                        )
                         .context("Supervisor could not insert operational solution correctly")?;
                 }
             }
@@ -385,7 +355,7 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
                 let supervisor_status = SupervisorResponseStatus::new(
                     self.supervisor_algorithm.resources.clone(),
                     self.supervisor_algorithm
-                        .operational_state_machine
+                        .supervisor_solution
                         .count_unique_woa(),
                     self.supervisor_algorithm.objective_value,
                 );
@@ -397,23 +367,12 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
             SupervisorRequestMessage::Scheduling(_scheduling_message) => Ok(
                 SupervisorResponseMessage::Scheduling(SupervisorResponseScheduling {}),
             ),
+            SupervisorRequestMessage::Update => {
+                bail!(
+                    "IMPLEMENT update logic for Supervisor for Asset: {:?}",
+                    self.asset
+                );
+            }
         }
-    }
-}
-
-impl Handler<OrchestratorMessage<(Id, OperationalObjectiveValue)>> for SupervisorAgent {
-    type Result = ();
-
-    fn handle(
-        &mut self,
-        msg: OrchestratorMessage<(Id, OperationalObjectiveValue)>,
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
-        self.supervisor_algorithm
-            .operational_agent_objectives
-            .insert(
-                msg.message_from_orchestrator.0,
-                msg.message_from_orchestrator.1,
-            );
     }
 }

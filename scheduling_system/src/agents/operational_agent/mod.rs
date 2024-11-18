@@ -2,16 +2,14 @@ pub mod algorithm;
 pub mod assert_functions;
 pub mod operational_events;
 
-use algorithm::OperationalSolutions;
 use anyhow::{Context, Result};
 use assert_functions::OperationalAssertions;
 use std::{
     collections::HashMap,
-    sync::{atomic::Ordering, Arc, Mutex},
+    sync::{Arc, Mutex},
 };
 
 use actix::prelude::*;
-use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use shared_types::operational::operational_response_scheduling::{
     EventInfo, JsonAssignment, JsonAssignmentEvents, OperationalSchedulingResponse,
 };
@@ -34,10 +32,11 @@ use shared_types::scheduling_environment::{
 use tracing::{event, info, instrument, warn, Level};
 
 use crate::agents::{
-    operational_agent::algorithm::OperationalParameter, StateLink, StateLinkWrapper,
+    operational_agent::algorithm::OperationalParameter, supervisor_agent::delegate::Delegate,
+    OperationalSolution, StateLink, StateLinkWrapper,
 };
 
-use self::algorithm::{Assignment, OperationalAlgorithm, OperationalSolution};
+use self::algorithm::{Assignment, OperationalAlgorithm, OperationalAssignment};
 
 use super::supervisor_agent::SupervisorAgent;
 use super::traits::LargeNeighborHoodSearch;
@@ -56,6 +55,7 @@ pub struct OperationalAgent {
     main_supervisor: Option<Addr<SupervisorAgent>>,
     supervisor_agent_addr: HashMap<Id, Addr<SupervisorAgent>>,
 }
+
 impl OperationalAgent {
     pub fn create_operational_parameter(
         &mut self,
@@ -65,10 +65,17 @@ impl OperationalAgent {
 
         let operation: &Operation = scheduling_environment.operation(work_order_activity);
 
-        // let (start_datetime, end_datetime) =
-        //     self.determine_start_and_finish_times(work_order_activity);
-
-        assert!(operation.work_remaining() > &Some(Work::from(0.0)));
+        assert!(
+            operation.work_remaining() > &Some(Work::from(0.0))
+                || self
+                    .operational_algorithm
+                    .loaded_shared_solution
+                    .supervisor
+                    .operational_state_machine
+                    .get(&(self.operational_id.clone(), *work_order_activity))
+                    .unwrap()
+                    .is_done()
+        );
 
         // TODO: move this around
         let operational_parameter = OperationalParameter::new(
@@ -85,55 +92,6 @@ impl OperationalAgent {
 
         event!(Level::INFO, id = ?self.operational_id, tactical_operation = ?self.operational_algorithm.loaded_shared_solution.tactical.tactical_days.get(&work_order_activity.0).unwrap());
         Ok(())
-    }
-
-    //TODO: DO NOT DELETE THIS FUNCTION!!!
-    fn determine_start_and_finish_times(
-        &self,
-        work_order_activity: &WorkOrderActivity,
-    ) -> (DateTime<Utc>, DateTime<Utc>) {
-        let days = &self
-            .operational_algorithm
-            .loaded_shared_solution
-            .tactical
-            .tactical_days
-            .get(&work_order_activity.0)
-            .unwrap()
-            .as_ref()
-            .unwrap()
-            .get(&work_order_activity.1)
-            .unwrap()
-            .scheduled;
-
-        if days.len() == 1 {
-            let start_of_time_window = Utc.from_utc_datetime(&NaiveDateTime::new(
-                days.first().unwrap().0.date().date_naive(),
-                self.operational_configuration.off_shift_interval.start,
-            ));
-            let end_of_time_window = Utc.from_utc_datetime(&NaiveDateTime::new(
-                days.last().unwrap().0.date().date_naive(),
-                self.operational_configuration.off_shift_interval.end,
-            ));
-            (start_of_time_window, end_of_time_window)
-        } else {
-            let start_day = days[0].0.date().date_naive();
-            let end_day = days.last().unwrap().0.date().date_naive();
-            let start_datetime = NaiveDateTime::new(
-                start_day,
-                self.operational_configuration.off_shift_interval.end
-                    - Duration::seconds(days[0].1.in_seconds() as i64),
-            );
-            let end_datetime = NaiveDateTime::new(
-                end_day,
-                self.operational_configuration.off_shift_interval.start
-                    + Duration::seconds(days.last().unwrap().1.in_seconds() as i64),
-            );
-
-            (
-                Utc.from_utc_datetime(&start_datetime),
-                Utc.from_utc_datetime(&end_datetime),
-            )
-        }
     }
 }
 
@@ -158,12 +116,12 @@ impl Actor for OperationalAgent {
             &self.operational_configuration.availability,
         );
 
-        let unavailability_start_event = OperationalSolution::new(vec![start_event]);
+        let unavailability_start_event = OperationalAssignment::new(vec![start_event]);
 
-        let unavailability_end_event = OperationalSolution::new(vec![end_event]);
+        let unavailability_end_event = OperationalAssignment::new(vec![end_event]);
 
         self.operational_algorithm
-            .operational_solutions
+            .operational_solution
             .work_order_activities
             .push((
                 (WorkOrderNumber(0), ActivityNumber(0)),
@@ -171,7 +129,7 @@ impl Actor for OperationalAgent {
             ));
 
         self.operational_algorithm
-            .operational_solutions
+            .operational_solution
             .work_order_activities
             .push((
                 (WorkOrderNumber(0), ActivityNumber(0)),
@@ -203,12 +161,15 @@ impl Handler<ScheduleIteration> for OperationalAgent {
                 .state_of_agent(&self.operational_id)
         );
 
-        for (work_order_activity, _) in self
-            .operational_algorithm
-            .loaded_shared_solution
-            .supervisor
-            .state_of_agent(&self.operational_id)
+        let loaded_supervisor_solution =
+            &self.operational_algorithm.loaded_shared_solution.supervisor;
+
+        for (work_order_activity, delegate) in
+            loaded_supervisor_solution.state_of_agent(&self.operational_id)
         {
+            if delegate == Delegate::Done {
+                continue;
+            }
             self.create_operational_parameter(&work_order_activity)
                 .expect("Could not create OperationalParameter");
         }
@@ -216,24 +177,11 @@ impl Handler<ScheduleIteration> for OperationalAgent {
         self.operational_algorithm
             .remove_delegate_drop(&self.operational_id);
 
-        // This is for testing only. There is a small chance that the supervisor
-        // sets a Delegate::Drop in the short time span between the line above
-        // and the assert! below
-        // assert!(self
-        //     .operational_algorithm
-        //     .operational_parameters
-        //     .no_delegate_drop_or_delegate_done());
-
-        // This is wrong! We need to implement the delta changes on the algorithm structs
-        // What should be changed here?
-        // TODO: Not copy the whole algorithm
-        event!(Level::WARN, "DETERMINE FLOW");
-
         event!(
             Level::WARN,
             operational_solutions = self
                 .operational_algorithm
-                .operational_solutions
+                .operational_solution
                 .work_order_activities
                 .len(),
             operational_parameters = self
@@ -243,36 +191,25 @@ impl Handler<ScheduleIteration> for OperationalAgent {
                 .len()
         );
 
-        let temporary_solution: OperationalSolutions =
-            self.operational_algorithm.operational_solutions.clone();
+        let temporary_operational_solution: OperationalSolution =
+            self.operational_algorithm.operational_solution.clone();
 
         self.operational_algorithm
             .unschedule_random_work_order_activies(&mut rng, 15);
 
-        self.operational_algorithm.schedule();
+        self.operational_algorithm
+            .schedule()
+            .expect("Operational.schedule() method failed");
 
         let is_better_schedule = self.operational_algorithm.calculate_objective_value();
 
-        event!(
-            Level::ERROR,
-            temp_obj = self
-                .operational_algorithm
-                .operational_solutions
-                .objective_value
-                .load(Ordering::SeqCst)
-        );
-
-        event!(
-            Level::ERROR,
-            temp_obj = self
-                .operational_algorithm
-                .operational_solutions
-                .objective_value
-                .load(Ordering::SeqCst)
-        );
         if is_better_schedule {
-            self.operational_algorithm.operational_solutions = temporary_solution;
-            info!(operational_objective_value = ?self.operational_algorithm.operational_solutions.objective_value);
+            self.operational_algorithm
+                .make_atomic_pointer_swap(&self.operational_id);
+        } else {
+            self.operational_algorithm.operational_solution = temporary_operational_solution;
+
+            info!(operational_objective_value = ?self.operational_algorithm.operational_solution.objective_value);
         };
 
         ctx.wait(
@@ -400,9 +337,8 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
                     assess,
                     unassign,
                     self.operational_algorithm
-                        .operational_solutions
-                        .objective_value
-                        .load(Ordering::SeqCst),
+                        .operational_solution
+                        .objective_value,
                 );
                 Ok(OperationalResponseMessage::Status(
                     operational_response_status,
@@ -416,7 +352,7 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
 
                         for (work_order_activity, operational_solution) in &self
                             .operational_algorithm
-                            .operational_solutions
+                            .operational_solution
                             .work_order_activities
                         {
                             let mut json_assignments = vec![];
@@ -464,7 +400,7 @@ impl Handler<StatusMessage> for OperationalAgent {
                 .collect::<Vec<String>>()
                 .join(", "),
             self.operational_algorithm
-                .operational_solutions
+                .operational_solution
                 .objective_value
         )
     }

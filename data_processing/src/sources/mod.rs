@@ -1,6 +1,6 @@
 pub mod baptiste_csv_reader;
 pub mod baptiste_csv_reader_merges;
-// pub mod excel;
+
 use chrono::{Datelike, Days, Duration, Timelike, Utc};
 use shared_types::scheduling_environment::{
     time_environment::{day::Day, period::Period, TimeEnvironment},

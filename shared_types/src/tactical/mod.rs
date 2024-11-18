@@ -3,9 +3,11 @@ pub mod tactical_response_resources;
 pub mod tactical_response_scheduling;
 pub mod tactical_response_status;
 pub mod tactical_response_time;
+pub mod tactical_response_update;
 pub mod tactical_scheduling_message;
 pub mod tactical_status_message;
 pub mod tactical_time_message;
+pub mod tactical_update_message;
 
 use std::collections::HashMap;
 
@@ -14,10 +16,10 @@ use crate::{
         time_environment::day::Day, work_order::operation::Work,
         worker_environment::resources::Resources,
     },
-    AlgorithmState, Asset, ConstraintState,
+    Asset, ConstraintState,
 };
 use actix::Message;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::*;
 
@@ -51,6 +53,7 @@ pub enum TacticalRequestMessage {
     Scheduling(TacticalSchedulingRequest),
     Resources(TacticalResourceRequest),
     Days(TacticalTimeRequest),
+    Update,
 }
 
 impl Message for TacticalRequestMessage {
@@ -78,8 +81,9 @@ pub enum TacticalResponseMessage {
     Scheduling(TacticalResponseScheduling),
     Resources(TacticalResponseResources),
     Time(TacticalResponseTime),
-    Test(AlgorithmState<TacticalInfeasibleCases>),
+    Update,
 }
+
 #[derive(Debug, Clone, Serialize)]
 pub struct TacticalInfeasibleCases {
     pub aggregated_load: ConstraintState<String>,
@@ -158,5 +162,23 @@ impl TacticalResources {
                     .unwrap() = day.1;
             }
         }
+    }
+
+    pub fn determine_period_load(
+        &self,
+        resource: &Resources,
+        period: &crate::scheduling_environment::time_environment::period::Period,
+    ) -> Result<Work> {
+        let days = &self
+            .resources
+            .get(resource)
+            .with_context(|| format!("The resources between the strategic and the tactical should always correspond, unless that the tactical has not been initialized yet"))?
+            .days;
+
+        Ok(days
+            .iter()
+            .filter(|(day, _)| period.contains_date(day.date().date_naive()))
+            .map(|(_, work)| work)
+            .fold(Work::from(0.0), |acc, work| &acc + work))
     }
 }
