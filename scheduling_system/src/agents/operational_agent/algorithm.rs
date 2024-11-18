@@ -1,9 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc,
-    },
+    sync::Arc,
 };
 
 use anyhow::Result;
@@ -33,12 +30,12 @@ use tracing::{event, Level};
 
 use crate::agents::{
     supervisor_agent::algorithm::MarginalFitness, traits::LargeNeighborHoodSearch,
-    ArcSwapSharedSolution, SharedSolution,
+    ArcSwapSharedSolution, OperationalSolution, SharedSolution,
 };
 
 use super::{operational_events::OperationalEvents, OperationalConfiguration};
 
-pub type OperationalObjectiveValue = Arc<AtomicU64>;
+pub type OperationalObjectiveValue = u64;
 
 #[derive(Clone, Default)]
 pub struct OperationalParameters {
@@ -48,7 +45,7 @@ pub struct OperationalParameters {
 impl OperationalParameters {}
 
 pub struct OperationalAlgorithm {
-    pub operational_solutions: OperationalSolutions,
+    pub operational_solution: OperationalSolution,
     pub operational_non_productive: OperationalNonProductive,
     pub operational_parameters: OperationalParameters,
     pub history_of_dropped_operational_parameters: HashSet<WorkOrderActivity>,
@@ -70,7 +67,7 @@ impl OperationalAlgorithm {
     ) -> Self {
         let loaded_shared_solution = arc_swap_shared_solution.0.load();
         Self {
-            operational_solutions: OperationalSolutions::new(Vec::new()),
+            operational_solution: OperationalSolution::new(Vec::new()),
             operational_non_productive: OperationalNonProductive(Vec::new()),
             operational_parameters: OperationalParameters::default(),
             history_of_dropped_operational_parameters: HashSet::new(),
@@ -109,7 +106,7 @@ impl OperationalAlgorithm {
         let woas_to_be_deleted = self.remove_drop_delegates(operational_agent);
 
         for work_order_activity in woas_to_be_deleted {
-            self.operational_solutions
+            self.operational_solution
                 .work_order_activities
                 .retain(|os| os.0 != work_order_activity)
         }
@@ -128,7 +125,7 @@ impl OperationalAlgorithm {
     fn determine_next_event_non_productive(
         &mut self,
         current_time: &mut DateTime<Utc>,
-        next_operation: Option<OperationalSolution>,
+        next_operation: Option<OperationalAssignment>,
     ) -> (DateTime<Utc>, OperationalEvents) {
         if self.break_interval.contains(current_time) {
             let time_interval = self.determine_time_interval_of_function(
@@ -188,7 +185,7 @@ impl OperationalAlgorithm {
     // schedule for the OperationalAgent.
     fn determine_time_interval_of_function(
         &mut self,
-        next_operation: Option<OperationalSolution>,
+        next_operation: Option<OperationalAssignment>,
         current_time: &DateTime<Utc>,
         interval: TimeInterval,
     ) -> TimeInterval {
@@ -210,32 +207,49 @@ impl OperationalAlgorithm {
     }
 
     fn update_marginal_fitness(
-        &self,
+        &mut self,
         work_order_activity_previous: (WorkOrderNumber, ActivityNumber),
         time_delta: TimeDelta,
     ) {
-        assert_eq!(time_delta.num_nanoseconds().unwrap(), 0);
-        let time_delta_usize = time_delta.num_seconds() as usize;
+        let time_delta_usize = time_delta.num_seconds() as u64;
 
-        self.operational_solutions
+        self.operational_solution
             .work_order_activities
-            .iter()
+            .iter_mut()
             .find(|oper_sol| oper_sol.0 == work_order_activity_previous)
             .unwrap()
             .1
             .marginal_fitness
-            .store(time_delta_usize)
+            .0 = time_delta_usize;
     }
 
     pub(crate) fn load_shared_solution(&mut self) {
         self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
     }
-}
 
-#[derive(Clone)]
-pub struct OperationalSolutions {
-    pub objective_value: OperationalObjectiveValue,
-    pub work_order_activities: Vec<(WorkOrderActivity, OperationalSolution)>,
+    pub(crate) fn make_atomic_pointer_swap(&self, operational_id: &Id) {
+        // Performance enhancements:
+        // * COW:
+        //      #[derive(Clone)]
+        //      struct SharedSolution<'a> {
+        //          tactical: Cow<'a, TacticalSolution>,
+        //          // other fields...
+        //      }
+        //
+        // * Reuse the old SharedSolution, cloning only the fields that are needed.
+        //     let shared_solution = Arc::new(SharedSolution {
+        //             tactical: self.tactical_solution.clone(),
+        //             // Copy over other fields without cloning
+        //             ..(**old).clone()
+        //         });
+        self.arc_swap_shared_solution.0.rcu(|old| {
+            let mut shared_solution = (**old).clone();
+            shared_solution
+                .operational
+                .insert(operational_id.clone(), self.operational_solution.clone());
+            Arc::new(shared_solution)
+        });
+    }
 }
 
 trait OperationalFunctions {
@@ -247,7 +261,7 @@ trait OperationalFunctions {
     fn containing_operational_solution(&self, time: DateTime<Utc>) -> ContainOrNextOrNone;
 }
 
-impl OperationalFunctions for OperationalSolutions {
+impl OperationalFunctions for OperationalSolution {
     type Key = WorkOrderActivity;
     type Sequence = Vec<Assignment>;
 
@@ -282,18 +296,18 @@ impl OperationalFunctions for OperationalSolutions {
                     .start
                 && assignments.last().unwrap().finish < end_of_solution_window
             {
-                let operational_solution = OperationalSolution::new(assignments);
+                let operational_solution = OperationalAssignment::new(assignments);
 
                 if !self.is_operational_solution_already_scheduled(key) {
                     self.work_order_activities
                         .insert(index + 1, (key, operational_solution));
-                    let assignments: Vec<&Assignment> = self
+                    let assignments = self
                         .work_order_activities
                         .iter()
                         .flat_map(|(_, os)| &os.assignments)
                         .collect();
 
-                    assert!(no_overlap(assignments));
+                    assert!(no_overlap_by_ref(assignments));
                 }
                 break;
             }
@@ -301,7 +315,7 @@ impl OperationalFunctions for OperationalSolutions {
     }
 
     fn containing_operational_solution(&self, time: DateTime<Utc>) -> ContainOrNextOrNone {
-        let containing: Option<OperationalSolution> = self
+        let containing: Option<OperationalAssignment> = self
             .work_order_activities
             .iter()
             .find(|operational_solution| operational_solution.1.contains(time))
@@ -311,7 +325,7 @@ impl OperationalFunctions for OperationalSolutions {
         match containing {
             Some(containing) => ContainOrNextOrNone::Contain(containing),
             None => {
-                let next: Option<OperationalSolution> = self
+                let next: Option<OperationalAssignment> = self
                     .work_order_activities
                     .iter()
                     .map(|os| os.1.clone())
@@ -326,10 +340,10 @@ impl OperationalFunctions for OperationalSolutions {
     }
 }
 
-impl OperationalSolutions {
-    pub fn new(work_order_activities: Vec<(WorkOrderActivity, OperationalSolution)>) -> Self {
+impl OperationalSolution {
+    pub fn new(work_order_activities: Vec<(WorkOrderActivity, OperationalAssignment)>) -> Self {
         Self {
-            objective_value: Arc::new(AtomicU64::new(0)),
+            objective_value: 0,
             work_order_activities,
         }
     }
@@ -345,18 +359,18 @@ impl OperationalSolutions {
 }
 
 enum ContainOrNextOrNone {
-    Contain(OperationalSolution),
-    Next(OperationalSolution),
+    Contain(OperationalAssignment),
+    Next(OperationalAssignment),
     None,
 }
 
-#[derive(Clone, Debug)]
-pub struct OperationalSolution {
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct OperationalAssignment {
     pub marginal_fitness: MarginalFitness,
     pub assignments: Vec<Assignment>,
 }
 
-impl OperationalSolution {
+impl OperationalAssignment {
     pub fn new(assignments: Vec<Assignment>) -> Self {
         Self {
             assignments,
@@ -455,7 +469,8 @@ pub enum Unavailability {
 #[derive(Debug, Clone)]
 pub struct OperationalParameter {
     work: Work,
-    preparation: Work,
+    // TODO: INCLUDE PREPARATION
+    _preparation: Work,
     operation_time_delta: TimeDelta,
     // start_window: DateTime<Utc>,
     // end_window: DateTime<Utc>,
@@ -466,20 +481,23 @@ pub struct OperationalParameter {
 impl OperationalParameter {
     pub fn new(
         work: Work,
-        preparation: Work,
+        _preparation: Work,
         // start_window: DateTime<Utc>,
         // end_window: DateTime<Utc>,
         // delegated: Delegate,
         // marginal_fitness: MarginalFitness,
     ) -> Self {
-        let combined_time = (&work + &preparation).in_seconds();
+        let combined_time = (&work + &_preparation).in_seconds();
         let operation_time_delta = TimeDelta::new(combined_time as i64, 0).unwrap();
         assert_ne!(work.to_f64(), 0.0);
         assert!(!operation_time_delta.is_zero());
-        assert_eq!(combined_time, work.in_seconds() + &preparation.in_seconds());
+        assert_eq!(
+            combined_time,
+            work.in_seconds() + &_preparation.in_seconds()
+        );
         Self {
             work,
-            preparation,
+            _preparation,
             operation_time_delta,
             // start_window,
             // end_window,
@@ -509,7 +527,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         // Here we should determine the objective based on the highest needed skill. Meaning that a MTN-TURB should not bid highly
         // on a MTN-MECH job. I think that this will be very interesting to solve.
         let operational_events: Vec<Assignment> = self
-            .operational_solutions
+            .operational_solution
             .work_order_activities
             .iter()
             .flat_map(|(_, os)| os.assignments.iter())
@@ -519,8 +537,9 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         event!(Level::DEBUG, operational_events_len = ?operational_events.iter().filter(|val| val.event_type.is_wrench_time()).collect::<Vec<_>>().len());
 
         let all_events = operational_events
-            .iter()
-            .chain(&self.operational_non_productive.0);
+            .into_iter()
+            .chain(self.operational_non_productive.0.clone())
+            .sorted_unstable_by_key(|ass| ass.start);
 
         let mut current_time = self.availability.start_date;
 
@@ -534,6 +553,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         let mut next_fitness: TimeDelta = TimeDelta::zero();
         let mut first_fitness: bool = true;
         let mut current_work_order_activity: Option<WorkOrderActivity> = None;
+        event!(Level::ERROR, operational_event = ?all_events);
         for assignment in all_events.clone() {
             match &assignment.event_type {
                 OperationalEvents::WrenchTime((time_interval, work_order_activity)) => {
@@ -584,14 +604,14 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
         // assert_eq!(current_time, self.availability.end_date);
 
-        equality_between_time_interval_and_assignments(all_events.clone().collect::<Vec<_>>());
+        equality_between_time_interval_and_assignments(&all_events.clone().collect::<Vec<_>>());
 
         assert!(is_assignments_in_bounds(
-            all_events.clone().collect::<Vec<_>>(),
+            &all_events.clone().collect(),
             &self.availability
         ));
 
-        assert!(no_overlap(all_events.collect::<Vec<_>>()));
+        assert!(no_overlap(&all_events.collect::<Vec<_>>()));
 
         let total_time =
             wrench_time + break_time + off_shift_time + toolbox_time + non_productive_time;
@@ -605,22 +625,17 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         let new_value = ((wrench_time).num_seconds() * 100) as u64
             / (wrench_time + break_time + toolbox_time + non_productive_time).num_seconds() as u64;
 
-        let old_value = self
-            .operational_solutions
-            .objective_value
-            .load(Ordering::SeqCst);
+        let old_value = self.operational_solution.objective_value;
 
         if new_value > old_value {
-            self.operational_solutions
-                .objective_value
-                .store(new_value, Ordering::SeqCst);
+            self.operational_solution.objective_value = new_value;
             true
         } else {
             false
         }
     }
 
-    fn schedule(&mut self) {
+    fn schedule(&mut self) -> Result<()> {
         self.operational_non_productive.0.clear();
         for (work_order_activity, operational_parameter) in
             &self.operational_parameters.work_order_parameters
@@ -634,9 +649,10 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                 start_time,
             );
 
-            self.operational_solutions
+            self.operational_solution
                 .try_insert(*work_order_activity, assignments);
-            event!(Level::TRACE, number_of_operations = ?self.operational_solutions.work_order_activities.len());
+
+            event!(Level::TRACE, number_of_operations = ?self.operational_solution.work_order_activities.len());
         }
 
         // fill the schedule
@@ -644,7 +660,7 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
 
         loop {
             match self
-                .operational_solutions
+                .operational_solution
                 .containing_operational_solution(current_time)
             {
                 ContainOrNextOrNone::Contain(operational_solution) => {
@@ -687,11 +703,12 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
                 break;
             };
         }
+        Ok(())
     }
 
     fn unschedule(&mut self, work_order_and_activity_number: Self::SchedulingUnit) -> Result<()> {
         let unscheduled_operational_solution = self
-            .operational_solutions
+            .operational_solution
             .work_order_activities
             .iter()
             .find(|operational_solution| operational_solution.0 == work_order_and_activity_number)
@@ -803,7 +820,7 @@ impl OperationalAlgorithm {
         number_of_activities: usize,
     ) {
         let operational_solutions: Vec<WorkOrderActivity> = self
-            .operational_solutions
+            .operational_solution
             .work_order_activities
             .choose_multiple(rng, number_of_activities)
             .map(|operational_solution| operational_solution.0)
@@ -820,23 +837,38 @@ impl OperationalAlgorithm {
         work_order_activity: &WorkOrderActivity,
         operational_parameter: &OperationalParameter,
     ) -> DateTime<Utc> {
-        let (start_window, end_window) = match self
+        // What should be done here? I think that the goal is to create a
+        let tactical_days_option = self
             .loaded_shared_solution
             .tactical
             .tactical_days
             .get(&work_order_activity.0)
-            .unwrap()
-        {
-            Some(activities) => {
+            .expect("This should always be present. If this occurs you should check the initialization. The implementation is that the tactical and strategic algorithm always provide a key for each WorkOrderNumber");
+
+        let strategic_period_option = self
+            .loaded_shared_solution
+            .strategic
+            .strategic_periods
+            .get(&work_order_activity.0)
+            .expect("This should always be present. If this occurs you should check the initialization. The implementation is that the tactical and strategic algorithm always provide a key for each WorkOrderNumber");
+
+        let (start_window, end_window) = match (strategic_period_option, tactical_days_option) {
+            (Some(_period), Some(activities)) => {
                 let scheduled_days = &activities.get(&work_order_activity.1).unwrap().scheduled;
 
                 let start = scheduled_days.first().unwrap().0.date();
                 let end = scheduled_days.last().unwrap().0.date();
+
+                assert!(_period.contains_date(start.date_naive()));
                 (start, end)
             }
-            None => (&self.availability.start_date, &self.availability.end_date),
+            (Some(period), None) => (period.start_date(), period.end_date()),
+
+            (None, Some(_)) => todo!(),
+            // (&self.availability.start_date, &self.availability.end_date)
+            (None, None) => panic!("This should not happen yet, either the tactical xor the strategic has a solution available"),
         };
-        for operational_solution in self.operational_solutions.work_order_activities.windows(2) {
+        for operational_solution in self.operational_solution.work_order_activities.windows(2) {
             let start_of_interval = {
                 let mut current_time = operational_solution[0].1.assignments.last().unwrap().finish;
 
@@ -931,7 +963,26 @@ impl OperationalAlgorithm {
     }
 }
 
-fn no_overlap(events: Vec<&Assignment>) -> bool {
+fn no_overlap(events: &Vec<Assignment>) -> bool {
+    for event_1 in events {
+        for event_2 in events {
+            if event_1 == event_2 {
+                continue;
+            }
+
+            if (event_1.finish <= event_2.start) || (event_2.finish <= event_1.start) {
+                continue;
+            } else {
+                dbg!(event_1);
+                dbg!(event_2);
+                return false;
+            }
+        }
+    }
+    true
+}
+
+fn no_overlap_by_ref(events: Vec<&Assignment>) -> bool {
     for event_1 in &events {
         for event_2 in &events {
             if event_1 == event_2 {
@@ -950,7 +1001,7 @@ fn no_overlap(events: Vec<&Assignment>) -> bool {
     true
 }
 
-fn is_assignments_in_bounds(events: Vec<&Assignment>, availability: &Availability) -> bool {
+fn is_assignments_in_bounds(events: &Vec<Assignment>, availability: &Availability) -> bool {
     for event in events {
         if event.start < availability.start_date && !event.event_type.unavail() {
             dbg!(event, availability);
@@ -964,7 +1015,7 @@ fn is_assignments_in_bounds(events: Vec<&Assignment>, availability: &Availabilit
     true
 }
 
-fn equality_between_time_interval_and_assignments(all_events: Vec<&Assignment>) {
+fn equality_between_time_interval_and_assignments(all_events: &Vec<Assignment>) {
     for assignment in all_events {
         assert_eq!(assignment.start.time(), assignment.event_type.start_time());
         assert_eq!(
@@ -980,13 +1031,14 @@ fn equality_between_time_interval_and_assignments(all_events: Vec<&Assignment>) 
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{str::FromStr, sync::Arc};
 
     use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
     use proptest::prelude::*;
     use shared_types::{
         operational::{OperationalConfiguration, TimeInterval},
         scheduling_environment::{
+            time_environment::period::Period,
             work_order::{
                 operation::{ActivityNumber, Work},
                 WorkOrderNumber,
@@ -1138,10 +1190,10 @@ mod tests {
     #[test]
     fn test_determine_first_available_start_time() {
         let availability_start: DateTime<Utc> =
-            DateTime::parse_from_rfc3339("2024-05-16T07:00:00Z")
+            DateTime::parse_from_rfc3339("2024-10-07T07:00:00Z")
                 .unwrap()
                 .to_utc();
-        let availability_end: DateTime<Utc> = DateTime::parse_from_rfc3339("2024-05-30T15:00:00Z")
+        let availability_end: DateTime<Utc> = DateTime::parse_from_rfc3339("2024-10-20T15:00:00Z")
             .unwrap()
             .to_utc();
 
@@ -1165,10 +1217,44 @@ mod tests {
             toolbox_interval.clone(),
         );
 
-        let operational_algorithm = OperationalAlgorithm::new(
+        let mut operational_algorithm = OperationalAlgorithm::new(
             operational_configuration,
             Arc::new(ArcSwapSharedSolution::default()),
         );
+
+        operational_algorithm.load_shared_solution();
+
+        let mut strategic_updated_shared_solution =
+            (**operational_algorithm.loaded_shared_solution).clone();
+
+        strategic_updated_shared_solution
+            .strategic
+            .strategic_periods
+            .insert(
+                WorkOrderNumber(0),
+                Some(Period::from_str("2024-W41-42").unwrap()),
+            );
+
+        operational_algorithm
+            .arc_swap_shared_solution
+            .0
+            .store(Arc::new(strategic_updated_shared_solution));
+
+        operational_algorithm.load_shared_solution();
+        let mut tactical_updated_shared_solution =
+            (**operational_algorithm.loaded_shared_solution).clone();
+
+        tactical_updated_shared_solution
+            .tactical
+            .tactical_days
+            .insert(WorkOrderNumber(0), None);
+
+        operational_algorithm
+            .arc_swap_shared_solution
+            .0
+            .store(Arc::new(tactical_updated_shared_solution));
+
+        operational_algorithm.load_shared_solution();
 
         let operational_parameter = OperationalParameter::new(Work::from(20.0), Work::from(0.0));
 
@@ -1179,7 +1265,7 @@ mod tests {
 
         assert_eq!(
             start_time,
-            DateTime::parse_from_rfc3339("2024-05-16T08:00:00Z")
+            DateTime::parse_from_rfc3339("2024-10-07T08:00:00Z")
                 .unwrap()
                 .to_utc()
         );

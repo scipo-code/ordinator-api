@@ -27,14 +27,14 @@ impl OperationalAssertions for OperationalAgent {
     fn assert_no_operation_overlap(&self) -> Result<()> {
         for (index_1, operational_solution_1) in self
             .operational_algorithm
-            .operational_solutions
+            .operational_solution
             .work_order_activities
             .iter()
             .enumerate()
         {
             for (index_2, operational_solution_2) in self
                 .operational_algorithm
-                .operational_solutions
+                .operational_solution
                 .work_order_activities
                 .iter()
                 .enumerate()
