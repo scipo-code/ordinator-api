@@ -1,6 +1,5 @@
 use actix::prelude::*;
 use anyhow::Result;
-use shared_types::orchestrator::OrchestratorMessage;
 use shared_types::orchestrator::OrchestratorRequest;
 
 use shared_types::scheduling_environment::time_environment::day::Day;
@@ -450,27 +449,16 @@ impl Orchestrator {
         id: Id,
         operational_configuration: OperationalConfiguration,
     ) {
-        let (operational_objective, operational_agent_addr) =
-            self.agent_factory.build_operational_agent(
-                id.clone(),
-                operational_configuration,
-                self.agent_registries
-                    .get(asset)
-                    .unwrap()
-                    .supervisor_agent_addrs
-                    .clone(),
-                self.arc_swap_shared_solutions.get(&asset).unwrap().clone(),
-            );
-
-        let operational_id_and_objective_value =
-            OrchestratorMessage::new((id.clone(), operational_objective));
-
-        self.agent_registries
-            .get(&asset)
-            .unwrap()
-            .supervisor_agent_addrs
-            .iter()
-            .for_each(|(_, sup_addr)| sup_addr.do_send(operational_id_and_objective_value.clone()));
+        let operational_agent_addr = self.agent_factory.build_operational_agent(
+            id.clone(),
+            operational_configuration,
+            self.agent_registries
+                .get(asset)
+                .unwrap()
+                .supervisor_agent_addrs
+                .clone(),
+            self.arc_swap_shared_solutions.get(&asset).unwrap().clone(),
+        );
 
         self.agent_registries
             .get(&asset)

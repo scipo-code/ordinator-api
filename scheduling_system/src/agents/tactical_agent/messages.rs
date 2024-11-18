@@ -10,7 +10,7 @@ impl Handler<StatusMessage> for TacticalAgent {
         format!(
             "Id: {}, Time horizon: {:?}, Objective: {:?}",
             self.id_tactical,
-            self.time_horizon(),
+            self.tactical_algorithm.tactical_days.clone(),
             self.tactical_algorithm.objective_value()
         )
     }

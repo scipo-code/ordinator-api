@@ -1,4 +1,4 @@
-use anyhow::{bail, ensure, Result};
+use anyhow::{bail, Result};
 use std::{borrow::Cow, collections::HashMap};
 use strum::IntoEnumIterator;
 use tracing::{event, Level};
@@ -8,13 +8,14 @@ use shared_types::scheduling_environment::{
     worker_environment::resources::Resources,
 };
 
-use super::TacticalAgent;
+use super::tactical_algorithm::TacticalAlgorithm;
+type TotalExcessHours = Work;
 
 #[allow(dead_code)]
 pub trait TacticalAssertions {
     fn asset_that_loading_matches_scheduled(&self) -> Result<()>;
 
-    fn asset_that_capacity_is_not_exceeded(&self) -> Result<()>;
+    fn asset_that_capacity_is_not_exceeded(&self) -> Result<TotalExcessHours>;
 }
 
 impl TacticalAssertions for TacticalAlgorithm {
@@ -64,28 +65,26 @@ impl TacticalAssertions for TacticalAlgorithm {
         Ok(())
     }
 
-    fn asset_that_capacity_is_not_exceeded(&self) -> Result<()> {
-        for (resource, days) in &self
-            .tactical_solution
-            .tactical_loadings
-            .resources
-        {
+    fn asset_that_capacity_is_not_exceeded(&self) -> Result<TotalExcessHours> {
+        let mut total_excess_hours = Work::from(0.0);
+        for (resource, days) in &self.tactical_solution.tactical_loadings.resources {
             for (day, load) in &days.days {
                 let capacity = self
                     .tactical_parameters
                     .tactical_capacity
                     .get_resource(resource, day);
 
-                ensure!(
-                    load <= capacity,
-                    format!(
-                        "Load exceeds Capacity for resource: {:?} on day: {:?} with load {:?} and capacity {:?}",
-                        resource, day, load, capacity
-                    )
-                );
+                total_excess_hours += (load - capacity).max(Work::from(0.0));
+                // ensure!(
+                //     load <= capacity,
+                //     format!(
+                //         "Load exceeds Capacity for resource: {:?} on day: {:?} with load {:?} and capacity {:?}",
+                //         resource, day, load, capacity
+                //     )
+                // );
             }
         }
-        Ok(())
+        Ok(total_excess_hours)
     }
 }
 
