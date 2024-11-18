@@ -3,3 +3,7 @@ build-windows:
 
 build-linux:
     cargo build 
+
+tr REGEX:
+    tail -F logging/logs/ordinator.developer.log | rg {{ REGEX }}
+    

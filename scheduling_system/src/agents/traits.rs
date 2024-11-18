@@ -14,7 +14,7 @@ pub trait LargeNeighborHoodSearch {
 
     fn calculate_objective_value(&mut self) -> Self::BetterSolution;
 
-    fn schedule(&mut self);
+    fn schedule(&mut self) -> Result<()>;
 
     fn unschedule(&mut self, message: Self::SchedulingUnit) -> Result<()>;
 

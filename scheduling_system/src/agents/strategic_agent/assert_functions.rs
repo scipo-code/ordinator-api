@@ -24,7 +24,7 @@ impl StrategicAssertions for StrategicAgent {
             for (work_order_number, strategic_solution) in self
                 .strategic_algorithm
                 .strategic_solution
-                .scheduled_periods
+                .strategic_periods
                 .iter()
             {
                 let strategic_parameter = self
