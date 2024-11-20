@@ -30,7 +30,7 @@ impl Display for Day {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct OptionDay(pub Option<Day>);
 
 impl IntoExcelData for OptionDay {

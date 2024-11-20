@@ -26,7 +26,7 @@ pub struct NUMC(u32);
 #[allow(dead_code)]
 pub struct FLTP();
 #[allow(dead_code)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct DATS(pub String);
 #[allow(dead_code)]
 pub struct TIMS(pub String);
