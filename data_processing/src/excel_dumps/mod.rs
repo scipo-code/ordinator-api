@@ -25,6 +25,7 @@ use shared_types::{
     AgentExports, Asset,
 };
 
+#[derive(Debug)]
 struct AllRows(Vec<RowNames>);
 
 impl AllRows {
@@ -35,6 +36,7 @@ impl AllRows {
 
         make_header_row(worksheet);
 
+        assert!(self.0.len() > 0);
         for (row_count, row_values) in self.0.iter().enumerate() {
             let row_number: u32 = (row_count + 1) as u32;
 
@@ -160,6 +162,7 @@ impl AllRows {
     }
 }
 
+#[derive(Debug)]
 struct RowNames {
     strategic_schedule: Period,
     tactical_schedule: OptionDay,
@@ -212,12 +215,19 @@ pub fn create_excel_dump(
 ) -> Result<PathBuf, std::io::Error> {
     let mut all_rows: Vec<RowNames> = Vec::new();
 
+    dbg!("Total WorkOrder(s):", work_orders.inner.len());
     let work_orders_by_asset: Vec<WorkOrder> = work_orders
         .inner
         .into_iter()
         .filter(|(_, wo)| wo.work_order_info.functional_location.asset == asset)
         .map(|(_, wo)| wo)
         .collect();
+
+    dbg!(
+        "Total WorkOrder(s) for asset: {:?}",
+        &asset,
+        work_orders_by_asset.len()
+    );
 
     for work_order in work_orders_by_asset {
         let mut sorted_operations = work_order.operations.iter().collect::<Vec<_>>();
@@ -239,7 +249,7 @@ pub fn create_excel_dump(
                     days.sort();
                     OptionDay(Some(days[0].1.clone()))
                 }
-                None => continue,
+                None => OptionDay(None),
             };
 
             let one_row = RowNames {
