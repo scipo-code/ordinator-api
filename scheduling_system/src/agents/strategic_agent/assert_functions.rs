@@ -2,13 +2,10 @@ use std::collections::HashMap;
 
 use super::StrategicAgent;
 use anyhow::{bail, Result};
-use shared_types::{
-    scheduling_environment::{
-        work_order::operation::Work, worker_environment::resources::Resources,
-    },
-    strategic::StrategicResources,
-    LoadOperation,
-};
+use shared_types::scheduling_environment::work_order::operation::Work;
+use shared_types::scheduling_environment::worker_environment::resources::Resources;
+use shared_types::strategic::StrategicResources;
+use shared_types::LoadOperation;
 use strum::IntoEnumIterator;
 use tracing::{event, Level};
 
