@@ -146,6 +146,7 @@ impl Handler<ScheduleIteration> for OperationalAgent {
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         let mut rng = rand::thread_rng();
 
+        dbg!();
         self.operational_algorithm.load_shared_solution();
 
         event!(Level::WARN,

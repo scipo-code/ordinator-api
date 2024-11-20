@@ -7,3 +7,5 @@ build-linux:
 tr REGEX:
     tail -F logging/logs/ordinator.developer.log | rg {{ REGEX }}
     
+
+
