@@ -14,8 +14,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 [[operational]]
 id = "OP-01-002"
@@ -24,8 +24,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 [[operational]]
 id = "OP-01-003"
@@ -34,8 +34,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 [[operational]]
 id = "OP-01-004"
@@ -44,8 +44,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 ################################
 ###          MTN-INST        ###
@@ -57,8 +57,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 [[operational]]
 id = "OP-02-002"
@@ -67,8 +67,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 ################################
 ###          MTN-MECH        ###
@@ -80,8 +80,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 [[operational]]
 id = "OP-02-002"
@@ -90,8 +90,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 [[operational]]
 id = "OP-02-003"
@@ -100,8 +100,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 [[operational]]
 id = "OP-02-004"
@@ -110,8 +110,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 ################################
 ###          MTN-TURB        ###
@@ -123,8 +123,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 [[operational]]
 id = "OP-03-002"
@@ -133,8 +133,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 [[operational]]
 id = "OP-03-003"
@@ -143,8 +143,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 ################################
 ###          MTN-TELE        ###
@@ -156,8 +156,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 [[operational]]
 id = "OP-03-002"
@@ -166,8 +166,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 [[operational]]
 id = "OP-03-003"
@@ -176,8 +176,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 ################################
 ###          MTN-ROUS        ###
@@ -189,8 +189,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 [[operational]]
 id = "OP-04-002"
@@ -199,8 +199,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 [[operational]]
 id = "OP-04-003"
@@ -209,8 +209,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 ################################
 ###          MEDIC           ###
@@ -222,8 +222,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 ################################
 ###          MTN-LAGG        ###
@@ -235,8 +235,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 [[operational]]
 id = "OP-05-002"
@@ -245,8 +245,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 ################################
 ###          MTN-PAIN        ###
@@ -258,8 +258,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 [[operational]]
 id = "OP-06-002"
 resources.resources = [ "MTN-PAIN"]
@@ -267,8 +267,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 [[operational]]
 id = "OP-06-003"
 resources.resources = [ "MTN-PAIN"]
@@ -276,8 +276,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 ################################
 ###          MTN-PIPF        ###
@@ -289,8 +289,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 [[operational]]
 id = "OP-07-002"
 resources.resources = [ "MTN-PIPF"]
@@ -298,8 +298,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 [[operational]]
 id = "OP-07-003"
 resources.resources = [ "MTN-PIPF"]
@@ -307,8 +307,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 [[operational]]
 id = "OP-07-004"
 resources.resources = [ "MTN-PIPF"]
@@ -316,8 +316,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 ################################
 ###          MTN-ROPE        ###
@@ -329,8 +329,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 [[operational]]
 id = "OP-08-002"
 resources.resources = [ "MTN-ROPE"]
@@ -338,8 +338,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 [[operational]]
 id = "OP-08-003"
 resources.resources = [ "MTN-ROPE"]
@@ -347,8 +347,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 [[operational]]
 id = "OP-08-004"
 resources.resources = [ "MTN-ROPE"]
@@ -356,8 +356,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 ################################
 ###          MTN-SCAF        ###
@@ -369,8 +369,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 [[operational]]
 id = "OP-09-002"
 resources.resources = [ "MTN-SCAF"]
@@ -378,8 +378,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 [[operational]]
 id = "OP-09-003"
 resources.resources = [ "MTN-SCAF"]
@@ -387,8 +387,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 [[operational]]
 id = "OP-09-004"
 resources.resources = [ "MTN-SCAF"]
@@ -396,8 +396,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 ################################
 ###          INP-SITE        ###
@@ -409,8 +409,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 [[operational]]
 id = "OP-10-002"
 resources.resources = [ "INP-SITE"]
@@ -418,8 +418,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 [[operational]]
 id = "OP-10-003"
 resources.resources = [ "INP-SITE"]
@@ -427,8 +427,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 ################################
 ###          PRODTECH        ###
@@ -440,8 +440,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 [[operational]]
 id = "OP-11-002"
 resources.resources = [ "PRODTECH"]
@@ -449,8 +449,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 [[operational]]
 id = "OP-11-003"
 resources.resources = [ "PRODTECH"]
@@ -458,8 +458,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 [[operational]]
 id = "OP-11-004"
 resources.resources = [ "PRODTECH"]
@@ -467,8 +467,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 [[operational]]
 id = "OP-11-005"
 resources.resources = [ "PRODTECH"]
@@ -476,8 +476,8 @@ hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]
 operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-operational_configuration.availability.start_date = 2024-10-07T07:00:00Z
-operational_configuration.availability.end_date = 2024-10-20T15:00:00Z
+operational_configuration.availability.start_date = 2024-11-18T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-01T15:00:00Z
 
 # mtnelec = 3.5
 # mtninst = 2.5

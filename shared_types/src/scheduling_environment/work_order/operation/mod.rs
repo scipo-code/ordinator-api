@@ -387,8 +387,8 @@ impl IntoExcelData for Work {
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
     ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
-        let value = self.0.to_string();
-        worksheet.write_string(row, col, value)
+        let value = self.0.to_f64().unwrap();
+        worksheet.write_number(row, col, value)
     }
 
     fn write_with_format<'a>(
@@ -398,7 +398,7 @@ impl IntoExcelData for Work {
         col: rust_xlsxwriter::ColNum,
         format: &rust_xlsxwriter::Format,
     ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
-        let value = self.0.to_string();
-        worksheet.write_string_with_format(row, col, value, format)
+        let value = self.0.to_f64().unwrap();
+        worksheet.write_number_with_format(row, col, value, format)
     }
 }
