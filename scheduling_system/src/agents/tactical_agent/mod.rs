@@ -1,30 +1,26 @@
 pub mod assert_functions;
-pub mod messages;
+pub mod message_handlers;
 pub mod tactical_algorithm;
 
 use actix::prelude::*;
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use assert_functions::TacticalAssertions;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::tactical::tactical_response_status::TacticalResponseStatus;
-use shared_types::tactical::{TacticalRequestMessage, TacticalResponseMessage};
 use shared_types::Asset;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tracing::{event, instrument, Level};
+use tracing::{event, Level};
 
 use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
 use crate::agents::SetAddr;
-use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use super::strategic_agent::StrategicAgent;
 use super::supervisor_agent::SupervisorAgent;
 use super::traits::LargeNeighborHoodSearch;
-use super::{ScheduleIteration, StateLink, StateLinkWrapper, UpdateWorkOrderMessage};
+use super::ScheduleIteration;
 
 pub struct TacticalAgent {
     asset: Asset,
@@ -88,24 +84,27 @@ impl Handler<ScheduleIteration> for TacticalAgent {
         let mut rng = rand::thread_rng();
         self.tactical_algorithm.load_shared_solution();
 
+        dbg!();
         let current_tactical_solution = self.tactical_algorithm.tactical_solution.clone();
 
+        dbg!();
         self.tactical_algorithm
             .unschedule_random_work_orders(&mut rng, 50)
             .context("random unschedule failed")
             .expect("Error in the Handler<ScheduleIteration>");
 
+        dbg!();
         self.tactical_algorithm.schedule().expect("TacticalAlgorithm.schedule method failed");
 
+        dbg!();
         let total_excess_hours = self.tactical_algorithm.asset_that_capacity_is_not_exceeded().ok();
         
-        if self.tactical_algorithm.tactical_solution.objective_value
+        dbg!();
+        if self.tactical_algorithm.calculate_objective_value()
             < current_tactical_solution.objective_value
         {
             self.tactical_algorithm
                 .make_atomic_pointer_swap();
-
-
             event!(Level::INFO,
                  new_tactical_objective_value = ?self.tactical_algorithm.tactical_solution.objective_value,
                  tactical_objective_value = ?current_tactical_solution.objective_value,
@@ -125,14 +124,50 @@ impl Handler<ScheduleIteration> for TacticalAgent {
                     .len());
 
 
+
+
+        dbg!();
         } else {
-            // event!(Level::INFO,
-            //      new_tactical_objective_value = ?self.tactical_algorithm.tactical_solution.objective_value,
-            //      tactical_objective_value = ?current_tactical_solution.objective_value,
-            //      difference_in_objective_value = self.tactical_algorithm.tactical_solution.objective_value.0 - current_tactical_solution.objective_value.0,  "worse solution, reverting back to initial solution");
+        dbg!();
+            event!(Level::INFO,
+                 new_tactical_objective_value = ?self.tactical_algorithm.tactical_solution.objective_value,
+                 tactical_objective_value = ?current_tactical_solution.objective_value,
+                 difference_in_objective_value = self.tactical_algorithm.tactical_solution.objective_value.0 as i64 - current_tactical_solution.objective_value.0 as i64, 
+                 total_excess_hours = ?total_excess_hours,
+                 scheduled_work_orders = self
+                .tactical_algorithm
+                .tactical_solution
+                .tactical_days
+                .iter()
+                .filter(|ele| ele.1.is_some())
+                .count(),
+                all_work_orders = self
+                    .tactical_algorithm
+                    .tactical_solution
+                    .tactical_days
+                    .len());
             self.tactical_algorithm.tactical_solution = current_tactical_solution;
+        dbg!();
         };
 
+        dbg!();
+            event!(Level::INFO,
+                 new_tactical_objective_value = ?self.tactical_algorithm.tactical_solution.objective_value,
+                 total_excess_hours = ?total_excess_hours,
+                 scheduled_work_orders = self
+                .tactical_algorithm
+                .tactical_solution
+                .tactical_days
+                .iter()
+                .filter(|ele| ele.1.is_some())
+                .count(),
+                all_work_orders = self
+                    .tactical_algorithm
+                    .tactical_solution
+                    .tactical_days
+                    .len());
+ 
+        dbg!();
         ctx.wait(
             tokio::time::sleep(tokio::time::Duration::from_millis(
                 dotenvy::var("TACTICAL_THROTTLING")
@@ -150,119 +185,4 @@ impl Handler<ScheduleIteration> for TacticalAgent {
     }
 }
 
-impl Handler<TacticalRequestMessage> for TacticalAgent {
-    type Result = Result<TacticalResponseMessage>;
 
-    #[instrument(level = "info", skip_all)]
-    fn handle(
-        &mut self,
-        tactical_request: TacticalRequestMessage,
-        _ctx: &mut actix::Context<Self>,
-    ) -> Self::Result {
-        match tactical_request {
-            TacticalRequestMessage::Status(_tactical_status_message) => {
-                let status_message = self.status().unwrap();
-                Ok(TacticalResponseMessage::Status(status_message))
-            }
-            TacticalRequestMessage::Scheduling(_tactical_scheduling_message) => {
-                todo!()
-                    
-            }
-            TacticalRequestMessage::Resources(tactical_resources_message) => {
-                let resource_response = self
-                    .tactical_algorithm
-                    .update_resources_state(tactical_resources_message)
-                    .unwrap();
-                Ok(TacticalResponseMessage::Resources(resource_response))
-            }
-            TacticalRequestMessage::Days(_tactical_time_message) => {
-                todo!()
-            }
-            TacticalRequestMessage::Update => {
-                let locked_scheduling_environment = &self.scheduling_environment.lock().unwrap();
-                let asset = &self.asset;
-
-                self.tactical_algorithm.create_tactical_parameters(&locked_scheduling_environment, asset);
-                Ok(TacticalResponseMessage::Update)
-            }
-
-        }
-    }
-}
-
-type StrategicMessage = Vec<(WorkOrderNumber, Period)>;
-type TacticalMessage = ();
-type SupervisorMessage = ();
-type OperationalMessage = ();
-
-impl
-    Handler<
-        StateLinkWrapper<
-            Vec<(WorkOrderNumber, Period)>,
-            TacticalMessage,
-            SupervisorMessage,
-            OperationalMessage,
-        >,
-    > for TacticalAgent
-{
-    type Result = Result<()>;
-
-    fn handle(
-        &mut self,
-        state_link_wrapper: StateLinkWrapper<
-            StrategicMessage,
-            TacticalMessage,
-            SupervisorMessage,
-            OperationalMessage,
-        >,
-        _ctx: &mut actix::Context<Self>,
-    ) -> Self::Result {
-        let state_link = state_link_wrapper.state_link;
-        let _enter = state_link_wrapper.span.enter();
-
-        match state_link {
-            StateLink::Strategic(_strategic_state) => Ok(()),
-            StateLink::Tactical(_) => {
-                todo!()
-            }
-            StateLink::Supervisor(_) => {
-                todo!()
-            }
-            StateLink::Operational(_) => {
-                todo!()
-            }
-        }
-    }
-}
-
-impl Handler<SetAddr> for TacticalAgent {
-    type Result = Result<()>;
-
-    fn handle(&mut self, msg: SetAddr, _ctx: &mut actix::Context<Self>) -> Self::Result {
-        match msg {
-            SetAddr::Supervisor(id, addr) => {
-                self.main_supervisor_addr = Some((id, addr));
-                Ok(())
-            }
-            _ => {
-                bail!("The tactical agent received an Addr<T>, where T is not a valid Actor")
-            }
-        }
-    }
-}
-
-impl Handler<UpdateWorkOrderMessage> for TacticalAgent {
-    type Result = ();
-
-    fn handle(
-        &mut self,
-        _update_work_order: UpdateWorkOrderMessage,
-        _ctx: &mut actix::Context<Self>,
-    ) -> Self::Result {
-        // todo!();
-        event!(
-            Level::WARN,
-            "Update 'impl Handler<UpdateWorkOrderMessage> for TacticalAgent'"
-        );
-    }
-}

@@ -7,12 +7,15 @@ layout {
 					pane size="15%" name="Ordinator watch" {	
 			  			command "taskset"
 			      		args "-c" "4-8" "cargo" "watch" "-i" "\"*.xlsx\"" "-w" "scheduling_system" "-w" "data_processing" "-w" "shared_types" "-x" "run --bin scheduling_system" 
-		    	  		cwd "$ORDINATOR_PATH"
+		    	  		cwd "."
 		    		}
+			    	pane size="3%" name="test"{
+		    	  		command "ps"
+			    	}
 			    	pane size="3%" name="Imperium watch"{
 		    	  		command "cargo"
 		      			args "watch" "-w" "imperium/" "-w" "shared_types/"  "-x" "build --release --bin imperium"
-		      			cwd "$ORDINATOR_PATH"
+		      			cwd "."
 			    	}
 				}
 				pane name="Bottom" {

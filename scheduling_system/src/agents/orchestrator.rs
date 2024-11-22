@@ -1,7 +1,11 @@
 use actix::prelude::*;
+use anyhow::bail;
+use anyhow::Context;
 use anyhow::Result;
 use shared_types::orchestrator::OrchestratorRequest;
 
+use shared_types::orchestrator::WorkOrderResponse;
+use shared_types::orchestrator::WorkOrdersStatus;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::Work;
@@ -42,7 +46,6 @@ use shared_types::operational::{
 use shared_types::orchestrator::{AgentStatus, AgentStatusResponse, OrchestratorResponse};
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::strategic::strategic_request_status_message::StrategicStatusMessage;
-use shared_types::strategic::strategic_response_status::{WorkOrderResponse, WorkOrdersStatus};
 use shared_types::supervisor::supervisor_response_status::SupervisorResponseStatus;
 use shared_types::supervisor::supervisor_status_message::SupervisorStatusMessage;
 
@@ -91,7 +94,7 @@ impl Orchestrator {
     pub async fn handle(
         &mut self,
         orchestrator_request: OrchestratorRequest,
-    ) -> Result<OrchestratorResponse, String> {
+    ) -> Result<OrchestratorResponse> {
         match orchestrator_request {
             OrchestratorRequest::AgentStatusRequest => {
                 let _buffer = String::new();
@@ -203,44 +206,29 @@ impl Orchestrator {
                 let cloned_work_orders: WorkOrders =
                     scheduling_environment_guard.clone_work_orders();
 
-                let work_order_response: Option<(WorkOrderNumber, WorkOrderResponse)> =
-                    cloned_work_orders
-                        .inner
-                        .iter()
-                        .find(|(work_order_number_key, _)| {
-                            work_order_number == **work_order_number_key
-                        })
-                        .map(|(work_order_number, work_order)| {
-                            let work_order_response = WorkOrderResponse::new(
-                                work_order
-                                    .work_order_dates
-                                    .earliest_allowed_start_period
-                                    .clone(),
-                                work_order.work_order_info.clone(),
-                                work_order.work_order_analytic.vendor,
-                                work_order.work_order_analytic.work_order_weight,
-                                work_order.work_order_analytic.system_status_codes.clone(),
-                                work_order.work_order_analytic.user_status_codes.clone(),
-                                None,
-                            );
-                            (*work_order_number, work_order_response)
-                        });
-
-                let work_order_response = match work_order_response {
-                    Some(response) => {
-                        let mut work_order_response = HashMap::new();
-                        work_order_response.insert(response.0, response.1);
-                        work_order_response
-                    }
-                    None => {
-                        return Err(format!(
-                            "{:?} was not found for the asset",
+                let (_, work_order) = cloned_work_orders
+                    .inner
+                    .iter()
+                    .find(|(won, _)| work_order_number == **won)
+                    .with_context(|| {
+                        format!(
+                            "{:?} is not part of the SchedulingEnvironment",
                             work_order_number
-                        ))
-                    }
+                        )
+                    })?;
+
+                let asset = &work_order.work_order_info.functional_location.asset;
+
+                let api_solution = match self.arc_swap_shared_solutions.get(asset) {
+                    Some(arc_swap_shared_solution) => (arc_swap_shared_solution).0.load(),
+                    None => bail!("Asset: {:?} is not initialzed", &asset),
                 };
 
-                let work_orders_status = WorkOrdersStatus::new(work_order_response);
+                let work_order_response =
+                    WorkOrderResponse::new(work_order, (**api_solution).clone().into());
+
+                let work_orders_status = WorkOrdersStatus::Single(work_order_response);
+
                 let orchestrator_response =
                     OrchestratorResponse::WorkOrderStatus(work_orders_status);
                 Ok(orchestrator_response)
@@ -256,27 +244,23 @@ impl Orchestrator {
                     .filter(|wo| wo.1.work_order_info.functional_location.asset == asset)
                     .collect();
 
+                let loaded_shared_solution = match self.arc_swap_shared_solutions.get(&asset) {
+                    Some(arc_swap_shared_solution) => arc_swap_shared_solution.0.load(),
+                    None => bail!("Ordinator has not been initialized for asset: {}", &asset),
+                };
                 let work_order_responses: HashMap<WorkOrderNumber, WorkOrderResponse> = work_orders
                     .inner
                     .iter()
                     .map(|(work_order_number, work_order)| {
                         let work_order_response = WorkOrderResponse::new(
-                            work_order
-                                .work_order_dates
-                                .earliest_allowed_start_period
-                                .clone(),
-                            work_order.work_order_info.clone(),
-                            work_order.work_order_analytic.vendor,
-                            work_order.work_order_analytic.work_order_weight,
-                            work_order.work_order_analytic.system_status_codes.clone(),
-                            work_order.work_order_analytic.user_status_codes.clone(),
-                            None,
+                            work_order,
+                            (**loaded_shared_solution).clone().into(),
                         );
                         (*work_order_number, work_order_response)
                     })
                     .collect();
 
-                let work_orders_status = WorkOrdersStatus::new(work_order_responses);
+                let work_orders_status = WorkOrdersStatus::Multiple(work_order_responses);
 
                 let orchestrator_response =
                     OrchestratorResponse::WorkOrderStatus(work_orders_status);
@@ -341,14 +325,6 @@ impl Orchestrator {
                     .unwrap()
                     .supervisor_by_id_string(id_string);
 
-                let supervisor_agent_addr = self
-                    .agent_registries
-                    .get(&asset)
-                    .unwrap()
-                    .supervisor_agent_addr(id.clone());
-
-                supervisor_agent_addr.do_send(shared_types::StopMessage {});
-
                 self.agent_registries
                     .get_mut(&asset)
                     .unwrap()
@@ -374,14 +350,6 @@ impl Orchestrator {
                     .get(&asset)
                     .unwrap()
                     .supervisor_by_id_string(id_string.clone());
-
-                let operational_agent_addr = self
-                    .agent_registries
-                    .get(&asset)
-                    .unwrap()
-                    .operational_agent_addr(id.clone());
-
-                operational_agent_addr.do_send(shared_types::StopMessage {});
 
                 self.agent_registries
                     .get_mut(&asset)
@@ -495,14 +463,6 @@ impl ActorRegistry {
 
     pub fn add_operational_agent(&mut self, id: Id, addr: Addr<OperationalAgent>) {
         self.operational_agent_addrs.insert(id, addr);
-    }
-
-    pub fn supervisor_agent_addr(&self, id: Id) -> Addr<SupervisorAgent> {
-        self.supervisor_agent_addrs.get(&id).unwrap().clone()
-    }
-
-    pub fn operational_agent_addr(&self, id: Id) -> Addr<OperationalAgent> {
-        self.operational_agent_addrs.get(&id).unwrap().clone()
     }
 
     pub fn supervisor_by_id_string(&self, id_string: String) -> Id {
