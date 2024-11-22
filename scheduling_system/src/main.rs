@@ -80,7 +80,7 @@ fn initialize_from_database(path: &Path) -> SchedulingEnvironment {
 
 fn write_to_database(path: &Path) -> Result<SchedulingEnvironment, std::io::Error> {
     let scheduling_environment =
-        init::model_initializers::initialize_scheduling_environment(52, 4, 120);
+        init::model_initializers::initialize_scheduling_environment(52, 4, 728);
 
     let json_scheduling_environment = serde_json::to_string(&scheduling_environment).unwrap();
     let mut file = File::create(path).unwrap();

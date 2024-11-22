@@ -5,17 +5,17 @@ use crate::scheduling_environment::work_order::WorkOrderActivity;
 
 #[derive(Serialize)]
 pub enum OperationalSchedulingResponse {
-    EventList(Vec<JsonAssignmentEvents>),
+    EventList(Vec<ApiAssignmentEvents>),
 }
 
 #[derive(Serialize)]
-pub struct JsonAssignmentEvents {
+pub struct ApiAssignmentEvents {
     event_info: EventInfo,
-    json_assignments: Vec<JsonAssignment>,
+    json_assignments: Vec<ApiAssignment>,
 }
 
-impl JsonAssignmentEvents {
-    pub fn new(event_info: EventInfo, json_assignments: Vec<JsonAssignment>) -> Self {
+impl ApiAssignmentEvents {
+    pub fn new(event_info: EventInfo, json_assignments: Vec<ApiAssignment>) -> Self {
         Self {
             event_info,
             json_assignments,
@@ -24,13 +24,13 @@ impl JsonAssignmentEvents {
 }
 
 #[derive(Serialize)]
-pub struct JsonAssignment {
+pub struct ApiAssignment {
     event_type: EventType,
     start_date_time: DateTime<Utc>,
     finish_data_time: DateTime<Utc>,
 }
 
-impl JsonAssignment {
+impl ApiAssignment {
     pub fn new(
         event_type: EventType,
         start_date_time: DateTime<Utc>,

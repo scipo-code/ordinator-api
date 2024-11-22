@@ -11,6 +11,7 @@ use actix::{Addr, Message};
 use anyhow::{Context, Result};
 use arc_swap::ArcSwap;
 use operational_agent::algorithm::{OperationalAssignment, OperationalObjectiveValue};
+use shared_types::orchestrator::ApiSolution;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::{ActivityNumber, Work};
@@ -53,6 +54,12 @@ pub struct SharedSolution {
     pub tactical: TacticalSolution,
     pub supervisor: SupervisorSolution,
     pub operational: HashMap<Id, OperationalSolution>,
+}
+
+impl Into<ApiSolution> for SharedSolution {
+    fn into(self) -> ApiSolution {
+        todo!();
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
