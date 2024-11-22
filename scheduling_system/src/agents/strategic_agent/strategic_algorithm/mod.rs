@@ -1,6 +1,7 @@
 pub mod optimized_work_orders;
 pub mod assert_functions;
 
+use strum::IntoEnumIterator;
 use crate::agents::traits::LargeNeighborHoodSearch;
 use crate::agents::{SharedSolution, StrategicSolution, ArcSwapSharedSolution};
 use anyhow::{bail, Context, Result};
@@ -11,7 +12,8 @@ use rand::prelude::SliceRandom;
 use shared_types::scheduling_environment::WorkOrders;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::scheduling_environment::work_order::operation::Work;use shared_types::scheduling_environment::worker_environment::resources::Resources;
+use shared_types::scheduling_environment::work_order::operation::Work;
+use shared_types::scheduling_environment::worker_environment::resources::Resources;
 use shared_types::strategic::{StrategicObjectiveValue, StrategicResources};
 use shared_types::strategic::strategic_request_periods_message::StrategicTimeRequest;
 use shared_types::strategic::strategic_request_resources_message::StrategicResourceRequest;
@@ -30,7 +32,7 @@ pub struct StrategicAlgorithm {
     pub strategic_parameters: StrategicParameters,
     pub strategic_solution: StrategicSolution,
     arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
-    loaded_shared_solution: arc_swap::Guard<Arc<SharedSolution>>,
+    pub loaded_shared_solution: arc_swap::Guard<Arc<SharedSolution>>,
     period_locks: HashSet<Period>,
     periods: Vec<Period>,
 }
@@ -125,6 +127,26 @@ impl StrategicAlgorithm {
             .get(&period.clone())
             .unwrap()
 
+    }
+
+    pub fn calculate_utilization(&self) -> Vec<(i32, f64)> {
+        let mut utilization_by_period = Vec::new();
+
+        for period in &self.periods {
+            let mut intermediate_loading: f64 = 0.0;
+            let mut intermediate_capacity: f64 = 0.0;
+            for resource in Resources::iter() {
+                let loading = self.strategic_loading(&resource, period);
+                let capacity = self.strategic_capacity(&resource, period);
+
+                intermediate_loading += loading.to_f64();
+                intermediate_capacity += capacity.to_f64();
+                
+            }
+            let percentage_loading = (intermediate_loading / intermediate_capacity) * 100.0;
+            utilization_by_period.push((period.id().clone(), percentage_loading));
+        }
+        utilization_by_period
     }
 }
 

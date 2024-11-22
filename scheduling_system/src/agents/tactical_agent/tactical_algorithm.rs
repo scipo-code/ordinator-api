@@ -422,6 +422,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
     }
 
     fn schedule(&mut self) -> Result<()> {
+        dbg!();
         for (work_order_number, tactical_solution) in &self.tactical_solution.tactical_days {
             let tactical_parameter = self
                 .tactical_parameters()
@@ -455,9 +456,11 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             None => return Ok(()),
         };
 
+        dbg!();
         'main: loop {
             let mut operation_solutions = HashMap::<ActivityNumber, TacticalOperation>::new();
 
+            dbg!();
             let tactical_parameter = match loop_state {
                 LoopState::Unscheduled => self
                     .tactical_parameters()
@@ -653,6 +656,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 start_day.day_index()
             );
             self.update_loadings(&operation_solutions, LoadOperation::Add);
+            // panic!();
             loop_state = LoopState::Scheduled;
 
             // This is always called. For each work order... As long as the days are inside of the
@@ -670,6 +674,7 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
                 event!(Level::ERROR, unscheduled_work_order = ?current_work_order_number);
                 panic!("Unscheduled work order got through the schedule function");
             }
+            dbg!();
         }
         Ok(())
     }

@@ -2,6 +2,7 @@ pub mod commands;
 
 use std::{fs::File, io::Write};
 
+use anyhow::{bail, Result};
 use clap::{Command, CommandFactory, Parser};
 use clap_complete::{generate, Generator, Shell};
 use commands::Commands;
@@ -36,11 +37,11 @@ fn main() {
     let system_message = commands::handle_command(cli, &client);
     dbg!(serde_json::to_string(&system_message).unwrap());
 
-    let response = send_http(&client, system_message);
+    let response = send_http(&client, system_message).unwrap();
     println!("{}", response);
 }
 
-fn send_http(client: &Client, system_message: SystemMessages) -> String {
+fn send_http(client: &Client, system_message: SystemMessages) -> Result<String> {
     let url = "http://".to_string()
         + &dotenvy::var("IMPERIUM_ADDRESS")
             .expect("The environment variable IMPERIUM_ADDRESS is not set")
@@ -62,7 +63,6 @@ fn send_http(client: &Client, system_message: SystemMessages) -> String {
         .send()
         .expect("Could not send request");
 
-    dbg!(&res);
     // Check the response status and process the response as needed
     let header = res.headers().clone();
     if res.status().is_success() {
@@ -71,13 +71,13 @@ fn send_http(client: &Client, system_message: SystemMessages) -> String {
                 let content = res.bytes().unwrap().clone();
                 let mut output = File::create("ordinator_dump.xlsx").unwrap();
                 output.write_all(&content).unwrap();
-                String::from("Downloaded File")
+                Ok(String::from("Downloaded File"))
             }
-            None => res.text().unwrap(),
+            None => Ok(res.text().unwrap()),
         }
     } else {
         eprintln!("Failed to send request: {:?}", res.status());
-        String::from("Failed to get response")
+        bail!("Error: No success on the imperium request")
     }
 }
 

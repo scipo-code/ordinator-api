@@ -1,5 +1,6 @@
 pub mod algorithm;
 pub mod assert_functions;
+pub mod message_handlers;
 pub mod operational_events;
 
 use anyhow::{Context, Result};
@@ -10,30 +11,22 @@ use std::{
 };
 
 use actix::prelude::*;
-use shared_types::operational::operational_response_scheduling::{
-    EventInfo, JsonAssignment, JsonAssignmentEvents, OperationalSchedulingResponse,
-};
-use shared_types::operational::{
-    operational_request_scheduling::OperationalSchedulingRequest,
-    operational_response_status::OperationalStatusResponse, OperationalConfiguration,
-    OperationalRequestMessage, OperationalResponseMessage,
-};
+use shared_types::operational::OperationalConfiguration;
 use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
 use shared_types::scheduling_environment::work_order::{
     operation::Work, WorkOrderActivity, WorkOrderNumber,
 };
 use shared_types::scheduling_environment::worker_environment::resources::Id;
-use shared_types::{StatusMessage, StopMessage};
 
 use shared_types::scheduling_environment::{
     work_order::operation::Operation, SchedulingEnvironment,
 };
 
-use tracing::{event, info, instrument, warn, Level};
+use tracing::{event, Level};
 
 use crate::agents::{
     operational_agent::algorithm::OperationalParameter, supervisor_agent::delegate::Delegate,
-    OperationalSolution, StateLink, StateLinkWrapper,
+    OperationalSolution,
 };
 
 use self::algorithm::{Assignment, OperationalAlgorithm, OperationalAssignment};
@@ -42,7 +35,6 @@ use super::supervisor_agent::SupervisorAgent;
 use super::traits::LargeNeighborHoodSearch;
 use super::ScheduleIteration;
 use super::SetAddr;
-use super::UpdateWorkOrderMessage;
 
 pub struct OperationalAgent {
     operational_id: Id,
@@ -146,15 +138,14 @@ impl Handler<ScheduleIteration> for OperationalAgent {
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         let mut rng = rand::thread_rng();
 
-        dbg!();
         self.operational_algorithm.load_shared_solution();
 
-        event!(Level::WARN,
+        event!(Level::DEBUG,
             operational_view_in_supervisor_solution = ?self.operational_algorithm.loaded_shared_solution.supervisor
         );
 
         event!(
-            Level::WARN,
+            Level::DEBUG,
             number_of_operational_delegates = ?self
                 .operational_algorithm
                 .loaded_shared_solution
@@ -179,7 +170,7 @@ impl Handler<ScheduleIteration> for OperationalAgent {
             .remove_delegate_drop(&self.operational_id);
 
         event!(
-            Level::WARN,
+            Level::DEBUG,
             operational_solutions = self
                 .operational_algorithm
                 .operational_solution
@@ -210,7 +201,7 @@ impl Handler<ScheduleIteration> for OperationalAgent {
         } else {
             self.operational_algorithm.operational_solution = temporary_operational_solution;
 
-            info!(operational_objective_value = ?self.operational_algorithm.operational_solution.objective_value);
+            event!(Level::INFO, operational_objective_value = ?self.operational_algorithm.operational_solution.objective_value);
         };
 
         ctx.wait(
@@ -269,162 +260,5 @@ impl OperationalAgentBuilder {
             main_supervisor: self.0.main_supervisor,
             supervisor_agent_addr: self.0.supervisor_agent_addr,
         }
-    }
-}
-
-type StrategicMessage = ();
-type TacticalMessage = ();
-type SupervisorMessage = ();
-type OperationalMessage = ();
-
-impl
-    Handler<
-        StateLinkWrapper<StrategicMessage, TacticalMessage, SupervisorMessage, OperationalMessage>,
-    > for OperationalAgent
-{
-    type Result = Result<()>;
-
-    #[instrument(skip_all)]
-    fn handle(
-        &mut self,
-        state_link_wrapper: StateLinkWrapper<
-            StrategicMessage,
-            TacticalMessage,
-            SupervisorMessage,
-            OperationalMessage,
-        >,
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
-        let state_link = state_link_wrapper.state_link;
-        let span = state_link_wrapper.span;
-        let _enter = span.enter();
-
-        event!(
-            Level::INFO,
-            self.operational_algorithm.operational_parameters = self
-                .operational_algorithm
-                .operational_parameters
-                .work_order_parameters
-                .len()
-        );
-        match state_link {
-            StateLink::Strategic(_) => todo!(),
-            StateLink::Tactical(_) => todo!(),
-            StateLink::Supervisor(_initial_message) => todo!(),
-            StateLink::Operational(_) => todo!(),
-        }
-    }
-}
-
-impl Handler<OperationalRequestMessage> for OperationalAgent {
-    type Result = Result<OperationalResponseMessage>;
-
-    fn handle(
-        &mut self,
-        request: OperationalRequestMessage,
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
-        match request {
-            OperationalRequestMessage::Status(_) => {
-                let (assign, assess, unassign): (u64, u64, u64) = self
-                    .operational_algorithm
-                    .loaded_shared_solution
-                    .supervisor
-                    .count_delegate_types(&self.operational_id);
-
-                let operational_response_status = OperationalStatusResponse::new(
-                    self.operational_id.clone(),
-                    assign,
-                    assess,
-                    unassign,
-                    self.operational_algorithm
-                        .operational_solution
-                        .objective_value,
-                );
-                Ok(OperationalResponseMessage::Status(
-                    operational_response_status,
-                ))
-            }
-            OperationalRequestMessage::Scheduling(operational_scheduling_request) => {
-                match operational_scheduling_request {
-                    OperationalSchedulingRequest::OperationalIds => todo!(),
-                    OperationalSchedulingRequest::OperationalState(_) => {
-                        let mut json_assignments_events: Vec<JsonAssignmentEvents> = vec![];
-
-                        for (work_order_activity, operational_solution) in &self
-                            .operational_algorithm
-                            .operational_solution
-                            .work_order_activities
-                        {
-                            let mut json_assignments = vec![];
-                            for assignment in &operational_solution.assignments {
-                                let json_assignment = JsonAssignment::new(
-                                    assignment.event_type.clone().into(),
-                                    assignment.start,
-                                    assignment.finish,
-                                );
-                                json_assignments.push(json_assignment);
-                            }
-
-                            let event_info = EventInfo::new(Some(*work_order_activity));
-                            let json_assignment_event =
-                                JsonAssignmentEvents::new(event_info, json_assignments);
-                            json_assignments_events.push(json_assignment_event);
-                        }
-
-                        let operational_scheduling_response =
-                            OperationalSchedulingResponse::EventList(json_assignments_events);
-                        Ok(OperationalResponseMessage::Scheduling(
-                            operational_scheduling_response,
-                        ))
-                    }
-                }
-            }
-
-            OperationalRequestMessage::Resource(_) => todo!(),
-            OperationalRequestMessage::Time(_) => todo!(),
-        }
-    }
-}
-
-impl Handler<StatusMessage> for OperationalAgent {
-    type Result = String;
-
-    fn handle(&mut self, _msg: StatusMessage, _ctx: &mut Self::Context) -> Self::Result {
-        format!(
-            "ID: {}, traits: {}, Objective: {:?}",
-            self.operational_id.0,
-            self.operational_id
-                .1
-                .iter()
-                .map(|resource| resource.to_string())
-                .collect::<Vec<String>>()
-                .join(", "),
-            self.operational_algorithm
-                .operational_solution
-                .objective_value
-        )
-    }
-}
-
-impl Handler<StopMessage> for OperationalAgent {
-    type Result = ();
-
-    fn handle(&mut self, _msg: StopMessage, ctx: &mut Self::Context) -> Self::Result {
-        ctx.stop();
-    }
-}
-
-impl Handler<UpdateWorkOrderMessage> for OperationalAgent {
-    type Result = ();
-
-    fn handle(
-        &mut self,
-        _update_work_order: UpdateWorkOrderMessage,
-
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
-        // todo!();
-        warn!("Update 'impl Handler<UpdateWorkOrderMessage> for SupervisorAgent'");
     }
 }

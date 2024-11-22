@@ -1,26 +1,9 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use data_processing::excel_dumps::create_excel_dump;
-use shared_types::operational::operational_request_status::OperationalStatusRequest;
-use shared_types::operational::{
-    OperationalRequest, OperationalRequestMessage, OperationalResponse, OperationalResponseMessage,
-};
-use shared_types::orchestrator::OrchestratorRequest;
-use shared_types::scheduling_environment::time_environment::day::Day;
-use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::scheduling_environment::worker_environment::resources::Id;
-use shared_types::strategic::StrategicResponse;
-use shared_types::supervisor::SupervisorResponse;
-
-use shared_types::tactical::TacticalResponse;
 use shared_types::SystemMessages;
 use shared_types::SystemResponses;
 
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::Read;
 use std::sync::{Arc, Mutex};
-use tracing::{event, instrument, warn, Level};
+use tracing::instrument;
 
 use crate::agents::orchestrator::Orchestrator;
 
@@ -28,257 +11,46 @@ use crate::agents::orchestrator::Orchestrator;
 pub async fn http_to_scheduling_system(
     orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
     _req: HttpRequest,
-    payload: web::Json<SystemMessages>,
+    system_messages: web::Json<SystemMessages>,
 ) -> HttpResponse {
-    let system_responses: SystemResponses = match payload.0 {
+    match system_messages.0 {
         SystemMessages::Orchestrator(orchestrator_request) => {
-            let response = match orchestrator_request {
-                OrchestratorRequest::Export(asset) => {
-                    let orchestrator_lock = orchestrator.lock().unwrap();
-                    let agent_registry_for_asset =
-                        orchestrator_lock.agent_registries.get(&asset).unwrap();
-
-                    let strategic_agent_solution = agent_registry_for_asset
-                        .strategic_agent_addr
-                        .send(shared_types::SolutionExportMessage {})
-                        .await;
-
-                    let tactical_agent_solution = orchestrator_lock
-                        .arc_swap_shared_solutions
-                        .get(&asset)
-                        .unwrap()
-                        .0
-                        .load()
-                        .tactical
-                        .tactical_days
-                        .iter()
-                        .filter(|(_, d)| d.is_some())
-                        .map(|(won, opt_acn_tac)| (won, opt_acn_tac.as_ref().unwrap()))
-                        .map(|(won, acn_tac)| {
-                            (
-                                *won,
-                                acn_tac
-                                    .iter()
-                                    .map(|(acn, tac)| {
-                                        (*acn, tac.scheduled.first().as_ref().unwrap().0.clone())
-                                    })
-                                    .collect::<HashMap<ActivityNumber, Day>>(),
-                            )
-                        })
-                        .collect::<HashMap<WorkOrderNumber, HashMap<ActivityNumber, Day>>>();
-
-                    let scheduling_environment_lock =
-                        orchestrator_lock.scheduling_environment.lock().unwrap();
-
-                    let work_orders = scheduling_environment_lock.work_orders().clone();
-                    drop(scheduling_environment_lock);
-
-                    let xlsx_filename = create_excel_dump(
-                        asset.clone(),
-                        work_orders,
-                        strategic_agent_solution.unwrap().unwrap(),
-                        tactical_agent_solution,
-                    )
-                    .unwrap();
-
-                    let mut buffer = Vec::new();
-
-                    let mut file = File::open(&xlsx_filename).unwrap();
-
-                    file.read_to_end(&mut buffer).unwrap();
-
-                    std::fs::remove_file(xlsx_filename)
-                        .expect("The XLSX file could not be deleted");
-
-                    let filename = format!("ordinator_xlsx_dump_for_{}", asset);
-                    let http_header = format!("attachment; filename={}", filename,);
-
-                    return HttpResponse::Ok()
-                        .content_type(
-                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        )
-                        .insert_header(("Content-Disposition", http_header))
-                        .body(buffer);
-                }
-                _ => {
-                    orchestrator
-                        .lock()
-                        .unwrap()
-                        .handle(orchestrator_request)
-                        .await
-                }
-            };
-
-            SystemResponses::Orchestrator(response.unwrap())
+            orchestrator
+                .lock()
+                .unwrap()
+                .handle_orchestrator_request(orchestrator_request)
+                .await
         }
         SystemMessages::Strategic(strategic_request) => {
-            let strategic_agent_addr = match orchestrator
+            orchestrator
                 .lock()
                 .unwrap()
-                .agent_registries
-                .get(strategic_request.asset())
-            {
-                Some(agent_registry) => agent_registry.strategic_agent_addr.clone(),
-                None => {
-                    warn!("Strategic agent not created for the asset");
-                    return HttpResponse::BadRequest()
-                        .json("STRATEGIC: STRATEGIC AGENT NOT INITIALIZED FOR THE ASSET");
-                }
-            };
-
-            let response = match strategic_agent_addr
-                .send(strategic_request.strategic_request_message.clone())
+                .handle_strategic_request(strategic_request)
                 .await
-                .unwrap()
-            {
-                Ok(response) => response,
-                Err(e) => return HttpResponse::InternalServerError().body(e.to_string()),
-            };
-
-            let strategic_response =
-                StrategicResponse::new(strategic_request.asset().clone(), response);
-            SystemResponses::Strategic(strategic_response)
         }
         SystemMessages::Tactical(tactical_request) => {
-            let agent_registry_for_asset = match orchestrator
+            orchestrator
                 .lock()
                 .unwrap()
-                .agent_registries
-                .get(&tactical_request.asset)
-            {
-                Some(asset) => asset.tactical_agent_addr.clone(),
-                None => {
-                    warn!("Tactical agent not created for the asset");
-                    return HttpResponse::BadRequest()
-                        .json("TACTICAL: TACTICAL AGENT NOT INITIALIZED FOR THE ASSET");
-                }
-            };
-
-            let response = agent_registry_for_asset
-                .send(tactical_request.tactical_request_message)
+                .handle_tactical_request(tactical_request)
                 .await
-                .unwrap()
-                .unwrap();
-
-            let tactical_response = TacticalResponse::new(tactical_request.asset, response);
-            SystemResponses::Tactical(tactical_response)
         }
         SystemMessages::Supervisor(supervisor_request) => {
-            event!(Level::WARN, "before the locking of the actor registry");
-            let supervisor_agent_addrs = match orchestrator
+            orchestrator
                 .lock()
                 .unwrap()
-                .agent_registries
-                .get(&supervisor_request.asset)
-            {
-                Some(agent_registry) => agent_registry.supervisor_agent_addrs.clone(),
-                None => {
-                    warn!("Supervisor agent not created for the asset");
-                    return HttpResponse::BadRequest()
-                        .json("SUPERVISOR: SUPERVISOR AGENT NOT INITIALIZED FOR THE ASSET");
-                }
-            };
-            event!(Level::WARN, "agent registry found the correct supervisor");
-            let supervisor_agent_addr = supervisor_agent_addrs
-                .iter()
-                .find(|(id, _)| id.2.as_ref().unwrap().id == supervisor_request.supervisor.to_string())
-                .expect("This will error at somepoint you will need to handle if you have added additional supervisors")
-                .1;
-
-            event!(Level::WARN, "supervisor addr extracted");
-            let response = supervisor_agent_addr
-                .send(supervisor_request.supervisor_request_message)
+                .handle_supervisor_request(supervisor_request)
                 .await
-                .unwrap()
-                .unwrap();
-
-            event!(Level::WARN, "response generated");
-            let supervisor_response = SupervisorResponse::new(supervisor_request.asset, response);
-
-            SystemResponses::Supervisor(supervisor_response)
         }
         SystemMessages::Operational(operational_request) => {
-            let operational_response = match operational_request {
-                OperationalRequest::GetIds(asset) => {
-                    let mut operational_ids_by_asset: Vec<Id> = Vec::new();
-                    orchestrator
-                        .lock()
-                        .unwrap()
-                        .agent_registries
-                        .get(&asset)
-                        .expect("This error should be handled higher up")
-                        .operational_agent_addrs
-                        .keys()
-                        .for_each(|ele| {
-                            operational_ids_by_asset.push(ele.clone());
-                        });
-
-                    OperationalResponse::OperationalIds(operational_ids_by_asset)
-                }
-
-                OperationalRequest::ForOperationalAgent((
-                    asset,
-                    operational_id,
-                    operational_request_message,
-                )) => {
-                    match orchestrator
-                        .lock()
-                        .unwrap()
-                        .agent_registries
-                        .get(&asset)
-                        .expect("This error should be handled higher up")
-                        .get_operational_addr(&operational_id)
-                    {
-                        Some(addr) => {
-                            let operational_response_message = match addr.send(operational_request_message).await.expect("Could not await the message sending, theard problems are the most likely") {
-                                Ok(operational_response_message) => {
-                                    operational_response_message
-                                },
-                                Err(e) => {
-                                    return HttpResponse::InternalServerError().body(e.to_string())
-                                },
-                            };
-                            OperationalResponse::OperationalState(operational_response_message)
-                        }
-                        None => OperationalResponse::NoOperationalAgentFound(operational_id),
-                    }
-                }
-                OperationalRequest::AllOperationalStatus(asset) => {
-                    let operational_request_status = OperationalStatusRequest::General;
-                    let operational_request_message =
-                        OperationalRequestMessage::Status(operational_request_status);
-                    let mut operational_responses: Vec<OperationalResponseMessage> = vec![];
-
-                    let agent_registry_guard = orchestrator.lock().unwrap();
-                    let agent_registry_option = agent_registry_guard.agent_registries.get(&asset);
-
-                    let agent_registry = match agent_registry_option {
-                        Some(agent_registry) => agent_registry,
-                        None => {
-                            warn!("AgentRegistry not created for {}", asset);
-                            return HttpResponse::BadRequest()
-                                .json("STRATEGIC: STRATEGIC AGENT NOT INITIALIZED FOR THE ASSET");
-                        }
-                    };
-
-                    for operational_addr in agent_registry.operational_agent_addrs.values() {
-                        operational_responses.push(
-                            operational_addr
-                                .send(operational_request_message.clone())
-                                .await
-                                .unwrap()
-                                .unwrap(),
-                        )
-                    }
-                    OperationalResponse::AllOperationalStatus(operational_responses)
-                }
-            };
-            SystemResponses::Operational(operational_response)
+            orchestrator
+                .lock()
+                .unwrap()
+                .handle_operational_request(operational_request)
+                .await
         }
-        SystemMessages::Sap => SystemResponses::Sap,
-    };
-
-    HttpResponse::Ok().json(system_responses)
+        SystemMessages::Sap => HttpResponse::Ok().json(SystemResponses::Sap),
+    }
 }
 
 #[cfg(test)]

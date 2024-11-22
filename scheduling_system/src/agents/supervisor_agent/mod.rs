@@ -1,9 +1,10 @@
 pub mod algorithm;
 pub mod assert_functions;
 pub mod delegate;
+pub mod message_handlers;
 pub mod operational_state_machine;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use assert_functions::SupervisorAssertions;
 use delegate::Delegate;
 use rand::{prelude::SliceRandom, rngs::ThreadRng};
@@ -13,15 +14,7 @@ use std::{
 };
 
 use actix::prelude::*;
-use shared_types::{
-    scheduling_environment::work_order::WorkOrderActivity,
-    supervisor::{
-        supervisor_response_scheduling::SupervisorResponseScheduling,
-        supervisor_response_status::SupervisorResponseStatus, SupervisorRequestMessage,
-        SupervisorResponseMessage,
-    },
-    Asset, StopMessage,
-};
+use shared_types::Asset;
 
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 use tracing::{event, instrument, Level};
@@ -31,10 +24,8 @@ use shared_types::scheduling_environment::SchedulingEnvironment;
 use self::algorithm::SupervisorAlgorithm;
 
 use super::{
-    operational_agent::{algorithm::OperationalObjectiveValue, OperationalAgent},
-    tactical_agent::TacticalAgent,
-    traits::LargeNeighborHoodSearch,
-    ArcSwapSharedSolution, ScheduleIteration, SetAddr, StateLink, StateLinkWrapper,
+    operational_agent::OperationalAgent, tactical_agent::TacticalAgent,
+    traits::LargeNeighborHoodSearch, ArcSwapSharedSolution, ScheduleIteration, SetAddr,
 };
 
 pub struct SupervisorAgent {
@@ -54,7 +45,6 @@ impl Actor for SupervisorAgent {
     fn started(&mut self, ctx: &mut Self::Context) {
         self.assert_operational_state_machine_woas_is_subset_of_tactical_shared_solution()
             .unwrap();
-        ctx.set_mailbox_capacity(1000);
         self.tactical_agent_addr.do_send(SetAddr::Supervisor(
             self.supervisor_id.clone(),
             ctx.address(),
@@ -267,112 +257,5 @@ impl SupervisorAgent {
             }
         }
         Ok(())
-    }
-}
-
-impl Handler<StopMessage> for SupervisorAgent {
-    type Result = ();
-
-    fn handle(&mut self, _msg: StopMessage, ctx: &mut Self::Context) -> Self::Result {
-        ctx.stop();
-    }
-}
-
-impl Handler<SetAddr> for SupervisorAgent {
-    type Result = Result<()>;
-
-    #[instrument(level = "trace", skip_all)]
-    fn handle(&mut self, set_addr: SetAddr, _ctx: &mut Self::Context) -> Self::Result {
-        if let SetAddr::Operational(id, addr) = set_addr {
-            self.operational_agent_addrs.insert(id, addr);
-            Ok(())
-        } else {
-            bail!("We have not created the logic for fixing this yet")
-        }
-    }
-}
-
-type StrategicMessage = ();
-type TacticalMessage = ();
-type SupervisorMessage = ();
-// Why do we send this message? I am not really sure?
-type OperationalMessage = ((Id, WorkOrderActivity), OperationalObjectiveValue);
-
-impl
-    Handler<
-        StateLinkWrapper<StrategicMessage, TacticalMessage, SupervisorMessage, OperationalMessage>,
-    > for SupervisorAgent
-{
-    type Result = Result<()>;
-
-    #[instrument(level = "info", skip_all)]
-    fn handle(
-        &mut self,
-        state_link_wrapper: StateLinkWrapper<
-            StrategicMessage,
-            TacticalMessage,
-            SupervisorMessage,
-            OperationalMessage,
-        >,
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
-        let state_link = state_link_wrapper.state_link;
-        let span = state_link_wrapper.span;
-
-        let _enter = span.enter();
-
-        match state_link {
-            StateLink::Strategic(_) => Ok(()),
-            StateLink::Tactical(_) => Ok(()),
-            StateLink::Supervisor(_) => Ok(()),
-            StateLink::Operational(_operational_solution) => Ok(()),
-        }
-    }
-}
-
-impl Handler<SupervisorRequestMessage> for SupervisorAgent {
-    type Result = Result<SupervisorResponseMessage>;
-
-    #[instrument(level = "trace", skip_all)]
-    fn handle(
-        &mut self,
-        supervisor_request_message: SupervisorRequestMessage,
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
-        event!(Level::WARN, "start_of_supervisor_handler");
-        tracing::info!(
-            "Received SupervisorRequestMessage: {:?}",
-            supervisor_request_message
-        );
-
-        match supervisor_request_message {
-            SupervisorRequestMessage::Status(supervisor_status_message) => {
-                event!(Level::WARN, "start of status message initialization");
-                tracing::info!(
-                    "Received SupervisorStatusMessage: {:?}",
-                    supervisor_status_message
-                );
-                let supervisor_status = SupervisorResponseStatus::new(
-                    self.supervisor_algorithm.resources.clone(),
-                    self.supervisor_algorithm
-                        .supervisor_solution
-                        .count_unique_woa(),
-                    self.supervisor_algorithm.objective_value,
-                );
-                event!(Level::WARN, "after creation of the supervisor_status");
-
-                Ok(SupervisorResponseMessage::Status(supervisor_status))
-            }
-
-            SupervisorRequestMessage::Scheduling(_scheduling_message) => Ok(
-                SupervisorResponseMessage::Scheduling(SupervisorResponseScheduling {}),
-            ),
-            SupervisorRequestMessage::Update => {
-                bail!(
-                    "IMPLEMENT update logic for Supervisor for Asset: {:?}",
-                    self.asset
-                );
-            }
-        }
     }
 }
