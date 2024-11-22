@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
 use crate::{
+    orchestrator::WorkOrdersStatus,
     scheduling_environment::{
         time_environment::period::Period, work_order::operation::Work,
         worker_environment::resources::Resources,
@@ -34,7 +35,7 @@ use self::{
     strategic_response_periods::StrategicResponsePeriods,
     strategic_response_resources::StrategicResponseResources,
     strategic_response_scheduling::StrategicResponseScheduling,
-    strategic_response_status::{StrategicResponseStatus, WorkOrdersStatus},
+    strategic_response_status::StrategicResponseStatus,
 };
 
 pub type StrategicObjectiveValue = u64;
@@ -60,6 +61,15 @@ pub enum StrategicRequestMessage {
     Periods(StrategicTimeRequest),
 }
 
+#[derive(Serialize)]
+pub enum StrategicResponseMessage {
+    Status(StrategicResponseStatus),
+    Scheduling(StrategicResponseScheduling),
+    Resources(StrategicResponseResources),
+    Periods(StrategicResponsePeriods),
+    WorkOrder(WorkOrdersStatus),
+    Test(AlgorithmState<StrategicInfeasibleCases>),
+}
 impl Message for StrategicRequestMessage {
     type Result = Result<StrategicResponseMessage>;
 }
@@ -77,16 +87,6 @@ impl StrategicResponse {
             strategic_response_message,
         }
     }
-}
-
-#[derive(Serialize)]
-pub enum StrategicResponseMessage {
-    Status(StrategicResponseStatus),
-    Scheduling(StrategicResponseScheduling),
-    Resources(StrategicResponseResources),
-    Periods(StrategicResponsePeriods),
-    WorkOrder(WorkOrdersStatus),
-    Test(AlgorithmState<StrategicInfeasibleCases>),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]

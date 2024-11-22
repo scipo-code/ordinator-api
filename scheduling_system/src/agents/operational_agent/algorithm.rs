@@ -14,7 +14,7 @@ use shared_types::{
         operational_request_scheduling::OperationalSchedulingRequest,
         operational_request_time::OperationalTimeRequest,
         operational_response_resource::OperationalResourceResponse,
-        operational_response_scheduling::{JsonAssignmentEvents, OperationalSchedulingResponse},
+        operational_response_scheduling::{ApiAssignmentEvents, OperationalSchedulingResponse},
         operational_response_time::OperationalTimeResponse,
         TimeInterval,
     },
@@ -391,8 +391,8 @@ impl OperationalAssignment {
     }
 }
 
-impl Into<JsonAssignmentEvents> for Assignment {
-    fn into(self) -> JsonAssignmentEvents {
+impl Into<ApiAssignmentEvents> for Assignment {
+    fn into(self) -> ApiAssignmentEvents {
         todo!()
     }
 }
@@ -859,7 +859,6 @@ impl OperationalAlgorithm {
                 let start = scheduled_days.first().unwrap().0.date();
                 let end = scheduled_days.last().unwrap().0.date();
 
-                assert!(_period.contains_date(start.date_naive()));
                 (start, end)
             }
             (Some(period), None) => (period.start_date(), period.end_date()),

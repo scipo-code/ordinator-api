@@ -1,45 +1,26 @@
 pub mod assert_functions;
 pub mod display;
+pub mod message_handlers;
 pub mod strategic_algorithm;
 
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborHoodSearch;
-use anyhow::bail;
 use anyhow::Result;
-use shared_types::scheduling_environment::work_order::status_codes::MaterialStatus;
-use shared_types::scheduling_environment::work_order::WorkOrder;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use actix::prelude::*;
-use shared_types::strategic::strategic_request_status_message::StrategicStatusMessage;
-use shared_types::strategic::strategic_response_periods::StrategicResponsePeriods;
-use shared_types::strategic::strategic_response_scheduling::StrategicResponseScheduling;
-use shared_types::strategic::strategic_response_status::OptimizedWorkOrderResponse;
-use shared_types::strategic::strategic_response_status::StrategicResponseStatus;
-use shared_types::strategic::strategic_response_status::WorkOrderResponse;
-use shared_types::strategic::strategic_response_status::WorkOrdersStatus;
-use shared_types::strategic::StrategicRequestMessage;
-use shared_types::strategic::StrategicResponseMessage;
-use shared_types::AgentExports;
 use shared_types::Asset;
-use shared_types::SolutionExportMessage;
-use strategic_algorithm::optimized_work_orders::StrategicParameterBuilder;
 use tracing::event;
 use tracing::Level;
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
-use tracing::error;
 use tracing::instrument;
 use tracing::warn;
 
 use crate::agents::tactical_agent::TacticalAgent;
 
 use super::ScheduleIteration;
-use super::SetAddr;
-use super::UpdateWorkOrderMessage;
 
 pub struct StrategicAgent {
     asset: Asset,
@@ -117,7 +98,8 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 
             event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value,
                 scheduled_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.iter().filter(|ele| ele.1.is_some()).count(),
-                total_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.len()
+                total_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.len(),
+                percentage_utilization_by_period = ?self.strategic_algorithm.calculate_utilization(),
             );
         } else {
             self.strategic_algorithm.strategic_solution = old_strategic_solution;
@@ -135,231 +117,6 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 
         ctx.notify(ScheduleIteration {});
         Ok(())
-    }
-}
-
-impl Handler<StrategicRequestMessage> for StrategicAgent {
-    type Result = Result<StrategicResponseMessage>;
-
-    #[instrument(level = "info", skip_all)]
-    fn handle(
-        &mut self,
-        strategic_request_message: StrategicRequestMessage,
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
-        match strategic_request_message {
-            StrategicRequestMessage::Status(strategic_status_message) => {
-                match strategic_status_message {
-                    StrategicStatusMessage::General => {
-                        let strategic_objective_value =
-                            self.strategic_algorithm.strategic_solution.objective_value;
-
-                        let strategic_parameters = &self.strategic_algorithm.strategic_parameters;
-
-                        let number_of_strategic_work_orders =
-                            strategic_parameters.strategic_work_order_parameters.len();
-
-                        let asset = &self.asset;
-
-                        let number_of_periods = self.strategic_algorithm.periods().len();
-
-                        let strategic_response_status = StrategicResponseStatus::new(
-                            asset.clone(),
-                            strategic_objective_value,
-                            number_of_strategic_work_orders,
-                            number_of_periods,
-                        );
-
-                        let strategic_response_message =
-                            StrategicResponseMessage::Status(strategic_response_status);
-                        Ok(strategic_response_message)
-                    }
-                    StrategicStatusMessage::Period(period) => {
-                        let strategic_parameters = &self
-                            .strategic_algorithm
-                            .strategic_parameters
-                            .strategic_work_order_parameters;
-
-                        if !self
-                            .strategic_algorithm
-                            .periods()
-                            .iter()
-                            .map(|period| period.period_string())
-                            .collect::<Vec<_>>()
-                            .contains(&period)
-                        {
-                            bail!("Period not found in the the scheduling environment".to_string());
-                        }
-
-                        let work_orders_by_period: HashMap<WorkOrderNumber, WorkOrderResponse> =
-                            self.strategic_algorithm
-                                .strategic_periods()
-                                .iter()
-                                .filter(|(_, sch_per)| match sch_per {
-                                    Some(scheduled_period) => {
-                                        scheduled_period.period_string() == period
-                                    }
-                                    None => false,
-                                })
-                                .map(|(work_order_number, scheduled_period)| {
-                                    let work_order = self
-                                        .scheduling_environment
-                                        .lock()
-                                        .unwrap()
-                                        .work_orders()
-                                        .inner
-                                        .get(work_order_number)
-                                        .unwrap()
-                                        .clone();
-                                    let work_order_response = WorkOrderResponse::new(
-                                        work_order
-                                            .work_order_dates
-                                            .earliest_allowed_start_period
-                                            .clone(),
-                                        work_order.work_order_info.clone(),
-                                        work_order.work_order_analytic.vendor,
-                                        work_order.work_order_analytic.work_order_weight,
-                                        work_order.work_order_analytic.system_status_codes,
-                                        work_order.work_order_analytic.user_status_codes,
-                                        Some(OptimizedWorkOrderResponse::new(
-                                            scheduled_period.clone().unwrap(),
-                                            strategic_parameters
-                                                .get(&work_order_number)
-                                                .unwrap()
-                                                .locked_in_period
-                                                .clone(),
-                                            strategic_parameters
-                                                .get(&work_order_number)
-                                                .unwrap()
-                                                .excluded_periods
-                                                .clone(),
-                                            strategic_parameters
-                                                .get(&work_order_number)
-                                                .unwrap()
-                                                .latest_period
-                                                .clone(),
-                                        )),
-                                    );
-                                    (*work_order_number, work_order_response)
-                                })
-                                .collect();
-
-                        let work_orders_in_period = WorkOrdersStatus::new(work_orders_by_period);
-
-                        let strategic_response_message =
-                            StrategicResponseMessage::WorkOrder(work_orders_in_period);
-
-                        Ok(strategic_response_message)
-                    }
-                }
-            }
-            StrategicRequestMessage::Scheduling(scheduling_message) => {
-                let scheduling_output: Result<StrategicResponseScheduling> = self
-                    .strategic_algorithm
-                    .update_scheduling_state(scheduling_message);
-
-                self.strategic_algorithm.calculate_objective_value();
-                event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value);
-                Ok(StrategicResponseMessage::Scheduling(
-                    scheduling_output.unwrap(),
-                ))
-            }
-            StrategicRequestMessage::Resources(resources_message) => {
-                let resources_output = self
-                    .strategic_algorithm
-                    .update_resources_state(resources_message);
-
-                self.strategic_algorithm.calculate_objective_value();
-                event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value);
-                Ok(StrategicResponseMessage::Resources(
-                    resources_output.unwrap(),
-                ))
-            }
-            StrategicRequestMessage::Periods(periods_message) => {
-                let mut scheduling_env_lock = self.scheduling_environment.lock().unwrap();
-
-                let periods = scheduling_env_lock.periods_mut();
-
-                for period_id in periods_message.periods.iter() {
-                    if periods.last().unwrap().id() + 1 == *period_id {
-                        let new_period =
-                            periods.last().unwrap().clone() + chrono::Duration::weeks(2);
-                        periods.push(new_period);
-                    } else {
-                        error!("periods not handled correctly");
-                    }
-                }
-                self.strategic_algorithm.set_periods(periods.to_vec());
-                let strategic_response_periods = StrategicResponsePeriods::new(periods.clone());
-                Ok(StrategicResponseMessage::Periods(
-                    strategic_response_periods,
-                ))
-            }
-        }
-    }
-}
-
-impl Handler<SetAddr> for StrategicAgent {
-    type Result = Result<()>;
-
-    fn handle(&mut self, msg: SetAddr, _ctx: &mut actix::Context<Self>) -> Self::Result {
-        match msg {
-            SetAddr::Tactical(addr) => {
-                self.tactical_agent_addr = Some(addr);
-                Ok(())
-            }
-            _ => {
-                bail!("Could not set the tactical Addr")
-            }
-        }
-    }
-}
-
-impl Handler<UpdateWorkOrderMessage> for StrategicAgent {
-    type Result = ();
-
-    fn handle(&mut self, update_work_order: UpdateWorkOrderMessage, _ctx: &mut Context<Self>) {
-        let locked_scheduling_environment = self.scheduling_environment.lock().unwrap();
-
-        let periods = locked_scheduling_environment.periods().clone();
-
-        let work_order: &WorkOrder = locked_scheduling_environment
-            .work_orders()
-            .inner
-            .get(&update_work_order.0)
-            .unwrap();
-
-        let optimized_work_order_builder = StrategicParameterBuilder::new();
-
-        let optimized_work_order = optimized_work_order_builder
-            .build_from_work_order(&work_order, &periods)
-            .build();
-        assert!(work_order.work_order_analytic.work_order_weight == optimized_work_order.weight);
-        if let Some(period) =
-            Into::<MaterialStatus>::into(work_order.work_order_analytic.user_status_codes.clone())
-                .period_delay(&periods)
-        {
-            assert!(&optimized_work_order.excluded_periods.contains(&period));
-        }
-
-        self.strategic_algorithm
-            .strategic_parameters
-            .strategic_work_order_parameters
-            .insert(update_work_order.0, optimized_work_order);
-    }
-}
-
-impl Handler<SolutionExportMessage> for StrategicAgent {
-    type Result = Option<AgentExports>;
-
-    fn handle(&mut self, _msg: SolutionExportMessage, _ctx: &mut Self::Context) -> Self::Result {
-        let mut strategic_solution = HashMap::new();
-        for (work_order_number, scheduled_period) in
-            self.strategic_algorithm.strategic_periods().iter()
-        {
-            strategic_solution.insert(*work_order_number, scheduled_period.clone().unwrap());
-        }
-        Some(AgentExports::Strategic(strategic_solution))
     }
 }
 
