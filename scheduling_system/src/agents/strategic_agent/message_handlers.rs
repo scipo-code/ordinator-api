@@ -22,7 +22,7 @@ use shared_types::{
 use tracing::event;
 use tracing::Level;
 
-use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::StrategicParameterBuilder;
+use crate::agents::strategic_agent::strategic_algorithm::strategic_parameters::StrategicParameterBuilder;
 use crate::agents::traits::LargeNeighborHoodSearch;
 use crate::agents::SetAddr;
 use crate::agents::UpdateWorkOrderMessage;

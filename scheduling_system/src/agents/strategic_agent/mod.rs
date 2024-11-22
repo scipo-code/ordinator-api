@@ -132,8 +132,8 @@ mod tests {
     use shared_types::strategic::StrategicObjectiveValue;
     use shared_types::strategic::StrategicResources;
     use strategic_algorithm::ForcedWorkOrder;
-    use tests::strategic_algorithm::optimized_work_orders::StrategicParameter;
-    use tests::strategic_algorithm::optimized_work_orders::StrategicParameters;
+    use tests::strategic_algorithm::strategic_parameters::StrategicParameter;
+    use tests::strategic_algorithm::strategic_parameters::StrategicParameters;
     use unloading_point::UnloadingPoint;
 
     use std::collections::HashMap;

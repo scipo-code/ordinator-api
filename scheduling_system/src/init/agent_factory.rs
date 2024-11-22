@@ -14,12 +14,12 @@ use std::sync::Mutex;
 
 use crate::agents::operational_agent::algorithm::OperationalAlgorithm;
 use crate::agents::operational_agent::{OperationalAgent, OperationalAgentBuilder};
-use crate::agents::strategic_agent::strategic_algorithm::optimized_work_orders::StrategicParameters;
+use crate::agents::strategic_agent::strategic_algorithm::strategic_parameters::StrategicParameters;
 use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::supervisor_agent::SupervisorAgent;
-use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
+use crate::agents::tactical_agent::algorithm::TacticalAlgorithm;
 use crate::agents::tactical_agent::TacticalAgent;
 use crate::agents::{ArcSwapSharedSolution, SharedSolution};
 

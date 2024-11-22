@@ -1,12 +1,10 @@
 pub mod algorithm;
 pub mod assert_functions;
-pub mod delegate;
 pub mod message_handlers;
-pub mod operational_state_machine;
 
+use algorithm::delegate::Delegate;
 use anyhow::{Context, Result};
 use assert_functions::SupervisorAssertions;
-use delegate::Delegate;
 use rand::{prelude::SliceRandom, rngs::ThreadRng};
 use std::{
     collections::HashMap,
