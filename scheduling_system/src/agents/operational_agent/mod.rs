@@ -1,8 +1,11 @@
 pub mod algorithm;
 pub mod assert_functions;
 pub mod message_handlers;
-pub mod operational_events;
 
+use algorithm::{
+    operational_parameter::OperationalParameter,
+    operational_solution::{Assignment, OperationalAssignment},
+};
 use anyhow::{Context, Result};
 use assert_functions::OperationalAssertions;
 use std::{
@@ -24,12 +27,9 @@ use shared_types::scheduling_environment::{
 
 use tracing::{event, Level};
 
-use crate::agents::{
-    operational_agent::algorithm::OperationalParameter, supervisor_agent::delegate::Delegate,
-    OperationalSolution,
-};
+use crate::agents::{supervisor_agent::algorithm::delegate::Delegate, OperationalSolution};
 
-use self::algorithm::{Assignment, OperationalAlgorithm, OperationalAssignment};
+use self::algorithm::OperationalAlgorithm;
 
 use super::supervisor_agent::SupervisorAgent;
 use super::traits::LargeNeighborHoodSearch;

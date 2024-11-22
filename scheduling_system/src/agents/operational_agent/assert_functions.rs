@@ -1,7 +1,7 @@
 use anyhow::{ensure, Result};
 
 use super::OperationalAgent;
-use crate::agents::supervisor_agent::delegate::Delegate;
+use crate::agents::supervisor_agent::algorithm::delegate::Delegate;
 
 #[allow(dead_code)]
 pub trait OperationalAssertions {
