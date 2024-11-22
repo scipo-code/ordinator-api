@@ -10,7 +10,8 @@ use std::collections::{HashMap, HashSet};
 use actix::{Addr, Message};
 use anyhow::{Context, Result};
 use arc_swap::ArcSwap;
-use operational_agent::algorithm::{OperationalAssignment, OperationalObjectiveValue};
+use operational_agent::algorithm::operational_solution::{MarginalFitness, OperationalAssignment};
+use operational_agent::algorithm::OperationalObjectiveValue;
 use shared_types::orchestrator::ApiSolution;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
@@ -19,9 +20,8 @@ use shared_types::scheduling_environment::work_order::{WorkOrderActivity, WorkOr
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::strategic::{StrategicObjectiveValue, StrategicResources};
 use shared_types::tactical::{TacticalObjectiveValue, TacticalResources};
-use supervisor_agent::algorithm::MarginalFitness;
-use supervisor_agent::delegate::Delegate;
-use tactical_agent::tactical_algorithm::TacticalOperation;
+use supervisor_agent::algorithm::delegate::Delegate;
+use tactical_agent::algorithm::tactical_solution::TacticalOperation;
 use tracing::{event, Level, Span};
 
 use self::{

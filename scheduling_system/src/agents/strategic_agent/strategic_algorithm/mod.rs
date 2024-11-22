@@ -1,4 +1,4 @@
-pub mod optimized_work_orders;
+pub mod strategic_parameters;
 pub mod assert_functions;
 
 use strum::IntoEnumIterator;
@@ -6,7 +6,7 @@ use crate::agents::traits::LargeNeighborHoodSearch;
 use crate::agents::{SharedSolution, StrategicSolution, ArcSwapSharedSolution};
 use anyhow::{bail, Context, Result};
 use assert_functions::StrategicAlgorithmAssertions;
-use optimized_work_orders::{StrategicParameterBuilder, StrategicParameters};
+use strategic_parameters::{StrategicParameterBuilder, StrategicParameters};
 use priority_queue::PriorityQueue;
 use rand::prelude::SliceRandom;
 use shared_types::scheduling_environment::WorkOrders;
@@ -651,7 +651,7 @@ impl PriorityQueues<WorkOrderNumber, u64> {
 mod tests {
     use super::*;
     use arc_swap::ArcSwap;
-    use optimized_work_orders::StrategicParameter;
+    use strategic_parameters::StrategicParameter;
     use shared_types::strategic::{strategic_request_scheduling_message::SingleWorkOrder, Periods};
     use chrono::{Duration, TimeZone, Utc};
     use rand::{rngs::StdRng, SeedableRng};

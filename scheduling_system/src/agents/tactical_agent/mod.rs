@@ -1,11 +1,9 @@
-pub mod assert_functions;
 pub mod message_handlers;
-pub mod tactical_algorithm;
+pub mod algorithm;
 
 use actix::prelude::*;
-use anyhow::Context;
-use anyhow::Result;
-use assert_functions::TacticalAssertions;
+use anyhow::{Context, Result};
+use algorithm::assert_functions::TacticalAssertions;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::tactical::tactical_response_status::TacticalResponseStatus;
 use shared_types::Asset;
@@ -13,7 +11,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{event, Level};
 
-use crate::agents::tactical_agent::tactical_algorithm::TacticalAlgorithm;
+use crate::agents::tactical_agent::algorithm::TacticalAlgorithm;
 use crate::agents::SetAddr;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
@@ -84,22 +82,17 @@ impl Handler<ScheduleIteration> for TacticalAgent {
         let mut rng = rand::thread_rng();
         self.tactical_algorithm.load_shared_solution();
 
-        dbg!();
         let current_tactical_solution = self.tactical_algorithm.tactical_solution.clone();
 
-        dbg!();
         self.tactical_algorithm
             .unschedule_random_work_orders(&mut rng, 50)
             .context("random unschedule failed")
             .expect("Error in the Handler<ScheduleIteration>");
 
-        dbg!();
         self.tactical_algorithm.schedule().expect("TacticalAlgorithm.schedule method failed");
 
-        dbg!();
         let total_excess_hours = self.tactical_algorithm.asset_that_capacity_is_not_exceeded().ok();
         
-        dbg!();
         if self.tactical_algorithm.calculate_objective_value()
             < current_tactical_solution.objective_value
         {
@@ -126,9 +119,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
 
 
 
-        dbg!();
         } else {
-        dbg!();
             event!(Level::INFO,
                  new_tactical_objective_value = ?self.tactical_algorithm.tactical_solution.objective_value,
                  tactical_objective_value = ?current_tactical_solution.objective_value,
@@ -147,10 +138,8 @@ impl Handler<ScheduleIteration> for TacticalAgent {
                     .tactical_days
                     .len());
             self.tactical_algorithm.tactical_solution = current_tactical_solution;
-        dbg!();
         };
 
-        dbg!();
             event!(Level::INFO,
                  new_tactical_objective_value = ?self.tactical_algorithm.tactical_solution.objective_value,
                  total_excess_hours = ?total_excess_hours,
@@ -167,7 +156,6 @@ impl Handler<ScheduleIteration> for TacticalAgent {
                     .tactical_days
                     .len());
  
-        dbg!();
         ctx.wait(
             tokio::time::sleep(tokio::time::Duration::from_millis(
                 dotenvy::var("TACTICAL_THROTTLING")
