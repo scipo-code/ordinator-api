@@ -16,6 +16,7 @@
         pythonEnv = pkgs.python3.withPackages (ps: with ps; [
           pandas
           openpyxl
+          matplotlib
         ]);
       in {
         devShells.default = pkgs.mkShell {
@@ -27,6 +28,10 @@
             pkgs.git
             pkgs.helix
             pkgs.zellij
+            (pkgs.gnuplot.override {
+              withLua = true;
+              lua = pkgs.lua;
+            })
             pkgs.nushell
             pkgs.jq
             pkgs.openssl_3_3
