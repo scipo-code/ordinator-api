@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use actix::Handler;
 use anyhow::bail;
+use anyhow::Context;
 use anyhow::Result;
 use shared_types::orchestrator::WorkOrdersStatus;
 use shared_types::scheduling_environment::work_order::status_codes::MaterialStatus;
@@ -118,15 +119,14 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                 }
             }
             StrategicRequestMessage::Scheduling(scheduling_message) => {
-                let scheduling_output: Result<StrategicResponseScheduling> = self
+                let scheduling_output: StrategicResponseScheduling = self
                     .strategic_algorithm
-                    .update_scheduling_state(scheduling_message);
+                    .update_scheduling_state(scheduling_message)
+                    .context("scheduling request message was not handled correct")?;
 
                 self.strategic_algorithm.calculate_objective_value();
                 event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value);
-                Ok(StrategicResponseMessage::Scheduling(
-                    scheduling_output.unwrap(),
-                ))
+                Ok(StrategicResponseMessage::Scheduling(scheduling_output))
             }
             StrategicRequestMessage::Resources(resources_message) => {
                 let resources_output = self

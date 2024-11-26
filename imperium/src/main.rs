@@ -2,13 +2,12 @@ pub mod commands;
 
 use std::{fs::File, io::Write};
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use clap::{Command, CommandFactory, Parser};
 use clap_complete::{generate, Generator, Shell};
 use commands::Commands;
 use reqwest::blocking::Client;
 use shared_types::SystemMessages;
-use tracing::error;
 
 #[derive(Parser)]
 #[command(name = "imperium", author, version, about, long_about = None)]
@@ -20,7 +19,7 @@ pub struct Cli {
 }
 
 /// Main function of the imperium command line tool
-fn main() {
+fn main() -> Result<()> {
     let cli = Cli::parse();
 
     if let Some(generator) = cli.generator {
@@ -35,10 +34,11 @@ fn main() {
         .unwrap();
 
     let system_message = commands::handle_command(cli, &client);
-    dbg!(serde_json::to_string(&system_message).unwrap());
 
-    let response = send_http(&client, system_message).unwrap();
+    let response =
+        send_http(&client, system_message).context("SystemMessage(s) was not handled correctly")?;
     println!("{}", response);
+    Ok(())
 }
 
 fn send_http(client: &Client, system_message: SystemMessages) -> Result<String> {
@@ -51,8 +51,7 @@ fn send_http(client: &Client, system_message: SystemMessages) -> Result<String> 
     let system_message_json = match system_message_json_option {
         Ok(string) => string,
         Err(_) => {
-            error!("Bad deserialization");
-            "hello".to_string()
+            bail!("Could not serialize the input response");
         }
     };
 
@@ -63,8 +62,8 @@ fn send_http(client: &Client, system_message: SystemMessages) -> Result<String> 
         .send()
         .expect("Could not send request");
 
-    // Check the response status and process the response as needed
     let header = res.headers().clone();
+
     if res.status().is_success() {
         match header.get("Content-Disposition") {
             Some(_download_header) => {
@@ -76,8 +75,10 @@ fn send_http(client: &Client, system_message: SystemMessages) -> Result<String> 
             None => Ok(res.text().unwrap()),
         }
     } else {
-        eprintln!("Failed to send request: {:?}", res.status());
-        bail!("Error: No success on the imperium request")
+        bail!(
+            "Error: No success on the imperium request: {:?}",
+            res.text().unwrap()
+        )
     }
 }
 

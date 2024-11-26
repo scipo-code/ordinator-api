@@ -129,7 +129,7 @@ impl StrategicAlgorithm {
 
     }
 
-    pub fn calculate_utilization(&self) -> Vec<(i32, f64)> {
+    pub fn calculate_utilization(&self) -> Vec<(i32, u64)> {
         let mut utilization_by_period = Vec::new();
 
         for period in &self.periods {
@@ -143,7 +143,7 @@ impl StrategicAlgorithm {
                 intermediate_capacity += capacity.to_f64();
                 
             }
-            let percentage_loading = (intermediate_loading / intermediate_capacity) * 100.0;
+            let percentage_loading = ((intermediate_loading / intermediate_capacity) * 100.0) as u64;
             utilization_by_period.push((period.id().clone(), percentage_loading));
         }
         utilization_by_period
@@ -319,7 +319,7 @@ pub fn calculate_period_difference(scheduled_period: Period, latest_period: &Per
 
 
 impl LargeNeighborHoodSearch for StrategicAlgorithm {
-    type BetterSolution = ();
+    type BetterSolution = (u64, u64);
     type SchedulingRequest = StrategicSchedulingRequest;
     type SchedulingResponse = StrategicResponseScheduling;
     type ResourceRequest = StrategicResourceRequest;
@@ -374,6 +374,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
 
         self.strategic_solution.objective_value = 
             period_penalty_contribution + 1000000 * excess_penalty_contribution;
+        (period_penalty_contribution, excess_penalty_contribution)
 
     }
 
@@ -486,17 +487,14 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                     .find(|period| {
                         period.period_string() == schedule_work_order.period_string()
                     })
-                    .cloned();
+                    .cloned()
+                    .with_context(|| format!("period: {:?} does not exist", schedule_work_order.period_string()))?;
     
-                match period {
-                    Some(period) => {
-                        self.strategic_parameters
-                            .set_locked_in_period(*work_order_number, period.clone());
-             
-                        Ok(StrategicResponseScheduling::new(vec![*work_order_number], vec![period]))
-                    }
-                    None => bail!("Could not update strategic scheduling state".to_string()),
-                }
+                    self.strategic_parameters
+                        .set_locked_in_period(*work_order_number, period.clone()).context("could not set locked in period")?;
+         
+                    Ok(StrategicResponseScheduling::new(vec![*work_order_number], vec![period]))
+                
             }
             StrategicSchedulingRequest::ScheduleMultiple(schedule_work_orders) => {
                 let _output_string = String::new();
@@ -515,7 +513,7 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                     match period {
                         Some(period) => {
                             self.strategic_parameters
-                                .set_locked_in_period(*work_order_number, period.clone());
+                                .set_locked_in_period(*work_order_number, period.clone()).context("could not set locked in period")?;
 
                             work_orders.push(*work_order_number);
                             periods.push(period);
@@ -1116,7 +1114,7 @@ mod tests {
 
         strategic_algorithm
             .strategic_parameters
-            .set_locked_in_period(work_order_number, period_2.clone());
+            .set_locked_in_period(work_order_number, period_2.clone()).context("could not set locked in period").expect("test failed");
         strategic_algorithm.schedule_forced_work_order(&(work_order_number, ForcedWorkOrder::Locked));
 
         assert_eq!(
