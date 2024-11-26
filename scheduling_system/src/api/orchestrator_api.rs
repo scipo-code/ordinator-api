@@ -119,7 +119,9 @@ impl Orchestrator {
             .unwrap()
         {
             Ok(response) => response,
-            Err(e) => return HttpResponse::InternalServerError().body(e.to_string()),
+            Err(e) => {
+                return HttpResponse::InternalServerError().body(e.root_cause().to_string());
+            }
         };
 
         let strategic_response =

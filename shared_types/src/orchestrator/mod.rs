@@ -96,27 +96,32 @@ pub struct WorkOrderResponse {
 
 #[derive(Serialize)]
 pub struct ApiSolution {
-    strategic: ApiStrategic,
-    tactical: ApiTactical,
-    supervisor: HashMap<Id, ApiSupervisor>,
-    operational: HashMap<Id, ApiOperational>,
+    pub strategic: String,   //ApiStrategic,
+    pub tactical: String,    //ApiTactical,
+    pub supervisor: String,  //HashMap<Id, ApiSupervisor>,
+    pub operational: String, //HashMap<Id, ApiOperational>,
 }
 
 #[derive(Serialize)]
+#[allow(dead_code)]
 struct ApiStrategic {
     solution_data: String,
 }
 
 #[derive(Serialize)]
+#[allow(dead_code)]
 struct ApiTactical {
     solution_data: String,
 }
 
 #[derive(Serialize)]
+#[allow(dead_code)]
 struct ApiSupervisor {
     solution_data: String,
 }
+
 #[derive(Serialize)]
+#[allow(dead_code)]
 struct ApiOperational {
     solution_data: String,
 }

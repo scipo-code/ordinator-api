@@ -304,7 +304,6 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
         let mut next_fitness: TimeDelta = TimeDelta::zero();
         let mut first_fitness: bool = true;
         let mut current_work_order_activity: Option<WorkOrderActivity> = None;
-        event!(Level::ERROR, operational_event = ?all_events);
         for assignment in all_events.clone() {
             match &assignment.event_type {
                 OperationalEvents::WrenchTime((time_interval, work_order_activity)) => {

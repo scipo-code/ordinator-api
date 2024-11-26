@@ -18,9 +18,8 @@ use std::sync::Mutex;
 use tracing::instrument;
 use tracing::warn;
 
-use crate::agents::tactical_agent::TacticalAgent;
-
 use super::ScheduleIteration;
+use crate::agents::tactical_agent::TacticalAgent;
 
 pub struct StrategicAgent {
     asset: Asset,
@@ -89,7 +88,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
             .schedule()
             .expect("StrategicAlgorithm.schedule method failed");
         // self.assert_aggregated_load().unwrap();
-        self.strategic_algorithm.calculate_objective_value();
+        let (tardiness, penalty) = self.strategic_algorithm.calculate_objective_value();
 
         if self.strategic_algorithm.strategic_solution.objective_value
             < old_strategic_solution.objective_value
@@ -99,6 +98,8 @@ impl Handler<ScheduleIteration> for StrategicAgent {
             event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value,
                 scheduled_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.iter().filter(|ele| ele.1.is_some()).count(),
                 total_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.len(),
+                tardiness = tardiness,
+                penalty = penalty,
                 percentage_utilization_by_period = ?self.strategic_algorithm.calculate_utilization(),
             );
         } else {

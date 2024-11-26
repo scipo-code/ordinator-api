@@ -1,10 +1,10 @@
+use anyhow::{bail, Result};
 use serde::Serialize;
 use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
 use shared_types::strategic::StrategicResources;
 use std::str::FromStr;
 use std::{collections::HashMap, collections::HashSet, hash::Hash, hash::Hasher};
-use tracing::instrument;
 
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::{WorkOrder, WorkOrderNumber};
@@ -72,19 +72,23 @@ impl StrategicParameters {
         }
     }
 
-    #[instrument(level = "trace", skip_all)]
-    pub fn set_locked_in_period(&mut self, work_order_number: WorkOrderNumber, period: Period) {
+    pub fn set_locked_in_period(
+        &mut self,
+        work_order_number: WorkOrderNumber,
+        period: Period,
+    ) -> Result<()> {
         let optimized_work_order = match self
             .strategic_work_order_parameters
             .get_mut(&work_order_number)
         {
             Some(optimized_work_order) => optimized_work_order,
-            None => panic!(
+            None => bail!(
                 "Work order number {:?} not found in optimized work orders",
                 work_order_number
             ),
         };
         optimized_work_order.locked_in_period = Some(period);
+        Ok(())
     }
 }
 
