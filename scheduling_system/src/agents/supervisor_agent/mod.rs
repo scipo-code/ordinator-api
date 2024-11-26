@@ -64,12 +64,12 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
             .expect("OperationalStates should correspond with TacticalOperations");
 
         event!(
-            Level::WARN,
+            Level::DEBUG,
             number_of_operational_states = self.supervisor_algorithm.supervisor_solution.len()
         );
 
         event!(
-            Level::INFO,
+            Level::DEBUG,
             number_of_operational_agents = ?self.number_of_operational_agents
         );
 
@@ -77,11 +77,6 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
         self.supervisor_algorithm.calculate_objective_value();
 
         let old_supervisor_solution = self.supervisor_algorithm.supervisor_solution.clone();
-
-        event!(
-            Level::WARN,
-            current_state = ?old_supervisor_solution.operational_state_machine
-        );
 
         let number_of_removed_work_orders = 10;
         self.unschedule_random_work_orders(number_of_removed_work_orders, rng);

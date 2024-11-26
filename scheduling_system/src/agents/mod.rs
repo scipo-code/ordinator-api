@@ -22,7 +22,7 @@ use shared_types::strategic::{StrategicObjectiveValue, StrategicResources};
 use shared_types::tactical::{TacticalObjectiveValue, TacticalResources};
 use supervisor_agent::algorithm::delegate::Delegate;
 use tactical_agent::algorithm::tactical_solution::TacticalOperation;
-use tracing::{event, Level, Span};
+use tracing::Span;
 
 use self::{
     operational_agent::OperationalAgent, strategic_agent::StrategicAgent,
@@ -58,7 +58,12 @@ pub struct SharedSolution {
 
 impl Into<ApiSolution> for SharedSolution {
     fn into(self) -> ApiSolution {
-        todo!();
+        ApiSolution {
+            strategic: "NEEDS TO BE IMPLEMENTED".to_string(),
+            tactical: "NEEDS TO BE IMPLEMENTED".to_string(),
+            supervisor: "NEEDS TO BE IMPLEMENTED".to_string(),
+            operational: "NEEDS TO BE IMPLEMENTED".to_string(),
+        }
     }
 }
 
@@ -125,7 +130,6 @@ impl StrategicSolution {
         self.strategic_periods.iter().for_each(|(won, opt_per)| {
             if let Some(period) = opt_per {
                 if supervisor_periods.contains(period) {
-                    event!(Level::WARN, period = ?period);
                     supervisor_work_orders.insert(*won);
                 }
             }

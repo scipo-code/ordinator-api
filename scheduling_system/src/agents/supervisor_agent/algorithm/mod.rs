@@ -241,7 +241,7 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
 
             let mut remaining_to_assign = number - number_of_assigned;
 
-            event!(Level::WARN, remaining_to_assign = ?remaining_to_assign);
+            event!(Level::DEBUG, remaining_to_assign = ?remaining_to_assign);
             for (agent_id, delegate_status) in &mut operational_status_by_work_order_activity {
                 if *delegate_status != Delegate::Assess {
                     continue;

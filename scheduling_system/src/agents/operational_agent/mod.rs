@@ -82,7 +82,6 @@ impl OperationalAgent {
             .history_of_dropped_operational_parameters
             .insert(*work_order_activity);
 
-        event!(Level::INFO, id = ?self.operational_id, tactical_operation = ?self.operational_algorithm.loaded_shared_solution.tactical.tactical_days.get(&work_order_activity.0).unwrap());
         Ok(())
     }
 }
