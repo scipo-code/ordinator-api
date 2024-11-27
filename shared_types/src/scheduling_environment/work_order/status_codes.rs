@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::scheduling_environment::time_environment::period::Period;
 
+use super::WorkOrderNumber;
+
 // pub material_status: MaterialStatus,
 // #[arg(long)]
 // pub pcnf: bool,
@@ -161,8 +163,22 @@ pub struct UserStatusCodes {
     pub awpr: bool,
 }
 
+#[derive(Args, Clone, Serialize, Deserialize, Debug)]
+pub struct StrategicUserStatusCodes {
+    /// Provide the work order number for the work order that you want to change.
+    pub work_order_number: WorkOrderNumber,
+    #[arg(long, value_parser = clap::value_parser!(bool))]
+    pub sch: Option<bool>,
+    #[arg(long, value_parser = clap::value_parser!(bool))]
+    pub awsc: Option<bool>,
+    #[arg(long, value_parser = clap::value_parser!(bool))]
+    pub sece: Option<bool>,
+}
+
 impl Into<MaterialStatus> for UserStatusCodes {
     fn into(self) -> MaterialStatus {
+        assert!(self.smat as u8 + self.pmat as u8 + self.wmat as u8 + self.cmat as u8 <= 1);
+
         if self.smat {
             MaterialStatus::Smat
         } else if self.pmat {

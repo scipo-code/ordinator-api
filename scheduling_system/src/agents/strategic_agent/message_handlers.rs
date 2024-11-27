@@ -10,6 +10,7 @@ use shared_types::scheduling_environment::work_order::WorkOrder;
 use shared_types::strategic::strategic_response_periods::StrategicResponsePeriods;
 use shared_types::strategic::strategic_response_scheduling::StrategicResponseScheduling;
 use shared_types::strategic::strategic_response_status::StrategicResponseStatus;
+use shared_types::strategic::StrategicSchedulingEnvironmentCommands;
 use shared_types::AgentExports;
 use shared_types::SolutionExportMessage;
 use shared_types::{
@@ -159,6 +160,38 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                     strategic_response_periods,
                 ))
             }
+            StrategicRequestMessage::SchedulingEnvironment(
+                strategic_scheduling_environment_commands,
+            ) => match strategic_scheduling_environment_commands {
+                StrategicSchedulingEnvironmentCommands::UserStatus(strategic_user_status_codes) => {
+                    let mut user_status_codes = self
+                        .scheduling_environment
+                        .lock()
+                        .unwrap()
+                        .work_orders
+                        .inner
+                        .get_mut(&strategic_user_status_codes.work_order_number)
+                        .with_context(|| {
+                            format!(
+                                "{:?} is not found for {:?}",
+                                strategic_user_status_codes.work_order_number, self.asset
+                            )
+                        })?
+                        .work_order_analytic
+                        .user_status_codes;
+
+                    if let Some(sece) = strategic_user_status_codes.sch {
+                        user_status_codes.sece = sece;
+                    }
+                    if let Some(sch) = strategic_user_status_codes.awsc {
+                        user_status_codes.sch = sch;
+                    }
+                    if let Some(awsc) = strategic_user_status_codes.sece {
+                        user_status_codes.awsc = awsc;
+                    }
+                    Ok(StrategicResponseMessage::Success)
+                }
+            },
         }
     }
 }
