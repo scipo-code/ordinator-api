@@ -20,7 +20,7 @@ use self::work_order::{WorkOrderActivity, WorkOrderNumber};
 #[derive(Deserialize, Serialize, Debug)]
 
 pub struct SchedulingEnvironment {
-    work_orders: WorkOrders,
+    pub work_orders: WorkOrders,
     worker_environment: WorkerEnvironment,
     time_environment: TimeEnvironment,
     // material

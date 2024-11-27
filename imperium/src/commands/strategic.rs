@@ -16,6 +16,7 @@ use shared_types::strategic::Periods;
 use shared_types::strategic::StrategicRequest;
 use shared_types::strategic::StrategicRequestMessage;
 use shared_types::strategic::StrategicResources;
+use shared_types::strategic::StrategicSchedulingEnvironmentCommands;
 use shared_types::Asset;
 use shared_types::SystemMessages;
 use shared_types::TomlAgents;
@@ -39,6 +40,13 @@ pub enum StrategicCommands {
         asset: Asset,
         #[clap(subcommand)]
         resource_commands: ResourceCommands,
+    },
+
+    /// Access the Scheduling Environment with the options that the StrategicAgent can change
+    StrategicSchedulingEnvironmentCommands {
+        asset: Asset,
+        #[clap(subcommand)]
+        strategic_scheduling_environment_commands: StrategicSchedulingEnvironmentCommands,
     },
 }
 
@@ -97,7 +105,7 @@ pub struct WorkOrderSchedule {
 }
 
 impl StrategicCommands {
-    pub fn execute(&self, client: &Client) -> SystemMessages {
+    pub fn execute(self, client: &Client) -> SystemMessages {
         match self {
             StrategicCommands::Status {
                 asset,
@@ -108,7 +116,7 @@ impl StrategicCommands {
                         StrategicStatusMessage::new_period(period.to_string());
 
                     let strategic_request = StrategicRequest {
-                        asset: asset.clone(),
+                        asset,
                         strategic_request_message: StrategicRequestMessage::Status(
                             strategic_status_message,
                         ),
@@ -157,7 +165,7 @@ impl StrategicCommands {
                     todo!()
                 }
                 SchedulingCommands::Exclude { work_order, period } => {
-                    let work_order_number = WorkOrderNumber(*work_order);
+                    let work_order_number = WorkOrderNumber(work_order);
                     let exclude_single_work_order =
                         SingleWorkOrder::new(work_order_number, period.clone());
 
@@ -187,7 +195,7 @@ impl StrategicCommands {
                         Some(select_resources) => {
                             let mut resources: Vec<Resources> = vec![];
                             for resource in select_resources {
-                                resources.push(Resources::from_str(resource).unwrap());
+                                resources.push(Resources::from_str(&resource).unwrap());
                             }
                             Some(resources)
                         }
@@ -217,7 +225,7 @@ impl StrategicCommands {
                         Some(select_resources) => {
                             let mut resources: Vec<Resources> = vec![];
                             for resource in select_resources {
-                                resources.push(Resources::from_str(resource).unwrap());
+                                resources.push(Resources::from_str(&resource).unwrap());
                             }
                             Some(resources)
                         }
@@ -248,7 +256,7 @@ impl StrategicCommands {
                         Some(select_resources) => {
                             let mut resources: Vec<Resources> = vec![];
                             for resource in select_resources {
-                                resources.push(Resources::from_str(resource).unwrap());
+                                resources.push(Resources::from_str(&resource).unwrap());
                             }
                             Some(resources)
                         }
@@ -320,6 +328,20 @@ impl StrategicCommands {
                     SystemMessages::Strategic(strategic_request)
                 }
             },
+            StrategicCommands::StrategicSchedulingEnvironmentCommands {
+                asset,
+                strategic_scheduling_environment_commands,
+            } => {
+                let strategic_request_message = StrategicRequestMessage::SchedulingEnvironment(
+                    strategic_scheduling_environment_commands,
+                );
+
+                let strategic_request = StrategicRequest {
+                    asset,
+                    strategic_request_message,
+                };
+                SystemMessages::Strategic(strategic_request)
+            }
         }
     }
 }
