@@ -164,10 +164,10 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                 strategic_scheduling_environment_commands,
             ) => match strategic_scheduling_environment_commands {
                 StrategicSchedulingEnvironmentCommands::UserStatus(strategic_user_status_codes) => {
-                    let mut user_status_codes = self
-                        .scheduling_environment
-                        .lock()
-                        .unwrap()
+                    let mut scheduling_environment_lock =
+                        &mut self.scheduling_environment.lock().unwrap();
+
+                    let user_status_codes = &mut scheduling_environment_lock
                         .work_orders
                         .inner
                         .get_mut(&strategic_user_status_codes.work_order_number)
