@@ -6,6 +6,8 @@ use reqwest::blocking::Client;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
 
+use shared_types::scheduling_environment::work_order::status_codes::UserStatusCodes;
+use shared_types::scheduling_environment::work_order::unloading_point::UnloadingPoint;
 use shared_types::scheduling_environment::worker_environment::resources::{Resources, Shift};
 use shared_types::{
     orchestrator::OrchestratorRequest, scheduling_environment::worker_environment::resources::Id,
@@ -49,14 +51,10 @@ pub enum SchedulingEnvironmentCommands {
 #[derive(Subcommand, Debug)]
 pub enum WorkOrderCommands {
     /// Change the status codes of a work order
-    ModifyStatusCodes(
-        shared_types::scheduling_environment::work_order::status_codes::SystemStatusCodes,
-    ),
+    ModifyStatusCodes(UserStatusCodes),
 
     /// Change the unloading point of a work order
-    ModifyUnloadingPoint(
-        shared_types::scheduling_environment::work_order::unloading_point::UnloadingPoint,
-    ),
+    ModifyUnloadingPoint(UnloadingPoint),
 }
 
 #[derive(Subcommand, Debug)]

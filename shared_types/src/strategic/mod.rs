@@ -9,6 +9,7 @@ pub mod strategic_response_scheduling;
 pub mod strategic_response_status;
 
 use anyhow::Result;
+use clap::Subcommand;
 use std::{
     collections::{hash_map::Entry, HashMap},
     fmt::{self},
@@ -21,10 +22,11 @@ use serde_json_any_key::any_key_map;
 use crate::{
     orchestrator::WorkOrdersStatus,
     scheduling_environment::{
-        time_environment::period::Period, work_order::operation::Work,
+        time_environment::period::Period,
+        work_order::{operation::Work, status_codes::StrategicUserStatusCodes},
         worker_environment::resources::Resources,
     },
-    AlgorithmState, Asset, ConstraintState, LoadOperation,
+    Asset, ConstraintState, LoadOperation,
 };
 
 use self::{
@@ -52,6 +54,10 @@ impl StrategicRequest {
         &self.asset
     }
 }
+#[derive(Subcommand, Serialize, Deserialize, Clone, Debug)]
+pub enum StrategicSchedulingEnvironmentCommands {
+    UserStatus(StrategicUserStatusCodes),
+}
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum StrategicRequestMessage {
@@ -59,6 +65,7 @@ pub enum StrategicRequestMessage {
     Scheduling(StrategicSchedulingRequest),
     Resources(StrategicResourceRequest),
     Periods(StrategicTimeRequest),
+    SchedulingEnvironment(StrategicSchedulingEnvironmentCommands),
 }
 
 #[derive(Serialize)]
@@ -68,7 +75,7 @@ pub enum StrategicResponseMessage {
     Resources(StrategicResponseResources),
     Periods(StrategicResponsePeriods),
     WorkOrder(WorkOrdersStatus),
-    Test(AlgorithmState<StrategicInfeasibleCases>),
+    Success,
 }
 impl Message for StrategicRequestMessage {
     type Result = Result<StrategicResponseMessage>;
@@ -121,6 +128,7 @@ impl fmt::Display for StrategicRequestMessage {
                 write!(f, "period_message: {:?}", period_message)?;
                 Ok(())
             }
+            _ => todo!(),
         }
     }
 }
