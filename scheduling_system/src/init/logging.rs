@@ -44,7 +44,7 @@ pub fn setup_logging() -> (LogHandles, WorkerGuard) {
 
     let log_dir = env::var("ORDINATOR_LOG_DIR")
         .expect("A logging/tracing directory should be set in the .env file");
-    let file_name = format!("ordinator.developer.log");
+    let file_name = "ordinator.developer.log".to_string();
 
     let file_appender = tracing_appender::rolling::never(log_dir, file_name);
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);

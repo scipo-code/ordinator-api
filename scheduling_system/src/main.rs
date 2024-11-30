@@ -13,7 +13,6 @@ use actix_web::{guard, web, App, HttpServer};
 use agents::orchestrator::Orchestrator;
 
 use crate::init::logging;
-use agents::orchestrator::ArcOrchestrator;
 use shared_types::{scheduling_environment::SchedulingEnvironment, Asset};
 
 #[actix_web::main]
@@ -46,16 +45,11 @@ async fn main() -> Result<(), io::Error> {
     orchestrator.add_asset(asset.clone());
     orchestrator.initialize_agents_from_env(asset);
 
-    let arc_orchestrator = ArcOrchestrator(Arc::new(Mutex::new(orchestrator)));
-
-    // let arc_orchestrator_steel = arc_orchestrator.clone();
-    // start_steel_repl(arc_orchestrator_steel);
-
-    let arc_orchestrator_server = arc_orchestrator.clone();
+    let arc_orchestrator = Arc::new(tokio::sync::Mutex::new(orchestrator));
 
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(arc_orchestrator_server.0.clone()))
+            .app_data(web::Data::new(arc_orchestrator.clone()))
             .route(
                 &dotenvy::var("ORDINATOR_MAIN_ENDPOINT").unwrap(),
                 web::post()

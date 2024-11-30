@@ -49,5 +49,5 @@ fn create_scheduling_environment(
     let scheduling_environment =
         SchedulingEnvironment::create_scheduling_environment(total_sap, time_input)
             .expect("Could not load the data from the data file");
-    return Some(scheduling_environment);
+    Some(scheduling_environment)
 }

@@ -144,8 +144,8 @@ impl OperationalAssignment {
     }
 }
 
-impl Into<ApiAssignmentEvents> for Assignment {
-    fn into(self) -> ApiAssignmentEvents {
+impl From<Assignment> for ApiAssignmentEvents {
+    fn from(_value: Assignment) -> Self {
         todo!()
     }
 }

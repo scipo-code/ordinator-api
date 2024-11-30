@@ -98,11 +98,13 @@ impl SupervisorParameters {
         &self,
         work_order_activity: &WorkOrderActivity,
     ) -> Result<&SupervisorParameter> {
-        Ok(self.supervisor_work_orders
+        let supervisor_parameter = self.supervisor_work_orders
             .get(&work_order_activity.0)
             .context(format!("WorkOrderNumber: {:?} was not part of the SupervisorParameters", work_order_activity.0))?
             .get(&work_order_activity.1)
-            .context(format!("WorkOrderNumber: {:?} with ActivityNumber: {:?} was not part of the SupervisorParameters", work_order_activity.0, work_order_activity.1))?)
+            .context(format!("WorkOrderNumber: {:?} with ActivityNumber: {:?} was not part of the SupervisorParameters", work_order_activity.0, work_order_activity.1))?;
+
+        Ok(supervisor_parameter)
     }
 
     pub(crate) fn create(
@@ -116,7 +118,7 @@ impl SupervisorParameters {
             SupervisorParameter::new(operation.resource.clone(), operation.operation_info.number);
         self.supervisor_work_orders
             .entry(work_order_activity.0)
-            .or_insert_with(HashMap::new)
+            .or_default()
             .insert(work_order_activity.1, supervisor_parameter);
     }
 }
@@ -219,7 +221,7 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
 
             let mut operational_status_by_work_order_activity = self
                 .supervisor_solution
-                .operational_status_by_work_order_activity(&work_order_activity);
+                .operational_status_by_work_order_activity(work_order_activity);
 
             let operational = &self.loaded_shared_solution.operational;
 
@@ -250,7 +252,7 @@ impl LargeNeighborHoodSearch for SupervisorAlgorithm {
                 let marginal_fitness = self
                     .loaded_shared_solution
                     .operational
-                    .marginal_fitness(&agent_id, work_order_activity)
+                    .marginal_fitness(agent_id, work_order_activity)
                     .unwrap_or_default();
 
                 if marginal_fitness == MarginalFitness::MAX {

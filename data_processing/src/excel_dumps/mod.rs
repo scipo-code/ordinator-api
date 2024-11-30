@@ -36,7 +36,7 @@ impl AllRows {
 
         make_header_row(worksheet);
 
-        assert!(self.0.len() > 0);
+        assert!(!self.0.is_empty());
         for (row_count, row_values) in self.0.iter().enumerate() {
             let row_number: u32 = (row_count + 1) as u32;
 
@@ -62,7 +62,7 @@ impl AllRows {
                 .write(row_number, 6, row_values.operation_work_center.clone())
                 .unwrap();
             worksheet
-                .write(row_number, 7, row_values.work_order_number.0.clone())
+                .write(row_number, 7, row_values.work_order_number.0)
                 .unwrap();
             worksheet
                 .write(row_number, 8, row_values.description_work_order.clone())
@@ -115,7 +115,7 @@ impl AllRows {
                 )
                 .unwrap();
             worksheet
-                .write(row_number, 21, row_values.activity.0.clone())
+                .write(row_number, 21, row_values.activity.0)
                 .unwrap();
             // worksheet
             //     .write(row_number, 22, row_values.opperation_system_status.clone())
@@ -304,7 +304,7 @@ pub fn create_excel_dump(
                     .work_order_dates
                     .latest_allowed_finish_date
                     .into(),
-                activity: activity.0.clone(),
+                activity: *activity.0,
                 // operation_system_status: work_order.status_codes().clone(),
                 // operation_user_status: work_order.status_codes().clone(),
                 functional_location: work_order.functional_location().clone(),

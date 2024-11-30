@@ -164,7 +164,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                 strategic_scheduling_environment_commands,
             ) => match strategic_scheduling_environment_commands {
                 StrategicSchedulingEnvironmentCommands::UserStatus(strategic_user_status_codes) => {
-                    let mut scheduling_environment_lock =
+                    let scheduling_environment_lock =
                         &mut self.scheduling_environment.lock().unwrap();
 
                     let user_status_codes = &mut scheduling_environment_lock
@@ -233,7 +233,7 @@ impl Handler<UpdateWorkOrderMessage> for StrategicAgent {
         let optimized_work_order_builder = StrategicParameterBuilder::new();
 
         let optimized_work_order = optimized_work_order_builder
-            .build_from_work_order(&work_order, &periods)
+            .build_from_work_order(work_order, &periods)
             .build();
         assert!(work_order.work_order_analytic.work_order_weight == optimized_work_order.weight);
         if let Some(period) =
