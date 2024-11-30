@@ -32,6 +32,7 @@ pub enum OrchestratorRequest {
 }
 
 #[derive(Serialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum OrchestratorResponse {
     AgentStatus(AgentStatusResponse),
     WorkOrderStatus(WorkOrdersStatus),
@@ -78,6 +79,7 @@ impl AgentStatus {
 }
 
 #[derive(Serialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum WorkOrdersStatus {
     Single(WorkOrderResponse),
     Multiple(HashMap<WorkOrderNumber, WorkOrderResponse>),

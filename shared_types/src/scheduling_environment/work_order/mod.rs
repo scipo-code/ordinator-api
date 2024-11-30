@@ -160,7 +160,7 @@ impl WorkOrderAnalytic {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrderInfoDetail {
     pub subnetwork: String,
     pub maintenance_plan: String,
@@ -186,19 +186,6 @@ impl WorkOrderInfoDetail {
             maintenance_plant,
             pm_collective,
             room,
-        }
-    }
-}
-
-impl Default for WorkOrderInfoDetail {
-    fn default() -> Self {
-        Self {
-            subnetwork: String::new(),
-            maintenance_plan: String::new(),
-            planner_group: String::new(),
-            maintenance_plant: String::new(),
-            pm_collective: String::new(),
-            room: String::new(),
         }
     }
 }
@@ -343,21 +330,21 @@ impl WorkOrder {
 
         match &self.work_order_info.work_order_type {
             WorkOrderType::Wdf(wdf_priority) => match wdf_priority {
-                Priority::Int(int) if int >= &0 && int <= &8 => {
+                Priority::Int(int) if (&0..=&8).contains(&int) => {
                     self.work_order_analytic.work_order_weight +=
                         parameters.wdf_priority_map[int] * parameters.order_type_weights["WDF"]
                 }
                 _ => panic!("Received a wrong input number work order priority"),
             },
             WorkOrderType::Wgn(wgn_priority) => match wgn_priority {
-                Priority::Int(int) if int >= &0 && int <= &8 => {
+                Priority::Int(int) if (&0..&8).contains(&int) => {
                     self.work_order_analytic.work_order_weight +=
                         parameters.wgn_priority_map[int] * parameters.order_type_weights["WGN"]
                 }
                 _ => panic!("Received a wrong input number work order priority"),
             },
             WorkOrderType::Wpm(wpm_priority) => match wpm_priority {
-                Priority::Char(char) if char >= &'A' && char <= &'D' => {
+                Priority::Char(char) if (&'A'..=&'D').contains(&char) => {
                     self.work_order_analytic.work_order_weight +=
                         parameters.wpm_priority_map[char] * parameters.order_type_weights["WPM"]
                 }
@@ -524,7 +511,7 @@ impl WorkOrder {
 
         let work_order_info = WorkOrderInfo::new(
             Priority::new_int(1),
-            WorkOrderType::Wdf(Priority::dyn_new(Box::new(1 as u64))),
+            WorkOrderType::Wdf(Priority::dyn_new(Box::new(1_u64))),
             FunctionalLocation::default(),
             WorkOrderText::default(),
             Revision::default(),
@@ -637,7 +624,7 @@ mod tests {
 
             let work_order_info = WorkOrderInfo::new(
                 Priority::new_int(1),
-                WorkOrderType::Wdf(Priority::dyn_new(Box::new(1 as u64))),
+                WorkOrderType::Wdf(Priority::dyn_new(Box::new(1_u64))),
                 FunctionalLocation::default(),
                 WorkOrderText::default(),
                 Revision::default(),

@@ -58,9 +58,6 @@ use shared_types::scheduling_environment::WorkOrders;
 use super::ArcSwapSharedSolution;
 
 #[derive(Clone)]
-pub struct ArcOrchestrator(pub Arc<Mutex<Orchestrator>>);
-
-#[derive(Clone)]
 pub struct Orchestrator {
     pub scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub arc_swap_shared_solutions: HashMap<Asset, Arc<ArcSwapSharedSolution>>,
@@ -425,11 +422,11 @@ impl Orchestrator {
                 .unwrap()
                 .supervisor_agent_addrs
                 .clone(),
-            self.arc_swap_shared_solutions.get(&asset).unwrap().clone(),
+            self.arc_swap_shared_solutions.get(asset).unwrap().clone(),
         );
 
         self.agent_registries
-            .get(&asset)
+            .get(asset)
             .unwrap()
             .number_of_operational_agents
             .fetch_add(1, Ordering::SeqCst);

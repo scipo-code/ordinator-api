@@ -88,7 +88,7 @@ impl OperationalAlgorithm {
             .work_order_parameters
             .retain(|woa, _| {
                 if operational_shared_solution.contains(woa) {
-                    removed_work_order_activities.insert(woa.clone());
+                    removed_work_order_activities.insert(*woa);
                     true
                 } else {
                     false

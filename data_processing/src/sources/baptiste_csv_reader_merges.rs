@@ -116,7 +116,7 @@ fn create_work_orders(
     work_orders: HashMap<WorkOrderNumber, WorkOrdersCsv>,
     work_orders_status: WorkOrdersStatusCsvAggregated,
 ) -> HashMap<WorkOrderNumber, WorkOrder> {
-    assert!(work_operations_csv.inner.len() > 0);
+    assert!(!work_operations_csv.inner.is_empty());
     let arc_mutex_inner_work_orders = Arc::new(Mutex::new(HashMap::new()));
     let toml_operating_time_string =
         fs::read_to_string("./configuration/operating_time.toml").unwrap();
@@ -162,28 +162,28 @@ fn create_work_orders(
                     let gmco_pattern = regex::Regex::new(r"GMCO").unwrap(); 
 
                 SystemStatusCodes {
-                    rel: rel_pattern.is_match(&string),
-                    prc: prc_pattern.is_match(&string),
-                    setc: setc_pattern.is_match(&string),
-                    ssap: ssap_pattern.is_match(&string),
-                    gmps: gmps_pattern.is_match(&string),
-                    manc: manc_pattern.is_match(&string),
-                    crtd: crtd_pattern.is_match(&string),
-                    nmat: nmat_pattern.is_match(&string),
-                    teco: teco_pattern.is_match(&string),
-                    macm: macm_pattern.is_match(&string),
-                    mspt: mspt_pattern.is_match(&string),
-                    pprt: pprt_pattern.is_match(&string),
-                    ncmp: ncmp_pattern.is_match(&string),
-                    clsd: clsd_pattern.is_match(&string),
-                    pcnf: pcnf_pattern.is_match(&string),
-                    cser: cser_pattern.is_match(&string),
-                    prt: prt_pattern.is_match(&string),
-                    cnf: cnf_pattern.is_match(&string),
-                    ntup: ntup_pattern.is_match(&string),
-                    estc: estc_pattern.is_match(&string),
-                    relr: relr_pattern.is_match(&string),
-                    gmco: gmco_pattern.is_match(&string),
+                    rel: rel_pattern.is_match(string),
+                    prc: prc_pattern.is_match(string),
+                    setc: setc_pattern.is_match(string),
+                    ssap: ssap_pattern.is_match(string),
+                    gmps: gmps_pattern.is_match(string),
+                    manc: manc_pattern.is_match(string),
+                    crtd: crtd_pattern.is_match(string),
+                    nmat: nmat_pattern.is_match(string),
+                    teco: teco_pattern.is_match(string),
+                    macm: macm_pattern.is_match(string),
+                    mspt: mspt_pattern.is_match(string),
+                    pprt: pprt_pattern.is_match(string),
+                    ncmp: ncmp_pattern.is_match(string),
+                    clsd: clsd_pattern.is_match(string),
+                    pcnf: pcnf_pattern.is_match(string),
+                    cser: cser_pattern.is_match(string),
+                    prt: prt_pattern.is_match(string),
+                    cnf: cnf_pattern.is_match(string),
+                    ntup: ntup_pattern.is_match(string),
+                    estc: estc_pattern.is_match(string),
+                    relr: relr_pattern.is_match(string),
+                    gmco: gmco_pattern.is_match(string),
                     }
                 },
             None => SystemStatusCodes::default(),
@@ -241,49 +241,49 @@ fn create_work_orders(
                     let awpr_pattern = regex::Regex::new(r"AWPR").unwrap();
 
                 UserStatusCodes {
-                    appr: appr_pattern.is_match(&string),
-                    smat: smat_pattern.is_match(&string),
-                    init: init_pattern.is_match(&string),
-                    rdbl: rdbl_pattern.is_match(&string),
-                    qcap: qcap_pattern.is_match(&string),
-                    rfrz: rfrz_pattern.is_match(&string),
-                    wmat: wmat_pattern.is_match(&string),
-                    cmat: cmat_pattern.is_match(&string),
-                    pmat: pmat_pattern.is_match(&string),
-                    apog: apog_pattern.is_match(&string),
-                    prok: prok_pattern.is_match(&string),
-                    wrea: wrea_pattern.is_match(&string),
-                    exdo: exdo_pattern.is_match(&string),
-                    swe: swe_pattern.is_match(&string),
-                    awdo: awdo_pattern.is_match(&string),
-                    rout: rout_pattern.is_match(&string),
-                    wta: wta_pattern.is_match(&string),
-                    sch: sch_pattern.is_match(&string),
-                    sece: sece_pattern.is_match(&string),
-                    rel: rel_pattern.is_match(&string),
-                    rees: rees_pattern.is_match(&string),
-                    reap: reap_pattern.is_match(&string),
-                    wrel: wrel_pattern.is_match(&string),
-                    awsd: awsd_pattern.is_match(&string),
-                    sraa: sraa_pattern.is_match(&string),
-                    qcrj: qcrj_pattern.is_match(&string),
-                    awsc: awsc_pattern.is_match(&string),
-                    lprq: lprq_pattern.is_match(&string),
-                    rrev: rrev_pattern.is_match(&string),
-                    awca: awca_pattern.is_match(&string),
-                    rreq: rreq_pattern.is_match(&string),
-                    vfal: vfal_pattern.is_match(&string),
-                    sreq: sreq_pattern.is_match(&string),
-                    amcr: amcr_pattern.is_match(&string),
-                    dfrj: dfrj_pattern.is_match(&string),
-                    vpas: vpas_pattern.is_match(&string),
-                    dfcr: dfcr_pattern.is_match(&string),
-                    ireq: ireq_pattern.is_match(&string),
-                    atvd: atvd_pattern.is_match(&string),
-                    awmd: awmd_pattern.is_match(&string),
-                    dfex: dfex_pattern.is_match(&string),
-                    dfap: dfap_pattern.is_match(&string),
-                    awpr: awpr_pattern.is_match(&string),
+                    appr: appr_pattern.is_match(string),
+                    smat: smat_pattern.is_match(string),
+                    init: init_pattern.is_match(string),
+                    rdbl: rdbl_pattern.is_match(string),
+                    qcap: qcap_pattern.is_match(string),
+                    rfrz: rfrz_pattern.is_match(string),
+                    wmat: wmat_pattern.is_match(string),
+                    cmat: cmat_pattern.is_match(string),
+                    pmat: pmat_pattern.is_match(string),
+                    apog: apog_pattern.is_match(string),
+                    prok: prok_pattern.is_match(string),
+                    wrea: wrea_pattern.is_match(string),
+                    exdo: exdo_pattern.is_match(string),
+                    swe: swe_pattern.is_match(string),
+                    awdo: awdo_pattern.is_match(string),
+                    rout: rout_pattern.is_match(string),
+                    wta: wta_pattern.is_match(string),
+                    sch: sch_pattern.is_match(string),
+                    sece: sece_pattern.is_match(string),
+                    rel: rel_pattern.is_match(string),
+                    rees: rees_pattern.is_match(string),
+                    reap: reap_pattern.is_match(string),
+                    wrel: wrel_pattern.is_match(string),
+                    awsd: awsd_pattern.is_match(string),
+                    sraa: sraa_pattern.is_match(string),
+                    qcrj: qcrj_pattern.is_match(string),
+                    awsc: awsc_pattern.is_match(string),
+                    lprq: lprq_pattern.is_match(string),
+                    rrev: rrev_pattern.is_match(string),
+                    awca: awca_pattern.is_match(string),
+                    rreq: rreq_pattern.is_match(string),
+                    vfal: vfal_pattern.is_match(string),
+                    sreq: sreq_pattern.is_match(string),
+                    amcr: amcr_pattern.is_match(string),
+                    dfrj: dfrj_pattern.is_match(string),
+                    vpas: vpas_pattern.is_match(string),
+                    dfcr: dfcr_pattern.is_match(string),
+                    ireq: ireq_pattern.is_match(string),
+                    atvd: atvd_pattern.is_match(string),
+                    awmd: awmd_pattern.is_match(string),
+                    dfex: dfex_pattern.is_match(string),
+                    dfap: dfap_pattern.is_match(string),
+                    awpr: awpr_pattern.is_match(string),
                 }
             }
             None => UserStatusCodes::default(),
@@ -383,7 +383,7 @@ fn create_work_orders(
         let mut operations = HashMap::new();
         for (work_order_activity, operation_csv) in work_operations_csv
             .inner
-            .get(&work_order_number)
+            .get(work_order_number)
             .cloned()
             .unwrap_or_default()
         {
@@ -428,10 +428,10 @@ fn create_work_orders(
             // We need to use the DATS here! I think that is the only way forward! I think that to scale this
             // we also need to be very clear on the remaining types of the system.
             let naive_start_DATS: NaiveDate = DATS(operation_csv.OPR_Start_Date.clone()).try_into().expect("The OPR_Start_Date should have been filtered out, we should not experience this error.");
-            let naive_start_TIMS: NaiveTime = TIMS(operation_csv.OPR_Start_Time.clone()).try_into().expect("The OPR_Start_Time should have been filtered out, we should not experience this error.");
+            let naive_start_TIMS: NaiveTime = TIMS(operation_csv.OPR_Start_Time.clone()).into();
 
             let naive_end_DATS: NaiveDate = DATS(operation_csv.OPR_End_Date.clone()).try_into().expect("The OPR_End_Date should have been filtered out, we should not experience this error.");
-            let naive_end_TIMS: NaiveTime = TIMS(operation_csv.OPR_End_Time.clone()).try_into().expect("The OPR_End_Time should have been filtered out, we should not experience this error.");
+            let naive_end_TIMS: NaiveTime = TIMS(operation_csv.OPR_End_Time.clone()).into();
 
             let naive_start_datetime = naive_start_DATS.and_time(naive_start_TIMS);
             let naive_end_datetime = naive_end_DATS.and_time(naive_end_TIMS);

@@ -96,7 +96,7 @@ impl StrategicAlgorithm {
             
             self.strategic_parameters.insert_strategic_parameter(*work_order_number, strategic_parameter);
             self.make_atomic_pointer_swap();
-            let scheduled_period_option = self.strategic_solution.strategic_periods.get(&work_order_number).unwrap().clone();
+            let scheduled_period_option = self.strategic_solution.strategic_periods.get(work_order_number).unwrap().clone();
 
             if let Some(scheduled_period) = scheduled_period_option {
                 self.update_loadings(*work_order_number, scheduled_period, LoadOperation::Add);
@@ -144,7 +144,7 @@ impl StrategicAlgorithm {
                 
             }
             let percentage_loading = ((intermediate_loading / intermediate_capacity) * 100.0) as u64;
-            utilization_by_period.push((period.id().clone(), percentage_loading));
+            utilization_by_period.push((*period.id(), percentage_loading));
         }
         utilization_by_period
     }
@@ -265,8 +265,8 @@ impl StrategicAlgorithm {
 
         let mut filtered_keys: Vec<_> = strategic_periods
             .iter()
-            .filter(|(key, _)| strategic_parameter.get(&key).unwrap().locked_in_period.is_none())
-            .map(|(&key, _)| key)
+            .filter(|(won, _)| strategic_parameter.get(won).unwrap().locked_in_period.is_none())
+            .map(|(&won, _)| won)
             .collect();
 
         filtered_keys.sort();

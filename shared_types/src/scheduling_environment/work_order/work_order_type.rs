@@ -37,13 +37,7 @@ impl WorkOrderType {
     }
 
     pub fn valid_work_order_type(str: &str) -> bool {
-        match str {
-            "WDF" => true,
-            "WGN" => true,
-            "WPM" => true,
-            "WRO" => true,
-            _ => false,
-        }
+        matches!(str, "WDF" | "WGN" | "WPM" | "WRO")
     }
 }
 

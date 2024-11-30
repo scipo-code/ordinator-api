@@ -56,8 +56,8 @@ pub struct SharedSolution {
     pub operational: HashMap<Id, OperationalSolution>,
 }
 
-impl Into<ApiSolution> for SharedSolution {
-    fn into(self) -> ApiSolution {
+impl From<SharedSolution> for ApiSolution {
+    fn from(_value: SharedSolution) -> Self {
         ApiSolution {
             strategic: "NEEDS TO BE IMPLEMENTED".to_string(),
             tactical: "NEEDS TO BE IMPLEMENTED".to_string(),
@@ -151,7 +151,7 @@ impl SupervisorSolution {
         let mut count_assign = 0;
         let mut count_assess = 0;
         let mut count_unassign = 0;
-        for (_, delegate) in &self.state_of_agent(operational_agent) {
+        for delegate in self.state_of_agent(operational_agent).values() {
             match delegate {
                 Delegate::Assess => count_assess += 1,
                 Delegate::Assign => count_assign += 1,
@@ -197,7 +197,7 @@ impl TacticalSolution {
     ) -> Result<&Vec<(Day, Work)>> {
         let tactical_day = &self
             .tactical_days
-            .get(&work_order_number)
+            .get(work_order_number)
             .with_context(|| {
                 format!(
                     "WorkOrderNumber: {:?} was not present in the tactical solution",
@@ -211,7 +211,7 @@ impl TacticalSolution {
                     work_order_number
                 )
             })?
-            .get(&activity_number)
+            .get(activity_number)
             .with_context(|| {
                 format!(
                     "ActivityNumber: {:?} was not present in the tactical solution",

@@ -30,7 +30,7 @@ impl TacticalAssertions for TacticalAlgorithm {
             .filter(|(_, val)| val.is_some())
             .collect::<Vec<_>>()
         {
-            for (_activity, operation_solution) in tactical_solution.as_ref().unwrap() {
+            for operation_solution in tactical_solution.as_ref().unwrap().values() {
                 let resource = &operation_solution.resource;
 
                 for (day, load) in &operation_solution.scheduled {

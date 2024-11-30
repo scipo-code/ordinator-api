@@ -290,13 +290,13 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             let day_difference = (last_day - period_start_date).max(TimeDelta::zero());
 
             objective_value_from_tardiness +=
-                tactical_parameter.weight as u64 * day_difference.num_days() as u64;
+                tactical_parameter.weight * day_difference.num_days() as u64;
         }
 
         // Calculate penalty for exceeding the capacity
         let objective_value_from_excess = 1000000000 * self.determine_aggregate_excess();
         self.tactical_solution.objective_value.0 =
-            objective_value_from_tardiness as u64 + objective_value_from_excess;
+            objective_value_from_tardiness + objective_value_from_excess;
         event!(
             Level::WARN,
             objective_value_from_excess = ?objective_value_from_excess,
@@ -566,9 +566,9 @@ impl LargeNeighborHoodSearch for TacticalAlgorithm {
             .tactical_solution
             .tactical_days
             .get_mut(&work_order_number)
-            .with_context(|| {
-                format!("This means that the TacticalAlgorithm has been initialized wrong")
-            })?;
+            .context(
+                "This means that the TacticalAlgorithm has been initialized wrong".to_string(),
+            )?;
 
         match tactical_solution.take() {
             Some(operation_solutions) => {
@@ -709,7 +709,7 @@ impl TacticalAlgorithm {
     ) -> Vec<Work> {
         let mut loadings = Vec::new();
 
-        let first_day_load = match remaining_capacity.partial_cmp(&operating_time) {
+        let first_day_load = match remaining_capacity.partial_cmp(operating_time) {
             Some(Ordering::Less) => remaining_capacity,
             Some(Ordering::Equal) => remaining_capacity,
             Some(Ordering::Greater) => operating_time.clone(),

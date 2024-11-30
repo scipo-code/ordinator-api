@@ -172,7 +172,7 @@ impl TacticalResources {
         let days = &self
             .resources
             .get(resource)
-            .with_context(|| format!("The resources between the strategic and the tactical should always correspond, unless that the tactical has not been initialized yet"))?
+            .with_context(|| "The resources between the strategic and the tactical should always correspond, unless that the tactical has not been initialized yet".to_string())?
             .days;
 
         Ok(days

@@ -59,12 +59,11 @@ pub fn create_time_environment(time_input: &TimeInput) -> TimeEnvironment {
         days
     };
 
-    let time_environment = TimeEnvironment::new(
+    TimeEnvironment::new(
         strategic_periods,
         tactical_periods.to_vec(),
         tactical_days(time_input.number_of_days),
-    );
-    time_environment
+    )
 }
 
 fn create_periods(number_of_periods: u64) -> Vec<Period> {

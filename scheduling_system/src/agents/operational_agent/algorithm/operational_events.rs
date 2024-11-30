@@ -55,9 +55,9 @@ impl OperationalEvents {
     }
 }
 
-impl Into<EventType> for OperationalEvents {
-    fn into(self) -> EventType {
-        match self {
+impl From<OperationalEvents> for EventType {
+    fn from(value: OperationalEvents) -> Self {
+        match value {
             OperationalEvents::WrenchTime(_) => EventType::WrenchTime,
             OperationalEvents::Break(_) => EventType::Break,
             OperationalEvents::Toolbox(_) => EventType::Toolbox,

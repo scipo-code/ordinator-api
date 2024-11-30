@@ -2,50 +2,48 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use shared_types::SystemMessages;
 use shared_types::SystemResponses;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tracing::instrument;
 
 use crate::agents::orchestrator::Orchestrator;
 
 #[instrument(level = "info", skip_all)]
 pub async fn http_to_scheduling_system(
-    orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
+    orchestrator: web::Data<Arc<tokio::sync::Mutex<Orchestrator>>>,
     _req: HttpRequest,
     system_messages: web::Json<SystemMessages>,
 ) -> HttpResponse {
-    match system_messages.0 {
+    match system_messages.into_inner() {
         SystemMessages::Orchestrator(orchestrator_request) => {
+            let mut orchestrator = orchestrator.lock().await;
+
             orchestrator
-                .lock()
-                .unwrap()
                 .handle_orchestrator_request(orchestrator_request)
                 .await
         }
         SystemMessages::Strategic(strategic_request) => {
+            let orchestrator = orchestrator.lock().await;
+
             orchestrator
-                .lock()
-                .unwrap()
                 .handle_strategic_request(strategic_request)
                 .await
         }
         SystemMessages::Tactical(tactical_request) => {
-            orchestrator
-                .lock()
-                .unwrap()
-                .handle_tactical_request(tactical_request)
-                .await
+            let orchestrator = orchestrator.lock().await;
+
+            orchestrator.handle_tactical_request(tactical_request).await
         }
         SystemMessages::Supervisor(supervisor_request) => {
+            let orchestrator = orchestrator.lock().await;
+
             orchestrator
-                .lock()
-                .unwrap()
                 .handle_supervisor_request(supervisor_request)
                 .await
         }
         SystemMessages::Operational(operational_request) => {
+            let orchestrator = orchestrator.lock().await;
+
             orchestrator
-                .lock()
-                .unwrap()
                 .handle_operational_request(operational_request)
                 .await
         }
