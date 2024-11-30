@@ -1,8 +1,8 @@
 build-windows:
-    cross build --target x86_64-pc-windows-gnu
+    cross build --target x86_64-pc-windows-gnu --release
 
 build-linux:
-    cargo build 
+    cargo build --release
 
 tr REGEX:
     tail -F logging/logs/ordinator.developer.log | rg {{ REGEX }}
