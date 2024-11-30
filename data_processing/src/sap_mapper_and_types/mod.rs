@@ -58,7 +58,7 @@ impl TryFrom<DATS> for NaiveDate {
             return Err("Empty DATS value".to_string());
         };
 
-        let naive_date_result = NaiveDate::parse_from_str(&string, "%Y%m%d");
+        let naive_date_result = NaiveDate::parse_from_str(string, "%Y%m%d");
 
         match naive_date_result {
             Ok(naive_date) => Ok(naive_date),

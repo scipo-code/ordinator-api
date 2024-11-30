@@ -58,8 +58,8 @@ impl SupervisorSolution {
     ) -> Vec<(Id, Delegate)> {
         self.operational_state_machine
             .iter()
-            .filter(|(key, _)| key.1 == *work_order_activity)
-            .map(|(key, val)| (key.0.clone(), val.clone()))
+            .filter(|(id_woa, _)| id_woa.1 == *work_order_activity)
+            .map(|(id_woa, del)| (id_woa.0.clone(), *del))
             .collect()
     }
 

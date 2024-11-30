@@ -69,6 +69,7 @@ pub enum StrategicRequestMessage {
 }
 
 #[derive(Serialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum StrategicResponseMessage {
     Status(StrategicResponseStatus),
     Scheduling(StrategicResponseScheduling),

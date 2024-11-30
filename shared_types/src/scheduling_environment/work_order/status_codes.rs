@@ -175,17 +175,17 @@ pub struct StrategicUserStatusCodes {
     pub sece: Option<bool>,
 }
 
-impl Into<MaterialStatus> for UserStatusCodes {
-    fn into(self) -> MaterialStatus {
-        assert!(self.smat as u8 + self.pmat as u8 + self.wmat as u8 + self.cmat as u8 <= 1);
+impl From<UserStatusCodes> for MaterialStatus {
+    fn from(value: UserStatusCodes) -> Self {
+        assert!(value.smat as u8 + value.pmat as u8 + value.wmat as u8 + value.cmat as u8 <= 1);
 
-        if self.smat {
+        if value.smat {
             MaterialStatus::Smat
-        } else if self.pmat {
+        } else if value.pmat {
             MaterialStatus::Pmat
-        } else if self.wmat {
+        } else if value.wmat {
             MaterialStatus::Wmat
-        } else if self.cmat {
+        } else if value.cmat {
             MaterialStatus::Cmat
         } else {
             MaterialStatus::Nmat

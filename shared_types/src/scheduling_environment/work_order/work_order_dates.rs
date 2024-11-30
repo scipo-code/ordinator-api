@@ -21,6 +21,7 @@ pub struct WorkOrderDates {
     pub material_expected_date: Option<DateTime<Utc>>,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl WorkOrderDates {
     pub fn new(
         earliest_allowed_start_date: NaiveDate,

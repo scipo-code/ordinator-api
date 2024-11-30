@@ -52,7 +52,7 @@ impl AgentFactory {
         strategic_resources: Option<StrategicResources>,
         strategic_tactical_optimized_work_orders: Arc<ArcSwapSharedSolution>,
     ) -> Addr<StrategicAgent> {
-        let mut cloned_work_orders = self
+        let cloned_work_orders = self
             .scheduling_environment
             .lock()
             .unwrap()
@@ -91,7 +91,7 @@ impl AgentFactory {
         strategic_algorithm.strategic_solution.strategic_loadings = resources_loading;
 
         strategic_algorithm.create_strategic_parameters(
-            &mut cloned_work_orders,
+            &cloned_work_orders,
             &cloned_periods,
             &asset,
         );

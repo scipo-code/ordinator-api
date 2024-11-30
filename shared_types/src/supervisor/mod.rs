@@ -5,6 +5,8 @@ pub mod supervisor_response_time;
 pub mod supervisor_scheduling_message;
 pub mod supervisor_status_message;
 
+use std::fmt::Display;
+
 use actix::Message;
 use anyhow::Result;
 use clap::ValueEnum;
@@ -34,10 +36,10 @@ pub enum SupervisorType {
     Other,
 }
 
-impl ToString for SupervisorType {
-    fn to_string(&self) -> String {
+impl Display for SupervisorType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SupervisorType::Main => "main".to_string(),
+            SupervisorType::Main => write!(f, "main"),
             SupervisorType::Other => todo!(),
         }
     }

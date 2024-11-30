@@ -59,7 +59,7 @@ impl StrategicParameters {
     }
 
     pub fn get_locked_in_period<'a>(&'a self, work_order_number: &'a WorkOrderNumber) -> &Period {
-        let option_period = match self.strategic_work_order_parameters.get(&work_order_number) {
+        let option_period = match self.strategic_work_order_parameters.get(work_order_number) {
             Some(strategic_parameter) => &strategic_parameter.locked_in_period,
             None => panic!(
                 "Work order number {:?} not found in StrategicParameters",
@@ -67,7 +67,7 @@ impl StrategicParameters {
             ),
         };
         match option_period {
-            Some(period) => &period,
+            Some(period) => period,
             None => panic!("Work order number {:?} does not have a locked in period, but it is being called by the optimized_work_orders.schedule_forced_work_order", work_order_number)
         }
     }

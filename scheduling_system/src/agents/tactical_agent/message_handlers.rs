@@ -56,7 +56,7 @@ impl Handler<TacticalRequestMessage> for TacticalAgent {
                 let asset = &self.asset;
 
                 self.tactical_algorithm
-                    .create_tactical_parameters(&locked_scheduling_environment, asset);
+                    .create_tactical_parameters(locked_scheduling_environment, asset);
                 Ok(TacticalResponseMessage::Update)
             }
         }
