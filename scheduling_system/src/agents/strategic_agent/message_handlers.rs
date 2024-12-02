@@ -167,27 +167,26 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                     let scheduling_environment_lock =
                         &mut self.scheduling_environment.lock().unwrap();
 
-                    let user_status_codes = &mut scheduling_environment_lock
-                        .work_orders
-                        .inner
-                        .get_mut(&strategic_user_status_codes.work_order_number)
-                        .with_context(|| {
-                            format!(
-                                "{:?} is not found for {:?}",
-                                strategic_user_status_codes.work_order_number, self.asset
-                            )
-                        })?
-                        .work_order_analytic
-                        .user_status_codes;
+                    for work_order_number in strategic_user_status_codes.work_order_number {
+                        let user_status_codes = &mut scheduling_environment_lock
+                            .work_orders
+                            .inner
+                            .get_mut(&work_order_number)
+                            .with_context(|| {
+                                format!("{:?} is not found for {:?}", work_order_number, self.asset)
+                            })?
+                            .work_order_analytic
+                            .user_status_codes;
 
-                    if let Some(sece) = strategic_user_status_codes.sch {
-                        user_status_codes.sece = sece;
-                    }
-                    if let Some(sch) = strategic_user_status_codes.awsc {
-                        user_status_codes.sch = sch;
-                    }
-                    if let Some(awsc) = strategic_user_status_codes.sece {
-                        user_status_codes.awsc = awsc;
+                        if let Some(sece) = strategic_user_status_codes.sch {
+                            user_status_codes.sece = sece;
+                        }
+                        if let Some(sch) = strategic_user_status_codes.awsc {
+                            user_status_codes.sch = sch;
+                        }
+                        if let Some(awsc) = strategic_user_status_codes.sece {
+                            user_status_codes.awsc = awsc;
+                        }
                     }
                     Ok(StrategicResponseMessage::Success)
                 }

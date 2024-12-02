@@ -480,7 +480,6 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
 {
         match strategic_scheduling_message {
             StrategicSchedulingRequest::Schedule(schedule_work_order) => {
-                let work_order_number = schedule_work_order.work_order_number();
                 let period = self
                     .periods
                     .iter()
@@ -490,83 +489,47 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
                     .cloned()
                     .with_context(|| format!("period: {:?} does not exist", schedule_work_order.period_string()))?;
     
+
+                let mut number_of_work_orders = 0;
+                for work_order_number in schedule_work_order.work_order_number {
                     self.strategic_parameters
-                        .set_locked_in_period(*work_order_number, period.clone()).context("could not set locked in period")?;
-         
-                    Ok(StrategicResponseScheduling::new(vec![*work_order_number], vec![period]))
+                        .set_locked_in_period(work_order_number, period.clone()).context("could not set locked in period")?;
+                    number_of_work_orders += 1;
+                }
+                Ok(StrategicResponseScheduling::new(number_of_work_orders, period))
                 
             }
-            StrategicSchedulingRequest::ScheduleMultiple(schedule_work_orders) => {
-                let _output_string = String::new();
-                let mut work_orders: Vec<WorkOrderNumber> = vec![];
-                let mut periods: Vec<Period> = vec![];
-                for schedule_work_order in schedule_work_orders {
-                    let work_order_number = schedule_work_order.work_order_number();
-                    let period = self
-                        .periods
-                        .iter()
-                        .find(|period| {
-                            period.period_string() == schedule_work_order.period_string()
-                        })
-                        .cloned();
-
-                    match period {
-                        Some(period) => {
-                            self.strategic_parameters
-                                .set_locked_in_period(*work_order_number, period.clone()).context("could not set locked in period")?;
-
-                            work_orders.push(*work_order_number);
-                            periods.push(period);
-                        }
-                        None => {
-                            bail!("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.".to_string())
-                        }
-                    }
-                }
-        
-                Ok(StrategicResponseScheduling::new(work_orders, periods))
-                 
-            }
             StrategicSchedulingRequest::ExcludeFromPeriod(exclude_from_period) => {
-                let work_order_number = exclude_from_period.work_order_number();
+
                 let period = self.periods.iter().find(|period| {
                     period.period_string() == exclude_from_period.period_string().clone()
-                });
+                }).with_context(|| format!("{} was not found in the SchedulingEnvironment::TimeEnvironment", exclude_from_period.period_string))?;
+                
+                let mut number_of_work_orders = 0;
+                for work_order_number in exclude_from_period.work_order_number {
+                    let optimized_work_order = 
+                        self
+                            .strategic_parameters
+                            .strategic_work_order_parameters
+                            .get_mut(&work_order_number)
+                            .expect("The work order number was not found in the optimized work orders. The work order should have been initialized at the outset.");
+            
+                    optimized_work_order
+                        .excluded_periods
+                        .insert(period.clone());
 
-                match period {
-                    Some(period) => {
-                        let optimized_work_order = 
-                            self
-                                .strategic_parameters
-                                .strategic_work_order_parameters
-                                .get_mut(work_order_number)
-                                .expect("The work order number was not found in the optimized work orders. The work order should have been initialized at the outset.");
-                        
-                        optimized_work_order
-                            .excluded_periods
-                            .insert(period.clone());
-
-                        let overwrite = if let Some(locked_in_period) = &optimized_work_order.locked_in_period {
-                            if optimized_work_order.excluded_periods.contains(locked_in_period) {
-                                optimized_work_order.locked_in_period = None;
-                                let last_period = self.periods.iter().last().cloned();
-                                *self.strategic_solution.strategic_periods.get_mut(work_order_number).unwrap() = last_period;
-                                true
-                            } else {
-                                false
-                            }
-                        } else {
-                            false
-                        };
-
-                        if overwrite {
+                    if let Some(locked_in_period) = &optimized_work_order.locked_in_period {
+                        if optimized_work_order.excluded_periods.contains(locked_in_period) {
+                            optimized_work_order.locked_in_period = None;
+                            let last_period = self.periods.iter().last().cloned();
+                            *self.strategic_solution.strategic_periods.get_mut(&work_order_number).unwrap() = last_period;
                             event!(Level::INFO, "{:?} has been excluded from period {} and the locked in period has been removed", work_order_number, period.period_string());
                         }
-                            
-                        Ok(StrategicResponseScheduling::new(vec![*work_order_number], vec![period.clone()]))
                     }
-                    None => bail!("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.".to_string()),
+
+                    number_of_work_orders += 1;
                 }
+                Ok(StrategicResponseScheduling::new(number_of_work_orders, period.clone()))
             }
         }
     }
@@ -650,7 +613,7 @@ mod tests {
     use super::*;
     use arc_swap::ArcSwap;
     use strategic_parameters::StrategicParameter;
-    use shared_types::strategic::{strategic_request_scheduling_message::SingleWorkOrder, Periods};
+    use shared_types::strategic::{strategic_request_scheduling_message::ScheduleChange, Periods};
     use chrono::{Duration, TimeZone, Utc};
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -731,7 +694,7 @@ mod tests {
         strategic_algorithm.set_strategic_parameter(work_order_number, optimized_work_order);
 
         let strategic_scheduling_message = StrategicSchedulingRequest::Schedule(
-            SingleWorkOrder::new(work_order_number, "2023-W47-48".to_string()),
+            ScheduleChange::new(vec![work_order_number], "2023-W47-48".to_string()),
         );
         let strategic_resources_message = StrategicResourceRequest::new_test();
 

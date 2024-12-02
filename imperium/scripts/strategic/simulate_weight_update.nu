@@ -501,12 +501,17 @@ let work_orders = [
     2200009145,
     2200003749,
 ]
+^sleep 60
+imperium strategic strategic-scheduling-environment-commands df user-status ...$work_orders --sece=true 
 
-^sleep 20
-$work_orders | each { |x| imperium strategic strategic-scheduling-environment-commands df user-status $x --sece=true }
+^sleep 60
+imperium strategic strategic-scheduling-environment-commands df user-status ...$work_orders --sece=false 
 
-^sleep 20
-$work_orders | each { |x| imperium strategic strategic-scheduling-environment-commands df user-status $x --sece=false }
+^sleep 60
+imperium strategic strategic-scheduling-environment-commands df user-status ...$work_orders --sece=true 
 
-^sleep 20
-$work_orders | each { |x| imperium strategic strategic-scheduling-environment-commands df user-status $x --sece=true }
+^sleep 60
+imperium strategic strategic-scheduling-environment-commands df user-status ...$work_orders --sece=false 
+
+^sleep 60
+imperium strategic strategic-scheduling-environment-commands df user-status ...$work_orders --sece=true 

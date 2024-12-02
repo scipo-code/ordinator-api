@@ -127,7 +127,7 @@ mod tests {
     use operation::OperationBuilder;
     use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
     use shared_types::scheduling_environment::work_order::operation::Work;
-    use shared_types::strategic::strategic_request_scheduling_message::SingleWorkOrder;
+    use shared_types::strategic::strategic_request_scheduling_message::ScheduleChange;
     use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
     use shared_types::strategic::Periods;
     use shared_types::strategic::StrategicObjectiveValue;
@@ -296,9 +296,10 @@ mod tests {
     #[test]
     fn test_update_scheduler_state() {
         let work_order_number = WorkOrderNumber(2200002020);
+        let vec_work_order_number = vec![work_order_number];
         let period_string: String = "2023-W47-48".to_string();
 
-        let schedule_work_order = SingleWorkOrder::new(work_order_number, period_string);
+        let schedule_work_order = ScheduleChange::new(vec_work_order_number, period_string);
 
         let strategic_scheduling_internal =
             StrategicSchedulingRequest::Schedule(schedule_work_order);
@@ -348,8 +349,9 @@ mod tests {
     #[test]
     fn test_input_scheduler_message_from() {
         let work_order_number = WorkOrderNumber(2100023841);
+        let vec_work_order_number = vec![work_order_number];
         let schedule_single_work_order =
-            SingleWorkOrder::new(work_order_number, "2023-W49-50".to_string());
+            ScheduleChange::new(vec_work_order_number, "2023-W49-50".to_string());
 
         let strategic_scheduling_message =
             StrategicSchedulingRequest::Schedule(schedule_single_work_order);
@@ -357,7 +359,7 @@ mod tests {
         assert_eq!(
             match strategic_scheduling_message {
                 StrategicSchedulingRequest::Schedule(ref schedule_single_work_order) => {
-                    schedule_single_work_order.work_order_number.0
+                    schedule_single_work_order.work_order_number[0].0
                 }
                 _ => panic!("wrong message type"),
             },
