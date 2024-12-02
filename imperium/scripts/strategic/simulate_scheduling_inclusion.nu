@@ -51,12 +51,18 @@ let work_orders = [
     2100076000,
 ];
 
-^sleep 1
-$work_orders | each { |x| imperium strategic scheduling df schedule $x 2024-W49-50 }
+^sleep 60
+imperium strategic scheduling df schedule ...$work_orders 2024-W49-50
 
-^sleep 1
-$work_orders | each { |x| imperium strategic scheduling df schedule $x 2024-W51-52 }
+^sleep 60
+imperium strategic scheduling df schedule ...$work_orders 2024-W51-52
 
-^sleep 1
-$work_orders | each { |x| imperium strategic scheduling df schedule $x 2025-W1-2 }
+^sleep 60
+imperium strategic scheduling df schedule ...$work_orders 2025-W1-2
+
+^sleep 60
+imperium strategic scheduling df schedule ...$work_orders 2025-W3-4
+
+^sleep 60
+imperium strategic scheduling df schedule ...$work_orders 2025-W5-6
 

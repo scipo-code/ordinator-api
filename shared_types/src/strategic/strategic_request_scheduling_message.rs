@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use clap::Args;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::scheduling_environment::work_order::WorkOrderNumber;
@@ -9,39 +10,34 @@ use super::TimePeriod;
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "scheduling_message_type")]
 pub enum StrategicSchedulingRequest {
-    Schedule(SingleWorkOrder),
-    ScheduleMultiple(Vec<SingleWorkOrder>),
-    ExcludeFromPeriod(SingleWorkOrder),
+    Schedule(ScheduleChange),
+    ExcludeFromPeriod(ScheduleChange),
 }
 
 impl StrategicSchedulingRequest {
     pub fn new_single_work_order(
-        work_order_number: WorkOrderNumber,
+        work_order_number: Vec<WorkOrderNumber>,
         period_string: String,
     ) -> Self {
-        Self::Schedule(SingleWorkOrder {
+        Self::Schedule(ScheduleChange {
             work_order_number,
             period_string,
         })
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SingleWorkOrder {
-    pub work_order_number: WorkOrderNumber,
+#[derive(Args, Serialize, Deserialize, Debug, Clone)]
+pub struct ScheduleChange {
+    pub work_order_number: Vec<WorkOrderNumber>,
     pub period_string: String,
 }
 
-impl SingleWorkOrder {
-    pub fn new(work_order_number: WorkOrderNumber, period_string: String) -> Self {
+impl ScheduleChange {
+    pub fn new(work_order_number: Vec<WorkOrderNumber>, period_string: String) -> Self {
         Self {
             work_order_number,
             period_string,
         }
-    }
-
-    pub fn work_order_number(&self) -> &WorkOrderNumber {
-        &self.work_order_number
     }
 
     pub fn period_string(&self) -> String {
@@ -74,12 +70,4 @@ where
         });
     }
     Ok(set)
-}
-
-impl StrategicSchedulingRequest {
-    pub fn new_schedule_test() -> Self {
-        let schedule_single_work_order =
-            SingleWorkOrder::new(WorkOrderNumber(2200002020), "2023-W47-48".to_string());
-        Self::Schedule(schedule_single_work_order)
-    }
 }
