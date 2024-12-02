@@ -6,10 +6,9 @@ use clap::Subcommand;
 use reqwest::blocking::Client;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::Work;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
 use shared_types::strategic::strategic_request_resources_message::StrategicResourceRequest;
-use shared_types::strategic::strategic_request_scheduling_message::SingleWorkOrder;
+use shared_types::strategic::strategic_request_scheduling_message::ScheduleChange;
 use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
 use shared_types::strategic::strategic_request_status_message::StrategicStatusMessage;
 use shared_types::strategic::Periods;
@@ -91,11 +90,11 @@ pub enum StatusCommands {
 #[derive(Subcommand, Debug)]
 pub enum SchedulingCommands {
     /// Schedule a specific work order in a given period
-    Schedule(WorkOrderSchedule),
+    Schedule(ScheduleChange),
     /// Lock a period from any scheduling changes
     PeriodLock { period: String },
     /// Exclude a work order from a period
-    Exclude { work_order: u64, period: String },
+    Exclude(ScheduleChange),
 }
 
 #[derive(Debug, Args)]
@@ -144,12 +143,8 @@ impl StrategicCommands {
                 scheduling_commands: subcommand,
             } => match subcommand {
                 SchedulingCommands::Schedule(schedule) => {
-                    let work_order_number = WorkOrderNumber(schedule.work_order);
-                    let schedule_single_work_order =
-                        SingleWorkOrder::new(work_order_number, schedule.period.clone());
-
                     let strategic_scheduling_message: StrategicSchedulingRequest =
-                        StrategicSchedulingRequest::Schedule(schedule_single_work_order);
+                        StrategicSchedulingRequest::Schedule(schedule);
 
                     let strategic_request_message =
                         StrategicRequestMessage::Scheduling(strategic_scheduling_message);
@@ -164,13 +159,9 @@ impl StrategicCommands {
                 SchedulingCommands::PeriodLock { period: _ } => {
                     todo!()
                 }
-                SchedulingCommands::Exclude { work_order, period } => {
-                    let work_order_number = WorkOrderNumber(work_order);
-                    let exclude_single_work_order =
-                        SingleWorkOrder::new(work_order_number, period.clone());
-
+                SchedulingCommands::Exclude(schedule_change) => {
                     let strategic_scheduling_message: StrategicSchedulingRequest =
-                        StrategicSchedulingRequest::ExcludeFromPeriod(exclude_single_work_order);
+                        StrategicSchedulingRequest::ExcludeFromPeriod(schedule_change);
 
                     let strategic_request_message =
                         StrategicRequestMessage::Scheduling(strategic_scheduling_message);
@@ -346,6 +337,7 @@ impl StrategicCommands {
     }
 }
 
+// TODO: This really has to leave the system.
 fn generate_manual_resources(client: &Client, toml_path: String) -> StrategicResources {
     let periods: Vec<Period> = crate::commands::orchestrator::strategic_periods(client);
     let contents = std::fs::read_to_string(toml_path).unwrap();

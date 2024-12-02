@@ -71,7 +71,7 @@ impl Actor for TacticalAgent {
         self.strategic_addr
             .do_send(SetAddr::Tactical(ctx.address()));
 
-        ctx.notify(ScheduleIteration {});
+        // ctx.notify(ScheduleIteration {});
     }
 }
 

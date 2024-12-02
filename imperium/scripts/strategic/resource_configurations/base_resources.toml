@@ -10,7 +10,7 @@ number_of_supervisor_periods = 3
 ################################
 [[operational]]
 id = "OP-01-001"
-resources.resources = ["MTN-ELEC" ]
+resources.resources = [ "MTN-ELEC" ]
 hours_per_day = 6.0
 operational_configuration.shift_interval = [07:00:00, 19:00:00]
 operational_configuration.break_interval = [11:00:00, 12:00:00]

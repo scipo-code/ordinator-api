@@ -18,6 +18,7 @@ use shared_types::{
     tactical::{TacticalRequest, TacticalResponse},
     SystemResponses,
 };
+use tracing::{event, Level};
 
 use crate::agents::orchestrator::Orchestrator;
 
@@ -26,6 +27,7 @@ impl Orchestrator {
         &mut self,
         orchestrator_request: OrchestratorRequest,
     ) -> HttpResponse {
+        event!(Level::INFO, orchestrator_request = ?orchestrator_request);
         let response = match orchestrator_request {
             OrchestratorRequest::Export(asset) => {
                 let agent_registry_for_asset =
@@ -105,6 +107,7 @@ impl Orchestrator {
         &self,
         strategic_request: StrategicRequest,
     ) -> HttpResponse {
+        event!(Level::INFO, strategic_request = ?strategic_request);
         let strategic_agent_addr = match self.agent_registries.get(strategic_request.asset()) {
             Some(agent_registry) => agent_registry.strategic_agent_addr.clone(),
             None => {
@@ -131,6 +134,7 @@ impl Orchestrator {
     }
 
     pub async fn handle_tactical_request(&self, tactical_request: TacticalRequest) -> HttpResponse {
+        event!(Level::INFO, tactical_request = ?tactical_request);
         let agent_registry_for_asset = match self.agent_registries.get(&tactical_request.asset) {
             Some(asset) => asset.tactical_agent_addr.clone(),
             None => {
@@ -153,6 +157,7 @@ impl Orchestrator {
         &self,
         supervisor_request: SupervisorRequest,
     ) -> HttpResponse {
+        event!(Level::INFO, supervisor_request = ?supervisor_request);
         let supervisor_agent_addrs = match self.agent_registries.get(&supervisor_request.asset) {
             Some(agent_registry) => agent_registry.supervisor_agent_addrs.clone(),
             None => {
@@ -181,6 +186,7 @@ impl Orchestrator {
         &self,
         operational_request: OperationalRequest,
     ) -> HttpResponse {
+        event!(Level::INFO, operational_request = ?operational_request);
         let operational_response = match operational_request {
             OperationalRequest::GetIds(asset) => {
                 let mut operational_ids_by_asset: Vec<Id> = Vec::new();

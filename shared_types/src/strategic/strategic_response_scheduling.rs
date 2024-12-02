@@ -1,18 +1,18 @@
 use serde::{Deserialize, Serialize};
 
-use crate::scheduling_environment::{time_environment::period::Period, work_order::WorkOrderNumber};
+use crate::scheduling_environment::time_environment::period::Period;
 
 #[derive(Serialize, Deserialize)]
 pub struct StrategicResponseScheduling {
-    work_orders: Vec<WorkOrderNumber>,
-    periods: Vec<Period>,
+    work_orders: usize,
+    periods: Period,
 }
 
 impl StrategicResponseScheduling {
-    pub fn new(work_orders: Vec<WorkOrderNumber>, periods: Vec<Period>) -> Self {
+    pub fn new(number_of_work_orders_changed: usize, period: Period) -> Self {
         Self {
-            work_orders,
-            periods,
+            work_orders: number_of_work_orders_changed,
+            periods: period,
         }
     }
 }

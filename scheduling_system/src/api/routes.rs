@@ -1,6 +1,8 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use shared_types::SystemMessages;
 use shared_types::SystemResponses;
+use tracing::event;
+use tracing::Level;
 
 use std::sync::Arc;
 use tracing::instrument;
@@ -13,6 +15,7 @@ pub async fn http_to_scheduling_system(
     _req: HttpRequest,
     system_messages: web::Json<SystemMessages>,
 ) -> HttpResponse {
+    event!(Level::INFO, orchestrator_request = ?system_messages);
     match system_messages.into_inner() {
         SystemMessages::Orchestrator(orchestrator_request) => {
             let mut orchestrator = orchestrator.lock().await;
