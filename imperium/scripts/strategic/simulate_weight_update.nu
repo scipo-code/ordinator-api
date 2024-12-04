@@ -501,7 +501,10 @@ let work_orders = [
     2200009145,
     2200003749,
 ]
-^sleep 60
+
+fish -c "cargo run -p scheduling_system &"
+
+^sleep 65
 imperium strategic strategic-scheduling-environment-commands df user-status ...$work_orders --sece=true 
 
 ^sleep 60
@@ -515,3 +518,8 @@ imperium strategic strategic-scheduling-environment-commands df user-status ...$
 
 ^sleep 60
 imperium strategic strategic-scheduling-environment-commands df user-status ...$work_orders --sece=true 
+
+^sleep 60
+ps | where name == "scheduling_syst" | kill $in.pid.0 
+
+cd ../generalized-multi-agent-maintenance-scheduling-system/ | just nushell-strategic-data-extract strategic_objective_value_weight_change_plot

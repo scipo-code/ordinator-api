@@ -504,8 +504,9 @@ let work_orders = [
     2200003749,
 ]
 
-imperium strategic scheduling df exclude ...$work_orders 2024-W47-48
-^sleep 60
+fish -c "cargo run -p scheduling_system &"
+
+^sleep 65
 imperium strategic scheduling df exclude ...$work_orders 2024-W47-48
 
 ^sleep 60
@@ -520,3 +521,6 @@ imperium strategic scheduling df exclude ...$work_orders 2025-W1-2
 ^sleep 60
 imperium strategic scheduling df exclude ...$work_orders 2025-W3-4
 
+ps | where name == "scheduling_syst" | kill $in.pid.0 
+
+cd ../generalized-multi-agent-maintenance-scheduling-system/ | just nushell-strategic-data-extract strategic_objective_value_exclusion_plot

@@ -35,21 +35,24 @@ async fn main() -> Result<(), io::Error> {
 
     let mutex_scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
 
-    let mut orchestrator = Orchestrator::new(mutex_scheduling_environment.clone(), log_handles);
+    let orchestrator =
+        Orchestrator::new_with_arc(mutex_scheduling_environment.clone(), log_handles).await;
 
     let asset_string = dotenvy::var("ASSET").expect("The ASSET environment variable should be set");
 
     let asset = Asset::new_from_string(asset_string.as_str())
         .expect("Please set a valid ASSET environment variable");
 
-    orchestrator.add_asset(asset.clone());
-    orchestrator.initialize_agents_from_env(asset);
-
-    let arc_orchestrator = Arc::new(tokio::sync::Mutex::new(orchestrator));
+    // TODO WARN: This should not be handled here! It should be handled together through a common interface.
+    orchestrator.lock().unwrap().add_asset(asset.clone());
+    orchestrator
+        .lock()
+        .unwrap()
+        .initialize_agents_from_env(asset);
 
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(arc_orchestrator.clone()))
+            .app_data(web::Data::new(orchestrator.clone()))
             .route(
                 &dotenvy::var("ORDINATOR_MAIN_ENDPOINT").unwrap(),
                 web::post()
