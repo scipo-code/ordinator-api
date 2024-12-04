@@ -1,18 +1,13 @@
 use actix::Handler;
 use anyhow::{bail, Result};
-use shared_types::{
-    scheduling_environment::{work_order::WorkOrderActivity, worker_environment::resources::Id},
-    supervisor::{
-        supervisor_response_scheduling::SupervisorResponseScheduling,
-        supervisor_response_status::SupervisorResponseStatus, SupervisorRequestMessage,
-        SupervisorResponseMessage,
-    },
+use shared_types::supervisor::{
+    supervisor_response_scheduling::SupervisorResponseScheduling,
+    supervisor_response_status::SupervisorResponseStatus, SupervisorRequestMessage,
+    SupervisorResponseMessage,
 };
 use tracing::{event, Level};
 
-use crate::agents::{
-    operational_agent::algorithm::OperationalObjectiveValue, SetAddr, StateLink, StateLinkWrapper,
-};
+use crate::agents::{SetAddr, StateLink};
 
 use super::SupervisorAgent;
 
@@ -29,39 +24,15 @@ impl Handler<SetAddr> for SupervisorAgent {
     }
 }
 
-type StrategicMessage = ();
-type TacticalMessage = ();
-type SupervisorMessage = ();
-// Why do we send this message? I am not really sure?
-type OperationalMessage = ((Id, WorkOrderActivity), OperationalObjectiveValue);
-
-impl
-    Handler<
-        StateLinkWrapper<StrategicMessage, TacticalMessage, SupervisorMessage, OperationalMessage>,
-    > for SupervisorAgent
-{
+impl Handler<StateLink> for SupervisorAgent {
     type Result = Result<()>;
 
-    fn handle(
-        &mut self,
-        state_link_wrapper: StateLinkWrapper<
-            StrategicMessage,
-            TacticalMessage,
-            SupervisorMessage,
-            OperationalMessage,
-        >,
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
-        let state_link = state_link_wrapper.state_link;
-        let span = state_link_wrapper.span;
-
-        let _enter = span.enter();
-
+    fn handle(&mut self, state_link: StateLink, _ctx: &mut Self::Context) -> Self::Result {
         match state_link {
             StateLink::Strategic(_) => Ok(()),
-            StateLink::Tactical(_) => Ok(()),
-            StateLink::Supervisor(_) => Ok(()),
-            StateLink::Operational(_operational_solution) => Ok(()),
+            StateLink::Tactical => Ok(()),
+            StateLink::Supervisor => Ok(()),
+            StateLink::Operational => Ok(()),
         }
     }
 }

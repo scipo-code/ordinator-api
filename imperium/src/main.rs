@@ -1,12 +1,15 @@
 pub mod commands;
 
-use std::{fs::File, io::Write};
+use std::{borrow::Borrow, fs::File, io::Write};
 
 use anyhow::{bail, Context, Result};
 use clap::{Command, CommandFactory, Parser};
 use clap_complete::{generate, Generator, Shell};
 use commands::Commands;
-use reqwest::blocking::Client;
+use reqwest::{
+    blocking::{Client, Response},
+    header::HeaderValue,
+};
 use shared_types::SystemMessages;
 
 #[derive(Parser)]
@@ -47,6 +50,7 @@ fn send_http(client: &Client, system_message: SystemMessages) -> Result<String> 
             .expect("The environment variable IMPERIUM_ADDRESS is not set")
         + &dotenvy::var("ORDINATOR_MAIN_ENDPOINT")
             .expect("The environment variable ORDINATOR_MAIN_ENDPOINT is not set");
+
     let system_message_json_option = serde_json::to_string(&system_message);
     let system_message_json = match system_message_json_option {
         Ok(string) => string,
@@ -55,30 +59,40 @@ fn send_http(client: &Client, system_message: SystemMessages) -> Result<String> 
         }
     };
 
-    let res = client
+    dbg!(&system_message_json);
+    let response = client
         .post(url)
         .body(system_message_json)
         .header("Content-Type", "application/json")
         .send()
         .expect("Could not send request");
 
-    let header = res.headers().clone();
-
-    if res.status().is_success() {
-        match header.get("Content-Disposition") {
-            Some(_download_header) => {
-                let content = res.bytes().unwrap().clone();
-                let mut output = File::create("ordinator_dump.xlsx").unwrap();
-                output.write_all(&content).unwrap();
-                Ok(String::from("Downloaded File"))
-            }
-            None => Ok(res.text().unwrap()),
-        }
-    } else {
+    if !response.status().is_success() {
         bail!(
             "Error: No success on the imperium request: {:?}",
-            res.text().unwrap()
+            response
+                .text()
+                .context("Could not extract the JSON from the Response")?
         )
+    }
+
+    match response
+        .headers()
+        .get("Content-Type")
+        .unwrap()
+        .to_str()
+        .context("Could not convert Content-Disposition to &str")?
+    {
+        "application/json" => Ok(response.text().unwrap()),
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => {
+            let content = response.bytes().unwrap().clone();
+            let mut output = File::create("ordinator_dump.xlsx").unwrap();
+            output.write_all(&content).unwrap();
+            Ok(String::from(
+                "Received an .xlsx dump from the ordinator-api",
+            ))
+        }
+        _ => todo!(),
     }
 }
 

@@ -14,6 +14,7 @@ use std::sync::Mutex;
 
 use crate::agents::operational_agent::algorithm::OperationalAlgorithm;
 use crate::agents::operational_agent::{OperationalAgent, OperationalAgentBuilder};
+use crate::agents::orchestrator::NotifyOrchestrator;
 use crate::agents::strategic_agent::strategic_algorithm::strategic_parameters::StrategicParameters;
 use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
@@ -51,6 +52,7 @@ impl AgentFactory {
         asset: Asset,
         strategic_resources: Option<StrategicResources>,
         strategic_tactical_optimized_work_orders: Arc<ArcSwapSharedSolution>,
+        sender_for_orchestrator: NotifyOrchestrator,
     ) -> Addr<StrategicAgent> {
         let cloned_work_orders = self
             .scheduling_environment
@@ -103,9 +105,14 @@ impl AgentFactory {
         let arc_scheduling_environment = self.scheduling_environment.clone();
 
         Arbiter::new().spawn_fn(move || {
-            let strategic_addr =
-                StrategicAgent::new(asset, arc_scheduling_environment, strategic_algorithm, None)
-                    .start();
+            let strategic_addr = StrategicAgent::new(
+                asset,
+                arc_scheduling_environment,
+                strategic_algorithm,
+                None,
+                sender_for_orchestrator,
+            )
+            .start();
             sender.send(strategic_addr).unwrap();
         });
 
@@ -118,6 +125,7 @@ impl AgentFactory {
         strategic_agent_addr: Addr<StrategicAgent>,
         tactical_resources: Option<TacticalResources>,
         strategic_tactical_optimized_work_orders: Arc<ArcSwapSharedSolution>,
+        notify_orchestrator: NotifyOrchestrator,
     ) -> Addr<TacticalAgent> {
         let (sender, receiver) = std::sync::mpsc::channel::<Addr<TacticalAgent>>();
 
@@ -152,6 +160,7 @@ impl AgentFactory {
                 strategic_agent_addr,
                 tactical_algorithm,
                 arc_scheduling_environment,
+                notify_orchestrator,
             )
             .start();
             sender.send(tactical_addr).unwrap();
@@ -166,6 +175,7 @@ impl AgentFactory {
         tactical_agent_addr: Addr<TacticalAgent>,
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
         number_of_operational_agents: Arc<AtomicU64>,
+        notify_orchestrator: NotifyOrchestrator,
     ) -> Result<Addr<SupervisorAgent>> {
         let (sender, receiver) = std::sync::mpsc::channel::<Addr<SupervisorAgent>>();
 
@@ -179,6 +189,7 @@ impl AgentFactory {
                 tactical_agent_addr,
                 arc_swap_shared_solution,
                 number_of_operational_agents,
+                notify_orchestrator,
             )
             .expect("Could not create SupervisorAgent in AgentFactory")
             .start();
@@ -194,6 +205,7 @@ impl AgentFactory {
         operational_configuration: OperationalConfiguration,
         supervisor_agent_addr: HashMap<Id, Addr<SupervisorAgent>>,
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
+        notify_orchestrator: NotifyOrchestrator,
     ) -> Addr<OperationalAgent> {
         let (sender, receiver) = std::sync::mpsc::channel::<Addr<OperationalAgent>>();
 
@@ -222,6 +234,7 @@ impl AgentFactory {
                 operational_algorithm,
                 None,
                 supervisor_agent_addr,
+                notify_orchestrator,
             )
             .build()
             .start();

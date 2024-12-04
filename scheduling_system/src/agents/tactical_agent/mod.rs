@@ -15,6 +15,7 @@ use crate::agents::tactical_agent::algorithm::TacticalAlgorithm;
 use crate::agents::SetAddr;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
+use super::orchestrator::NotifyOrchestrator;
 use super::strategic_agent::StrategicAgent;
 use super::supervisor_agent::SupervisorAgent;
 use super::traits::LargeNeighborHoodSearch;
@@ -28,6 +29,7 @@ pub struct TacticalAgent {
     strategic_addr: Addr<StrategicAgent>,
     main_supervisor_addr: Option<(String, Addr<SupervisorAgent>)>,
     _other_supervisor: Option<HashMap<Id, Addr<SupervisorAgent>>>,
+    pub notify_orchestrator: NotifyOrchestrator,
 }
 
 impl TacticalAgent {
@@ -37,6 +39,7 @@ impl TacticalAgent {
         strategic_addr: Addr<StrategicAgent>,
         tactical_algorithm: TacticalAlgorithm,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
+        notify_orchestrator: NotifyOrchestrator,
     ) -> Self {
         TacticalAgent {
             asset,
@@ -46,6 +49,7 @@ impl TacticalAgent {
             strategic_addr,
             main_supervisor_addr: None,
             _other_supervisor: None,
+            notify_orchestrator,
         }
     }
 

@@ -1,48 +1,23 @@
 use actix::Handler;
-use anyhow::Result;
-use shared_types::{
-    operational::{
-        operational_request_scheduling::OperationalSchedulingRequest,
-        operational_response_scheduling::{
-            ApiAssignment, ApiAssignmentEvents, EventInfo, OperationalSchedulingResponse,
-        },
-        operational_response_status::OperationalStatusResponse,
-        OperationalRequestMessage, OperationalResponseMessage,
+use anyhow::{bail, Result};
+use shared_types::operational::{
+    operational_request_scheduling::OperationalSchedulingRequest,
+    operational_response_scheduling::{
+        ApiAssignment, ApiAssignmentEvents, EventInfo, OperationalSchedulingResponse,
     },
-    StatusMessage,
+    operational_response_status::OperationalStatusResponse,
+    OperationalRequestMessage, OperationalResponseMessage,
 };
 use tracing::{event, Level};
 
-use crate::agents::{StateLink, StateLinkWrapper, UpdateWorkOrderMessage};
+use crate::agents::StateLink;
 
 use super::OperationalAgent;
 
-type StrategicMessage = ();
-type TacticalMessage = ();
-type SupervisorMessage = ();
-type OperationalMessage = ();
-
-impl
-    Handler<
-        StateLinkWrapper<StrategicMessage, TacticalMessage, SupervisorMessage, OperationalMessage>,
-    > for OperationalAgent
-{
+impl Handler<StateLink> for OperationalAgent {
     type Result = Result<()>;
 
-    fn handle(
-        &mut self,
-        state_link_wrapper: StateLinkWrapper<
-            StrategicMessage,
-            TacticalMessage,
-            SupervisorMessage,
-            OperationalMessage,
-        >,
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
-        let state_link = state_link_wrapper.state_link;
-        let span = state_link_wrapper.span;
-        let _enter = span.enter();
-
+    fn handle(&mut self, state_link: StateLink, _ctx: &mut Self::Context) -> Self::Result {
         event!(
             Level::INFO,
             self.operational_algorithm.operational_parameters = self
@@ -52,10 +27,14 @@ impl
                 .len()
         );
         match state_link {
-            StateLink::Strategic(_) => todo!(),
-            StateLink::Tactical(_) => todo!(),
-            StateLink::Supervisor(_initial_message) => todo!(),
-            StateLink::Operational(_) => todo!(),
+            StateLink::Strategic(changed_work_orders) => {
+                // TODO:
+                event!(Level::ERROR, unhandled_work_orders = ?changed_work_orders);
+                bail!("IMPLEMENT STATELINK FOR THE OPERATIONAL AGENT");
+            }
+            StateLink::Tactical => todo!(),
+            StateLink::Supervisor => todo!(),
+            StateLink::Operational => todo!(),
         }
     }
 }
@@ -70,6 +49,21 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
     ) -> Self::Result {
         match request {
             OperationalRequestMessage::Status(_) => {
+                // WARN DEBUG: This should be included if you get an error
+                //     format!(
+                //         "ID: {}, traits: {}, Objective: {:?}",
+                //         self.operational_id.0,
+                //         self.operational_id
+                //             .1
+                //             .iter()
+                //             .map(|resource| resource.to_string())
+                //             .collect::<Vec<String>>()
+                //             .join(", "),
+                //         self.operational_algorithm
+                //             .operational_solution
+                //             .objective_value
+                //     )
+                // }
                 let (assign, assess, unassign): (u64, u64, u64) = self
                     .operational_algorithm
                     .loaded_shared_solution
@@ -128,42 +122,5 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
             OperationalRequestMessage::Resource(_) => todo!(),
             OperationalRequestMessage::Time(_) => todo!(),
         }
-    }
-}
-
-impl Handler<StatusMessage> for OperationalAgent {
-    type Result = String;
-
-    fn handle(&mut self, _msg: StatusMessage, _ctx: &mut Self::Context) -> Self::Result {
-        format!(
-            "ID: {}, traits: {}, Objective: {:?}",
-            self.operational_id.0,
-            self.operational_id
-                .1
-                .iter()
-                .map(|resource| resource.to_string())
-                .collect::<Vec<String>>()
-                .join(", "),
-            self.operational_algorithm
-                .operational_solution
-                .objective_value
-        )
-    }
-}
-
-impl Handler<UpdateWorkOrderMessage> for OperationalAgent {
-    type Result = ();
-
-    fn handle(
-        &mut self,
-        _update_work_order: UpdateWorkOrderMessage,
-
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
-        // todo!();
-        event!(
-            Level::WARN,
-            "Update 'impl Handler<UpdateWorkOrderMessage> for SupervisorAgent'"
-        );
     }
 }

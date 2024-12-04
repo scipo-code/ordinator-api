@@ -31,10 +31,10 @@ use crate::agents::{supervisor_agent::algorithm::delegate::Delegate, Operational
 
 use self::algorithm::OperationalAlgorithm;
 
-use super::supervisor_agent::SupervisorAgent;
 use super::traits::LargeNeighborHoodSearch;
 use super::ScheduleIteration;
 use super::SetAddr;
+use super::{orchestrator::NotifyOrchestrator, supervisor_agent::SupervisorAgent};
 
 pub struct OperationalAgent {
     operational_id: Id,
@@ -46,6 +46,7 @@ pub struct OperationalAgent {
     operational_configuration: OperationalConfiguration,
     main_supervisor: Option<Addr<SupervisorAgent>>,
     supervisor_agent_addr: HashMap<Id, Addr<SupervisorAgent>>,
+    pub notify_orchestrator: NotifyOrchestrator,
 }
 
 impl OperationalAgent {
@@ -235,6 +236,7 @@ impl OperationalAgentBuilder {
         operational_algorithm: OperationalAlgorithm,
         main_supervisor: Option<Addr<SupervisorAgent>>,
         supervisor_agent_addr: HashMap<Id, Addr<SupervisorAgent>>,
+        notify_orchestrator: NotifyOrchestrator,
     ) -> Self {
         Self(OperationalAgent {
             operational_id: id_operational,
@@ -245,6 +247,7 @@ impl OperationalAgentBuilder {
             operational_configuration,
             main_supervisor,
             supervisor_agent_addr,
+            notify_orchestrator,
         })
     }
 
@@ -258,6 +261,7 @@ impl OperationalAgentBuilder {
             operational_configuration: self.0.operational_configuration,
             main_supervisor: self.0.main_supervisor,
             supervisor_agent_addr: self.0.supervisor_agent_addr,
+            notify_orchestrator: self.0.notify_orchestrator,
         }
     }
 }
