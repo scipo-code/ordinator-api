@@ -22,8 +22,9 @@ use shared_types::scheduling_environment::SchedulingEnvironment;
 use self::algorithm::SupervisorAlgorithm;
 
 use super::{
-    operational_agent::OperationalAgent, tactical_agent::TacticalAgent,
-    traits::LargeNeighborHoodSearch, ArcSwapSharedSolution, ScheduleIteration, SetAddr,
+    operational_agent::OperationalAgent, orchestrator::NotifyOrchestrator,
+    tactical_agent::TacticalAgent, traits::LargeNeighborHoodSearch, ArcSwapSharedSolution,
+    ScheduleIteration, SetAddr,
 };
 
 pub struct SupervisorAgent {
@@ -34,6 +35,7 @@ pub struct SupervisorAgent {
     tactical_agent_addr: Addr<TacticalAgent>,
     operational_agent_addrs: HashMap<Id, Addr<OperationalAgent>>,
     number_of_operational_agents: Arc<AtomicU64>,
+    pub notify_orchestrator: NotifyOrchestrator,
 }
 
 impl Actor for SupervisorAgent {
@@ -136,6 +138,7 @@ impl SupervisorAgent {
         tactical_agent_addr: Addr<TacticalAgent>,
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
         number_of_operational_agents: Arc<AtomicU64>,
+        notify_orchestrator: NotifyOrchestrator,
     ) -> Result<SupervisorAgent> {
         let Id(id, resources, toml_supervisor) = supervisor_id;
 
@@ -162,6 +165,7 @@ impl SupervisorAgent {
             tactical_agent_addr,
             operational_agent_addrs: HashMap::new(),
             number_of_operational_agents,
+            notify_orchestrator,
         })
     }
 

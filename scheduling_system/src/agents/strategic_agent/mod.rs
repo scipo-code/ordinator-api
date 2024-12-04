@@ -18,6 +18,7 @@ use std::sync::Mutex;
 use tracing::instrument;
 use tracing::warn;
 
+use super::orchestrator::NotifyOrchestrator;
 use super::ScheduleIteration;
 use crate::agents::tactical_agent::TacticalAgent;
 
@@ -26,6 +27,7 @@ pub struct StrategicAgent {
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub strategic_algorithm: StrategicAlgorithm,
     pub tactical_agent_addr: Option<Addr<TacticalAgent>>,
+    pub notify_orchestrator: NotifyOrchestrator,
 }
 
 impl Actor for StrategicAgent {
@@ -55,12 +57,14 @@ impl StrategicAgent {
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         strategic_agent_algorithm: StrategicAlgorithm,
         tactical_agent_addr: Option<Addr<TacticalAgent>>,
+        notify_orchestrator: NotifyOrchestrator,
     ) -> Self {
         Self {
             asset,
             scheduling_environment,
             strategic_algorithm: strategic_agent_algorithm,
             tactical_agent_addr,
+            notify_orchestrator,
         }
     }
 }

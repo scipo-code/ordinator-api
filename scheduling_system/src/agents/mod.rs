@@ -7,6 +7,10 @@ pub mod traits;
 
 use std::collections::{HashMap, HashSet};
 
+use self::{
+    operational_agent::OperationalAgent, strategic_agent::StrategicAgent,
+    supervisor_agent::SupervisorAgent, tactical_agent::TacticalAgent,
+};
 use actix::{Addr, Message};
 use anyhow::{Context, Result};
 use arc_swap::ArcSwap;
@@ -22,12 +26,6 @@ use shared_types::strategic::{StrategicObjectiveValue, StrategicResources};
 use shared_types::tactical::{TacticalObjectiveValue, TacticalResources};
 use supervisor_agent::algorithm::delegate::Delegate;
 use tactical_agent::algorithm::tactical_solution::TacticalOperation;
-use tracing::Span;
-
-use self::{
-    operational_agent::OperationalAgent, strategic_agent::StrategicAgent,
-    supervisor_agent::SupervisorAgent, tactical_agent::TacticalAgent,
-};
 
 #[derive(Message)]
 #[rtype(result = "Result<()>")]
@@ -276,30 +274,16 @@ impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
 /// This allows us to get custom implementations for each of the
 /// Agent types creating a mesh of communication pathways that are still
 /// statically typed.
-#[derive(Debug)]
-pub struct StateLinkWrapper<S, T, Su, O> {
-    state_link: StateLink<S, T, Su, O>,
-    span: Span,
-}
-
-impl<S, T, Su, O> StateLinkWrapper<S, T, Su, O> {}
 
 #[allow(dead_code)]
-#[derive(Debug)]
-pub enum StateLink<S, T, Su, O> {
-    Strategic(S),
-    Tactical(T),
-    Supervisor(Su),
-    Operational(O),
+#[derive(Debug, Clone)]
+pub enum StateLink {
+    Strategic(Vec<WorkOrderNumber>),
+    Tactical,
+    Supervisor,
+    Operational,
 }
 
-impl<S, T, Su, O> Message for StateLinkWrapper<S, T, Su, O> {
+impl Message for StateLink {
     type Result = Result<()>;
-}
-
-#[derive(Clone)]
-pub struct UpdateWorkOrderMessage(pub WorkOrderNumber);
-
-impl Message for UpdateWorkOrderMessage {
-    type Result = ();
 }

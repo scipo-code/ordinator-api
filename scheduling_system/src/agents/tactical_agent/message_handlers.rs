@@ -1,15 +1,12 @@
 use actix::prelude::*;
 use anyhow::{bail, Result};
 use shared_types::{
-    scheduling_environment::{time_environment::period::Period, work_order::WorkOrderNumber},
     tactical::{TacticalRequestMessage, TacticalResponseMessage},
     StatusMessage,
 };
 use tracing::{event, Level};
 
-use crate::agents::{
-    traits::LargeNeighborHoodSearch, SetAddr, StateLink, StateLinkWrapper, UpdateWorkOrderMessage,
-};
+use crate::agents::{traits::LargeNeighborHoodSearch, SetAddr, StateLink};
 
 use super::TacticalAgent;
 
@@ -63,45 +60,19 @@ impl Handler<TacticalRequestMessage> for TacticalAgent {
     }
 }
 
-type StrategicMessage = Vec<(WorkOrderNumber, Period)>;
-type TacticalMessage = ();
-type SupervisorMessage = ();
-type OperationalMessage = ();
-
-impl
-    Handler<
-        StateLinkWrapper<
-            Vec<(WorkOrderNumber, Period)>,
-            TacticalMessage,
-            SupervisorMessage,
-            OperationalMessage,
-        >,
-    > for TacticalAgent
-{
+impl Handler<StateLink> for TacticalAgent {
     type Result = Result<()>;
 
-    fn handle(
-        &mut self,
-        state_link_wrapper: StateLinkWrapper<
-            StrategicMessage,
-            TacticalMessage,
-            SupervisorMessage,
-            OperationalMessage,
-        >,
-        _ctx: &mut actix::Context<Self>,
-    ) -> Self::Result {
-        let state_link = state_link_wrapper.state_link;
-        let _enter = state_link_wrapper.span.enter();
-
+    fn handle(&mut self, state_link: StateLink, _ctx: &mut actix::Context<Self>) -> Self::Result {
         match state_link {
             StateLink::Strategic(_strategic_state) => Ok(()),
-            StateLink::Tactical(_) => {
+            StateLink::Tactical => {
                 todo!()
             }
-            StateLink::Supervisor(_) => {
+            StateLink::Supervisor => {
                 todo!()
             }
-            StateLink::Operational(_) => {
+            StateLink::Operational => {
                 todo!()
             }
         }
@@ -121,21 +92,5 @@ impl Handler<SetAddr> for TacticalAgent {
                 bail!("The tactical agent received an Addr<T>, where T is not a valid Actor")
             }
         }
-    }
-}
-
-impl Handler<UpdateWorkOrderMessage> for TacticalAgent {
-    type Result = ();
-
-    fn handle(
-        &mut self,
-        _update_work_order: UpdateWorkOrderMessage,
-        _ctx: &mut actix::Context<Self>,
-    ) -> Self::Result {
-        // todo!();
-        event!(
-            Level::WARN,
-            "Update 'impl Handler<UpdateWorkOrderMessage> for TacticalAgent'"
-        );
     }
 }

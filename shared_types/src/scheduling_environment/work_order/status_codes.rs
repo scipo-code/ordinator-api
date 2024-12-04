@@ -166,7 +166,7 @@ pub struct UserStatusCodes {
 #[derive(Args, Clone, Serialize, Deserialize, Debug)]
 pub struct StrategicUserStatusCodes {
     /// Provide the work order number for the work order that you want to change.
-    pub work_order_number: Vec<WorkOrderNumber>,
+    pub work_order_numbers: Vec<WorkOrderNumber>,
     #[arg(long, value_parser = clap::value_parser!(bool))]
     pub sch: Option<bool>,
     #[arg(long, value_parser = clap::value_parser!(bool))]

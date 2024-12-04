@@ -5,8 +5,6 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use shared_types::orchestrator::WorkOrdersStatus;
-use shared_types::scheduling_environment::work_order::status_codes::MaterialStatus;
-use shared_types::scheduling_environment::work_order::WorkOrder;
 use shared_types::strategic::strategic_response_periods::StrategicResponsePeriods;
 use shared_types::strategic::strategic_response_scheduling::StrategicResponseScheduling;
 use shared_types::strategic::strategic_response_status::StrategicResponseStatus;
@@ -24,11 +22,11 @@ use shared_types::{
 use tracing::event;
 use tracing::Level;
 
-use crate::agents::strategic_agent::strategic_algorithm::strategic_parameters::StrategicParameterBuilder;
 use crate::agents::traits::LargeNeighborHoodSearch;
 use crate::agents::SetAddr;
-use crate::agents::UpdateWorkOrderMessage;
+use crate::agents::StateLink;
 
+use super::strategic_algorithm::strategic_parameters::StrategicParameterBuilder;
 use super::StrategicAgent;
 
 impl Handler<StrategicRequestMessage> for StrategicAgent {
@@ -167,30 +165,78 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                     let scheduling_environment_lock =
                         &mut self.scheduling_environment.lock().unwrap();
 
-                    for work_order_number in strategic_user_status_codes.work_order_number {
-                        let user_status_codes = &mut scheduling_environment_lock
+                    for work_order_number in &strategic_user_status_codes.work_order_numbers {
+                        let work_order = scheduling_environment_lock
                             .work_orders
                             .inner
-                            .get_mut(&work_order_number)
+                            .get_mut(work_order_number)
                             .with_context(|| {
                                 format!("{:?} is not found for {:?}", work_order_number, self.asset)
-                            })?
-                            .work_order_analytic
-                            .user_status_codes;
+                            })?;
 
-                        if let Some(sece) = strategic_user_status_codes.sch {
+                        // This should ideally be encapsulated into the a method on the WorkOrder that accepts a StrategicUserStatusCodes
+                        let user_status_codes =
+                            &mut work_order.work_order_analytic.user_status_codes;
+
+                        if let Some(sece) = strategic_user_status_codes.sece {
                             user_status_codes.sece = sece;
                         }
-                        if let Some(sch) = strategic_user_status_codes.awsc {
+                        if let Some(sch) = strategic_user_status_codes.sch {
                             user_status_codes.sch = sch;
                         }
-                        if let Some(awsc) = strategic_user_status_codes.sece {
+                        if let Some(awsc) = strategic_user_status_codes.awsc {
                             user_status_codes.awsc = awsc;
                         }
+
+                        work_order.initialize_weight();
                     }
+                    // Signal Orchestrator that the it should tell all actor to update work orders
+                    self.notify_orchestrator
+                        .notify_all_agents_of_work_order_change(
+                            strategic_user_status_codes.work_order_numbers,
+                            &self.asset,
+                        )
+                        .context("Could not notify Orchestrator")?;
+
                     Ok(StrategicResponseMessage::Success)
                 }
             },
+        }
+    }
+}
+
+impl Handler<StateLink> for StrategicAgent {
+    type Result = Result<()>;
+
+    fn handle(&mut self, msg: StateLink, _ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            StateLink::Strategic(work_order_changed) => {
+                for work_order_number in work_order_changed {
+                    let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+                    let work_order = scheduling_environment_guard
+                        .work_orders
+                        .inner
+                        .get(&work_order_number)
+                        .with_context(|| {
+                            format!(
+                                "{:?} is not present in SchedulingEnvironment",
+                                work_order_number
+                            )
+                        })?;
+
+                    let strategic_parameter = StrategicParameterBuilder::new()
+                        .build_from_work_order(work_order, self.strategic_algorithm.periods())
+                        .build();
+
+                    self.strategic_algorithm
+                        .strategic_parameters
+                        .insert_strategic_parameter(work_order_number, strategic_parameter);
+                }
+                Ok(())
+            }
+            StateLink::Tactical => todo!(),
+            StateLink::Supervisor => todo!(),
+            StateLink::Operational => todo!(),
         }
     }
 }
@@ -208,44 +254,6 @@ impl Handler<SetAddr> for StrategicAgent {
                 bail!("Could not set the tactical Addr")
             }
         }
-    }
-}
-
-impl Handler<UpdateWorkOrderMessage> for StrategicAgent {
-    type Result = ();
-
-    fn handle(
-        &mut self,
-        update_work_order: UpdateWorkOrderMessage,
-        _ctx: &mut actix::Context<Self>,
-    ) {
-        let locked_scheduling_environment = self.scheduling_environment.lock().unwrap();
-
-        let periods = locked_scheduling_environment.periods().clone();
-
-        let work_order: &WorkOrder = locked_scheduling_environment
-            .work_orders()
-            .inner
-            .get(&update_work_order.0)
-            .unwrap();
-
-        let optimized_work_order_builder = StrategicParameterBuilder::new();
-
-        let optimized_work_order = optimized_work_order_builder
-            .build_from_work_order(work_order, &periods)
-            .build();
-        assert!(work_order.work_order_analytic.work_order_weight == optimized_work_order.weight);
-        if let Some(period) =
-            Into::<MaterialStatus>::into(work_order.work_order_analytic.user_status_codes.clone())
-                .period_delay(&periods)
-        {
-            assert!(&optimized_work_order.excluded_periods.contains(&period));
-        }
-
-        self.strategic_algorithm
-            .strategic_parameters
-            .strategic_work_order_parameters
-            .insert(update_work_order.0, optimized_work_order);
     }
 }
 

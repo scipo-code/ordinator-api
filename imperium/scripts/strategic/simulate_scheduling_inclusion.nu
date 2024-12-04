@@ -51,7 +51,10 @@ let work_orders = [
     2100076000,
 ];
 
-^sleep 60
+print "line 54"
+fish -c "cargo run -p scheduling_system &" 
+
+^sleep 65
 imperium strategic scheduling df schedule ...$work_orders 2024-W49-50
 
 ^sleep 60
@@ -66,3 +69,9 @@ imperium strategic scheduling df schedule ...$work_orders 2025-W3-4
 ^sleep 60
 imperium strategic scheduling df schedule ...$work_orders 2025-W5-6
 
+^sleep 60
+ps | where name == "scheduling_syst" | kill $in.pid.0 
+
+print "line 75"
+ cd ../generalized-multi-agent-maintenance-scheduling-system/ | just nushell-strategic-data-extract strategic_objective_value_inclusion_plot
+print "line 77"
