@@ -53,9 +53,9 @@ impl StrategicParameters {
         &mut self,
         work_order_number: WorkOrderNumber,
         strategic_parameter: StrategicParameter,
-    ) {
+    ) -> Option<StrategicParameter> {
         self.strategic_work_order_parameters
-            .insert(work_order_number, strategic_parameter);
+            .insert(work_order_number, strategic_parameter)
     }
 
     pub fn get_locked_in_period<'a>(&'a self, work_order_number: &'a WorkOrderNumber) -> &Period {
@@ -144,6 +144,7 @@ impl StrategicParameterBuilder {
             match unloading_point_period {
                 Some(unloading_point_period) => {
                     self.0.locked_in_period = Some(unloading_point_period.clone());
+                    self.0.excluded_periods.remove(&unloading_point_period);
                 }
                 None => {
                     let scheduled_period = periods
@@ -155,6 +156,7 @@ impl StrategicParameterBuilder {
 
                     if let Some(locked_in_period) = scheduled_period {
                         self.0.locked_in_period = Some(locked_in_period.clone());
+                        self.0.excluded_periods.remove(&locked_in_period);
                     }
                 }
             }
@@ -163,6 +165,9 @@ impl StrategicParameterBuilder {
 
         if work_order.is_vendor() {
             self.0.locked_in_period = periods.last().cloned();
+            self.0
+                .excluded_periods
+                .remove(self.0.locked_in_period.as_ref().unwrap());
             return self;
         };
 
@@ -171,6 +176,9 @@ impl StrategicParameterBuilder {
                 && periods[0..=1].contains(&unloading_point_period.clone().unwrap())
             {
                 self.0.locked_in_period.clone_from(&unloading_point_period);
+                self.0
+                    .excluded_periods
+                    .remove(self.0.locked_in_period.as_ref().unwrap());
             } else {
                 let scheduled_period = periods[0..=1]
                     .iter()
@@ -178,6 +186,9 @@ impl StrategicParameterBuilder {
 
                 if let Some(locked_in_period) = scheduled_period {
                     self.0.locked_in_period = Some(locked_in_period.clone());
+                    self.0
+                        .excluded_periods
+                        .remove(self.0.locked_in_period.as_ref().unwrap());
                 }
             }
             return self;
@@ -190,6 +201,9 @@ impl StrategicParameterBuilder {
 
             if let Some(locked_in_period) = scheduled_period {
                 self.0.locked_in_period = Some(locked_in_period.clone());
+                self.0
+                    .excluded_periods
+                    .remove(self.0.locked_in_period.as_ref().unwrap());
             }
             return self;
         }
@@ -198,6 +212,9 @@ impl StrategicParameterBuilder {
             let locked_in_period = unloading_point_period.clone().unwrap();
             if !periods[0..=1].contains(unloading_point_period.as_ref().unwrap()) {
                 self.0.locked_in_period = Some(locked_in_period.clone());
+                self.0
+                    .excluded_periods
+                    .remove(self.0.locked_in_period.as_ref().unwrap());
             }
             return self;
         }
@@ -205,6 +222,10 @@ impl StrategicParameterBuilder {
     }
 
     pub fn build(self) -> StrategicParameter {
+        if let Some(ref locked_in_period) = self.0.locked_in_period {
+            assert!(!self.0.excluded_periods.contains(locked_in_period));
+        }
+
         StrategicParameter {
             locked_in_period: self.0.locked_in_period,
             excluded_periods: self.0.excluded_periods,

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::StrategicAgent;
-use anyhow::{bail, Result};
+use anyhow::{bail, ensure, Result};
 use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
 use shared_types::strategic::StrategicResources;
@@ -12,6 +12,7 @@ use tracing::{event, Level};
 #[allow(dead_code)]
 pub trait StrategicAssertions {
     fn assert_aggregated_load(&self) -> Result<()>;
+    fn assert_excluded_periods(&self) -> Result<()>;
 }
 
 impl StrategicAssertions for StrategicAgent {
@@ -68,6 +69,38 @@ impl StrategicAssertions for StrategicAgent {
                         bail!("aggregated load and resource loading are not identically shaped")
                     }
                 }
+            }
+        }
+        Ok(())
+    }
+
+    fn assert_excluded_periods(&self) -> Result<()> {
+        for (work_order_number, strategic_parameter) in &self
+            .strategic_algorithm
+            .strategic_parameters
+            .strategic_work_order_parameters
+        {
+            let excluded_periods = &strategic_parameter.excluded_periods;
+            let locked_in_period = &strategic_parameter.locked_in_period;
+
+            let scheduled_period = self
+                .strategic_algorithm
+                .strategic_solution
+                .strategic_periods
+                .get(work_order_number)
+                .unwrap();
+
+            if let Some(period) = scheduled_period {
+                ensure!(
+                    !excluded_periods.contains(period),
+                    "\n{:#?}\nIs scheduled in:\n{:#?} which is in excluded periods:\n{:#?}",
+                    work_order_number,
+                    period,
+                    excluded_periods,
+                );
+            }
+            if let Some(locked_in_period) = locked_in_period {
+                ensure!(!excluded_periods.contains(locked_in_period))
             }
         }
         Ok(())
