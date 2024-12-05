@@ -522,4 +522,4 @@ imperium strategic strategic-scheduling-environment-commands df user-status ...$
 ^sleep 60
 ps | where name == "scheduling_syst" | kill $in.pid.0 
 
-cd ../generalized-multi-agent-maintenance-scheduling-system/ | just nushell-strategic-data-extract strategic_objective_value_weight_change_plot
+cd ../generalized-multi-agent-maintenance-scheduling-system/ | just nushell-strategic-data-extract strategic_objective_value_weight_change_plot.tex

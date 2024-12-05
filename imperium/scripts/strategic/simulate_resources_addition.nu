@@ -12,4 +12,4 @@ imperium strategic resources df load-capacity-file imperium/scripts/strategic/re
 ^sleep 60
 ps | where name == "scheduling_syst" | kill $in.pid.0 
 
-cd ../generalized-multi-agent-maintenance-scheduling-system/ | just nushell-strategic-data-extract strategic_objective_value_resource_addition_plot
+cd ../generalized-multi-agent-maintenance-scheduling-system/ | just nushell-strategic-data-extract strategic_objective_value_resource_addition_plot.tex
