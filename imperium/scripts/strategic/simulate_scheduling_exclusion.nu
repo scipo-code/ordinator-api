@@ -1,4 +1,3 @@
-# imperium status work-orders work-order-state df normal | from json | get work_orders | columns | shuffle | first 25 | to json
 
 let work_orders = [
     2400325774,
@@ -507,9 +506,6 @@ let work_orders = [
 fish -c "cargo run -p scheduling_system &"
 
 ^sleep 65
-imperium strategic scheduling df exclude ...$work_orders 2024-W47-48
-
-^sleep 60
 imperium strategic scheduling df exclude ...$work_orders 2024-W49-50
 
 ^sleep 60
@@ -520,6 +516,11 @@ imperium strategic scheduling df exclude ...$work_orders 2025-W1-2
 
 ^sleep 60
 imperium strategic scheduling df exclude ...$work_orders 2025-W3-4
+
+^sleep 60
+imperium strategic scheduling df exclude ...$work_orders 2025-W5-6
+
+^sleep 60
 
 ps | where name == "scheduling_syst" | kill $in.pid.0 
 

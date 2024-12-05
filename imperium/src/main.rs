@@ -1,15 +1,12 @@
 pub mod commands;
 
-use std::{borrow::Borrow, fs::File, io::Write};
+use std::{fs::File, io::Write};
 
 use anyhow::{bail, Context, Result};
 use clap::{Command, CommandFactory, Parser};
 use clap_complete::{generate, Generator, Shell};
 use commands::Commands;
-use reqwest::{
-    blocking::{Client, Response},
-    header::HeaderValue,
-};
+use reqwest::blocking::Client;
 use shared_types::SystemMessages;
 
 #[derive(Parser)]
@@ -22,7 +19,7 @@ pub struct Cli {
 }
 
 /// Main function of the imperium command line tool
-fn main() -> Result<()> {
+fn main() {
     let cli = Cli::parse();
 
     if let Some(generator) = cli.generator {
@@ -39,9 +36,17 @@ fn main() -> Result<()> {
     let system_message = commands::handle_command(cli, &client);
 
     let response =
-        send_http(&client, system_message).context("SystemMessage(s) was not handled correctly")?;
-    println!("{}", response);
-    Ok(())
+        send_http(&client, system_message).context("Imperium did not complete the Request");
+
+    if let Err(error) = response {
+        let error = format!("{:?}", error)
+            .replace("\\n", "\n")
+            .replace("\"", "");
+        eprintln!("{}", error);
+        std::process::exit(1);
+    } else {
+        println!("{}", response.unwrap());
+    }
 }
 
 fn send_http(client: &Client, system_message: SystemMessages) -> Result<String> {
@@ -59,7 +64,6 @@ fn send_http(client: &Client, system_message: SystemMessages) -> Result<String> 
         }
     };
 
-    dbg!(&system_message_json);
     let response = client
         .post(url)
         .body(system_message_json)
@@ -69,7 +73,8 @@ fn send_http(client: &Client, system_message: SystemMessages) -> Result<String> 
 
     if !response.status().is_success() {
         bail!(
-            "Error: No success on the imperium request: {:?}",
+            "{}, {}",
+            response.status(),
             response
                 .text()
                 .context("Could not extract the JSON from the Response")?

@@ -1,10 +1,13 @@
+use std::any::type_name;
 use std::collections::HashMap;
 
 use actix::Handler;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use colored::Colorize;
 use shared_types::orchestrator::WorkOrdersStatus;
+use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
 use shared_types::strategic::strategic_response_periods::StrategicResponsePeriods;
 use shared_types::strategic::strategic_response_scheduling::StrategicResponseScheduling;
 use shared_types::strategic::strategic_response_status::StrategicResponseStatus;
@@ -121,7 +124,16 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                 let scheduling_output: StrategicResponseScheduling = self
                     .strategic_algorithm
                     .update_scheduling_state(scheduling_message)
-                    .context("scheduling request message was not handled correct")?;
+                    .with_context(|| {
+                        format!(
+                            "{} was not Resolved",
+                            type_name::<StrategicSchedulingRequest>()
+                                .split("::")
+                                .last()
+                                .unwrap()
+                                .bright_red()
+                        )
+                    })?;
 
                 self.strategic_algorithm.calculate_objective_value();
                 event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value);
@@ -211,6 +223,7 @@ impl Handler<StateLink> for StrategicAgent {
     fn handle(&mut self, msg: StateLink, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
             StateLink::Strategic(work_order_changed) => {
+                panic!();
                 for work_order_number in work_order_changed {
                     let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
                     let work_order = scheduling_environment_guard
@@ -228,9 +241,34 @@ impl Handler<StateLink> for StrategicAgent {
                         .build_from_work_order(work_order, self.strategic_algorithm.periods())
                         .build();
 
-                    self.strategic_algorithm
+                    let old_strategic_parameter = self
+                        .strategic_algorithm
                         .strategic_parameters
                         .insert_strategic_parameter(work_order_number, strategic_parameter);
+
+                    if let Some(old_strategic_parameter) = old_strategic_parameter {
+                        assert!(
+                            old_strategic_parameter.excluded_periods
+                                == self
+                                    .strategic_algorithm
+                                    .strategic_parameters
+                                    .strategic_work_order_parameters
+                                    .get(&work_order_number)
+                                    .unwrap()
+                                    .excluded_periods
+                        );
+
+                        assert!(
+                            old_strategic_parameter.locked_in_period
+                                == self
+                                    .strategic_algorithm
+                                    .strategic_parameters
+                                    .strategic_work_order_parameters
+                                    .get(&work_order_number)
+                                    .unwrap()
+                                    .locked_in_period
+                        );
+                    }
                 }
                 Ok(())
             }
