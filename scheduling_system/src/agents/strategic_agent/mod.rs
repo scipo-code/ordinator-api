@@ -5,7 +5,9 @@ pub mod strategic_algorithm;
 
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborHoodSearch;
+use anyhow::Context;
 use anyhow::Result;
+use assert_functions::StrategicAssertions;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use actix::prelude::*;
@@ -31,9 +33,9 @@ pub struct StrategicAgent {
 }
 
 impl Actor for StrategicAgent {
-    type Context = Context<Self>;
+    type Context = actix::Context<Self>;
 
-    fn started(&mut self, ctx: &mut Context<Self>) {
+    fn started(&mut self, ctx: &mut actix::Context<Self>) {
         self.strategic_algorithm.populate_priority_queues();
         event!(
             Level::INFO,
@@ -46,7 +48,7 @@ impl Actor for StrategicAgent {
         ctx.notify(ScheduleIteration {})
     }
 
-    fn stopped(&mut self, _ctx: &mut Context<Self>) {
+    fn stopped(&mut self, _ctx: &mut actix::Context<Self>) {
         println!("SchedulerAgent is stopped");
     }
 }
@@ -75,22 +77,29 @@ impl Handler<ScheduleIteration> for StrategicAgent {
     #[instrument(level = "trace", skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         // So here we should load instead! Yes we should load in the data and then continue
+        self.assert_excluded_periods().expect("Assert failed");
         self.strategic_algorithm.load_shared_solution();
 
+        self.assert_excluded_periods().expect("Assert failed");
         self.strategic_algorithm.schedule_forced_work_orders();
 
+        self.assert_excluded_periods().expect("Assert failed");
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
 
         self.strategic_algorithm.calculate_objective_value();
         let old_strategic_solution = self.strategic_algorithm.strategic_solution.clone();
 
+        self.assert_excluded_periods().expect("Assert failed");
         self.strategic_algorithm
             .unschedule_random_work_orders(50, rng)
             .expect("Unscheduling random work order should always be possible");
 
+        self.assert_excluded_periods().expect("Assert failed");
         self.strategic_algorithm
             .schedule()
             .expect("StrategicAlgorithm.schedule method failed");
+
+        self.assert_excluded_periods().expect("Assert failed");
         // self.assert_aggregated_load().unwrap();
         let (tardiness, penalty) = self.strategic_algorithm.calculate_objective_value();
 
@@ -155,107 +164,6 @@ mod tests {
     use shared_types::scheduling_environment::WorkOrders;
 
     use shared_types::scheduling_environment::time_environment::period::Period;
-
-    // #[test]
-    // fn test_scheduler_agent_handle() {
-    //     let mut work_orders = WorkOrders::default();
-    //     let mut work_load = HashMap::new();
-
-    //     work_load.insert(Resources::MtnMech, 20.0);
-    //     work_load.insert(Resources::MtnElec, 40.0);
-    //     work_load.insert(Resources::Prodtech, 60.0);
-
-    //     let work_order = WorkOrder::default();
-
-    //     work_orders.insert(work_order.clone());
-
-    //     let start_date = Utc.with_ymd_and_hms(2023, 11, 20, 0, 0, 0).unwrap();
-    //     let end_date = start_date
-    //         + chrono::Duration::days(13)
-    //         + chrono::Duration::hours(23)
-    //         + chrono::Duration::minutes(59)
-    //         + chrono::Duration::seconds(59);
-    //     let period = Period::new(1, start_date, end_date);
-
-    //     let mut resource_capacity: HashMap<Resources, Periods> = HashMap::new();
-    //     let mut resource_loadings: HashMap<Resources, Periods> = HashMap::new();
-
-    //     let mut period_hash_map_150 = HashMap::new();
-    //     let mut period_hash_map_0 = HashMap::new();
-    //     period_hash_map_150.insert(period.clone(), 150.0);
-    //     period_hash_map_0.insert(period.clone(), 0.0);
-
-    //     resource_capacity.insert(Resources::MtnMech, Periods(period_hash_map_150.clone()));
-    //     resource_capacity.insert(Resources::MtnElec, Periods(period_hash_map_150.clone()));
-    //     resource_capacity.insert(Resources::Prodtech, Periods(period_hash_map_150.clone()));
-
-    //     resource_loadings.insert(Resources::MtnMech, Periods(period_hash_map_0.clone()));
-    //     resource_loadings.insert(Resources::MtnElec, Periods(period_hash_map_0.clone()));
-    //     resource_loadings.insert(Resources::Prodtech, Periods(period_hash_map_0.clone()));
-
-    //     let periods: Vec<Period> = vec![Period::from_str("2023-W47-48").unwrap()];
-
-    //     let scheduler_agent_algorithm = StrategicAlgorithm::new(
-    //         0.0,
-    //         StrategicResources::new(resource_capacity),
-    //         StrategicResources::new(resource_loadings),
-    //         PriorityQueues::new(),
-    //         OptimizedWorkOrders::new(HashMap::new()),
-    //         HashSet::new(),
-    //         periods,
-    //     );
-
-    //     let mut manual_resources = HashMap::new();
-
-    //     let mut period_hash_map = HashMap::new();
-    //     period_hash_map.insert(period.period_string(), 300.0);
-
-    //     manual_resources.insert(Resources::MtnMech, period_hash_map.clone());
-    //     manual_resources.insert(Resources::MtnElec, period_hash_map.clone());
-    //     manual_resources.insert(Resources::Prodtech, period_hash_map.clone());
-
-    //     let scheduler_agent = StrategicAgent::new(
-    //         Asset::DF,
-    //         Arc::new(Mutex::new(SchedulingEnvironment::default())),
-    //         scheduler_agent_algorithm,
-    //         None,
-    //     );
-
-    //     let strategic_addr = scheduler_agent.start();
-
-    //     let test_response = strategic_addr.send(TestRequest {});
-
-    //     assert_eq!(
-    //         *test_response
-    //             .manual_resources_capacity
-    //             .get(&Resources::MtnMech)
-    //             .unwrap()
-    //             .0
-    //             .get(&period)
-    //             .unwrap(),
-    //         150.0
-    //     );
-    //     assert_eq!(
-    //         *test_response
-    //             .manual_resources_capacity
-    //             .get(&Resources::MtnElec)
-    //             .unwrap()
-    //             .0
-    //             .get(&period)
-    //             .unwrap(),
-    //         150.0
-    //     );
-    //     assert_eq!(
-    //         *test_response
-    //             .manual_resources_capacity
-    //             .get(&Resources::Prodtech)
-    //             .unwrap()
-    //             .0
-    //             .get(&period)
-    //             .unwrap(),
-    //         150.0
-    //     );
-    // }
 
     #[test]
     fn test_extract_state_to_scheduler_overview() {
@@ -496,7 +404,7 @@ mod tests {
     impl Handler<TestRequest> for StrategicAgent {
         type Result = Option<TestResponse>;
 
-        fn handle(&mut self, _msg: TestRequest, _: &mut Context<Self>) -> Self::Result {
+        fn handle(&mut self, _msg: TestRequest, _: &mut actix::Context<Self>) -> Self::Result {
             Some(TestResponse {
                 objective_value: self.strategic_algorithm.strategic_solution.objective_value,
                 manual_resources_capacity: self

@@ -1,12 +1,13 @@
 pub mod strategic_parameters;
 pub mod assert_functions;
 
+use shared_types::scheduling_environment::time_environment::TimeEnvironment;
 use strum::IntoEnumIterator;
 use crate::agents::traits::LargeNeighborHoodSearch;
 use crate::agents::{SharedSolution, StrategicSolution, ArcSwapSharedSolution};
 use anyhow::{bail, Context, Result};
 use assert_functions::StrategicAlgorithmAssertions;
-use strategic_parameters::{StrategicParameterBuilder, StrategicParameters};
+use strategic_parameters::{StrategicParameter, StrategicParameterBuilder, StrategicParameters};
 use priority_queue::PriorityQueue;
 use rand::prelude::SliceRandom;
 use shared_types::scheduling_environment::WorkOrders;
@@ -21,6 +22,7 @@ use shared_types::strategic::strategic_request_scheduling_message::StrategicSche
 use shared_types::strategic::strategic_response_periods::StrategicResponsePeriods;use shared_types::strategic::strategic_response_resources::StrategicResponseResources;
 use shared_types::strategic::strategic_response_scheduling::StrategicResponseScheduling;
 use shared_types::{Asset, LoadOperation};
+use std::any::type_name;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::sync::Arc;
@@ -159,16 +161,16 @@ impl StrategicAlgorithm {
     pub fn schedule_forced_work_orders(&mut self) {
         let tactical_work_orders = &self.loaded_shared_solution.tactical.tactical_days;
         let mut work_order_numbers: Vec<(WorkOrderNumber, ForcedWorkOrder)> = vec![];
-        for (work_order_number, opt_work_order) in self.strategic_parameters.strategic_work_order_parameters.iter() {
+        for (work_order_number, strategic_parameter) in self.strategic_parameters.strategic_work_order_parameters.iter() {
             let scheduled_period = self.strategic_solution.strategic_periods.get(work_order_number).unwrap();
 
             let tactical_work_order = tactical_work_orders.get(work_order_number).expect("State should always be present except if the TacticalAgent has not had time to initialize yet");
 
-            if scheduled_period == &opt_work_order.locked_in_period {
+            if scheduled_period == &strategic_parameter.locked_in_period {
                 continue
             }
 
-            if opt_work_order.locked_in_period.is_some() {
+            if strategic_parameter.locked_in_period.is_some() {
                 work_order_numbers.push((*work_order_number, ForcedWorkOrder::Locked));
             } else if tactical_work_order.is_some() {
                 let first_day = tactical_work_order
@@ -212,6 +214,9 @@ impl StrategicAlgorithm {
 
                 let resource_loading: Work = self.strategic_loading(resource, period) + &loading_coming_from_the_tactical_agent;
 
+                if WorkOrderNumber(240350782) == work_order_number {
+                    panic!();
+                }
                 if *resource_needed > resource_capacity - &resource_loading {
                     return Some(work_order_number);
                 }
@@ -503,32 +508,39 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
 
                 let period = self.periods.iter().find(|period| {
                     period.period_string() == exclude_from_period.period_string().clone()
-                }).with_context(|| format!("{} was not found in the SchedulingEnvironment::TimeEnvironment", exclude_from_period.period_string))?;
+                }).with_context(|| format!("{} was not found in the {}", exclude_from_period.period_string, type_name::<TimeEnvironment>()))?;
                 
                 let mut number_of_work_orders = 0;
                 for work_order_number in exclude_from_period.work_order_number {
-                    let optimized_work_order = 
+                    let strategic_parameter = 
                         self
                             .strategic_parameters
                             .strategic_work_order_parameters
                             .get_mut(&work_order_number)
-                            .expect("The work order number was not found in the optimized work orders. The work order should have been initialized at the outset.");
+                            .with_context(|| format!("The {:?} was not found in the {:#?}. The {:#?} should have been initialized at creation.", work_order_number, type_name::<StrategicParameter>(), type_name::<StrategicParameter>()))?;
             
-                    optimized_work_order
+                    assert!(!strategic_parameter.excluded_periods.contains(self.strategic_solution.strategic_periods.get(&work_order_number).as_ref().unwrap().as_ref().unwrap()));
+                    strategic_parameter
                         .excluded_periods
                         .insert(period.clone());
 
-                    if let Some(locked_in_period) = &optimized_work_order.locked_in_period {
-                        if optimized_work_order.excluded_periods.contains(locked_in_period) {
-                            optimized_work_order.locked_in_period = None;
-                            let last_period = self.periods.iter().last().cloned();
-                            *self.strategic_solution.strategic_periods.get_mut(&work_order_number).unwrap() = last_period;
+                    
+                    // assert!(!strategic_parameter.excluded_periods.contains(self.strategic_solution.strategic_periods.get(&work_order_number).as_ref().unwrap().as_ref().unwrap()));
+
+                    if let Some(locked_in_period) = &strategic_parameter.locked_in_period {
+                        if strategic_parameter.excluded_periods.contains(locked_in_period) {
+                            strategic_parameter.locked_in_period = None;
                             event!(Level::INFO, "{:?} has been excluded from period {} and the locked in period has been removed", work_order_number, period.period_string());
                         }
                     }
 
+                    let last_period = self.periods.iter().last().cloned();
+                    self.strategic_solution.strategic_periods.insert(work_order_number, last_period);
+
+                    assert!(!strategic_parameter.excluded_periods.contains(self.strategic_solution.strategic_periods.get(&work_order_number).as_ref().unwrap().as_ref().unwrap()));
                     number_of_work_orders += 1;
                 }
+
                 Ok(StrategicResponseScheduling::new(number_of_work_orders, period.clone()))
             }
         }

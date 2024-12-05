@@ -4,6 +4,7 @@ use shared_types::strategic::StrategicResponse;
 use shared_types::SystemMessages;
 use shared_types::SystemResponses;
 use tracing::event;
+use tracing::instrument::WithSubscriber;
 use tracing::Level;
 
 use std::sync::Arc;
@@ -43,9 +44,15 @@ pub async fn http_to_scheduling_system(
                 .send(strategic_request.strategic_request_message)
                 .await;
 
-            let strategic_response_message = response
+            let strategic_response_message = match response
                 .expect("Failed to send StrategicRequestMessage")
-                .expect("StrategicAgent could not handle Request");
+            {
+                Ok(message) => message,
+                Err(e) => {
+                    let error = format!("{:?}", e.context("http request could not be completed"));
+                    return HttpResponse::BadRequest().body(error);
+                }
+            };
 
             let strategic_response = StrategicResponse::new(asset, strategic_response_message);
 

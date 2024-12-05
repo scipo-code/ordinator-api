@@ -505,9 +505,6 @@ let work_orders = [
 fish -c "cargo run -p scheduling_system &"
 
 ^sleep 65
-imperium strategic strategic-scheduling-environment-commands df user-status ...$work_orders --sece=true 
-
-^sleep 60
 imperium strategic strategic-scheduling-environment-commands df user-status ...$work_orders --sece=false 
 
 ^sleep 60
@@ -518,6 +515,9 @@ imperium strategic strategic-scheduling-environment-commands df user-status ...$
 
 ^sleep 60
 imperium strategic strategic-scheduling-environment-commands df user-status ...$work_orders --sece=true 
+
+^sleep 60
+imperium strategic strategic-scheduling-environment-commands df user-status ...$work_orders --sece=false 
 
 ^sleep 60
 ps | where name == "scheduling_syst" | kill $in.pid.0 

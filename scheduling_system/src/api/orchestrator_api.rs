@@ -103,36 +103,7 @@ impl Orchestrator {
         HttpResponse::Ok().json(system_responses)
     }
 
-    pub async fn handle_strategic_request(
-        &self,
-        strategic_request: StrategicRequest,
-    ) -> HttpResponse {
-        event!(Level::INFO, strategic_request = ?strategic_request);
-        let strategic_agent_addr = match self.agent_registries.get(strategic_request.asset()) {
-            Some(agent_registry) => agent_registry.strategic_agent_addr.clone(),
-            None => {
-                return HttpResponse::BadRequest()
-                    .json("STRATEGIC: STRATEGIC AGENT NOT INITIALIZED FOR THE ASSET");
-            }
-        };
-
-        let response = match strategic_agent_addr
-            .send(strategic_request.strategic_request_message.clone())
-            .await
-            .unwrap()
-        {
-            Ok(response) => response,
-            Err(e) => {
-                return HttpResponse::InternalServerError().body(e.root_cause().to_string());
-            }
-        };
-
-        let strategic_response =
-            StrategicResponse::new(strategic_request.asset().clone(), response);
-        let system_message = SystemResponses::Strategic(strategic_response);
-        HttpResponse::Ok().json(system_message)
-    }
-
+    // TODO: Move this out
     pub async fn handle_tactical_request(&self, tactical_request: TacticalRequest) -> HttpResponse {
         event!(Level::INFO, tactical_request = ?tactical_request);
         let agent_registry_for_asset = match self.agent_registries.get(&tactical_request.asset) {
@@ -153,6 +124,8 @@ impl Orchestrator {
         let system_responses = SystemResponses::Tactical(tactical_response);
         HttpResponse::Ok().json(system_responses)
     }
+
+    // TODO: Move this out
     pub async fn handle_supervisor_request(
         &self,
         supervisor_request: SupervisorRequest,
@@ -182,6 +155,8 @@ impl Orchestrator {
         let system_responses = SystemResponses::Supervisor(supervisor_response);
         HttpResponse::Ok().json(system_responses)
     }
+
+    // TODO: Move this out
     pub async fn handle_operational_request(
         &self,
         operational_request: OperationalRequest,
