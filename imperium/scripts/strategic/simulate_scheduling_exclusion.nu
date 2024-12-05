@@ -524,4 +524,4 @@ imperium strategic scheduling df exclude ...$work_orders 2025-W5-6
 
 ps | where name == "scheduling_syst" | kill $in.pid.0 
 
-cd ../generalized-multi-agent-maintenance-scheduling-system/ | just nushell-strategic-data-extract strategic_objective_value_exclusion_plot
+cd ../generalized-multi-agent-maintenance-scheduling-system/ | just nushell-strategic-data-extract strategic_objective_value_exclusion_plot.tex
