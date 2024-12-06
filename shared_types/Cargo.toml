@@ -13,6 +13,7 @@ atoi = "=1.0.0"
 chrono = { version = "*", features = ["serde", "arbitrary"] }
 chrono-tz = "*"
 clap = { version = "*", features = ["derive"] }
+colored ="*"
 proptest = "*"
 regex = "*"
 rust_decimal = "*"

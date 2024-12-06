@@ -2,28 +2,18 @@ use actix::prelude::*;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use colored::Colorize;
 use shared_types::orchestrator::OrchestratorRequest;
 
 use shared_types::orchestrator::WorkOrderResponse;
 use shared_types::orchestrator::WorkOrdersStatus;
-use shared_types::scheduling_environment::time_environment;
-use shared_types::scheduling_environment::time_environment::day::Day;
-use shared_types::scheduling_environment::time_environment::period::Period;
-use shared_types::scheduling_environment::work_order::operation::Work;
-use shared_types::scheduling_environment::worker_environment;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 
-use shared_types::scheduling_environment::worker_environment::resources::Resources;
-use shared_types::strategic::Periods;
-use shared_types::strategic::StrategicResources;
+use shared_types::scheduling_environment::worker_environment::WorkerEnvironment;
 use shared_types::strategic::StrategicResponseMessage;
 use shared_types::supervisor::SupervisorRequestMessage;
-use shared_types::tactical::Days;
-use shared_types::tactical::TacticalResources;
 use shared_types::Asset;
-use shared_types::SystemAgents;
 use std::collections::HashMap;
-use std::path::Path;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -40,7 +30,6 @@ use crate::init::agent_factory::AgentFactory;
 use crate::init::logging::LogHandles;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
-use dotenvy::dotenv;
 use shared_types::operational::operational_request_status::OperationalStatusRequest;
 use shared_types::operational::operational_response_status::OperationalStatusResponse;
 use shared_types::operational::{
@@ -444,9 +433,14 @@ impl Orchestrator {
 
     pub fn initialize_operational_agents(&mut self, asset: Asset) {
         let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
-        let worker_environment = &scheduling_environment_guard.worker_environment;
+        let worker_environment = &scheduling_environment_guard
+            .worker_environment
+            .system_agents
+            .operational
+            .clone();
+        drop(scheduling_environment_guard);
 
-        for operational_agent in &worker_environment.system_agents.operational {
+        for operational_agent in worker_environment.iter() {
             let id: Id = Id::new(
                 operational_agent.id.clone(),
                 operational_agent.resources.resources.clone(),
@@ -551,24 +545,29 @@ impl Orchestrator {
     // How should this asset function be implemented. The real question is what should be done about the
     // the files versus bitstream. One thing is for sure if the add_asset function should be reused
     // there can be no file handling inside of it.
-    pub fn add_asset(&mut self, asset: Asset, system_agents_bytes: Vec<u8>) {
-        let mut scheduling_environment_guard = &self.scheduling_environment.lock().unwrap();
+    pub fn add_asset(&mut self, asset: Asset, system_agents_bytes: Vec<u8>) -> Result<()> {
+        dbg!();
+        let scheduling_environment_guard = &mut self.scheduling_environment.lock().unwrap();
+        dbg!();
 
-        let mut worker_environment = scheduling_environment_guard.worker_environment;
+        scheduling_environment_guard
+            .worker_environment
+            .initialize_from_resource_configuration_file(system_agents_bytes)
+            .with_context(|| {
+                format!(
+                    "{} not correctly parsed",
+                    std::any::type_name::<WorkerEnvironment>().bright_red()
+                )
+            })?;
 
-        let time_environment = scheduling_environment_guard.time_environment;
+        dbg!();
+        let shared_solutions_arc_swap = AgentFactory::create_shared_solution_arc_swap();
 
-        worker_environment.initialize_from_resource_configuration_file(system_agents_bytes);
-
-        let strategic_tactical_solutions_arc_swap = AgentFactory::create_shared_solution_arc_swap();
-
+        dbg!();
         let strategic_agent_addr = self.agent_factory.build_strategic_agent(
             asset.clone(),
-            Some(
-                worker_environment
-                    .generate_strategic_resources(time_environment.strategic_periods()),
-            ),
-            strategic_tactical_solutions_arc_swap.clone(),
+            scheduling_environment_guard,
+            shared_solutions_arc_swap.clone(),
             NotifyOrchestrator(
                 self.agent_notify
                     .as_ref()
@@ -577,12 +576,21 @@ impl Orchestrator {
                     .expect("Weak reference part of initialization"),
             ),
         );
+        dbg!();
 
         let tactical_agent_addr = self.agent_factory.build_tactical_agent(
             asset.clone(),
             strategic_agent_addr.clone(),
-            Some(worker_environment.generate_tactical_resources(time_environment.tactical_days())),
-            strategic_tactical_solutions_arc_swap.clone(),
+            Some(
+                scheduling_environment_guard
+                    .worker_environment
+                    .generate_tactical_resources(
+                        scheduling_environment_guard
+                            .time_environment
+                            .tactical_days(),
+                    ),
+            ),
+            shared_solutions_arc_swap.clone(),
             NotifyOrchestrator(
                 self.agent_notify
                     .as_ref()
@@ -595,12 +603,12 @@ impl Orchestrator {
         let mut supervisor_addrs = HashMap::<Id, Addr<SupervisorAgent>>::new();
         let number_of_operational_agents = Arc::new(AtomicU64::new(0));
 
-        let resources_config_string = std::fs::read_to_string(toml_agents_path).unwrap();
-
-        let resources_config: SystemAgents = toml::from_str(&resources_config_string).unwrap();
-        // TODO: This is not how it should be initialized! It should be done separately.
-        for supervisor in resources_config.supervisors {
-            let id = Id::new("default".to_string(), vec![], Some(supervisor));
+        for supervisor in &scheduling_environment_guard
+            .worker_environment
+            .system_agents
+            .supervisors
+        {
+            let id = Id::new("default".to_string(), vec![], Some(supervisor.clone()));
 
             let supervisor_addr = self
                 .agent_factory
@@ -608,7 +616,7 @@ impl Orchestrator {
                     asset.clone(),
                     id.clone(),
                     tactical_agent_addr.clone(),
-                    strategic_tactical_solutions_arc_swap.clone(),
+                    shared_solutions_arc_swap.clone(),
                     Arc::clone(&number_of_operational_agents),
                     NotifyOrchestrator(
                         self.agent_notify
@@ -630,8 +638,9 @@ impl Orchestrator {
             number_of_operational_agents,
         );
         self.arc_swap_shared_solutions
-            .insert(asset.clone(), strategic_tactical_solutions_arc_swap);
+            .insert(asset.clone(), shared_solutions_arc_swap);
 
         self.agent_registries.insert(asset, agent_registry);
+        Ok(())
     }
 }

@@ -44,6 +44,7 @@ impl Actor for StrategicAgent {
         self.strategic_algorithm
             .schedule()
             .expect("StrategicAlgorithm.schedule() method failed");
+
         ctx.notify(ScheduleIteration {})
     }
 

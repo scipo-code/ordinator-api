@@ -9,8 +9,8 @@ use shared_types::tactical::{Days, TacticalResources};
 use shared_types::Asset;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::AtomicU64;
-use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::{Arc, MutexGuard};
 
 use crate::agents::operational_agent::algorithm::OperationalAlgorithm;
 use crate::agents::operational_agent::{OperationalAgent, OperationalAgentBuilder};
@@ -50,39 +50,30 @@ impl AgentFactory {
     pub fn build_strategic_agent(
         &self,
         asset: Asset,
-        strategic_resources: Option<StrategicResources>,
-        strategic_tactical_optimized_work_orders: Arc<ArcSwapSharedSolution>,
+        scheduling_environment_guard: &MutexGuard<SchedulingEnvironment>,
+        shared_solution_arc_swap: Arc<ArcSwapSharedSolution>,
         sender_for_orchestrator: NotifyOrchestrator,
     ) -> Addr<StrategicAgent> {
-        let cloned_work_orders = self
-            .scheduling_environment
-            .lock()
-            .unwrap()
-            .work_orders
-            .clone();
+        let cloned_work_orders = scheduling_environment_guard.work_orders.clone();
 
         // TODO: We should not clone here! We do not want periods in the strategic agent. I think
-        let cloned_periods = self
-            .scheduling_environment
-            .lock()
-            .unwrap()
+        let cloned_periods = scheduling_environment_guard
             .time_environment
             .strategic_periods()
             .clone();
-
-        let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
         let period_locks = HashSet::new();
 
         // period_locks.insert(locked_scheduling_environment.periods()[0].clone());
         // period_locks.insert(locked_scheduling_environment.get_periods()[1].clone());
 
-        let mut resources_capacity =
-            initialize_strategic_resources(&scheduling_environment_guard, Work::from(0.0));
+        // DEBUG: I think that you need to start here! I do not see another way of doing this than stopping now!
+        let resources_capacity =
 
-        if let Some(resources) = strategic_resources {
-            resources_capacity.update_resources(resources);
-        }
+            &scheduling_environment_guard.worker_environment.initialize_from_resource_configuration_file(), Work::from(0.0));
+
+
+        
 
         let resources_loading =
             initialize_strategic_resources(&scheduling_environment_guard, Work::from(0.0));
@@ -90,7 +81,7 @@ impl AgentFactory {
         let mut strategic_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
             StrategicParameters::new(HashMap::new(), resources_capacity),
-            strategic_tactical_optimized_work_orders,
+            shared_solution_arc_swap,
             period_locks,
             scheduling_environment_guard
                 .time_environment
@@ -241,7 +232,6 @@ impl AgentFactory {
             let operational_agent_addr = OperationalAgentBuilder::new(
                 operational_id,
                 arc_scheduling_environment,
-                operational_configuration,
                 operational_algorithm,
                 None,
                 supervisor_agent_addr,

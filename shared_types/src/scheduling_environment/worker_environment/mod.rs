@@ -3,6 +3,8 @@ pub mod crew;
 pub mod resources;
 pub mod worker;
 
+use anyhow::{Context, Result};
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use strum::IntoEnumIterator;
@@ -38,12 +40,18 @@ impl WorkerEnvironment {
         &self.work_centers
     }
 
-    pub fn initialize_from_resource_configuration_file(&mut self, system_agents_bytes: Vec<u8>) {
-        let contents = std::str::from_utf8(&system_agents_bytes).unwrap();
+    pub fn initialize_from_resource_configuration_file(
+        &mut self,
+        system_agents_bytes: Vec<u8>,
+    ) -> Result<()> {
+        let contents = std::str::from_utf8(&system_agents_bytes)
+            .context("configuration file bitstream not read correct")?;
 
-        let system_agents: SystemAgents = toml::from_str(&contents).unwrap();
+        let system_agents: SystemAgents = toml::from_str(contents)
+            .with_context(|| format!("configuration file string could not be parsed into {}. Likely a toml parsing error", std::any::type_name::<SystemAgents>().bright_red()))?;
 
         self.system_agents = system_agents;
+        Ok(())
     }
 
     pub fn generate_strategic_resources(&self, periods: &[Period]) -> StrategicResources {
@@ -64,7 +72,7 @@ impl WorkerEnvironment {
 
         let mut strategic_resources_inner = HashMap::<Resources, Periods>::new();
         for operational_agent in &self.system_agents.operational {
-            for (i, period) in periods.clone().iter().enumerate() {
+            for (i, period) in periods.iter().enumerate() {
                 let resource_periods = strategic_resources_inner
                     .entry(
                         operational_agent
