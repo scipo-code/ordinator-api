@@ -1,5 +1,7 @@
 fish -c "cargo run -p scheduling_system &"
 
+
+
 ^sleep 105
 imperium strategic resources df load-capacity-file imperium/scripts/strategic/resource_configurations/low_resources.toml
 
@@ -13,3 +15,5 @@ imperium strategic resources df load-capacity-file imperium/scripts/strategic/re
 ps | where name == "scheduling_syst" | kill $in.pid.0 
 
 cd ../generalized-multi-agent-maintenance-scheduling-system/ | just nushell-strategic-data-extract strategic_objective_value_resource_addition_plot.tex
+
+ 

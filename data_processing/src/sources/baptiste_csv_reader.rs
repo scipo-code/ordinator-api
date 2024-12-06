@@ -35,7 +35,8 @@ impl SchedulingEnvironmentFactory<TotalSap> for SchedulingEnvironment {
 
         let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
 
-        let work_orders = load_csv_data(data_source.file_path, &time_environment.strategic_periods);
+        let work_orders =
+            load_csv_data(data_source.file_path, time_environment.strategic_periods());
 
         let scheduling_environment =
             SchedulingEnvironment::new(work_orders, worker_environment, time_environment);

@@ -149,8 +149,8 @@ impl SupervisorAgent {
         let supervisor_periods = &scheduling_environment
             .lock()
             .expect("SchedulingEnvironment lock poisoned")
-            .time_environment()
-            .strategic_periods[0..=number_of_supervisor_periods as usize]
+            .time_environment
+            .strategic_periods()[0..=number_of_supervisor_periods as usize]
             .to_vec();
 
         Ok(SupervisorAgent {
@@ -219,7 +219,7 @@ impl SupervisorAgent {
             .expect("Could not acquire SchedulingEnvironment lock");
 
         let work_order_activities: Vec<_> = locked_scheduling_environment
-            .work_orders()
+            .work_orders
             .inner
             .iter()
             .filter(|(won, _)| entering_work_orders_from_strategic.contains(won))

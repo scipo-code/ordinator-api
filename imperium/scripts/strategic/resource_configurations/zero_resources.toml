@@ -1,0 +1,20 @@
+[[supervisors]]
+id = "main"
+number_of_supervisor_periods = 3
+
+# [[supervisors]]
+# id = "supervisor-second"
+
+################################
+###          MTN-ELEC        ###
+################################
+[[operational]]
+id = "OP-01-001"
+resources.resources = [ "MEDIC" ]
+hours_per_day = 0.0
+operational_configuration.off_shift_interval = [19:00:00, 07:00:00]
+operational_configuration.break_interval = [11:00:00, 12:00:00]
+operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
+operational_configuration.availability.start_date = 2024-12-02T07:00:00Z
+operational_configuration.availability.end_date = 2024-12-15T15:00:00Z
+

@@ -18,8 +18,12 @@ pub fn initialize_scheduling_environment(
     )
     .expect("No data file was provided.");
 
-    scheduling_environment
-        .initialize_work_orders(&scheduling_environment.clone_strategic_periods());
+    scheduling_environment.initialize_work_orders(
+        &scheduling_environment
+            .time_environment
+            .strategic_periods()
+            .clone(),
+    );
     scheduling_environment.initialize_worker_environment();
 
     info!("{}", scheduling_environment);

@@ -105,7 +105,7 @@ pub fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
             orchestrator_commands,
         } => orchestrator_commands.execute(client),
 
-        Commands::Strategic { strategic_commands } => strategic_commands.execute(client),
+        Commands::Strategic { strategic_commands } => strategic_commands.execute(),
 
         Commands::Tactical { tactical_commands } => tactical_commands.execute(client),
 

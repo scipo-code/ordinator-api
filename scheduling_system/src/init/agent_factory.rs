@@ -39,11 +39,11 @@ impl AgentFactory {
         }
     }
 
-    pub fn create_arc_swap_for_strategic_tactical() -> Arc<ArcSwapSharedSolution> {
-        let strategic_tactical_solution_arc_swap = SharedSolution::default();
+    pub fn create_shared_solution_arc_swap() -> Arc<ArcSwapSharedSolution> {
+        let shared_solution_arc_swap = SharedSolution::default();
 
         Arc::new(ArcSwapSharedSolution(ArcSwap::from(Arc::new(
-            strategic_tactical_solution_arc_swap,
+            shared_solution_arc_swap,
         ))))
     }
 
@@ -58,14 +58,19 @@ impl AgentFactory {
             .scheduling_environment
             .lock()
             .unwrap()
-            .clone_work_orders();
+            .work_orders
+            .clone();
+
+        // TODO: We should not clone here! We do not want periods in the strategic agent. I think
         let cloned_periods = self
             .scheduling_environment
             .lock()
             .unwrap()
-            .clone_strategic_periods();
+            .time_environment
+            .strategic_periods()
+            .clone();
 
-        let locked_scheduling_environment = self.scheduling_environment.lock().unwrap();
+        let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
         let period_locks = HashSet::new();
 
@@ -73,21 +78,24 @@ impl AgentFactory {
         // period_locks.insert(locked_scheduling_environment.get_periods()[1].clone());
 
         let mut resources_capacity =
-            initialize_strategic_resources(&locked_scheduling_environment, Work::from(0.0));
+            initialize_strategic_resources(&scheduling_environment_guard, Work::from(0.0));
 
         if let Some(resources) = strategic_resources {
             resources_capacity.update_resources(resources);
         }
 
         let resources_loading =
-            initialize_strategic_resources(&locked_scheduling_environment, Work::from(0.0));
+            initialize_strategic_resources(&scheduling_environment_guard, Work::from(0.0));
 
         let mut strategic_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
             StrategicParameters::new(HashMap::new(), resources_capacity),
             strategic_tactical_optimized_work_orders,
             period_locks,
-            locked_scheduling_environment.clone_strategic_periods(),
+            scheduling_environment_guard
+                .time_environment
+                .strategic_periods()
+                .clone(),
         );
 
         strategic_algorithm.strategic_solution.strategic_loadings = resources_loading;
@@ -98,7 +106,7 @@ impl AgentFactory {
             &asset,
         );
 
-        drop(locked_scheduling_environment);
+        drop(scheduling_environment_guard);
 
         let (sender, receiver) = std::sync::mpsc::channel();
 
@@ -142,7 +150,10 @@ impl AgentFactory {
             initialize_tactical_resources(&scheduling_environment_guard, Work::from(0.0));
 
         let mut tactical_algorithm = TacticalAlgorithm::new(
-            scheduling_environment_guard.tactical_days().clone(),
+            scheduling_environment_guard
+                .time_environment
+                .tactical_days()
+                .clone(),
             tactical_resources_capacity,
             tactical_resources_loading,
             strategic_tactical_optimized_work_orders,
@@ -202,7 +213,7 @@ impl AgentFactory {
     pub fn build_operational_agent(
         &self,
         operational_id: Id,
-        operational_configuration: OperationalConfiguration,
+        operational_configuration: &OperationalConfiguration,
         supervisor_agent_addr: HashMap<Id, Addr<SupervisorAgent>>,
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
         notify_orchestrator: NotifyOrchestrator,
@@ -212,7 +223,7 @@ impl AgentFactory {
         let arc_scheduling_environment = self.scheduling_environment.clone();
 
         let operational_algorithm =
-            OperationalAlgorithm::new(operational_configuration.clone(), arc_swap_shared_solution);
+            OperationalAlgorithm::new(operational_configuration, arc_swap_shared_solution);
 
         let mut shared_solution_clone = (**operational_algorithm.loaded_shared_solution).clone();
 
@@ -251,12 +262,16 @@ fn initialize_strategic_resources(
 ) -> StrategicResources {
     let mut resource_capacity: HashMap<Resources, Periods> = HashMap::new();
     for resource in scheduling_environment
-        .worker_environment()
+        .worker_environment
         .get_work_centers()
         .iter()
     {
         let mut periods = HashMap::new();
-        for period in scheduling_environment.periods().iter() {
+        for period in scheduling_environment
+            .time_environment
+            .strategic_periods()
+            .iter()
+        {
             periods.insert(period.clone(), start_value.clone());
         }
         resource_capacity.insert(resource.clone(), Periods(periods));
@@ -270,12 +285,16 @@ fn initialize_tactical_resources(
 ) -> TacticalResources {
     let mut resource_capacity: HashMap<Resources, Days> = HashMap::new();
     for resource in scheduling_environment
-        .worker_environment()
+        .worker_environment
         .get_work_centers()
         .iter()
     {
         let mut days = HashMap::new();
-        for day in scheduling_environment.tactical_days().iter() {
+        for day in scheduling_environment
+            .time_environment
+            .tactical_days()
+            .iter()
+        {
             days.insert(day.clone(), start_value.clone());
         }
         resource_capacity.insert(resource.clone(), Days::new(days));

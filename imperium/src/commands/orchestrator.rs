@@ -8,12 +8,13 @@ use shared_types::scheduling_environment::time_environment::period::Period;
 
 use shared_types::scheduling_environment::work_order::status_codes::UserStatusCodes;
 use shared_types::scheduling_environment::work_order::unloading_point::UnloadingPoint;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::{Resources, Shift};
 use shared_types::{
     orchestrator::OrchestratorRequest, scheduling_environment::worker_environment::resources::Id,
     SystemMessages,
 };
-use shared_types::{Asset, TomlAgents, TomlSupervisor};
+use shared_types::{Asset, InputSupervisor, SystemAgents};
 
 #[derive(Subcommand, Debug)]
 pub enum OrchestratorCommands {
@@ -29,14 +30,17 @@ pub enum OrchestratorCommands {
     #[clap(subcommand)]
     OperationalAgent(OperationalAgentCommands),
     /// Load a default setup
-    InitializeCrewFromFile { asset: Asset, resource_toml: String },
+    InitializeCrewFromFile {
+        asset: Asset,
+        resource_configuration_file: String,
+    },
 }
 
 #[derive(Subcommand, Debug)]
 pub enum SchedulingEnvironmentCommands {
     /// Access the commands to change the work orders (The Orchestrator will ensure that each relevant agent updates its state)
     WorkOrders {
-        work_order_number: u64,
+        work_order_number: WorkOrderNumber,
         #[clap(subcommand)]
         work_order_commands: WorkOrderCommands,
     },
@@ -145,7 +149,7 @@ impl OrchestratorCommands {
                         supervisor_id,
                         number_of_supervisor_periods,
                     } => {
-                        let toml_supervisor = TomlSupervisor {
+                        let toml_supervisor = InputSupervisor {
                             id: supervisor_id,
                             resource,
                             number_of_supervisor_periods,
@@ -196,10 +200,10 @@ impl OrchestratorCommands {
             }
             OrchestratorCommands::InitializeCrewFromFile {
                 asset,
-                resource_toml,
+                resource_configuration_file: resource_toml,
             } => {
                 let contents = std::fs::read_to_string(resource_toml).unwrap();
-                let config: TomlAgents = toml::from_str(&contents).unwrap();
+                let config: SystemAgents = toml::from_str(&contents).unwrap();
 
                 for agent in config.operational {
                     let create_operational_agent: OrchestratorRequest =

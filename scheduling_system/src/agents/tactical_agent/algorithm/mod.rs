@@ -187,7 +187,7 @@ impl TacticalAlgorithm {
         asset: &shared_types::Asset,
     ) {
         let work_orders = scheduling_environment_guard
-            .work_orders()
+            .work_orders
             .work_orders_by_asset(asset);
 
         self.load_shared_solution();
