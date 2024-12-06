@@ -2,21 +2,23 @@ mod agents;
 mod api;
 mod init;
 
+use anyhow::Result;
 use std::{
     fs::File,
-    io::{self, Read, Write},
+    io::{Read, Write},
     path::Path,
     sync::{Arc, Mutex},
 };
 
 use actix_web::{guard, web, App, HttpServer};
 use agents::orchestrator::Orchestrator;
+use anyhow::Context;
 
 use crate::init::logging;
 use shared_types::{scheduling_environment::SchedulingEnvironment, Asset};
 
 #[actix_web::main]
-async fn main() -> Result<(), io::Error> {
+async fn main() -> std::io::Result<()> {
     dotenvy::dotenv().unwrap();
 
     let (log_handles, _logging_guard) = logging::setup_logging();
@@ -50,17 +52,29 @@ async fn main() -> Result<(), io::Error> {
     );
     let mut system_agents = File::open(system_agents_configuration_toml)?;
     let mut system_agent_bytes: Vec<u8> = Vec::new();
+
     system_agents.read_to_end(&mut system_agent_bytes)?;
 
+    dbg!();
     orchestrator
         .lock()
         .unwrap()
-        .add_asset(asset.clone(), system_agent_bytes);
+        .add_asset(asset.clone(), system_agent_bytes)
+        .with_context(|| {
+            format!(
+                "{}: {} could not be added",
+                std::any::type_name::<Asset>(),
+                asset
+            )
+        })
+        .expect("Could not add asset");
+    dbg!();
 
     orchestrator
         .lock()
         .unwrap()
         .initialize_operational_agents(asset);
+    dbg!();
     // WARN FINISH: USED FOR CONVENIENCE
 
     HttpServer::new(move || {

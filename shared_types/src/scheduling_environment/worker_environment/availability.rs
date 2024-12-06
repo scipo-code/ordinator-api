@@ -1,13 +1,17 @@
 use chrono::DateTime;
 use chrono::TimeDelta;
 use chrono::Utc;
+use serde::de;
 use serde::Deserialize;
 
+use serde::Deserializer;
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Availability {
+    #[serde(deserialize_with = "chrono_datetime_deserialize")]
     pub start_date: chrono::DateTime<Utc>,
+    #[serde(deserialize_with = "chrono_datetime_deserialize")]
     pub end_date: chrono::DateTime<Utc>,
 }
 
@@ -22,6 +26,16 @@ impl Availability {
     pub fn duration(&self) -> TimeDelta {
         self.end_date - self.start_date
     }
+}
+
+fn chrono_datetime_deserialize<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let datetime_str: String = Deserialize::deserialize(deserializer)?;
+
+    let datetime = DateTime::parse_from_rfc3339(&datetime_str).map_err(de::Error::custom)?;
+    Ok(datetime.to_utc())
 }
 
 #[derive(Debug, Serialize, Deserialize)]

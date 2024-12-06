@@ -224,7 +224,7 @@ pub struct InputSupervisor {
     pub number_of_supervisor_periods: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InputOperational {
     pub id: String,
     pub resources: TomlResourcesArray,
@@ -232,7 +232,7 @@ pub struct InputOperational {
     pub operational_configuration: OperationalConfiguration,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TomlResourcesArray {
     pub resources: Vec<Resources>,
 }
@@ -279,6 +279,8 @@ pub enum LoadOperation {
 #[cfg(test)]
 mod tests {
 
+    use chrono::NaiveTime;
+
     use crate::{scheduling_environment::worker_environment::resources::Resources, SystemAgents};
 
     #[test]
@@ -299,42 +301,28 @@ mod tests {
             operational_configuration.availability.end_date = 2024-05-30T15:00:00Z
         "#;
 
-        let toml_agents: SystemAgents = toml::from_str(toml_operational_string).unwrap();
+        let system_agents: SystemAgents = toml::from_str(toml_operational_string).unwrap();
 
-        assert_eq!(toml_agents.operational[0].id, "OP-01-001".to_string());
+        assert_eq!(system_agents.operational[0].id, "OP-01-001".to_string());
 
         assert_eq!(
-            toml_agents.operational[0].resources.resources,
+            system_agents.operational[0].resources.resources,
             [Resources::MtnElec]
         );
 
         assert_eq!(
-            toml_agents.operational[0]
+            system_agents.operational[0]
                 .operational_configuration
                 .off_shift_interval
-                .start
-                .time
-                .unwrap(),
-            toml::value::Time {
-                hour: 19,
-                minute: 0,
-                second: 0,
-                nanosecond: 0
-            }
+                .start,
+            NaiveTime::from_hms_opt(19, 0, 0).unwrap(),
         );
         assert_eq!(
-            toml_agents.operational[0]
+            system_agents.operational[0]
                 .operational_configuration
                 .off_shift_interval
-                .end
-                .time
-                .unwrap(),
-            toml::value::Time {
-                hour: 7,
-                minute: 0,
-                second: 0,
-                nanosecond: 0
-            }
+                .end,
+            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
         );
     }
 }
