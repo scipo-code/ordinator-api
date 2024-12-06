@@ -24,7 +24,9 @@ pub fn initialize_scheduling_environment(
             .strategic_periods()
             .clone(),
     );
-    scheduling_environment.initialize_worker_environment();
+    // scheduling_environment
+    //     .worker_environment
+    //     .initialize_worker_environment();
 
     info!("{}", scheduling_environment);
     scheduling_environment

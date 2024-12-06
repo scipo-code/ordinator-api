@@ -2614,6 +2614,7 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "clap",
+ "colored",
  "proptest",
  "regex",
  "rust_decimal",

@@ -1,6 +1,6 @@
 use actix::Message;
 use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize};
 
 use crate::{
     scheduling_environment::worker_environment::{availability::Availability, resources::Id},
@@ -71,7 +71,7 @@ pub enum OperationalResponse {
     NoOperationalAgentFound(String),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct OperationalConfiguration {
     pub availability: Availability,
     pub break_interval: TimeInterval,
@@ -97,8 +97,18 @@ impl OperationalConfiguration {
 
 #[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone)]
 pub struct TimeInterval {
+    #[serde(deserialize_with = "deserialize_time_interval")]
     pub start: NaiveTime,
+    #[serde(deserialize_with = "deserialize_time_interval")]
     pub end: NaiveTime,
+}
+
+fn deserialize_time_interval<'de, D>(deserializer: D) -> Result<NaiveTime, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let time_str: String = Deserialize::deserialize(deserializer)?;
+    NaiveTime::parse_from_str(&time_str, "%H:%M:%S").map_err(de::Error::custom)
 }
 
 impl Default for TimeInterval {
