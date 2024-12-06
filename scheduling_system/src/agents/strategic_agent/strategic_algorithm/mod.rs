@@ -429,20 +429,18 @@ impl LargeNeighborHoodSearch for StrategicAlgorithm {
     {
     //tracing::info!("update_resources_state called");
         match strategic_resources_message {
-            StrategicResourceRequest::SetResources(manual_resources) => {
+            StrategicResourceRequest::SetResources{resources, period_imperium, capacity} => {
                 let mut count = 0;
-                for (resource, periods) in manual_resources.inner {
-                    for (period_imperium, capacity) in periods.0 {
-                        let period = self.periods.iter().find(|period| **period == period_imperium).expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
-                        self.strategic_parameters. 
-                            strategic_capacity
-                            .inner
-                            .get_mut(&resource.clone())
-                            .expect("The resource was not found in the self.resources_capacity vector. Somehow a message was sent form the frontend without the resource being initialized correctly.")
-                            .0
-                            .insert(period.clone(), capacity);
-                        count += 1;
-                    }
+                for resource in resources {
+                    let period = self.periods.iter().find(|period| **period == period_imperium).expect("The period was not found in the self.periods vector. Somehow a message was sent form the frontend without the period being initialized correctly.");
+                    self.strategic_parameters. 
+                        strategic_capacity
+                        .inner
+                        .get_mut(&resource.clone())
+                        .expect("The resource was not found in the self.resources_capacity vector. Somehow a message was sent form the frontend without the resource being initialized correctly.")
+                        .0
+                        .insert(period.clone(), Work::from(capacity));
+                    count += 1;
                 }
 
                 Ok(StrategicResponseResources::UpdatedResources(count))
@@ -708,7 +706,11 @@ mod tests {
         let strategic_scheduling_message = StrategicSchedulingRequest::Schedule(
             ScheduleChange::new(vec![work_order_number], "2023-W47-48".to_string()),
         );
-        let strategic_resources_message = StrategicResourceRequest::new_test();
+
+
+        
+        let strategic_resources_message = 
+            StrategicResourceRequest::SetResources { resources: vec![Resources::MtnMech] , period_imperium: period.clone(), capacity:  150.0};
 
         assert_eq!(
             strategic_algorithm.strategic_parameters.strategic_capacity.inner

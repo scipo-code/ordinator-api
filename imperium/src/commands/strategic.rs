@@ -1,24 +1,17 @@
-use std::collections::HashMap;
 use std::str::FromStr;
 
 use clap::Args;
 use clap::Subcommand;
-use reqwest::blocking::Client;
-use shared_types::scheduling_environment::time_environment::period::Period;
-use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
 use shared_types::strategic::strategic_request_resources_message::StrategicResourceRequest;
 use shared_types::strategic::strategic_request_scheduling_message::ScheduleChange;
 use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
 use shared_types::strategic::strategic_request_status_message::StrategicStatusMessage;
-use shared_types::strategic::Periods;
 use shared_types::strategic::StrategicRequest;
 use shared_types::strategic::StrategicRequestMessage;
-use shared_types::strategic::StrategicResources;
 use shared_types::strategic::StrategicSchedulingEnvironmentCommands;
 use shared_types::Asset;
 use shared_types::SystemMessages;
-use shared_types::TomlAgents;
 
 #[derive(Subcommand, Debug)]
 pub enum StrategicCommands {
@@ -70,15 +63,11 @@ pub enum ResourceCommands {
     },
     /// Set the capacity of a resource
     SetCapacity {
-        resource: Resources,
+        /// Format YYYY-Wxx-xx (e.g. 2024-W41-42)
         period: String,
+        resource: Vec<Resources>,
         capacity: f64,
     },
-
-    /// Set the capacity policy of a resource (used for operation)
-    SetCapacityPolicy { resource: Resources, capacity: f64 },
-    /// Set the capacity policy to default (used for testing)
-    LoadCapacityFile { toml_path: String },
 }
 
 #[derive(Subcommand, Debug)]
@@ -104,7 +93,7 @@ pub struct WorkOrderSchedule {
 }
 
 impl StrategicCommands {
-    pub fn execute(self, client: &Client) -> SystemMessages {
+    pub fn execute(self) -> SystemMessages {
         match self {
             StrategicCommands::Status {
                 asset,
@@ -276,47 +265,6 @@ impl StrategicCommands {
                     capacity: _,
                 } => {
                     todo!()
-                    // let mut resources = HashMap::new();
-
-                    // let mut periods: HashMap<Period, f64> = HashMap::new();
-
-                    // periods.insert(period.clone(), *capacity);
-                    // resources.insert(resource.clone(), periods);
-
-                    // let strategic_resources_message =
-                    //     StrategicResourceMessage::new_set_resources(resources);
-
-                    // let strategic_request_message =
-                    //     StrategicRequestMessage::Resources(strategic_resources_message);
-
-                    // let strategic_request = StrategicRequest {
-                    //     asset: asset.clone(),
-                    //     strategic_request_message,
-                    // };
-
-                    // SystemMessages::Strategic(strategic_request)
-                }
-                ResourceCommands::SetCapacityPolicy {
-                    resource: _,
-                    capacity: _,
-                } => {
-                    todo!()
-                }
-                ResourceCommands::LoadCapacityFile { toml_path } => {
-                    let resources = generate_manual_resources(client, toml_path.clone());
-
-                    let strategic_resources_message =
-                        StrategicResourceRequest::new_set_resources(resources);
-
-                    let strategic_request_message =
-                        StrategicRequestMessage::Resources(strategic_resources_message);
-
-                    let strategic_request = StrategicRequest {
-                        asset: asset.clone(),
-                        strategic_request_message,
-                    };
-
-                    SystemMessages::Strategic(strategic_request)
                 }
             },
             StrategicCommands::StrategicSchedulingEnvironmentCommands {
@@ -335,49 +283,4 @@ impl StrategicCommands {
             }
         }
     }
-}
-
-// TODO: This really has to leave the system.
-fn generate_manual_resources(client: &Client, toml_path: String) -> StrategicResources {
-    let periods: Vec<Period> = crate::commands::orchestrator::strategic_periods(client);
-    let contents = std::fs::read_to_string(toml_path).unwrap();
-
-    let config: TomlAgents = toml::from_str(&contents).unwrap();
-
-    let _hours_per_day = 6.0;
-    let days_in_period = 13.0;
-
-    let gradual_reduction = |i: usize| -> f64 {
-        if i == 0 {
-            1.0
-        } else if i == 1 {
-            0.9
-        } else if i == 2 {
-            0.8
-        } else {
-            0.6
-        }
-    };
-
-    let mut resources_hash_map = HashMap::<Resources, Periods>::new();
-    for operational_agent in config.operational {
-        for (i, period) in periods.clone().iter().enumerate() {
-            let resource_periods = resources_hash_map
-                .entry(
-                    operational_agent
-                        .resources
-                        .resources
-                        .first()
-                        .cloned()
-                        .unwrap(),
-                )
-                .or_insert(Periods(HashMap::new()));
-
-            *resource_periods.0.entry(period.clone()).or_insert_with(|| {
-                Work::from(operational_agent.hours_per_day * days_in_period * gradual_reduction(i))
-            }) +=
-                Work::from(operational_agent.hours_per_day * days_in_period * gradual_reduction(i))
-        }
-    }
-    StrategicResources::new(resources_hash_map)
 }

@@ -11,10 +11,9 @@ use shared_types::scheduling_environment::{
     work_order::{operation::ActivityNumber, WorkOrderNumber},
     worker_environment::resources::Id,
 };
+use shared_types::supervisor::{SupervisorRequest, SupervisorResponse};
 use shared_types::{
     orchestrator::OrchestratorRequest,
-    strategic::{StrategicRequest, StrategicResponse},
-    supervisor::{SupervisorRequest, SupervisorResponse},
     tactical::{TacticalRequest, TacticalResponse},
     SystemResponses,
 };
@@ -67,7 +66,7 @@ impl Orchestrator {
 
                 let scheduling_environment_lock = self.scheduling_environment.lock().unwrap();
 
-                let work_orders = scheduling_environment_lock.work_orders().clone();
+                let work_orders = scheduling_environment_lock.work_orders.clone();
                 drop(scheduling_environment_lock);
 
                 let xlsx_filename = create_excel_dump(

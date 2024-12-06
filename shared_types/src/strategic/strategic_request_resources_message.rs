@@ -1,17 +1,18 @@
-use std::{collections::HashMap, str::FromStr};
-
 use serde::{Deserialize, Serialize};
 
 use crate::scheduling_environment::{
-    time_environment::period::Period, work_order::operation::Work,
-    worker_environment::resources::Resources,
+    time_environment::period::Period, worker_environment::resources::Resources,
 };
 
-use super::{Periods, StrategicResources, TimePeriod};
+use super::TimePeriod;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum StrategicResourceRequest {
-    SetResources(StrategicResources),
+    SetResources {
+        resources: Vec<Resources>,
+        period_imperium: Period,
+        capacity: f64,
+    },
     GetLoadings {
         periods_end: String,
         select_resources: Option<Vec<Resources>>,
@@ -24,19 +25,6 @@ pub enum StrategicResourceRequest {
         periods_end: String,
         resources: Option<Vec<Resources>>,
     },
-}
-
-impl StrategicResourceRequest {
-    pub fn new_set_resources(manual_resources: StrategicResources) -> Self {
-        Self::SetResources(manual_resources)
-    }
-
-    pub fn get_manual_resources(&self) -> Option<StrategicResources> {
-        match self {
-            Self::SetResources(manual_resource) => Some(manual_resource.clone()),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -53,24 +41,5 @@ impl ManualResource {
             period,
             capacity,
         }
-    }
-}
-
-impl StrategicResourceRequest {
-    pub fn new_test() -> Self {
-        let mut manual_resources = HashMap::new();
-
-        let period_string = Period::from_str("2023-W47-48").unwrap();
-
-        let mut period_hash_map = Periods(HashMap::new());
-        period_hash_map.insert(period_string, Work::from(300.0));
-
-        manual_resources.insert(Resources::MtnMech, period_hash_map.clone());
-        manual_resources.insert(Resources::MtnElec, period_hash_map.clone());
-        manual_resources.insert(Resources::Prodtech, period_hash_map.clone());
-
-        Self::SetResources(StrategicResources {
-            inner: manual_resources,
-        })
     }
 }

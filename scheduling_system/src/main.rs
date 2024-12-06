@@ -43,12 +43,25 @@ async fn main() -> Result<(), io::Error> {
     let asset = Asset::new_from_string(asset_string.as_str())
         .expect("Please set a valid ASSET environment variable");
 
-    // TODO WARN: This should not be handled here! It should be handled together through a common interface.
-    orchestrator.lock().unwrap().add_asset(asset.clone());
+    // WARN START: USED FOR CONVENIENCE
+    let system_agents_configuration_toml = format!(
+        "./configuration/resources_{}.toml",
+        asset.to_string().to_lowercase()
+    );
+    let mut system_agents = File::open(system_agents_configuration_toml)?;
+    let mut system_agent_bytes: Vec<u8> = Vec::new();
+    system_agents.read_to_end(&mut system_agent_bytes)?;
+
     orchestrator
         .lock()
         .unwrap()
-        .initialize_agents_from_env(asset);
+        .add_asset(asset.clone(), system_agent_bytes);
+
+    orchestrator
+        .lock()
+        .unwrap()
+        .initialize_operational_agents(asset);
+    // WARN FINISH: USED FOR CONVENIENCE
 
     HttpServer::new(move || {
         App::new()
