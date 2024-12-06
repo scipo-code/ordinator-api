@@ -6,11 +6,12 @@ use self::period::Period;
 pub mod day;
 pub mod period;
 
+// WARN: Make the fields private. It does not make sense to change these individually.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TimeEnvironment {
-    pub strategic_periods: Vec<Period>,
-    pub tactical_periods: Vec<Period>,
-    pub tactical_days: Vec<Day>,
+    strategic_periods: Vec<Period>,
+    tactical_periods: Vec<Period>,
+    tactical_days: Vec<Day>,
 }
 
 impl TimeEnvironment {
@@ -28,6 +29,13 @@ impl TimeEnvironment {
 
     pub fn strategic_periods(&self) -> &Vec<Period> {
         &self.strategic_periods
+    }
+    pub fn strategic_periods_mut(&mut self) -> &mut Vec<Period> {
+        &mut self.strategic_periods
+    }
+
+    pub fn tactical_periods(&self) -> &Vec<Period> {
+        &self.tactical_periods
     }
 
     pub fn tactical_days(&self) -> &Vec<Day> {

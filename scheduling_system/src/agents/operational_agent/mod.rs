@@ -43,7 +43,6 @@ pub struct OperationalAgent {
     capacity: Option<f32>,
     // assigned: HashMap<(WorkOrderNumber, ActivityNumber), Assigned>,
     backup_activities: Option<HashMap<u32, Operation>>,
-    operational_configuration: OperationalConfiguration,
     main_supervisor: Option<Addr<SupervisorAgent>>,
     supervisor_agent_addr: HashMap<Id, Addr<SupervisorAgent>>,
     pub notify_orchestrator: NotifyOrchestrator,
@@ -100,12 +99,12 @@ impl Actor for OperationalAgent {
 
         let start_event = Assignment::make_unavailable_event(
             algorithm::Unavailability::Beginning,
-            &self.operational_configuration.availability,
+            &self.operational_algorithm.availability,
         );
 
         let end_event = Assignment::make_unavailable_event(
             algorithm::Unavailability::End,
-            &self.operational_configuration.availability,
+            &self.operational_algorithm.availability,
         );
 
         let unavailability_start_event = OperationalAssignment::new(vec![start_event]);
@@ -232,7 +231,6 @@ impl OperationalAgentBuilder {
     pub fn new(
         id_operational: Id,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-        operational_configuration: OperationalConfiguration,
         operational_algorithm: OperationalAlgorithm,
         main_supervisor: Option<Addr<SupervisorAgent>>,
         supervisor_agent_addr: HashMap<Id, Addr<SupervisorAgent>>,
@@ -244,7 +242,6 @@ impl OperationalAgentBuilder {
             operational_algorithm,
             capacity: None,
             backup_activities: None,
-            operational_configuration,
             main_supervisor,
             supervisor_agent_addr,
             notify_orchestrator,
@@ -258,7 +255,6 @@ impl OperationalAgentBuilder {
             operational_algorithm: self.0.operational_algorithm,
             capacity: self.0.capacity,
             backup_activities: self.0.backup_activities,
-            operational_configuration: self.0.operational_configuration,
             main_supervisor: self.0.main_supervisor,
             supervisor_agent_addr: self.0.supervisor_agent_addr,
             notify_orchestrator: self.0.notify_orchestrator,

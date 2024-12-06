@@ -57,7 +57,7 @@ pub struct OperationalNonProductive(Vec<Assignment>);
 
 impl OperationalAlgorithm {
     pub fn new(
-        operational_configuration: OperationalConfiguration,
+        operational_configuration: &OperationalConfiguration,
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
     ) -> Self {
         let loaded_shared_solution = arc_swap_shared_solution.0.load();
@@ -66,10 +66,10 @@ impl OperationalAlgorithm {
             operational_non_productive: OperationalNonProductive(Vec::new()),
             operational_parameters: OperationalParameters::default(),
             history_of_dropped_operational_parameters: HashSet::new(),
-            availability: operational_configuration.availability,
-            off_shift_interval: operational_configuration.off_shift_interval,
-            break_interval: operational_configuration.break_interval,
-            toolbox_interval: operational_configuration.toolbox_interval,
+            availability: operational_configuration.availability.clone(),
+            off_shift_interval: operational_configuration.off_shift_interval.clone(),
+            break_interval: operational_configuration.break_interval.clone(),
+            toolbox_interval: operational_configuration.toolbox_interval.clone(),
             arc_swap_shared_solution,
             loaded_shared_solution,
         }
@@ -830,7 +830,7 @@ mod tests {
         );
 
         let operational_algorithm = OperationalAlgorithm::new(
-            operational_configuration,
+            &operational_configuration,
             Arc::new(ArcSwapSharedSolution::default()),
         );
 
@@ -876,7 +876,7 @@ mod tests {
         );
 
         let operational_algorithm = OperationalAlgorithm::new(
-            operational_configuration,
+            &operational_configuration,
             Arc::new(ArcSwapSharedSolution::default()),
         );
 
@@ -921,7 +921,7 @@ mod tests {
         );
 
         let operational_algorithm = OperationalAlgorithm::new(
-            operational_configuration,
+            &operational_configuration,
             Arc::new(ArcSwapSharedSolution::default()),
         );
 
@@ -966,7 +966,7 @@ mod tests {
         );
 
         let mut operational_algorithm = OperationalAlgorithm::new(
-            operational_configuration,
+            &operational_configuration,
             Arc::new(ArcSwapSharedSolution::default()),
         );
 

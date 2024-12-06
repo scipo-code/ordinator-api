@@ -12,7 +12,7 @@ use shared_types::{
         tactical_status_message::TacticalStatusMessage, Days, TacticalRequest,
         TacticalRequestMessage, TacticalResources,
     },
-    Asset, SystemMessages, TomlAgents,
+    Asset, SystemMessages, SystemAgents,
 };
 
 use super::orchestrator;
@@ -159,7 +159,7 @@ fn generate_manual_resources(client: &Client, toml_path: String) -> TacticalReso
     let days: Vec<Day> = orchestrator::tactical_days(client);
     let contents = std::fs::read_to_string(toml_path).unwrap();
 
-    let config: TomlAgents = toml::from_str(&contents).unwrap();
+    let config: SystemAgents = toml::from_str(&contents).unwrap();
 
     let _hours_per_day = 6.0;
 

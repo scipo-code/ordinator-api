@@ -94,7 +94,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                                         .scheduling_environment
                                         .lock()
                                         .unwrap()
-                                        .work_orders()
+                                        .work_orders
                                         .inner
                                         .get(work_order_number)
                                         .unwrap()
@@ -151,9 +151,11 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                 ))
             }
             StrategicRequestMessage::Periods(periods_message) => {
-                let mut scheduling_env_lock = self.scheduling_environment.lock().unwrap();
+                let mut scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
-                let periods = scheduling_env_lock.periods_mut();
+                let periods = scheduling_environment_guard
+                    .time_environment
+                    .strategic_periods_mut();
 
                 for period_id in periods_message.periods.iter() {
                     if periods.last().unwrap().id() + 1 == *period_id {

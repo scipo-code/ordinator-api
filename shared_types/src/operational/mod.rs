@@ -3,10 +3,7 @@ use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    scheduling_environment::worker_environment::{
-        availability::{Availability, TomlAvailability},
-        resources::Id,
-    },
+    scheduling_environment::worker_environment::{availability::Availability, resources::Id},
     Asset, ConstraintState,
 };
 use anyhow::Result;
@@ -94,27 +91,6 @@ impl OperationalConfiguration {
             break_interval,
             off_shift_interval,
             toolbox_interval,
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TomlOperationalConfiguration {
-    pub availability: TomlAvailability,
-    pub break_interval: TomlTimeInterval,
-    pub shift_interval: TomlTimeInterval,
-    pub toolbox_interval: TomlTimeInterval,
-}
-
-impl From<TomlOperationalConfiguration> for OperationalConfiguration {
-    fn from(value: TomlOperationalConfiguration) -> Self {
-        let shift_interval: TimeInterval = value.shift_interval.into();
-        let off_shift_interval: TimeInterval = shift_interval.invert();
-        OperationalConfiguration {
-            availability: value.availability.into(),
-            break_interval: value.break_interval.into(),
-            off_shift_interval,
-            toolbox_interval: value.toolbox_interval.into(),
         }
     }
 }

@@ -4,7 +4,6 @@ use shared_types::{
     tactical::{TacticalRequestMessage, TacticalResponseMessage},
     StatusMessage,
 };
-use tracing::{event, Level};
 
 use crate::agents::{traits::LargeNeighborHoodSearch, SetAddr, StateLink};
 

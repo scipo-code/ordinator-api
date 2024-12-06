@@ -12,7 +12,7 @@ use std::{
 use actix::prelude::*;
 use clap::{Subcommand, ValueEnum};
 
-use operational::{OperationalRequest, OperationalResponse, TomlOperationalConfiguration};
+use operational::{OperationalConfiguration, OperationalRequest, OperationalResponse};
 use orchestrator::{OrchestratorRequest, OrchestratorResponse};
 use scheduling_environment::{
     time_environment::{day::Day, period::Period},
@@ -211,28 +211,28 @@ pub struct TomlResources {
     pub wellsupv: f64,
 }
 
-#[derive(Deserialize, Debug)]
-pub struct TomlAgents {
-    pub supervisors: Vec<TomlSupervisor>,
-    pub operational: Vec<TomlOperational>,
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct SystemAgents {
+    pub supervisors: Vec<InputSupervisor>,
+    pub operational: Vec<InputOperational>,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug)]
-pub struct TomlSupervisor {
+pub struct InputSupervisor {
     pub id: String,
     pub resource: Option<Resources>,
     pub number_of_supervisor_periods: u64,
 }
 
-#[derive(Deserialize, Debug)]
-pub struct TomlOperational {
+#[derive(Serialize, Deserialize, Debug)]
+pub struct InputOperational {
     pub id: String,
     pub resources: TomlResourcesArray,
     pub hours_per_day: f64,
-    pub operational_configuration: TomlOperationalConfiguration,
+    pub operational_configuration: OperationalConfiguration,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TomlResourcesArray {
     pub resources: Vec<Resources>,
 }
@@ -279,7 +279,7 @@ pub enum LoadOperation {
 #[cfg(test)]
 mod tests {
 
-    use crate::{scheduling_environment::worker_environment::resources::Resources, TomlAgents};
+    use crate::{scheduling_environment::worker_environment::resources::Resources, SystemAgents};
 
     #[test]
     fn test_toml_operational_parsing() {
@@ -292,14 +292,14 @@ mod tests {
             id = "OP-01-001"
             resources.resources = ["MTN-ELEC" ]
             hours_per_day = 6.0
-            operational_configuration.shift_interval = [07:00:00, 19:00:00]
+            operational_configuration.off_shift_interval = [19:00:00, 07:00:00]
             operational_configuration.break_interval = [11:00:00, 12:00:00]
             operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
             operational_configuration.availability.start_date = 2024-05-16T07:00:00Z
             operational_configuration.availability.end_date = 2024-05-30T15:00:00Z
         "#;
 
-        let toml_agents: TomlAgents = toml::from_str(toml_operational_string).unwrap();
+        let toml_agents: SystemAgents = toml::from_str(toml_operational_string).unwrap();
 
         assert_eq!(toml_agents.operational[0].id, "OP-01-001".to_string());
 
@@ -311,12 +311,12 @@ mod tests {
         assert_eq!(
             toml_agents.operational[0]
                 .operational_configuration
-                .shift_interval
+                .off_shift_interval
                 .start
                 .time
                 .unwrap(),
             toml::value::Time {
-                hour: 7,
+                hour: 19,
                 minute: 0,
                 second: 0,
                 nanosecond: 0
@@ -325,12 +325,12 @@ mod tests {
         assert_eq!(
             toml_agents.operational[0]
                 .operational_configuration
-                .shift_interval
+                .off_shift_interval
                 .end
                 .time
                 .unwrap(),
             toml::value::Time {
-                hour: 19,
+                hour: 7,
                 minute: 0,
                 second: 0,
                 nanosecond: 0

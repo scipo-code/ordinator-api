@@ -119,10 +119,10 @@ impl fmt::Display for StrategicRequestMessage {
 
                 Ok(())
             }
-            StrategicRequestMessage::Resources(resources_message) => {
-                for manual_resource in resources_message.get_manual_resources().iter() {
-                    writeln!(f, "manual_resource: {:?}", manual_resource)?;
-                }
+            StrategicRequestMessage::Resources(_resources_message) => {
+                // for manual_resource in resources_message.get_manual_resources().iter() {
+                //     writeln!(f, "manual_resource: {:?}", manual_resource)?;
+                // }
                 Ok(())
             }
             StrategicRequestMessage::Periods(period_message) => {
@@ -168,6 +168,7 @@ impl Default for StrategicInfeasibleCases {
         }
     }
 }
+
 #[derive(PartialEq, Eq, Default, Serialize, Deserialize, Debug, Clone)]
 pub struct StrategicResources {
     #[serde(with = "any_key_map")]

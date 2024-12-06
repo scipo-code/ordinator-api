@@ -1,10 +1,8 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use anyhow::Context;
 use shared_types::strategic::StrategicResponse;
 use shared_types::SystemMessages;
 use shared_types::SystemResponses;
 use tracing::event;
-use tracing::instrument::WithSubscriber;
 use tracing::Level;
 
 use std::sync::Arc;

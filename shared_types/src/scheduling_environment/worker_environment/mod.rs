@@ -4,16 +4,21 @@ pub mod resources;
 pub mod worker;
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use strum::IntoEnumIterator;
 
-use crate::scheduling_environment::worker_environment::crew::Crew;
-
 use crate::scheduling_environment::worker_environment::resources::Resources;
+use crate::strategic::{Periods, StrategicResources};
+use crate::tactical::{Days, TacticalResources};
+use crate::SystemAgents;
+
+use super::time_environment::day::Day;
+use super::time_environment::period::Period;
+use super::work_order::operation::Work;
 
 #[derive(Default, Serialize, Deserialize, Debug)]
 pub struct WorkerEnvironment {
-    crew: Option<Crew>,
+    pub system_agents: SystemAgents,
     work_centers: HashSet<Resources>,
 }
 
@@ -24,46 +29,97 @@ impl WorkerEnvironment {
             work_centers.insert(resource);
         }
         WorkerEnvironment {
-            crew: Crew::new(None),
+            system_agents: SystemAgents::default(),
             work_centers,
         }
-    }
-
-    pub fn get_crew(&self) -> &Option<Crew> {
-        &self.crew
     }
 
     pub fn get_work_centers(&self) -> &HashSet<Resources> {
         &self.work_centers
     }
 
-    // We should create the worker environment from SAP based on the available crew.
-    // The idea here is to simply load in the workers nothing else. The final goal is to make sure
-    // that the worker environment will be used to initialize the resources for the algorithms.
+    pub fn initialize_from_resource_configuration_file(&mut self, system_agents_bytes: Vec<u8>) {
+        let contents = std::str::from_utf8(&system_agents_bytes).unwrap();
 
-    // What is it that I want here? I want to find a way to generate the resources from the crew.
-    /// does this make anysense? Okay, I am think about creating a JSON file that will be used as an
-    /// example of a crew. And then load this in as the Crew in the absence of external data. This
-    /// will be the default crew.
-    pub fn initialize(&mut self) {
-        match self.crew {
-            Some(ref mut _crew) => {
-                // for (_, worker) in crew.get_workers().iter_mut() {
-                //     for resource in worker.get_resources().iter() {
-                //         self.work_centers.remove(resource);
-                //     }
-                // }
+        let system_agents: SystemAgents = toml::from_str(&contents).unwrap();
+
+        self.system_agents = system_agents;
+    }
+
+    pub fn generate_strategic_resources(&self, periods: &[Period]) -> StrategicResources {
+        let _hours_per_day = 6.0;
+        let days_in_period = 13.0;
+
+        let gradual_reduction = |i: usize| -> f64 {
+            if i == 0 {
+                1.0
+            } else if i == 1 {
+                0.9
+            } else if i == 2 {
+                0.8
+            } else {
+                0.6
             }
-            None => {
-                // warn!("The json for the worker has been left out");
-                // let worker_json =
-                //     fs::read_to_string("scheduling_system/parameters/example_crew.json").unwrap();
+        };
 
-                // dbg!(&worker_json);
-                // let crew: Crew = serde_json::from_str(&worker_json).unwrap();
+        let mut strategic_resources_inner = HashMap::<Resources, Periods>::new();
+        for operational_agent in &self.system_agents.operational {
+            for (i, period) in periods.clone().iter().enumerate() {
+                let resource_periods = strategic_resources_inner
+                    .entry(
+                        operational_agent
+                            .resources
+                            .resources
+                            .first()
+                            .cloned()
+                            .unwrap(),
+                    )
+                    .or_insert(Periods(HashMap::new()));
 
-                // self.crew = Some(crew);
+                *resource_periods
+                    .0
+                    .entry(period.clone())
+                    .or_insert_with(|| Work::from(0.0)) += Work::from(
+                    operational_agent.hours_per_day * days_in_period * gradual_reduction(i),
+                )
             }
         }
+
+        StrategicResources::new(strategic_resources_inner)
+    }
+
+    pub fn generate_tactical_resources(&self, days: &[Day]) -> TacticalResources {
+        let _hours_per_day = 6.0;
+
+        let gradual_reduction = |i: usize| -> f64 {
+            match i {
+                0..=13 => 1.0,
+                14..=27 => 1.0,
+                _ => 1.0,
+            }
+        };
+
+        let mut tactical_resources_inner = HashMap::<Resources, Days>::new();
+        for operational_agent in &self.system_agents.operational {
+            for (i, day) in days.iter().enumerate() {
+                let resource_periods = tactical_resources_inner
+                    .entry(
+                        operational_agent
+                            .resources
+                            .resources
+                            .first()
+                            .cloned()
+                            .unwrap(),
+                    )
+                    .or_insert(Days::new(HashMap::new()));
+
+                *resource_periods
+                    .days
+                    .entry(day.clone())
+                    .or_insert_with(|| Work::from(0.0)) +=
+                    Work::from(operational_agent.hours_per_day * gradual_reduction(i));
+            }
+        }
+        TacticalResources::new(tactical_resources_inner)
     }
 }

@@ -6,9 +6,11 @@ use shared_types::orchestrator::OrchestratorRequest;
 
 use shared_types::orchestrator::WorkOrderResponse;
 use shared_types::orchestrator::WorkOrdersStatus;
+use shared_types::scheduling_environment::time_environment;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::Work;
+use shared_types::scheduling_environment::worker_environment;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
@@ -19,7 +21,7 @@ use shared_types::supervisor::SupervisorRequestMessage;
 use shared_types::tactical::Days;
 use shared_types::tactical::TacticalResources;
 use shared_types::Asset;
-use shared_types::TomlAgents;
+use shared_types::SystemAgents;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::AtomicU64;
@@ -241,7 +243,7 @@ impl Orchestrator {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
                 let cloned_work_orders: WorkOrders =
-                    scheduling_environment_guard.clone_work_orders();
+                    scheduling_environment_guard.work_orders.clone();
 
                 let (_, work_order) = cloned_work_orders
                     .inner
@@ -274,7 +276,7 @@ impl Orchestrator {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
                 let cloned_work_orders: WorkOrders =
-                    scheduling_environment_guard.clone_work_orders();
+                    scheduling_environment_guard.work_orders.clone();
                 let work_orders: WorkOrders = cloned_work_orders
                     .inner
                     .into_iter()
@@ -306,7 +308,10 @@ impl Orchestrator {
             OrchestratorRequest::GetPeriods => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
-                let periods = scheduling_environment_guard.clone_strategic_periods();
+                let periods = scheduling_environment_guard
+                    .time_environment
+                    .strategic_periods()
+                    .clone();
 
                 let strategic_periods = OrchestratorResponse::Periods(periods);
                 Ok(strategic_periods)
@@ -314,7 +319,9 @@ impl Orchestrator {
             OrchestratorRequest::GetDays => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
-                let days = scheduling_environment_guard.tactical_days();
+                let days = scheduling_environment_guard
+                    .time_environment
+                    .tactical_days();
 
                 let tactical_days = OrchestratorResponse::Days(days.clone());
                 Ok(tactical_days)
@@ -382,7 +389,7 @@ impl Orchestrator {
             OrchestratorRequest::CreateOperationalAgent(asset, id, operational_configuration) => {
                 let response_string = format!("Operational agent created with id {}", id);
 
-                self.create_operational_agent(&asset, id, operational_configuration);
+                self.create_operational_agent(&asset, id, &operational_configuration);
 
                 let orchestrator_response = OrchestratorResponse::RequestStatus(response_string);
 
@@ -435,23 +442,17 @@ impl Orchestrator {
         }
     }
 
-    pub fn initialize_agents_from_env(&mut self, asset: Asset) {
-        dotenv().expect("Could not load in the .env file.");
+    pub fn initialize_operational_agents(&mut self, asset: Asset) {
+        let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+        let worker_environment = &scheduling_environment_guard.worker_environment;
 
-        let asset_string =
-            dotenvy::var("ASSET").expect("ASSET environment variable should always be set");
-
-        let resource_string = format!(
-            "./configuration/resources_{}.toml",
-            asset_string.to_lowercase()
-        );
-
-        let toml_agents_string: String = std::fs::read_to_string(resource_string).unwrap();
-        let toml_agents: TomlAgents = toml::from_str(&toml_agents_string).unwrap();
-
-        for agent in toml_agents.operational {
-            let id: Id = Id::new(agent.id, agent.resources.resources, None);
-            self.create_operational_agent(&asset, id, agent.operational_configuration.into());
+        for operational_agent in &worker_environment.system_agents.operational {
+            let id: Id = Id::new(
+                operational_agent.id.clone(),
+                operational_agent.resources.resources.clone(),
+                None,
+            );
+            self.create_operational_agent(&asset, id, &operational_agent.operational_configuration);
         }
     }
 
@@ -459,7 +460,7 @@ impl Orchestrator {
         &mut self,
         asset: &Asset,
         id: Id,
-        operational_configuration: OperationalConfiguration,
+        operational_configuration: &OperationalConfiguration,
     ) {
         let operational_agent_addr = self.agent_factory.build_operational_agent(
             id.clone(),
@@ -547,27 +548,26 @@ impl Orchestrator {
         arc_orchestrator
     }
 
-    pub fn add_asset(&mut self, asset: Asset) {
-        let asset_string =
-            dotenvy::var("ASSET").expect("ASSET environment variable should always be set");
+    // How should this asset function be implemented. The real question is what should be done about the
+    // the files versus bitstream. One thing is for sure if the add_asset function should be reused
+    // there can be no file handling inside of it.
+    pub fn add_asset(&mut self, asset: Asset, system_agents_bytes: Vec<u8>) {
+        let mut scheduling_environment_guard = &self.scheduling_environment.lock().unwrap();
 
-        let resource_string = format!(
-            "./configuration/resources_{}.toml",
-            asset_string.to_lowercase()
-        );
+        let mut worker_environment = scheduling_environment_guard.worker_environment;
 
-        let strategic_tactical_solutions_arc_swap =
-            AgentFactory::create_arc_swap_for_strategic_tactical();
+        let time_environment = scheduling_environment_guard.time_environment;
 
-        let toml_agents_path = Path::new(&resource_string);
+        worker_environment.initialize_from_resource_configuration_file(system_agents_bytes);
 
-        let strategic_resources = self.generate_strategic_resources(toml_agents_path);
-
-        let tactical_resources = self.generate_tactical_resources(toml_agents_path);
+        let strategic_tactical_solutions_arc_swap = AgentFactory::create_shared_solution_arc_swap();
 
         let strategic_agent_addr = self.agent_factory.build_strategic_agent(
             asset.clone(),
-            Some(strategic_resources),
+            Some(
+                worker_environment
+                    .generate_strategic_resources(time_environment.strategic_periods()),
+            ),
             strategic_tactical_solutions_arc_swap.clone(),
             NotifyOrchestrator(
                 self.agent_notify
@@ -581,7 +581,7 @@ impl Orchestrator {
         let tactical_agent_addr = self.agent_factory.build_tactical_agent(
             asset.clone(),
             strategic_agent_addr.clone(),
-            Some(tactical_resources),
+            Some(worker_environment.generate_tactical_resources(time_environment.tactical_days())),
             strategic_tactical_solutions_arc_swap.clone(),
             NotifyOrchestrator(
                 self.agent_notify
@@ -597,7 +597,7 @@ impl Orchestrator {
 
         let resources_config_string = std::fs::read_to_string(toml_agents_path).unwrap();
 
-        let resources_config: TomlAgents = toml::from_str(&resources_config_string).unwrap();
+        let resources_config: SystemAgents = toml::from_str(&resources_config_string).unwrap();
         // TODO: This is not how it should be initialized! It should be done separately.
         for supervisor in resources_config.supervisors {
             let id = Id::new("default".to_string(), vec![], Some(supervisor));
@@ -633,104 +633,5 @@ impl Orchestrator {
             .insert(asset.clone(), strategic_tactical_solutions_arc_swap);
 
         self.agent_registries.insert(asset, agent_registry);
-    }
-
-    fn generate_strategic_resources(&self, toml_agents_path: &Path) -> StrategicResources {
-        let periods: Vec<Period> = self
-            .scheduling_environment
-            .lock()
-            .unwrap()
-            .periods()
-            .clone();
-
-        let contents = std::fs::read_to_string(toml_agents_path).unwrap();
-
-        let config: TomlAgents = toml::from_str(&contents).unwrap();
-
-        let _hours_per_day = 6.0;
-        let days_in_period = 13.0;
-
-        let gradual_reduction = |i: usize| -> f64 {
-            if i == 0 {
-                1.0
-            } else if i == 1 {
-                0.9
-            } else if i == 2 {
-                0.8
-            } else {
-                0.6
-            }
-        };
-
-        let mut resources_hash_map = HashMap::<Resources, Periods>::new();
-        for operational_agent in config.operational {
-            for (i, period) in periods.clone().iter().enumerate() {
-                let resource_periods = resources_hash_map
-                    .entry(
-                        operational_agent
-                            .resources
-                            .resources
-                            .first()
-                            .cloned()
-                            .unwrap(),
-                    )
-                    .or_insert(Periods(HashMap::new()));
-
-                *resource_periods
-                    .0
-                    .entry(period.clone())
-                    .or_insert_with(|| Work::from(0.0)) += Work::from(
-                    operational_agent.hours_per_day * days_in_period * gradual_reduction(i),
-                )
-            }
-        }
-
-        StrategicResources::new(resources_hash_map)
-    }
-
-    fn generate_tactical_resources(&self, toml_path: &Path) -> TacticalResources {
-        let days: Vec<Day> = self
-            .scheduling_environment
-            .lock()
-            .unwrap()
-            .tactical_days()
-            .clone();
-
-        let contents = std::fs::read_to_string(toml_path).unwrap();
-
-        let config: TomlAgents = toml::from_str(&contents).unwrap();
-
-        let _hours_per_day = 6.0;
-
-        let gradual_reduction = |i: usize| -> f64 {
-            match i {
-                0..=13 => 1.0,
-                14..=27 => 1.0,
-                _ => 1.0,
-            }
-        };
-
-        let mut resources_hash_map = HashMap::<Resources, Days>::new();
-        for operational_agent in config.operational {
-            for (i, day) in days.clone().iter().enumerate() {
-                let resource_periods = resources_hash_map
-                    .entry(
-                        operational_agent
-                            .resources
-                            .resources
-                            .first()
-                            .cloned()
-                            .unwrap(),
-                    )
-                    .or_insert(Days::new(HashMap::new()));
-
-                *resource_periods
-                    .days
-                    .entry(day.clone())
-                    .or_insert_with(|| Work::from(0.0)) +=
-                    Work::from(operational_agent.hours_per_day * gradual_reduction(i));
-            }
-        }
-        TacticalResources::new(resources_hash_map)
     }
 }

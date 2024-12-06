@@ -5,7 +5,6 @@ pub mod strategic_algorithm;
 
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborHoodSearch;
-use anyhow::Context;
 use anyhow::Result;
 use assert_functions::StrategicAssertions;
 use shared_types::scheduling_environment::SchedulingEnvironment;
