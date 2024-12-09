@@ -1,5 +1,7 @@
+use std::collections::HashSet;
+
 use actix::Handler;
-use anyhow::{bail, Result};
+use anyhow::{bail, ensure, Context, Result};
 use shared_types::supervisor::{
     supervisor_response_scheduling::SupervisorResponseScheduling,
     supervisor_response_status::SupervisorResponseStatus, SupervisorRequestMessage,
@@ -7,7 +9,9 @@ use shared_types::supervisor::{
 };
 use tracing::{event, Level};
 
-use crate::agents::{SetAddr, StateLink};
+use crate::agents::{
+    supervisor_agent::algorithm::SupervisorParameters, AgentSpecific, SetAddr, StateLink,
+};
 
 use super::SupervisorAgent;
 
@@ -29,10 +33,56 @@ impl Handler<StateLink> for SupervisorAgent {
 
     fn handle(&mut self, state_link: StateLink, _ctx: &mut Self::Context) -> Self::Result {
         match state_link {
-            StateLink::Strategic(_) => Ok(()),
-            StateLink::Tactical => Ok(()),
-            StateLink::Supervisor => Ok(()),
-            StateLink::Operational => Ok(()),
+            StateLink::WorkOrders(agent_specific) => match agent_specific {
+                AgentSpecific::Strategic(changed_work_orders) => {
+                    let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+
+                    let work_orders = &scheduling_environment_guard.work_orders.inner;
+
+                    for work_order_number in changed_work_orders {
+                        let work_order =
+                            work_orders.get(&work_order_number).with_context(|| {
+                                format!(
+                                    "{:?} should always be present in {}",
+                                    work_order_number,
+                                    std::any::type_name::<SupervisorParameters>()
+                                )
+                            })?;
+                        for activity_number in work_order.operations.keys() {
+                            self.supervisor_algorithm
+                                .supervisor_parameters
+                                .create_and_insert_supervisor_parameter(
+                                    &scheduling_environment_guard,
+                                    &(work_order_number, *activity_number),
+                                )
+                        }
+                    }
+                    Ok(())
+                }
+            },
+            StateLink::WorkerEnvironment => {
+                let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+
+                let operational_agents = scheduling_environment_guard
+                    .worker_environment
+                    .system_agents
+                    .operational
+                    .iter()
+                    .map(|in_op| &in_op.id)
+                    .collect::<HashSet<&String>>();
+
+                event!(Level::ERROR,
+                    does_state_ids_and_addr_ids_match = self.operational_agent_addrs
+                        .keys()
+                        .map(|id| &id.0)
+                        .collect::<HashSet<&String>>()
+                        == operational_agents,
+                        "Check this error later. FIX: YOU SHOULD call '.send()' instead of '.do_send()' and use the lldb debugger to trace the flow."
+                );
+
+                Ok(())
+            }
+            StateLink::TimeEnvironment => todo!(),
         }
     }
 }

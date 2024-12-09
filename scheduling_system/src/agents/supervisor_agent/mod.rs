@@ -229,7 +229,7 @@ impl SupervisorAgent {
         for work_order_activity in work_order_activities {
             self.supervisor_algorithm
                 .supervisor_parameters
-                .create(&locked_scheduling_environment, &work_order_activity);
+                .create_and_insert_supervisor_parameter(&locked_scheduling_environment, &work_order_activity);
 
             for operational_agent in &self.operational_agent_addrs {
                 if operational_agent.0 .1.contains(

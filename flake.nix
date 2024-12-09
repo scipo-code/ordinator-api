@@ -23,6 +23,7 @@
           buildInputs = [
             pkgs.linuxKernel.packages.linux_zen.perf
             pkgs.cargo-cross
+            pkgs.cargo-release
             pkgs.rustup
             pythonEnv
             pkgs.git

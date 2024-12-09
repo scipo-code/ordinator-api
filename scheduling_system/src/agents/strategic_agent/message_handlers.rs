@@ -26,6 +26,7 @@ use tracing::event;
 use tracing::Level;
 
 use crate::agents::traits::LargeNeighborHoodSearch;
+use crate::agents::AgentSpecific;
 use crate::agents::SetAddr;
 use crate::agents::StateLink;
 
@@ -224,59 +225,77 @@ impl Handler<StateLink> for StrategicAgent {
 
     fn handle(&mut self, msg: StateLink, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
-            StateLink::Strategic(work_order_changed) => {
-                panic!();
-                for work_order_number in work_order_changed {
-                    let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
-                    let work_order = scheduling_environment_guard
-                        .work_orders
-                        .inner
-                        .get(&work_order_number)
-                        .with_context(|| {
-                            format!(
-                                "{:?} is not present in SchedulingEnvironment",
-                                work_order_number
-                            )
-                        })?;
+            StateLink::WorkOrders(agent_specific) => {
+                match agent_specific {
+                    AgentSpecific::Strategic(changed_work_orders) => {
+                        for work_order_number in changed_work_orders {
+                            let scheduling_environment_guard =
+                                self.scheduling_environment.lock().unwrap();
+                            let work_order = scheduling_environment_guard
+                                .work_orders
+                                .inner
+                                .get(&work_order_number)
+                                .with_context(|| {
+                                    format!(
+                                        "{:?} is not present in SchedulingEnvironment",
+                                        work_order_number
+                                    )
+                                })?;
 
-                    let strategic_parameter = StrategicParameterBuilder::new()
-                        .build_from_work_order(work_order, self.strategic_algorithm.periods())
-                        .build();
+                            let strategic_parameter = StrategicParameterBuilder::new()
+                                .build_from_work_order(
+                                    work_order,
+                                    self.strategic_algorithm.periods(),
+                                )
+                                .build();
 
-                    let old_strategic_parameter = self
-                        .strategic_algorithm
-                        .strategic_parameters
-                        .insert_strategic_parameter(work_order_number, strategic_parameter);
+                            let old_strategic_parameter = self
+                                .strategic_algorithm
+                                .strategic_parameters
+                                .insert_strategic_parameter(work_order_number, strategic_parameter);
 
-                    if let Some(old_strategic_parameter) = old_strategic_parameter {
-                        assert!(
-                            old_strategic_parameter.excluded_periods
-                                == self
-                                    .strategic_algorithm
-                                    .strategic_parameters
-                                    .strategic_work_order_parameters
-                                    .get(&work_order_number)
-                                    .unwrap()
-                                    .excluded_periods
-                        );
-
-                        assert!(
-                            old_strategic_parameter.locked_in_period
-                                == self
-                                    .strategic_algorithm
-                                    .strategic_parameters
-                                    .strategic_work_order_parameters
-                                    .get(&work_order_number)
-                                    .unwrap()
-                                    .locked_in_period
-                        );
+                            if let Some(old_strategic_parameter) = old_strategic_parameter {
+                                assert!(
+                                    old_strategic_parameter.excluded_periods
+                                        == self
+                                            .strategic_algorithm
+                                            .strategic_parameters
+                                            .strategic_work_order_parameters
+                                            .get(&work_order_number)
+                                            .unwrap()
+                                            .excluded_periods
+                                );
+                                assert!(
+                                    old_strategic_parameter.locked_in_period
+                                        == self
+                                            .strategic_algorithm
+                                            .strategic_parameters
+                                            .strategic_work_order_parameters
+                                            .get(&work_order_number)
+                                            .unwrap()
+                                            .locked_in_period
+                                );
+                            }
+                        }
                     }
                 }
+
                 Ok(())
             }
-            StateLink::Tactical => todo!(),
-            StateLink::Supervisor => todo!(),
-            StateLink::Operational => todo!(),
+            StateLink::WorkerEnvironment => {
+                let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+                let strategic_resources = scheduling_environment_guard
+                    .worker_environment
+                    .generate_strategic_resources(&self.strategic_algorithm.strategic_periods);
+
+                self.strategic_algorithm
+                    .strategic_parameters
+                    .strategic_capacity
+                    .update_resources(strategic_resources);
+
+                Ok(())
+            }
+            StateLink::TimeEnvironment => todo!(),
         }
     }
 }

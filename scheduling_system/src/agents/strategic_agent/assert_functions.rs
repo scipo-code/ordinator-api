@@ -93,9 +93,10 @@ impl StrategicAssertions for StrategicAgent {
             if let Some(period) = scheduled_period {
                 ensure!(
                     !excluded_periods.contains(period),
-                    "\n{:#?}\nIs scheduled in:\n{:#?} which is in excluded periods:\n{:#?}",
+                    "\n{:#?}\nscheduled in:{:#?}\nlocked_in_period\n{:#?}\nwhich is part of the excluded periods:\n{:#?}",
                     work_order_number,
                     period,
+                    locked_in_period,
                     excluded_periods,
                 );
             }

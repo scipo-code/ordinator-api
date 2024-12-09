@@ -109,17 +109,13 @@ impl TacticalAlgorithm {
             .get_mut(day)
     }
 
-    pub fn create_tactical_parameter(
-        &mut self,
-        work_order: &WorkOrder,
-        earliest_allowed_start_date: NaiveDate,
-    ) {
+    pub fn create_and_insert_tactical_parameter(&mut self, work_order: &WorkOrder) {
         let mut tactical_parameter = TacticalParameter::new(
             work_order.main_work_center.clone(),
             HashMap::new(),
             work_order.work_order_weight(),
             work_order.relations().clone(),
-            earliest_allowed_start_date,
+            work_order.work_order_dates.earliest_allowed_start_date,
         );
 
         for (activity, operation) in work_order.operations() {
@@ -193,10 +189,7 @@ impl TacticalAlgorithm {
         self.load_shared_solution();
 
         for (work_order_number, work_order) in work_orders {
-            self.create_tactical_parameter(
-                work_order,
-                work_order.work_order_dates.earliest_allowed_start_date,
-            );
+            self.create_and_insert_tactical_parameter(work_order);
             self.tactical_solution
                 .tactical_days
                 .insert(*work_order_number, None);

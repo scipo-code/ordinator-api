@@ -10,7 +10,7 @@ use shared_types::operational::{
 };
 use tracing::{event, Level};
 
-use crate::agents::StateLink;
+use crate::agents::{AgentSpecific, StateLink};
 
 use super::OperationalAgent;
 
@@ -27,14 +27,13 @@ impl Handler<StateLink> for OperationalAgent {
                 .len()
         );
         match state_link {
-            StateLink::Strategic(changed_work_orders) => {
+            StateLink::WorkOrders(AgentSpecific::Strategic(changed_work_orders)) => {
                 // TODO:
                 event!(Level::ERROR, unhandled_work_orders = ?changed_work_orders);
                 bail!("IMPLEMENT STATELINK FOR THE OPERATIONAL AGENT");
             }
-            StateLink::Tactical => todo!(),
-            StateLink::Supervisor => todo!(),
-            StateLink::Operational => todo!(),
+            StateLink::WorkerEnvironment => todo!(),
+            StateLink::TimeEnvironment => todo!(),
         }
     }
 }

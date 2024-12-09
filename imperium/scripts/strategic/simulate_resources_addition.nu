@@ -1,15 +1,13 @@
 fish -c "cargo run -p scheduling_system &"
 
-
-
 ^sleep 105
-imperium strategic resources df load-capacity-file imperium/scripts/strategic/resource_configurations/low_resources.toml
+imperium orchestrator initialize-crew-from-file df imperium/scripts/strategic/resource_configurations/low_resources.toml
 
 ^sleep 100
-imperium strategic resources df load-capacity-file imperium/scripts/strategic/resource_configurations/base_resources.toml
+imperium orchestrator initialize-crew-from-file df imperium/scripts/strategic/resource_configurations/base_resources.toml
 
 ^sleep 100
-imperium strategic resources df load-capacity-file imperium/scripts/strategic/resource_configurations/high_resources.toml
+imperium orchestrator initialize-crew-from-file df imperium/scripts/strategic/resource_configurations/high_resources.toml
 
 ^sleep 60
 ps | where name == "scheduling_syst" | kill $in.pid.0 
