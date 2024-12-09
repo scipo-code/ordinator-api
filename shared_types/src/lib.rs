@@ -290,15 +290,20 @@ mod tests {
             id = "main"
             number_of_supervisor_periods = 3
 
+            # [[supervisors]]
+            # id = "supervisor-second"
+            ################################
+            ###          MTN-ELEC        ###
+            ################################
             [[operational]]
             id = "OP-01-001"
             resources.resources = ["MTN-ELEC" ]
             hours_per_day = 6.0
-            operational_configuration.off_shift_interval = [19:00:00, 07:00:00]
-            operational_configuration.break_interval = [11:00:00, 12:00:00]
-            operational_configuration.toolbox_interval = [07:00:00, 08:00:00]
-            operational_configuration.availability.start_date = 2024-05-16T07:00:00Z
-            operational_configuration.availability.end_date = 2024-05-30T15:00:00Z
+            operational_configuration.off_shift_interval = { start = "19:00:00",  end = "07:00:00" }
+            operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+            operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+            operational_configuration.availability.start_date = "2024-12-02T07:00:00Z"
+            operational_configuration.availability.end_date = "2024-12-15T15:00:00Z"
         "#;
 
         let system_agents: SystemAgents = toml::from_str(toml_operational_string).unwrap();
