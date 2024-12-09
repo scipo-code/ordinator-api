@@ -718,10 +718,8 @@ mod tests {
             ScheduleChange::new(vec![work_order_number], "2023-W47-48".to_string()),
         );
 
-
-        
         let strategic_resources_message = 
-            StrategicResourceRequest::SetResources { resources: vec![Resources::MtnMech] , period_imperium: period.clone(), capacity:  150.0};
+            StrategicResourceRequest::SetResources { resources: vec![Resources::MtnMech] , period_imperium: period.clone(), capacity:  300.0};
 
         assert_eq!(
             strategic_algorithm.strategic_parameters.strategic_capacity.inner
