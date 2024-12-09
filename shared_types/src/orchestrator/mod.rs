@@ -13,7 +13,7 @@ use crate::scheduling_environment::worker_environment::resources::Id;
 use crate::strategic::strategic_response_status::StrategicResponseStatus;
 use crate::supervisor::supervisor_response_status::SupervisorResponseStatus;
 use crate::tactical::tactical_response_status::TacticalResponseStatus;
-use crate::{Asset, LevelOfDetail, LogLevel};
+use crate::{Asset, LevelOfDetail, LogLevel, SystemAgents};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum OrchestratorRequest {
@@ -22,6 +22,7 @@ pub enum OrchestratorRequest {
     GetPeriods,
     GetDays,
     AgentStatusRequest,
+    InitializeSystemAgentsFromFile(Asset, SystemAgents),
     CreateSupervisorAgent(Asset, Id),
     DeleteSupervisorAgent(Asset, String),
     CreateOperationalAgent(Asset, Id, OperationalConfiguration),
@@ -39,8 +40,8 @@ pub enum OrchestratorResponse {
     RequestStatus(String),
     Periods(Vec<Period>),
     Days(Vec<Day>),
-
     Export(String),
+    Success,
 }
 
 #[derive(Serialize)]

@@ -107,7 +107,7 @@ impl SupervisorParameters {
         Ok(supervisor_parameter)
     }
 
-    pub(crate) fn create(
+    pub(crate) fn create_and_insert_supervisor_parameter(
         &mut self,
         scheduling_environment_lock: &MutexGuard<SchedulingEnvironment>,
         work_order_activity: &WorkOrderActivity,
@@ -116,10 +116,12 @@ impl SupervisorParameters {
 
         let supervisor_parameter =
             SupervisorParameter::new(operation.resource.clone(), operation.operation_info.number);
-        self.supervisor_work_orders
+        let _assert_option = self
+            .supervisor_work_orders
             .entry(work_order_activity.0)
             .or_default()
             .insert(work_order_activity.1, supervisor_parameter);
+        // DEBUG: Make assertions here!
     }
 }
 

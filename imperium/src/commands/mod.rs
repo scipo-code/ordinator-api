@@ -103,7 +103,7 @@ pub fn handle_command(cli: Cli, client: &Client) -> SystemMessages {
         },
         Commands::Orchestrator {
             orchestrator_commands,
-        } => orchestrator_commands.execute(client),
+        } => orchestrator_commands.execute(),
 
         Commands::Strategic { strategic_commands } => strategic_commands.execute(),
 

@@ -71,6 +71,7 @@ impl WorkerEnvironment {
         };
 
         let mut strategic_resources_inner = HashMap::<Resources, Periods>::new();
+
         for operational_agent in &self.system_agents.operational {
             for (i, period) in periods.iter().enumerate() {
                 let resource_periods = strategic_resources_inner

@@ -1,11 +1,14 @@
 use actix::prelude::*;
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use shared_types::{
     tactical::{TacticalRequestMessage, TacticalResponseMessage},
     StatusMessage,
 };
 
-use crate::agents::{traits::LargeNeighborHoodSearch, SetAddr, StateLink};
+use crate::agents::{
+    tactical_agent::algorithm::tactical_parameters::TacticalParameters,
+    traits::LargeNeighborHoodSearch, AgentSpecific, SetAddr, StateLink,
+};
 
 use super::TacticalAgent;
 
@@ -64,14 +67,43 @@ impl Handler<StateLink> for TacticalAgent {
 
     fn handle(&mut self, state_link: StateLink, _ctx: &mut actix::Context<Self>) -> Self::Result {
         match state_link {
-            StateLink::Strategic(_strategic_state) => Ok(()),
-            StateLink::Tactical => {
-                todo!()
+            StateLink::WorkOrders(agent_specific) => match agent_specific {
+                AgentSpecific::Strategic(changed_work_orders) => {
+                    let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+
+                    let work_orders = &scheduling_environment_guard.work_orders.inner;
+
+                    for work_order_number in changed_work_orders {
+                        let work_order =
+                            work_orders.get(&work_order_number).with_context(|| {
+                                format!(
+                                    "{:?} should always be present in {}",
+                                    work_order_number,
+                                    std::any::type_name::<TacticalParameters>()
+                                )
+                            })?;
+
+                        self.tactical_algorithm
+                            .create_and_insert_tactical_parameter(work_order)
+                    }
+                    Ok(())
+                }
+            },
+            StateLink::WorkerEnvironment => {
+                let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+                let tactical_resources = scheduling_environment_guard
+                    .worker_environment
+                    .generate_tactical_resources(&self.tactical_algorithm.tactical_days);
+
+                self.tactical_algorithm
+                    .tactical_parameters
+                    .tactical_capacity
+                    .update_resources(tactical_resources);
+
+                Ok(())
             }
-            StateLink::Supervisor => {
-                todo!()
-            }
-            StateLink::Operational => {
+
+            StateLink::TimeEnvironment => {
                 todo!()
             }
         }

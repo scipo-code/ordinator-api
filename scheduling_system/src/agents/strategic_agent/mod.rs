@@ -80,7 +80,6 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         self.assert_excluded_periods().expect("Assert failed");
         self.strategic_algorithm.load_shared_solution();
 
-        self.assert_excluded_periods().expect("Assert failed");
         self.strategic_algorithm.schedule_forced_work_orders();
 
         self.assert_excluded_periods().expect("Assert failed");

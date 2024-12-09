@@ -3,10 +3,10 @@ layout {
 	tab name="control" focus=true {
 		pane split_direction="vertical" {
 			pane size="20%" split_direction="horizontal" {
-				pane size="30%" split_direction="vertical" {
+				pane size="20%" split_direction="vertical" {
 					pane size="15%" name="Ordinator watch" {	
 			  			command "taskset"
-			      		args "-c" "4-8" "cargo" "watch" "-i" "\"*.xlsx\"" "-w" "scheduling_system" "-w" "data_processing" "-w" "shared_types" "-x" "run --bin scheduling_system" 
+			      		args "-c" "4-8" "cargo" "watch" "-i" "\"*.xlsx\"" "-w" "scheduling_system" "-w" "data_processing" "-w" "shared_types" "-x" "build --bin scheduling_system" 
 		    	  		cwd "."
 		    		}
 			    	pane size="3%" name="Imperium watch"{
@@ -15,23 +15,25 @@ layout {
 		      			cwd "."
 			    	}
 				}
-				pane name="Bottom" {
+				pane name="HTOP" size="30%" {
 					cwd "$ORDINATOR_PATH"
 					command "htop"
 				}
+				pane name="Scino" size="50%" {
+					cwd "$ZK_NOTEBOOK_DIR"
+					command "zk"
+					args "daily"
+				}
 			}
-			pane focus=true size="40%" {
+			pane focus=true size="50%" {
 				command "hx"
 				args "."
 				cwd "$ORDINATOR_PATH"
 			}
-			pane size="40%" split_direction="horizontal" {
-				pane split_direction="vertical" {
-					pane name="Scino" {
-						cwd "$ZK_NOTEBOOK_DIR"
-						command "zk"
-						args "daily"
-					}
+			pane size="30%" split_direction="horizontal" {
+				pane name="lldb" {
+					command "lldb"
+					args "--one-line" "target create target/debug/scheduling_system"
 				}
 				pane name="Imperium" cwd="$ORDINATOR_PATH"
 			}
@@ -40,22 +42,6 @@ layout {
 	      // plugin location="status-bar"
 	      // plugin location="tab-bar"
 	      plugin location="compact-bar"
-	    }
-    }
-    tab name="Auxiliary" {
-    	pane split_direction="vertical" {
-	    	pane name="Orchestrator" {
-	    		cwd "$ORDINATOR_PATH"
-	    	}
-	    	pane name="Logging" {
-	    		cwd "$ORDINATOR_PATH"
-	    		command "./logging/operational_logging.sh"
-			}
-    	}
-	    pane size=1 borderless=true {
-	      // plugin location="status-bar"
-	      plugin location="tab-bar"
-	      // plugin location="compact-bar"
 	    }
     }
 }

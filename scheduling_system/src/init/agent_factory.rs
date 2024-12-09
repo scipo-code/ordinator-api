@@ -67,16 +67,11 @@ impl AgentFactory {
         // period_locks.insert(locked_scheduling_environment.periods()[0].clone());
         // period_locks.insert(locked_scheduling_environment.get_periods()[1].clone());
 
-        // DEBUG: I think that you need to start here! I do not see another way of doing this than stopping now!
         let resources_capacity =
-
-            &scheduling_environment_guard.worker_environment.initialize_from_resource_configuration_file(), Work::from(0.0));
-
-
-        
+            initialize_strategic_resources(scheduling_environment_guard, Work::from(0.0));
 
         let resources_loading =
-            initialize_strategic_resources(&scheduling_environment_guard, Work::from(0.0));
+            initialize_strategic_resources(scheduling_environment_guard, Work::from(0.0));
 
         let mut strategic_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
@@ -89,6 +84,15 @@ impl AgentFactory {
                 .clone(),
         );
 
+        let strategic_resources_from_file = scheduling_environment_guard
+            .worker_environment
+            .generate_strategic_resources(&cloned_periods);
+
+        strategic_algorithm
+            .strategic_parameters
+            .strategic_capacity
+            .update_resources(strategic_resources_from_file);
+
         strategic_algorithm.strategic_solution.strategic_loadings = resources_loading;
 
         strategic_algorithm.create_strategic_parameters(
@@ -96,8 +100,6 @@ impl AgentFactory {
             &cloned_periods,
             &asset,
         );
-
-        drop(scheduling_environment_guard);
 
         let (sender, receiver) = std::sync::mpsc::channel();
 
@@ -122,23 +124,17 @@ impl AgentFactory {
         &self,
         asset: Asset,
         strategic_agent_addr: Addr<StrategicAgent>,
-        tactical_resources: Option<TacticalResources>,
+        scheduling_environment_guard: &MutexGuard<SchedulingEnvironment>,
         strategic_tactical_optimized_work_orders: Arc<ArcSwapSharedSolution>,
         notify_orchestrator: NotifyOrchestrator,
     ) -> Addr<TacticalAgent> {
         let (sender, receiver) = std::sync::mpsc::channel::<Addr<TacticalAgent>>();
 
-        let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
-
-        let mut tactical_resources_capacity =
-            initialize_tactical_resources(&scheduling_environment_guard, Work::from(0.0));
-
-        if let Some(resources) = tactical_resources {
-            tactical_resources_capacity.update_resources(resources);
-        }
+        let tactical_resources_capacity =
+            initialize_tactical_resources(scheduling_environment_guard, Work::from(0.0));
 
         let tactical_resources_loading =
-            initialize_tactical_resources(&scheduling_environment_guard, Work::from(0.0));
+            initialize_tactical_resources(scheduling_environment_guard, Work::from(0.0));
 
         let mut tactical_algorithm = TacticalAlgorithm::new(
             scheduling_environment_guard
@@ -150,9 +146,20 @@ impl AgentFactory {
             strategic_tactical_optimized_work_orders,
         );
 
-        tactical_algorithm.create_tactical_parameters(&scheduling_environment_guard, &asset);
+        let tactical_resources_from_file = scheduling_environment_guard
+            .worker_environment
+            .generate_tactical_resources(
+                scheduling_environment_guard
+                    .time_environment
+                    .tactical_days(),
+            );
 
-        drop(scheduling_environment_guard);
+        tactical_algorithm
+            .tactical_parameters
+            .tactical_capacity
+            .update_resources(tactical_resources_from_file);
+
+        tactical_algorithm.create_tactical_parameters(scheduling_environment_guard, &asset);
 
         let arc_scheduling_environment = self.scheduling_environment.clone();
         Arbiter::new().spawn_fn(move || {

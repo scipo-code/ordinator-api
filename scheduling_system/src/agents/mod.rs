@@ -255,7 +255,7 @@ impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
             })?
             .work_order_activities
             .iter()
-            .find(|ele| ele.0 == *work_order_activity)
+            .find(|woa_os| woa_os.0 == *work_order_activity)
             .map(|os| os.1.marginal_fitness.clone())
             .unwrap_or(MarginalFitness::MAX);
 
@@ -278,10 +278,14 @@ impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum StateLink {
+    WorkOrders(AgentSpecific),
+    WorkerEnvironment,
+    TimeEnvironment,
+}
+
+#[derive(Debug, Clone)]
+pub enum AgentSpecific {
     Strategic(Vec<WorkOrderNumber>),
-    Tactical,
-    Supervisor,
-    Operational,
 }
 
 impl Message for StateLink {
