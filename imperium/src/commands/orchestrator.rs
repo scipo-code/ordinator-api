@@ -105,7 +105,7 @@ pub enum OperationalAgentCommands {
 }
 
 impl OrchestratorCommands {
-    pub fn execute(self, client: &Client) -> SystemMessages {
+    pub fn execute(self) -> SystemMessages {
         match self {
             OrchestratorCommands::SchedulingEnvironment(scheduling_environment_commands) => {
                 match scheduling_environment_commands {
@@ -203,22 +203,17 @@ impl OrchestratorCommands {
                 resource_configuration_file: resource_toml,
             } => {
                 let contents = std::fs::read_to_string(resource_toml).unwrap();
-                let config: SystemAgents = toml::from_str(&contents).unwrap();
+                let system_agents: SystemAgents = toml::from_str(&contents).unwrap();
 
-                for agent in config.operational {
-                    let create_operational_agent: OrchestratorRequest =
-                        OrchestratorRequest::CreateOperationalAgent(
-                            asset.clone(),
-                            Id::new(agent.id, agent.resources.resources, None),
-                            agent.operational_configuration,
-                        );
-                    let message = SystemMessages::Orchestrator(create_operational_agent);
-                    crate::send_http(client, message).expect(
-                        "Could not initialize the crew from configuration. THIS SHOULD BE CHANGED, move it to the WorkerEnvironment in the SchedulingEnvironment",
-                    );
-                }
+                // FIX: STRATEGIC AND TACTICAL SHOULD ALSO BE UPDATED HERE.
+                // Actually this whole thing should be reworked. I think that
+                // the best approach here is to use the WorkerEnvironment to
+                // also initialize the;
 
-                SystemMessages::Orchestrator(OrchestratorRequest::AgentStatusRequest)
+                SystemMessages::Orchestrator(OrchestratorRequest::InitializeSystemAgentsFromFile(
+                    asset,
+                    system_agents,
+                ))
             }
         }
     }

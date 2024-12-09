@@ -47,6 +47,7 @@ use tracing_subscriber::EnvFilter;
 
 use shared_types::scheduling_environment::WorkOrders;
 
+use super::AgentSpecific;
 use super::ArcSwapSharedSolution;
 use super::StateLink;
 
@@ -76,7 +77,7 @@ impl NotifyOrchestrator {
             .get(asset)
             .context("Asset should always be there")?;
 
-        let state_link = StateLink::Strategic(work_orders);
+        let state_link = StateLink::WorkOrders(AgentSpecific::Strategic(work_orders));
 
         agent_registry
             .strategic_agent_addr
@@ -85,10 +86,12 @@ impl NotifyOrchestrator {
         agent_registry
             .tactical_agent_addr
             .do_send(state_link.clone());
+
         agent_registry
             .supervisor_agent_addrs
             .values()
             .for_each(|addr| addr.do_send(state_link.clone()));
+
         agent_registry
             .operational_agent_addrs
             .values()
@@ -227,6 +230,105 @@ impl Orchestrator {
                 let orchestrator_response =
                     OrchestratorResponse::AgentStatus(orchestrator_response_status);
                 Ok(orchestrator_response)
+            }
+            OrchestratorRequest::InitializeSystemAgentsFromFile(asset, system_agents) => {
+                // FIX TODO: send message to the strategic agent to update its resources.
+                {
+                    let mut scheduling_environment_guard =
+                        self.scheduling_environment.lock().unwrap();
+                    scheduling_environment_guard
+                        .worker_environment
+                        .system_agents = system_agents;
+                }
+
+                let state_link = StateLink::WorkerEnvironment;
+                let agent_registry = self.agent_registries.get(&asset).unwrap();
+                agent_registry
+                    .strategic_agent_addr
+                    .do_send(state_link.clone());
+                // .await
+                // .with_context(|| {
+                //     format!(
+                //         "Could not send message to {:?} for {}",
+                //         std::any::type_name::<StrategicAgent>(),
+                //         std::any::type_name_of_val(&asset)
+                //     )
+                // })??;
+
+                agent_registry
+                    .tactical_agent_addr
+                    .do_send(state_link.clone());
+                // .await
+                // .with_context(|| {
+                //     format!(
+                //         "Could not send message to {:?} for {}",
+                //         std::any::type_name::<TacticalAgent>(),
+                //         std::any::type_name_of_val(&asset)
+                //     )
+                // })??;
+
+                for supervisor in agent_registry.supervisor_agent_addrs.iter() {
+                    supervisor.1.do_send(state_link.clone());
+                }
+
+                let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+                let operational_agents = &scheduling_environment_guard
+                    .worker_environment
+                    .system_agents
+                    .operational;
+
+                for agent in operational_agents {
+                    let id = Id::new(agent.id.clone(), agent.resources.resources.clone(), None);
+                    let supervisor_addrs = self
+                        .agent_registries
+                        .get(&asset)
+                        .with_context(|| {
+                            format!(
+                                "{:#?} not found for {:#?}",
+                                std::any::type_name::<ActorRegistry>(),
+                                &asset
+                            )
+                        })?
+                        .supervisor_agent_addrs
+                        .clone();
+                    let arc_swap =
+                        self.arc_swap_shared_solutions
+                            .get(&asset)
+                            .with_context(|| {
+                                format!(
+                                    "{:#?} not found for {:#?}",
+                                    std::any::type_name::<ArcSwapSharedSolution>(),
+                                    &asset
+                                )
+                            })?;
+                    let notify_orchestrator = NotifyOrchestrator(
+                        self.agent_notify
+                            .as_ref()
+                            .unwrap()
+                            .upgrade()
+                            .with_context(|| {
+                                format!(
+                                    "{:?} could not be upgraded to {:?}",
+                                    std::any::type_name::<Weak<Mutex<Orchestrator>>>(),
+                                    std::any::type_name::<Arc<Mutex<Orchestrator>>>()
+                                )
+                            })?,
+                    );
+                    let operational_addr = self.agent_factory.build_operational_agent(
+                        id.clone(),
+                        &agent.operational_configuration,
+                        supervisor_addrs,
+                        Arc::clone(arc_swap),
+                        notify_orchestrator,
+                    );
+
+                    self.agent_registries
+                        .get_mut(&asset)
+                        .unwrap()
+                        .operational_agent_addrs
+                        .insert(id, operational_addr);
+                }
+                Ok(OrchestratorResponse::Success)
             }
             OrchestratorRequest::GetWorkOrderStatus(work_order_number, _level_of_detail) => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
@@ -546,9 +648,7 @@ impl Orchestrator {
     // the files versus bitstream. One thing is for sure if the add_asset function should be reused
     // there can be no file handling inside of it.
     pub fn add_asset(&mut self, asset: Asset, system_agents_bytes: Vec<u8>) -> Result<()> {
-        dbg!();
-        let scheduling_environment_guard = &mut self.scheduling_environment.lock().unwrap();
-        dbg!();
+        let mut scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
         scheduling_environment_guard
             .worker_environment
@@ -560,13 +660,11 @@ impl Orchestrator {
                 )
             })?;
 
-        dbg!();
         let shared_solutions_arc_swap = AgentFactory::create_shared_solution_arc_swap();
 
-        dbg!();
         let strategic_agent_addr = self.agent_factory.build_strategic_agent(
             asset.clone(),
-            scheduling_environment_guard,
+            &scheduling_environment_guard,
             shared_solutions_arc_swap.clone(),
             NotifyOrchestrator(
                 self.agent_notify
@@ -576,20 +674,11 @@ impl Orchestrator {
                     .expect("Weak reference part of initialization"),
             ),
         );
-        dbg!();
 
         let tactical_agent_addr = self.agent_factory.build_tactical_agent(
             asset.clone(),
             strategic_agent_addr.clone(),
-            Some(
-                scheduling_environment_guard
-                    .worker_environment
-                    .generate_tactical_resources(
-                        scheduling_environment_guard
-                            .time_environment
-                            .tactical_days(),
-                    ),
-            ),
+            &scheduling_environment_guard,
             shared_solutions_arc_swap.clone(),
             NotifyOrchestrator(
                 self.agent_notify
@@ -600,14 +689,16 @@ impl Orchestrator {
             ),
         );
 
-        let mut supervisor_addrs = HashMap::<Id, Addr<SupervisorAgent>>::new();
-        let number_of_operational_agents = Arc::new(AtomicU64::new(0));
-
-        for supervisor in &scheduling_environment_guard
+        let supervisors = scheduling_environment_guard
             .worker_environment
             .system_agents
             .supervisors
-        {
+            .clone();
+        drop(scheduling_environment_guard);
+        let mut supervisor_addrs = HashMap::<Id, Addr<SupervisorAgent>>::new();
+        let number_of_operational_agents = Arc::new(AtomicU64::new(0));
+
+        for supervisor in supervisors {
             let id = Id::new("default".to_string(), vec![], Some(supervisor.clone()));
 
             let supervisor_addr = self
