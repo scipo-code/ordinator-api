@@ -1,8 +1,8 @@
 zellij:
     zellij --layout ordinator.kdl --session ordinator-api
 
-version-bump SEMVER:
-    cargo release --no-publish {{SEMVER}}
+version-bump SEMVER EXECUTE="":
+    cargo release --no-publish {{SEMVER}} EXECUTE
     
 build-windows:
     cross build --target x86_64-pc-windows-gnu --release
