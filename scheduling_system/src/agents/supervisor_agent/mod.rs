@@ -19,6 +19,8 @@ use tracing::{event, instrument, Level};
 
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
+use crate::agents::SupervisorSolution;
+
 use self::algorithm::SupervisorAlgorithm;
 
 use super::{
@@ -81,7 +83,14 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
         let old_supervisor_solution = self.supervisor_algorithm.supervisor_solution.clone();
 
         let number_of_removed_work_orders = 10;
-        self.unschedule_random_work_orders(number_of_removed_work_orders, rng);
+        self.unschedule_random_work_orders(number_of_removed_work_orders, rng)
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Error: {}, Could not destroy {}",
+                    err,
+                    std::any::type_name::<SupervisorSolution>()
+                )
+            });
 
         self.supervisor_algorithm
             .schedule()
@@ -169,7 +178,11 @@ impl SupervisorAgent {
         })
     }
 
-    fn unschedule_random_work_orders(&mut self, number_of_work_orders: u64, mut rng: ThreadRng) {
+    fn unschedule_random_work_orders(
+        &mut self,
+        number_of_work_orders: u64,
+        mut rng: ThreadRng,
+    ) -> Result<()> {
         let work_order_numbers = self
             .supervisor_algorithm
             .supervisor_solution
@@ -183,15 +196,14 @@ impl SupervisorAgent {
         for work_order_number in sampled_work_order_numbers {
             self.supervisor_algorithm
                 .unschedule(*work_order_number)
-                .unwrap_or_else(|err| {
-                    event!(Level::ERROR, error = ?err, work_order_number = ?work_order_number);
-                    eprintln!(
+                .with_context(|| {
+                    format!(
                         "Could not unschedule work_order_number: {:?}",
                         work_order_number
-                    );
-                    panic!();
-                })
+                    )
+                })?;
         }
+        Ok(())
         // self.supervisor_algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&old_state).unwrap();
     }
 
@@ -229,7 +241,10 @@ impl SupervisorAgent {
         for work_order_activity in work_order_activities {
             self.supervisor_algorithm
                 .supervisor_parameters
-                .create_and_insert_supervisor_parameter(&locked_scheduling_environment, &work_order_activity);
+                .create_and_insert_supervisor_parameter(
+                    &locked_scheduling_environment,
+                    &work_order_activity,
+                );
 
             for operational_agent in &self.operational_agent_addrs {
                 if operational_agent.0 .1.contains(

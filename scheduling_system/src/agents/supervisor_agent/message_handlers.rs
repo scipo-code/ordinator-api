@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use actix::Handler;
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{bail, Context, Result};
 use shared_types::supervisor::{
     supervisor_response_scheduling::SupervisorResponseScheduling,
     supervisor_response_status::SupervisorResponseStatus, SupervisorRequestMessage,
