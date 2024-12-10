@@ -119,10 +119,6 @@ impl Handler<ScheduleIteration> for TacticalAgent {
                     .tactical_solution
                     .tactical_days
                     .len());
-
-
-
-
         } else {
             event!(Level::INFO,
                  new_tactical_objective_value = ?self.tactical_algorithm.tactical_solution.objective_value,
