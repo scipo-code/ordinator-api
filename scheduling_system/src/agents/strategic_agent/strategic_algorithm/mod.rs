@@ -79,6 +79,16 @@ impl StrategicAlgorithm {
         self.strategic_periods = periods;
     }
 
+    pub fn update_the_locked_in_period(&mut self, work_order_number: &WorkOrderNumber, locked_in_period: &Period) -> Result<()> {
+        self.strategic_solution.strategic_periods.insert(*work_order_number, Some(locked_in_period.clone()));
+
+        let strategic_parameter = self.strategic_parameters.strategic_work_order_parameters.get_mut(work_order_number).with_context(|| format!("{:?} not found in {}", work_order_number, std::any::type_name::<StrategicParameters>()))?;
+
+        strategic_parameter.excluded_periods.remove(locked_in_period);
+        strategic_parameter.locked_in_period = Some(locked_in_period.clone());
+        Ok(())
+    }
+
     pub fn create_strategic_parameters(
         &mut self,
         work_orders: &WorkOrders,
@@ -149,13 +159,14 @@ impl StrategicAlgorithm {
     }
 }
 
+#[derive(Debug)]
 pub enum ForcedWorkOrder {
     Locked,
     FromTactical(Period),
 }
 
 impl StrategicAlgorithm {
-    pub fn schedule_forced_work_orders(&mut self) {
+    pub fn schedule_forced_work_orders(&mut self) -> Result<()> {
         let tactical_work_orders = &self.loaded_shared_solution.tactical.tactical_days;
         let mut work_order_numbers: Vec<(WorkOrderNumber, ForcedWorkOrder)> = vec![];
         for (work_order_number, strategic_parameter) in self.strategic_parameters.strategic_work_order_parameters.iter() {
@@ -195,9 +206,10 @@ impl StrategicAlgorithm {
             } 
         }
 
-        for work_order_number in work_order_numbers {
-            self.schedule_forced_work_order(&work_order_number);
+        for forced_work_order_numbers in work_order_numbers {
+            self.schedule_forced_work_order(&forced_work_order_numbers).with_context(|| format!("{:#?} could not be force scheduled", forced_work_order_numbers))?;
         }
+        Ok(())
     }
 
     pub fn schedule_normal_work_order(
@@ -247,22 +259,26 @@ impl StrategicAlgorithm {
         Ok(None)
     }
 
-    pub fn schedule_forced_work_order(&mut self, work_order_number: &(WorkOrderNumber, ForcedWorkOrder)) {
+    pub fn schedule_forced_work_order(&mut self, force_schedule_work_order: &(WorkOrderNumber, ForcedWorkOrder)) -> Result<()> {
         
-        if let Some(work_order_number) = self.is_scheduled(&work_order_number.0) {
+        if let Some(work_order_number) = self.is_scheduled(&force_schedule_work_order.0) {
             self.unschedule(*work_order_number).unwrap();
         }
 
-        let locked_period = match &work_order_number.1 {
+        let locked_in_period = match &force_schedule_work_order.1 {
             ForcedWorkOrder::Locked => self
-            .strategic_parameters
-            .get_locked_in_period(&work_order_number.0),
-            ForcedWorkOrder::FromTactical(period) => period ,
+                .strategic_parameters
+                .get_locked_in_period(&force_schedule_work_order.0).clone(),
+            ForcedWorkOrder::FromTactical(period) => period.clone() ,
         };
 
-        *self.strategic_solution.strategic_periods.get_mut(&work_order_number.0).unwrap() = Some(locked_period.clone());
+        // Should the update loadings also be included here? I do not think that is a good idea.
+        // What other things could we do?
+        self.update_the_locked_in_period(&force_schedule_work_order.0, &locked_in_period)
+            .with_context(|| format!("Could not fully update {:#?} in {}", force_schedule_work_order.0, &locked_in_period))?;
 
-        self.update_loadings(work_order_number.0, locked_period.clone(), LoadOperation::Add);
+        self.update_loadings(force_schedule_work_order.0, locked_in_period.clone(), LoadOperation::Add);
+        Ok(())
     }
 
     pub fn unschedule_random_work_orders(
@@ -272,11 +288,11 @@ impl StrategicAlgorithm {
     ) -> Result<()> {
         let strategic_periods = &self.strategic_solution.strategic_periods;
 
-        let strategic_parameter = &self.strategic_parameters.strategic_work_order_parameters;
+        let strategic_parameters = &self.strategic_parameters.strategic_work_order_parameters;
 
         let mut filtered_keys: Vec<_> = strategic_periods
             .iter()
-            .filter(|(won, _)| strategic_parameter.get(won).unwrap().locked_in_period.is_none())
+            .filter(|(won, _)| strategic_parameters.get(won).unwrap().locked_in_period.is_none())
             .map(|(&won, _)| won)
             .collect();
 
@@ -1080,7 +1096,7 @@ mod tests {
            Work::from( 0.0)
         );
 
-        strategic_algorithm.schedule_forced_work_order(&(work_order_number, ForcedWorkOrder::Locked));
+        strategic_algorithm.schedule_forced_work_order(&(work_order_number, ForcedWorkOrder::Locked)).unwrap();
 
         assert_eq!(
             *strategic_algorithm
@@ -1101,7 +1117,7 @@ mod tests {
         strategic_algorithm
             .strategic_parameters
             .set_locked_in_period(work_order_number, period_2.clone()).context("could not set locked in period").expect("test failed");
-        strategic_algorithm.schedule_forced_work_order(&(work_order_number, ForcedWorkOrder::Locked));
+        strategic_algorithm.schedule_forced_work_order(&(work_order_number, ForcedWorkOrder::Locked)).unwrap();
 
         assert_eq!(
             *strategic_algorithm
@@ -1352,7 +1368,7 @@ Period::from_str("2023-W49-50").unwrap(),
             .strategic_periods
             .insert(work_order_number, Some(Period::from_str("2024-W41-42").unwrap()));
 
-        strategic_algorithm.schedule_forced_work_orders();
+        strategic_algorithm.schedule_forced_work_orders().unwrap();
 
         strategic_algorithm.unschedule(work_order_number).unwrap();
         assert_eq!(

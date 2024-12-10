@@ -80,7 +80,9 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         self.assert_excluded_periods().expect("Assert failed");
         self.strategic_algorithm.load_shared_solution();
 
-        self.strategic_algorithm.schedule_forced_work_orders();
+        self.strategic_algorithm
+            .schedule_forced_work_orders()
+            .expect("Could not force schedule work orders");
 
         self.assert_excluded_periods().expect("Assert failed");
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
@@ -377,7 +379,8 @@ mod tests {
             .insert(work_order_number, None);
 
         strategic_algorithm
-            .schedule_forced_work_order(&(work_order_number, ForcedWorkOrder::Locked));
+            .schedule_forced_work_order(&(work_order_number, ForcedWorkOrder::Locked))
+            .unwrap();
 
         strategic_algorithm.calculate_objective_value();
 
