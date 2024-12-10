@@ -1,9 +1,10 @@
 zellij:
-    zellij --layout ordinator.kdl --session ordinator-api
+    zellij --layout ordinator.kdl --session "ordinator-api"
 
 version-bump SEMVER EXECUTE="":
-    cargo release --no-publish {{SEMVER}} {{EXECUTE}}
-    
+    #!/usr/bin/env fish
+    cargo release --no-publish {{SEMVER}} {{EXECUTE}} &&  rg -o '([0-9]\.[0-9]\.[0-9])' scheduling_system/Cargo.toml > version | gh release create $(cat version) ./imperium --title "Release $(cat version)" --notes "None" rm version  
+
 build-windows:
     cross build --target x86_64-pc-windows-gnu --release
 
