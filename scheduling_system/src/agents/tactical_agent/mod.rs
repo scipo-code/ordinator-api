@@ -75,7 +75,7 @@ impl Actor for TacticalAgent {
         self.strategic_addr
             .do_send(SetAddr::Tactical(ctx.address()));
 
-        // ctx.notify(ScheduleIteration {});
+        ctx.notify(ScheduleIteration {});
     }
 }
 
@@ -84,6 +84,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
 
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut actix::Context<Self>) -> Self::Result {
         let mut rng = rand::thread_rng();
+
         self.tactical_algorithm.load_shared_solution();
 
         let current_tactical_solution = self.tactical_algorithm.tactical_solution.clone();
@@ -110,15 +111,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
                  scheduled_work_orders = self
                 .tactical_algorithm
                 .tactical_solution
-                .tactical_days
-                .iter()
-                .filter(|ele| ele.1.is_some())
-                .count(),
-                all_work_orders = self
-                    .tactical_algorithm
-                    .tactical_solution
-                    .tactical_days
-                    .len());
+                .tactical_scheduled_work_orders.scheduled_work_orders())
         } else {
             event!(Level::INFO,
                  new_tactical_objective_value = ?self.tactical_algorithm.tactical_solution.objective_value,
@@ -128,15 +121,9 @@ impl Handler<ScheduleIteration> for TacticalAgent {
                  scheduled_work_orders = self
                 .tactical_algorithm
                 .tactical_solution
-                .tactical_days
-                .iter()
-                .filter(|ele| ele.1.is_some())
-                .count(),
-                all_work_orders = self
-                    .tactical_algorithm
-                    .tactical_solution
-                    .tactical_days
-                    .len());
+                .tactical_scheduled_work_orders.scheduled_work_orders(),
+                );
+
             self.tactical_algorithm.tactical_solution = current_tactical_solution;
         };
 
@@ -146,15 +133,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
                  scheduled_work_orders = self
                 .tactical_algorithm
                 .tactical_solution
-                .tactical_days
-                .iter()
-                .filter(|ele| ele.1.is_some())
-                .count(),
-                all_work_orders = self
-                    .tactical_algorithm
-                    .tactical_solution
-                    .tactical_days
-                    .len());
+                .tactical_scheduled_work_orders.scheduled_work_orders());
  
         ctx.wait(
             tokio::time::sleep(tokio::time::Duration::from_millis(

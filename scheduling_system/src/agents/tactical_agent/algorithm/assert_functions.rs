@@ -25,12 +25,13 @@ impl TacticalAssertions for TacticalAlgorithm {
 
         for (_work_order_number, tactical_solution) in &self
             .tactical_solution
-            .tactical_days
+            .tactical_scheduled_work_orders
+            .0
             .iter()
             .filter(|(_, val)| val.is_some())
             .collect::<Vec<_>>()
         {
-            for operation_solution in tactical_solution.as_ref().unwrap().values() {
+            for operation_solution in tactical_solution.as_ref().unwrap().0.values() {
                 let resource = &operation_solution.resource;
 
                 for (day, load) in &operation_solution.scheduled {

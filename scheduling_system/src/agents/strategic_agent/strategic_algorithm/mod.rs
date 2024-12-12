@@ -167,7 +167,7 @@ pub enum ForcedWorkOrder {
 
 impl StrategicAlgorithm {
     pub fn schedule_forced_work_orders(&mut self) -> Result<()> {
-        let tactical_work_orders = &self.loaded_shared_solution.tactical.tactical_days;
+        let tactical_work_orders = &self.loaded_shared_solution.tactical.tactical_scheduled_work_orders;
         let mut work_order_numbers: Vec<(WorkOrderNumber, ForcedWorkOrder)> = vec![];
         for (work_order_number, strategic_parameter) in self.strategic_parameters.strategic_work_order_parameters.iter() {
             let scheduled_period = self
@@ -176,6 +176,7 @@ impl StrategicAlgorithm {
                 .unwrap();
 
             let tactical_work_order = tactical_work_orders
+                .0
                 .get(work_order_number)
                 .expect("State should always be present except if the TacticalAgent has not had time to initialize yet");
 
@@ -189,6 +190,7 @@ impl StrategicAlgorithm {
                 let first_day = tactical_work_order
                     .as_ref()
                     .unwrap()
+                    .0
                     .iter()
                     .min_by(|ele1 , ele2| {
                         ele1.1.scheduled[0].0.date().date_naive().cmp(&ele2.1.scheduled[0].0.date().date_naive())
@@ -311,7 +313,7 @@ impl StrategicAlgorithm {
         Ok(())
     }
 
-    fn is_scheduled<'a>(&'a self, work_order_number: &'a WorkOrderNumber) -> Option<&WorkOrderNumber> {
+    fn is_scheduled<'a>(&'a self, work_order_number: &'a WorkOrderNumber) -> Option<&'a WorkOrderNumber> {
         self.strategic_periods()
             .get(work_order_number)
             .and_then(|scheduled_period| {
