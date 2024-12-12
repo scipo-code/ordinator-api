@@ -47,7 +47,8 @@ impl Orchestrator {
                     .0
                     .load()
                     .tactical
-                    .tactical_days
+                    .tactical_scheduled_work_orders
+                    .0
                     .iter()
                     .filter(|(_, d)| d.is_some())
                     .map(|(won, opt_acn_tac)| (won, opt_acn_tac.as_ref().unwrap()))
@@ -55,6 +56,7 @@ impl Orchestrator {
                         (
                             *won,
                             acn_tac
+                                .0
                                 .iter()
                                 .map(|(acn, tac)| {
                                     (*acn, tac.scheduled.first().as_ref().unwrap().0.clone())

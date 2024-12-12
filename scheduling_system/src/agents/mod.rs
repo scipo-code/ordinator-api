@@ -6,6 +6,7 @@ pub mod tactical_agent;
 pub mod traits;
 
 use std::collections::{HashMap, HashSet};
+use std::fmt::Display;
 
 use self::{
     operational_agent::OperationalAgent, strategic_agent::StrategicAgent,
@@ -25,7 +26,7 @@ use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::strategic::{StrategicObjectiveValue, StrategicResources};
 use shared_types::tactical::{TacticalObjectiveValue, TacticalResources};
 use supervisor_agent::algorithm::delegate::Delegate;
-use tactical_agent::algorithm::tactical_solution::TacticalOperation;
+use tactical_agent::algorithm::tactical_solution::OperationSolution;
 
 #[derive(Message)]
 #[rtype(result = "Result<()>")]
@@ -75,8 +76,58 @@ pub struct StrategicSolution {
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct TacticalSolution {
     pub objective_value: TacticalObjectiveValue,
-    pub tactical_days: HashMap<WorkOrderNumber, Option<HashMap<ActivityNumber, TacticalOperation>>>,
+    pub tactical_scheduled_work_orders: TacticalScheduledWorkOrders,
     pub tactical_loadings: TacticalResources,
+}
+
+#[derive(PartialEq, Eq, Debug, Default, Clone)]
+pub struct TacticalScheduledWorkOrders(
+    pub HashMap<WorkOrderNumber, WhereIsWorkOrder<TacticalScheduledOperations>>,
+);
+
+#[derive(PartialEq, Eq, Debug, Default, Clone)]
+pub enum WhereIsWorkOrder<T> {
+    Strategic,
+    Tactical(T),
+    #[default]
+    None,
+}
+impl WhereIsWorkOrder<TacticalScheduledOperations> {
+    pub fn is_tactical(&self) -> bool {
+        matches!(self, WhereIsWorkOrder::Tactical(_))
+    }
+}
+
+impl TacticalScheduledWorkOrders {
+    pub fn scheduled_work_orders(&self) -> usize {
+        self.0.iter().filter(|ele| ele.1.is_some()).count()
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Default, Clone)]
+pub struct TacticalScheduledOperations(pub HashMap<ActivityNumber, OperationSolution>);
+impl TacticalScheduledOperations {
+    fn insert_operation_solution(
+        &mut self,
+        activity: ActivityNumber,
+        operation_solution: OperationSolution,
+    ) {
+        self.0.insert(activity, operation_solution);
+    }
+}
+
+impl Display for TacticalScheduledOperations {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut tactical_operations = self.0.iter().collect::<Vec<_>>();
+        tactical_operations
+            .sort_by(|a, b| a.1.work_order_activity.1.cmp(&b.1.work_order_activity.1));
+
+        for operation_solution in tactical_operations {
+            write!(f, "activity: {:#?}", operation_solution.0)?;
+            write!(f, "{}", operation_solution.1)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Default)]
@@ -91,16 +142,16 @@ impl TacticalSolutionBuilder {
 
     pub fn with_tactical_days(
         mut self,
-        tactical_days: HashMap<WorkOrderNumber, Option<HashMap<ActivityNumber, TacticalOperation>>>,
+        tactical_days: HashMap<WorkOrderNumber, Option<TacticalScheduledOperations>>,
     ) -> Self {
-        self.0.tactical_days = tactical_days;
+        self.0.tactical_scheduled_work_orders.0 = tactical_days;
         self
     }
 
     pub fn build(self) -> TacticalSolution {
         TacticalSolution {
             objective_value: self.0.objective_value,
-            tactical_days: self.0.tactical_days,
+            tactical_scheduled_work_orders: self.0.tactical_scheduled_work_orders,
             tactical_loadings: self.0.tactical_loadings,
         }
     }
@@ -182,11 +233,10 @@ impl SupervisorSolution {
 }
 
 impl TacticalSolution {
-    pub fn tactical_remove_work_order(&mut self, work_order_number: &WorkOrderNumber) {
-        *self
-            .tactical_days
-            .get_mut(work_order_number)
-            .expect("Tacical State is wrong") = None;
+    pub fn remove_tactical_solution(&mut self, work_order_number: &WorkOrderNumber) {
+        self.tactical_scheduled_work_orders
+            .0
+            .insert(*work_order_number, None);
     }
     pub fn tactical_day(
         &self,
@@ -194,7 +244,8 @@ impl TacticalSolution {
         activity_number: &ActivityNumber,
     ) -> Result<&Vec<(Day, Work)>> {
         let tactical_day = &self
-            .tactical_days
+            .tactical_scheduled_work_orders
+            .0
             .get(work_order_number)
             .with_context(|| {
                 format!(
@@ -209,6 +260,7 @@ impl TacticalSolution {
                     work_order_number
                 )
             })?
+            .0
             .get(activity_number)
             .with_context(|| {
                 format!(
@@ -224,10 +276,11 @@ impl TacticalSolution {
     fn tactical_insert_work_order(
         &mut self,
         work_order_number: WorkOrderNumber,
-        tactical_days: HashMap<ActivityNumber, TacticalOperation>,
+        tactical_scheduled_operations: TacticalScheduledOperations,
     ) {
-        self.tactical_days
-            .insert(work_order_number, Some(tactical_days));
+        self.tactical_scheduled_work_orders
+            .0
+            .insert(work_order_number, Some(tactical_scheduled_operations));
     }
 }
 
@@ -274,7 +327,6 @@ impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
 /// This allows us to get custom implementations for each of the
 /// Agent types creating a mesh of communication pathways that are still
 /// statically typed.
-
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum StateLink {

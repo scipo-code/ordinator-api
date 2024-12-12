@@ -58,7 +58,10 @@ impl StrategicParameters {
             .insert(work_order_number, strategic_parameter)
     }
 
-    pub fn get_locked_in_period<'a>(&'a self, work_order_number: &'a WorkOrderNumber) -> &Period {
+    pub fn get_locked_in_period<'a>(
+        &'a self,
+        work_order_number: &'a WorkOrderNumber,
+    ) -> &'a Period {
         let option_period = match self.strategic_work_order_parameters.get(work_order_number) {
             Some(strategic_parameter) => &strategic_parameter.locked_in_period,
             None => panic!(

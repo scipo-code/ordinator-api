@@ -1,4 +1,5 @@
-use actix::Message;
+use std::fmt::Display;
+
 use serde::Serialize;
 use shared_types::scheduling_environment::{
     time_environment::day::Day,
@@ -10,7 +11,7 @@ use shared_types::scheduling_environment::{
 };
 
 #[derive(Hash, PartialEq, PartialOrd, Ord, Eq, Clone, Debug, Serialize)]
-pub struct TacticalOperation {
+pub struct OperationSolution {
     pub scheduled: Vec<(Day, Work)>,
     pub resource: Resources,
     pub number: NumberOfPeople,
@@ -18,7 +19,7 @@ pub struct TacticalOperation {
     pub work_order_activity: WorkOrderActivity,
 }
 
-impl TacticalOperation {
+impl OperationSolution {
     pub fn new(
         scheduled: Vec<(Day, Work)>,
         resource: Resources,
@@ -26,8 +27,8 @@ impl TacticalOperation {
         work_remaining: Work,
         work_order_number: WorkOrderNumber,
         activity_number: ActivityNumber,
-    ) -> TacticalOperation {
-        TacticalOperation {
+    ) -> OperationSolution {
+        OperationSolution {
             scheduled,
             resource,
             number,
@@ -37,6 +38,12 @@ impl TacticalOperation {
     }
 }
 
-impl Message for TacticalOperation {
-    type Result = bool;
+impl Display for OperationSolution {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.work_order_activity)?;
+        for scheduled in &self.scheduled {
+            write!(f, "{} on {}", scheduled.1, scheduled.0)?
+        }
+        Ok(())
+    }
 }

@@ -590,7 +590,8 @@ impl OperationalAlgorithm {
         let tactical_days_option = self
             .loaded_shared_solution
             .tactical
-            .tactical_days
+            .tactical_scheduled_work_orders
+            .0
             .get(&work_order_activity.0)
             .expect("This should always be present. If this occurs you should check the initialization. The implementation is that the tactical and strategic algorithm always provide a key for each WorkOrderNumber");
 
@@ -603,7 +604,7 @@ impl OperationalAlgorithm {
 
         let (start_window, end_window) = match (strategic_period_option, tactical_days_option) {
             (Some(_period), Some(activities)) => {
-                let scheduled_days = &activities.get(&work_order_activity.1).unwrap().scheduled;
+                let scheduled_days = &activities.0.get(&work_order_activity.1).unwrap().scheduled;
 
                 let start = scheduled_days.first().unwrap().0.date();
                 let end = scheduled_days.last().unwrap().0.date();
@@ -994,7 +995,8 @@ mod tests {
 
         tactical_updated_shared_solution
             .tactical
-            .tactical_days
+            .tactical_scheduled_work_orders
+            .0
             .insert(WorkOrderNumber(0), None);
 
         operational_algorithm
