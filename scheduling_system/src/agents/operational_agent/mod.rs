@@ -31,7 +31,7 @@ use crate::agents::{supervisor_agent::algorithm::delegate::Delegate, Operational
 
 use self::algorithm::OperationalAlgorithm;
 
-use super::traits::LargeNeighborHoodSearch;
+use super::traits::LargeNeighborhoodSearch;
 use super::ScheduleIteration;
 use super::SetAddr;
 use super::{orchestrator::NotifyOrchestrator, supervisor_agent::SupervisorAgent};
@@ -127,14 +127,18 @@ impl Actor for OperationalAgent {
                 unavailability_end_event,
             ));
 
-        ctx.notify(ScheduleIteration {})
+        ctx.notify(ScheduleIteration::default())
     }
 }
 
 impl Handler<ScheduleIteration> for OperationalAgent {
     type Result = Result<()>;
 
-    fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(
+        &mut self,
+        schedule_iteration: ScheduleIteration,
+        ctx: &mut Self::Context,
+    ) -> Self::Result {
         let mut rng = rand::thread_rng();
 
         self.operational_algorithm.load_shared_solution();
@@ -220,7 +224,10 @@ impl Handler<ScheduleIteration> for OperationalAgent {
                 )
             })
             .expect("");
-        ctx.notify(ScheduleIteration {});
+
+        ctx.notify(ScheduleIteration {
+            loop_iteration: schedule_iteration.loop_iteration + 1,
+        });
         Ok(())
     }
 }

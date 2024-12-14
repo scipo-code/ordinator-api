@@ -4,7 +4,7 @@ pub mod operational_solution;
 
 use std::{collections::HashSet, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{bail, Context, Result};
 use arc_swap::Guard;
 use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
@@ -32,7 +32,8 @@ use shared_types::{
 use tracing::{event, Level};
 
 use crate::agents::{
-    traits::LargeNeighborHoodSearch, ArcSwapSharedSolution, OperationalSolution, SharedSolution,
+    traits::LargeNeighborhoodSearch, ArcSwapSharedSolution, OperationalSolution, SharedSolution,
+    StrategicSolution, TacticalSolution, WhereIsWorkOrder,
 };
 
 use super::OperationalConfiguration;
@@ -258,7 +259,7 @@ pub enum Unavailability {
     End,
 }
 
-impl LargeNeighborHoodSearch for OperationalAlgorithm {
+impl LargeNeighborhoodSearch for OperationalAlgorithm {
     type BetterSolution = bool;
     type SchedulingRequest = OperationalSchedulingRequest;
 
@@ -390,7 +391,8 @@ impl LargeNeighborHoodSearch for OperationalAlgorithm {
             &self.operational_parameters.work_order_parameters
         {
             let start_time = self
-                .determine_first_available_start_time(work_order_activity, operational_parameter);
+                .determine_first_available_start_time(work_order_activity, operational_parameter)
+                .with_context(|| format!("{:#?}", work_order_activity))?;
 
             let assignments = self.determine_wrench_time_assignment(
                 *work_order_activity,
@@ -585,7 +587,7 @@ impl OperationalAlgorithm {
         &self,
         work_order_activity: &WorkOrderActivity,
         operational_parameter: &OperationalParameter,
-    ) -> DateTime<Utc> {
+    ) -> Result<DateTime<Utc>> {
         // What should be done here? I think that the goal is to create a
         let tactical_days_option = self
             .loaded_shared_solution
@@ -603,7 +605,8 @@ impl OperationalAlgorithm {
             .expect("This should always be present. If this occurs you should check the initialization. The implementation is that the tactical and strategic algorithm always provide a key for each WorkOrderNumber");
 
         let (start_window, end_window) = match (strategic_period_option, tactical_days_option) {
-            (Some(_period), Some(activities)) => {
+            // What is actually happening here?
+            (_, WhereIsWorkOrder::Tactical(activities)) => {
                 let scheduled_days = &activities.0.get(&work_order_activity.1).unwrap().scheduled;
 
                 let start = scheduled_days.first().unwrap().0.date();
@@ -611,11 +614,15 @@ impl OperationalAlgorithm {
 
                 (start, end)
             }
-            (Some(period), None) => (period.start_date(), period.end_date()),
+            (Some(period), _) => (period.start_date(), period.end_date()),
 
-            (None, Some(_)) => todo!(),
-            // (&self.availability.start_date, &self.availability.end_date)
-            (None, None) => panic!("This should not happen yet, either the tactical xor the strategic has a solution available"),
+            _ => bail!(
+                "{}: {:#?}\n{}: {:#?}\n",
+                std::any::type_name::<StrategicSolution>(),
+                strategic_period_option,
+                std::any::type_name::<TacticalSolution>(),
+                tactical_days_option
+            ),
         };
         for operational_solution in self.operational_solution.work_order_activities.windows(2) {
             let start_of_interval = {
@@ -648,7 +655,7 @@ impl OperationalAlgorithm {
             if (*end_window).min(end_of_interval) - (*start_window).max(start_of_interval)
                 > operational_parameter.operation_time_delta
             {
-                return *start_window.max(&start_of_interval);
+                return Ok(*start_window.max(&start_of_interval));
             }
         }
 
@@ -667,7 +674,7 @@ impl OperationalAlgorithm {
             if time_to_next_event.is_zero() {
                 current_time += next_event.time_delta();
             } else {
-                break current_time;
+                break Ok(current_time);
             }
         }
     }
@@ -796,7 +803,9 @@ mod tests {
         },
     };
 
-    use crate::agents::{operational_agent::algorithm::OperationalEvents, ArcSwapSharedSolution};
+    use crate::agents::{
+        operational_agent::algorithm::OperationalEvents, ArcSwapSharedSolution, WhereIsWorkOrder,
+    };
 
     use super::{OperationalAlgorithm, OperationalParameter};
 
@@ -997,7 +1006,7 @@ mod tests {
             .tactical
             .tactical_scheduled_work_orders
             .0
-            .insert(WorkOrderNumber(0), None);
+            .insert(WorkOrderNumber(0), WhereIsWorkOrder::NotScheduled);
 
         operational_algorithm
             .arc_swap_shared_solution
@@ -1008,10 +1017,12 @@ mod tests {
 
         let operational_parameter = OperationalParameter::new(Work::from(20.0), Work::from(0.0));
 
-        let start_time = operational_algorithm.determine_first_available_start_time(
-            &(WorkOrderNumber(0), ActivityNumber(0)),
-            &operational_parameter,
-        );
+        let start_time = operational_algorithm
+            .determine_first_available_start_time(
+                &(WorkOrderNumber(0), ActivityNumber(0)),
+                &operational_parameter,
+            )
+            .unwrap();
 
         assert_eq!(
             start_time,

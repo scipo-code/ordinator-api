@@ -1,4 +1,5 @@
 use anyhow::{bail, Result};
+use colored::Colorize;
 use std::{borrow::Cow, collections::HashMap};
 use strum::IntoEnumIterator;
 use tracing::{event, Level};
@@ -28,10 +29,10 @@ impl TacticalAssertions for TacticalAlgorithm {
             .tactical_scheduled_work_orders
             .0
             .iter()
-            .filter(|(_, val)| val.is_some())
+            .filter(|(_, whe_tac_sch)| whe_tac_sch.is_tactical())
             .collect::<Vec<_>>()
         {
-            for operation_solution in tactical_solution.as_ref().unwrap().0.values() {
+            for operation_solution in tactical_solution.tactical_operations()?.0.values() {
                 let resource = &operation_solution.resource;
 
                 for (day, load) in &operation_solution.scheduled {
@@ -57,9 +58,10 @@ impl TacticalAssertions for TacticalAlgorithm {
                     .tactical_solution
                     .tactical_loadings
                     .get_resource(&resource, day);
+
                 if (agg_load - sch_load).0.round_dp(9) != Work::from(0.0).0 {
                     event!(Level::ERROR, agg_load = ?agg_load, sch_load = ?sch_load, resource = ?resource, day = ?day);
-                    bail!("Loads does not match on: day {}\nresource: {}\nscheduled load: {}\naggregated_load: {}", day, resource, sch_load, agg_load);
+                    bail!("Loads does not match on: day {}\n\tresource: {}\n\tscheduled load: {}\n\taggregated_load: {}\n", day.to_string().bright_green(), resource.to_string().bright_blue(), sch_load.to_string().bright_yellow(), agg_load.to_string().bright_yellow());
                 }
             }
         }

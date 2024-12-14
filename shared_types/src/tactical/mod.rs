@@ -123,7 +123,7 @@ impl Days {
         self.days.get(day).unwrap()
     }
 
-    pub fn get_mut(&mut self, day: &Day) -> &mut Work {
+    pub fn day_mut(&mut self, day: &Day) -> &mut Work {
         self.days.get_mut(day).unwrap()
     }
 }

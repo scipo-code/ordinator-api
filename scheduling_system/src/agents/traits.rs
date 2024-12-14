@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 #[allow(dead_code)]
-pub trait LargeNeighborHoodSearch {
+pub trait LargeNeighborhoodSearch {
     type BetterSolution;
     type SchedulingRequest;
     type SchedulingResponse;
