@@ -4,7 +4,7 @@ pub mod message_handlers;
 pub mod strategic_algorithm;
 
 use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
-use crate::agents::traits::LargeNeighborHoodSearch;
+use crate::agents::traits::LargeNeighborhoodSearch;
 use anyhow::Result;
 use assert_functions::StrategicAssertions;
 use shared_types::scheduling_environment::SchedulingEnvironment;
@@ -45,7 +45,7 @@ impl Actor for StrategicAgent {
             .schedule()
             .expect("StrategicAlgorithm.schedule() method failed");
 
-        ctx.notify(ScheduleIteration {})
+        ctx.notify(ScheduleIteration::default())
     }
 
     fn stopped(&mut self, _ctx: &mut actix::Context<Self>) {
@@ -130,7 +130,9 @@ impl Handler<ScheduleIteration> for StrategicAgent {
             .into_actor(self),
         );
 
-        ctx.notify(ScheduleIteration {});
+        ctx.notify(ScheduleIteration {
+            loop_iteration: _msg.loop_iteration + 1,
+        });
         Ok(())
     }
 }

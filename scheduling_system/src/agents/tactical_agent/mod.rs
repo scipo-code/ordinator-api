@@ -18,7 +18,7 @@ use shared_types::scheduling_environment::SchedulingEnvironment;
 use super::orchestrator::NotifyOrchestrator;
 use super::strategic_agent::StrategicAgent;
 use super::supervisor_agent::SupervisorAgent;
-use super::traits::LargeNeighborHoodSearch;
+use super::traits::LargeNeighborhoodSearch;
 use super::ScheduleIteration;
 
 pub struct TacticalAgent {
@@ -75,14 +75,16 @@ impl Actor for TacticalAgent {
         self.strategic_addr
             .do_send(SetAddr::Tactical(ctx.address()));
 
-        ctx.notify(ScheduleIteration {});
+        self.tactical_algorithm.schedule().with_context(|| format!("Initial call of: {}", std::any::type_name::<TacticalAlgorithm>())).expect("Failed initial schedule call");
+
+        ctx.notify(ScheduleIteration::default());
     }
 }
 
 impl Handler<ScheduleIteration> for TacticalAgent {
     type Result = Result<()>;
 
-    fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut actix::Context<Self>) -> Self::Result {
+    fn handle(&mut self, schedule_iteration: ScheduleIteration, ctx: &mut actix::Context<Self>) -> Self::Result {
         let mut rng = rand::thread_rng();
 
         self.tactical_algorithm.load_shared_solution();
@@ -94,7 +96,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
             .context("random unschedule failed")
             .expect("Error in the Handler<ScheduleIteration>");
 
-        self.tactical_algorithm.schedule().expect("TacticalAlgorithm.schedule method failed");
+        self.tactical_algorithm.schedule().with_context(|| format!("{:#?}", schedule_iteration)).expect("TacticalAlgorithm.schedule method failed");
 
         let total_excess_hours = self.tactical_algorithm.asset_that_capacity_is_not_exceeded().ok();
         
@@ -144,9 +146,10 @@ impl Handler<ScheduleIteration> for TacticalAgent {
             ))
             .into_actor(self),
         );
-        ctx.notify(ScheduleIteration {});
+        ctx.notify(ScheduleIteration {loop_iteration: schedule_iteration.loop_iteration + 1});
         self.tactical_algorithm
             .asset_that_loading_matches_scheduled()
+            .with_context(|| format!("{:#?}", schedule_iteration))
             .unwrap();
         Ok(())
     }

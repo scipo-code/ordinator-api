@@ -7,7 +7,7 @@ use shared_types::{
 
 use crate::agents::{
     tactical_agent::algorithm::tactical_parameters::TacticalParameters,
-    traits::LargeNeighborHoodSearch, AgentSpecific, SetAddr, StateLink,
+    traits::LargeNeighborhoodSearch, AgentSpecific, SetAddr, StateLink,
 };
 
 use super::TacticalAgent;
@@ -84,7 +84,9 @@ impl Handler<StateLink> for TacticalAgent {
                             })?;
 
                         self.tactical_algorithm
-                            .create_and_insert_tactical_parameter(work_order)
+                            .create_and_insert_tactical_parameter_and_initialize_solution(
+                                work_order,
+                            )
                     }
                     Ok(())
                 }

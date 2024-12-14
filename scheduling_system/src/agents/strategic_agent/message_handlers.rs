@@ -25,7 +25,7 @@ use shared_types::{
 use tracing::event;
 use tracing::Level;
 
-use crate::agents::traits::LargeNeighborHoodSearch;
+use crate::agents::traits::LargeNeighborhoodSearch;
 use crate::agents::AgentSpecific;
 use crate::agents::SetAddr;
 use crate::agents::StateLink;

@@ -3,7 +3,7 @@ pub mod assert_functions;
 
 use shared_types::scheduling_environment::time_environment::TimeEnvironment;
 use strum::IntoEnumIterator;
-use crate::agents::traits::LargeNeighborHoodSearch;
+use crate::agents::traits::LargeNeighborhoodSearch;
 use crate::agents::{SharedSolution, StrategicSolution, ArcSwapSharedSolution};
 use anyhow::{anyhow, bail, Context, Result};
 use assert_functions::StrategicAlgorithmAssertions;
@@ -186,10 +186,9 @@ impl StrategicAlgorithm {
 
             if strategic_parameter.locked_in_period.is_some() {
                 work_order_numbers.push((*work_order_number, ForcedWorkOrder::Locked));
-            } else if tactical_work_order.is_some() {
+            } else if tactical_work_order.is_tactical() {
                 let first_day = tactical_work_order
-                    .as_ref()
-                    .unwrap()
+                    .tactical_operations()?
                     .0
                     .iter()
                     .min_by(|ele1 , ele2| {
@@ -347,7 +346,7 @@ pub fn calculate_period_difference(scheduled_period: Period, latest_period: &Per
 }
 
 
-impl LargeNeighborHoodSearch for StrategicAlgorithm {
+impl LargeNeighborhoodSearch for StrategicAlgorithm {
     type BetterSolution = (u64, u64);
     type SchedulingRequest = StrategicSchedulingRequest;
     type SchedulingResponse = StrategicResponseScheduling;
@@ -660,7 +659,7 @@ mod tests {
 
     use crate::agents::{strategic_agent::strategic_algorithm::{
             PriorityQueues, StrategicAlgorithm, StrategicParameters
-        }, TacticalSolutionBuilder};
+        }, TacticalSolutionBuilder, WhereIsWorkOrder};
 
     use std::{collections::HashMap, str::FromStr};
 
@@ -1346,7 +1345,7 @@ Period::from_str("2023-W49-50").unwrap(),
         let tactical_solution_builder = TacticalSolutionBuilder::new();
        
         let mut tactical_days = HashMap::new();
-        tactical_days.insert(work_order_number, None);
+        tactical_days.insert(work_order_number, WhereIsWorkOrder::NotScheduled);
         
         let tactical_solution = tactical_solution_builder.with_tactical_days(tactical_days).build();
 

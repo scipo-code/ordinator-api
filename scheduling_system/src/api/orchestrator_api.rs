@@ -50,12 +50,13 @@ impl Orchestrator {
                     .tactical_scheduled_work_orders
                     .0
                     .iter()
-                    .filter(|(_, d)| d.is_some())
-                    .map(|(won, opt_acn_tac)| (won, opt_acn_tac.as_ref().unwrap()))
+                    .filter(|(_, tac_sch)| tac_sch.is_tactical())
+                    .map(|(won, opt_acn_tac)| (won, opt_acn_tac.tactical_operations()))
                     .map(|(won, acn_tac)| {
                         (
                             *won,
                             acn_tac
+                                .unwrap()
                                 .0
                                 .iter()
                                 .map(|(acn, tac)| {

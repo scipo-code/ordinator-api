@@ -25,7 +25,7 @@ use self::algorithm::SupervisorAlgorithm;
 
 use super::{
     operational_agent::OperationalAgent, orchestrator::NotifyOrchestrator,
-    tactical_agent::TacticalAgent, traits::LargeNeighborHoodSearch, ArcSwapSharedSolution,
+    tactical_agent::TacticalAgent, traits::LargeNeighborhoodSearch, ArcSwapSharedSolution,
     ScheduleIteration, SetAddr,
 };
 
@@ -51,7 +51,7 @@ impl Actor for SupervisorAgent {
             self.supervisor_id.clone(),
             ctx.address(),
         ));
-        ctx.notify(ScheduleIteration {});
+        ctx.notify(ScheduleIteration::default());
     }
 }
 
@@ -59,7 +59,11 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
     type Result = Result<()>;
 
     #[instrument(skip_all)]
-    fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut actix::Context<Self>) -> Self::Result {
+    fn handle(
+        &mut self,
+        schedule_iteration: ScheduleIteration,
+        ctx: &mut actix::Context<Self>,
+    ) -> Self::Result {
         self.supervisor_algorithm.load_shared_solution();
         self.update_supervisor_solution_and_parameters()
             .expect("Could not load the data from the load SharedSolution");
@@ -134,7 +138,9 @@ impl Handler<ScheduleIteration> for SupervisorAgent {
             ))
             .into_actor(self),
         );
-        ctx.notify(ScheduleIteration {});
+        ctx.notify(ScheduleIteration {
+            loop_iteration: schedule_iteration.loop_iteration + 1,
+        });
         Ok(())
     }
 }

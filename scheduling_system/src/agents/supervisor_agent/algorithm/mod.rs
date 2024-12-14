@@ -32,7 +32,7 @@ use tracing::{event, Level};
 
 use crate::agents::{
     operational_agent::algorithm::operational_solution::MarginalFitness,
-    traits::LargeNeighborHoodSearch, ArcSwapSharedSolution, GetMarginalFitness, SharedSolution,
+    traits::LargeNeighborhoodSearch, ArcSwapSharedSolution, GetMarginalFitness, SharedSolution,
     SupervisorSolution,
 };
 
@@ -180,7 +180,7 @@ impl SupervisorAlgorithm {
     }
 }
 
-impl LargeNeighborHoodSearch for SupervisorAlgorithm {
+impl LargeNeighborhoodSearch for SupervisorAlgorithm {
     type BetterSolution = SupervisorObjectiveValue;
     type SchedulingRequest = SupervisorSchedulingRequest;
     type SchedulingResponse = SupervisorResponseScheduling;

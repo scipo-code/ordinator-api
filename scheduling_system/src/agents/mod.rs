@@ -13,7 +13,7 @@ use self::{
     supervisor_agent::SupervisorAgent, tactical_agent::TacticalAgent,
 };
 use actix::{Addr, Message};
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use arc_swap::ArcSwap;
 use operational_agent::algorithm::operational_solution::{MarginalFitness, OperationalAssignment};
 use operational_agent::algorithm::OperationalObjectiveValue;
@@ -28,9 +28,11 @@ use shared_types::tactical::{TacticalObjectiveValue, TacticalResources};
 use supervisor_agent::algorithm::delegate::Delegate;
 use tactical_agent::algorithm::tactical_solution::OperationSolution;
 
-#[derive(Message)]
+#[derive(Message, Debug, Default)]
 #[rtype(result = "Result<()>")]
-pub struct ScheduleIteration {}
+pub struct ScheduleIteration {
+    loop_iteration: u64,
+}
 
 #[allow(dead_code)]
 pub enum SetAddr {
@@ -90,22 +92,42 @@ pub enum WhereIsWorkOrder<T> {
     Strategic,
     Tactical(T),
     #[default]
-    None,
+    NotScheduled,
 }
 impl WhereIsWorkOrder<TacticalScheduledOperations> {
     pub fn is_tactical(&self) -> bool {
         matches!(self, WhereIsWorkOrder::Tactical(_))
     }
+
+    pub fn tactical_operations(&self) -> Result<&TacticalScheduledOperations> {
+        match self {
+            WhereIsWorkOrder::Strategic => bail!(
+                "A call to extract the {} was made but received {}",
+                std::any::type_name::<TacticalScheduledOperations>(),
+                std::any::type_name_of_val(self),
+            ),
+            WhereIsWorkOrder::Tactical(tactical_scheduled_operations) => {
+                Ok(tactical_scheduled_operations)
+            }
+            WhereIsWorkOrder::NotScheduled => bail!(
+                "The work order has not been scheduled yet, you are most likely calling this method before complete initialization"
+            ),
+        }
+    }
 }
 
 impl TacticalScheduledWorkOrders {
     pub fn scheduled_work_orders(&self) -> usize {
-        self.0.iter().filter(|ele| ele.1.is_some()).count()
+        self.0
+            .iter()
+            .filter(|(_won, sch_wo)| sch_wo.is_tactical())
+            .count()
     }
 }
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct TacticalScheduledOperations(pub HashMap<ActivityNumber, OperationSolution>);
+
 impl TacticalScheduledOperations {
     fn insert_operation_solution(
         &mut self,
@@ -142,7 +164,7 @@ impl TacticalSolutionBuilder {
 
     pub fn with_tactical_days(
         mut self,
-        tactical_days: HashMap<WorkOrderNumber, Option<TacticalScheduledOperations>>,
+        tactical_days: HashMap<WorkOrderNumber, WhereIsWorkOrder<TacticalScheduledOperations>>,
     ) -> Self {
         self.0.tactical_scheduled_work_orders.0 = tactical_days;
         self
@@ -233,12 +255,12 @@ impl SupervisorSolution {
 }
 
 impl TacticalSolution {
-    pub fn remove_tactical_solution(&mut self, work_order_number: &WorkOrderNumber) {
+    pub fn release_from_tactical_solution(&mut self, work_order_number: &WorkOrderNumber) {
         self.tactical_scheduled_work_orders
             .0
-            .insert(*work_order_number, None);
+            .insert(*work_order_number, WhereIsWorkOrder::Strategic);
     }
-    pub fn tactical_day(
+    pub fn tactical_scheduled_days(
         &self,
         work_order_number: &WorkOrderNumber,
         activity_number: &ActivityNumber,
@@ -253,7 +275,7 @@ impl TacticalSolution {
                     work_order_number
                 )
             })?
-            .as_ref()
+            .tactical_operations()
             .with_context(|| {
                 format!(
                     "WorkOrderNumber: {:?} was not scheduled for the tactical solution",
@@ -278,9 +300,10 @@ impl TacticalSolution {
         work_order_number: WorkOrderNumber,
         tactical_scheduled_operations: TacticalScheduledOperations,
     ) {
-        self.tactical_scheduled_work_orders
-            .0
-            .insert(work_order_number, Some(tactical_scheduled_operations));
+        self.tactical_scheduled_work_orders.0.insert(
+            work_order_number,
+            WhereIsWorkOrder::Tactical(tactical_scheduled_operations),
+        );
     }
 }
 
