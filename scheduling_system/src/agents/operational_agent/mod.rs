@@ -4,10 +4,11 @@ pub mod message_handlers;
 
 use algorithm::{
     operational_parameter::OperationalParameter,
-    operational_solution::{Assignment, OperationalAssignment},
+    operational_solution::{Assignment, MarginalFitness, OperationalAssignment},
 };
 use anyhow::{Context, Result};
 use assert_functions::OperationalAssertions;
+use colored::Colorize;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -113,7 +114,7 @@ impl Actor for OperationalAgent {
 
         self.operational_algorithm
             .operational_solution
-            .work_order_activities
+            .work_order_activities_assignment
             .push((
                 (WorkOrderNumber(0), ActivityNumber(0)),
                 unavailability_start_event,
@@ -121,7 +122,7 @@ impl Actor for OperationalAgent {
 
         self.operational_algorithm
             .operational_solution
-            .work_order_activities
+            .work_order_activities_assignment
             .push((
                 (WorkOrderNumber(0), ActivityNumber(0)),
                 unavailability_end_event,
@@ -177,7 +178,7 @@ impl Handler<ScheduleIteration> for OperationalAgent {
             operational_solutions = self
                 .operational_algorithm
                 .operational_solution
-                .work_order_activities
+                .work_order_activities_assignment
                 .len(),
             operational_parameters = self
                 .operational_algorithm
@@ -201,11 +202,31 @@ impl Handler<ScheduleIteration> for OperationalAgent {
         if is_better_schedule {
             self.operational_algorithm
                 .make_atomic_pointer_swap(&self.operational_id);
+            self.operational_algorithm.load_shared_solution();
+            assert_eq!(
+                &self.operational_algorithm.operational_solution,
+                self.operational_algorithm
+                    .loaded_shared_solution
+                    .operational
+                    .get(&self.operational_id)
+                    .unwrap()
+            );
         } else {
             self.operational_algorithm.operational_solution = temporary_operational_solution;
 
             event!(Level::INFO, operational_objective_value = ?self.operational_algorithm.operational_solution.objective_value);
         };
+
+        self.assert_marginal_fitness_is_correct()
+            .with_context(|| {
+                format!(
+                    "{} {} did not calculate {} correctly",
+                    std::any::type_name::<OperationalAgent>().bright_red(),
+                    self.operational_id.to_string().bright_blue(),
+                    std::any::type_name::<MarginalFitness>().bright_purple(),
+                )
+            })
+            .expect("WRITE AN ERROR HERE");
 
         ctx.wait(
             tokio::time::sleep(tokio::time::Duration::from_millis(
