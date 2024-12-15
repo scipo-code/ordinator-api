@@ -10,7 +10,9 @@ use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
 use operational_events::OperationalEvents;
 use operational_parameter::{OperationalParameter, OperationalParameters};
-use operational_solution::{Assignment, OperationalAssignment, OperationalFunctions};
+use operational_solution::{
+    Assignment, MarginalFitness, OperationalAssignment, OperationalFunctions,
+};
 use rand::seq::SliceRandom;
 use shared_types::{
     operational::{
@@ -54,7 +56,7 @@ pub struct OperationalAlgorithm {
 }
 
 #[derive(Clone)]
-pub struct OperationalNonProductive(Vec<Assignment>);
+pub struct OperationalNonProductive(pub Vec<Assignment>);
 
 impl OperationalAlgorithm {
     pub fn new(
@@ -103,7 +105,7 @@ impl OperationalAlgorithm {
 
         for work_order_activity in woas_to_be_deleted {
             self.operational_solution
-                .work_order_activities
+                .work_order_activities_assignment
                 .retain(|os| os.0 != work_order_activity)
         }
     }
@@ -210,13 +212,12 @@ impl OperationalAlgorithm {
         let time_delta_usize = time_delta.num_seconds() as u64;
 
         self.operational_solution
-            .work_order_activities
+            .work_order_activities_assignment
             .iter_mut()
             .find(|oper_sol| oper_sol.0 == work_order_activity_previous)
             .unwrap()
             .1
-            .marginal_fitness
-            .0 = time_delta_usize;
+            .marginal_fitness = MarginalFitness::Fitness(time_delta_usize);
     }
 
     pub(crate) fn load_shared_solution(&mut self) {
@@ -280,7 +281,7 @@ impl LargeNeighborhoodSearch for OperationalAlgorithm {
         // on a MTN-MECH job. I think that this will be very interesting to solve.
         let operational_events: Vec<Assignment> = self
             .operational_solution
-            .work_order_activities
+            .work_order_activities_assignment
             .iter()
             .flat_map(|(_, os)| os.assignments.iter())
             .cloned()
@@ -354,7 +355,6 @@ impl LargeNeighborhoodSearch for OperationalAlgorithm {
         }
 
         // assert_eq!(current_time, self.availability.end_date);
-
         equality_between_time_interval_and_assignments(&all_events.clone().collect::<Vec<_>>());
 
         assert!(is_assignments_in_bounds(
@@ -403,7 +403,7 @@ impl LargeNeighborhoodSearch for OperationalAlgorithm {
             self.operational_solution
                 .try_insert(*work_order_activity, assignments);
 
-            event!(Level::TRACE, number_of_operations = ?self.operational_solution.work_order_activities.len());
+            event!(Level::TRACE, number_of_operations = ?self.operational_solution.work_order_activities_assignment.len());
         }
 
         // fill the schedule
@@ -460,7 +460,7 @@ impl LargeNeighborhoodSearch for OperationalAlgorithm {
     fn unschedule(&mut self, work_order_and_activity_number: Self::SchedulingUnit) -> Result<()> {
         let unscheduled_operational_solution = self
             .operational_solution
-            .work_order_activities
+            .work_order_activities_assignment
             .iter()
             .find(|operational_solution| operational_solution.0 == work_order_and_activity_number)
             .take();
@@ -572,7 +572,7 @@ impl OperationalAlgorithm {
     ) {
         let operational_solutions: Vec<WorkOrderActivity> = self
             .operational_solution
-            .work_order_activities
+            .work_order_activities_assignment
             .choose_multiple(rng, number_of_activities)
             .map(|operational_solution| operational_solution.0)
             .collect();
@@ -624,7 +624,11 @@ impl OperationalAlgorithm {
                 tactical_days_option
             ),
         };
-        for operational_solution in self.operational_solution.work_order_activities.windows(2) {
+        for operational_solution in self
+            .operational_solution
+            .work_order_activities_assignment
+            .windows(2)
+        {
             let start_of_interval = {
                 let mut current_time = operational_solution[0].1.assignments.last().unwrap().finish;
 

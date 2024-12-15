@@ -15,6 +15,7 @@ use self::{
 use actix::{Addr, Message};
 use anyhow::{bail, Context, Result};
 use arc_swap::ArcSwap;
+use colored::Colorize;
 use operational_agent::algorithm::operational_solution::{MarginalFitness, OperationalAssignment};
 use operational_agent::algorithm::OperationalObjectiveValue;
 use shared_types::orchestrator::ApiSolution;
@@ -188,7 +189,7 @@ pub struct SupervisorSolution {
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct OperationalSolution {
     pub objective_value: OperationalObjectiveValue,
-    pub work_order_activities: Vec<(WorkOrderActivity, OperationalAssignment)>,
+    pub work_order_activities_assignment: Vec<(WorkOrderActivity, OperationalAssignment)>,
 }
 
 impl StrategicSolution {
@@ -312,7 +313,7 @@ pub trait GetMarginalFitness {
         &self,
         operational_agent: &Id,
         work_order_activity: &WorkOrderActivity,
-    ) -> Result<MarginalFitness>;
+    ) -> Result<&MarginalFitness>;
 }
 
 impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
@@ -320,22 +321,26 @@ impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
         &self,
         operational_agent: &Id,
         work_order_activity: &WorkOrderActivity,
-    ) -> Result<MarginalFitness> {
-        let marginal_fitness = &self
-            .get(operational_agent)
+    ) -> Result<&MarginalFitness> {
+        self.get(operational_agent)
             .with_context(|| {
                 format!(
-                    "Could not find <Auxiliary Objective> for operational agent: {:?} on {:?}",
-                    operational_agent, work_order_activity
+                    "Could not find {} for operational agent: {:#?}",
+                    std::any::type_name::<MarginalFitness>(),
+                    operational_agent,
                 )
             })?
-            .work_order_activities
+            .work_order_activities_assignment
             .iter()
             .find(|woa_os| woa_os.0 == *work_order_activity)
-            .map(|os| os.1.marginal_fitness.clone())
-            .unwrap_or(MarginalFitness::MAX);
-
-        Ok(marginal_fitness.clone())
+            .map(|os| &os.1.marginal_fitness)
+            .with_context(|| {
+                format!(
+                    "{} did not have\n{:#?}",
+                    operational_agent.to_string().bright_blue(),
+                    format!("{:#?}", work_order_activity).bright_yellow()
+                )
+            })
     }
 }
 

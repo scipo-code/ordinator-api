@@ -91,7 +91,7 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
                         for (work_order_activity, operational_solution) in &self
                             .operational_algorithm
                             .operational_solution
-                            .work_order_activities
+                            .work_order_activities_assignment
                         {
                             let mut json_assignments = vec![];
                             for assignment in &operational_solution.assignments {

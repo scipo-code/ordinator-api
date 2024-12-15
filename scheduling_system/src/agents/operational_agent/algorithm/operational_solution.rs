@@ -15,7 +15,7 @@ impl OperationalSolution {
     pub fn new(work_order_activities: Vec<(WorkOrderActivity, OperationalAssignment)>) -> Self {
         Self {
             objective_value: 0,
-            work_order_activities,
+            work_order_activities_assignment: work_order_activities,
         }
     }
 
@@ -23,7 +23,7 @@ impl OperationalSolution {
         &self,
         work_order_activity: WorkOrderActivity,
     ) -> bool {
-        self.work_order_activities
+        self.work_order_activities_assignment
             .iter()
             .any(|(woa, _)| *woa == work_order_activity)
     }
@@ -44,7 +44,7 @@ impl OperationalFunctions for OperationalSolution {
 
     fn try_insert(&mut self, key: Self::Key, assignments: Self::Sequence) {
         for (index, operational_solution) in self
-            .work_order_activities
+            .work_order_activities_assignment
             .iter()
             .map(|os| os.1.clone())
             .collect::<Vec<_>>()
@@ -76,10 +76,10 @@ impl OperationalFunctions for OperationalSolution {
                 let operational_solution = OperationalAssignment::new(assignments);
 
                 if !self.is_operational_solution_already_scheduled(key) {
-                    self.work_order_activities
+                    self.work_order_activities_assignment
                         .insert(index + 1, (key, operational_solution));
                     let assignments = self
-                        .work_order_activities
+                        .work_order_activities_assignment
                         .iter()
                         .flat_map(|(_, os)| &os.assignments)
                         .collect();
@@ -93,7 +93,7 @@ impl OperationalFunctions for OperationalSolution {
 
     fn containing_operational_solution(&self, time: DateTime<Utc>) -> ContainOrNextOrNone {
         let containing: Option<OperationalAssignment> = self
-            .work_order_activities
+            .work_order_activities_assignment
             .iter()
             .find(|operational_solution| operational_solution.1.contains(time))
             .map(|(_, os)| os)
@@ -103,7 +103,7 @@ impl OperationalFunctions for OperationalSolution {
             Some(containing) => ContainOrNextOrNone::Contain(containing),
             None => {
                 let next: Option<OperationalAssignment> = self
-                    .work_order_activities
+                    .work_order_activities_assignment
                     .iter()
                     .map(|os| os.1.clone())
                     .find(|start| start.start_time() > time);
@@ -131,6 +131,7 @@ impl OperationalAssignment {
         }
     }
 
+    /// Start time of the Whole Assignment Vec
     pub fn start_time(&self) -> DateTime<Utc> {
         self.assignments.first().unwrap().start
     }
@@ -214,15 +215,9 @@ impl Assignment {
     }
 }
 
-#[derive(Eq, PartialEq, PartialOrd, Ord, Debug, Clone)]
-pub struct MarginalFitness(pub u64);
-
-impl MarginalFitness {
-    pub const MAX: Self = Self(u64::MAX);
-}
-
-impl Default for MarginalFitness {
-    fn default() -> Self {
-        Self(u64::MAX)
-    }
+#[derive(Eq, PartialEq, PartialOrd, Ord, Debug, Clone, Default)]
+pub enum MarginalFitness {
+    Fitness(u64),
+    #[default]
+    None,
 }

@@ -227,13 +227,15 @@ impl LargeNeighborhoodSearch for SupervisorAlgorithm {
 
             let operational = &self.loaded_shared_solution.operational;
 
+            // dbg!(operational);
+
             operational_status_by_work_order_activity.sort_by_cached_key(|(agent_id, _)| {
                 match operational
                     .marginal_fitness(agent_id, work_order_activity) {
                         Ok(marginal_fitness) => marginal_fitness,
                         Err(e) => {
                             event!(Level::WARN, operational_agent_marginal_fitness_error = ?e, "Could be that the OperationalAgent did not have time to initialize. A bug could be hiding here");
-                            MarginalFitness::MAX
+                            &MarginalFitness::None
                         },
                     }
             });
@@ -251,15 +253,21 @@ impl LargeNeighborhoodSearch for SupervisorAlgorithm {
                     continue;
                 }
 
-                let marginal_fitness = self
+                let marginal_fitness_result = self
                     .loaded_shared_solution
                     .operational
                     .marginal_fitness(agent_id, work_order_activity)
-                    .unwrap_or_default();
+                    .with_context(|| {
+                        format!(
+                            "Attempt to access non-existent {}",
+                            std::any::type_name::<MarginalFitness>()
+                        )
+                    });
 
-                if marginal_fitness == MarginalFitness::MAX {
-                    continue 'next_work_order_activity;
-                }
+                match marginal_fitness_result {
+                    Ok(_) => (),
+                    Err(_) => continue 'next_work_order_activity,
+                };
 
                 if remaining_to_assign >= 1 {
                     remaining_to_assign -= 1;

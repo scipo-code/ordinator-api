@@ -55,7 +55,6 @@ async fn main() -> std::io::Result<()> {
 
     system_agents.read_to_end(&mut system_agent_bytes)?;
 
-    dbg!();
     orchestrator
         .lock()
         .unwrap()
@@ -68,13 +67,11 @@ async fn main() -> std::io::Result<()> {
             )
         })
         .expect("Could not add asset");
-    dbg!();
 
     orchestrator
         .lock()
         .unwrap()
         .initialize_operational_agents(asset);
-    dbg!();
     // WARN FINISH: USED FOR CONVENIENCE
 
     HttpServer::new(move || {
