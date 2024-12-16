@@ -12,4 +12,4 @@ jobs:
     - name: Add Issue
       run: |
         echo "Adding issue to repository..."
-        # cat ISSUE_TEMPLATE.md >> $GITHUB_EVENT_PATH
+        echo "Issue:" >> $GITHUB_EVENT_PATH
