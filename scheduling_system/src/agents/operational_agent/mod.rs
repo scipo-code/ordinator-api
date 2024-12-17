@@ -128,7 +128,7 @@ impl Actor for OperationalAgent {
                 unavailability_end_event,
             ));
 
-        ctx.notify(ScheduleIteration::default())
+        // ctx.notify(ScheduleIteration::default())
     }
 }
 
@@ -198,6 +198,17 @@ impl Handler<ScheduleIteration> for OperationalAgent {
             .expect("Operational.schedule() method failed");
 
         let is_better_schedule = self.operational_algorithm.calculate_objective_value();
+        self.assert_marginal_fitness_is_correct()
+            .with_context(|| {
+                format!(
+                    "{:#?}\n{} {} did not calculate {} correctly",
+                    schedule_iteration,
+                    std::any::type_name::<OperationalAgent>().bright_red(),
+                    self.operational_id.to_string().bright_blue(),
+                    std::any::type_name::<MarginalFitness>().bright_purple(),
+                )
+            })
+            .expect("WRITE AN ERROR HERE");
 
         if is_better_schedule {
             self.operational_algorithm
@@ -217,17 +228,7 @@ impl Handler<ScheduleIteration> for OperationalAgent {
             event!(Level::INFO, operational_objective_value = ?self.operational_algorithm.operational_solution.objective_value);
         };
 
-        self.assert_marginal_fitness_is_correct()
-            .with_context(|| {
-                format!(
-                    "{} {} did not calculate {} correctly",
-                    std::any::type_name::<OperationalAgent>().bright_red(),
-                    self.operational_id.to_string().bright_blue(),
-                    std::any::type_name::<MarginalFitness>().bright_purple(),
-                )
-            })
-            .expect("WRITE AN ERROR HERE");
-
+        // WARN: You cannot assert the objective here! The operational agent actually has two different
         ctx.wait(
             tokio::time::sleep(tokio::time::Duration::from_millis(
                 dotenvy::var("OPERATIONAL_THROTTLING")
