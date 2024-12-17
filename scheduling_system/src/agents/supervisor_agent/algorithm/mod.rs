@@ -234,7 +234,7 @@ impl LargeNeighborhoodSearch for SupervisorAlgorithm {
                     .marginal_fitness(agent_id, work_order_activity) {
                         Ok(marginal_fitness) => marginal_fitness,
                         Err(e) => {
-                            event!(Level::WARN, operational_agent_marginal_fitness_error = ?e, "Could be that the OperationalAgent did not have time to initialize. A bug could be hiding here");
+                            event!(Level::DEBUG, operational_agent_marginal_fitness_error = ?e, "Could be that the OperationalAgent did not have time to initialize. A bug could be hiding here");
                             &MarginalFitness::None
                         },
                     }

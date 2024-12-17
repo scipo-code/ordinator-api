@@ -229,8 +229,6 @@ impl SupervisorAgent {
             .supervisor_solution
             .remove_leaving_work_order_activities(&entering_work_orders_from_strategic);
 
-        event!(Level::WARN, number_coming_from_tactical = ?entering_work_orders_from_strategic);
-
         let locked_scheduling_environment = self
             .scheduling_environment
             .lock()
