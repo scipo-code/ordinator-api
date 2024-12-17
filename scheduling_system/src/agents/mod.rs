@@ -6,7 +6,7 @@ pub mod tactical_agent;
 pub mod traits;
 
 use std::collections::{HashMap, HashSet};
-use std::fmt::Display;
+use std::fmt::{self, Display};
 
 use self::{
     operational_agent::OperationalAgent, strategic_agent::StrategicAgent,
@@ -29,11 +29,18 @@ use shared_types::tactical::{TacticalObjectiveValue, TacticalResources};
 use supervisor_agent::algorithm::delegate::Delegate;
 use tactical_agent::algorithm::tactical_solution::OperationSolution;
 
-#[derive(Message, Debug, Default)]
+#[derive(Debug, Message, Default)]
 #[rtype(result = "Result<()>")]
 pub struct ScheduleIteration {
     loop_iteration: u64,
 }
+
+// FIX
+// impl fmt::Debug for ScheduleIteration {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         f.width().write_str(&self.loop_iteration.to_string())
+//     }
+// }
 
 #[allow(dead_code)]
 pub enum SetAddr {

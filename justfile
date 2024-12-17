@@ -23,7 +23,7 @@ call-strategic-inclusion-script:
 
 call-strategic-exclusion-script:
     #!/usr/bin/env nu
-    nu imperium/scripts/strategic/simulate_scheduling_exclusion.nu
+    nu imperium/scripts/strategic/simulate_scheduling_exclusion.nu 
 
 call-strategic-resources-addition-script:
     #!/usr/bin/env nu

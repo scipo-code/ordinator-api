@@ -306,6 +306,15 @@ impl LargeNeighborhoodSearch for OperationalAlgorithm {
         let mut next_fitness: TimeDelta = TimeDelta::zero();
         let mut first_fitness: bool = true;
         let mut current_work_order_activity: Option<WorkOrderActivity> = None;
+
+        assert_eq!(
+            all_events
+                .clone()
+                .fold(TimeDelta::zero(), |acc, ass| acc + (ass.finish - ass.start)),
+            self.availability.end_date - self.availability.start_date
+        );
+
+        // FIX: Assert no overlap here
         for assignment in all_events.clone() {
             match &assignment.event_type {
                 OperationalEvents::WrenchTime((time_interval, work_order_activity)) => {
@@ -350,7 +359,18 @@ impl LargeNeighborhoodSearch for OperationalAlgorithm {
                         next_fitness += time_interval.duration();
                     }
                 }
-                OperationalEvents::Unavailable(_) => (),
+                OperationalEvents::Unavailable(_) => {
+                    if !first_fitness {
+                        assert!(assignment == all_events.clone().last().unwrap());
+                        let marginal_fitness_time_delta = prev_fitness + next_fitness;
+
+                        self.update_marginal_fitness(
+                            current_work_order_activity
+                                .expect("This will happen if there are no work orders scheduled"),
+                            marginal_fitness_time_delta,
+                        );
+                    }
+                }
             }
         }
 
@@ -454,6 +474,7 @@ impl LargeNeighborhoodSearch for OperationalAlgorithm {
                 break;
             };
         }
+
         Ok(())
     }
 

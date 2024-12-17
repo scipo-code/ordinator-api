@@ -90,7 +90,7 @@ impl OperationalAssertions for OperationalAgent {
                 window[1].1.marginal_fitness
                     == MarginalFitness::Fitness(combined_non_productive.num_seconds() as u64),
                 format!(
-                    "{}\nActual: {}\nCalculated: {}\n{}",
+                    "{}\nActual: {}\nCalculated: {}\n{}\n{}",
                     format!("{:#?}", window[1].0).to_string().bright_yellow(),
                     format!("{:?}", window[1].1.marginal_fitness).bright_purple(),
                     format!(
@@ -108,6 +108,12 @@ impl OperationalAssertions for OperationalAgent {
                             .work
                     )
                     .bright_yellow(),
+                    format!(
+                        "Start at: {:#?}, finish at: {:#?}",
+                        window[2].1.start_time(),
+                        window[2].1.finish_time(),
+                    )
+                    .bright_green()
                 ),
             );
         }
