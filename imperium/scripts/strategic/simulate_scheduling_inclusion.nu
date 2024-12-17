@@ -53,10 +53,8 @@ let work_orders = [
 
 fish -c "cargo run -p scheduling_system --release &" 
 
-^sleep 65
-imperium strategic scheduling df schedule ...$work_orders 2024-W49-50
 
-^sleep 60
+^sleep 65
 imperium strategic scheduling df schedule ...$work_orders 2024-W51-52
 
 ^sleep 60
@@ -67,6 +65,9 @@ imperium strategic scheduling df schedule ...$work_orders 2025-W3-4
 
 ^sleep 60
 imperium strategic scheduling df schedule ...$work_orders 2025-W5-6
+
+^sleep 60
+imperium strategic scheduling df schedule ...$work_orders 2025-W7-8
 
 ^sleep 60
 

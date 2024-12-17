@@ -13,14 +13,16 @@ use std::{
 use actix_web::{guard, web, App, HttpServer};
 use agents::orchestrator::Orchestrator;
 use anyhow::Context;
+use tracing::{event, Level};
 
 use crate::init::logging;
 use shared_types::{scheduling_environment::SchedulingEnvironment, Asset};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    dotenvy::dotenv().unwrap();
+    dotenvy::dotenv().expect("You need to provide an .env file. Look at the .env.example if for guidance");
 
+    event!(Level::WARN, "The start of main");
     let (log_handles, _logging_guard) = logging::setup_logging();
 
     let database_path_string =
