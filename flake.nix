@@ -4,7 +4,6 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
   outputs = { self, nixpkgs, flake-utils, ... }:
@@ -56,9 +55,6 @@
               pkgs.openssl_3_3
               pkgs.pkg-config
           ];
-        };
-        apps.default = flake-utils.lib.mkApp {
-          drv = self.packages.${system}.default;
         };
       });
 } 
