@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use actix::Addr;
 use anyhow::Result;
@@ -7,7 +7,10 @@ use shared_types::scheduling_environment::{
     worker_environment::resources::Id,
 };
 
-use crate::agents::{operational_agent::OperationalAgent, SupervisorSolution};
+use crate::agents::{
+    operational_agent::{algorithm::operational_solution::MarginalFitness, OperationalAgent},
+    OperationalSolution, SupervisorSolution,
+};
 
 use super::delegate::Delegate;
 
@@ -52,14 +55,35 @@ impl SupervisorSolution {
             .collect()
     }
 
-    pub fn operational_status_by_work_order_activity(
+    pub fn operational_status_by_work_order_activity<'a>(
         &self,
         work_order_activity: &WorkOrderActivity,
-    ) -> Vec<(Id, Delegate)> {
+        operational_solutions: &'a HashMap<Id, OperationalSolution>,
+    ) -> Vec<(Id, Delegate, &'a MarginalFitness)> {
         self.operational_state_machine
             .iter()
             .filter(|(id_woa, _)| id_woa.1 == *work_order_activity)
-            .map(|(id_woa, del)| (id_woa.0.clone(), *del))
+            .map(|(id_woa, del)| {
+                (
+                    id_woa.0.clone(),
+                    *del,
+                    operational_solutions
+                        .get(&id_woa.0)
+                        .expect("The agent should be present")
+                        .work_order_activities_assignment
+                        .iter()
+                        .find(|woa_ass| woa_ass.0 == id_woa.1)
+                        .map(|woa_ass| &woa_ass.1.marginal_fitness), // What should be done if the Agent does not yet have a
+                )
+            })
+            .filter(|id_del_opt_mar_fit| id_del_opt_mar_fit.2.is_some())
+            .map(|id_del_opt_mar_fit| {
+                (
+                    id_del_opt_mar_fit.0,
+                    id_del_opt_mar_fit.1,
+                    id_del_opt_mar_fit.2.unwrap(),
+                )
+            })
             .collect()
     }
 
