@@ -29,18 +29,27 @@ use shared_types::tactical::{TacticalObjectiveValue, TacticalResources};
 use supervisor_agent::algorithm::delegate::Delegate;
 use tactical_agent::algorithm::tactical_solution::OperationSolution;
 
-#[derive(Debug, Message, Default)]
+#[derive(Message, Default)]
 #[rtype(result = "Result<()>")]
 pub struct ScheduleIteration {
     loop_iteration: u64,
 }
 
-// FIX
-// impl fmt::Debug for ScheduleIteration {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         f.width().write_str(&self.loop_iteration.to_string())
-//     }
-// }
+impl fmt::Debug for ScheduleIteration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let string = format!(
+            "{}: {}",
+            std::any::type_name::<ScheduleIteration>()
+                .split("::")
+                .last()
+                .unwrap(),
+            self.loop_iteration
+        )
+        .bright_magenta();
+
+        write!(f, "{}", string)
+    }
+}
 
 #[allow(dead_code)]
 pub enum SetAddr {

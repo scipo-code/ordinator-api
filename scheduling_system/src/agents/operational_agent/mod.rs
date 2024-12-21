@@ -2,6 +2,7 @@ pub mod algorithm;
 pub mod assert_functions;
 pub mod message_handlers;
 
+use algorithm::assert_functions::OperationalAlgorithmAsserts;
 use algorithm::{
     operational_parameter::OperationalParameter,
     operational_solution::{Assignment, MarginalFitness, OperationalAssignment},
@@ -128,7 +129,7 @@ impl Actor for OperationalAgent {
                 unavailability_end_event,
             ));
 
-        // ctx.notify(ScheduleIteration::default())
+        ctx.notify(ScheduleIteration::default())
     }
 }
 
@@ -197,18 +198,49 @@ impl Handler<ScheduleIteration> for OperationalAgent {
             .schedule()
             .expect("Operational.schedule() method failed");
 
-        let is_better_schedule = self.operational_algorithm.calculate_objective_value();
+        let is_better_schedule = self
+            .operational_algorithm
+            .calculate_objective_value()
+            .with_context(|| format!("{:#?}", schedule_iteration))
+            .expect("Error ");
+
         self.assert_marginal_fitness_is_correct()
             .with_context(|| {
                 format!(
-                    "{:#?}\n{} {} did not calculate {} correctly",
-                    schedule_iteration,
-                    std::any::type_name::<OperationalAgent>().bright_red(),
+                    "\n{}: {}\n\t{:?}\n\t{}\n\tIncorrect {}",
+                    std::any::type_name::<OperationalAgent>()
+                        .split("::")
+                        .last()
+                        .unwrap()
+                        .bright_red(),
                     self.operational_id.to_string().bright_blue(),
-                    std::any::type_name::<MarginalFitness>().bright_purple(),
+                    schedule_iteration,
+                    format!(
+                        "Number of {}: {}",
+                        std::any::type_name::<OperationalSolution>()
+                            .split("::")
+                            .last()
+                            .unwrap(),
+                        self.operational_algorithm
+                            .operational_solution
+                            .work_order_activities_assignment
+                            .len(),
+                    )
+                    .bright_yellow(),
+                    std::any::type_name::<MarginalFitness>()
+                        .split("::")
+                        .last()
+                        .unwrap()
+                        .bright_purple(),
                 )
             })
-            .expect("WRITE AN ERROR HERE");
+            .expect(&format!(
+                "Error in the {}",
+                std::any::type_name::<MarginalFitness>()
+                    .split("::")
+                    .last()
+                    .unwrap()
+            ));
 
         if is_better_schedule {
             self.operational_algorithm
@@ -238,7 +270,8 @@ impl Handler<ScheduleIteration> for OperationalAgent {
             ))
             .into_actor(self),
         );
-        self.assert_no_operation_overlap()
+        self.operational_algorithm
+            .assert_no_operation_overlap()
             .with_context(|| {
                 format!(
                     "OperationalAgent: {} is having overlaps in his state",

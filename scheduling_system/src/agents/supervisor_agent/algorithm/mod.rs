@@ -221,53 +221,47 @@ impl LargeNeighborhoodSearch for SupervisorAlgorithm {
                 .expect("The SupervisorParameter should always be available")
                 .number;
 
+            let operational_solutions = &self.loaded_shared_solution.operational;
+
             let mut operational_status_by_work_order_activity = self
                 .supervisor_solution
-                .operational_status_by_work_order_activity(work_order_activity);
-
-            let operational = &self.loaded_shared_solution.operational;
+                .operational_status_by_work_order_activity(
+                    work_order_activity,
+                    operational_solutions,
+                );
 
             // dbg!(operational);
 
-            operational_status_by_work_order_activity.sort_by_cached_key(|(agent_id, _)| {
-                match operational
-                    .marginal_fitness(agent_id, work_order_activity) {
-                        Ok(marginal_fitness) => marginal_fitness,
-                        Err(e) => {
-                            event!(Level::DEBUG, operational_agent_marginal_fitness_error = ?e, "Could be that the OperationalAgent did not have time to initialize. A bug could be hiding here");
-                            &MarginalFitness::None
-                        },
+            operational_status_by_work_order_activity
+                .retain(|(_, _, mar_fit)| matches!(mar_fit, MarginalFitness::Scheduled(_)));
+
+            operational_status_by_work_order_activity.sort_by_cached_key(
+                |(agent_id, _, mar_fit)| match mar_fit {
+                    MarginalFitness::Scheduled(auxillary_operational_objective) => {
+                        auxillary_operational_objective
                     }
-            });
+                    MarginalFitness::None => panic!(),
+                },
+            );
+
+            if operational_status_by_work_order_activity.len() >= 1 {
+                dbg!(operational_status_by_work_order_activity.len());
+            };
 
             let number_of_assigned = operational_status_by_work_order_activity
                 .iter()
-                .filter(|(_, delegate)| *delegate == Delegate::Assign)
+                .filter(|(_, delegate, _)| *delegate == Delegate::Assign)
                 .count() as u64;
 
             let mut remaining_to_assign = number - number_of_assigned;
 
             event!(Level::DEBUG, remaining_to_assign = ?remaining_to_assign);
-            for (agent_id, delegate_status) in &mut operational_status_by_work_order_activity {
+            for (agent_id, delegate_status, marginal_fitness) in
+                &mut operational_status_by_work_order_activity
+            {
                 if *delegate_status != Delegate::Assess {
                     continue;
                 }
-
-                let marginal_fitness_result = self
-                    .loaded_shared_solution
-                    .operational
-                    .marginal_fitness(agent_id, work_order_activity)
-                    .with_context(|| {
-                        format!(
-                            "Attempt to access non-existent {}",
-                            std::any::type_name::<MarginalFitness>()
-                        )
-                    });
-
-                match marginal_fitness_result {
-                    Ok(_) => (),
-                    Err(_) => continue 'next_work_order_activity,
-                };
 
                 if remaining_to_assign >= 1 {
                     remaining_to_assign -= 1;
@@ -320,6 +314,5 @@ fn is_assigned_part_of_all(
 ) -> bool {
     assigned_woas
         .iter()
-        .map(|(wo, ac)| all_woas.contains(&(*wo, *ac)))
-        .all(|present_woa| present_woa)
+        .all(|(wo, ac)| all_woas.contains(&(*wo, *ac)))
 }

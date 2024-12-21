@@ -74,10 +74,9 @@ impl Actor for TacticalAgent {
         );
         self.strategic_addr
             .do_send(SetAddr::Tactical(ctx.address()));
-
         self.tactical_algorithm.schedule().with_context(|| format!("Initial call of: {}", std::any::type_name::<TacticalAlgorithm>())).expect("Failed initial schedule call");
 
-        // ctx.notify(ScheduleIteration::default());
+        ctx.notify(ScheduleIteration::default());
     }
 }
 
