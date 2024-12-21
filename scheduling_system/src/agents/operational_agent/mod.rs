@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 pub mod algorithm;
 pub mod assert_functions;
 pub mod message_handlers;
@@ -10,6 +11,20 @@ use algorithm::{
 use anyhow::{Context, Result};
 use assert_functions::OperationalAssertions;
 use colored::Colorize;
+||||||| 83bbf8b
+=======
+pub mod algorithm;
+pub mod assert_functions;
+pub mod message_handlers;
+
+use algorithm::{
+    operational_parameter::OperationalParameter,
+    operational_solution::{Assignment, MarginalFitness, OperationalAssignment},
+};
+use anyhow::{Context, Result};
+use assert_functions::OperationalAssertions;
+use colored::Colorize;
+>>>>>>> d3bf08ac4751bc3e07ab1bec22efb19272c0fba9
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -92,6 +107,7 @@ impl Actor for OperationalAgent {
     type Context = actix::Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
+<<<<<<< HEAD
         self.supervisor_agent_addr.iter().for_each(|(_, addr)| {
             addr.do_send(SetAddr::Operational(
                 self.operational_id.clone(),
@@ -130,9 +146,53 @@ impl Actor for OperationalAgent {
             ));
 
         ctx.notify(ScheduleIteration::default())
+||||||| 83bbf8b
+        self.supervisor_agent_addr
+            .do_send(SetAddr::Operational(self.id.clone(), ctx.address()));
+=======
+        self.supervisor_agent_addr.iter().for_each(|(_, addr)| {
+            addr.do_send(SetAddr::Operational(
+                self.operational_id.clone(),
+                ctx.address(),
+            ));
+        });
+
+        let start_event = Assignment::make_unavailable_event(
+            algorithm::Unavailability::Beginning,
+            &self.operational_algorithm.availability,
+        );
+
+        let end_event = Assignment::make_unavailable_event(
+            algorithm::Unavailability::End,
+            &self.operational_algorithm.availability,
+        );
+
+        let unavailability_start_event = OperationalAssignment::new(vec![start_event]);
+
+        let unavailability_end_event = OperationalAssignment::new(vec![end_event]);
+
+        self.operational_algorithm
+            .operational_solution
+            .work_order_activities_assignment
+            .push((
+                (WorkOrderNumber(0), ActivityNumber(0)),
+                unavailability_start_event,
+            ));
+
+        self.operational_algorithm
+            .operational_solution
+            .work_order_activities_assignment
+            .push((
+                (WorkOrderNumber(0), ActivityNumber(0)),
+                unavailability_end_event,
+            ));
+
+        // ctx.notify(ScheduleIteration::default())
+>>>>>>> d3bf08ac4751bc3e07ab1bec22efb19272c0fba9
     }
 }
 
+<<<<<<< HEAD
 impl Handler<ScheduleIteration> for OperationalAgent {
     type Result = Result<()>;
 
@@ -287,6 +347,138 @@ impl Handler<ScheduleIteration> for OperationalAgent {
         });
         Ok(())
     }
+||||||| 83bbf8b
+pub struct OperationalAgentBuilder {
+    id: Id,
+    scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
+    operational_algorithm: OperationalAlgorithm,
+    capacity: Option<f32>,
+    availability: Option<Vec<Availability>>,
+    assigned: Option<Vec<AssignedWork>>,
+    backup_activities: Option<HashMap<u32, Operation>>,
+    supervisor_agent_addr: Addr<SupervisorAgent>,
+=======
+impl Handler<ScheduleIteration> for OperationalAgent {
+    type Result = Result<()>;
+
+    fn handle(
+        &mut self,
+        schedule_iteration: ScheduleIteration,
+        ctx: &mut Self::Context,
+    ) -> Self::Result {
+        let mut rng = rand::thread_rng();
+
+        self.operational_algorithm.load_shared_solution();
+
+        event!(Level::DEBUG,
+            operational_view_in_supervisor_solution = ?self.operational_algorithm.loaded_shared_solution.supervisor
+        );
+
+        event!(
+            Level::DEBUG,
+            number_of_operational_delegates = ?self
+                .operational_algorithm
+                .loaded_shared_solution
+                .supervisor
+                .state_of_agent(&self.operational_id)
+        );
+
+        let loaded_supervisor_solution =
+            &self.operational_algorithm.loaded_shared_solution.supervisor;
+
+        for (work_order_activity, delegate) in
+            loaded_supervisor_solution.state_of_agent(&self.operational_id)
+        {
+            if delegate == Delegate::Done {
+                continue;
+            }
+            self.create_operational_parameter(&work_order_activity)
+                .expect("Could not create OperationalParameter");
+        }
+
+        self.operational_algorithm
+            .remove_delegate_drop(&self.operational_id);
+
+        event!(
+            Level::DEBUG,
+            operational_solutions = self
+                .operational_algorithm
+                .operational_solution
+                .work_order_activities_assignment
+                .len(),
+            operational_parameters = self
+                .operational_algorithm
+                .operational_parameters
+                .work_order_parameters
+                .len()
+        );
+
+        let temporary_operational_solution: OperationalSolution =
+            self.operational_algorithm.operational_solution.clone();
+
+        self.operational_algorithm
+            .unschedule_random_work_order_activies(&mut rng, 15);
+
+        self.operational_algorithm
+            .schedule()
+            .expect("Operational.schedule() method failed");
+
+        let is_better_schedule = self.operational_algorithm.calculate_objective_value();
+        self.assert_marginal_fitness_is_correct()
+            .with_context(|| {
+                format!(
+                    "{:#?}\n{} {} did not calculate {} correctly",
+                    schedule_iteration,
+                    std::any::type_name::<OperationalAgent>().bright_red(),
+                    self.operational_id.to_string().bright_blue(),
+                    std::any::type_name::<MarginalFitness>().bright_purple(),
+                )
+            })
+            .expect("WRITE AN ERROR HERE");
+
+        if is_better_schedule {
+            self.operational_algorithm
+                .make_atomic_pointer_swap(&self.operational_id);
+            self.operational_algorithm.load_shared_solution();
+            assert_eq!(
+                &self.operational_algorithm.operational_solution,
+                self.operational_algorithm
+                    .loaded_shared_solution
+                    .operational
+                    .get(&self.operational_id)
+                    .unwrap()
+            );
+        } else {
+            self.operational_algorithm.operational_solution = temporary_operational_solution;
+
+            event!(Level::INFO, operational_objective_value = ?self.operational_algorithm.operational_solution.objective_value);
+        };
+
+        // WARN: You cannot assert the objective here! The operational agent actually has two different
+        ctx.wait(
+            tokio::time::sleep(tokio::time::Duration::from_millis(
+                dotenvy::var("OPERATIONAL_THROTTLING")
+                    .expect("The OPERATIONAL_THROTTLING environment variable should always be set")
+                    .parse::<u64>()
+                    .expect("The OPERATIONAL_THROTTLING environment variable have to be an u64 compatible type"),
+            ))
+            .into_actor(self),
+        );
+        self.assert_no_operation_overlap()
+            .with_context(|| {
+                format!(
+                    "OperationalAgent: {} is having overlaps in his state",
+                    self.operational_id
+                )
+            })
+            .expect("");
+
+        ctx.notify(ScheduleIteration {
+            loop_iteration: schedule_iteration.loop_iteration + 1,
+        });
+        Ok(())
+    }
+>>>>>>> d3bf08ac4751bc3e07ab1bec22efb19272c0fba9
 }
 
 pub struct OperationalAgentBuilder(OperationalAgent);

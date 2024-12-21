@@ -14,10 +14,22 @@ use std::sync::{Arc, MutexGuard};
 
 use crate::agents::operational_agent::algorithm::OperationalAlgorithm;
 use crate::agents::operational_agent::{OperationalAgent, OperationalAgentBuilder};
+<<<<<<< HEAD
 use crate::agents::orchestrator::NotifyOrchestrator;
 use crate::agents::strategic_agent::algorithm::strategic_parameters::StrategicParameters;
 use crate::agents::strategic_agent::algorithm::PriorityQueues;
 use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
+||||||| 83bbf8b
+use crate::agents::strategic_agent::strategic_algorithm::OptimizedWorkOrder;
+use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
+use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
+use crate::agents::strategic_agent::strategic_algorithm::{self, OptimizedWorkOrders};
+=======
+use crate::agents::orchestrator::NotifyOrchestrator;
+use crate::agents::strategic_agent::strategic_algorithm::strategic_parameters::StrategicParameters;
+use crate::agents::strategic_agent::strategic_algorithm::PriorityQueues;
+use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
+>>>>>>> d3bf08ac4751bc3e07ab1bec22efb19272c0fba9
 use crate::agents::strategic_agent::StrategicAgent;
 use crate::agents::supervisor_agent::SupervisorAgent;
 use crate::agents::tactical_agent::algorithm::TacticalAlgorithm;

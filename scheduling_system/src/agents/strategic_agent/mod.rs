@@ -1,12 +1,36 @@
+<<<<<<< HEAD
 pub mod algorithm;
+||||||| 83bbf8b
+=======
+pub mod assert_functions;
+>>>>>>> d3bf08ac4751bc3e07ab1bec22efb19272c0fba9
 pub mod display;
+<<<<<<< HEAD
 pub mod message_handlers;
+||||||| 83bbf8b
+pub mod strategic_algorithm;
+=======
+pub mod message_handlers;
+pub mod strategic_algorithm;
+>>>>>>> d3bf08ac4751bc3e07ab1bec22efb19272c0fba9
 
+<<<<<<< HEAD
 use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborhoodSearch;
 use algorithm::assert_functions::StrategicAssertions;
 use anyhow::Result;
 use shared_types::scheduling_environment::SchedulingEnvironment;
+||||||| 83bbf8b
+use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
+use crate::agents::traits::LargeNeighborHoodSearch;
+use crate::models::SchedulingEnvironment;
+=======
+use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
+use crate::agents::traits::LargeNeighborhoodSearch;
+use anyhow::Result;
+use assert_functions::StrategicAssertions;
+use shared_types::scheduling_environment::SchedulingEnvironment;
+>>>>>>> d3bf08ac4751bc3e07ab1bec22efb19272c0fba9
 
 use actix::prelude::*;
 use shared_types::Asset;
@@ -75,6 +99,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 
     #[instrument(level = "trace", skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
+<<<<<<< HEAD
         // So here we should load instead! Yes we should load in the data and then continue
         self.strategic_algorithm
             .assert_excluded_periods()
@@ -88,30 +113,68 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         self.strategic_algorithm
             .assert_excluded_periods()
             .expect("Assert failed");
+||||||| 83bbf8b
+=======
+        // So here we should load instead! Yes we should load in the data and then continue
+        self.assert_excluded_periods().expect("Assert failed");
+        self.strategic_algorithm.load_shared_solution();
+
+        self.strategic_algorithm
+            .schedule_forced_work_orders()
+            .expect("Could not force schedule work orders");
+
+        self.assert_excluded_periods().expect("Assert failed");
+>>>>>>> d3bf08ac4751bc3e07ab1bec22efb19272c0fba9
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
 
         self.strategic_algorithm.calculate_objective_value();
         let old_strategic_solution = self.strategic_algorithm.strategic_solution.clone();
 
+<<<<<<< HEAD
         self.strategic_algorithm
             .assert_excluded_periods()
             .expect("Assert failed");
         self.strategic_algorithm
             .unschedule_random_work_orders(50, rng)
             .expect("Unscheduling random work order should always be possible");
+||||||| 83bbf8b
+        temporary_schedule.unschedule_random_work_orders(50, rng);
+=======
+        self.assert_excluded_periods().expect("Assert failed");
+        self.strategic_algorithm
+            .unschedule_random_work_orders(50, rng)
+            .expect("Unscheduling random work order should always be possible");
+>>>>>>> d3bf08ac4751bc3e07ab1bec22efb19272c0fba9
 
+<<<<<<< HEAD
         self.strategic_algorithm
             .assert_excluded_periods()
             .expect("Assert failed");
         self.strategic_algorithm
             .schedule()
             .expect("StrategicAlgorithm.schedule method failed");
+||||||| 83bbf8b
+        temporary_schedule.schedule();
+=======
+        self.assert_excluded_periods().expect("Assert failed");
+        self.strategic_algorithm
+            .schedule()
+            .expect("StrategicAlgorithm.schedule method failed");
+>>>>>>> d3bf08ac4751bc3e07ab1bec22efb19272c0fba9
 
+<<<<<<< HEAD
         self.strategic_algorithm
             .assert_excluded_periods()
             .expect("Assert failed");
         // self.assert_aggregated_load().unwrap();
         let (tardiness, penalty) = self.strategic_algorithm.calculate_objective_value();
+||||||| 83bbf8b
+        temporary_schedule.calculate_objective();
+=======
+        self.assert_excluded_periods().expect("Assert failed");
+        // self.assert_aggregated_load().unwrap();
+        let (tardiness, penalty) = self.strategic_algorithm.calculate_objective_value();
+>>>>>>> d3bf08ac4751bc3e07ab1bec22efb19272c0fba9
 
         if self.strategic_algorithm.strategic_solution.objective_value
             < old_strategic_solution.objective_value
@@ -149,6 +212,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 #[cfg(test)]
 mod tests {
 
+<<<<<<< HEAD
     use algorithm::ForcedWorkOrder;
     use operation::OperationBuilder;
     use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
@@ -161,6 +225,25 @@ mod tests {
     use tests::algorithm::strategic_parameters::StrategicParameter;
     use tests::algorithm::strategic_parameters::StrategicParameters;
     use unloading_point::UnloadingPoint;
+||||||| 83bbf8b
+    use chrono::{TimeZone, Utc};
+    use shared_messages::strategic::strategic_scheduling_message::SingleWorkOrder;
+    use shared_messages::strategic::strategic_scheduling_message::StrategicSchedulingMessage;
+    use tests::strategic_algorithm::OptimizedWorkOrder;
+=======
+    use operation::OperationBuilder;
+    use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
+    use shared_types::scheduling_environment::work_order::operation::Work;
+    use shared_types::strategic::strategic_request_scheduling_message::ScheduleChange;
+    use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
+    use shared_types::strategic::Periods;
+    use shared_types::strategic::StrategicObjectiveValue;
+    use shared_types::strategic::StrategicResources;
+    use strategic_algorithm::ForcedWorkOrder;
+    use tests::strategic_algorithm::strategic_parameters::StrategicParameter;
+    use tests::strategic_algorithm::strategic_parameters::StrategicParameters;
+    use unloading_point::UnloadingPoint;
+>>>>>>> d3bf08ac4751bc3e07ab1bec22efb19272c0fba9
 
     use std::collections::HashMap;
     use std::collections::HashSet;
@@ -168,8 +251,17 @@ mod tests {
 
     use crate::agents::ArcSwapSharedSolution;
 
+<<<<<<< HEAD
     use super::{algorithm::PriorityQueues, *};
     use shared_types::scheduling_environment::worker_environment::resources::Resources;
+||||||| 83bbf8b
+    use crate::models::time_environment::period::Period;
+    use crate::models::work_order::operation::Operation;
+    use crate::models::{work_order::*, WorkOrders};
+=======
+    use super::{strategic_algorithm::PriorityQueues, *};
+    use shared_types::scheduling_environment::worker_environment::resources::Resources;
+>>>>>>> d3bf08ac4751bc3e07ab1bec22efb19272c0fba9
 
     use shared_types::scheduling_environment::work_order::operation::Operation;
     use shared_types::scheduling_environment::work_order::*;
