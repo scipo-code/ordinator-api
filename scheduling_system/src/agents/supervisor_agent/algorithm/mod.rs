@@ -244,6 +244,10 @@ impl LargeNeighborhoodSearch for SupervisorAlgorithm {
                 },
             );
 
+            if operational_status_by_work_order_activity.len() >= 1 {
+                dbg!(operational_status_by_work_order_activity.len());
+            };
+
             let number_of_assigned = operational_status_by_work_order_activity
                 .iter()
                 .filter(|(_, delegate, _)| *delegate == Delegate::Assign)
