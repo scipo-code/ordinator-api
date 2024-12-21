@@ -4,13 +4,15 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = { self, nixpkgs, flake-utils, ... }:
+  outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
+        overlays = [(import rust-overlay)];
         pkgs = import nixpkgs {
-          inherit system;
+          inherit system overlays;
         };
         pythonEnv = pkgs.python3.withPackages (ps: with ps; [
           pandas
@@ -23,7 +25,7 @@
             pkgs.linuxKernel.packages.linux_zen.perf
             pkgs.cargo-cross
             pkgs.cargo-release
-            pkgs.rustup
+            pkgs.rust-bin.beta.latest.default
             pythonEnv
             pkgs.git
             pkgs.helix

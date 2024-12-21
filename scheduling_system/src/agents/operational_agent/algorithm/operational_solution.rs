@@ -5,6 +5,7 @@ use shared_types::{
         work_order::WorkOrderActivity, worker_environment::availability::Availability,
     },
 };
+use strum_macros::AsRefStr;
 use tracing::{event, Level};
 
 use crate::agents::{operational_agent::algorithm::no_overlap_by_ref, OperationalSolution};
@@ -215,9 +216,46 @@ impl Assignment {
     }
 }
 
-#[derive(Eq, PartialEq, PartialOrd, Ord, Debug, Clone, Default)]
+#[derive(AsRefStr, Eq, PartialEq, PartialOrd, Ord, Clone, Default)]
 pub enum MarginalFitness {
-    Fitness(u64),
+    Scheduled(u64),
     #[default]
     None,
+}
+
+impl std::fmt::Debug for MarginalFitness {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MarginalFitness::Scheduled(time) => write!(
+                f,
+                "{}::{}({}, {}, {})",
+                std::any::type_name::<MarginalFitness>()
+                    .split("::")
+                    .last()
+                    .unwrap(),
+                self.as_ref(),
+                time,
+                time / 3600,
+                time / 3600 / 24,
+            ),
+            MarginalFitness::None => write!(f, "{}", self.as_ref()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::agents::operational_agent::algorithm::operational_solution::MarginalFitness;
+
+    #[test]
+    fn test_marginal_fitness_debug() {
+        let marginal_fitness = MarginalFitness::Scheduled(3600);
+
+        let formatted_marginal_fitness = format!("{:?}", marginal_fitness);
+
+        assert_eq!(
+            formatted_marginal_fitness,
+            "Scheduled(Seconds: 3600, Hours: 1)"
+        );
+    }
 }

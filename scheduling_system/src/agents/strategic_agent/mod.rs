@@ -1,12 +1,11 @@
-pub mod assert_functions;
+pub mod algorithm;
 pub mod display;
 pub mod message_handlers;
-pub mod strategic_algorithm;
 
-use crate::agents::strategic_agent::strategic_algorithm::StrategicAlgorithm;
+use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborhoodSearch;
+use algorithm::assert_functions::StrategicAssertions;
 use anyhow::Result;
-use assert_functions::StrategicAssertions;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use actix::prelude::*;
@@ -77,30 +76,40 @@ impl Handler<ScheduleIteration> for StrategicAgent {
     #[instrument(level = "trace", skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         // So here we should load instead! Yes we should load in the data and then continue
-        self.assert_excluded_periods().expect("Assert failed");
+        self.strategic_algorithm
+            .assert_excluded_periods()
+            .expect("Assert failed");
         self.strategic_algorithm.load_shared_solution();
 
         self.strategic_algorithm
             .schedule_forced_work_orders()
             .expect("Could not force schedule work orders");
 
-        self.assert_excluded_periods().expect("Assert failed");
+        self.strategic_algorithm
+            .assert_excluded_periods()
+            .expect("Assert failed");
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
 
         self.strategic_algorithm.calculate_objective_value();
         let old_strategic_solution = self.strategic_algorithm.strategic_solution.clone();
 
-        self.assert_excluded_periods().expect("Assert failed");
+        self.strategic_algorithm
+            .assert_excluded_periods()
+            .expect("Assert failed");
         self.strategic_algorithm
             .unschedule_random_work_orders(50, rng)
             .expect("Unscheduling random work order should always be possible");
 
-        self.assert_excluded_periods().expect("Assert failed");
+        self.strategic_algorithm
+            .assert_excluded_periods()
+            .expect("Assert failed");
         self.strategic_algorithm
             .schedule()
             .expect("StrategicAlgorithm.schedule method failed");
 
-        self.assert_excluded_periods().expect("Assert failed");
+        self.strategic_algorithm
+            .assert_excluded_periods()
+            .expect("Assert failed");
         // self.assert_aggregated_load().unwrap();
         let (tardiness, penalty) = self.strategic_algorithm.calculate_objective_value();
 
@@ -140,6 +149,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 #[cfg(test)]
 mod tests {
 
+    use algorithm::ForcedWorkOrder;
     use operation::OperationBuilder;
     use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
     use shared_types::scheduling_environment::work_order::operation::Work;
@@ -148,9 +158,8 @@ mod tests {
     use shared_types::strategic::Periods;
     use shared_types::strategic::StrategicObjectiveValue;
     use shared_types::strategic::StrategicResources;
-    use strategic_algorithm::ForcedWorkOrder;
-    use tests::strategic_algorithm::strategic_parameters::StrategicParameter;
-    use tests::strategic_algorithm::strategic_parameters::StrategicParameters;
+    use tests::algorithm::strategic_parameters::StrategicParameter;
+    use tests::algorithm::strategic_parameters::StrategicParameters;
     use unloading_point::UnloadingPoint;
 
     use std::collections::HashMap;
@@ -159,7 +168,7 @@ mod tests {
 
     use crate::agents::ArcSwapSharedSolution;
 
-    use super::{strategic_algorithm::PriorityQueues, *};
+    use super::{algorithm::PriorityQueues, *};
     use shared_types::scheduling_environment::worker_environment::resources::Resources;
 
     use shared_types::scheduling_environment::work_order::operation::Operation;

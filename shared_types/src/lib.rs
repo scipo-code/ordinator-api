@@ -19,6 +19,7 @@ use scheduling_environment::{
     work_order::{WorkOrderActivity, WorkOrderNumber},
     worker_environment::resources::Resources,
 };
+
 use serde::{Deserialize, Serialize};
 use strategic::{StrategicRequest, StrategicResponse};
 use supervisor::{SupervisorRequest, SupervisorResponse};

@@ -320,6 +320,5 @@ fn is_assigned_part_of_all(
 ) -> bool {
     assigned_woas
         .iter()
-        .map(|(wo, ac)| all_woas.contains(&(*wo, *ac)))
-        .all(|present_woa| present_woa)
+        .all(|(wo, ac)| all_woas.contains(&(*wo, *ac)))
 }

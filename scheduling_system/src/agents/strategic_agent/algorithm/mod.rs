@@ -1,12 +1,12 @@
 pub mod strategic_parameters;
 pub mod assert_functions;
 
+use assert_functions::StrategicAssertions;
 use shared_types::scheduling_environment::time_environment::TimeEnvironment;
 use strum::IntoEnumIterator;
 use crate::agents::traits::LargeNeighborhoodSearch;
 use crate::agents::{SharedSolution, StrategicSolution, ArcSwapSharedSolution};
 use anyhow::{anyhow, bail, Context, Result};
-use assert_functions::StrategicAlgorithmAssertions;
 use strategic_parameters::{StrategicParameter, StrategicParameterBuilder, StrategicParameters};
 use priority_queue::PriorityQueue;
 use rand::prelude::SliceRandom;
@@ -488,7 +488,7 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
                 let capacities = self.resources_capacities();
                 let loadings = self.resources_loadings();
 
-                Self::assert_that_capacity_is_respected(loadings, capacities).context("Loadings exceed the capacities")?;
+                StrategicAlgorithm::assert_that_capacity_is_respected(loadings, capacities).context("Loadings exceed the capacities")?;
                 Ok(StrategicResponseResources::Percentage(capacities.clone(), loadings.clone()))
             }
         }
@@ -657,7 +657,7 @@ mod tests {
 
     use shared_types::scheduling_environment::worker_environment::resources::Resources;
 
-    use crate::agents::{strategic_agent::strategic_algorithm::{
+    use crate::agents::{strategic_agent::algorithm::{
             PriorityQueues, StrategicAlgorithm, StrategicParameters
         }, TacticalSolutionBuilder, WhereIsWorkOrder};
 

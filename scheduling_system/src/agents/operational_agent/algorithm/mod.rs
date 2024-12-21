@@ -1,3 +1,4 @@
+pub mod assert_functions;
 pub mod operational_events;
 pub mod operational_parameter;
 pub mod operational_solution;
@@ -6,6 +7,7 @@ use std::{collections::HashSet, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use arc_swap::Guard;
+use assert_functions::OperationalAlgorithmAsserts;
 use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
 use operational_events::OperationalEvents;
@@ -217,7 +219,7 @@ impl OperationalAlgorithm {
             .find(|oper_sol| oper_sol.0 == work_order_activity_previous)
             .unwrap()
             .1
-            .marginal_fitness = MarginalFitness::Fitness(time_delta_usize);
+            .marginal_fitness = MarginalFitness::Scheduled(time_delta_usize);
     }
 
     pub(crate) fn load_shared_solution(&mut self) {
@@ -261,7 +263,7 @@ pub enum Unavailability {
 }
 
 impl LargeNeighborhoodSearch for OperationalAlgorithm {
-    type BetterSolution = bool;
+    type BetterSolution = Result<bool>;
     type SchedulingRequest = OperationalSchedulingRequest;
 
     type SchedulingResponse = OperationalSchedulingResponse;
@@ -307,14 +309,18 @@ impl LargeNeighborhoodSearch for OperationalAlgorithm {
         let mut first_fitness: bool = true;
         let mut current_work_order_activity: Option<WorkOrderActivity> = None;
 
+        self.assert_no_operation_overlap()
+            .context("Operational_events overlap in the operational objective value calculation")?;
         assert_eq!(
             all_events
                 .clone()
                 .fold(TimeDelta::zero(), |acc, ass| acc + (ass.finish - ass.start)),
             self.availability.end_date - self.availability.start_date
+                + TimeDelta::new(57599, 0).unwrap()
         );
 
-        // FIX: Assert no overlap here
+        // What is the problem here?
+        // If the work order changes you
         for assignment in all_events.clone() {
             match &assignment.event_type {
                 OperationalEvents::WrenchTime((time_interval, work_order_activity)) => {
@@ -324,10 +330,13 @@ impl LargeNeighborhoodSearch for OperationalAlgorithm {
                         Some(work_order_activity_previous) => {
                             if work_order_activity_previous != *work_order_activity {
                                 let marginal_fitness_time_delta = prev_fitness + next_fitness;
+
                                 self.update_marginal_fitness(
                                     work_order_activity_previous,
                                     marginal_fitness_time_delta,
                                 );
+                                dbg!(prev_fitness);
+                                dbg!(next_fitness);
                                 prev_fitness = next_fitness;
                             }
                             Some(*work_order_activity)
@@ -363,7 +372,8 @@ impl LargeNeighborhoodSearch for OperationalAlgorithm {
                     if !first_fitness {
                         assert!(assignment == all_events.clone().last().unwrap());
                         let marginal_fitness_time_delta = prev_fitness + next_fitness;
-
+                        dbg!(prev_fitness);
+                        dbg!(next_fitness);
                         self.update_marginal_fitness(
                             current_work_order_activity
                                 .expect("This will happen if there are no work orders scheduled"),
@@ -399,9 +409,9 @@ impl LargeNeighborhoodSearch for OperationalAlgorithm {
 
         if new_value > old_value {
             self.operational_solution.objective_value = new_value;
-            true
+            Ok(true)
         } else {
-            false
+            Ok(false)
         }
     }
 

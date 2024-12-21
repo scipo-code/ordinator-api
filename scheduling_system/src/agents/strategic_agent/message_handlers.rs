@@ -30,7 +30,7 @@ use crate::agents::AgentSpecific;
 use crate::agents::SetAddr;
 use crate::agents::StateLink;
 
-use super::strategic_algorithm::strategic_parameters::StrategicParameterBuilder;
+use super::algorithm::strategic_parameters::StrategicParameterBuilder;
 use super::StrategicAgent;
 
 impl Handler<StrategicRequestMessage> for StrategicAgent {
