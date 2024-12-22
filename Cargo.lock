@@ -852,7 +852,7 @@ dependencies = [
  "clap",
  "criterion-plot",
  "is-terminal",
- "itertools 0.10.5",
+ "itertools",
  "num-traits",
  "once_cell",
  "oorandom",
@@ -873,7 +873,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b50826342786a51a89e2da3a28f1c32b06e387201bc2d19791f622c673706b1"
 dependencies = [
  "cast",
- "itertools 0.10.5",
+ "itertools",
 ]
 
 [[package]]
@@ -949,7 +949,7 @@ dependencies = [
 
 [[package]]
 name = "data_processing"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "atoi",
  "calamine",
@@ -963,7 +963,7 @@ dependencies = [
  "rust_xlsxwriter",
  "serde",
  "shared_types",
- "thiserror 2.0.8",
+ "thiserror 1.0.69",
  "toml",
  "tracing",
 ]
@@ -1595,7 +1595,7 @@ dependencies = [
 
 [[package]]
 name = "imperium"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -1656,15 +1656,6 @@ name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
 dependencies = [
  "either",
 ]
@@ -2522,7 +2513,7 @@ dependencies = [
 
 [[package]]
 name = "scheduling_system"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "actix",
  "actix-rt",
@@ -2542,7 +2533,7 @@ dependencies = [
  "dotenvy",
  "futures",
  "futures-util",
- "itertools 0.13.0",
+ "itertools",
  "priority-queue",
  "proptest",
  "rand",
@@ -2554,7 +2545,7 @@ dependencies = [
  "shared_types",
  "strum",
  "strum_macros",
- "thiserror 2.0.8",
+ "thiserror 1.0.69",
  "tokio",
  "toml",
  "tracing",
@@ -2690,7 +2681,7 @@ dependencies = [
 
 [[package]]
 name = "shared_types"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "actix",
  "actix-web",
@@ -2710,7 +2701,7 @@ dependencies = [
  "serde_json_any_key",
  "strum",
  "strum_macros",
- "thiserror 2.0.8",
+ "thiserror 1.0.69",
  "toml",
  "tracing",
 ]
