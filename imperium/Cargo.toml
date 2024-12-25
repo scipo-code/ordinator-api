@@ -21,3 +21,4 @@ strum = "*"
 tokio = { version = "*", features = ["full"] }
 toml = "*"
 tracing = "*"
+url = "2.5.4"
