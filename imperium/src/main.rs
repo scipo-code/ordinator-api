@@ -19,7 +19,7 @@ pub struct Cli {
 }
 
 /// Main function of the imperium command line tool
-fn main() {
+fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     if let Some(generator) = cli.generator {
@@ -28,10 +28,7 @@ fn main() {
         print_completions(generator, &mut cmd);
     }
 
-    let client = reqwest::blocking::Client::builder()
-        .timeout(None)
-        .build()
-        .unwrap();
+    let client = create_client()?;
 
     let system_message = commands::handle_command(cli, &client);
 
@@ -47,14 +44,33 @@ fn main() {
     } else {
         println!("{}", response.unwrap());
     }
+
+    Ok(())
+}
+
+fn create_client() -> anyhow::Result<Client> {
+    let client = match reqwest::blocking::Client::builder().timeout(None).build() {
+        Ok(client) => client,
+        Err(e) => bail!("Failed to create HTTP client: {}", e),
+    };
+
+    Ok(client)
 }
 
 fn send_http(client: &Client, system_message: SystemMessages) -> Result<String> {
-    let url = "http://".to_string()
-        + &dotenvy::var("IMPERIUM_ADDRESS")
-            .expect("The environment variable IMPERIUM_ADDRESS is not set")
-        + &dotenvy::var("ORDINATOR_MAIN_ENDPOINT")
-            .expect("The environment variable ORDINATOR_MAIN_ENDPOINT is not set");
+    let imperium_address = &dotenvy::var("IMPERIUM_ADDRESS")
+        .context("The environment variable IMPERIUM_ADDRESS is not set")?;
+
+    let ordinator_endpoint = &dotenvy::var("ORDINATOR_MAIN_ENDPOINT")
+        .context("The environment variable ORDINATOR_MAIN_ENDPOINT is not set")?;
+
+    let base_url = url::Url::parse(&format!("http://{}", imperium_address)).with_context(|| {
+        format!(
+            "Failed to parse 'IMPERIUM_ADDRESS' as a valid url. Ensure it includes the correct format (e.g. foo:1234). IMPERIUM_ADDRESS: {}", imperium_address
+        )
+    })?;
+
+    let url = base_url.join(&ordinator_endpoint).with_context(|| format!("Failed to append 'ORDINATOR_MAIN_ENDPOINT' as a valid url. Ensure it is correctly formatted. ORDINATOR_MAIN_ENDPOINT: {}", ordinator_endpoint))?;
 
     let system_message_json_option = serde_json::to_string(&system_message);
     let system_message_json = match system_message_json_option {
@@ -69,7 +85,7 @@ fn send_http(client: &Client, system_message: SystemMessages) -> Result<String> 
         .body(system_message_json)
         .header("Content-Type", "application/json")
         .send()
-        .expect("Could not send request");
+        .context("Could not send request")?;
 
     if !response.status().is_success() {
         bail!(
