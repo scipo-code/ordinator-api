@@ -347,7 +347,7 @@ pub fn calculate_period_difference(scheduled_period: Period, latest_period: &Per
 
 
 impl LargeNeighborhoodSearch for StrategicAlgorithm {
-    type BetterSolution = (u64, u64);
+    type BetterSolution = ();
     type SchedulingRequest = StrategicSchedulingRequest;
     type SchedulingResponse = StrategicResponseScheduling;
     type ResourceRequest = StrategicResourceRequest;
@@ -357,8 +357,8 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
     type SchedulingUnit = WorkOrderNumber;
     
     fn calculate_objective_value(&mut self) -> Self::BetterSolution {
-        let mut period_penalty_contribution: StrategicObjectiveValue = 0;
-        let mut excess_penalty_contribution: StrategicObjectiveValue = 0;
+
+        let mut strategic_objective_value = StrategicObjectiveValue::new((1, 0), (10000000, 0)); 
 
         for (work_order_number, scheduled_period) in &self.strategic_solution.strategic_periods {
             let optimized_period = match scheduled_period {
@@ -385,7 +385,7 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
                     .unwrap()
                     .weight;
 
-            period_penalty_contribution += period_penalty;
+            strategic_objective_value.urgency.1 += period_penalty;
         }
         
         for (resource, periods) in &self.resources_capacities().inner {
@@ -394,16 +394,14 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
                     .resources_loading(resource, period);
 
                 if loading - capacity > Work::from(0.0) {
-                    excess_penalty_contribution += (loading - capacity).to_f64() as u64
+                    strategic_objective_value.resource_penalty.1 += (loading - capacity).to_f64() as u64
                 }
             }
         }
 
+        strategic_objective_value.aggregate_objectives();
 
-        self.strategic_solution.objective_value = 
-            period_penalty_contribution + 1000000 * excess_penalty_contribution;
-        (period_penalty_contribution, excess_penalty_contribution)
-
+        self.strategic_solution.objective_value = strategic_objective_value;
     }
 
     #[instrument(level = "trace", skip_all)]
@@ -546,11 +544,12 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
                             .with_context(|| format!("The {:?} was not found in the {:#?}. The {:#?} should have been initialized at creation.", work_order_number, type_name::<StrategicParameter>(), type_name::<StrategicParameter>()))?;
             
                     assert!(!strategic_parameter.excluded_periods.contains(self.strategic_solution.strategic_periods.get(&work_order_number).as_ref().unwrap().as_ref().unwrap()));
+                    dbg!(&strategic_parameter.excluded_periods);
                     strategic_parameter
                         .excluded_periods
                         .insert(period.clone());
 
-                    
+                    dbg!(&strategic_parameter.excluded_periods);
                     // assert!(!strategic_parameter.excluded_periods.contains(self.strategic_solution.strategic_periods.get(&work_order_number).as_ref().unwrap().as_ref().unwrap()));
 
                     if let Some(locked_in_period) = &strategic_parameter.locked_in_period {
@@ -1402,3 +1401,4 @@ Period::from_str("2023-W49-50").unwrap(),
         }
     }
 }
+            

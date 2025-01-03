@@ -46,7 +46,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                 match strategic_status_message {
                     StrategicStatusMessage::General => {
                         let strategic_objective_value =
-                            self.strategic_algorithm.strategic_solution.objective_value;
+                            &self.strategic_algorithm.strategic_solution.objective_value;
 
                         let strategic_parameters = &self.strategic_algorithm.strategic_parameters;
 
@@ -137,7 +137,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                     })?;
 
                 self.strategic_algorithm.calculate_objective_value();
-                event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value);
+                event!(Level::INFO, strategic_objective_value = ?self.strategic_algorithm.strategic_solution.objective_value);
                 Ok(StrategicResponseMessage::Scheduling(scheduling_output))
             }
             StrategicRequestMessage::Resources(resources_message) => {
@@ -146,7 +146,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                     .update_resources_state(resources_message);
 
                 self.strategic_algorithm.calculate_objective_value();
-                event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value);
+                event!(Level::INFO, strategic_objective_value = ?self.strategic_algorithm.strategic_solution.objective_value);
                 Ok(StrategicResponseMessage::Resources(
                     resources_output.unwrap(),
                 ))

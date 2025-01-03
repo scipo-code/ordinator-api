@@ -79,49 +79,45 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         self.strategic_algorithm
             .assert_excluded_periods()
             .expect("Assert failed");
+
         self.strategic_algorithm.load_shared_solution();
 
         self.strategic_algorithm
             .schedule_forced_work_orders()
             .expect("Could not force schedule work orders");
 
+        dbg!();
         self.strategic_algorithm
             .assert_excluded_periods()
             .expect("Assert failed");
+
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
 
         self.strategic_algorithm.calculate_objective_value();
         let old_strategic_solution = self.strategic_algorithm.strategic_solution.clone();
 
         self.strategic_algorithm
-            .assert_excluded_periods()
-            .expect("Assert failed");
-        self.strategic_algorithm
             .unschedule_random_work_orders(50, rng)
             .expect("Unscheduling random work order should always be possible");
 
         self.strategic_algorithm
-            .assert_excluded_periods()
-            .expect("Assert failed");
-        self.strategic_algorithm
             .schedule()
             .expect("StrategicAlgorithm.schedule method failed");
-        self.strategic_algorithm
-            .assert_excluded_periods()
-            .expect("Assert failed");
         // self.assert_aggregated_load().unwrap();
-        let (tardiness, penalty) = self.strategic_algorithm.calculate_objective_value();
+        self.strategic_algorithm.calculate_objective_value();
 
-        if self.strategic_algorithm.strategic_solution.objective_value
-            < old_strategic_solution.objective_value
+        if self
+            .strategic_algorithm
+            .strategic_solution
+            .objective_value
+            .objective_value
+            < old_strategic_solution.objective_value.objective_value
         {
             self.strategic_algorithm.make_atomic_pointer_swap();
 
-            event!(Level::INFO, strategic_objective_value = %self.strategic_algorithm.strategic_solution.objective_value,
+            event!(Level::INFO, strategic_objective_value = ?self.strategic_algorithm.strategic_solution.objective_value ,
                 scheduled_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.iter().filter(|ele| ele.1.is_some()).count(),
                 total_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.len(),
-                tardiness = tardiness,
-                penalty = penalty,
                 percentage_utilization_by_period = ?self.strategic_algorithm.calculate_utilization(),
             );
         } else {
@@ -394,7 +390,13 @@ mod tests {
 
         strategic_algorithm.calculate_objective_value();
 
-        assert_eq!(strategic_algorithm.strategic_solution.objective_value, 2000);
+        assert_eq!(
+            strategic_algorithm
+                .strategic_solution
+                .objective_value
+                .objective_value,
+            2000
+        );
     }
 
     pub struct TestRequest {}
@@ -418,7 +420,11 @@ mod tests {
 
         fn handle(&mut self, _msg: TestRequest, _: &mut actix::Context<Self>) -> Self::Result {
             Some(TestResponse {
-                objective_value: self.strategic_algorithm.strategic_solution.objective_value,
+                objective_value: self
+                    .strategic_algorithm
+                    .strategic_solution
+                    .objective_value
+                    .clone(),
                 manual_resources_capacity: self
                     .strategic_algorithm
                     .resources_capacities()
