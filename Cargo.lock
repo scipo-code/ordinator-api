@@ -2551,6 +2551,7 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-flame",
+ "tracing-serde",
  "tracing-subscriber",
  "uuid",
 ]

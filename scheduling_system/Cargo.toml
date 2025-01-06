@@ -48,5 +48,6 @@ toml = "*"
 tracing = "*"
 tracing-appender = "*"
 tracing-flame = "*"
+tracing-serde = "0.2"
 tracing-subscriber = { version = "*", features = ["json", "env-filter"] }
 uuid = { version = "*", features = ["v4"] }

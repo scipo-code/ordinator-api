@@ -7,6 +7,7 @@ use crate::agents::traits::LargeNeighborhoodSearch;
 use algorithm::assert_functions::StrategicAssertions;
 use anyhow::Result;
 use shared_types::scheduling_environment::SchedulingEnvironment;
+use tracing_serde::AsSerde;
 
 use actix::prelude::*;
 use shared_types::Asset;
@@ -86,7 +87,6 @@ impl Handler<ScheduleIteration> for StrategicAgent {
             .schedule_forced_work_orders()
             .expect("Could not force schedule work orders");
 
-        dbg!();
         self.strategic_algorithm
             .assert_excluded_periods()
             .expect("Assert failed");
@@ -115,7 +115,10 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         {
             self.strategic_algorithm.make_atomic_pointer_swap();
 
-            event!(Level::INFO, strategic_objective_value = ?self.strategic_algorithm.strategic_solution.objective_value ,
+            event!(Level::INFO,
+                strategic_objective_value = self.strategic_algorithm.strategic_solution.objective_value.objective_value,
+                strategic_urgency = self.strategic_algorithm.strategic_solution.objective_value.urgency.1,
+                strategic_resource_penalty = self.strategic_algorithm.strategic_solution.objective_value.resource_penalty.1,
                 scheduled_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.iter().filter(|ele| ele.1.is_some()).count(),
                 total_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.len(),
                 percentage_utilization_by_period = ?self.strategic_algorithm.calculate_utilization(),
