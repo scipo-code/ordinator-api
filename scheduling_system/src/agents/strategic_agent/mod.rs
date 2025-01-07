@@ -7,7 +7,6 @@ use crate::agents::traits::LargeNeighborhoodSearch;
 use algorithm::assert_functions::StrategicAssertions;
 use anyhow::Result;
 use shared_types::scheduling_environment::SchedulingEnvironment;
-use tracing_serde::AsSerde;
 
 use actix::prelude::*;
 use shared_types::Asset;
@@ -119,6 +118,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
                 strategic_objective_value = self.strategic_algorithm.strategic_solution.objective_value.objective_value,
                 strategic_urgency = self.strategic_algorithm.strategic_solution.objective_value.urgency.1,
                 strategic_resource_penalty = self.strategic_algorithm.strategic_solution.objective_value.resource_penalty.1,
+                strategic_clustering_value = self.strategic_algorithm.strategic_solution.objective_value.clustering_value.1,
                 scheduled_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.iter().filter(|ele| ele.1.is_some()).count(),
                 total_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.len(),
                 percentage_utilization_by_period = ?self.strategic_algorithm.calculate_utilization(),
@@ -147,6 +147,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 #[cfg(test)]
 mod tests {
 
+    use algorithm::strategic_parameters::StrategicClustering;
     use algorithm::ForcedWorkOrder;
     use operation::OperationBuilder;
     use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
@@ -228,8 +229,11 @@ mod tests {
 
         let periods: Vec<Period> = vec![Period::from_str("2023-W47-48").unwrap()];
 
-        let optimized_work_orders =
-            StrategicParameters::new(HashMap::new(), StrategicResources::default());
+        let optimized_work_orders = StrategicParameters::new(
+            HashMap::new(),
+            StrategicResources::default(),
+            StrategicClustering::default(),
+        );
 
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
@@ -320,7 +324,11 @@ mod tests {
 
         let mut strategic_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
-            StrategicParameters::new(HashMap::new(), StrategicResources::default()),
+            StrategicParameters::new(
+                HashMap::new(),
+                StrategicResources::default(),
+                StrategicClustering::default(),
+            ),
             ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             periods.clone(),
@@ -360,8 +368,11 @@ mod tests {
     #[test]
     fn test_calculate_objective_value() {
         let work_order_number = WorkOrderNumber(2100023841);
-        let mut strategic_parameters =
-            StrategicParameters::new(HashMap::new(), StrategicResources::default());
+        let mut strategic_parameters = StrategicParameters::new(
+            HashMap::new(),
+            StrategicResources::default(),
+            StrategicClustering::default(),
+        );
 
         let strategic_parameter = StrategicParameter::new(
             Some(Period::from_str("2023-W49-50").unwrap()),
@@ -445,6 +456,7 @@ mod tests {
                         .strategic_work_order_parameters
                         .clone(),
                     StrategicResources::default(),
+                    StrategicClustering::default(),
                 ),
                 periods: self.strategic_algorithm.periods().clone(),
             })

@@ -1,6 +1,6 @@
 use actix::prelude::*;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use arc_swap::ArcSwap;
 use shared_types::operational::OperationalConfiguration;
 use shared_types::scheduling_environment::work_order::operation::Work;
@@ -15,7 +15,9 @@ use std::sync::{Arc, MutexGuard};
 use crate::agents::operational_agent::algorithm::OperationalAlgorithm;
 use crate::agents::operational_agent::{OperationalAgent, OperationalAgentBuilder};
 use crate::agents::orchestrator::NotifyOrchestrator;
-use crate::agents::strategic_agent::algorithm::strategic_parameters::StrategicParameters;
+use crate::agents::strategic_agent::algorithm::strategic_parameters::{
+    StrategicClustering, StrategicParameters,
+};
 use crate::agents::strategic_agent::algorithm::PriorityQueues;
 use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
 use crate::agents::strategic_agent::StrategicAgent;
@@ -53,7 +55,7 @@ impl AgentFactory {
         scheduling_environment_guard: &MutexGuard<SchedulingEnvironment>,
         shared_solution_arc_swap: Arc<ArcSwapSharedSolution>,
         sender_for_orchestrator: NotifyOrchestrator,
-    ) -> Addr<StrategicAgent> {
+    ) -> Result<Addr<StrategicAgent>> {
         let cloned_work_orders = scheduling_environment_guard.work_orders.clone();
 
         // TODO: We should not clone here! We do not want periods in the strategic agent. I think
@@ -73,9 +75,13 @@ impl AgentFactory {
         let resources_loading =
             initialize_strategic_resources(scheduling_environment_guard, Work::from(0.0));
 
+        let mut strategic_clustering = StrategicClustering::default();
+        strategic_clustering.calculate_clustering_values(&asset, &cloned_work_orders)?;
+
+        dbg!(&strategic_clustering.inner.len());
         let mut strategic_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
-            StrategicParameters::new(HashMap::new(), resources_capacity),
+            StrategicParameters::new(HashMap::new(), resources_capacity, strategic_clustering),
             shared_solution_arc_swap,
             period_locks,
             scheduling_environment_guard
@@ -117,7 +123,7 @@ impl AgentFactory {
             sender.send(strategic_addr).unwrap();
         });
 
-        receiver.recv().unwrap()
+        receiver.recv().context("Do not receive back the Addr from the StrategicAgent during in Initialization in the AgentFactory.")
     }
 
     pub fn build_tactical_agent(

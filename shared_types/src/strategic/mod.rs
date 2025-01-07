@@ -45,20 +45,27 @@ pub struct StrategicObjectiveValue {
     pub objective_value: u64,
     pub urgency: (u64, u64),
     pub resource_penalty: (u64, u64),
+    pub clustering_value: (u64, u64),
 }
 
 impl StrategicObjectiveValue {
-    pub fn new(urgency: (u64, u64), resource_penalty: (u64, u64)) -> Self {
+    pub fn new(
+        urgency: (u64, u64),
+        resource_penalty: (u64, u64),
+        clustering_value: (u64, u64),
+    ) -> Self {
         Self {
             objective_value: 0,
             urgency,
             resource_penalty,
+            clustering_value,
         }
     }
 
     pub fn aggregate_objectives(&mut self) {
-        self.objective_value =
-            self.urgency.0 * self.urgency.1 + self.resource_penalty.0 * self.resource_penalty.1;
+        self.objective_value = self.urgency.0 * self.urgency.1
+            + self.resource_penalty.0 * self.resource_penalty.1
+            + self.clustering_value.0 * self.clustering_value.1;
     }
 }
 

@@ -7,7 +7,7 @@ use strum::IntoEnumIterator;
 use crate::agents::traits::LargeNeighborhoodSearch;
 use crate::agents::{SharedSolution, StrategicSolution, ArcSwapSharedSolution};
 use anyhow::{anyhow, bail, Context, Result};
-use strategic_parameters::{StrategicParameter, StrategicParameterBuilder, StrategicParameters};
+use strategic_parameters::{StrategicClustering, StrategicParameter, StrategicParameterBuilder, StrategicParameters};
 use priority_queue::PriorityQueue;
 use rand::prelude::SliceRandom;
 use shared_types::scheduling_environment::WorkOrders;
@@ -358,7 +358,7 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
     
     fn calculate_objective_value(&mut self) -> Self::BetterSolution {
 
-        let mut strategic_objective_value = StrategicObjectiveValue::new((1, 0), (10000000, 0)); 
+        let mut strategic_objective_value = StrategicObjectiveValue::new((1, 0), (1000, 0), (10000, 0)); 
 
         for (work_order_number, scheduled_period) in &self.strategic_solution.strategic_periods {
             let optimized_period = match scheduled_period {
@@ -395,6 +395,54 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
 
                 if loading - capacity > Work::from(0.0) {
                     strategic_objective_value.resource_penalty.1 += (loading - capacity).to_f64() as u64
+                }
+            }
+        }
+        for period in &self.strategic_periods {
+            // Precompute scheduled work orders for the current period
+            let scheduled_work_orders_by_period: Vec<_> = self
+                .strategic_solution
+                .strategic_periods
+                .iter()
+                .filter_map(|(won, opt_per)| {
+                    if let Some(per) = opt_per {
+                        if per == period {
+                            return Some(won);
+                        }
+                    }
+                    None
+                })
+                .collect();
+
+            // Cache references to clustering inner map
+            let clustering_inner = &self.strategic_parameters.strategic_clustering.inner;
+
+            for i in 0..scheduled_work_orders_by_period.len() {
+                for j in (i + 1)..scheduled_work_orders_by_period.len() {
+                    // Retrieve clustering value, handling symmetry
+                    let work_order_pair = (
+                        *scheduled_work_orders_by_period[i],
+                        *scheduled_work_orders_by_period[j],
+                    );
+                    let reverse_pair = (
+                        *scheduled_work_orders_by_period[j],
+                        *scheduled_work_orders_by_period[i],
+                    );
+
+                    let clustering_value_for_work_order_pair = clustering_inner
+                        .get(&work_order_pair)
+                        .or_else(|| clustering_inner.get(&reverse_pair))
+                        .with_context(|| {
+                            format!(
+                                "Missing: {} between {:?} and {:?}",
+                                std::any::type_name::<StrategicClustering>(),
+                                scheduled_work_orders_by_period[i],
+                                scheduled_work_orders_by_period[j]
+                            )
+                        }).unwrap();
+
+                    // Increment the clustering value in the objective
+                    strategic_objective_value.clustering_value.1 += *clustering_value_for_work_order_pair;
                 }
             }
         }
@@ -649,7 +697,7 @@ impl PriorityQueues<WorkOrderNumber, u64> {
 mod tests {
     use super::*;
     use arc_swap::ArcSwap;
-    use strategic_parameters::StrategicParameter;
+    use strategic_parameters::{StrategicClustering, StrategicParameter};
     use shared_types::strategic::{strategic_request_scheduling_message::ScheduleChange, Periods};
     use chrono::{Duration, TimeZone, Utc};
     use rand::{rngs::StdRng, SeedableRng};
@@ -713,7 +761,7 @@ mod tests {
         let mut strategic_algorithm = StrategicAlgorithm::new(
             
             PriorityQueues::new(),
-            StrategicParameters::new(HashMap::new(), resource_capacity),
+            StrategicParameters::new(HashMap::new(), resource_capacity, StrategicClustering::default()),
             ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             periods,
@@ -833,7 +881,7 @@ mod tests {
         resource_loadings.insert(Resources::MtnElec, period_hash_map_0.clone());
         resource_loadings.insert(Resources::Prodtech, period_hash_map_0.clone());
 
-        let mut strategic_parameters = StrategicParameters::new(HashMap::new(), StrategicResources::new(resource_capacity));
+        let mut strategic_parameters = StrategicParameters::new(HashMap::new(), StrategicResources::new(resource_capacity), StrategicClustering::default());
 
         let strategic_parameter =
             StrategicParameter::new( None, HashSet::new(), period.clone(), 1000, HashMap::new());
@@ -889,7 +937,7 @@ mod tests {
         resource_capacity.insert(Resources::MtnMech, period_hash_map_0.clone());
         resource_loadings.insert(Resources::MtnMech, period_hash_map_0.clone());
 
-        let mut strategic_parameters = StrategicParameters::new(HashMap::new(), StrategicResources::new(resource_capacity));
+        let mut strategic_parameters = StrategicParameters::new(HashMap::new(), StrategicResources::new(resource_capacity), StrategicClustering::default());
         strategic_parameters
             .strategic_work_order_parameters
             .insert(work_order_number, optimized_work_order);
@@ -947,7 +995,7 @@ mod tests {
 
         let mut strategic_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
-            StrategicParameters::new(HashMap::new(), StrategicResources::new(resource_capacity)),
+            StrategicParameters::new(HashMap::new(), StrategicResources::new(resource_capacity), StrategicClustering::default()),
             ArcSwapSharedSolution::default().into(),
             HashSet::new(),
             vec![],
@@ -1030,7 +1078,7 @@ mod tests {
             }
         }
 
-        let mut strategic_parameters = StrategicParameters::new(HashMap::new(), StrategicResources::new(resource_capacity));
+        let mut strategic_parameters = StrategicParameters::new(HashMap::new(), StrategicResources::new(resource_capacity), StrategicClustering::default());
 
         let strategic_parameter = StrategicParameter::new(
             Some(period_1.clone()),
@@ -1203,7 +1251,7 @@ mod tests {
         work_load_3.insert(Resources::MtnElec,Work::from( 30.0));
         work_load_3.insert(Resources::Prodtech,Work::from( 30.0));
 
-        let mut strategic_parameters = StrategicParameters::new(HashMap::new(), StrategicResources::default());
+        let mut strategic_parameters = StrategicParameters::new(HashMap::new(), StrategicResources::default(), StrategicClustering::default());
 
         let strategic_parameter_1 = StrategicParameter::new(
             None,
@@ -1327,7 +1375,7 @@ Period::from_str("2023-W49-50").unwrap(),
     #[test]
     fn test_unschedule_work_order_none_in_scheduled_period() {
         let work_order_number = WorkOrderNumber(2100000001);
-        let mut strategic_parameters = StrategicParameters::new(HashMap::new(), StrategicResources::default());
+        let mut strategic_parameters = StrategicParameters::new(HashMap::new(), StrategicResources::default(), StrategicClustering::default());
 
         let strategic_parameter = StrategicParameter::new(
             None,

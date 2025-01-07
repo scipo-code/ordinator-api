@@ -17,6 +17,22 @@ impl FunctionalLocation {
         let asset = Asset::new_from_string(asset_string).unwrap_or(Asset::Unknown);
         Self { string, asset }
     }
+
+    pub fn sector(&self) -> Option<&str> {
+        self.string.split('/').nth(1)
+    }
+
+    pub fn system(&self) -> Option<char> {
+        self.string.split('/').nth(2)?.chars().nth(1)
+    }
+
+    pub fn subsystem(&self) -> Option<char> {
+        self.string.split('/').nth(2)?.chars().nth(1)
+    }
+
+    pub fn equipment_tag(&self) -> Option<&str> {
+        self.string.split('/').nth(3)
+    }
 }
 
 impl Default for FunctionalLocation {

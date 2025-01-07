@@ -662,18 +662,21 @@ impl Orchestrator {
 
         let shared_solutions_arc_swap = AgentFactory::create_shared_solution_arc_swap();
 
-        let strategic_agent_addr = self.agent_factory.build_strategic_agent(
-            asset.clone(),
-            &scheduling_environment_guard,
-            shared_solutions_arc_swap.clone(),
-            NotifyOrchestrator(
-                self.agent_notify
-                    .as_ref()
-                    .unwrap()
-                    .upgrade()
-                    .expect("Weak reference part of initialization"),
-            ),
-        );
+        let strategic_agent_addr = self
+            .agent_factory
+            .build_strategic_agent(
+                asset.clone(),
+                &scheduling_environment_guard,
+                shared_solutions_arc_swap.clone(),
+                NotifyOrchestrator(
+                    self.agent_notify
+                        .as_ref()
+                        .unwrap()
+                        .upgrade()
+                        .expect("Weak reference part of initialization"),
+                ),
+            )
+            .context("Could not build the StrategicAgent")?;
 
         let tactical_agent_addr = self.agent_factory.build_tactical_agent(
             asset.clone(),
