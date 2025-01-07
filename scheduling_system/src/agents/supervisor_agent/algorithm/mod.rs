@@ -245,6 +245,7 @@ impl LargeNeighborhoodSearch for SupervisorAlgorithm {
             );
 
             if !operational_status_by_work_order_activity.is_empty() {
+
                 // dbg!(operational_status_by_work_order_activity.len());
             };
 
