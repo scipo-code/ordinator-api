@@ -1,6 +1,6 @@
 [package]
 name = "shared_types"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 description = "Shared types between imperium and scheduling_system"
 license-file = "../LICENSE"

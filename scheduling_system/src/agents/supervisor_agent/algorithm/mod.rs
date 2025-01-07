@@ -236,7 +236,7 @@ impl LargeNeighborhoodSearch for SupervisorAlgorithm {
                 .retain(|(_, _, mar_fit)| matches!(mar_fit, MarginalFitness::Scheduled(_)));
 
             operational_status_by_work_order_activity.sort_by_cached_key(
-                |(agent_id, _, mar_fit)| match mar_fit {
+                |(_agent_id, _, mar_fit)| match mar_fit {
                     MarginalFitness::Scheduled(auxillary_operational_objective) => {
                         auxillary_operational_objective
                     }
@@ -244,7 +244,8 @@ impl LargeNeighborhoodSearch for SupervisorAlgorithm {
                 },
             );
 
-            if operational_status_by_work_order_activity.len() >= 1 {
+            if !operational_status_by_work_order_activity.is_empty() {
+
                 // dbg!(operational_status_by_work_order_activity.len());
             };
 
@@ -256,7 +257,7 @@ impl LargeNeighborhoodSearch for SupervisorAlgorithm {
             let mut remaining_to_assign = number - number_of_assigned;
 
             event!(Level::DEBUG, remaining_to_assign = ?remaining_to_assign);
-            for (agent_id, delegate_status, marginal_fitness) in
+            for (agent_id, delegate_status, _marginal_fitness) in
                 &mut operational_status_by_work_order_activity
             {
                 if *delegate_status != Delegate::Assess {

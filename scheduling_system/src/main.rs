@@ -20,7 +20,10 @@ use shared_types::{scheduling_environment::SchedulingEnvironment, Asset};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    dotenvy::dotenv().expect("You need to provide an .env file. Look at the .env.example if for guidance");
+    dotenvy::dotenv()
+        .expect("You need to provide an .env file. Look at the .env.example if for guidance");
+
+    println!("{:?}", dotenvy::var("RESOURCE_CONFIG_INITIALIZATION"));
 
     event!(Level::WARN, "The start of main");
     let (log_handles, _logging_guard) = logging::setup_logging();
@@ -48,10 +51,8 @@ async fn main() -> std::io::Result<()> {
         .expect("Please set a valid ASSET environment variable");
 
     // WARN START: USED FOR CONVENIENCE
-    let system_agents_configuration_toml = format!(
-        "./configuration/resources_{}.toml",
-        asset.to_string().to_lowercase()
-    );
+    let system_agents_configuration_toml = dotenvy::var("RESOURCE_CONFIG_INITIALIZATION").expect("A resources configuration file was not read, this is not technically an error but it will be treated as such.");
+
     let mut system_agents = File::open(system_agents_configuration_toml)?;
     let mut system_agent_bytes: Vec<u8> = Vec::new();
 

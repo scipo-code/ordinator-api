@@ -51,7 +51,7 @@ impl Actor for SupervisorAgent {
             self.supervisor_id.clone(),
             ctx.address(),
         ));
-        ctx.notify(ScheduleIteration::default());
+        // ctx.notify(ScheduleIteration::default());
     }
 }
 

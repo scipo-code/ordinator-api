@@ -40,7 +40,27 @@ use self::{
     strategic_response_status::StrategicResponseStatus,
 };
 
-pub type StrategicObjectiveValue = u64;
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Default, Clone)]
+pub struct StrategicObjectiveValue {
+    pub objective_value: u64,
+    pub urgency: (u64, u64),
+    pub resource_penalty: (u64, u64),
+}
+
+impl StrategicObjectiveValue {
+    pub fn new(urgency: (u64, u64), resource_penalty: (u64, u64)) -> Self {
+        Self {
+            objective_value: 0,
+            urgency,
+            resource_penalty,
+        }
+    }
+
+    pub fn aggregate_objectives(&mut self) {
+        self.objective_value =
+            self.urgency.0 * self.urgency.1 + self.resource_penalty.0 * self.resource_penalty.1;
+    }
+}
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "strategic_message_type")]

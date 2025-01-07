@@ -6,7 +6,7 @@ version-bump SEMVER EXECUTE="":
     cargo release --no-publish {{SEMVER}} {{EXECUTE}} &&  rg -o '([0-9]\.[0-9]\.[0-9])' scheduling_system/Cargo.toml > version 
 
 release-on-github VERSION:    
-    gh release create {{VERSION}} ./target/release/imperium --title "Release {{VERSION}}" --notes "None"  
+    gh release create {{VERSION}} ./target/release/imperium --title "Release {{VERSION}}" --notes "download the imperium executable with: ```curl -L --output imperium https://github.com/scipo-code/ordinator-api/releases/download/v0.2.2/imperium```"  
 
 build-windows:
     cross build --target x86_64-pc-windows-gnu --release
