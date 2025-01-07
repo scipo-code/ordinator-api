@@ -255,7 +255,7 @@ mod tests {
 
         assert_eq!(
             formatted_marginal_fitness,
-            "Scheduled(Seconds: 3600, Hours: 1)"
+            "MarginalFitness::Scheduled(3600, 1, 0)"
         );
     }
 }
