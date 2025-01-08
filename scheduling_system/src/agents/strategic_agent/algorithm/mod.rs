@@ -157,6 +157,100 @@ impl StrategicAlgorithm {
         }
         Ok(utilization_by_period)
     }
+
+    fn determine_urgency(&mut self, strategic_objective_value: &mut StrategicObjectiveValue) {
+        for (work_order_number, scheduled_period) in &self.strategic_solution.strategic_periods {
+            let optimized_period = match scheduled_period {
+                Some(optimized_period) => optimized_period.clone(),
+                None => {
+                    event!(Level::ERROR, "{:?} does not have a scheduled period", work_order_number);
+                    panic!("{:?} does not have a scheduled period", work_order_number);
+                }
+            };
+
+            let work_order_latest_allowed_finish_period =
+                &self.strategic_parameters.strategic_work_order_parameters.get(work_order_number).expect("StrategicParameter should always be available for the StrategicSolution").latest_period;
+
+            let non_zero_period_difference = calculate_period_difference(
+                optimized_period,
+                work_order_latest_allowed_finish_period,
+            );
+    
+            let period_penalty = non_zero_period_difference * non_zero_period_difference
+                * self
+                    .strategic_parameters
+                    .strategic_work_order_parameters
+                    .get(work_order_number)
+                    .unwrap()
+                    .weight;
+
+            strategic_objective_value.urgency.1 += period_penalty;
+        }
+    }
+
+    fn determine_clustering(&mut self, strategic_objective_value: &mut StrategicObjectiveValue) {
+        for period in &self.strategic_periods {
+            // Precompute scheduled work orders for the current period
+            let scheduled_work_orders_by_period: Vec<_> = self
+                .strategic_solution
+                .strategic_periods
+                .iter()
+                .filter_map(|(won, opt_per)| {
+                    if let Some(per) = opt_per {
+                        if per == period {
+                            return Some(won);
+                        }
+                    }
+                    None
+                })
+                .collect();
+
+            // Cache references to clustering inner map
+            let clustering_inner = &self.strategic_parameters.strategic_clustering.inner;
+
+            for i in 0..scheduled_work_orders_by_period.len() {
+                for j in (i + 1)..scheduled_work_orders_by_period.len() {
+                    // Retrieve clustering value, handling symmetry
+                    let work_order_pair = (
+                        *scheduled_work_orders_by_period[i],
+                        *scheduled_work_orders_by_period[j],
+                    );
+                    let reverse_pair = (
+                        *scheduled_work_orders_by_period[j],
+                        *scheduled_work_orders_by_period[i],
+                    );
+
+                    let clustering_value_for_work_order_pair = clustering_inner
+                        .get(&work_order_pair)
+                        .or_else(|| clustering_inner.get(&reverse_pair))
+                        .with_context(|| {
+                            format!(
+                                "Missing: {} between {:?} and {:?}",
+                                std::any::type_name::<StrategicClustering>(),
+                                scheduled_work_orders_by_period[i],
+                                scheduled_work_orders_by_period[j]
+                            )
+                        }).unwrap();
+
+                    // Increment the clustering value in the objective
+                    strategic_objective_value.clustering_value.1 += *clustering_value_for_work_order_pair;
+                }
+            }
+        }
+    }
+
+    fn determine_resource_penalty(&mut self, strategic_objective_value: &mut StrategicObjectiveValue) {
+        for (resource, periods) in &self.resources_capacities().inner {
+            for (period, capacity) in &periods.0 {
+                let loading = self
+                    .resources_loading(resource, period);
+
+                if loading - capacity > Work::from(0.0) {
+                    strategic_objective_value.resource_penalty.1 += (loading - capacity).to_f64() as u64
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -177,8 +271,8 @@ impl StrategicAlgorithm {
 
             let tactical_work_order = tactical_work_orders
                 .0
-                .get(work_order_number)
-                .expect("State should always be present except if the TacticalAgent has not had time to initialize yet");
+                .get(work_order_number);
+
 
             if scheduled_period == &strategic_parameter.locked_in_period {
                 continue
@@ -186,8 +280,8 @@ impl StrategicAlgorithm {
 
             if strategic_parameter.locked_in_period.is_some() {
                 work_order_numbers.push((*work_order_number, ForcedWorkOrder::Locked));
-            } else if tactical_work_order.is_tactical() {
-                let first_day = tactical_work_order
+            } else if tactical_work_order.is_some() && tactical_work_order.unwrap().is_tactical() {
+                let first_day = tactical_work_order.unwrap()
                     .tactical_operations()?
                     .0
                     .iter()
@@ -233,9 +327,7 @@ impl StrategicAlgorithm {
 
                 let resource_loading: Work = self.strategic_loading(resource, period)? + &loading_coming_from_the_tactical_agent;
 
-                if WorkOrderNumber(240350782) == work_order_number {
-                    panic!();
-                }
+
                 if *resource_needed > resource_capacity - &resource_loading {
                     return Ok(Some(work_order_number));
                 }
@@ -337,12 +429,12 @@ impl StrategicAlgorithm {
     }
 }
 
-pub fn calculate_period_difference(scheduled_period: Period, latest_period: &Period) -> i64 {
+pub fn calculate_period_difference(scheduled_period: Period, latest_period: &Period) -> u64 {
     let scheduled_period_date = scheduled_period.end_date().to_owned();
     let latest_date = latest_period.end_date();
     let duration = scheduled_period_date.signed_duration_since(latest_date);
     let days = duration.num_days();
-    days / 7
+    std::cmp::max(    days / 7, 0) as u64
 }
 
 
@@ -358,94 +450,13 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
     
     fn calculate_objective_value(&mut self) -> Self::BetterSolution {
 
-        let mut strategic_objective_value = StrategicObjectiveValue::new((1, 0), (1000, 0), (10000, 0)); 
+        let mut strategic_objective_value = StrategicObjectiveValue::new((1, 0), (100000, 0), (10000, 0)); 
 
-        for (work_order_number, scheduled_period) in &self.strategic_solution.strategic_periods {
-            let optimized_period = match scheduled_period {
-                Some(optimized_period) => optimized_period.clone(),
-                None => {
-                    event!(Level::ERROR, "{:?} does not have a scheduled period", work_order_number);
-                    panic!("{:?} does not have a scheduled period", work_order_number);
-                }
-            };
-
-            let work_order_latest_allowed_finish_period =
-                &self.strategic_parameters.strategic_work_order_parameters.get(work_order_number).expect("StrategicParameter should always be available for the StrategicSolution").latest_period;
-
-            let period_difference = calculate_period_difference(
-                optimized_period,
-                work_order_latest_allowed_finish_period,
-            );
-            
-            let period_penalty = std::cmp::max(period_difference, 0) as u64  
-                * self
-                    .strategic_parameters
-                    .strategic_work_order_parameters
-                    .get(work_order_number)
-                    .unwrap()
-                    .weight;
-
-            strategic_objective_value.urgency.1 += period_penalty;
-        }
+        self.determine_urgency(&mut strategic_objective_value);
         
-        for (resource, periods) in &self.resources_capacities().inner {
-            for (period, capacity) in &periods.0 {
-                let loading = self
-                    .resources_loading(resource, period);
+        self.determine_resource_penalty(&mut strategic_objective_value);
 
-                if loading - capacity > Work::from(0.0) {
-                    strategic_objective_value.resource_penalty.1 += (loading - capacity).to_f64() as u64
-                }
-            }
-        }
-        for period in &self.strategic_periods {
-            // Precompute scheduled work orders for the current period
-            let scheduled_work_orders_by_period: Vec<_> = self
-                .strategic_solution
-                .strategic_periods
-                .iter()
-                .filter_map(|(won, opt_per)| {
-                    if let Some(per) = opt_per {
-                        if per == period {
-                            return Some(won);
-                        }
-                    }
-                    None
-                })
-                .collect();
-
-            // Cache references to clustering inner map
-            let clustering_inner = &self.strategic_parameters.strategic_clustering.inner;
-
-            for i in 0..scheduled_work_orders_by_period.len() {
-                for j in (i + 1)..scheduled_work_orders_by_period.len() {
-                    // Retrieve clustering value, handling symmetry
-                    let work_order_pair = (
-                        *scheduled_work_orders_by_period[i],
-                        *scheduled_work_orders_by_period[j],
-                    );
-                    let reverse_pair = (
-                        *scheduled_work_orders_by_period[j],
-                        *scheduled_work_orders_by_period[i],
-                    );
-
-                    let clustering_value_for_work_order_pair = clustering_inner
-                        .get(&work_order_pair)
-                        .or_else(|| clustering_inner.get(&reverse_pair))
-                        .with_context(|| {
-                            format!(
-                                "Missing: {} between {:?} and {:?}",
-                                std::any::type_name::<StrategicClustering>(),
-                                scheduled_work_orders_by_period[i],
-                                scheduled_work_orders_by_period[j]
-                            )
-                        }).unwrap();
-
-                    // Increment the clustering value in the objective
-                    strategic_objective_value.clustering_value.1 += *clustering_value_for_work_order_pair;
-                }
-            }
-        }
+        self.determine_clustering(&mut strategic_objective_value);
 
         strategic_objective_value.aggregate_objectives();
 
@@ -454,6 +465,10 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
 
     #[instrument(level = "trace", skip_all)]
     fn schedule(&mut self) -> Result<()> {
+        
+        self
+            .schedule_forced_work_orders()
+            .expect("Could not force schedule work orders");
         while !self.priority_queues.normal.is_empty() {
             for period in self.strategic_periods.clone() {
                 let (work_order_number, weight) = match self.priority_queues.normal.pop() {
@@ -461,7 +476,7 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
                     None => {
                         break;
                     }
-                };
+                };                
 
                 let inf_work_order_number =
                     self.schedule_normal_work_order(work_order_number, &period).with_context(|| format!("{:?} could not be scheduled normally", work_order_number))?;
@@ -475,8 +490,6 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
     }
     
     fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) -> Result<()> {
-  
-        // Why can this not unschedule?
         let strategic_period= self
             .strategic_periods_mut()
             .get_mut(&work_order_number)
@@ -496,7 +509,6 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
         strategic_resources_message: Self::ResourceRequest,
     ) -> Result<Self::ResourceResponse> 
     {
-    //tracing::info!("update_resources_state called");
         match strategic_resources_message {
             StrategicResourceRequest::SetResources{resources, period_imperium, capacity} => {
                 let mut count = 0;
@@ -663,6 +675,7 @@ impl StrategicAlgorithm {
     pub fn populate_priority_queues(&mut self) {
         for work_order_number in self.strategic_solution.strategic_periods.keys() {
             event!(Level::TRACE, "Work order {:?} has been added to the normal queue", work_order_number);
+
             let strategic_work_order_weight = self.strategic_parameters.strategic_work_order_parameters.get(work_order_number).expect("The StrategicParameter should always be available for the StrategicSolution").weight;
 
             if self.strategic_periods().get(work_order_number).unwrap().is_none() {
@@ -922,10 +935,8 @@ mod tests {
 
         work_load.insert(Resources::MtnMech,Work::from( 100.0));
 
-
         let optimized_work_order =
             StrategicParameter::new( None, HashSet::new(), period.clone(), 1000, work_load);
-
 
         let mut resource_capacity = HashMap::new();
         let mut resource_loadings = HashMap::new();
@@ -1346,14 +1357,24 @@ Period::from_str("2023-W49-50").unwrap(),
     }
 
     #[test]
-    fn test_calculate_period_difference() {
+    fn test_calculate_period_difference_1() {
+        let scheduled_period = Period::from_str("2023-W47-48");
+        let latest_period = Period::from_str("2023-W49-50");
+
+        let difference = calculate_period_difference(scheduled_period.unwrap(), &latest_period.unwrap());
+
+        assert_eq!(difference, 0);
+    }
+    #[test]
+    fn test_calculate_period_difference_2() {
         let period_1 = Period::from_str("2023-W47-48");
-        let period_2 = Period::from_str("2023-W49-50");
+        let period_2 = Period::from_str("2023-W45-46");
 
         let difference = calculate_period_difference(period_1.unwrap(), &period_2.unwrap());
 
-        assert_eq!(difference, -2);
+        assert_eq!(difference, 2);
     }
+
 
     #[test]
     fn test_choose_multiple() {

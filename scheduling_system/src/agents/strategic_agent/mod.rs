@@ -40,6 +40,7 @@ impl Actor for StrategicAgent {
             "StrategicAgent has started for asset: {}",
             self.asset
         );
+        dbg!();
         self.strategic_algorithm
             .schedule()
             .expect("StrategicAlgorithm.schedule() method failed");
@@ -76,23 +77,18 @@ impl Handler<ScheduleIteration> for StrategicAgent {
     #[instrument(level = "trace", skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
         // So here we should load instead! Yes we should load in the data and then continue
-        self.strategic_algorithm
-            .assert_excluded_periods()
-            .expect("Assert failed");
+        // self.strategic_algorithm
+        //     .assert_excluded_periods()
+        //     .expect("Assert failed");
 
         self.strategic_algorithm.load_shared_solution();
 
-        self.strategic_algorithm
-            .schedule_forced_work_orders()
-            .expect("Could not force schedule work orders");
-
-        self.strategic_algorithm
-            .assert_excluded_periods()
-            .expect("Assert failed");
+        // self.strategic_algorithm
+        //     .assert_excluded_periods()
+        //     .expect("Assert failed");
 
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
 
-        self.strategic_algorithm.calculate_objective_value();
         let old_strategic_solution = self.strategic_algorithm.strategic_solution.clone();
 
         self.strategic_algorithm

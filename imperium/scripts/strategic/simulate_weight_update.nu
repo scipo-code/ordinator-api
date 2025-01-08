@@ -502,6 +502,7 @@ let work_orders = [
     2200003749,
 ]
 
+fish -c "cargo build -p scheduling_system --release"
 fish -c "cargo run -p scheduling_system --release &"
 
 ^sleep 65

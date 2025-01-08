@@ -503,12 +503,10 @@ let work_orders = [
     2200003749,
 ]
 
+fish -c "cargo build -p scheduling_system --release"
 fish -c "cargo run -p scheduling_system --release &"
 
 ^sleep 65
-imperium strategic scheduling df exclude ...$work_orders 2024-W51-52
-
-^sleep 60
 imperium strategic scheduling df exclude ...$work_orders 2025-W1-2
 
 ^sleep 60
@@ -519,6 +517,9 @@ imperium strategic scheduling df exclude ...$work_orders 2025-W5-6
 
 ^sleep 60
 imperium strategic scheduling df exclude ...$work_orders 2025-W7-8
+
+^sleep 60
+imperium strategic scheduling df exclude ...$work_orders 2025-W9-10
 
 ^sleep 60
 

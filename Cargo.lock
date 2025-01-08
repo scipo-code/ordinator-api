@@ -2694,6 +2694,7 @@ dependencies = [
  "clap",
  "colored",
  "proptest",
+ "rand",
  "regex",
  "rust_decimal",
  "rust_decimal_macros",

@@ -205,6 +205,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
 
                         work_order.initialize_weight();
                     }
+
                     // Signal Orchestrator that the it should tell all actor to update work orders
                     self.notify_orchestrator
                         .notify_all_agents_of_work_order_change(

@@ -40,12 +40,23 @@ use self::{
     strategic_response_status::StrategicResponseStatus,
 };
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct StrategicObjectiveValue {
     pub objective_value: u64,
     pub urgency: (u64, u64),
     pub resource_penalty: (u64, u64),
     pub clustering_value: (u64, u64),
+}
+
+impl Default for StrategicObjectiveValue {
+    fn default() -> Self {
+        Self {
+            objective_value: u64::MAX,
+            urgency: (u64::MAX, u64::MAX),
+            resource_penalty: (u64::MAX, u64::MAX),
+            clustering_value: (u64::MAX, u64::MAX),
+        }
+    }
 }
 
 impl StrategicObjectiveValue {
