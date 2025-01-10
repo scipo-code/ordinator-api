@@ -176,7 +176,7 @@ impl StrategicAlgorithm {
                 work_order_latest_allowed_finish_period,
             );
     
-            let period_penalty = non_zero_period_difference * non_zero_period_difference
+            let period_penalty = non_zero_period_difference
                 * self
                     .strategic_parameters
                     .strategic_work_order_parameters
@@ -434,9 +434,8 @@ pub fn calculate_period_difference(scheduled_period: Period, latest_period: &Per
     let latest_date = latest_period.end_date();
     let duration = scheduled_period_date.signed_duration_since(latest_date);
     let days = duration.num_days();
-    std::cmp::max(    days / 7, 0) as u64
+    std::cmp::max(days / 7, 0) as u64
 }
-
 
 impl LargeNeighborhoodSearch for StrategicAlgorithm {
     type BetterSolution = ();
@@ -450,7 +449,7 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
     
     fn calculate_objective_value(&mut self) -> Self::BetterSolution {
 
-        let mut strategic_objective_value = StrategicObjectiveValue::new((1, 0), (100000, 0), (10000, 0)); 
+        let mut strategic_objective_value = StrategicObjectiveValue::new((1, 0), (1_000_000_000, 0), (1_000, 0)); 
 
         self.determine_urgency(&mut strategic_objective_value);
         
@@ -465,7 +464,6 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
 
     #[instrument(level = "trace", skip_all)]
     fn schedule(&mut self) -> Result<()> {
-        
         self
             .schedule_forced_work_orders()
             .expect("Could not force schedule work orders");
@@ -676,9 +674,9 @@ impl StrategicAlgorithm {
         for work_order_number in self.strategic_solution.strategic_periods.keys() {
             event!(Level::TRACE, "Work order {:?} has been added to the normal queue", work_order_number);
 
-            let strategic_work_order_weight = self.strategic_parameters.strategic_work_order_parameters.get(work_order_number).expect("The StrategicParameter should always be available for the StrategicSolution").weight;
 
             if self.strategic_periods().get(work_order_number).unwrap().is_none() {
+                let strategic_work_order_weight = self.strategic_parameters.strategic_work_order_parameters.get(work_order_number).expect("The StrategicParameter should always be available for the StrategicSolution").weight;
                 self.priority_queues
                     .normal
                     .push(*work_order_number, strategic_work_order_weight);

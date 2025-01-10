@@ -76,7 +76,7 @@ impl StrategicObjectiveValue {
     pub fn aggregate_objectives(&mut self) {
         self.objective_value = self.urgency.0 * self.urgency.1
             + self.resource_penalty.0 * self.resource_penalty.1
-            + self.clustering_value.0 * self.clustering_value.1;
+            - self.clustering_value.0 * self.clustering_value.1;
     }
 }
 

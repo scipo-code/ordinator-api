@@ -41,7 +41,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
         strategic_request_message: StrategicRequestMessage,
         _ctx: &mut Self::Context,
     ) -> Self::Result {
-        match strategic_request_message {
+        let strategic_response = match strategic_request_message {
             StrategicRequestMessage::Status(strategic_status_message) => {
                 match strategic_status_message {
                     StrategicStatusMessage::General => {
@@ -217,7 +217,9 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                     Ok(StrategicResponseMessage::Success)
                 }
             },
-        }
+        };
+        self.strategic_algorithm.calculate_objective_value();
+        strategic_response
     }
 }
 

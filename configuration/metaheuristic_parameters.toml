@@ -1,0 +1,8 @@
+# This file contains all the parameters for the metaheuristics
+[[StrategicAgent]]
+
+[[TacticalAgent]]
+
+[[SupervisorAgent]]
+
+[[OperationalAgent]]

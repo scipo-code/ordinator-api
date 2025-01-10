@@ -40,7 +40,6 @@ impl Actor for StrategicAgent {
             "StrategicAgent has started for asset: {}",
             self.asset
         );
-        dbg!();
         self.strategic_algorithm
             .schedule()
             .expect("StrategicAlgorithm.schedule() method failed");
@@ -57,14 +56,14 @@ impl StrategicAgent {
     pub fn new(
         asset: Asset,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-        strategic_agent_algorithm: StrategicAlgorithm,
+        strategic_algorithm: StrategicAlgorithm,
         tactical_agent_addr: Option<Addr<TacticalAgent>>,
         notify_orchestrator: NotifyOrchestrator,
     ) -> Self {
         Self {
             asset,
             scheduling_environment,
-            strategic_algorithm: strategic_agent_algorithm,
+            strategic_algorithm,
             tactical_agent_addr,
             notify_orchestrator,
         }
@@ -76,18 +75,14 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 
     #[instrument(level = "trace", skip_all)]
     fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
-        // So here we should load instead! Yes we should load in the data and then continue
-        // self.strategic_algorithm
-        //     .assert_excluded_periods()
-        //     .expect("Assert failed");
-
         self.strategic_algorithm.load_shared_solution();
 
-        // self.strategic_algorithm
-        //     .assert_excluded_periods()
-        //     .expect("Assert failed");
-
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
+
+        self.strategic_algorithm
+            .schedule_forced_work_orders()
+            .expect("It should always be possible to force schedule work orders");
+        self.strategic_algorithm.calculate_objective_value();
 
         let old_strategic_solution = self.strategic_algorithm.strategic_solution.clone();
 
@@ -98,7 +93,9 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         self.strategic_algorithm
             .schedule()
             .expect("StrategicAlgorithm.schedule method failed");
+
         // self.assert_aggregated_load().unwrap();
+
         self.strategic_algorithm.calculate_objective_value();
 
         if self
@@ -117,7 +114,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
                 strategic_clustering_value = self.strategic_algorithm.strategic_solution.objective_value.clustering_value.1,
                 scheduled_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.iter().filter(|ele| ele.1.is_some()).count(),
                 total_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.len(),
-                percentage_utilization_by_period = ?self.strategic_algorithm.calculate_utilization(),
+                // percentage_utilization_by_period = ?self.strategic_algorithm.calculate_utilization(),
             );
         } else {
             self.strategic_algorithm.strategic_solution = old_strategic_solution;
