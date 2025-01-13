@@ -6,6 +6,7 @@ use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborhoodSearch;
 use algorithm::assert_functions::StrategicAssertions;
 use anyhow::Result;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use actix::prelude::*;
@@ -90,9 +91,25 @@ impl Handler<ScheduleIteration> for StrategicAgent {
             .unschedule_random_work_orders(50, rng)
             .expect("Unscheduling random work order should always be possible");
 
+        // assert_eq!(self.strategic_algorithm.priority_queues.normal.len(), 1000);
+        // assert!(self
+        //     .strategic_algorithm
+        //     .priority_queues
+        //     .normal
+        //     .iter()
+        //     .all(|ele| {
+        //         self.strategic_algorithm
+        //             .strategic_solution
+        //             .strategic_periods
+        //             .get(&ele.0)
+        //             .unwrap()
+        //             .is_none()
+        //     }));
         self.strategic_algorithm
             .schedule()
             .expect("StrategicAlgorithm.schedule method failed");
+
+        // self.strategic_algorithm.swap_scheduled_work_orders(rng);
 
         // self.assert_aggregated_load().unwrap();
 
@@ -106,6 +123,11 @@ impl Handler<ScheduleIteration> for StrategicAgent {
             < old_strategic_solution.objective_value.objective_value
         {
             self.strategic_algorithm.make_atomic_pointer_swap();
+            dbg!(self
+                .strategic_algorithm
+                .strategic_solution
+                .strategic_periods
+                .get(&WorkOrderNumber(2400235826)));
 
             event!(Level::INFO,
                 strategic_objective_value = self.strategic_algorithm.strategic_solution.objective_value.objective_value,

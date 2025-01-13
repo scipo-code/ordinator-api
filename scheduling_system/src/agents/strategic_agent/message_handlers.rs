@@ -6,6 +6,7 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use colored::Colorize;
+use shared_types::orchestrator::StrategicApiSolution;
 use shared_types::orchestrator::WorkOrdersStatus;
 use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
 use shared_types::strategic::strategic_response_periods::StrategicResponsePeriods;
@@ -25,11 +26,13 @@ use shared_types::{
 use tracing::event;
 use tracing::Level;
 
+use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborhoodSearch;
 use crate::agents::AgentSpecific;
 use crate::agents::SetAddr;
 use crate::agents::StateLink;
 
+use super::algorithm::strategic_parameters::StrategicParameter;
 use super::algorithm::strategic_parameters::StrategicParameterBuilder;
 use super::StrategicAgent;
 
@@ -113,6 +116,51 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
 
                         let work_orders_in_period =
                             WorkOrdersStatus::Multiple(work_orders_by_period);
+
+                        let strategic_response_message =
+                            StrategicResponseMessage::WorkOrder(work_orders_in_period);
+
+                        Ok(strategic_response_message)
+                    }
+                    StrategicStatusMessage::WorkOrder(work_order_number) => {
+                        let strategic_solution_for_specific_work_order = self
+                            .strategic_algorithm
+                            .strategic_solution
+                            .strategic_periods
+                            .get(&work_order_number)
+                            .with_context(|| {
+                                format!(
+                                    "{:?} not found in {}",
+                                    work_order_number,
+                                    std::any::type_name::<StrategicAlgorithm>()
+                                )
+                            })?;
+
+                        let strategic_parameter = self
+                            .strategic_algorithm
+                            .strategic_parameters
+                            .strategic_work_order_parameters
+                            .get(&work_order_number)
+                            .with_context(|| {
+                                format!(
+                                    "{:?} does not have a {} in {}",
+                                    work_order_number,
+                                    std::any::type_name::<StrategicParameter>(),
+                                    std::any::type_name::<StrategicAlgorithm>()
+                                )
+                            })?;
+
+                        let locked_in_period = &strategic_parameter.locked_in_period;
+                        let excluded_from_period = &strategic_parameter.excluded_periods;
+
+                        let strategic_api_solution = StrategicApiSolution {
+                            solution: strategic_solution_for_specific_work_order.clone(),
+                            locked_in_period: locked_in_period.clone(),
+                            excluded_from_period: excluded_from_period.clone(),
+                        };
+
+                        let work_orders_in_period =
+                            WorkOrdersStatus::SingleSolution(strategic_api_solution);
 
                         let strategic_response_message =
                             StrategicResponseMessage::WorkOrder(work_orders_in_period);
@@ -204,6 +252,30 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                         }
 
                         work_order.initialize_weight();
+
+                        let last_period =
+                            self.strategic_algorithm.strategic_periods.last().cloned();
+                        let unscheduled_period = self
+                        .strategic_algorithm
+                        .strategic_solution
+                        .strategic_periods
+                        .insert(*work_order_number, last_period.clone())
+                        .expect("WorkOrderNumber should always be present")
+                        .expect(
+                            "All WorkOrders should be scheduled in between ScheduleIteration loops",
+                        );
+
+                        self.strategic_algorithm.update_loadings(
+                            work_order_number,
+                            &unscheduled_period,
+                            shared_types::LoadOperation::Sub,
+                        );
+
+                        self.strategic_algorithm.update_loadings(
+                            work_order_number,
+                            &last_period.unwrap(),
+                            shared_types::LoadOperation::Add,
+                        );
                     }
 
                     // Signal Orchestrator that the it should tell all actor to update work orders
@@ -252,33 +324,9 @@ impl Handler<StateLink> for StrategicAgent {
                                 )
                                 .build();
 
-                            let old_strategic_parameter = self
-                                .strategic_algorithm
+                            self.strategic_algorithm
                                 .strategic_parameters
                                 .insert_strategic_parameter(work_order_number, strategic_parameter);
-
-                            if let Some(old_strategic_parameter) = old_strategic_parameter {
-                                assert!(
-                                    old_strategic_parameter.excluded_periods
-                                        == self
-                                            .strategic_algorithm
-                                            .strategic_parameters
-                                            .strategic_work_order_parameters
-                                            .get(&work_order_number)
-                                            .unwrap()
-                                            .excluded_periods
-                                );
-                                assert!(
-                                    old_strategic_parameter.locked_in_period
-                                        == self
-                                            .strategic_algorithm
-                                            .strategic_parameters
-                                            .strategic_work_order_parameters
-                                            .get(&work_order_number)
-                                            .unwrap()
-                                            .locked_in_period
-                                );
-                            }
                         }
                     }
                 }

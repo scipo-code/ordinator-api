@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use clap::Args;
 use clap::Subcommand;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
 use shared_types::strategic::strategic_request_resources_message::StrategicResourceRequest;
 use shared_types::strategic::strategic_request_scheduling_message::ScheduleChange;
@@ -74,6 +75,8 @@ pub enum ResourceCommands {
 pub enum StatusCommands {
     /// List all work orders in a given period
     WorkOrders { period: String },
+    /// List relevant information about a specific work order
+    WorkOrder { work_order_number: u64 },
 }
 
 #[derive(Subcommand, Debug)]
@@ -99,6 +102,19 @@ impl StrategicCommands {
                 asset,
                 status_commands,
             } => match status_commands {
+                Some(StatusCommands::WorkOrder { work_order_number }) => {
+                    let strategic_status_message =
+                        StrategicStatusMessage::WorkOrder(WorkOrderNumber(work_order_number));
+
+                    let strategic_request = StrategicRequest {
+                        asset,
+                        strategic_request_message: StrategicRequestMessage::Status(
+                            strategic_status_message,
+                        ),
+                    };
+
+                    SystemMessages::Strategic(strategic_request)
+                }
                 Some(StatusCommands::WorkOrders { period }) => {
                     let strategic_status_message =
                         StrategicStatusMessage::new_period(period.to_string());

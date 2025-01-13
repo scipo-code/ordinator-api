@@ -30,7 +30,7 @@ use std::sync::Arc;
 use tracing::{event, instrument, Level};
 
 pub struct StrategicAlgorithm {
-    priority_queues: PriorityQueues<WorkOrderNumber, u64>,
+    pub priority_queues: PriorityQueues<WorkOrderNumber, u64>,
     pub strategic_parameters: StrategicParameters,
     pub strategic_solution: StrategicSolution,
     arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
@@ -88,7 +88,40 @@ impl StrategicAlgorithm {
         strategic_parameter.locked_in_period = Some(locked_in_period.clone());
         Ok(())
     }
+    pub fn swap_scheduled_work_orders(&mut self, rng: &mut impl rand::Rng) {
+        
 
+
+            
+            let scheduled_work_orders: Vec<_> = self
+                .strategic_solution
+                .strategic_periods
+                .keys()
+                .cloned()
+                .collect();
+
+
+            let randomly_chosen = scheduled_work_orders.choose_multiple(rng, 2).collect::<Vec<_>>();
+
+
+                
+
+            unsafe {
+                let scheduled_work_order_1 = self.strategic_solution.strategic_periods.get_mut(randomly_chosen[0]).unwrap() as *mut Option<Period>;
+                let scheduled_work_order_2 = self.strategic_solution.strategic_periods.get_mut(randomly_chosen[1]).unwrap() as *mut Option<Period>;
+
+                std::ptr::swap(scheduled_work_order_1, scheduled_work_order_2);
+
+                self.update_loadings(randomly_chosen[0], (*scheduled_work_order_1).as_ref().unwrap(), LoadOperation::Sub);
+                self.update_loadings(randomly_chosen[1], (*scheduled_work_order_2).as_ref().unwrap(), LoadOperation::Sub);
+                self.update_loadings(randomly_chosen[0], (*scheduled_work_order_1).as_ref().unwrap(), LoadOperation::Add);
+                self.update_loadings(randomly_chosen[1], (*scheduled_work_order_2).as_ref().unwrap(), LoadOperation::Add);
+            }
+
+
+
+
+    }
     pub fn create_strategic_parameters(
         &mut self,
         work_orders: &WorkOrders,
@@ -111,7 +144,7 @@ impl StrategicAlgorithm {
             let scheduled_period_option = self.strategic_solution.strategic_periods.get(work_order_number).unwrap().clone();
 
             if let Some(scheduled_period) = scheduled_period_option {
-                self.update_loadings(*work_order_number, scheduled_period, LoadOperation::Add);
+                self.update_loadings(work_order_number, &scheduled_period, LoadOperation::Add);
             }
         }
     }
@@ -342,13 +375,18 @@ impl StrategicAlgorithm {
             }
         }
 
-        *self
+        let previous_period = self
             .strategic_periods_mut()
-            .get_mut(&work_order_number)
-            .expect("An entry in the Strategic part of the SharedSolution is missing. This should never occur")
-            = Some(period.clone());
+            .insert(work_order_number, Some(period.clone()));
+
+        // assert!(&previous_period.is_none());
         
-        self.update_loadings(work_order_number, period.clone(), LoadOperation::Add);
+        if work_order_number == WorkOrderNumber(2400235826) {
+            dbg!(&period);
+            dbg!(&previous_period);
+            assert!(previous_period.unwrap().is_none());
+        }
+        self.update_loadings(&work_order_number, period, LoadOperation::Add);
         Ok(None)
     }
 
@@ -370,7 +408,7 @@ impl StrategicAlgorithm {
         self.update_the_locked_in_period(&force_schedule_work_order.0, &locked_in_period)
             .with_context(|| format!("Could not fully update {:#?} in {}", force_schedule_work_order.0, &locked_in_period))?;
 
-        self.update_loadings(force_schedule_work_order.0, locked_in_period.clone(), LoadOperation::Add);
+        self.update_loadings(&force_schedule_work_order.0, &locked_in_period, LoadOperation::Add);
         Ok(())
     }
 
@@ -414,11 +452,11 @@ impl StrategicAlgorithm {
             })
     }
 
-    fn update_loadings(&mut self, work_order_number: WorkOrderNumber, target_period: Period, load_operation: LoadOperation) {
+    pub fn update_loadings(&mut self, work_order_number: &WorkOrderNumber, target_period: &Period, load_operation: LoadOperation) {
         let work_load = self.strategic_parameters.strategic_work_order_parameters.get(&work_order_number).unwrap().work_load.clone();
         for (resource, periods) in self.strategic_solution.strategic_loadings.inner.iter_mut() {
             for (period, loading) in &mut periods.0 {
-                if *period == target_period {
+                if period == target_period {
                     match load_operation {
                         LoadOperation::Add => *loading += work_load.get(resource).unwrap_or(&Work::from(0.0)),
                         LoadOperation::Sub => *loading -= work_load.get(resource).unwrap_or(&Work::from(0.0)),
@@ -467,6 +505,14 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
         self
             .schedule_forced_work_orders()
             .expect("Could not force schedule work orders");
+
+        //     dbg!(self.priority_queues.normal.iter().filter(|ele| {
+        //         self.strategic_solution.strategic_periods.get(ele.0).unwrap().is_none()
+        //     }).collect::<Vec<_>>().len());
+        // for work_order_number in &self.priority_queues.normal {
+        //     dbg!(self.priority_queues.normal.len());
+        //     assert!(self.strategic_solution.strategic_periods.get(work_order_number.0).unwrap().is_none());
+        // }
         while !self.priority_queues.normal.is_empty() {
             for period in self.strategic_periods.clone() {
                 let (work_order_number, weight) = match self.priority_queues.normal.pop() {
@@ -476,8 +522,9 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
                     }
                 };                
 
-                let inf_work_order_number =
-                    self.schedule_normal_work_order(work_order_number, &period).with_context(|| format!("{:?} could not be scheduled normally", work_order_number))?;
+                let inf_work_order_number = self
+                        .schedule_normal_work_order(work_order_number, &period)
+                        .with_context(|| format!("{:?} could not be scheduled normally", work_order_number))?;
 
                 if let Some(work_order_number) = inf_work_order_number {
                     self.priority_queues.normal.push(work_order_number, weight);
@@ -495,7 +542,7 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
 
         match strategic_period.take() {
             Some(unschedule_from_period) => {
-                self.update_loadings(work_order_number, unschedule_from_period, LoadOperation::Sub);
+                self.update_loadings(&work_order_number, &unschedule_from_period, LoadOperation::Sub);
                 Ok(())
             }
             None => bail!("The strategic {:?} was not scheduled but StrategicAlgorithm.unschedule() was called on it.", work_order_number),
@@ -1023,7 +1070,7 @@ mod tests {
         );
 
         strategic_algorithm.strategic_parameters.strategic_work_order_parameters.insert(work_order_number, work_order);
-        strategic_algorithm.update_loadings(work_order_number, period.clone(), LoadOperation::Add);
+        strategic_algorithm.update_loadings(&work_order_number, &period, LoadOperation::Add);
 
         assert_eq!(
             *strategic_algorithm

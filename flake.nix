@@ -28,7 +28,6 @@
             pkgs.rust-bin.beta.latest.default
             pythonEnv
             pkgs.git
-            pkgs.helix
             pkgs.zellij
             (pkgs.gnuplot.override {
               withLua = true;

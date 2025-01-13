@@ -10,8 +10,8 @@ layout {
 		    	  		cwd "."
 		    		}
 			    	pane size="3%" name="Imperium watch"{
-		    	  		command "cargo"
-		      			args "watch" "-w" "imperium/" "-w" "shared_types/"  "-x" "build --release --bin imperium"
+		    	  		command "ls"
+		      			args "imperium/**" "|" "cargo" "build" "-p" "imperium" "--release"
 		      			cwd "."
 			    	}
 				}
