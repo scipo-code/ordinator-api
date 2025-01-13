@@ -949,7 +949,7 @@ dependencies = [
 
 [[package]]
 name = "data_processing"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "atoi",
  "calamine",
@@ -1595,7 +1595,7 @@ dependencies = [
 
 [[package]]
 name = "imperium"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anyhow",
  "clap",
@@ -2514,7 +2514,7 @@ dependencies = [
 
 [[package]]
 name = "scheduling_system"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "actix",
  "actix-rt",
@@ -2683,7 +2683,7 @@ dependencies = [
 
 [[package]]
 name = "shared_types"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "actix",
  "actix-web",
