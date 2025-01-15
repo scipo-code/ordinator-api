@@ -50,6 +50,7 @@ impl WorkerEnvironment {
         let system_agents: SystemAgents = toml::from_str(contents)
             .with_context(|| format!("configuration file string could not be parsed into {}. Likely a toml parsing error", std::any::type_name::<SystemAgents>().bright_red()))?;
 
+        dbg!(&system_agents);
         self.system_agents = system_agents;
         Ok(())
     }

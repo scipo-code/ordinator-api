@@ -6,7 +6,7 @@ use shared_types::scheduling_environment::time_environment::TimeEnvironment;
 use strum::IntoEnumIterator;
 use crate::agents::traits::LargeNeighborhoodSearch;
 use crate::agents::{SharedSolution, StrategicSolution, ArcSwapSharedSolution};
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 use strategic_parameters::{StrategicClustering, StrategicParameter, StrategicParameterBuilder, StrategicParameters};
 use priority_queue::PriorityQueue;
 use rand::prelude::SliceRandom;
@@ -379,13 +379,8 @@ impl StrategicAlgorithm {
             .strategic_periods_mut()
             .insert(work_order_number, Some(period.clone()));
 
-        // assert!(&previous_period.is_none());
+        ensure!(previous_period.as_ref().unwrap().is_none(), "Previous period: {:#?}. New period: {:#?}", &previous_period, period);
         
-        if work_order_number == WorkOrderNumber(2400235826) {
-            dbg!(&period);
-            dbg!(&previous_period);
-            assert!(previous_period.unwrap().is_none());
-        }
         self.update_loadings(&work_order_number, period, LoadOperation::Add);
         Ok(None)
     }
@@ -502,17 +497,6 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
 
     #[instrument(level = "trace", skip_all)]
     fn schedule(&mut self) -> Result<()> {
-        self
-            .schedule_forced_work_orders()
-            .expect("Could not force schedule work orders");
-
-        //     dbg!(self.priority_queues.normal.iter().filter(|ele| {
-        //         self.strategic_solution.strategic_periods.get(ele.0).unwrap().is_none()
-        //     }).collect::<Vec<_>>().len());
-        // for work_order_number in &self.priority_queues.normal {
-        //     dbg!(self.priority_queues.normal.len());
-        //     assert!(self.strategic_solution.strategic_periods.get(work_order_number.0).unwrap().is_none());
-        // }
         while !self.priority_queues.normal.is_empty() {
             for period in self.strategic_periods.clone() {
                 let (work_order_number, weight) = match self.priority_queues.normal.pop() {

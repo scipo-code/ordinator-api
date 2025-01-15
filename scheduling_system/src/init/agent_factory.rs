@@ -78,7 +78,6 @@ impl AgentFactory {
         let mut strategic_clustering = StrategicClustering::default();
         strategic_clustering.calculate_clustering_values(&asset, &cloned_work_orders)?;
 
-        dbg!(&strategic_clustering.inner.len());
         let mut strategic_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
             StrategicParameters::new(HashMap::new(), resources_capacity, strategic_clustering),

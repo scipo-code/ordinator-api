@@ -5,6 +5,7 @@ pub mod message_handlers;
 use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborhoodSearch;
 use algorithm::assert_functions::StrategicAssertions;
+use anyhow::Context;
 use anyhow::Result;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::SchedulingEnvironment;
@@ -41,8 +42,11 @@ impl Actor for StrategicAgent {
             "StrategicAgent has started for asset: {}",
             self.asset
         );
+        // Should this even be called here? I do not think that it should! ... Hmmm
+        // It is basically creating the initial solution
         self.strategic_algorithm
             .schedule()
+            .with_context(|| "Initial iteration of StrategicAlgorithm")
             .expect("StrategicAlgorithm.schedule() method failed");
 
         ctx.notify(ScheduleIteration::default())
@@ -107,6 +111,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         //     }));
         self.strategic_algorithm
             .schedule()
+            .with_context(|| format!("{:?} of StrategicAlgorithm", _msg))
             .expect("StrategicAlgorithm.schedule method failed");
 
         // self.strategic_algorithm.swap_scheduled_work_orders(rng);
@@ -123,11 +128,6 @@ impl Handler<ScheduleIteration> for StrategicAgent {
             < old_strategic_solution.objective_value.objective_value
         {
             self.strategic_algorithm.make_atomic_pointer_swap();
-            dbg!(self
-                .strategic_algorithm
-                .strategic_solution
-                .strategic_periods
-                .get(&WorkOrderNumber(2400235826)));
 
             event!(Level::INFO,
                 strategic_objective_value = self.strategic_algorithm.strategic_solution.objective_value.objective_value,

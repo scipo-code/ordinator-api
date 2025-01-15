@@ -129,7 +129,7 @@ impl Actor for OperationalAgent {
                 unavailability_end_event,
             ));
 
-        // ctx.notify(ScheduleIteration::default())
+        ctx.notify(ScheduleIteration::default())
     }
 }
 

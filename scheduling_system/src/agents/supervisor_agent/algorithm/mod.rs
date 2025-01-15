@@ -213,6 +213,9 @@ impl LargeNeighborhoodSearch for SupervisorAlgorithm {
         'next_work_order_activity: for work_order_activity in
             &self.supervisor_solution.get_work_order_activities()
         {
+            if work_order_activity.0 == WorkOrderNumber(2400235826) {
+                dbg!("{:?} present in SupervisorAgent", work_order_activity.0);
+            }
             let number = self
                 .supervisor_parameters
                 .supervisor_work_orders

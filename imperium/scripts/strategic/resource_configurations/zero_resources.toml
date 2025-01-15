@@ -15,6 +15,6 @@ hours_per_day = 0.0
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
-operational_configuration.availability.start_date = "2024-12-30T07:00:00Z"
-operational_configuration.availability.end_date = "2025-01-12T15:00:00Z"
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.end_date = "2025-01-27T15:00:00Z"
 
