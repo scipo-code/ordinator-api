@@ -8,7 +8,7 @@ pub mod strategic_response_resources;
 pub mod strategic_response_scheduling;
 pub mod strategic_response_status;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Subcommand;
 use std::{
     collections::{hash_map::Entry, HashMap},
@@ -26,7 +26,7 @@ use crate::{
         work_order::{operation::Work, status_codes::StrategicUserStatusCodes},
         worker_environment::resources::Resources,
     },
-    Asset, ConstraintState, LoadOperation,
+    Asset, ConstraintState, LoadOperation, OperationalId,
 };
 
 use self::{
@@ -207,26 +207,40 @@ impl Default for StrategicInfeasibleCases {
     }
 }
 
-#[derive(PartialEq, Eq, Default, Serialize, Deserialize, Debug, Clone)]
-pub struct StrategicResources {
-    #[serde(with = "any_key_map")]
-    pub inner: HashMap<Resources, Periods>,
+// Where should the operational struct be found? I think that it should
+// be in the shared types
+#[derive(Default, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct StrategicResources(
+    #[serde(with = "any_key_map")] pub HashMap<Period, HashMap<OperationalId, OperationalResource>>,
+);
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+pub struct OperationalResource {
+    id: String,
+    pub total_hours: Work,
+    pub skill_hours: HashMap<Resources, Work>,
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, Default, Debug, Clone)]
-pub struct Periods(#[serde(with = "any_key_map")] pub HashMap<Period, Work>);
-
-impl Periods {
-    pub fn insert(&mut self, period: Period, load: Work) {
-        self.0.insert(period, load);
+impl OperationalResource {
+    pub fn new(id: String, total_hours: Work, skill_hours: HashMap<Resources, Work>) -> Self {
+        Self {
+            id,
+            total_hours,
+            skill_hours,
+        }
     }
 }
 
 impl StrategicResources {
-    pub fn new(resources: HashMap<Resources, Periods>) -> Self {
-        Self { inner: resources }
+    pub fn new(resources: HashMap<Period, HashMap<OperationalId, OperationalResource>>) -> Self {
+        Self(resources)
     }
 
+    // Okay so you have to determine a good way of updating the load here. The best approach
+    // would probably be to create a small heuristic
+    //
+    // The load should be updated and this means that we need to generate a small heuristic.
+    // As this is no longer deterministic.
     pub fn update_load(
         &mut self,
         resource: &Resources,
@@ -234,13 +248,15 @@ impl StrategicResources {
         load: Work,
         load_operation: LoadOperation,
     ) {
-        let resource_entry = self.inner.entry(resource.clone());
-        let periods = match resource_entry {
+        let period_entry = self.0.entry(period.clone());
+        let operational = match period_entry {
             Entry::Occupied(entry) => entry.into_mut(),
-            Entry::Vacant(entry) => entry.insert(Periods(HashMap::new())),
+            Entry::Vacant(entry) => entry.insert(HashMap::new()),
         };
 
-        match periods.0.entry(period.clone()) {
+        // Here the heuristic starts! I think that the best approach would be to
+        // make the code work on. Okay I think that the code for the
+        match operational.entry(period.clone()) {
             Entry::Occupied(mut entry) => match load_operation {
                 LoadOperation::Add => *entry.get_mut() += load,
                 LoadOperation::Sub => *entry.get_mut() -= load,
@@ -257,16 +273,41 @@ impl StrategicResources {
     }
 
     pub fn update_resources(&mut self, resources: Self) {
-        for resource in resources.inner {
-            for period in resource.1 .0 {
+        for period in resources.0 {
+            for operational in period.1 {
                 *self
-                    .inner
-                    .get_mut(&resource.0)
-                    .unwrap()
                     .0
                     .get_mut(&period.0)
-                    .unwrap() = period.1;
+                    .unwrap()
+                    .get_mut(&operational.0)
+                    .unwrap() = operational.1;
             }
         }
+    }
+
+    pub fn aggregated_capacity_by_period_and_resource(
+        &self,
+        period: &Period,
+        resource: &Resources,
+    ) -> Result<Work> {
+        Ok(self
+            .0
+            .get(period)
+            .with_context(|| {
+                format!(
+                    "{} not found is {:?}",
+                    period,
+                    std::any::type_name::<StrategicResources>()
+                )
+            })?
+            // WARN START HERE
+            .values()
+            .fold(Work::from(0.0), |acc, or| {
+                acc + or
+                    .skill_hours
+                    .get(resource)
+                    .unwrap_or(&Work::from(0.0))
+                    .clone()
+            }))
     }
 }

@@ -48,6 +48,23 @@ impl Period {
     pub fn contains_date(&self, date: NaiveDate) -> bool {
         self.start_date.date_naive() <= date && date <= self.end_date.date_naive()
     }
+
+    pub(crate) fn count_overlapping_days(
+        &self,
+        availability: &crate::scheduling_environment::worker_environment::availability::Availability,
+    ) -> i64 {
+        let first = std::cmp::max(
+            self.start_date.date_naive(),
+            availability.start_date.date_naive(),
+        );
+        let second = std::cmp::max(
+            self.end_date.date_naive(),
+            availability.end_date.date_naive(),
+        );
+
+        let range = second - first;
+        std::cmp::max(range.num_days(), 0)
+    }
 }
 
 impl Period {

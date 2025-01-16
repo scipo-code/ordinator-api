@@ -15,7 +15,7 @@ use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
-use shared_types::strategic::{StrategicObjectiveValue, StrategicResources};
+use shared_types::strategic::{OperationalResource, StrategicObjectiveValue, StrategicResources};
 use shared_types::strategic::strategic_request_periods_message::StrategicTimeRequest;
 use shared_types::strategic::strategic_request_resources_message::StrategicResourceRequest;
 use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
@@ -26,6 +26,7 @@ use std::any::type_name;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::sync::Arc;
+use itertools::Itertools;
 
 use tracing::{event, instrument, Level};
 
@@ -149,26 +150,18 @@ impl StrategicAlgorithm {
         }
     }
 
-    fn strategic_capacity(&self, resource: &Resources, period: &Period) -> Result<&Work> {
+    fn strategic_capacity_by_resource(&self, resource: &Resources, period: &Period) -> Result<&Work> {
         self
             .strategic_parameters
             .strategic_capacity
-            .inner
-            .get(&resource.clone())
-            .with_context(|| format!("{} not found in {:?}", resource, std::any::type_name::<StrategicResources>()))?
-            .0
-            .get(&period.clone()).ok_or(anyhow!("{} not found is {:?}", period, std::any::type_name::<StrategicResources>()))
+
     }
 
-    fn strategic_loading(&self, resource: &Resources, period: &Period) -> Result<&Work> {
+    fn strategic_loading_by_resource(&self, resource: &Resources, period: &Period) -> Result<&Work> {
         self
             .strategic_solution
             .strategic_loadings
-            .inner
-            .get(&resource.clone())
-            .with_context(|| format!("{} not found in {:?}", resource, std::any::type_name::<StrategicResources>()))?            
-            .0
-            .get(&period.clone()).ok_or(anyhow!("{} not found is {:?}", period, std::any::type_name::<StrategicResources>()))
+            .aggregated_capacity_by_period_and_resource(period, resource)
     }
 
     pub fn calculate_utilization(&self) -> Result<Vec<(i32, u64)>> {
@@ -178,8 +171,8 @@ impl StrategicAlgorithm {
             let mut intermediate_loading: f64 = 0.0;
             let mut intermediate_capacity: f64 = 0.0;
             for resource in Resources::iter() {
-                let loading = self.strategic_loading(&resource, period)?;
-                let capacity = self.strategic_capacity(&resource, period)?;
+                let loading = self.strategic_loading_by_resource(&resource, period)?;
+                let capacity = self.strategic_capacity_by_resource(&resource, period)?;
 
                 intermediate_loading += loading.to_f64();
                 intermediate_capacity += capacity.to_f64();
@@ -353,25 +346,33 @@ impl StrategicAlgorithm {
             .clone();
 
         if period != self.periods().last().unwrap() {
+            
+            // Each time it passes through you need to make add the 
+            let remaining_resource: HashMap<Resources, Work> = HashMap::new();
+
+            if strategic_parameter.excluded_periods().contains(period) {
+                return Ok(Some(work_order_number));
+            }
+
+            if self.period_locks.contains(period) {
+                return Ok(Some(work_order_number));
+            }
+
             for (resource, resource_needed) in strategic_parameter.work_load.iter() {
-                let resource_capacity: &Work = self.strategic_capacity(resource, period).with_context(|| format!("{} is missing state for {} in {}", std::any::type_name::<StrategicResources>(), resource, period))?;
+                let resource_capacity: &Work = self.strategic_capacity_by_resource(resource, period).with_context(|| format!("{} is missing state for {} in {}", std::any::type_name::<StrategicResources>(), resource, period))?;
 
                 let loading_coming_from_the_tactical_agent = self.loaded_shared_solution.tactical.tactical_loadings.determine_period_load(resource, period).unwrap_or_default();
 
-                let resource_loading: Work = self.strategic_loading(resource, period)? + &loading_coming_from_the_tactical_agent;
+                let resource_loading: Work = self.strategic_loading_by_resource(resource, period)? + &loading_coming_from_the_tactical_agent;
 
+                
+                    determine_best_permutation();
 
+                // This constraint is now wrong. It should be reformulated.
                 if *resource_needed > resource_capacity - &resource_loading {
                     return Ok(Some(work_order_number));
                 }
 
-                if strategic_parameter.excluded_periods().contains(period) {
-                    return Ok(Some(work_order_number));
-                }
-
-                if self.period_locks.contains(period) {
-                    return Ok(Some(work_order_number));
-                }
             }
         }
 
@@ -460,7 +461,94 @@ impl StrategicAlgorithm {
             }
         }
     }
+    /// This function is created to find the best permutation of all the work order assignments to all technicians.
+    /// This function has two purposes:
+    /// * Determine if there is a feasible permutaion
+    /// * If true, return the loading that should be put into the StrategicSolution::strategic_loadings.
+    fn determine_best_permutation(&self, work_load: HashMap<Resources, Work>, period: &Period) {
+
+        // We want to find the difference between the two resources, as this is the amount of
+        // capacity that we can effectively schedule with. 
+        let capacity_resources = self.strategic_parameters.strategic_capacity.0.get(period).unwrap();
+        let loading_resources = self.strategic_solution.strategic_loadings.0.get(period).unwrap();
+        
+        let difference_resources = {
+            let mut difference_resources = HashMap::new();
+
+            for capacity in capacity_resources {
+                
+                let loading = loading_resources.get(capacity.0).unwrap();
+
+                let total_hours = capacity.1.total_hours - loading.total_hours;
+                let skill_hours = capacity.1.skill_hours.clone().iter().zip(loading.skill_hours.iter()).map(|(cap, loa)| cap - loa).collect();
+                let operational_resource = OperationalResource::new(
+                    capacity.0,
+                    total_hours,
+                    skill_hours
+                );
+
+                difference_resources.insert(capacity.0, operational_resource);
+
+            }
+            difference_resources
+        };
+
+        for technician_permutation in difference_resources.iter().permutations(difference_resources.len()) {
+
+            // If a work_load_permutation iteration is run to completion we accept that solution. 
+            for work_load_permutation in work_load.iter().permutations(work_load.len()) {
+
+                // This is what we need! Each technician object now has its own type.
+                // So the permutation creates new instances, that means that we should
+                // only focus on making the calculations.
+                for operation_load in work_load_permutation {
+                    for technician in technician_permutation {
+
+                        // If the technician does not have the skill we simply skip over that
+                        // technician and continue the search.  
+                        if !technician.1.skill_hours.keys().contains(operation_load.0) {
+                            continue;
+                        }
+
+                        if operation_load <= technician.1.total_hours {
+                            technician.1.skill_hours.iter().for_each(|(res, wor)| wor -= operation_load);  
+                            technician.1.total_hours -= operation_load;
+                            operation_load = 0;
+                            break;
+                        } else {
+                            technician.1.skill_hours.iter().for_each(|(res, wor)| wor = 0);
+                            technician.1.total_hours = 0;
+                            operation_load -= technician.1.total_hours
+                        }
+                    }
+                    // If you have run through all the technicians and the
+                    // operation_load is not equal to zero we should break
+                    // because then there is no way for that permutation to
+                    // satisfy the constraint. 
+                    if operation_load != 0 {
+                        break;
+                    }
+                }
+
+                // If all the work_loads have been set to zero it means that the resource constraint
+                // is feasible, and that we are ready to continue. 
+                if work_load_permutation.iter().all(|(res, wor)| wor == 0) {
+                    // This function should return an HashMap<OperationalId, OperationalResource>
+                    // to function correctly in this setting. 
+                    // FIX This should not be there. Update the loadings and if that
+                    // is not possible, return like you used to do.
+                    return Ok((work_load_permutation, technician_permutation)) 
+                }
+            }
+            // FIX Start here tomorrow. You should focus on updating the loadings here.
+            // QUESTION: Should the StrategicSolution::strategic_loadings be updated in
+            // here? 
+        }
+        return Err
+    }
 }
+
+
 
 pub fn calculate_period_difference(scheduled_period: Period, latest_period: &Period) -> u64 {
     let scheduled_period_date = scheduled_period.end_date().to_owned();
@@ -795,10 +883,6 @@ mod tests {
             Resources::Prodtech,
             hash_map_periods_150.clone()
         );
-
-        let resource_capacity = StrategicResources {
-            inner: manual_resource_capacity.clone(),
-        };
 
         let mut strategic_algorithm = StrategicAlgorithm::new(
             

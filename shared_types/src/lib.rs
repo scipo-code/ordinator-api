@@ -225,9 +225,11 @@ pub struct InputSupervisor {
     pub number_of_supervisor_periods: u64,
 }
 
+pub type OperationalId = String;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InputOperational {
-    pub id: String,
+    pub id: OperationalId,
     pub resources: TomlResourcesArray,
     pub hours_per_day: f64,
     pub operational_configuration: OperationalConfiguration,
