@@ -30,7 +30,7 @@ pub struct Operation {
     pub operation_dates: OperationDates,
 }
 
-#[derive(Default, Hash, Eq, PartialOrd, Ord, PartialEq, Debug, Clone)]
+#[derive(Copy, Default, Hash, Eq, PartialOrd, Ord, PartialEq, Debug, Clone)]
 pub struct Work(pub Decimal);
 
 impl FromStr for Work {

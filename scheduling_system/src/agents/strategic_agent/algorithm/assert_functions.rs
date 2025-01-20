@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{hash_map::Entry, HashMap};
 
 use anyhow::{bail, ensure, Result};
 use shared_types::{
@@ -28,20 +28,20 @@ impl StrategicAssertions for StrategicAlgorithm {
         strategic_loading: &StrategicResources,
         strategic_capacity: &StrategicResources,
     ) -> Result<()> {
-        for (resource, periods) in strategic_loading.inner.iter() {
-            for (period, work) in periods.0.iter() {
+        for (period, operational_resources) in strategic_loading.0.iter() {
+            for (operational_id, work) in operational_resources.iter() {
                 let capacity = strategic_capacity
-                    .inner
-                    .get(resource)
-                    .unwrap()
                     .0
                     .get(period)
-                    .unwrap();
-                if work > capacity {
+                    .unwrap()
+                    .get(operational_id)
+                    .unwrap()
+                    .total_hours;
+                if work.total_hours > capacity {
                     event!(
                         Level::ERROR,
-                        resource = ?resource,
-                        period = ?period,
+                        resource = ?period,
+                        period = ?operational_id,
                         capacity = ?capacity,
                         loading = ? work,
                         "strategic_resources_exceeded"
@@ -55,7 +55,8 @@ impl StrategicAssertions for StrategicAlgorithm {
     }
 
     fn assert_aggregated_load(&self) -> Result<()> {
-        let mut aggregated_strategic_load = StrategicResources::new(HashMap::new());
+        // let mut aggregated_strategic_load = StrategicResources::default();
+        let mut aggregated_strategic_load = HashMap::new();
         for period in self.periods() {
             for (work_order_number, strategic_solution) in
                 self.strategic_solution.strategic_periods.iter()
@@ -70,39 +71,37 @@ impl StrategicAssertions for StrategicAlgorithm {
                     for resource in Resources::iter() {
                         let load: Work =
                             work_load.get(&resource).cloned().unwrap_or(Work::from(0.0));
-                        aggregated_strategic_load.update_load(
-                            &resource,
-                            period,
-                            load,
-                            LoadOperation::Add,
-                        );
+                        // We just need to test that the total hours are correct. We do not have to focus
+                        // on the individual resources. We can handle that in another assert function.
+
+                        match aggregated_strategic_load.entry((period, resource.clone())) {
+                            Entry::Occupied(mut occupied_entry) => {
+                                *occupied_entry.get_mut() += load;
+                            }
+                            Entry::Vacant(vacant_entry) => {
+                                vacant_entry.insert(load);
+                            }
+                        }
                     }
                 }
             }
         }
 
-        for (resource, periods) in aggregated_strategic_load.inner {
-            for (period, load) in periods.0 {
-                match self
-                    .resources_loadings()
-                    .inner
-                    .get(&resource)
-                    .unwrap()
-                    .0
-                    .get(&period)
-                {
-                    // Some(resource_load) if (*resource_load - load).abs() < 0.005 => continue,
-                    Some(resource_load) => {
-                        if resource_load.0.round_dp(6) != load.0.round_dp(6) {
-                            event!(Level::ERROR, resource = %resource, period = %period, aggregated_load = %load, resource_load = %resource_load);
-                            bail!("aggregated load and loading are not the same");
-                        }
-                    }
-                    None => {
-                        bail!("aggregated load and resource loading are not identically shaped")
-                    }
-                }
-            }
+        // We should match that all the aggregated total_hours add up to
+        // all the total hours for the actual loadings.
+        for (resource, total_work) in aggregated_strategic_load {
+            let loadings = self
+                .resources_loadings()
+                .0
+                .get(&resource.0)
+                .unwrap()
+                .values()
+                .fold(Work::from(0.0), |mut acc, or| {
+                    acc += or.skill_hours.get(&resource.1).unwrap_or(&Work::from(0.0));
+                    acc
+                });
+
+            ensure!(loadings == total_work);
         }
         Ok(())
     }

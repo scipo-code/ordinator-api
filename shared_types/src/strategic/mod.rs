@@ -243,9 +243,9 @@ impl StrategicResources {
     // As this is no longer deterministic.
     pub fn update_load(
         &mut self,
-        resource: &Resources,
         period: &Period,
         load: Work,
+        operational_id: &OperationalId,
         load_operation: LoadOperation,
     ) {
         let period_entry = self.0.entry(period.clone());
@@ -256,19 +256,35 @@ impl StrategicResources {
 
         // Here the heuristic starts! I think that the best approach would be to
         // make the code work on. Okay I think that the code for the
-        match operational.entry(period.clone()) {
+        //
+        // Do we need the &Resources here? Ideally no as that information is already
+        // present in the operational_id of the problem. I think that the best approach
+        // here is to leave it out. The resources in question is given uniquely by the
+        // operational_id. There is something here that is not quite right. Be ready to
+        // change it.
+        match operational.entry(operational_id.clone()) {
             Entry::Occupied(mut entry) => match load_operation {
-                LoadOperation::Add => *entry.get_mut() += load,
-                LoadOperation::Sub => *entry.get_mut() -= load,
-            },
-            Entry::Vacant(entry) => match load_operation {
                 LoadOperation::Add => {
-                    entry.insert(load);
+                    entry.get_mut().total_hours += load;
+                    entry
+                        .get_mut()
+                        .skill_hours
+                        .iter_mut()
+                        .for_each(|ski_loa| *ski_loa.1 += load);
                 }
                 LoadOperation::Sub => {
-                    entry.insert(load);
+                    entry.get_mut().total_hours -= load;
+                    entry
+                        .get_mut()
+                        .skill_hours
+                        .iter_mut()
+                        .for_each(|ski_loa| *ski_loa.1 -= load);
                 }
             },
+            // I do not think that this should be here! The update_load here should be called the
+            // update_or_create_load as that is what the function is doing! I think that if a new
+            // load enters the system it should not be done through here. But through elsewhere.
+            Entry::Vacant(_) => panic!("Resources should not be created in this function"),
         };
     }
 
