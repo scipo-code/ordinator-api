@@ -73,8 +73,8 @@ impl OperationalAgent {
 
         // TODO: move this around
         let operational_parameter = OperationalParameter::new(
-            operation.work_remaining().clone().unwrap(),
-            operation.operation_analytic.preparation_time.clone(),
+            operation.work_remaining().unwrap(),
+            operation.operation_analytic.preparation_time,
         );
 
         self.operational_algorithm
@@ -136,6 +136,7 @@ impl Actor for OperationalAgent {
 impl Handler<ScheduleIteration> for OperationalAgent {
     type Result = Result<()>;
 
+    #[allow(clippy::expect_fun_call)]
     fn handle(
         &mut self,
         schedule_iteration: ScheduleIteration,

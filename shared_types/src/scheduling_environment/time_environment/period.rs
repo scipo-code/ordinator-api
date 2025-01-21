@@ -17,6 +17,7 @@ pub struct Period {
     pub end_week: u32,
 }
 
+#[allow(dead_code)]
 impl Period {
     pub fn new(id: i32, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Period {
         let mut year = start_date.year();

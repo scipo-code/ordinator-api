@@ -1,18 +1,16 @@
 use serde::{Deserialize, Serialize};
 
-use crate::scheduling_environment::{
-    time_environment::period::Period, worker_environment::resources::Resources,
-};
+use crate::scheduling_environment::worker_environment::resources::Resources;
 
 use super::TimePeriod;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum StrategicResourceRequest {
-    SetResources {
-        resources: Vec<Resources>,
-        period_imperium: Period,
-        capacity: f64,
-    },
+    // SetResources {
+    //     resources: Vec<Resources>,
+    //     period_imperium: Period,
+    //     capacity: f64,
+    // },
     GetLoadings {
         periods_end: String,
         select_resources: Option<Vec<Resources>>,

@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use arc_swap::ArcSwap;
 use shared_types::operational::OperationalConfiguration;
 use shared_types::scheduling_environment::work_order::operation::Work;
-use shared_types::strategic::{Periods, StrategicResources};
+use shared_types::strategic::StrategicResources;
 use shared_types::tactical::{Days, TacticalResources};
 use shared_types::Asset;
 use std::collections::{HashMap, HashSet};
@@ -69,18 +69,16 @@ impl AgentFactory {
         // period_locks.insert(locked_scheduling_environment.periods()[0].clone());
         // period_locks.insert(locked_scheduling_environment.get_periods()[1].clone());
 
-        let resources_capacity =
-            initialize_strategic_resources(scheduling_environment_guard, Work::from(0.0));
-
-        let resources_loading =
-            initialize_strategic_resources(scheduling_environment_guard, Work::from(0.0));
-
         let mut strategic_clustering = StrategicClustering::default();
         strategic_clustering.calculate_clustering_values(&asset, &cloned_work_orders)?;
 
         let mut strategic_algorithm = StrategicAlgorithm::new(
             PriorityQueues::new(),
-            StrategicParameters::new(HashMap::new(), resources_capacity, strategic_clustering),
+            StrategicParameters::new(
+                HashMap::new(),
+                StrategicResources::default(),
+                strategic_clustering,
+            ),
             shared_solution_arc_swap,
             period_locks,
             scheduling_environment_guard
@@ -89,16 +87,20 @@ impl AgentFactory {
                 .clone(),
         );
 
-        let strategic_resources_from_file = scheduling_environment_guard
+        let strategic_resources_from_work_environment = scheduling_environment_guard
             .worker_environment
             .generate_strategic_resources(&cloned_periods);
 
         strategic_algorithm
             .strategic_parameters
             .strategic_capacity
-            .update_resources(strategic_resources_from_file);
+            .update_resource_capacities(strategic_resources_from_work_environment.clone());
 
-        strategic_algorithm.strategic_solution.strategic_loadings = resources_loading;
+        // These loadings should come from the SchedulingEnvironment
+        strategic_algorithm
+            .strategic_solution
+            .strategic_loadings
+            .initialize_resource_loadings(strategic_resources_from_work_environment.clone());
 
         strategic_algorithm.create_strategic_parameters(
             &cloned_work_orders,
@@ -258,29 +260,39 @@ impl AgentFactory {
     }
 }
 
-fn initialize_strategic_resources(
-    scheduling_environment: &SchedulingEnvironment,
-    start_value: Work,
-) -> StrategicResources {
-    let mut resource_capacity: HashMap<Resources, Periods> = HashMap::new();
-    for resource in scheduling_environment
-        .worker_environment
-        .get_work_centers()
-        .iter()
-    {
-        let mut periods = HashMap::new();
-        for period in scheduling_environment
-            .time_environment
-            .strategic_periods()
-            .iter()
-        {
-            periods.insert(period.clone(), start_value.clone());
-        }
-        resource_capacity.insert(resource.clone(), Periods(periods));
-    }
-    StrategicResources::new(resource_capacity)
-}
+// This function is responsible for initializing the strategic resources
+// and it is correctly based on the SchedulingEnvironment.
+// QUESTION: Is this the only function that handles this?
+// It is only used at creation by the agent factory. Is this correct or
+// wrong? I think that is wrong. It should be handled by a different part
+// of the code.
+// QUESTION: Where is the file update of the WorkerEnvironment handled?
+// I think that it is handled in the
+// fn initialize_strategic_resources(
+//     scheduling_environment: &SchedulingEnvironment,
+//     start_value: Work,
+// ) -> StrategicResources {
+//     let mut resource_capacity: HashMap<Resources, Periods> = HashMap::new();
+//     // You should now load in the technicians instead.
+//     for resource in scheduling_environment
+//         .worker_environment
+//         .get_work_centers()
+//         .iter()
+//     {
+//         let mut periods = HashMap::new();
+//         for period in scheduling_environment
+//             .time_environment
+//             .strategic_periods()
+//             .iter()
+//         {
+//             periods.insert(period.clone(), start_value.clone());
+//         }
+//         resource_capacity.insert(resource.clone(), Periods(periods));
+//     }
+//     StrategicResources::new(resource_capacity)
+// }
 
+// DEBUG: This should be removed later on.
 fn initialize_tactical_resources(
     scheduling_environment: &SchedulingEnvironment,
     start_value: Work,
@@ -297,7 +309,7 @@ fn initialize_tactical_resources(
             .tactical_days()
             .iter()
         {
-            days.insert(day.clone(), start_value.clone());
+            days.insert(day.clone(), start_value);
         }
         resource_capacity.insert(resource.clone(), Days::new(days));
     }

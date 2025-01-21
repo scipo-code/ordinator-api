@@ -4,10 +4,8 @@ pub mod message_handlers;
 
 use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
 use crate::agents::traits::LargeNeighborhoodSearch;
-use algorithm::assert_functions::StrategicAssertions;
 use anyhow::Context;
 use anyhow::Result;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use actix::prelude::*;
@@ -169,8 +167,6 @@ mod tests {
     use shared_types::scheduling_environment::work_order::operation::Work;
     use shared_types::strategic::strategic_request_scheduling_message::ScheduleChange;
     use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
-    use shared_types::strategic::Periods;
-    use shared_types::strategic::StrategicObjectiveValue;
     use shared_types::strategic::StrategicResources;
     use tests::algorithm::strategic_parameters::StrategicParameter;
     use tests::algorithm::strategic_parameters::StrategicParameters;
@@ -288,99 +284,6 @@ mod tests {
     }
 
     #[test]
-    fn test_input_scheduler_message_from() {
-        let work_order_number = WorkOrderNumber(2100023841);
-        let vec_work_order_number = vec![work_order_number];
-        let schedule_single_work_order =
-            ScheduleChange::new(vec_work_order_number, "2023-W49-50".to_string());
-
-        let strategic_scheduling_message =
-            StrategicSchedulingRequest::Schedule(schedule_single_work_order);
-
-        assert_eq!(
-            match strategic_scheduling_message {
-                StrategicSchedulingRequest::Schedule(ref schedule_single_work_order) => {
-                    schedule_single_work_order.work_order_number[0].0
-                }
-                _ => panic!("wrong message type"),
-            },
-            work_order_number.0
-        );
-
-        assert_eq!(
-            match strategic_scheduling_message {
-                StrategicSchedulingRequest::Schedule(ref schedule_single_work_order) => {
-                    schedule_single_work_order.period_string()
-                }
-                _ => panic!("wrong message type"),
-            },
-            "2023-W49-50".to_string()
-        );
-
-        let mut work_load = HashMap::new();
-
-        work_load.insert(Resources::VenMech, Work::from(16.0));
-
-        let periods: Vec<Period> = vec![Period::from_str("2023-W49-50").unwrap()];
-
-        let mut capacities = HashMap::new();
-        let mut loadings = HashMap::new();
-
-        let mut periods_hash_map_0 = HashMap::new();
-        let mut periods_hash_map_16 = HashMap::new();
-
-        periods_hash_map_0.insert(Period::from_str("2023-W49-50").unwrap(), Work::from(0.0));
-
-        periods_hash_map_16.insert(Period::from_str("2023-W49-50").unwrap(), Work::from(16.0));
-
-        capacities.insert(Resources::VenMech, Periods(periods_hash_map_16));
-
-        loadings.insert(Resources::VenMech, Periods(periods_hash_map_0));
-
-        let mut strategic_algorithm = StrategicAlgorithm::new(
-            PriorityQueues::new(),
-            StrategicParameters::new(
-                HashMap::new(),
-                StrategicResources::default(),
-                StrategicClustering::default(),
-            ),
-            ArcSwapSharedSolution::default().into(),
-            HashSet::new(),
-            periods.clone(),
-        );
-
-        let strategic_parameter = StrategicParameter::new(
-            Some(periods[0].clone()),
-            HashSet::new(),
-            periods.first().unwrap().clone(),
-            1000,
-            work_load,
-        );
-
-        strategic_algorithm.set_strategic_parameter(work_order_number, strategic_parameter);
-
-        strategic_algorithm
-            .update_scheduling_state(strategic_scheduling_message)
-            .unwrap();
-
-        assert_eq!(
-            strategic_algorithm
-                .strategic_parameter(&work_order_number)
-                .unwrap()
-                .locked_in_period,
-            Some(Period::from_str("2023-W49-50").unwrap())
-        );
-
-        assert_eq!(
-            strategic_algorithm
-                .strategic_periods()
-                .get(&work_order_number),
-            None
-        );
-        // assert_eq!(scheduler_agent_algorithm.get_or_initialize_manual_resources_loading("VEN_MECH".to_string(), "2023-W49-50".to_string()), 16.0);
-    }
-
-    #[test]
     fn test_calculate_objective_value() {
         let work_order_number = WorkOrderNumber(2100023841);
         let mut strategic_parameters = StrategicParameters::new(
@@ -426,55 +329,5 @@ mod tests {
                 .objective_value,
             2000
         );
-    }
-
-    pub struct TestRequest {}
-
-    impl Message for TestRequest {
-        type Result = Option<TestResponse>;
-    }
-
-    #[allow(dead_code)]
-    pub struct TestResponse {
-        pub objective_value: StrategicObjectiveValue,
-        pub manual_resources_capacity: HashMap<Resources, Periods>,
-        pub manual_resources_loading: HashMap<Resources, Periods>,
-        pub priority_queues: PriorityQueues<WorkOrderNumber, u64>,
-        pub optimized_work_orders: StrategicParameters,
-        pub periods: Vec<Period>,
-    }
-
-    impl Handler<TestRequest> for StrategicAgent {
-        type Result = Option<TestResponse>;
-
-        fn handle(&mut self, _msg: TestRequest, _: &mut actix::Context<Self>) -> Self::Result {
-            Some(TestResponse {
-                objective_value: self
-                    .strategic_algorithm
-                    .strategic_solution
-                    .objective_value
-                    .clone(),
-                manual_resources_capacity: self
-                    .strategic_algorithm
-                    .resources_capacities()
-                    .inner
-                    .clone(),
-                manual_resources_loading: self
-                    .strategic_algorithm
-                    .resources_loadings()
-                    .inner
-                    .clone(),
-                priority_queues: PriorityQueues::new(),
-                optimized_work_orders: StrategicParameters::new(
-                    self.strategic_algorithm
-                        .strategic_parameters
-                        .strategic_work_order_parameters
-                        .clone(),
-                    StrategicResources::default(),
-                    StrategicClustering::default(),
-                ),
-                periods: self.strategic_algorithm.periods().clone(),
-            })
-        }
     }
 }

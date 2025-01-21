@@ -288,7 +288,7 @@ impl StrategicResources {
         };
     }
 
-    pub fn update_resources(&mut self, resources: Self) {
+    pub fn update_resource_capacities(&mut self, resources: Self) {
         for period in resources.0 {
             for operational in period.1 {
                 *self
@@ -297,6 +297,27 @@ impl StrategicResources {
                     .unwrap()
                     .get_mut(&operational.0)
                     .unwrap() = operational.1;
+            }
+        }
+    }
+    pub fn initialize_resource_loadings(&mut self, resources: Self) {
+        for period in resources.0 {
+            for operational in period.1 {
+                let mut operational_resource = operational.1;
+
+                operational_resource.total_hours = Work::from(0.0);
+
+                operational_resource
+                    .skill_hours
+                    .iter_mut()
+                    .for_each(|ele| *ele.1 = Work::from(0.0));
+
+                *self
+                    .0
+                    .get_mut(&period.0)
+                    .unwrap()
+                    .get_mut(&operational.0)
+                    .unwrap() = operational_resource;
             }
         }
     }
@@ -319,11 +340,7 @@ impl StrategicResources {
             // WARN START HERE
             .values()
             .fold(Work::from(0.0), |acc, or| {
-                acc + or
-                    .skill_hours
-                    .get(resource)
-                    .unwrap_or(&Work::from(0.0))
-                    .clone()
+                acc + *or.skill_hours.get(resource).unwrap_or(&Work::from(0.0))
             }))
     }
 }

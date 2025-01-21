@@ -34,6 +34,7 @@ use crate::agents::StateLink;
 
 use super::algorithm::strategic_parameters::StrategicParameter;
 use super::algorithm::strategic_parameters::StrategicParameterBuilder;
+use super::algorithm::ScheduleWorkOrder;
 use super::StrategicAgent;
 
 impl Handler<StrategicRequestMessage> for StrategicAgent {
@@ -255,27 +256,51 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
 
                         let last_period =
                             self.strategic_algorithm.strategic_periods.last().cloned();
+
                         let unscheduled_period = self
-                        .strategic_algorithm
-                        .strategic_solution
-                        .strategic_periods
-                        .insert(*work_order_number, last_period.clone())
-                        .expect("WorkOrderNumber should always be present")
-                        .expect(
-                            "All WorkOrders should be scheduled in between ScheduleIteration loops",
-                        );
+                            .strategic_algorithm
+                            .strategic_solution
+                            .strategic_periods
+                            .insert(*work_order_number, last_period.clone())
+                            .expect("WorkOrderNumber should always be present")
+                            .expect(
+                                "All WorkOrders should be scheduled in between ScheduleIteration loops",
+                            );
+
+                        let work_load = self
+                            .strategic_algorithm
+                            .strategic_parameters
+                            .strategic_work_order_parameters
+                            .get(work_order_number)
+                            .unwrap()
+                            .work_load
+                            .clone();
+
+                        let unscheduled_resources = self
+                            .strategic_algorithm
+                            .determine_best_permutation(
+                                work_load.clone(),
+                                &unscheduled_period,
+                                super::algorithm::ScheduleWorkOrder::Unschedule,
+                            )
+                            .expect("It should always be possible to release resources");
 
                         self.strategic_algorithm.update_loadings(
-                            work_order_number,
-                            &unscheduled_period,
+                            unscheduled_resources,
                             shared_types::LoadOperation::Sub,
                         );
 
-                        self.strategic_algorithm.update_loadings(
-                            work_order_number,
-                            &last_period.unwrap(),
-                            shared_types::LoadOperation::Add,
-                        );
+                        let scheduled_resources = self
+                            .strategic_algorithm
+                            .determine_best_permutation(
+                                work_load,
+                                &last_period.unwrap(),
+                                ScheduleWorkOrder::Forced,
+                            )
+                            .expect("It should always be possible to release resources");
+
+                        self.strategic_algorithm
+                            .update_loadings(scheduled_resources, shared_types::LoadOperation::Add);
                     }
 
                     // Signal Orchestrator that the it should tell all actor to update work orders
@@ -342,7 +367,7 @@ impl Handler<StateLink> for StrategicAgent {
                 self.strategic_algorithm
                     .strategic_parameters
                     .strategic_capacity
-                    .update_resources(strategic_resources);
+                    .update_resource_capacities(strategic_resources);
 
                 Ok(())
             }

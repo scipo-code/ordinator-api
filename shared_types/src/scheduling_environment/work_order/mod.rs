@@ -23,8 +23,6 @@ use crate::scheduling_environment::work_order::work_order_text::WorkOrderText;
 use crate::scheduling_environment::work_order::work_order_type::WorkOrderType;
 use chrono::{DateTime, Utc};
 use operation::OperationBuilder;
-use rand::seq::SliceRandom;
-use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use status_codes::UserStatusCodes;
 use std::collections::HashMap;
@@ -280,11 +278,11 @@ impl WorkOrder {
             .find_map(|opr| opr.unloading_point.period.clone())
     }
 
-    fn random_latest_periods(&mut self, periods: &[Period]) {
-        let mut rng = thread_rng();
-        let random_period = periods.choose(&mut rng).unwrap();
-        self.work_order_dates.latest_allowed_finish_period = random_period.clone();
-    }
+    // fn random_latest_periods(&mut self, periods: &[Period]) {
+    //     let mut rng = thread_rng();
+    //     let random_period = periods.choose(&mut rng).unwrap();
+    //     self.work_order_dates.latest_allowed_finish_period = random_period.clone();
+    // }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -395,15 +393,14 @@ impl WorkOrder {
         for (_, operation) in self.operations.iter() {
             *work_load
                 .entry(operation.resource().clone())
-                .or_insert(Work::from(0.0)) += operation.work_remaining().clone().unwrap();
+                .or_insert(Work::from(0.0)) += operation.work_remaining().unwrap();
         }
 
         self.work_order_analytic.work_order_work = work_load
             .clone()
             .into_values()
             .reduce(|acc, work| acc + work)
-            .unwrap()
-            .clone();
+            .unwrap();
         self.work_order_analytic.work_load = work_load;
     }
 

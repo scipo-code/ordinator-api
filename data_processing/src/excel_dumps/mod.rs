@@ -79,11 +79,9 @@ impl AllRows {
             worksheet
                 .write(row_number, 11, row_values.user_status.clone())
                 .unwrap();
+            worksheet.write(row_number, 12, row_values.work).unwrap();
             worksheet
-                .write(row_number, 12, row_values.work.clone())
-                .unwrap();
-            worksheet
-                .write(row_number, 13, row_values.actual_work.clone())
+                .write(row_number, 13, row_values.actual_work)
                 .unwrap();
             worksheet
                 .write(row_number, 14, row_values.unloading_point.clone())
@@ -279,8 +277,8 @@ pub fn create_excel_dump(
                     .into(),
                 system_status: work_order.work_order_analytic.system_status_codes.clone(),
                 user_status: work_order.work_order_analytic.user_status_codes.clone(),
-                work: activity.1.work_remaining().clone().unwrap(),
-                actual_work: activity.1.operation_info.work_actual.clone().unwrap(),
+                work: activity.1.work_remaining().unwrap(),
+                actual_work: activity.1.operation_info.work_actual.unwrap(),
                 unloading_point: activity.1.unloading_point.clone(),
                 basic_start_date: work_order.work_order_dates.basic_start_date.into(),
                 basic_finish_date: work_order.work_order_dates.basic_finish_date.into(),

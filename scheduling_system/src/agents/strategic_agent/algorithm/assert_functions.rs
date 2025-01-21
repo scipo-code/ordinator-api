@@ -6,7 +6,6 @@ use shared_types::{
         work_order::operation::Work, worker_environment::resources::Resources,
     },
     strategic::StrategicResources,
-    LoadOperation,
 };
 use strum::IntoEnumIterator;
 use tracing::{event, Level};
@@ -93,7 +92,7 @@ impl StrategicAssertions for StrategicAlgorithm {
             let loadings = self
                 .resources_loadings()
                 .0
-                .get(&resource.0)
+                .get(resource.0)
                 .unwrap()
                 .values()
                 .fold(Work::from(0.0), |mut acc, or| {

@@ -127,9 +127,9 @@ impl TacticalAlgorithm {
             let optimized_operation = OperationParameter::new(
                 *work_order.work_order_number(),
                 operation.number(),
-                operation.duration().clone().unwrap(),
-                operation.operating_time().clone().unwrap(),
-                operation.work_remaining().clone().unwrap(),
+                operation.duration().unwrap(),
+                operation.operating_time().unwrap(),
+                operation.work_remaining().unwrap(),
                 operation.resource().clone(),
             );
             tactical_parameter
@@ -452,7 +452,7 @@ impl LargeNeighborhoodSearch for TacticalAlgorithm {
                 let loadings = self.determine_load(
                     first_day_remaining_capacity,
                     &operation_parameters.operating_time,
-                    operation_parameters.work_remaining.clone(),
+                    operation_parameters.work_remaining,
                 );
 
                 let mut activity_load = Vec::<(Day, Work)>::new();
@@ -487,7 +487,7 @@ impl LargeNeighborhoodSearch for TacticalAlgorithm {
                     activity_load,
                     resource,
                     operation_parameters.number,
-                    operation_parameters.work_remaining.clone(),
+                    operation_parameters.work_remaining,
                     current_work_order_number,
                     *activity,
                 );
@@ -658,16 +658,16 @@ impl TacticalAlgorithm {
         let first_day_load = match remaining_capacity.partial_cmp(operating_time) {
             Some(Ordering::Less) => remaining_capacity,
             Some(Ordering::Equal) => remaining_capacity,
-            Some(Ordering::Greater) => operating_time.clone(),
+            Some(Ordering::Greater) => *operating_time,
             None => panic!("remaining work and operating_time are not comparable. There is an error in the data initialization"),
-        }.min(work_remaining.clone());
+        }.min(work_remaining);
 
-        loadings.push(first_day_load.clone());
+        loadings.push(first_day_load);
         work_remaining -= first_day_load;
 
         while work_remaining > Work::from(0.0) {
-            let load = operating_time.clone().min(work_remaining.clone());
-            loadings.push(load.clone());
+            let load = *operating_time.min(&work_remaining);
+            loadings.push(load);
             work_remaining -= load;
         }
         loadings
@@ -818,7 +818,7 @@ pub mod tests {
             )],
             Resources::MtnMech,
             operation_parameter.number,
-            operation_parameter.work_remaining.clone(),
+            operation_parameter.work_remaining,
             work_order_number,
             activity_number,
         );

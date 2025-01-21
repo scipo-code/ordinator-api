@@ -415,7 +415,7 @@ fn create_work_orders(
 
             let operation_info = OperationInfo::new(
                 operation_csv.OPR_Workers_Numbers,
-                planned_work.clone(),
+                planned_work,
                 actual_work,
                 remaining_work,
                 Some(Work::from(operating_time.operating_time)),

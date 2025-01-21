@@ -246,26 +246,10 @@ impl Orchestrator {
                 agent_registry
                     .strategic_agent_addr
                     .do_send(state_link.clone());
-                // .await
-                // .with_context(|| {
-                //     format!(
-                //         "Could not send message to {:?} for {}",
-                //         std::any::type_name::<StrategicAgent>(),
-                //         std::any::type_name_of_val(&asset)
-                //     )
-                // })??;
 
                 agent_registry
                     .tactical_agent_addr
                     .do_send(state_link.clone());
-                // .await
-                // .with_context(|| {
-                //     format!(
-                //         "Could not send message to {:?} for {}",
-                //         std::any::type_name::<TacticalAgent>(),
-                //         std::any::type_name_of_val(&asset)
-                //     )
-                // })??;
 
                 for supervisor in agent_registry.supervisor_agent_addrs.iter() {
                     supervisor.1.do_send(state_link.clone());

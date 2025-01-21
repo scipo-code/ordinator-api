@@ -32,8 +32,7 @@ use tracing::{event, Level};
 
 use crate::agents::{
     operational_agent::algorithm::operational_solution::MarginalFitness,
-    traits::LargeNeighborhoodSearch, ArcSwapSharedSolution, GetMarginalFitness, SharedSolution,
-    SupervisorSolution,
+    traits::LargeNeighborhoodSearch, ArcSwapSharedSolution, SharedSolution, SupervisorSolution,
 };
 
 // pub struct MarginalFitness(pub Arc<AtomicUsize>);
