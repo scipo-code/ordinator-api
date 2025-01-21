@@ -256,6 +256,7 @@ impl LargeNeighborhoodSearch for TacticalAlgorithm {
             .filter(|(_, ts)| ts.is_tactical())
         {
             let tactical_parameter = self.tactical_parameters().get(work_order_number).unwrap();
+            // FIX START HERE.
             let period_start_date = match &self
                 .loaded_shared_solution
                 .strategic

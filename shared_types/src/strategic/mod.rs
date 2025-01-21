@@ -8,7 +8,7 @@ pub mod strategic_response_resources;
 pub mod strategic_response_scheduling;
 pub mod strategic_response_status;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 use std::{
     collections::{hash_map::Entry, HashMap},
@@ -245,9 +245,9 @@ impl StrategicResources {
         &mut self,
         period: &Period,
         load: Work,
-        operational_id: &OperationalId,
+        operational_id: &(OperationalId, OperationalResource),
         load_operation: LoadOperation,
-    ) {
+    ) -> Result<()> {
         let period_entry = self.0.entry(period.clone());
         let operational = match period_entry {
             Entry::Occupied(entry) => entry.into_mut(),
@@ -262,7 +262,7 @@ impl StrategicResources {
         // here is to leave it out. The resources in question is given uniquely by the
         // operational_id. There is something here that is not quite right. Be ready to
         // change it.
-        match operational.entry(operational_id.clone()) {
+        match operational.entry(operational_id.0.clone()) {
             Entry::Occupied(mut entry) => match load_operation {
                 LoadOperation::Add => {
                     entry.get_mut().total_hours += load;
@@ -284,21 +284,36 @@ impl StrategicResources {
             // I do not think that this should be here! The update_load here should be called the
             // update_or_create_load as that is what the function is doing! I think that if a new
             // load enters the system it should not be done through here. But through elsewhere.
-            Entry::Vacant(_) => panic!("Resources should not be created in this function"),
+            // FIX This should be possible to reach! I am not sure.
+            Entry::Vacant(entry) => {
+                let total_hours = load;
+                let mut skill_hours = HashMap::new();
+
+                operational_id.1.skill_hours.iter().for_each(|ele| {
+                    skill_hours.insert(ele.0.clone(), load);
+                });
+
+                let operational_resource =
+                    OperationalResource::new(operational_id.0.clone(), total_hours, skill_hours);
+                entry.insert(operational_resource);
+            }
         };
+        Ok(())
     }
 
-    pub fn update_resource_capacities(&mut self, resources: Self) {
-        for period in resources.0 {
+    // FIX use the Entry type here to make the thing work.
+    pub fn update_resource_capacities(&mut self, resources: Self) -> Result<()> {
+        for period in &resources.0 {
             for operational in period.1 {
-                *self
-                    .0
-                    .get_mut(&period.0)
-                    .unwrap()
-                    .get_mut(&operational.0)
-                    .unwrap() = operational.1;
+                self.0
+                    .entry(period.0.clone())
+                    .or_default()
+                    .entry(operational.0.clone())
+                    .and_modify(|existing| *existing = operational.1.clone())
+                    .or_insert(operational.1.clone());
             }
         }
+        Ok(())
     }
     pub fn initialize_resource_loadings(&mut self, resources: Self) {
         for period in resources.0 {
@@ -312,12 +327,12 @@ impl StrategicResources {
                     .iter_mut()
                     .for_each(|ele| *ele.1 = Work::from(0.0));
 
-                *self
-                    .0
-                    .get_mut(&period.0)
-                    .unwrap()
-                    .get_mut(&operational.0)
-                    .unwrap() = operational_resource;
+                self.0
+                    .entry(period.0.clone())
+                    .or_default()
+                    .entry(operational.0.clone())
+                    .and_modify(|existing| *existing = operational_resource.clone())
+                    .or_insert(operational_resource);
             }
         }
     }

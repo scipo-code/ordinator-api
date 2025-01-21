@@ -85,6 +85,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         self.strategic_algorithm
             .schedule_forced_work_orders()
             .expect("It should always be possible to force schedule work orders");
+
         self.strategic_algorithm.calculate_objective_value();
 
         let old_strategic_solution = self.strategic_algorithm.strategic_solution.clone();

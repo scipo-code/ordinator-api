@@ -300,11 +300,15 @@ impl StrategicAlgorithm {
     pub fn schedule_forced_work_orders(&mut self) -> Result<()> {
         let tactical_work_orders = &self.loaded_shared_solution.tactical.tactical_scheduled_work_orders;
         let mut work_order_numbers: Vec<(WorkOrderNumber, ForcedWorkOrder)> = vec![];
+        // There exists work order parameters that are not in the solution. Is this a problem? I think that it is a problem, but I do not really understand
+        // what should be
         for (work_order_number, strategic_parameter) in self.strategic_parameters.strategic_work_order_parameters.iter() {
+
             let scheduled_period = self
-                .strategic_solution.strategic_periods
+                .strategic_solution
+                .strategic_periods
                 .get(work_order_number)
-                .unwrap();
+                .with_context(|| format!("{:?}\nis not found in the StrategicAlgorithm", work_order_number))?;
 
             let tactical_work_order = tactical_work_orders
                 .0
@@ -551,12 +555,12 @@ impl StrategicAlgorithm {
                     .collect();
 
                 let operational_resource = OperationalResource::new(
-                    capacity.0.clone(),
+                    capacity.0.to_string(),
                     total_hours,
                     skill_hours
                 );
 
-                difference_resources.insert(capacity.0, operational_resource);
+                difference_resources.insert(capacity.0.clone(), operational_resource);
 
             }
             difference_resources
@@ -585,20 +589,22 @@ impl StrategicAlgorithm {
                                     continue;
                                 }
 
+                                // You have to know what resources are in here to make it work correctly. I think
+                                // that the best approach is to create something that will allow me to 
                                 // TODO. What should be done here? We need to update the code so that the correct
                                 // amount of capacity is spread out on the technicians.
                                 if operation_load.1 <= technician.1.total_hours {
                                     technician.1.skill_hours.iter_mut().for_each(|(_, wor)| *wor -= operation_load.1);  
                                     technician.1.total_hours -= operation_load.1;
                                     // This is the main API function for the Resources. 
-                                    work_order_resource_loadings.update_load(period, operation_load.1, technician.0, LoadOperation::Add);
+                                    work_order_resource_loadings.update_load(period, operation_load.1, technician, LoadOperation::Add).unwrap();
                                     operation_load.1 = Work::from(0.0);
                                     break;
                                 } else {
                                     technician.1.skill_hours.iter_mut().for_each(|(_res, wor)| *wor = Work::from(0.0));
                                     technician.1.total_hours = Work::from(0.0);
                                     operation_load.1 -= technician.1.total_hours;
-                                    work_order_resource_loadings.update_load(period, technician.1.total_hours, technician.0, LoadOperation::Add);
+                                    work_order_resource_loadings.update_load(period, technician.1.total_hours, technician, LoadOperation::Add).unwrap();
                                 }
                                 // If you have run through all the technicians and the
                                 // operation_load is not equal to zero we should break
@@ -640,7 +646,7 @@ impl StrategicAlgorithm {
                                 technician.1.total_hours -= work_load_by_resources_by_technician;
                                 technician.1.skill_hours.iter_mut().for_each(|(_, wor)| *wor -= work_load_by_resources_by_technician);
 
-                                work_order_resource_loadings.update_load(period, technician.1.total_hours, technician.0, LoadOperation::Add);
+                                work_order_resource_loadings.update_load(period, technician.1.total_hours, technician, LoadOperation::Add).unwrap();
 
                             }
 

@@ -94,7 +94,13 @@ impl AgentFactory {
         strategic_algorithm
             .strategic_parameters
             .strategic_capacity
-            .update_resource_capacities(strategic_resources_from_work_environment.clone());
+            .update_resource_capacities(strategic_resources_from_work_environment.clone())
+            .with_context(|| {
+                format!(
+                    "Could not initialize the initialial StrategicResources. Line: {}",
+                    line!()
+                )
+            })?;
 
         // These loadings should come from the SchedulingEnvironment
         strategic_algorithm
@@ -102,12 +108,44 @@ impl AgentFactory {
             .strategic_loadings
             .initialize_resource_loadings(strategic_resources_from_work_environment.clone());
 
+        dbg!(strategic_algorithm
+            .strategic_solution
+            .strategic_loadings
+            .0
+            .get(&cloned_periods[4])
+            .unwrap());
+        dbg!(strategic_algorithm
+            .strategic_parameters
+            .strategic_capacity
+            .0
+            .get(&cloned_periods[4])
+            .unwrap());
+
         strategic_algorithm.create_strategic_parameters(
             &cloned_work_orders,
             &cloned_periods,
             &asset,
         );
 
+        for work_order_number in strategic_algorithm
+            .strategic_parameters
+            .strategic_work_order_parameters
+            .keys()
+        {
+            strategic_algorithm
+                .strategic_solution
+                .strategic_periods
+                .insert(*work_order_number, None);
+        }
+
+        dbg!(strategic_algorithm
+            .strategic_parameters
+            .strategic_work_order_parameters
+            .len());
+        dbg!(strategic_algorithm
+            .strategic_solution
+            .strategic_periods
+            .len());
         let (sender, receiver) = std::sync::mpsc::channel();
 
         let arc_scheduling_environment = self.scheduling_environment.clone();
@@ -121,6 +159,7 @@ impl AgentFactory {
                 sender_for_orchestrator,
             )
             .start();
+
             sender.send(strategic_addr).unwrap();
         });
 

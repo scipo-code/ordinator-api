@@ -367,7 +367,8 @@ impl Handler<StateLink> for StrategicAgent {
                 self.strategic_algorithm
                     .strategic_parameters
                     .strategic_capacity
-                    .update_resource_capacities(strategic_resources);
+                    .update_resource_capacities(strategic_resources)
+                    .expect("Could not update the StrategicResources");
 
                 Ok(())
             }
