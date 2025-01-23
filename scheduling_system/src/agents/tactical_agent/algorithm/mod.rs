@@ -236,7 +236,7 @@ impl TacticalAlgorithm {
 }
 
 impl LargeNeighborhoodSearch for TacticalAlgorithm {
-    type BetterSolution = TacticalObjectiveValue;
+    type BetterSolution = Result<TacticalObjectiveValue>;
     type SchedulingRequest = TacticalSchedulingRequest;
     type SchedulingResponse = TacticalResponseScheduling;
     type ResourceRequest = TacticalResourceRequest;
@@ -257,13 +257,15 @@ impl LargeNeighborhoodSearch for TacticalAlgorithm {
         {
             let tactical_parameter = self.tactical_parameters().get(work_order_number).unwrap();
             // FIX START HERE.
+
+            // What does it mean that the StrategicAgent does not have the work order yet
+            // What should we do to give him the correct state
             let period_start_date = match &self
                 .loaded_shared_solution
                 .strategic
                 .strategic_periods
                 .get(work_order_number)
-                .expect("The strategic and tactical solution should have the same WorkOrderNumber's available at all times")
-
+                .unwrap_or(&Option::None)
             {
                 Some(period) => period.start_date().date_naive(),
                 None => tactical_parameter.earliest_allowed_start_date,
@@ -306,7 +308,7 @@ impl LargeNeighborhoodSearch for TacticalAlgorithm {
             tactical_objective_value = ?self.tactical_solution.objective_value
         );
 
-        self.tactical_solution.objective_value.clone()
+        Ok(self.tactical_solution.objective_value.clone())
     }
 
     fn schedule(&mut self) -> Result<()> {

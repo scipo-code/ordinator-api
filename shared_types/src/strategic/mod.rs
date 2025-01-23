@@ -8,7 +8,7 @@ pub mod strategic_response_resources;
 pub mod strategic_response_scheduling;
 pub mod strategic_response_status;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use clap::Subcommand;
 use std::{
     collections::{hash_map::Entry, HashMap},
@@ -301,7 +301,6 @@ impl StrategicResources {
         Ok(())
     }
 
-    // FIX use the Entry type here to make the thing work.
     pub fn update_resource_capacities(&mut self, resources: Self) -> Result<()> {
         for period in &resources.0 {
             for operational in period.1 {
@@ -315,6 +314,7 @@ impl StrategicResources {
         }
         Ok(())
     }
+
     pub fn initialize_resource_loadings(&mut self, resources: Self) {
         for period in resources.0 {
             for operational in period.1 {

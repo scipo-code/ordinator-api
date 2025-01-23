@@ -32,7 +32,7 @@ layout {
 			}
 			pane size="30%" split_direction="horizontal" {
 				pane name="lldb" {
-					command "lldb"
+					command "rust-lldb"
 					args "--one-line" "target create target/debug/scheduling_system"
 				}
 				pane name="Imperium" cwd="$ORDINATOR_PATH"

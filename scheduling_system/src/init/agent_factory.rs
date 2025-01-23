@@ -102,24 +102,13 @@ impl AgentFactory {
                 )
             })?;
 
+        dbg!(&strategic_algorithm.strategic_parameters.strategic_capacity);
+
         // These loadings should come from the SchedulingEnvironment
         strategic_algorithm
             .strategic_solution
             .strategic_loadings
             .initialize_resource_loadings(strategic_resources_from_work_environment.clone());
-
-        dbg!(strategic_algorithm
-            .strategic_solution
-            .strategic_loadings
-            .0
-            .get(&cloned_periods[4])
-            .unwrap());
-        dbg!(strategic_algorithm
-            .strategic_parameters
-            .strategic_capacity
-            .0
-            .get(&cloned_periods[4])
-            .unwrap());
 
         strategic_algorithm.create_strategic_parameters(
             &cloned_work_orders,
@@ -138,14 +127,6 @@ impl AgentFactory {
                 .insert(*work_order_number, None);
         }
 
-        dbg!(strategic_algorithm
-            .strategic_parameters
-            .strategic_work_order_parameters
-            .len());
-        dbg!(strategic_algorithm
-            .strategic_solution
-            .strategic_periods
-            .len());
         let (sender, receiver) = std::sync::mpsc::channel();
 
         let arc_scheduling_environment = self.scheduling_environment.clone();

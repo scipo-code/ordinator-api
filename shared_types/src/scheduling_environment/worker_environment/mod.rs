@@ -82,21 +82,21 @@ impl WorkerEnvironment {
 
                 // This does not make any sense for the longer term. I think that you should
                 // rely on the 13 days.
-                let days_in_period = 13; // WARN: period.count_overlapping_days(availability);
+                let days_in_period = 13.0; // WARN: period.count_overlapping_days(availability);
 
                 for resource in &operational_agent.resources.resources {
                     skill_hours.insert(
                         resource.clone(),
-                        Work::from(operational_agent.hours_per_day * gradual_reduction(i)),
+                        Work::from(
+                            operational_agent.hours_per_day * days_in_period * gradual_reduction(i),
+                        ),
                     );
                 }
 
                 let operational_resource = OperationalResource::new(
                     operational_agent.id.clone(),
                     Work::from(
-                        operational_agent.hours_per_day
-                            * days_in_period as f64
-                            * gradual_reduction(i),
+                        operational_agent.hours_per_day * days_in_period * gradual_reduction(i),
                     ),
                     skill_hours,
                 );

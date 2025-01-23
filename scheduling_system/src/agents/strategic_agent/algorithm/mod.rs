@@ -512,15 +512,16 @@ impl StrategicAlgorithm {
     /// * Determine if there is a feasible permutaion
     /// * If true, return the loading that should be put into the StrategicSolution::strategic_loadings.
     pub fn determine_best_permutation(&self, work_load: HashMap<Resources, Work>, period: &Period, schedule: ScheduleWorkOrder) -> Option<StrategicResources> {
+
         // How do we take this into account? For now the tacitcal is simply an aggregated version of the strategic, which of course is not
         // the way to approach this problem. 
-
         let mut best_total_excess = Work::from(0.0); 
         let mut best_work_order_resource_loadings = StrategicResources::default();
+
         // We want to find the difference between the two resources, as this is the amount of
-        // 
         // capacity that we can effectively schedule with. 
         let capacity_resources = self.strategic_parameters.strategic_capacity.0.get(period).unwrap();
+        dbg!(&capacity_resources);
         let loading_resources = self.strategic_solution.strategic_loadings.0.get(period).unwrap();
         
         let difference_resources = {
@@ -548,9 +549,7 @@ impl StrategicAlgorithm {
                     .skill_hours
                     .clone()
                     .iter()
-                    .zip(loading
-                    .skill_hours
-                    .iter())
+                    .zip(loading.skill_hours.iter())
                     .map(|(cap, loa)| (cap.0.clone(), (cap.1 - loa.1)))
                     .collect();
 
@@ -561,13 +560,13 @@ impl StrategicAlgorithm {
                 );
 
                 difference_resources.insert(capacity.0.clone(), operational_resource);
-
             }
             difference_resources
         };
 
         let permutation_length = difference_resources.len();
         for mut technician_permutation in difference_resources.clone().into_iter().permutations(permutation_length) {
+
 
             // If a work_load_permutation iteration is run to completion we accept that solution. 
             for mut work_load_permutation in work_load.clone().into_iter().permutations(work_load.len()) {
@@ -582,7 +581,7 @@ impl StrategicAlgorithm {
                         // So the permutation creates new instances, that means that we should
                         // only focus on making the calculations.
                         for operation_load in &mut work_load_permutation {
-                            for technician in technician_permutation.iter_mut() {
+                            for technician in technician_permutation.clone().iter_mut() {
                                 // If the technician does not have the skill we simply skip over that
                                 // technician and continue the search. 
                                 if !technician.1.skill_hours.keys().contains(&operation_load.0) {
@@ -606,13 +605,13 @@ impl StrategicAlgorithm {
                                     operation_load.1 -= technician.1.total_hours;
                                     work_order_resource_loadings.update_load(period, technician.1.total_hours, technician, LoadOperation::Add).unwrap();
                                 }
-                                // If you have run through all the technicians and the
-                                // operation_load is not equal to zero we should break
-                                // because then there is no way for that permutation to
-                                // satisfy the constraint. 
-                                if operation_load.1 != Work::from(0.0) {
-                                    break;
-                                }
+                            }
+                            // If you have run through all the technicians and the
+                            // operation_load is not equal to zero we should break
+                            // because then there is no way for that permutation to
+                            // satisfy the constraint. 
+                            if operation_load.1 != Work::from(0.0) {
+                                break;
                             }
                         }
                     },
@@ -667,10 +666,7 @@ impl StrategicAlgorithm {
                             // Save the work_order_resource_loadings
                             best_work_order_resource_loadings = work_order_resource_loadings.clone();
                             best_total_excess = total_excess;
-                        
                         }
-                            
-                        
                     },
                     ScheduleWorkOrder::Unschedule => todo!(),
 
@@ -679,15 +675,15 @@ impl StrategicAlgorithm {
                 match schedule {
                     ScheduleWorkOrder::Normal => {
                         if work_load_permutation.into_iter().all(|(_, wor)| wor == Work::from(0.0)) {
-                            // This function should return an HashMap<OperationalId, OperationalResource>
-                            // to function correctly in this setting. 
-                            // FIX This should not be there. Update the loadings and if that
-                            // is not possible, return like you used to do.
+                            // If a feasible assignment of work orders were found return the StratgicResources
+                            // that should update the StrategicAlgorithm Loadings.
+                            panic!();
                             return Some(work_order_resource_loadings) 
                         }
                         
                     },
                     ScheduleWorkOrder::Forced => {
+                        todo!()
                         // We should save the best solution here to make the system work. 
                     },
                     ScheduleWorkOrder::Unschedule => todo!(),
