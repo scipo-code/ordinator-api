@@ -102,8 +102,6 @@ impl AgentFactory {
                 )
             })?;
 
-        dbg!(&strategic_algorithm.strategic_parameters.strategic_capacity);
-
         // These loadings should come from the SchedulingEnvironment
         strategic_algorithm
             .strategic_solution
