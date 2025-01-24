@@ -844,7 +844,7 @@ pub mod tests {
             .tactical_parameters_mut()
             .insert(work_order_number, optimized_tactical_work_order);
 
-        tactical_algorithm.calculate_objective_value();
+        tactical_algorithm.calculate_objective_value().unwrap();
 
         // assert_eq!(tactical_algorithm.objective_value().0, 270);
     }

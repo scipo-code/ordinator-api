@@ -7,6 +7,7 @@ use crate::scheduling_environment::{
 };
 
 use crate::scheduling_environment::worker_environment::resources::Resources;
+use anyhow::Context;
 use chrono::{DateTime, Utc};
 use rust_decimal::prelude::*;
 use rust_xlsxwriter::IntoExcelData;
@@ -44,7 +45,15 @@ impl FromStr for Work {
 }
 impl Work {
     pub fn from(work: f64) -> Self {
-        let u32_f32 = Decimal::from_f64(work).unwrap();
+        let u32_f32 = Decimal::from_f64(work)
+            .with_context(|| {
+                format!(
+                    "Tried to create a {} from {}",
+                    std::any::type_name::<Work>(),
+                    work
+                )
+            })
+            .unwrap();
         Work(u32_f32)
     }
 

@@ -29,6 +29,7 @@ use super::{
     ScheduleIteration, SetAddr,
 };
 
+#[allow(dead_code)]
 pub struct SupervisorAgent {
     supervisor_id: String,
     asset: Asset,

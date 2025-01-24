@@ -281,8 +281,16 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                             .determine_best_permutation(
                                 work_load.clone(),
                                 &unscheduled_period,
-                                super::algorithm::ScheduleWorkOrder::Unschedule,
+                                ScheduleWorkOrder::Unschedule,
                             )
+                            .with_context(|| {
+                                format!(
+                                    "{:?}\nin period {:?}\ncould not be {:?}",
+                                    work_order_number,
+                                    unscheduled_period,
+                                    ScheduleWorkOrder::Unschedule
+                                )
+                            })?
                             .expect("It should always be possible to release resources");
 
                         self.strategic_algorithm.update_loadings(
@@ -297,6 +305,14 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                                 &last_period.unwrap(),
                                 ScheduleWorkOrder::Forced,
                             )
+                            .with_context(|| {
+                                format!(
+                                    "{:?}\nin period {:?}\ncould not be {:?}",
+                                    work_order_number,
+                                    unscheduled_period,
+                                    ScheduleWorkOrder::Forced
+                                )
+                            })?
                             .expect("It should always be possible to release resources");
 
                         self.strategic_algorithm

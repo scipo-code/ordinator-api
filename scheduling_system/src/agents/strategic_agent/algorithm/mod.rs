@@ -287,10 +287,11 @@ impl StrategicAlgorithm {
 
 #[derive(Debug)]
 pub enum ForcedWorkOrder {
-    Locked,
-    FromTactical(Period),
+    Locked(WorkOrderNumber),
+    FromTactical((WorkOrderNumber, Period)),
 }
 
+#[derive(Debug)]
 pub enum ScheduleWorkOrder {
     Normal,
     Forced,
@@ -300,7 +301,7 @@ pub enum ScheduleWorkOrder {
 impl StrategicAlgorithm {
     pub fn schedule_forced_work_orders(&mut self) -> Result<()> {
         let tactical_work_orders = &self.loaded_shared_solution.tactical.tactical_scheduled_work_orders;
-        let mut work_order_numbers: Vec<(WorkOrderNumber, ForcedWorkOrder)> = vec![];
+        let mut work_order_numbers: Vec<ForcedWorkOrder> = vec![];
         // There exists work order parameters that are not in the solution. Is this a problem? I think that it is a problem, but I do not really understand
         // what should be
         for (work_order_number, strategic_parameter) in self.strategic_parameters.strategic_work_order_parameters.iter() {
@@ -321,7 +322,7 @@ impl StrategicAlgorithm {
             }
 
             if strategic_parameter.locked_in_period.is_some() {
-                work_order_numbers.push((*work_order_number, ForcedWorkOrder::Locked));
+                work_order_numbers.push(ForcedWorkOrder::Locked(*work_order_number));
             } else if tactical_work_order.is_some() && tactical_work_order.unwrap().is_tactical() {
                 let first_day = tactical_work_order.unwrap()
                     .tactical_operations()?
@@ -339,12 +340,12 @@ impl StrategicAlgorithm {
                     .find(|per| per.contains_date(first_day))
                     .expect("This result would come directly from the tactical agent. It should always find a Period in the Vec<Period>");
 
-                work_order_numbers.push((*work_order_number, ForcedWorkOrder::FromTactical(tactical_period.clone())));
+                work_order_numbers.push(ForcedWorkOrder::FromTactical((*work_order_number, tactical_period.clone())));
             } 
         }
 
         for forced_work_order_numbers in work_order_numbers {
-            self.schedule_forced_work_order(&forced_work_order_numbers).with_context(|| format!("{:#?} could not be force scheduled", forced_work_order_numbers))?;
+            self.schedule_forced_work_order(&forced_work_order_numbers).with_context(|| format!("{:?} could not be force scheduled", forced_work_order_numbers))?;
         }
         Ok(())
     }
@@ -376,7 +377,9 @@ impl StrategicAlgorithm {
 
 
             event!(Level::INFO, strategic_work_order = ?work_order_number);
-            let resource_use_option = self.determine_best_permutation( work_load.clone(), period, ScheduleWorkOrder::Normal);
+            let resource_use_option = self
+                .determine_best_permutation( work_load.clone(), period, ScheduleWorkOrder::Normal)
+                .with_context(|| format!("{:?}\n for period\n{:#?}\ncould not be {:?}", work_order_number, period, ScheduleWorkOrder::Normal))?;
 
             match resource_use_option {
                 Some(resource_use_inner) => resource_use = resource_use_inner,
@@ -394,27 +397,33 @@ impl StrategicAlgorithm {
         Ok(None)
     }
 
-    pub fn schedule_forced_work_order(&mut self, force_schedule_work_order: &(WorkOrderNumber, ForcedWorkOrder)) -> Result<()> {
+    pub fn schedule_forced_work_order(&mut self, force_schedule_work_order: &ForcedWorkOrder) -> Result<()> {
+        let work_order_number = match force_schedule_work_order {
+            ForcedWorkOrder::Locked(work_order_number) => work_order_number,
+            ForcedWorkOrder::FromTactical((work_order_number, _)) => work_order_number,
+        };
         
-        if let Some(work_order_number) = self.is_scheduled(&force_schedule_work_order.0) {
-            self.unschedule(*work_order_number).unwrap();
+        if let Some(work_order_number) = self.is_scheduled(work_order_number) {
+            self.unschedule(*work_order_number)
+                .with_context(|| format!("{:?}\n{}\n{}", force_schedule_work_order, file!(), line!()))?
         }
 
-        let locked_in_period = match &force_schedule_work_order.1 {
-            ForcedWorkOrder::Locked => self
+        let locked_in_period = match &force_schedule_work_order {
+            ForcedWorkOrder::Locked(work_order_number) => self
                 .strategic_parameters
-                .get_locked_in_period(&force_schedule_work_order.0).clone(),
-            ForcedWorkOrder::FromTactical(period) => period.clone() ,
+                .get_locked_in_period(work_order_number).clone(),
+            ForcedWorkOrder::FromTactical((_, period)) => period.clone(),
         };
 
         // Should the update loadings also be included here? I do not think that is a good idea.
         // What other things could we do?
-        self.update_the_locked_in_period(&force_schedule_work_order.0, &locked_in_period)
-            .with_context(|| format!("Could not fully update {:#?} in {}", force_schedule_work_order.0, &locked_in_period))?;
+        self.update_the_locked_in_period(work_order_number, &locked_in_period.clone())
+            .with_context(|| format!("Could not fully update {:#?} in {}", force_schedule_work_order, &locked_in_period))?;
 
-        let work_load = self.strategic_parameters.strategic_work_order_parameters.get(&force_schedule_work_order.0).unwrap().work_load.clone();
+        let work_load = self.strategic_parameters.strategic_work_order_parameters.get(work_order_number).unwrap().work_load.clone();
         let strategic_resources = self
             .determine_best_permutation(work_load, &locked_in_period, ScheduleWorkOrder::Forced)
+            .with_context(|| format!("{:?}\nin period {:#?}\ncould not be\n{:?}", force_schedule_work_order, locked_in_period, ScheduleWorkOrder::Forced))?
             .expect("It should always be possible to determine a resource permutation for a forced work order");
 
         self.update_loadings(strategic_resources, LoadOperation::Add);
@@ -513,7 +522,7 @@ impl StrategicAlgorithm {
     /// This function has two purposes:
     /// * Determine if there is a feasible permutaion
     /// * If true, return the loading that should be put into the StrategicSolution::strategic_loadings.
-    pub fn determine_best_permutation(&self, work_load: HashMap<Resources, Work>, period: &Period, schedule: ScheduleWorkOrder) -> Option<StrategicResources> {
+    pub fn determine_best_permutation(&self, work_load: HashMap<Resources, Work>, period: &Period, schedule: ScheduleWorkOrder) -> Result<Option<StrategicResources>> {
 
         // How do we take this into account? For now the tacitcal is simply an aggregated version of the strategic, which of course is not
         // the way to approach this problem. 
@@ -531,7 +540,7 @@ impl StrategicAlgorithm {
             .collect::<HashSet<&Resources>>()
             .is_subset(&capacity_resources.values().flat_map(|ele| ele.skill_hours.keys()).collect::<HashSet<&Resources>>()) {
             
-            return None
+            return Ok(None)
         }
 
         let loading_resources = self.strategic_solution.strategic_loadings.0.get(period).unwrap();
@@ -651,18 +660,36 @@ impl StrategicAlgorithm {
                         // approach for coding this. So still go over all the permutations and then
                         // combine them at last. 
                         // WARN: We know that the work_load resources are unique.
-                        for work_load in work_load_permutation.iter_mut() {
+                        for work in work_load_permutation.iter_mut() {
                             // Count the number of resources satisfying the skill
                             // and split the amount equaly among the technicians.
                             // Good! This is the right way to approach it.
-                            
+                            // FIX: Here is the issue you are filtering on the qualified technician. But there might not be any that are qualified
+                            // to handle the job. What should you do instead? 
+                            //
+                            // QUESTION:
+                            // There are basically two approaches here:
+                            // * Split the work on all the current technicians
+                            // * Put the work onto a new technician
+                            //
+                            // What is the best approach forward here? I think that the
+                            // best approach is to create
+                            //
+                            // The Scheduler should create a Resource if a VEN-MECH or something like that
+                            // is coming out on the platform. If he does not it only make sense that the
+                            // hours be split evenly among the different 
                             let mut qualified_technicians = technician_permutation
                                 .iter_mut()
                                 .filter(|tec| {
-                                    tec.1.skill_hours.keys().contains(&work_load.0)
+                                    tec.1.skill_hours.keys().contains(&work.0)
                                 }).collect::<Vec<_>>();
 
-                            let work_load_by_resources_by_technician = Work::from(work_load.1.to_f64() / qualified_technicians.len() as f64);
+                            // If there are no qualified technicians. All technicians should be assumed to be responsible? Yes let us just do that!
+                            if qualified_technicians.is_empty() {
+                                qualified_technicians = technician_permutation.iter_mut().collect();
+                            }
+
+                            let work_load_by_resources_by_technician = Work::from(work.1.to_f64() / qualified_technicians.len() as f64);
 
                             for technician in qualified_technicians.iter_mut() {
                                 technician.1.total_hours -= work_load_by_resources_by_technician;
@@ -704,27 +731,30 @@ impl StrategicAlgorithm {
                         // We should subtract until there are no more resources left
                         let mut work_order_resource_loadings = StrategicResources::default();
 
+                        let mut technician_loadings = loading_resources.clone();
+
                         for work in work_load_permutation.iter_mut() {
                             // Here you have to subtract the technician_permutation.
                             for technician_permutation in &mut technician_permutation {
-                                let mut technician = loading_resources.get(&technician_permutation.0).unwrap().clone();
+                                let technician = technician_loadings.get_mut(&technician_permutation.0).unwrap();
 
-                                /// 
                                 if !technician.skill_hours.contains_key(&work.0) {
                                     continue
                                 }
 
-                                if  technician_permutation.1.total_hours >= work.1 {
+                                if  technician.total_hours >= work.1 {
                                     technician.total_hours -= work.1;
                                     technician.skill_hours.iter_mut().for_each(|ele| *ele.1 -= work.1);
+                                    work_order_resource_loadings.update_load(period, work.1, &(technician_permutation.0.clone(), technician.clone()), LoadOperation::Sub).expect("Resource subtraction should always be possible.");
+                                    work.1 = Work::from(0.0);
 
-                                    work_order_resource_loadings.update_load(period, work.1, &(technician_permutation.0.clone(), technician), LoadOperation::Sub).expect("Resource subtraction should always be possible.");
                                     // If all the resource is removed from the operation_work, we should break and move on to the next operation.
                                     break;
                                 } else {
+                                    work.1 -= technician.total_hours;
+                                    work_order_resource_loadings.update_load(period, technician.total_hours, &(technician_permutation.0.clone(), technician.clone()), LoadOperation::Sub).expect("Resource subtraction should always be possible.");
                                     technician.total_hours = Work::from(0.0); 
-                                    technician.skill_hours.iter_mut().for_each(|ele| *ele.1 -= Work::from(0.0));
-                                    work_order_resource_loadings.update_load(period, technician.total_hours, &(technician_permutation.0.clone(), technician), LoadOperation::Sub).expect("Resource subtraction should always be possible.");
+                                    technician.skill_hours.iter_mut().for_each(|ele| *ele.1 = Work::from(0.0));
 
                                     // If the select technician does not have enough hours left we should subtract we
                                     // should move on to the next technician.
@@ -733,7 +763,7 @@ impl StrategicAlgorithm {
                             }
                         }
                         if work_load_permutation.iter().all(|res_wor| res_wor.1 == Work::from(0.0)) {
-                            return Some(work_order_resource_loadings);
+                            return Ok(Some(work_order_resource_loadings));
                         }
                     },
                 }
@@ -743,25 +773,34 @@ impl StrategicAlgorithm {
                         if work_load_permutation.into_iter().all(|(_, wor)| wor == Work::from(0.0)) {
                             // If a feasible assignment of work orders were found return the StratgicResources
                             // that should update the StrategicAlgorithm Loadings.
-                            return Some(work_order_resource_loadings) 
+                            return Ok(Some(work_order_resource_loadings))
                         }
                     },
                     ScheduleWorkOrder::Forced => {
-                        todo!()
+                        ensure!(best_work_order_resource_loadings.0.get(period).unwrap().values().flat_map(|ele| ele.skill_hours.keys()).collect::<HashSet<_>>() ==
+                            work_load.keys().collect::<HashSet<_>>());
+                        return Ok(Some(best_work_order_resource_loadings))
+                        
                     },
                     // It is always possible to unschedule work, so therefore we can simply
                     // 
                     ScheduleWorkOrder::Unschedule => {
-                        unsafe { asm!("int3");}
-                        return Some(work_order_resource_loadings);
+                        unsafe { asm!("int3") }
+                        ensure!(work_order_resource_loadings
+                            .0
+                            .get(period).with_context(|| format!("{:#?}\nnot present. This probably means that nothing was {:?}\n{}\n{}", period, ScheduleWorkOrder::Unschedule, file!(), line!()))?
+                            .iter()
+                            .fold(Work::from(0.0), |acc, ele| acc + ele.1.total_hours)
+                            == work_load.values().fold(Work::from(0.0), |acc, ele| acc + *ele), format!("{:?} {:?}", work_load, loading_resources));
+                        return Ok(Some(work_order_resource_loadings));
                     },
                 
                 }
             }
         }
         match schedule {
-            ScheduleWorkOrder::Normal => None,
-            ScheduleWorkOrder::Forced => Some(best_work_order_resource_loadings),
+            ScheduleWorkOrder::Normal => Ok(None),
+            ScheduleWorkOrder::Forced => Ok(Some(best_work_order_resource_loadings)),
             ScheduleWorkOrder::Unschedule => {
                 unsafe { asm!("int3");}
                 unreachable!("Unscheduling work order should always be possible");
@@ -834,13 +873,12 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
             .get_mut(&work_order_number)
             .with_context(|| format!("{:?}: was not present in the strategic periods", work_order_number))?;
 
-
         match unschedule_from_period.take() {
             Some(unschedule_from_period) => {
                 let work_load = self.strategic_parameters.strategic_work_order_parameters.get(&work_order_number).unwrap().work_load.clone();
-                    unsafe { asm!("int3")}
                 let strategic_resources = self
                     .determine_best_permutation(work_load, &unschedule_from_period, ScheduleWorkOrder::Unschedule)
+                    .with_context(|| format!("{:?}\nin period {:#?}\nfor {:?}", work_order_number, unschedule_from_period, ScheduleWorkOrder::Unschedule))?
                     .context("Determining the StrategicResources associated with a unscheduling operation should always be possible")?;
 
                 self.update_loadings(strategic_resources, LoadOperation::Sub);

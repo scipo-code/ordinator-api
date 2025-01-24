@@ -193,7 +193,8 @@ impl Handler<ScheduleIteration> for OperationalAgent {
             self.operational_algorithm.operational_solution.clone();
 
         self.operational_algorithm
-            .unschedule_random_work_order_activies(&mut rng, 15);
+            .unschedule_random_work_order_activies(&mut rng, 15)
+            .context("Random work orders could not be unscheduled")?;
 
         self.operational_algorithm
             .schedule()

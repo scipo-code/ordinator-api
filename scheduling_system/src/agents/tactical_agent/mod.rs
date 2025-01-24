@@ -21,6 +21,7 @@ use super::supervisor_agent::SupervisorAgent;
 use super::traits::LargeNeighborhoodSearch;
 use super::ScheduleIteration;
 
+#[allow(dead_code)]
 pub struct TacticalAgent {
     asset: Asset,
     id_tactical: i32,

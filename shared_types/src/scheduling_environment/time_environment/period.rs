@@ -1,12 +1,13 @@
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc, Weekday};
 use clap::Args;
+use colored::Colorize;
 use rust_xlsxwriter::IntoExcelData;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 use std::ops::{Add, Sub};
 use std::str::FromStr;
 
-#[derive(Args, Serialize, Deserialize, Eq, PartialEq, Hash, Debug, Clone, PartialOrd, Ord)]
+#[derive(Args, Serialize, Deserialize, Eq, PartialEq, Hash, Clone, PartialOrd, Ord)]
 pub struct Period {
     id_internal: i32,
     period_string: String,
@@ -15,6 +16,27 @@ pub struct Period {
     pub year: i32,
     pub start_week: u32,
     pub end_week: u32,
+}
+
+impl std::fmt::Debug for Period {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            format!(
+                "Period {{\n\t\tid_internal: {}, \n\t\tperiod_string: {}, \n\t\tstart_date: {}, \n\t\tfinish_date: {}, \n\t\tyear: {}, \n\t\tstart_week: {}, \n\t\tfinish_week: {}\n}}",
+                self.id_internal,
+                self.period_string,
+                self.start_date, 
+                self.end_date, 
+                self.year, 
+                self.start_week, 
+                self.end_week, 
+                
+            )
+            .bright_green()
+        )
+    }
 }
 
 #[allow(dead_code)]

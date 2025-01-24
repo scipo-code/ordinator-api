@@ -221,12 +221,6 @@ pub fn create_excel_dump(
         .map(|(_, wo)| wo)
         .collect();
 
-    dbg!(
-        "Total WorkOrder(s) for asset: {:?}",
-        &asset,
-        work_orders_by_asset.len()
-    );
-
     for work_order in work_orders_by_asset {
         let mut sorted_operations = work_order.operations.iter().collect::<Vec<_>>();
 

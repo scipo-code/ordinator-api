@@ -22,6 +22,7 @@ use crate::scheduling_environment::work_order::work_order_dates::WorkOrderDates;
 use crate::scheduling_environment::work_order::work_order_text::WorkOrderText;
 use crate::scheduling_environment::work_order::work_order_type::WorkOrderType;
 use chrono::{DateTime, Utc};
+use colored::Colorize;
 use operation::OperationBuilder;
 use serde::{Deserialize, Serialize};
 use status_codes::UserStatusCodes;
@@ -39,11 +40,21 @@ use self::operation::Work;
 
 use super::time_environment::period::Period;
 
-#[derive(Debug, Copy, Clone, PartialOrd, Ord, Hash, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialOrd, Ord, Hash, PartialEq, Eq)]
 pub struct WorkOrderNumber(pub u64);
 impl WorkOrderNumber {
     pub fn is_dummy(&self) -> bool {
         self.0 == 0
+    }
+}
+
+impl std::fmt::Debug for WorkOrderNumber {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            format!("WorkOrderNumber({})", self.0).bright_yellow()
+        )
     }
 }
 

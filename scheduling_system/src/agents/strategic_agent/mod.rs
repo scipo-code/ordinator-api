@@ -77,7 +77,11 @@ impl Handler<ScheduleIteration> for StrategicAgent {
     type Result = Result<()>;
 
     #[instrument(level = "trace", skip_all)]
-    fn handle(&mut self, _msg: ScheduleIteration, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(
+        &mut self,
+        schedule_iteration: ScheduleIteration,
+        ctx: &mut Self::Context,
+    ) -> Self::Result {
         self.strategic_algorithm.load_shared_solution();
 
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
@@ -110,11 +114,10 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         //     }));
         self.strategic_algorithm
             .schedule()
-            .with_context(|| format!("{:?} of StrategicAlgorithm", _msg))
-            .expect("StrategicAlgorithm.schedule method failed");
+            .with_context(|| format!("{:?} of StrategicAlgorithm", schedule_iteration))
+            .expect("StrategicAlgorithm::schedule method failed");
 
         // self.strategic_algorithm.swap_scheduled_work_orders(rng);
-
         // self.assert_aggregated_load().unwrap();
 
         self.strategic_algorithm.calculate_objective_value();
@@ -152,7 +155,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         );
 
         ctx.notify(ScheduleIteration {
-            loop_iteration: _msg.loop_iteration + 1,
+            loop_iteration: schedule_iteration.loop_iteration + 1,
         });
         Ok(())
     }
@@ -318,7 +321,7 @@ mod tests {
             .insert(work_order_number, None);
 
         strategic_algorithm
-            .schedule_forced_work_order(&(work_order_number, ForcedWorkOrder::Locked))
+            .schedule_forced_work_order(&ForcedWorkOrder::Locked(work_order_number))
             .unwrap();
 
         strategic_algorithm.calculate_objective_value();
