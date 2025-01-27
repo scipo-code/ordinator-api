@@ -10,9 +10,9 @@ use std::collections::{HashMap, HashSet};
 use strum::IntoEnumIterator;
 
 use crate::scheduling_environment::worker_environment::resources::Resources;
-use crate::strategic::{Periods, StrategicResources};
+use crate::strategic::{OperationalResource, StrategicResources};
 use crate::tactical::{Days, TacticalResources};
-use crate::SystemAgents;
+use crate::{OperationalId, SystemAgents};
 
 use super::time_environment::day::Day;
 use super::time_environment::period::Period;
@@ -55,9 +55,6 @@ impl WorkerEnvironment {
     }
 
     pub fn generate_strategic_resources(&self, periods: &[Period]) -> StrategicResources {
-        let _hours_per_day = 6.0;
-        let days_in_period = 13.0;
-
         let gradual_reduction = |i: usize| -> f64 {
             if i == 0 {
                 1.0
@@ -70,28 +67,43 @@ impl WorkerEnvironment {
             }
         };
 
-        let mut strategic_resources_inner = HashMap::<Resources, Periods>::new();
+        let mut strategic_resources_inner =
+            HashMap::<Period, HashMap<OperationalId, OperationalResource>>::new();
 
-        for operational_agent in &self.system_agents.operational {
-            for (i, period) in periods.iter().enumerate() {
-                let resource_periods = strategic_resources_inner
-                    .entry(
-                        operational_agent
-                            .resources
-                            .resources
-                            .first()
-                            .cloned()
-                            .unwrap(),
-                    )
-                    .or_insert(Periods(HashMap::new()));
+        for (i, period) in periods.iter().enumerate() {
+            let mut operational_resource_map = HashMap::new();
+            for operational_agent in &self.system_agents.operational {
+                // What is it that you are trying to do here? You want to instantiate an agent
+                // TODO: Could you reuse the OperationalResource. No could you inplement a
+                // into formulation here? I think that is a that ... THis is actually fun!
+                let mut skill_hours: HashMap<Resources, Work> = HashMap::new();
 
-                *resource_periods
-                    .0
-                    .entry(period.clone())
-                    .or_insert_with(|| Work::from(0.0)) += Work::from(
-                    operational_agent.hours_per_day * days_in_period * gradual_reduction(i),
-                )
+                // let availability = &operational_agent.operational_configuration.availability;
+
+                // This does not make any sense for the longer term. I think that you should
+                // rely on the 13 days.
+                let days_in_period = 13.0; // WARN: period.count_overlapping_days(availability);
+
+                for resource in &operational_agent.resources.resources {
+                    skill_hours.insert(
+                        resource.clone(),
+                        Work::from(
+                            operational_agent.hours_per_day * days_in_period * gradual_reduction(i),
+                        ),
+                    );
+                }
+
+                let operational_resource = OperationalResource::new(
+                    operational_agent.id.clone(),
+                    Work::from(
+                        operational_agent.hours_per_day * days_in_period * gradual_reduction(i),
+                    ),
+                    skill_hours,
+                );
+
+                operational_resource_map.insert(operational_agent.id.clone(), operational_resource);
             }
+            strategic_resources_inner.insert(period.clone(), operational_resource_map);
         }
 
         StrategicResources::new(strategic_resources_inner)

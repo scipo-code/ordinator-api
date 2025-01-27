@@ -7,11 +7,13 @@ use crate::scheduling_environment::{
 };
 
 use crate::scheduling_environment::worker_environment::resources::Resources;
+use anyhow::Context;
 use chrono::{DateTime, Utc};
 use rust_decimal::prelude::*;
 use rust_xlsxwriter::IntoExcelData;
-use serde::de::{self, Deserialize, MapAccess, Visitor};
-use serde::ser::{Serialize, SerializeStruct};
+use serde::de::{self, MapAccess, Visitor};
+use serde::ser::SerializeStruct;
+use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::num::ParseFloatError;
 use std::str::FromStr;
@@ -20,7 +22,7 @@ use self::operation_info::NumberOfPeople;
 
 use super::unloading_point::UnloadingPoint;
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Operation {
     pub activity: ActivityNumber,
     pub resource: Resources,
@@ -30,7 +32,7 @@ pub struct Operation {
     pub operation_dates: OperationDates,
 }
 
-#[derive(Default, Hash, Eq, PartialOrd, Ord, PartialEq, Debug, Clone)]
+#[derive(Copy, Default, Hash, Eq, PartialOrd, Ord, PartialEq, Debug, Clone)]
 pub struct Work(pub Decimal);
 
 impl FromStr for Work {
@@ -44,7 +46,15 @@ impl FromStr for Work {
 }
 impl Work {
     pub fn from(work: f64) -> Self {
-        let u32_f32 = Decimal::from_f64(work).unwrap();
+        let u32_f32 = Decimal::from_f64(work)
+            .with_context(|| {
+                format!(
+                    "\nTried to create a {} from f64\n{}",
+                    std::any::type_name::<Work>(),
+                    work
+                )
+            })
+            .unwrap();
         Work(u32_f32)
     }
 

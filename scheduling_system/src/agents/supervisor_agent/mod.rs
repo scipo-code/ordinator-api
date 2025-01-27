@@ -29,6 +29,7 @@ use super::{
     ScheduleIteration, SetAddr,
 };
 
+#[allow(dead_code)]
 pub struct SupervisorAgent {
     supervisor_id: String,
     asset: Asset,
@@ -51,7 +52,7 @@ impl Actor for SupervisorAgent {
             self.supervisor_id.clone(),
             ctx.address(),
         ));
-        // ctx.notify(ScheduleIteration::default());
+        ctx.notify(ScheduleIteration::default());
     }
 }
 

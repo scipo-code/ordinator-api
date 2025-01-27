@@ -324,6 +324,7 @@ impl TacticalSolution {
     }
 }
 
+#[allow(dead_code)]
 pub trait GetMarginalFitness {
     fn marginal_fitness(
         &self,

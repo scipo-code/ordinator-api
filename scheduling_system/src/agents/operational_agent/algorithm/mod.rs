@@ -5,7 +5,7 @@ pub mod operational_solution;
 
 use std::{collections::HashSet, sync::Arc};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use arc_swap::Guard;
 use assert_functions::OperationalAlgorithmAsserts;
 use chrono::{DateTime, TimeDelta, Utc};
@@ -486,13 +486,29 @@ impl LargeNeighborhoodSearch for OperationalAlgorithm {
     }
 
     fn unschedule(&mut self, work_order_and_activity_number: Self::SchedulingUnit) -> Result<()> {
-        let unscheduled_operational_solution = self
+        ensure!(self
             .operational_solution
             .work_order_activities_assignment
             .iter()
-            .find(|operational_solution| operational_solution.0 == work_order_and_activity_number)
-            .take();
-        unscheduled_operational_solution.expect("There was nothing in the operational solution");
+            .any(|os| os.0 == work_order_and_activity_number));
+        dbg!(&self
+            .operational_solution
+            .work_order_activities_assignment
+            .len());
+
+        self.operational_solution
+            .work_order_activities_assignment
+            .retain(|os| os.0 != work_order_and_activity_number);
+        dbg!(&self
+            .operational_solution
+            .work_order_activities_assignment
+            .len());
+
+        ensure!(!self
+            .operational_solution
+            .work_order_activities_assignment
+            .iter()
+            .any(|os| os.0 == work_order_and_activity_number));
         Ok(())
     }
 
@@ -597,18 +613,29 @@ impl OperationalAlgorithm {
         &mut self,
         rng: &mut impl rand::Rng,
         number_of_activities: usize,
-    ) {
-        let operational_solutions: Vec<WorkOrderActivity> = self
+    ) -> Result<()> {
+        let operational_solutions_len = self
             .operational_solution
             .work_order_activities_assignment
+            .len();
+
+        let operational_solutions_filtered: Vec<WorkOrderActivity> = self
+            .operational_solution
+            .work_order_activities_assignment[1..operational_solutions_len - 1]
             .choose_multiple(rng, number_of_activities)
             .map(|operational_solution| operational_solution.0)
             .collect();
 
-        for operational_solution in operational_solutions {
+        for operational_solution in &operational_solutions_filtered {
             self.unschedule((operational_solution.0, operational_solution.1))
-                .expect("OperationalAgent could not unschedule correctly");
+                .with_context(|| {
+                    format!(
+                        "{:?} from {:?}\ncould not be unscheduled",
+                        operational_solution, &operational_solutions_filtered
+                    )
+                })?
         }
+        Ok(())
     }
 
     fn determine_first_available_start_time(

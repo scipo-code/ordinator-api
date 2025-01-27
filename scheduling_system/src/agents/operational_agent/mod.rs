@@ -73,8 +73,8 @@ impl OperationalAgent {
 
         // TODO: move this around
         let operational_parameter = OperationalParameter::new(
-            operation.work_remaining().clone().unwrap(),
-            operation.operation_analytic.preparation_time.clone(),
+            operation.work_remaining().unwrap(),
+            operation.operation_analytic.preparation_time,
         );
 
         self.operational_algorithm
@@ -129,13 +129,14 @@ impl Actor for OperationalAgent {
                 unavailability_end_event,
             ));
 
-        // ctx.notify(ScheduleIteration::default())
+        ctx.notify(ScheduleIteration::default())
     }
 }
 
 impl Handler<ScheduleIteration> for OperationalAgent {
     type Result = Result<()>;
 
+    #[allow(clippy::expect_fun_call)]
     fn handle(
         &mut self,
         schedule_iteration: ScheduleIteration,
@@ -192,7 +193,8 @@ impl Handler<ScheduleIteration> for OperationalAgent {
             self.operational_algorithm.operational_solution.clone();
 
         self.operational_algorithm
-            .unschedule_random_work_order_activies(&mut rng, 15);
+            .unschedule_random_work_order_activies(&mut rng, 15)
+            .context("Random work orders could not be unscheduled")?;
 
         self.operational_algorithm
             .schedule()

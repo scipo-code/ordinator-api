@@ -1,8 +1,10 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use serde::Serialize;
 use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
+use shared_types::scheduling_environment::WorkOrders;
 use shared_types::strategic::StrategicResources;
+use shared_types::Asset;
 use std::str::FromStr;
 use std::{collections::HashMap, collections::HashSet, hash::Hash, hash::Hasher};
 
@@ -13,7 +15,35 @@ use shared_types::scheduling_environment::work_order::{WorkOrder, WorkOrderNumbe
 pub struct StrategicParameters {
     pub strategic_work_order_parameters: HashMap<WorkOrderNumber, StrategicParameter>,
     pub strategic_capacity: StrategicResources,
+    pub strategic_clustering: StrategicClustering,
 }
+
+pub type ClusteringValue = u64;
+
+#[derive(Default, Debug, PartialEq, Clone)]
+pub struct StrategicClustering {
+    pub inner: HashMap<(WorkOrderNumber, WorkOrderNumber), ClusteringValue>,
+}
+
+#[derive(Debug, PartialEq, Clone, Default, Serialize)]
+pub struct StrategicParameter {
+    pub locked_in_period: Option<Period>,
+    pub excluded_periods: HashSet<Period>,
+    pub latest_period: Period,
+    pub weight: u64,
+    pub work_load: HashMap<Resources, Work>,
+}
+
+#[derive(Debug)]
+pub struct StrategicParameterBuilder(StrategicParameter);
+
+// TODO: Use this for testing the scheduling program
+// enum StrategicParameterStates {
+//     Scheduled,
+//     BasicStart,
+//     VendorWithUnloadingPoint,
+//     FMCMainWorkCenter,
+// }
 
 impl Hash for StrategicParameters {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -42,10 +72,12 @@ impl StrategicParameters {
     pub fn new(
         strategic_work_order_parameters: HashMap<WorkOrderNumber, StrategicParameter>,
         strategic_capacity: StrategicResources,
+        strategic_clustering: StrategicClustering,
     ) -> Self {
         Self {
             strategic_work_order_parameters,
             strategic_capacity,
+            strategic_clustering,
         }
     }
 
@@ -94,26 +126,6 @@ impl StrategicParameters {
         Ok(())
     }
 }
-
-#[derive(Debug, PartialEq, Clone, Default, Serialize)]
-pub struct StrategicParameter {
-    pub locked_in_period: Option<Period>,
-    pub excluded_periods: HashSet<Period>,
-    pub latest_period: Period,
-    pub weight: u64,
-    pub work_load: HashMap<Resources, Work>,
-}
-
-#[derive(Debug)]
-pub struct StrategicParameterBuilder(StrategicParameter);
-
-// TODO: Use this for testing the scheduling program
-// enum StrategicParameterStates {
-//     Scheduled,
-//     BasicStart,
-//     VendorWithUnloadingPoint,
-//     FMCMainWorkCenter,
-// }
 
 impl StrategicParameterBuilder {
     pub fn new() -> Self {
@@ -242,5 +254,87 @@ impl StrategicParameterBuilder {
 impl StrategicParameter {
     pub fn excluded_periods(&self) -> &HashSet<Period> {
         &self.excluded_periods
+    }
+}
+
+impl StrategicClustering {
+    pub fn calculate_clustering_values(
+        &mut self,
+        asset: &Asset,
+        work_orders: &WorkOrders,
+    ) -> Result<()> {
+        #[derive(serde::Deserialize, Debug)]
+        pub struct ClusteringWeights {
+            asset: u64,
+            sector: u64,
+            system: u64,
+            subsystem: u64,
+            equipment_tag: u64,
+        }
+
+        // Load clustering weights from config
+        let clustering_weights: ClusteringWeights = {
+            let clustering_config_path = dotenvy::var("CLUSTER_WEIGHTINGS")
+                .context("CLUSTER_WEIGHTINGS should be defined in the env")?;
+            let clustering_config_contents = std::fs::read_to_string(clustering_config_path)
+                .context("Could not read config file")?;
+            serde_json::from_str(&clustering_config_contents)?
+        };
+
+        let mut clustering_similarity: HashMap<
+            (WorkOrderNumber, WorkOrderNumber),
+            ClusteringValue,
+        > = HashMap::new();
+
+        // Precompute functional locations for all work orders
+        let work_orders_data: Vec<_> = work_orders
+            .inner
+            .iter()
+            .filter(|(_, wo)| &wo.functional_location().asset == asset)
+            .map(|(number, work_order)| {
+                let fl = &work_order.work_order_info.functional_location;
+                (
+                    number,
+                    fl.asset.clone(),
+                    fl.sector(),
+                    fl.system(),
+                    fl.subsystem(),
+                    fl.equipment_tag(),
+                )
+            })
+            .collect();
+
+        // Calculate similarity for each pair of work orders
+        for i in 0..work_orders_data.len() {
+            for j in i..work_orders_data.len() {
+                let (wo_num1, asset1, sector1, system1, subsystem1, tag1) = &work_orders_data[i];
+                let (wo_num2, asset2, sector2, system2, subsystem2, tag2) = &work_orders_data[j];
+
+                let similarity = {
+                    let mut score = 0;
+                    if asset1 == asset2 {
+                        score += clustering_weights.asset;
+                    }
+                    if sector1 == sector2 && sector2.is_some() {
+                        score += clustering_weights.sector;
+                    }
+                    if system1 == system2 && system2.is_some() {
+                        score += clustering_weights.system;
+                    }
+                    if subsystem1 == subsystem2 && subsystem2.is_some() {
+                        score += clustering_weights.subsystem;
+                    }
+                    if tag1 == tag2 && tag2.is_some() {
+                        score += clustering_weights.equipment_tag;
+                    }
+                    score
+                };
+
+                clustering_similarity.insert((**wo_num1, **wo_num2), similarity);
+            }
+        }
+        self.inner = clustering_similarity;
+
+        Ok(())
     }
 }

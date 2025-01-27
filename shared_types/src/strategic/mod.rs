@@ -8,7 +8,7 @@ pub mod strategic_response_resources;
 pub mod strategic_response_scheduling;
 pub mod strategic_response_status;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Subcommand;
 use std::{
     collections::{hash_map::Entry, HashMap},
@@ -26,7 +26,7 @@ use crate::{
         work_order::{operation::Work, status_codes::StrategicUserStatusCodes},
         worker_environment::resources::Resources,
     },
-    Asset, ConstraintState, LoadOperation,
+    Asset, ConstraintState, LoadOperation, OperationalId,
 };
 
 use self::{
@@ -40,25 +40,43 @@ use self::{
     strategic_response_status::StrategicResponseStatus,
 };
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct StrategicObjectiveValue {
     pub objective_value: u64,
     pub urgency: (u64, u64),
     pub resource_penalty: (u64, u64),
+    pub clustering_value: (u64, u64),
+}
+
+impl Default for StrategicObjectiveValue {
+    fn default() -> Self {
+        Self {
+            objective_value: u64::MAX,
+            urgency: (u64::MAX, u64::MAX),
+            resource_penalty: (u64::MAX, u64::MAX),
+            clustering_value: (u64::MAX, u64::MAX),
+        }
+    }
 }
 
 impl StrategicObjectiveValue {
-    pub fn new(urgency: (u64, u64), resource_penalty: (u64, u64)) -> Self {
+    pub fn new(
+        urgency: (u64, u64),
+        resource_penalty: (u64, u64),
+        clustering_value: (u64, u64),
+    ) -> Self {
         Self {
             objective_value: 0,
             urgency,
             resource_penalty,
+            clustering_value,
         }
     }
 
     pub fn aggregate_objectives(&mut self) {
-        self.objective_value =
-            self.urgency.0 * self.urgency.1 + self.resource_penalty.0 * self.resource_penalty.1;
+        self.objective_value = self.urgency.0 * self.urgency.1
+            + self.resource_penalty.0 * self.resource_penalty.1
+            - self.clustering_value.0 * self.clustering_value.1;
     }
 }
 
@@ -189,66 +207,155 @@ impl Default for StrategicInfeasibleCases {
     }
 }
 
-#[derive(PartialEq, Eq, Default, Serialize, Deserialize, Debug, Clone)]
-pub struct StrategicResources {
-    #[serde(with = "any_key_map")]
-    pub inner: HashMap<Resources, Periods>,
+// Where should the operational struct be found? I think that it should
+// be in the shared types
+#[derive(Default, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct StrategicResources(
+    #[serde(with = "any_key_map")] pub HashMap<Period, HashMap<OperationalId, OperationalResource>>,
+);
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+pub struct OperationalResource {
+    id: String,
+    pub total_hours: Work,
+    pub skill_hours: HashMap<Resources, Work>,
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, Default, Debug, Clone)]
-pub struct Periods(#[serde(with = "any_key_map")] pub HashMap<Period, Work>);
-
-impl Periods {
-    pub fn insert(&mut self, period: Period, load: Work) {
-        self.0.insert(period, load);
+impl OperationalResource {
+    pub fn new(id: String, total_hours: Work, skill_hours: HashMap<Resources, Work>) -> Self {
+        Self {
+            id,
+            total_hours,
+            skill_hours,
+        }
     }
 }
 
 impl StrategicResources {
-    pub fn new(resources: HashMap<Resources, Periods>) -> Self {
-        Self { inner: resources }
+    pub fn new(resources: HashMap<Period, HashMap<OperationalId, OperationalResource>>) -> Self {
+        Self(resources)
     }
 
+    // Okay so you have to determine a good way of updating the load here. The best approach
+    // would probably be to create a small heuristic
+    //
+    // The load should be updated and this means that we need to generate a small heuristic.
+    // As this is no longer deterministic.
     pub fn update_load(
         &mut self,
-        resource: &Resources,
         period: &Period,
         load: Work,
+        operational_id: &(OperationalId, OperationalResource),
         load_operation: LoadOperation,
-    ) {
-        let resource_entry = self.inner.entry(resource.clone());
-        let periods = match resource_entry {
+    ) -> Result<()> {
+        let period_entry = self.0.entry(period.clone());
+        let operational = match period_entry {
             Entry::Occupied(entry) => entry.into_mut(),
-            Entry::Vacant(entry) => entry.insert(Periods(HashMap::new())),
+            Entry::Vacant(entry) => entry.insert(HashMap::new()),
         };
 
-        match periods.0.entry(period.clone()) {
+        // Here the heuristic starts! I think that the best approach would be to
+        // make the code work on. Okay I think that the code for the
+        //
+        // Do we need the &Resources here? Ideally no as that information is already
+        // present in the operational_id of the problem. I think that the best approach
+        // here is to leave it out. The resources in question is given uniquely by the
+        // operational_id. There is something here that is not quite right. Be ready to
+        // change it.
+        match operational.entry(operational_id.0.clone()) {
             Entry::Occupied(mut entry) => match load_operation {
-                LoadOperation::Add => *entry.get_mut() += load,
-                LoadOperation::Sub => *entry.get_mut() -= load,
-            },
-            Entry::Vacant(entry) => match load_operation {
                 LoadOperation::Add => {
-                    entry.insert(load);
+                    entry.get_mut().total_hours += load;
+                    entry
+                        .get_mut()
+                        .skill_hours
+                        .iter_mut()
+                        .for_each(|ski_loa| *ski_loa.1 += load);
                 }
                 LoadOperation::Sub => {
-                    entry.insert(load);
+                    entry.get_mut().total_hours -= load;
+                    entry
+                        .get_mut()
+                        .skill_hours
+                        .iter_mut()
+                        .for_each(|ski_loa| *ski_loa.1 -= load);
                 }
             },
+            // I do not think that this should be here! The update_load here should be called the
+            // update_or_create_load as that is what the function is doing! I think that if a new
+            // load enters the system it should not be done through here. But through elsewhere.
+            // FIX This should be possible to reach! I am not sure.
+            Entry::Vacant(entry) => {
+                let total_hours = load;
+                let mut skill_hours = HashMap::new();
+
+                operational_id.1.skill_hours.iter().for_each(|ele| {
+                    skill_hours.insert(ele.0.clone(), load);
+                });
+
+                let operational_resource =
+                    OperationalResource::new(operational_id.0.clone(), total_hours, skill_hours);
+                entry.insert(operational_resource);
+            }
         };
+        Ok(())
     }
 
-    pub fn update_resources(&mut self, resources: Self) {
-        for resource in resources.inner {
-            for period in resource.1 .0 {
-                *self
-                    .inner
-                    .get_mut(&resource.0)
-                    .unwrap()
-                    .0
-                    .get_mut(&period.0)
-                    .unwrap() = period.1;
+    pub fn update_resource_capacities(&mut self, resources: Self) -> Result<()> {
+        for period in &resources.0 {
+            for operational in period.1 {
+                self.0
+                    .entry(period.0.clone())
+                    .or_default()
+                    .entry(operational.0.clone())
+                    .and_modify(|existing| *existing = operational.1.clone())
+                    .or_insert(operational.1.clone());
             }
         }
+        Ok(())
+    }
+
+    pub fn initialize_resource_loadings(&mut self, resources: Self) {
+        for period in resources.0 {
+            for operational in period.1 {
+                let mut operational_resource = operational.1;
+
+                operational_resource.total_hours = Work::from(0.0);
+
+                operational_resource
+                    .skill_hours
+                    .iter_mut()
+                    .for_each(|ele| *ele.1 = Work::from(0.0));
+
+                self.0
+                    .entry(period.0.clone())
+                    .or_default()
+                    .entry(operational.0.clone())
+                    .and_modify(|existing| *existing = operational_resource.clone())
+                    .or_insert(operational_resource);
+            }
+        }
+    }
+
+    pub fn aggregated_capacity_by_period_and_resource(
+        &self,
+        period: &Period,
+        resource: &Resources,
+    ) -> Result<Work> {
+        Ok(self
+            .0
+            .get(period)
+            .with_context(|| {
+                format!(
+                    "{} not found is {:?}",
+                    period,
+                    std::any::type_name::<StrategicResources>()
+                )
+            })?
+            // WARN START HERE
+            .values()
+            .fold(Work::from(0.0), |acc, or| {
+                acc + *or.skill_hours.get(resource).unwrap_or(&Work::from(0.0))
+            }))
     }
 }

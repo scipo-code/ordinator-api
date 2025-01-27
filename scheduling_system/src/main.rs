@@ -23,8 +23,6 @@ async fn main() -> std::io::Result<()> {
     dotenvy::dotenv()
         .expect("You need to provide an .env file. Look at the .env.example if for guidance");
 
-    println!("{:?}", dotenvy::var("RESOURCE_CONFIG_INITIALIZATION"));
-
     event!(Level::WARN, "The start of main");
     let (log_handles, _logging_guard) = logging::setup_logging();
 

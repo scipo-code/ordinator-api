@@ -7,9 +7,10 @@ use crate::operational::operational_response_status::OperationalStatusResponse;
 use crate::operational::OperationalConfiguration;
 use crate::scheduling_environment::time_environment::day::Day;
 use crate::scheduling_environment::time_environment::period::Period;
+use crate::scheduling_environment::work_order::operation::Work;
 use crate::scheduling_environment::work_order::status_codes::{SystemStatusCodes, UserStatusCodes};
 use crate::scheduling_environment::work_order::{WorkOrder, WorkOrderInfo, WorkOrderNumber};
-use crate::scheduling_environment::worker_environment::resources::Id;
+use crate::scheduling_environment::worker_environment::resources::{Id, Resources};
 use crate::strategic::strategic_response_status::StrategicResponseStatus;
 use crate::supervisor::supervisor_response_status::SupervisorResponseStatus;
 use crate::tactical::tactical_response_status::TacticalResponseStatus;
@@ -83,6 +84,7 @@ impl AgentStatus {
 #[allow(clippy::large_enum_variant)]
 pub enum WorkOrdersStatus {
     Single(WorkOrderResponse),
+    SingleSolution(StrategicApiSolution),
     Multiple(HashMap<WorkOrderNumber, WorkOrderResponse>),
 }
 
@@ -92,6 +94,7 @@ pub struct WorkOrderResponse {
     work_order_info: WorkOrderInfo,
     vendor: bool,
     weight: u64,
+    work_order_work_load: HashMap<Resources, Work>,
     system_status_codes: SystemStatusCodes,
     user_status_codes: UserStatusCodes,
     api_solution: ApiSolution,
@@ -103,6 +106,13 @@ pub struct ApiSolution {
     pub tactical: String,    //ApiTactical,
     pub supervisor: String,  //HashMap<Id, ApiSupervisor>,
     pub operational: String, //HashMap<Id, ApiOperational>,
+}
+
+#[derive(Serialize)]
+pub struct StrategicApiSolution {
+    pub solution: Option<Period>,
+    pub locked_in_period: Option<Period>,
+    pub excluded_from_period: HashSet<Period>,
 }
 
 #[derive(Serialize)]
@@ -135,7 +145,9 @@ impl WorkOrderResponse {
             .work_order_dates
             .earliest_allowed_start_period
             .clone();
+
         let work_order_info = work_order.work_order_info.clone();
+        let work_order_work_load = work_order.work_order_analytic.work_load.clone();
         let vendor = work_order.work_order_analytic.vendor;
         let weight = work_order.work_order_analytic.work_order_weight;
         let system_status_codes = work_order.work_order_analytic.system_status_codes.clone();
@@ -146,6 +158,7 @@ impl WorkOrderResponse {
             work_order_info,
             vendor,
             weight,
+            work_order_work_load,
             system_status_codes,
             user_status_codes,
             api_solution,

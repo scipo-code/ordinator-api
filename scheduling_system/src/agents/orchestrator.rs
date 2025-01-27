@@ -246,26 +246,10 @@ impl Orchestrator {
                 agent_registry
                     .strategic_agent_addr
                     .do_send(state_link.clone());
-                // .await
-                // .with_context(|| {
-                //     format!(
-                //         "Could not send message to {:?} for {}",
-                //         std::any::type_name::<StrategicAgent>(),
-                //         std::any::type_name_of_val(&asset)
-                //     )
-                // })??;
 
                 agent_registry
                     .tactical_agent_addr
                     .do_send(state_link.clone());
-                // .await
-                // .with_context(|| {
-                //     format!(
-                //         "Could not send message to {:?} for {}",
-                //         std::any::type_name::<TacticalAgent>(),
-                //         std::any::type_name_of_val(&asset)
-                //     )
-                // })??;
 
                 for supervisor in agent_registry.supervisor_agent_addrs.iter() {
                     supervisor.1.do_send(state_link.clone());
@@ -662,18 +646,21 @@ impl Orchestrator {
 
         let shared_solutions_arc_swap = AgentFactory::create_shared_solution_arc_swap();
 
-        let strategic_agent_addr = self.agent_factory.build_strategic_agent(
-            asset.clone(),
-            &scheduling_environment_guard,
-            shared_solutions_arc_swap.clone(),
-            NotifyOrchestrator(
-                self.agent_notify
-                    .as_ref()
-                    .unwrap()
-                    .upgrade()
-                    .expect("Weak reference part of initialization"),
-            ),
-        );
+        let strategic_agent_addr = self
+            .agent_factory
+            .build_strategic_agent(
+                asset.clone(),
+                &scheduling_environment_guard,
+                shared_solutions_arc_swap.clone(),
+                NotifyOrchestrator(
+                    self.agent_notify
+                        .as_ref()
+                        .unwrap()
+                        .upgrade()
+                        .expect("Weak reference part of initialization"),
+                ),
+            )
+            .context("Could not build the StrategicAgent")?;
 
         let tactical_agent_addr = self.agent_factory.build_tactical_agent(
             asset.clone(),

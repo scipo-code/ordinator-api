@@ -127,9 +127,9 @@ impl TacticalAlgorithm {
             let optimized_operation = OperationParameter::new(
                 *work_order.work_order_number(),
                 operation.number(),
-                operation.duration().clone().unwrap(),
-                operation.operating_time().clone().unwrap(),
-                operation.work_remaining().clone().unwrap(),
+                operation.duration().unwrap(),
+                operation.operating_time().unwrap(),
+                operation.work_remaining().unwrap(),
                 operation.resource().clone(),
             );
             tactical_parameter
@@ -236,7 +236,7 @@ impl TacticalAlgorithm {
 }
 
 impl LargeNeighborhoodSearch for TacticalAlgorithm {
-    type BetterSolution = TacticalObjectiveValue;
+    type BetterSolution = Result<TacticalObjectiveValue>;
     type SchedulingRequest = TacticalSchedulingRequest;
     type SchedulingResponse = TacticalResponseScheduling;
     type ResourceRequest = TacticalResourceRequest;
@@ -256,13 +256,16 @@ impl LargeNeighborhoodSearch for TacticalAlgorithm {
             .filter(|(_, ts)| ts.is_tactical())
         {
             let tactical_parameter = self.tactical_parameters().get(work_order_number).unwrap();
+            // FIX START HERE.
+
+            // What does it mean that the StrategicAgent does not have the work order yet
+            // What should we do to give him the correct state
             let period_start_date = match &self
                 .loaded_shared_solution
                 .strategic
                 .strategic_periods
                 .get(work_order_number)
-                .expect("The strategic and tactical solution should have the same WorkOrderNumber's available at all times")
-
+                .unwrap_or(&Option::None)
             {
                 Some(period) => period.start_date().date_naive(),
                 None => tactical_parameter.earliest_allowed_start_date,
@@ -305,7 +308,7 @@ impl LargeNeighborhoodSearch for TacticalAlgorithm {
             tactical_objective_value = ?self.tactical_solution.objective_value
         );
 
-        self.tactical_solution.objective_value.clone()
+        Ok(self.tactical_solution.objective_value.clone())
     }
 
     fn schedule(&mut self) -> Result<()> {
@@ -452,7 +455,7 @@ impl LargeNeighborhoodSearch for TacticalAlgorithm {
                 let loadings = self.determine_load(
                     first_day_remaining_capacity,
                     &operation_parameters.operating_time,
-                    operation_parameters.work_remaining.clone(),
+                    operation_parameters.work_remaining,
                 );
 
                 let mut activity_load = Vec::<(Day, Work)>::new();
@@ -487,7 +490,7 @@ impl LargeNeighborhoodSearch for TacticalAlgorithm {
                     activity_load,
                     resource,
                     operation_parameters.number,
-                    operation_parameters.work_remaining.clone(),
+                    operation_parameters.work_remaining,
                     current_work_order_number,
                     *activity,
                 );
@@ -658,16 +661,16 @@ impl TacticalAlgorithm {
         let first_day_load = match remaining_capacity.partial_cmp(operating_time) {
             Some(Ordering::Less) => remaining_capacity,
             Some(Ordering::Equal) => remaining_capacity,
-            Some(Ordering::Greater) => operating_time.clone(),
+            Some(Ordering::Greater) => *operating_time,
             None => panic!("remaining work and operating_time are not comparable. There is an error in the data initialization"),
-        }.min(work_remaining.clone());
+        }.min(work_remaining);
 
-        loadings.push(first_day_load.clone());
+        loadings.push(first_day_load);
         work_remaining -= first_day_load;
 
         while work_remaining > Work::from(0.0) {
-            let load = operating_time.clone().min(work_remaining.clone());
-            loadings.push(load.clone());
+            let load = *operating_time.min(&work_remaining);
+            loadings.push(load);
             work_remaining -= load;
         }
         loadings
@@ -818,7 +821,7 @@ pub mod tests {
             )],
             Resources::MtnMech,
             operation_parameter.number,
-            operation_parameter.work_remaining.clone(),
+            operation_parameter.work_remaining,
             work_order_number,
             activity_number,
         );
@@ -841,7 +844,7 @@ pub mod tests {
             .tactical_parameters_mut()
             .insert(work_order_number, optimized_tactical_work_order);
 
-        tactical_algorithm.calculate_objective_value();
+        tactical_algorithm.calculate_objective_value().unwrap();
 
         // assert_eq!(tactical_algorithm.objective_value().0, 270);
     }

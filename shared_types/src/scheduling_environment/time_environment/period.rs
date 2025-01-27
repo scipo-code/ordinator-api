@@ -1,12 +1,13 @@
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc, Weekday};
 use clap::Args;
+use colored::Colorize;
 use rust_xlsxwriter::IntoExcelData;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 use std::ops::{Add, Sub};
 use std::str::FromStr;
 
-#[derive(Args, Serialize, Deserialize, Eq, PartialEq, Hash, Debug, Clone, PartialOrd, Ord)]
+#[derive(Args, Serialize, Deserialize, Eq, PartialEq, Hash, Clone, PartialOrd, Ord)]
 pub struct Period {
     id_internal: i32,
     period_string: String,
@@ -17,6 +18,28 @@ pub struct Period {
     pub end_week: u32,
 }
 
+impl std::fmt::Debug for Period {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            format!(
+                "Period {{\n\t\tid_internal: {}, \n\t\tperiod_string: {}, \n\t\tstart_date: {}, \n\t\tfinish_date: {}, \n\t\tyear: {}, \n\t\tstart_week: {}, \n\t\tfinish_week: {}\n}}",
+                self.id_internal,
+                self.period_string,
+                self.start_date, 
+                self.end_date, 
+                self.year, 
+                self.start_week, 
+                self.end_week, 
+                
+            )
+            .bright_green()
+        )
+    }
+}
+
+#[allow(dead_code)]
 impl Period {
     pub fn new(id: i32, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Period {
         let mut year = start_date.year();
@@ -47,6 +70,23 @@ impl Period {
 
     pub fn contains_date(&self, date: NaiveDate) -> bool {
         self.start_date.date_naive() <= date && date <= self.end_date.date_naive()
+    }
+
+    pub(crate) fn count_overlapping_days(
+        &self,
+        availability: &crate::scheduling_environment::worker_environment::availability::Availability,
+    ) -> i64 {
+        let first = std::cmp::max(
+            self.start_date.date_naive(),
+            availability.start_date.date_naive(),
+        );
+        let second = std::cmp::max(
+            self.end_date.date_naive(),
+            availability.end_date.date_naive(),
+        );
+
+        let range = second - first;
+        std::cmp::max(range.num_days(), 0)
     }
 }
 

@@ -1,5 +1,6 @@
 $env.RESOURCE_CONFIG_INITIALIZATION = "./imperium/scripts/strategic/resource_configurations/low_resources.toml"
 
+fish -c "cargo build -p scheduling_system --release"
 fish -c "cargo run -p scheduling_system --release &"
 
 print "script"

@@ -51,13 +51,10 @@ let work_orders = [
     2100076000,
 ];
 
-fish -c "cargo run -p scheduling_system --release &" 
-
+fish -c "cargo build -p scheduling_system --release"
+fish -c "cargo run -p scheduling_system --release &"
 
 ^sleep 65
-imperium strategic scheduling df schedule ...$work_orders 2024-W51-52
-
-^sleep 60
 imperium strategic scheduling df schedule ...$work_orders 2025-W1-2
 
 ^sleep 60
@@ -70,8 +67,10 @@ imperium strategic scheduling df schedule ...$work_orders 2025-W5-6
 imperium strategic scheduling df schedule ...$work_orders 2025-W7-8
 
 ^sleep 60
+imperium strategic scheduling df schedule ...$work_orders 2025-W9-10
 
-ps | where name =~ "scheduling_syst" | kill $in.pid.0 --force 
+^sleep 60
+ps | where name =~ "scheduling_syst" | kill $in.pid.0 --force
 
- cd ../generalized-multi-agent-maintenance-scheduling-system/ | just nushell-strategic-data-extract strategic_objective_value_inclusion_plot.tex
+cd ../generalized-multi-agent-maintenance-scheduling-system/ | just nushell-strategic-data-extract strategic_objective_value_inclusion_plot.tex
 ^sleep 10

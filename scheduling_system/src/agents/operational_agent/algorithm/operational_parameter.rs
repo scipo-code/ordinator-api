@@ -29,7 +29,7 @@ impl OperationalParameter {
         // delegated: Delegate,
         // marginal_fitness: MarginalFitness,
     ) -> Self {
-        let combined_time = (&work + &_preparation).in_seconds();
+        let combined_time = (work + _preparation).in_seconds();
         let operation_time_delta = TimeDelta::new(combined_time as i64, 0).unwrap();
         assert_ne!(work.to_f64(), 0.0);
         assert!(!operation_time_delta.is_zero());

@@ -21,6 +21,7 @@ use super::supervisor_agent::SupervisorAgent;
 use super::traits::LargeNeighborhoodSearch;
 use super::ScheduleIteration;
 
+#[allow(dead_code)]
 pub struct TacticalAgent {
     asset: Asset,
     id_tactical: i32,
@@ -74,8 +75,8 @@ impl Actor for TacticalAgent {
         );
         self.strategic_addr
             .do_send(SetAddr::Tactical(ctx.address()));
-        // self.tactical_algorithm.schedule().with_context(|| format!("Initial call of: {}", std::any::type_name::<TacticalAlgorithm>())).expect("Failed initial schedule call");
-        // ctx.notify(ScheduleIteration::default());
+        self.tactical_algorithm.schedule().with_context(|| format!("Initial call of: {}", std::any::type_name::<TacticalAlgorithm>())).expect("Failed initial schedule call");
+        ctx.notify(ScheduleIteration::default());
     }
 }
 
@@ -98,7 +99,7 @@ impl Handler<ScheduleIteration> for TacticalAgent {
 
         let total_excess_hours = self.tactical_algorithm.asset_that_capacity_is_not_exceeded().ok();
         
-        if self.tactical_algorithm.calculate_objective_value()
+        if self.tactical_algorithm.calculate_objective_value().expect("Could not calculate objective value correctly")
             < current_tactical_solution.objective_value
         {
             self.tactical_algorithm
@@ -109,9 +110,9 @@ impl Handler<ScheduleIteration> for TacticalAgent {
                  difference_in_objective_value = self.tactical_algorithm.tactical_solution.objective_value.0 as i64 - current_tactical_solution.objective_value.0 as i64, 
                  total_excess_hours = ?total_excess_hours,
                  scheduled_work_orders = self
-                .tactical_algorithm
-                .tactical_solution
-                .tactical_scheduled_work_orders.scheduled_work_orders())
+                    .tactical_algorithm
+                    .tactical_solution
+                    .tactical_scheduled_work_orders.scheduled_work_orders())
         } else {
             event!(Level::INFO,
                  new_tactical_objective_value = ?self.tactical_algorithm.tactical_solution.objective_value,

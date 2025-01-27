@@ -502,22 +502,29 @@ let work_orders = [
     2200003749,
 ]
 
+fish -c "cargo build -p scheduling_system --release"
 fish -c "cargo run -p scheduling_system --release &"
 
 ^sleep 65
-imperium strategic strategic-scheduling-environment-commands df user-status ...($work_orders | skip 0 | take 100) --sece=true 
+imperium strategic strategic-scheduling-environment-commands df user-status ...($work_orders | skip 0 | take 100) --sece=true --awsc=true 
 
 ^sleep 60
-imperium strategic strategic-scheduling-environment-commands df user-status ...($work_orders | skip 100 | take 100) --sece=true
+imperium strategic strategic-scheduling-environment-commands df user-status ...($work_orders | skip 100 | take 100) --sece=true --awsc=true
 
 ^sleep 60
-imperium strategic strategic-scheduling-environment-commands df user-status ...($work_orders | skip 200 | take 100) --sece=true 
+imperium strategic strategic-scheduling-environment-commands df user-status ...($work_orders | skip 200 | take 100) --sece=true --awsc=true 
 
 ^sleep 60
-imperium strategic strategic-scheduling-environment-commands df user-status ...($work_orders | skip 300 | take 100) --sece=true 
+imperium strategic strategic-scheduling-environment-commands df user-status ...($work_orders | skip 300 | take 100) --sece=true --awsc=true 
 
 ^sleep 60
-imperium strategic strategic-scheduling-environment-commands df user-status ...($work_orders | skip 400 | take 100) --sece=true 
+imperium strategic strategic-scheduling-environment-commands df user-status ...($work_orders | skip 400 | take 100) --sece=true --awsc=true 
+
+# ^sleep 60
+# imperium strategic strategic-scheduling-environment-commands df user-status ...($work_orders) --sece=true 
+
+# ^sleep 60
+# imperium strategic strategic-scheduling-environment-commands df user-status ...($work_orders) --sece=false 
 
 ^sleep 60
 

@@ -1,5 +1,5 @@
 {
-  description = "A simple project with a devShell";
+  description = "The ordinator-api flake.nix";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -7,7 +7,7 @@
     rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
+  outputs = { nixpkgs, rust-overlay, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         overlays = [(import rust-overlay)];
@@ -28,7 +28,6 @@
             pkgs.rust-bin.beta.latest.default
             pythonEnv
             pkgs.git
-            pkgs.helix
             pkgs.zellij
             (pkgs.gnuplot.override {
               withLua = true;
@@ -40,6 +39,7 @@
             pkgs.clang
             pkgs.libxlsxwriter
             pkgs.pkg-config
+            pkgs.libunwind
           ];
         };
         packages.default = pkgs.buildRustPackage {

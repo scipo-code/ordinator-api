@@ -70,7 +70,7 @@ fn send_http(client: &Client, system_message: SystemMessages) -> Result<String> 
         )
     })?;
 
-    let url = base_url.join(&ordinator_endpoint).with_context(|| format!("Failed to append 'ORDINATOR_MAIN_ENDPOINT' as a valid url. Ensure it is correctly formatted. ORDINATOR_MAIN_ENDPOINT: {}", ordinator_endpoint))?;
+    let url = base_url.join(ordinator_endpoint).with_context(|| format!("Failed to append 'ORDINATOR_MAIN_ENDPOINT' as a valid url. Ensure it is correctly formatted. ORDINATOR_MAIN_ENDPOINT: {}", ordinator_endpoint))?;
 
     let system_message_json_option = serde_json::to_string(&system_message);
     let system_message_json = match system_message_json_option {

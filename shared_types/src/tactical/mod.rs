@@ -142,7 +142,7 @@ impl TacticalResources {
         for resource in resources {
             let mut days = HashMap::new();
             for day in tactical_days.iter() {
-                days.insert(day.clone(), load.clone());
+                days.insert(day.clone(), load);
             }
 
             resource_capacity.insert(resource, Days { days });
