@@ -56,10 +56,10 @@ impl AllRows {
                 .write(row_number, 4, row_values.work_order_type.clone())
                 .unwrap();
             worksheet
-                .write(row_number, 5, row_values.main_work_ctr.clone())
+                .write(row_number, 5, row_values.main_work_ctr)
                 .unwrap();
             worksheet
-                .write(row_number, 6, row_values.operation_work_center.clone())
+                .write(row_number, 6, row_values.operation_work_center)
                 .unwrap();
             worksheet
                 .write(row_number, 7, row_values.work_order_number.0)
@@ -250,8 +250,8 @@ pub fn create_excel_dump(
                 priority: work_order.priority().clone(),
                 revision: work_order.revision().clone(),
                 work_order_type: work_order.work_order_type().clone(),
-                main_work_ctr: work_order.main_work_center.clone(),
-                operation_work_center: activity.1.resource.clone(),
+                main_work_ctr: work_order.main_work_center,
+                operation_work_center: activity.1.resource,
                 work_order_number: work_order.work_order_number,
                 description_work_order: work_order
                     .work_order_info

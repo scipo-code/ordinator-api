@@ -114,7 +114,7 @@ impl SupervisorParameters {
         let operation = scheduling_environment_lock.operation(work_order_activity);
 
         let supervisor_parameter =
-            SupervisorParameter::new(operation.resource.clone(), operation.operation_info.number);
+            SupervisorParameter::new(operation.resource, operation.operation_info.number);
         let _assert_option = self
             .supervisor_work_orders
             .entry(work_order_activity.0)

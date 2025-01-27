@@ -37,7 +37,7 @@ impl TacticalAssertions for TacticalAlgorithm {
 
                 for (day, load) in &operation_solution.scheduled {
                     *aggregated_load
-                        .entry(resource.clone())
+                        .entry(*resource)
                         .or_default()
                         .entry(day.clone())
                         .or_insert(Work::from(0.0)) += load;

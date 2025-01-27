@@ -275,6 +275,7 @@ pub enum ForcedWorkOrder {
     FromTactical((WorkOrderNumber, Period)),
 }
 
+
 #[derive(Debug)]
 pub enum ScheduleWorkOrder {
     Normal,
@@ -316,7 +317,9 @@ impl StrategicAlgorithm {
                         ele1.1.scheduled[0].0.date().date_naive().cmp(&ele2.1.scheduled[0].0.date().date_naive())
                     }).unwrap()
                     .1
-                    .scheduled[0].0.date().date_naive();
+                    .scheduled[0].0
+                    .date()
+                    .date_naive();
 
                 let tactical_period = self
                     .strategic_periods
@@ -330,7 +333,7 @@ impl StrategicAlgorithm {
 
         for forced_work_order_numbers in work_order_numbers {
             self.schedule_forced_work_order(&forced_work_order_numbers)
-                .with_context(|| format!("\n{:#?} could not be force scheduled", forced_work_order_numbers))?;
+                .with_context(|| format!("{:#?} could not be force scheduled", forced_work_order_numbers))?;
         }
         Ok(())
     }
@@ -388,9 +391,9 @@ impl StrategicAlgorithm {
             ForcedWorkOrder::FromTactical((work_order_number, _)) => work_order_number,
         };
         
-        if let Some(work_order_number) = self.is_scheduled(work_order_number) {
+        if self.is_scheduled(work_order_number) {
             self.unschedule(*work_order_number)
-                .with_context(|| format!("{:#?}\nfile: {}\nline: {}", force_schedule_work_order, file!(), line!()))?
+                .with_context(|| format!("{:#?}\nfile: {}\nline: {}", force_schedule_work_order, file!(), line!()))?;
         }
 
         let locked_in_period = match &force_schedule_work_order {
@@ -445,14 +448,11 @@ impl StrategicAlgorithm {
         Ok(())
     }
 
-    fn is_scheduled<'a>(&'a self, work_order_number: &'a WorkOrderNumber) -> Option<&'a WorkOrderNumber> {
+    fn is_scheduled(&self, work_order_number: &WorkOrderNumber) -> bool {
         self.strategic_periods()
             .get(work_order_number)
-            .and_then(|scheduled_period| {
-                scheduled_period
-                    .as_ref()
-                    .map(|_| work_order_number)
-            })
+            .expect("This should always be initialized")
+            .is_some()
     }
 
     /// This function updates the StrategicResources based on the a provided loading.
@@ -571,7 +571,7 @@ impl StrategicAlgorithm {
                     .clone()
                     .iter()
                     .zip(loading.skill_hours.iter())
-                    .map(|(cap, loa)| (cap.0.clone(), (cap.1 - loa.1)))
+                    .map(|(cap, loa)| (*cap.0, (*cap.1 - *loa.1)))
                     .collect();
 
                 let operational_resource = OperationalResource::new(
@@ -628,14 +628,14 @@ impl StrategicAlgorithm {
                                     technician.1.skill_hours.iter_mut().for_each(|(_, wor)| *wor -= operation_load.1);  
                                     technician.1.total_hours -= operation_load.1;
                                     // This is the main API function for the Resources. 
-                                    work_order_resource_loadings.update_load(period, operation_load.1, technician, LoadOperation::Add).unwrap();
+                                    work_order_resource_loadings.update_load(period,operation_load.0, operation_load.1, technician, LoadOperation::Add).unwrap();
                                     operation_load.1 = Work::from(0.0);
                                     break;
                                 } else {
                                     technician.1.skill_hours.iter_mut().for_each(|(_res, wor)| *wor = Work::from(0.0));
                                     technician.1.total_hours = Work::from(0.0);
                                     operation_load.1 -= technician.1.total_hours;
-                                    work_order_resource_loadings.update_load(period, technician.1.total_hours, technician, LoadOperation::Add).unwrap();
+                                    work_order_resource_loadings.update_load(period, operation_load.0, technician.1.total_hours, technician, LoadOperation::Add).unwrap();
                                 }
                             }
                             // If you have run through all the technicians and the
@@ -694,9 +694,15 @@ impl StrategicAlgorithm {
 
                             for technician in qualified_technicians {
                                 technician.1.total_hours -= work_load_by_resources_by_technician;
+                                // The error is likely here, we update everything about the technician but not the new skill that is required.
+                                // I think
+                                // QUESTION:
+                                // How do we fix this issue? The problem is that the technician is effecitively getting a new skill. The most
+                                // important thing here then is to update him correctly. We should determine if we should update this in the
+                                // update load function... I think that 
                                 technician.1.skill_hours.iter_mut().for_each(|(_, wor)| *wor -= work_load_by_resources_by_technician);
 
-                                work_order_resource_loadings.update_load(period, work_load_by_resources_by_technician, technician, LoadOperation::Add).unwrap();
+                                work_order_resource_loadings.update_load(period, work.0, work_load_by_resources_by_technician, technician, LoadOperation::Add).unwrap();
                             }
                         }
 
@@ -719,7 +725,6 @@ impl StrategicAlgorithm {
                         }
                     },
                     ScheduleWorkOrder::Unschedule => {
-                        
                         // Unscheduling is easier but we need to be clear on how we should handle
                         // the different resources. QUESTION: How should we subtract the different
                         // resources. The period is given and the question is how to subtract the
@@ -735,12 +740,19 @@ impl StrategicAlgorithm {
                         let mut work_order_resource_loadings = StrategicResources::default();
 
                         let mut technician_loadings = loading_resources.clone();
-
-                        unsafe { asm!("int3") }
                         for work in work_load_permutation.iter_mut() {
                             // Here you have to subtract the technician_permutation.
-                            for technician_permutation in &mut technician_permutation {
-                                let technician = technician_loadings.get_mut(&technician_permutation.0).unwrap();
+                            ensure!(technician_permutation
+                                    .iter()
+                                    .flat_map(|ele| ele.1.skill_hours.keys())
+                                    .collect::<HashSet<_>>()
+                                    .contains(&work.0)
+                                ,
+                                format!("Work_load{:#?}\n{:#?}\nfile: {}\nline: {}", work_load, technician_permutation, file!(), line!())
+                            );
+
+                            for technician_difference_capacity in &mut technician_permutation {
+                                let technician = technician_loadings.get_mut(&technician_difference_capacity.0).unwrap();
 
                                 if !technician.skill_hours.contains_key(&work.0) {
                                     continue
@@ -749,14 +761,14 @@ impl StrategicAlgorithm {
                                 if  technician.total_hours >= work.1 {
                                     technician.total_hours -= work.1;
                                     technician.skill_hours.iter_mut().for_each(|ele| *ele.1 -= work.1);
-                                    work_order_resource_loadings.update_load(period, work.1, &(technician_permutation.0.clone(), technician.clone()), LoadOperation::Sub).expect("Resource subtraction should always be possible.");
+                                    work_order_resource_loadings.update_load(period, work.0, work.1, &(technician_difference_capacity.0.clone(), technician.clone()), LoadOperation::Sub).expect("Resource subtraction should always be possible.");
                                     work.1 = Work::from(0.0);
 
                                     // If all the resource is removed from the operation_work, we should break and move on to the next operation.
                                     break;
                                 } else {
                                     work.1 -= technician.total_hours;
-                                    work_order_resource_loadings.update_load(period, technician.total_hours, &(technician_permutation.0.clone(), technician.clone()), LoadOperation::Sub).expect("Resource subtraction should always be possible.");
+                                    work_order_resource_loadings.update_load(period, work.0, technician.total_hours, &(technician_difference_capacity.0.clone(), technician.clone()), LoadOperation::Sub).expect("Resource subtraction should always be possible.");
                                     technician.total_hours = Work::from(0.0); 
                                     technician.skill_hours.iter_mut().for_each(|ele| *ele.1 = Work::from(0.0));
 
@@ -766,8 +778,11 @@ impl StrategicAlgorithm {
                                 }
                             }
                         }
+                        // If all work_load_permutation are Work::from(0.0) we can simply return the value.
                         if work_load_permutation.iter().all(|res_wor| res_wor.1 == Work::from(0.0)) {
                             return Ok(Some(work_order_resource_loadings));
+                        } else {
+                            unsafe { asm!("int3") }
                         }
                     },
                 }
@@ -781,7 +796,6 @@ impl StrategicAlgorithm {
                         }
                     },
                     ScheduleWorkOrder::Forced => {
-                        unsafe { asm!("int3") }
                         let equal_resources =
                             // Example:
                             // * let a = work_load.keys(): MTN_MECH
@@ -910,7 +924,7 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
                 let work_load = self.strategic_parameters.strategic_work_order_parameters.get(&work_order_number).unwrap().work_load.clone();
                 let strategic_resources = self
                     .determine_best_permutation(work_load, &unschedule_from_period, ScheduleWorkOrder::Unschedule)
-                    .with_context(|| format!("{:?}\nin period {:#?}\nfor {:?}", work_order_number, unschedule_from_period, ScheduleWorkOrder::Unschedule))?
+                    .with_context(|| format!("{:?}\n{:#?}\nfor {:?}", work_order_number, unschedule_from_period, ScheduleWorkOrder::Unschedule))?
                     .context("Determining the StrategicResources associated with a unscheduling operation should always be possible")?;
 
                 self.update_loadings(strategic_resources, LoadOperation::Sub);
@@ -1072,8 +1086,18 @@ impl StrategicAlgorithm {
             event!(Level::TRACE, "Work order {:?} has been added to the normal queue", work_order_number);
 
 
-            if self.strategic_periods().get(work_order_number).unwrap().is_none() {
-                let strategic_work_order_weight = self.strategic_parameters.strategic_work_order_parameters.get(work_order_number).expect("The StrategicParameter should always be available for the StrategicSolution").weight;
+            let strategic_parameter = self
+                .strategic_parameters
+                .strategic_work_order_parameters
+                .get(work_order_number)
+                .expect("The StrategicParameter should always be available for the StrategicSolution");
+
+
+            if strategic_parameter.locked_in_period.is_none()
+                && self.strategic_periods().get(work_order_number).unwrap().is_none() {
+
+              
+                let strategic_work_order_weight = strategic_parameter.weight;
                 self.priority_queues
                     .normal
                     .push(*work_order_number, strategic_work_order_weight);
@@ -1330,7 +1354,9 @@ Period::from_str("2023-W49-50").unwrap(),
             .strategic_periods
             .insert(work_order_number, Some(Period::from_str("2024-W41-42").unwrap()));
 
-        strategic_algorithm.schedule_forced_work_orders().unwrap();
+        strategic_algorithm
+            .schedule_forced_work_orders()
+            .unwrap();
 
         strategic_algorithm.unschedule(work_order_number).unwrap();
         assert_eq!(

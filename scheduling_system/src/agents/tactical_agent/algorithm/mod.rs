@@ -116,7 +116,7 @@ impl TacticalAlgorithm {
         work_order: &WorkOrder,
     ) {
         let mut tactical_parameter = TacticalParameter::new(
-            work_order.main_work_center.clone(),
+            work_order.main_work_center,
             HashMap::new(),
             work_order.work_order_weight(),
             work_order.relations().clone(),
@@ -130,7 +130,7 @@ impl TacticalAlgorithm {
                 operation.duration().unwrap(),
                 operation.operating_time().unwrap(),
                 operation.work_remaining().unwrap(),
-                operation.resource().clone(),
+                *operation.resource(),
             );
             tactical_parameter
                 .tactical_operation_parameters
@@ -433,7 +433,7 @@ impl LargeNeighborhoodSearch for TacticalAlgorithm {
                     .get(activity)
                     .expect("The work order should always have its corresponding parameters");
 
-                let resource = operation_parameters.resource.clone();
+                let resource = operation_parameters.resource;
 
                 let current_day_peek = match current_day.peek() {
                     Some(day) => day,

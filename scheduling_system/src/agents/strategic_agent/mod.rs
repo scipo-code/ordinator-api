@@ -88,6 +88,7 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 
         self.strategic_algorithm
             .schedule_forced_work_orders()
+            .with_context(|| format!("{:#?}", schedule_iteration))
             .expect("It should always be possible to force schedule work orders");
 
         self.strategic_algorithm.calculate_objective_value();

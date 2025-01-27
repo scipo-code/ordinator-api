@@ -73,7 +73,7 @@ impl StrategicAssertions for StrategicAlgorithm {
                         // We just need to test that the total hours are correct. We do not have to focus
                         // on the individual resources. We can handle that in another assert function.
 
-                        match aggregated_strategic_load.entry((period, resource.clone())) {
+                        match aggregated_strategic_load.entry((period, resource)) {
                             Entry::Occupied(mut occupied_entry) => {
                                 *occupied_entry.get_mut() += load;
                             }

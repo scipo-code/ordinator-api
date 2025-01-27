@@ -37,17 +37,23 @@ pub struct ScheduleIteration {
 
 impl fmt::Debug for ScheduleIteration {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let string = format!(
-            "{}: {}",
-            std::any::type_name::<ScheduleIteration>()
-                .split("::")
-                .last()
-                .unwrap(),
-            self.loop_iteration
-        )
-        .bright_magenta();
+        if f.alternate() {
+            let string = format!(
+                "{}: {}",
+                std::any::type_name::<ScheduleIteration>()
+                    .split("::")
+                    .last()
+                    .unwrap(),
+                self.loop_iteration
+            )
+            .bright_magenta();
 
-        write!(f, "{}", string)
+            write!(f, "{}", string)
+        } else {
+            f.debug_struct("ScheduleIteration")
+                .field("loop_iteration", &self.loop_iteration)
+                .finish()
+        }
     }
 }
 

@@ -86,7 +86,7 @@ impl WorkerEnvironment {
 
                 for resource in &operational_agent.resources.resources {
                     skill_hours.insert(
-                        resource.clone(),
+                        *resource,
                         Work::from(
                             operational_agent.hours_per_day * days_in_period * gradual_reduction(i),
                         ),

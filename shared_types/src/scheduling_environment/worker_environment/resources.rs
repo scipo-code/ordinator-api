@@ -19,6 +19,7 @@ use crate::InputSupervisor;
     Deserialize,
     EnumIter,
     clap::ValueEnum,
+    Copy,
 )]
 pub enum Resources {
     #[serde(rename = "MTN-PIPF")]

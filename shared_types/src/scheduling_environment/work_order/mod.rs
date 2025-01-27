@@ -403,7 +403,7 @@ impl WorkOrder {
 
         for (_, operation) in self.operations.iter() {
             *work_load
-                .entry(operation.resource().clone())
+                .entry(*operation.resource())
                 .or_insert(Work::from(0.0)) += operation.work_remaining().unwrap();
         }
 

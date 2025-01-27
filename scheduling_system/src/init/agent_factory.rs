@@ -329,7 +329,7 @@ fn initialize_tactical_resources(
         {
             days.insert(day.clone(), start_value);
         }
-        resource_capacity.insert(resource.clone(), Days::new(days));
+        resource_capacity.insert(*resource, Days::new(days));
     }
     TacticalResources::new(resource_capacity)
 }
