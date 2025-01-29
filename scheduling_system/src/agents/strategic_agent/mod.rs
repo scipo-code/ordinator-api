@@ -97,6 +97,13 @@ impl Handler<ScheduleIteration> for StrategicAgent {
 
         self.strategic_algorithm
             .unschedule_random_work_orders(50, rng)
+            .with_context(|| {
+                format!(
+                    "{:?} of StrategicAlgorithm. {:#?}",
+                    schedule_iteration,
+                    self.strategic_algorithm.calculate_utilization()
+                )
+            })
             .expect("Unscheduling random work order should always be possible");
 
         // assert_eq!(self.strategic_algorithm.priority_queues.normal.len(), 1000);

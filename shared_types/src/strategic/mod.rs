@@ -8,7 +8,7 @@ pub mod strategic_response_resources;
 pub mod strategic_response_scheduling;
 pub mod strategic_response_status;
 
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 use clap::Subcommand;
 use std::{
     collections::{hash_map::Entry, HashMap},
@@ -232,6 +232,28 @@ impl OperationalResource {
 }
 
 impl StrategicResources {
+    pub fn assert_well_shaped_resources(&self) -> Result<()> {
+        for period in &self.0 {
+            for operational_resource in period.1 {
+                let total_hours = operational_resource.1.total_hours;
+                ensure!(
+                    operational_resource
+                        .1
+                        .skill_hours
+                        .values()
+                        .all(|wor| *wor == total_hours),
+                    format!(
+                        "StrategicResources are not well shaped: {:#?}",
+                        operational_resource.1
+                    )
+                )
+            }
+        }
+        Ok(())
+    }
+}
+
+impl StrategicResources {
     pub fn new(resources: HashMap<Period, HashMap<OperationalId, OperationalResource>>) -> Self {
         Self(resources)
     }
@@ -267,40 +289,56 @@ impl StrategicResources {
         // We should make sure that the code here respects the new resource if it does not exist
         // QUESTION:
         // Where should this process occur? It does not change the understanding of the total
-        let total_hours_for_technician: Work = match operational.entry(operational_id.0.clone()) {
-            Entry::Occupied(mut entry) => {
-                match load_operation {
-                    LoadOperation::Add => {
-                        entry.get_mut().total_hours += load;
-                        entry
-                            .get_mut()
-                            .skill_hours
-                            .iter_mut()
-                            .for_each(|ski_loa| *ski_loa.1 += load);
-                    }
-                    LoadOperation::Sub => {
-                        entry.get_mut().total_hours -= load;
-                        entry
-                            .get_mut()
-                            .skill_hours
-                            .iter_mut()
-                            .for_each(|ski_loa| *ski_loa.1 -= load);
-                    }
+        match operational.entry(operational_id.0.clone()) {
+            Entry::Occupied(mut operational_resource) => match load_operation {
+                LoadOperation::Add => {
+                    let previous_total_hours = operational_resource.get().total_hours;
+                    operational_resource
+                        .get_mut()
+                        .skill_hours
+                        .entry(resource)
+                        .or_insert(previous_total_hours);
+
+                    operational_resource.get_mut().total_hours += load;
+
+                    operational_resource
+                        .get_mut()
+                        .skill_hours
+                        .iter_mut()
+                        .for_each(|ski_loa| *ski_loa.1 += load);
                 }
-                entry.get().total_hours
-            }
+                LoadOperation::Sub => {
+                    let previous_total_hours = operational_resource.get().total_hours;
+                    operational_resource
+                        .get_mut()
+                        .skill_hours
+                        .entry(resource)
+                        .or_insert(previous_total_hours);
+                    operational_resource.get_mut().total_hours -= load;
+                    operational_resource
+                        .get_mut()
+                        .skill_hours
+                        .iter_mut()
+                        .for_each(|ski_loa| *ski_loa.1 -= load);
+                }
+            },
             // I do not think that this should be here! The update_load here should be called the
             // update_or_create_load as that is what the function is doing! I think that if a new
             // load enters the system it should not be done through here. But through elsewhere.
             // FIX This should be possible to reach! I am not sure.
-            Entry::Vacant(entry) => match load_operation {
+            Entry::Vacant(operational_resource_entry) => match load_operation {
                 LoadOperation::Add => {
                     let total_load_hours = Work::from(load.to_f64());
                     let mut skill_hours: HashMap<Resources, Work> = HashMap::new();
 
-                    operational_id.1.skill_hours.iter().for_each(|res_wor| {
-                        skill_hours.insert(*res_wor.0, total_load_hours);
-                    });
+                    operational_id
+                        .1
+                        .skill_hours
+                        .keys()
+                        .chain(std::iter::once(&resource))
+                        .for_each(|res| {
+                            skill_hours.insert(*res, total_load_hours);
+                        });
 
                     let operational_resource = OperationalResource::new(
                         operational_id.0.clone(),
@@ -308,39 +346,30 @@ impl StrategicResources {
                         skill_hours,
                     );
 
-                    entry.insert(operational_resource);
-                    total_load_hours
+                    operational_resource_entry.insert(operational_resource);
                 }
                 LoadOperation::Sub => {
                     let total_load_hours = Work::from(-load.to_f64());
                     let mut skill_hours = HashMap::new();
 
-                    operational_id.1.skill_hours.iter().for_each(|ele| {
-                        skill_hours.insert(*ele.0, total_load_hours);
-                    });
+                    operational_id
+                        .1
+                        .skill_hours
+                        .keys()
+                        .chain(std::iter::once(&resource))
+                        .for_each(|res| {
+                            skill_hours.insert(*res, total_load_hours);
+                        });
 
                     let operational_resource = OperationalResource::new(
                         operational_id.0.clone(),
                         total_load_hours,
                         skill_hours,
                     );
-                    entry.insert(operational_resource);
-                    total_load_hours
+                    operational_resource_entry.insert(operational_resource);
                 }
             },
         };
-        if !operational
-            .get(&operational_id.0)
-            .unwrap()
-            .skill_hours
-            .contains_key(&resource)
-        {
-            operational
-                .get_mut(&operational_id.0)
-                .unwrap()
-                .skill_hours
-                .insert(resource, total_hours_for_technician);
-        }
         Ok(())
     }
 
