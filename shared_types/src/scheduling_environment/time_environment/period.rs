@@ -15,27 +15,45 @@ pub struct Period {
     end_date: DateTime<Utc>,
     pub year: i32,
     pub start_week: u32,
-    pub end_week: u32,
+    pub finish_week: u32,
 }
 
 impl std::fmt::Debug for Period {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            format!(
-                "Period {{\n\t\tid_internal: {}, \n\t\tperiod_string: {}, \n\t\tstart_date: {}, \n\t\tfinish_date: {}, \n\t\tyear: {}, \n\t\tstart_week: {}, \n\t\tfinish_week: {}\n}}",
-                self.id_internal,
-                self.period_string,
-                self.start_date, 
-                self.end_date, 
-                self.year, 
-                self.start_week, 
-                self.end_week, 
-                
+        if f.alternate() {
+            write!(
+                f,
+                "{}",
+                format!(
+                    "Period {{\n\t\t{}: {}, \n\t\t{}: {}, \n\t\t{}: {}, \n\t\t{}: {}\n}}",
+                    "id_internal",
+                    self.id_internal,
+                    "year",
+                    self.year, 
+                    "start_week",
+                    self.start_week, 
+                    "finish_week",
+                    self.finish_week, 
+                )
+                .bright_green()
             )
-            .bright_green()
-        )
+        } else {
+            write!(
+                f,
+                "{}",
+                format!(
+                    "Period {{\n\t\tid_internal: {}, \n\t\tperiod_string: {}, \n\t\tstart_date: {}, \n\t\tfinish_date: {}, \n\t\tyear: {}, \n\t\tstart_week: {}, \n\t\tfinish_week: {}\n}}",
+                    self.id_internal,
+                    self.period_string,
+                    self.start_date, 
+                    self.end_date, 
+                    self.year, 
+                    self.start_week, 
+                    self.finish_week, 
+                )
+                .bright_green()
+            )
+        }
     }
 }
 
@@ -64,7 +82,7 @@ impl Period {
             end_date,
             year,
             start_week,
-            end_week,
+            finish_week: end_week,
         }
     }
 
@@ -224,7 +242,7 @@ impl FromStr for Period {
             end_date,
             year,
             start_week,
-            end_week,
+            finish_week: end_week,
         })
     }
 }

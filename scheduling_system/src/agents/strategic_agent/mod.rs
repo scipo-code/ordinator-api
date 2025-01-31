@@ -179,6 +179,7 @@ mod tests {
     use shared_types::scheduling_environment::work_order::operation::Work;
     use shared_types::strategic::strategic_request_scheduling_message::ScheduleChange;
     use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
+    use shared_types::strategic::OperationalResource;
     use shared_types::strategic::StrategicResources;
     use tests::algorithm::strategic_parameters::StrategicParameter;
     use tests::algorithm::strategic_parameters::StrategicParameters;
@@ -296,20 +297,38 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_objective_value() {
+    fn test_calculate_objective_value() -> Result<()> {
         let work_order_number = WorkOrderNumber(2100023841);
+
+        let period = Period::from_str("2023-W49-50").unwrap();
+
+        let operational_resource_1 = OperationalResource::new(
+            "OP_TEST_0",
+            Work::from(40.0),
+            vec![Resources::MtnMech, Resources::MtnElec, Resources::VenMech],
+        );
+        let operational_resource_2 = OperationalResource::new(
+            "OP_TEST_1",
+            Work::from(40.0),
+            vec![Resources::MtnScaf, Resources::MtnElec, Resources::VenMech],
+        );
+        let mut strategic_resources = StrategicResources::default();
+
+        strategic_resources.insert_operational_resource(period.clone(), operational_resource_1);
+        strategic_resources.insert_operational_resource(period.clone(), operational_resource_2);
+
         let mut strategic_parameters = StrategicParameters::new(
             HashMap::new(),
-            StrategicResources::default(),
+            strategic_resources,
             StrategicClustering::default(),
         );
 
         let strategic_parameter = StrategicParameter::new(
-            Some(Period::from_str("2023-W49-50").unwrap()),
+            Some(period),
             HashSet::new(),
             Period::from_str("2023-W47-48").unwrap(),
             1000,
-            HashMap::new(),
+            HashMap::from([(Resources::MtnMech, Work::from(10.0))]),
         );
 
         strategic_parameters
@@ -329,8 +348,7 @@ mod tests {
             .insert(work_order_number, None);
 
         strategic_algorithm
-            .schedule_forced_work_order(&ForcedWorkOrder::Locked(work_order_number))
-            .unwrap();
+            .schedule_forced_work_order(&ForcedWorkOrder::Locked(work_order_number))?;
 
         strategic_algorithm.calculate_objective_value();
 
@@ -341,5 +359,6 @@ mod tests {
                 .objective_value,
             2000
         );
+        Ok(())
     }
 }

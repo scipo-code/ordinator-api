@@ -94,11 +94,11 @@ impl WorkerEnvironment {
                 }
 
                 let operational_resource = OperationalResource::new(
-                    operational_agent.id.clone(),
+                    &operational_agent.id,
                     Work::from(
                         operational_agent.hours_per_day * days_in_period * gradual_reduction(i),
                     ),
-                    skill_hours,
+                    operational_agent.resources.resources.clone(),
                 );
 
                 operational_resource_map.insert(operational_agent.id.clone(), operational_resource);

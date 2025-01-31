@@ -214,17 +214,19 @@ pub struct StrategicResources(
     #[serde(with = "any_key_map")] pub HashMap<Period, HashMap<OperationalId, OperationalResource>>,
 );
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, Default)]
 pub struct OperationalResource {
-    id: String,
+    pub id: OperationalId,
     pub total_hours: Work,
     pub skill_hours: HashMap<Resources, Work>,
 }
 
 impl OperationalResource {
-    pub fn new(id: String, total_hours: Work, skill_hours: HashMap<Resources, Work>) -> Self {
+    pub fn new(id: &str, total_hours: Work, skills: Vec<Resources>) -> Self {
+        let skill_hours = skills.iter().map(|ski| (*ski, total_hours)).collect();
+
         Self {
-            id,
+            id: id.to_string(),
             total_hours,
             skill_hours,
         }
@@ -251,6 +253,20 @@ impl StrategicResources {
         }
         Ok(())
     }
+
+    pub fn insert_operational_resource(
+        &mut self,
+        period: Period,
+        operational_resource: OperationalResource,
+    ) {
+        let operational_key = operational_resource.id.clone();
+        self.0
+            .entry(period)
+            .and_modify(|ele| {
+                ele.insert(operational_key.clone(), operational_resource.clone());
+            })
+            .or_insert_with(|| HashMap::from([(operational_key, operational_resource)]));
+    }
 }
 
 impl StrategicResources {
@@ -268,28 +284,16 @@ impl StrategicResources {
         period: &Period,
         resource: Resources,
         load: Work,
-        operational_id: &(OperationalId, OperationalResource),
+        operational_resource: &OperationalResource,
         load_operation: LoadOperation,
-    ) -> Result<()> {
+    ) {
         let period_entry = self.0.entry(period.clone());
         let operational = match period_entry {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(entry) => entry.insert(HashMap::new()),
         };
 
-        // Here the heuristic starts! I think that the best approach would be to
-        // make the code work on. Okay I think that the code for the
-        //
-        // Do we need the &Resources here? Ideally no as that information is already
-        // present in the operational_id of the problem. I think that the best approach
-        // here is to leave it out. The resources in question is given uniquely by the
-        // operational_id. There is something here that is not quite right. Be ready to
-        // change it.
-        // FIX:
-        // We should make sure that the code here respects the new resource if it does not exist
-        // QUESTION:
-        // Where should this process occur? It does not change the understanding of the total
-        match operational.entry(operational_id.0.clone()) {
+        match operational.entry(operational_resource.id.clone()) {
             Entry::Occupied(mut operational_resource) => match load_operation {
                 LoadOperation::Add => {
                     let previous_total_hours = operational_resource.get().total_hours;
@@ -322,55 +326,40 @@ impl StrategicResources {
                         .for_each(|ski_loa| *ski_loa.1 -= load);
                 }
             },
-            // I do not think that this should be here! The update_load here should be called the
-            // update_or_create_load as that is what the function is doing! I think that if a new
-            // load enters the system it should not be done through here. But through elsewhere.
-            // FIX This should be possible to reach! I am not sure.
             Entry::Vacant(operational_resource_entry) => match load_operation {
                 LoadOperation::Add => {
                     let total_load_hours = Work::from(load.to_f64());
-                    let mut skill_hours: HashMap<Resources, Work> = HashMap::new();
-
-                    operational_id
-                        .1
-                        .skill_hours
-                        .keys()
-                        .chain(std::iter::once(&resource))
-                        .for_each(|res| {
-                            skill_hours.insert(*res, total_load_hours);
-                        });
 
                     let operational_resource = OperationalResource::new(
-                        operational_id.0.clone(),
+                        &operational_resource.id,
                         total_load_hours,
-                        skill_hours,
+                        operational_resource
+                            .skill_hours
+                            .keys()
+                            .chain(std::iter::once(&resource))
+                            .cloned()
+                            .collect(),
                     );
 
                     operational_resource_entry.insert(operational_resource);
                 }
                 LoadOperation::Sub => {
                     let total_load_hours = Work::from(-load.to_f64());
-                    let mut skill_hours = HashMap::new();
-
-                    operational_id
-                        .1
-                        .skill_hours
-                        .keys()
-                        .chain(std::iter::once(&resource))
-                        .for_each(|res| {
-                            skill_hours.insert(*res, total_load_hours);
-                        });
 
                     let operational_resource = OperationalResource::new(
-                        operational_id.0.clone(),
+                        &operational_resource.id,
                         total_load_hours,
-                        skill_hours,
+                        operational_resource
+                            .skill_hours
+                            .keys()
+                            .chain(std::iter::once(&resource))
+                            .cloned()
+                            .collect(),
                     );
                     operational_resource_entry.insert(operational_resource);
                 }
             },
         };
-        Ok(())
     }
 
     pub fn update_resource_capacities(&mut self, resources: Self) -> Result<()> {

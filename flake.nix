@@ -22,24 +22,26 @@
       in {
         devShells.default = pkgs.mkShell {
           buildInputs = [
-            pkgs.linuxKernel.packages.linux_zen.perf
+            (pkgs.gnuplot.override {
+              lua = pkgs.lua;
+              withLua = true;
+            })
             pkgs.cargo-cross
             pkgs.cargo-release
-            pkgs.rust-bin.beta.latest.default
-            pythonEnv
-            pkgs.git
-            pkgs.zellij
-            (pkgs.gnuplot.override {
-              withLua = true;
-              lua = pkgs.lua;
-            })
-            pkgs.nushell
-            pkgs.jq
-            pkgs.openssl_3_3
             pkgs.clang
-            pkgs.libxlsxwriter
-            pkgs.pkg-config
+            pkgs.flamegraph
+            pkgs.git
+            pkgs.jq
             pkgs.libunwind
+            pkgs.libxlsxwriter
+            pkgs.linuxKernel.packages.linux_zen.perf
+            pkgs.nushell
+            pkgs.openssl_3_3
+            pkgs.pkg-config
+            pkgs.rust-bin.beta.latest.default
+            pkgs.zellij
+            pythonEnv
+
           ];
         };
         packages.default = pkgs.buildRustPackage {

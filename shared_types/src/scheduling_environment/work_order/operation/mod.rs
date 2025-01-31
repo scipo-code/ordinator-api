@@ -75,6 +75,15 @@ impl Work {
     pub fn cal_duration(&self, number: u64) -> Work {
         Work(self.0 / Decimal::from_u64(number).unwrap())
     }
+
+    pub fn divide_work(&self, work: Work) -> Work {
+        let value = self.0 / work.0;
+        Work(value)
+    }
+
+    pub fn equal(&self, aggregate_strategic_resource: Work) -> bool {
+        self.0.round_dp(5) == aggregate_strategic_resource.0.round_dp(5)
+    }
 }
 
 impl std::ops::Add for Work {

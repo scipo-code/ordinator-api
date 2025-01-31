@@ -345,7 +345,7 @@ impl LargeNeighborhoodSearch for TacticalAlgorithm {
             counter += 1;
 
             event!(
-                Level::INFO,
+                Level::DEBUG,
                 main_loop_counter = counter,
                 start_day_index = start_day_index,
                 priority_queue_len = self.priority_queue.len(),

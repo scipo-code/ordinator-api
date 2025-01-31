@@ -44,3 +44,34 @@ list-all-work-orders:
 
 call-create-all-plot-for-ablns: call-strategic-inclusion-script call-strategic-exclusion-script call-strategic-resources-addition-script call-strategic-resources-subtraction-script call-strategic-work-order-value-script
     echo "All 5 simulation scripts have been called"
+
+profile-thread TID DURATION:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    usage() {
+        echo "Usage: $0 <TID> [<duration_sec>]"
+        echo
+        echo "TID: THREAD ID to profile"
+        echo "duration_sec: Optional. Time to profile. Defaults to 10s if not provided."
+        exit 1
+    }
+
+    if [ $# -lt 1]; then
+        usage
+    fi
+
+    TID={{ TID }} 
+    DURATION={{ DURATION }}
+
+    echo "Recording perf data for TID=$TID for $DURATION seconds..."
+    perf record -F 99 -g --tid "$TID" -- sleep "$DURATION"
+
+    echo "Converting perf.data to out.perf..."
+    perf script > out.perf
+
+    echo "Generating flame graph out.svg..."
+    flamegraph.pl out.folded > out.svg
+
+    echo "Done. Opening svg file"
+    firefox out.svg

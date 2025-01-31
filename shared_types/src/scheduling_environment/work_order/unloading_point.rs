@@ -20,10 +20,10 @@ impl UnloadingPoint {
                     if start_year_and_weeks.0.is_some() {
                         period.year == start_year_and_weeks.0.unwrap() + 2000
                             && (period.start_week == start_year_and_weeks.1.unwrap_or(0)
-                                || period.end_week == start_year_and_weeks.1.unwrap_or(0))
+                                || period.finish_week == start_year_and_weeks.1.unwrap_or(0))
                     } else {
                         period.start_week == start_year_and_weeks.1.unwrap_or(0)
-                            || period.end_week == start_year_and_weeks.1.unwrap_or(0)
+                            || period.finish_week == start_year_and_weeks.1.unwrap_or(0)
                     }
                 })
                 .cloned(),
