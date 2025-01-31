@@ -57,15 +57,11 @@ profile-thread TID DURATION:
         exit 1
     }
 
-    if [ $# -lt 1]; then
-        usage
-    fi
-
     TID={{ TID }} 
     DURATION={{ DURATION }}
 
     echo "Recording perf data for TID=$TID for $DURATION seconds..."
-    perf record -F 99 -g --tid "$TID" -- sleep "$DURATION"
+    perf record --call-graph dwarf --all-user -F 99 -g --tid "$TID" -- sleep "$DURATION"
 
     echo "Converting perf.data to out.perf..."
     perf script > out.perf

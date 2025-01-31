@@ -23,6 +23,7 @@ use shared_types::strategic::strategic_response_periods::StrategicResponsePeriod
 use shared_types::strategic::strategic_response_scheduling::StrategicResponseScheduling;
 use shared_types::{Asset, LoadOperation};
 use std::any::type_name;
+use std::arch::asm;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::sync::Arc;
@@ -562,7 +563,7 @@ impl StrategicAlgorithm {
             return Ok(None)
         }
 
-        let loading_resources: HashMap<String, OperationalResource> = self
+        let strategic_resources_loading: HashMap<String, OperationalResource> = self
             .strategic_solution
             .strategic_loadings
             .0
@@ -573,14 +574,14 @@ impl StrategicAlgorithm {
         // This is the difference between the capacity and the loading
         // * val < 0: loading is higher than capacity
         // * val > 0: capacity is higher than loading
-        let difference_resources = determine_difference_resources(capacity_resources, &loading_resources);
+        let difference_resources = determine_difference_resources(capacity_resources, &strategic_resources_loading);
 
         let mut technician_permutation_counter = 0;
 
         let permutation_length = difference_resources.len();
         for mut technician_permutation in difference_resources.clone().into_values().permutations(permutation_length) {
             technician_permutation_counter += 1;
-            dbg!(technician_permutation_counter);
+            // dbg!(technician_permutation_counter);
             let mut work_load_permutation_counter = 0;
             for mut work_load_permutation in work_load.clone().into_iter().permutations(work_load.len()) {
 
@@ -591,8 +592,28 @@ impl StrategicAlgorithm {
                 let strategic_resource_loadings_option = match schedule {
                     ScheduleWorkOrder::Normal => determine_normal_work_order_resource_loadings(period, &mut technician_permutation, &mut work_load_permutation),
                     ScheduleWorkOrder::Forced if technician_permutation_counter >= 100 => return Ok(Some(best_work_order_resource_loadings)),
-                    ScheduleWorkOrder::Forced => determine_forced_work_order_resource_loadings(period, &mut best_total_excess, &mut best_work_order_resource_loadings, &mut technician_permutation, &mut work_load_permutation),
-                    ScheduleWorkOrder::Unschedule => determine_unschedule_work_resource_loadings(period, &loading_resources, &mut work_load_permutation)
+                    ScheduleWorkOrder::Forced => {
+                        let strategic_resource_loadings_option = determine_forced_work_order_resource_loadings(period, &mut best_total_excess, &mut best_work_order_resource_loadings, &mut technician_permutation, &mut work_load_permutation);
+
+                        assert_work_load_equal_to_strategic_resource(period, &best_work_order_resource_loadings, &work_load, LoadOperation::Add)
+                            .with_context(||format!("file: {}\nline: {}", file!(), line!()))?;
+
+                        if let Some(ref strategic_resource_loading) = strategic_resource_loadings_option {
+                            assert_work_load_equal_to_strategic_resource(period, strategic_resource_loading, &work_load, LoadOperation::Add)
+                                .with_context(||format!("file: {}\nline: {}", file!(), line!()))?;
+                        }
+
+                        strategic_resource_loadings_option
+                    },
+                    ScheduleWorkOrder::Unschedule => {
+                        let strategic_resources_option = determine_unschedule_work_resource_loadings(period, &strategic_resources_loading, &mut work_load_permutation);
+
+                        if let Some(ref strategic_resources) = strategic_resources_option {
+                            assert_work_load_equal_to_strategic_resource(period, strategic_resources, &work_load, LoadOperation::Sub)
+                                .with_context(|| format!("strategic_resources_loading: {:#?}\nfile: {}\nline: {}",&strategic_resources_loading, file!(), line!()))?;
+                        }
+                        strategic_resources_option
+                    }
                 };
 
                 // If the work_order_resource_loadings is none it means
@@ -636,21 +657,10 @@ impl StrategicAlgorithm {
                     },
                     // It is always possible to unschedule work, so therefore we can simply
                     ScheduleWorkOrder::Unschedule => {
-                        let aggregate_strategic_resource = strategic_resource_loadings
-                                .0
-                                .get(period)
-                                .with_context(|| format!("{:#?}\nnot present. This probably means that nothing was {:#?}\nfile: {}\nline: {}", period, ScheduleWorkOrder::Unschedule, file!(), line!()))?
-                                .iter()
-                                .fold(Work::from(0.0), |acc, or| acc + or.1.total_hours);
 
-                        let aggregate_work_load = work_load
-                                .values()
-                                .fold(Work::from(0.0), |acc, wor| acc - *wor);
+                        assert_work_load_equal_to_strategic_resource(period, &strategic_resource_loadings, &work_load, LoadOperation::Sub)
+                            .with_context(|| format!("file: {}\nline: {}", file!(), line!()))?;
 
-                        let value =
-                            aggregate_work_load.equal(aggregate_strategic_resource); 
-
-                        ensure!(value, format!("Aggregate Work:\nStrategicResources: {:#?}\nwork_load: {:#?}\n\n{:#?} {:#?}\nfile: {}\nline: {}", aggregate_strategic_resource, aggregate_work_load, work_load, strategic_resource_loadings, file!(), line!()));
                         if work_load_permutation.iter().all(|res_wor| res_wor.1 == Work::from(0.0)) {
                             return Ok(Some(strategic_resource_loadings));
                         }
@@ -668,7 +678,31 @@ impl StrategicAlgorithm {
     }
 }
 
+fn assert_work_load_equal_to_strategic_resource(period:&Period, strategic_resource_loadings: &StrategicResources, work_load: &HashMap<Resources, Work>, load_operation: LoadOperation) -> Result<()> {
+
+    let aggregate_strategic_resource = strategic_resource_loadings
+            .0
+            .get(period)
+            .with_context(|| format!("{:#?}\nnot present. This probably means that nothing was {:#?}\nfile: {}\nline: {}", period, ScheduleWorkOrder::Unschedule, file!(), line!()))?
+            .iter()
+            .fold(Work::from(0.0), |acc, or| acc + or.1.total_hours);
+
+    let aggregate_work_load = work_load
+            .values()
+            .fold(Work::from(0.0), |acc, wor| match load_operation {
+                LoadOperation::Add => acc + *wor,
+                LoadOperation::Sub => acc - *wor,
+            }
+                );
+
+    let value = aggregate_work_load.equal(aggregate_strategic_resource); 
+
+    ensure!(value, format!("Aggregate Work:\nStrategicResources: {:#?}\nwork_load: {:#?}\n\n{:#?} {:#?}\nfile: {}\nline: {}", aggregate_strategic_resource, aggregate_work_load, work_load, strategic_resource_loadings, file!(), line!()));
+    Ok(())
+}
+
 fn determine_unschedule_work_resource_loadings(period: &Period, loading_resources: &HashMap<String, OperationalResource>, work_load_permutation: &mut [(Resources, Work)]) -> Option<StrategicResources> {
+
     let mut strategic_resources = StrategicResources::default();
     let mut loading_resources_cloned = loading_resources.clone();
     for (resources, work) in work_load_permutation.iter_mut() {
@@ -700,7 +734,7 @@ fn determine_unschedule_work_resource_loadings(period: &Period, loading_resource
             } else {
                 *work -= operational_resource.total_hours;
                 strategic_resources
-                    .update_load(period, *resources, operational_resource.total_hours,  operational_resource, LoadOperation::Sub);
+                    .update_load(period, *resources, operational_resource.total_hours, operational_resource, LoadOperation::Sub);
 
                 operational_resource.total_hours = Work::from(0.0); 
                 operational_resource.skill_hours
@@ -761,6 +795,7 @@ fn determine_forced_work_order_resource_loadings(
     } else if total_excess > *best_total_excess {
         *best_work_order_resource_loadings = work_order_resource_loadings.clone();
         *best_total_excess = total_excess;
+        dbg!(best_total_excess);
     }
     None
 }
@@ -1408,12 +1443,10 @@ mod tests {
             (Resources::MtnElec, Work::from(20.0)),
         ];
 
-
         let loading_resources = HashMap::from([
             ("OP_TEST_0".to_string(), OperationalResource::new("OP_TEST_0", Work::from(20.0), vec![Resources::MtnMech, Resources::MtnElec])),
             ("OP_TEST_1".to_string(), OperationalResource::new("OP_TEST_1", Work::from(20.0), vec![Resources::MtnScaf, Resources::MtnElec])),
         ]);
-        
         
         let strategic_resources_option = determine_unschedule_work_resource_loadings(
             &period,
@@ -1431,10 +1464,52 @@ mod tests {
         strategic_resources.insert_operational_resource(period.clone(), operational_resource_2);
 
         assert_eq!(strategic_resources, strategic_resources_option.unwrap());
-
-        
     }
 
+    #[test]
+    fn test_determine_unschedule_work_order_loadings_2() -> Result<()> {
+        let period = Period::from_str("2026-W33-34").unwrap();
+
+        let work_load_permutation = [
+            (Resources::MtnMech, Work::from(2.0)),
+            (Resources::Prodtech, Work::from(2.0)),
+            (Resources::MtnInst, Work::from(2.0)),
+            (Resources::MtnElec, Work::from(2.0)),
+        ];
+
+        let loading_resources = HashMap::from([
+            ("OP_TEST_0".to_string(), OperationalResource::new("OP_TEST_0", Work::from(2.0), vec![Resources::MtnInst, Resources::MtnMech, Resources::MtnElec])),
+            ("OP_TEST_1".to_string(), OperationalResource::new("OP_TEST_1", Work::from(6.0), vec![Resources::MtnMech, Resources::Prodtech, Resources::MtnElec])),
+            ("OP_TEST_2".to_string(), OperationalResource::new("OP_TEST_2", Work::from(0.0), vec![Resources::MtnScaf, Resources::MtnRigg, Resources::MtnLagg])),
+        ]);
+        
+        let strategic_resources_option = determine_unschedule_work_resource_loadings(
+            &period,
+            &loading_resources,
+            &mut work_load_permutation.clone(),
+        );
+
+        super::assert_work_load_equal_to_strategic_resource(
+            &period,
+            strategic_resources_option.as_ref().unwrap(),
+            &HashMap::from(work_load_permutation),
+            LoadOperation::Sub
+        )?;
+
+        assert!(strategic_resources_option.is_some());
+
+        let operational_resource_1 = OperationalResource::new("OP_TEST_0", Work::from(-20.0), vec![Resources::MtnMech, Resources::MtnElec]);
+        let operational_resource_2 = OperationalResource::new("OP_TEST_1", Work::from(-20.0), vec![Resources::MtnScaf, Resources::MtnElec]);
+        let mut strategic_resources = StrategicResources::default();
+
+        strategic_resources.insert_operational_resource(period.clone(), operational_resource_1);
+        strategic_resources.insert_operational_resource(period.clone(), operational_resource_2);
+
+        assert_eq!(strategic_resources, strategic_resources_option.unwrap());
+
+        //FIX MAKE A PROPTEST
+        Ok(())
+    }
     
     #[test]
     fn test_unschedule_random_work_orders() {

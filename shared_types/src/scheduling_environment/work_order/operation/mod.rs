@@ -9,6 +9,7 @@ use crate::scheduling_environment::{
 use crate::scheduling_environment::worker_environment::resources::Resources;
 use anyhow::Context;
 use chrono::{DateTime, Utc};
+use colored::Colorize;
 use rust_decimal::prelude::*;
 use rust_xlsxwriter::IntoExcelData;
 use serde::de::{self, MapAccess, Visitor};
@@ -32,8 +33,18 @@ pub struct Operation {
     pub operation_dates: OperationDates,
 }
 
-#[derive(Copy, Default, Hash, Eq, PartialOrd, Ord, PartialEq, Debug, Clone)]
+#[derive(Copy, Default, Hash, Eq, PartialOrd, Ord, PartialEq, Clone)]
 pub struct Work(pub Decimal);
+
+impl std::fmt::Debug for Work {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if f.alternate() {
+            write!(f, "{}", format!("Work({})", self.0).bright_yellow())
+        } else {
+            f.debug_struct("Work").field("", &self.0).finish()
+        }
+    }
+}
 
 impl FromStr for Work {
     type Err = ParseFloatError;

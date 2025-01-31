@@ -494,7 +494,6 @@ impl LargeNeighborhoodSearch for TacticalAlgorithm {
                     current_work_order_number,
                     *activity,
                 );
-                event!(Level::INFO, operation_solution = %operation_solution);
                 operation_solutions.insert_operation_solution(*activity, operation_solution);
             }
 

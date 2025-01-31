@@ -25,7 +25,7 @@ impl std::fmt::Debug for Period {
                 f,
                 "{}",
                 format!(
-                    "Period {{\n\t\t{}: {}, \n\t\t{}: {}, \n\t\t{}: {}, \n\t\t{}: {}\n}}",
+                    "Period {{\n\t{}: {}, \n\t{}: {}, \n\t{}: {}, \n\t{}: {}\n}}",
                     "id_internal",
                     self.id_internal,
                     "year",
