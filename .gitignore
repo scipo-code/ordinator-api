@@ -18,6 +18,7 @@
 **.zip
 **.data
 **.old
+**.perf
 
 # Output of the scheduling_system
 /output/*.xlsx
