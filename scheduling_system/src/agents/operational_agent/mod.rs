@@ -33,7 +33,7 @@ use crate::agents::{supervisor_agent::algorithm::delegate::Delegate, Operational
 
 use self::algorithm::OperationalAlgorithm;
 
-use super::traits::LargeNeighborhoodSearch;
+use super::traits::ActorBasedLargeNeighborhoodSearch;
 use super::ScheduleIteration;
 use super::SetAddr;
 use super::{orchestrator::NotifyOrchestrator, supervisor_agent::SupervisorAgent};
@@ -92,6 +92,8 @@ impl Actor for OperationalAgent {
     type Context = actix::Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
+        // FIX
+        // Move the whole initialization to agent factory.
         self.supervisor_agent_addr.iter().for_each(|(_, addr)| {
             addr.do_send(SetAddr::Operational(
                 self.operational_id.clone(),
@@ -146,19 +148,8 @@ impl Handler<ScheduleIteration> for OperationalAgent {
 
         self.operational_algorithm.load_shared_solution();
 
-        event!(Level::DEBUG,
-            operational_view_in_supervisor_solution = ?self.operational_algorithm.loaded_shared_solution.supervisor
-        );
-
-        event!(
-            Level::DEBUG,
-            number_of_operational_delegates = ?self
-                .operational_algorithm
-                .loaded_shared_solution
-                .supervisor
-                .state_of_agent(&self.operational_id)
-        );
-
+        // FIX: START
+        // This should be part of the `schedule` method not handled openly like here.
         let loaded_supervisor_solution =
             &self.operational_algorithm.loaded_shared_solution.supervisor;
 
@@ -175,25 +166,32 @@ impl Handler<ScheduleIteration> for OperationalAgent {
         self.operational_algorithm
             .remove_delegate_drop(&self.operational_id);
 
-        event!(
-            Level::DEBUG,
-            operational_solutions = self
-                .operational_algorithm
-                .operational_solution
-                .work_order_activities_assignment
-                .len(),
-            operational_parameters = self
-                .operational_algorithm
-                .operational_parameters
-                .work_order_parameters
-                .len()
-        );
+        // FIX: END
+
+        // FIX
+        // All kinds of event debugging should be used for
+        // event!(
+        //     Level::DEBUG,
+        //     operational_solutions = self
+        //         .operational_algorithm
+        //         .operational_solution
+        //         .work_order_activities_assignment
+        //         .len(),
+        //     operational_parameters = self
+        //         .operational_algorithm
+        //         .operational_parameters
+        //         .work_order_parameters
+        //         .len()
+        // );
+        // FIX
 
         let temporary_operational_solution: OperationalSolution =
             self.operational_algorithm.operational_solution.clone();
 
         self.operational_algorithm
-            .unschedule_random_work_order_activies(&mut rng, 15)
+            .unschedule(OperationalOptions {
+                number_of_activities: 10,
+            })
             .context("Random work orders could not be unscheduled")?;
 
         self.operational_algorithm
@@ -324,4 +322,8 @@ impl OperationalAgentBuilder {
             notify_orchestrator: self.0.notify_orchestrator,
         }
     }
+}
+
+pub struct OperationalOptions {
+    number_of_activities: usize,
 }

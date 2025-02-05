@@ -24,20 +24,16 @@ use crate::agents::SupervisorSolution;
 use self::algorithm::SupervisorAlgorithm;
 
 use super::{
-    operational_agent::OperationalAgent, orchestrator::NotifyOrchestrator,
-    tactical_agent::TacticalAgent, traits::LargeNeighborhoodSearch, ArcSwapSharedSolution,
-    ScheduleIteration, SetAddr,
+    orchestrator::NotifyOrchestrator, tactical_agent::TacticalAgent,
+    traits::ActorBasedLargeNeighborhoodSearch, ArcSwapSharedSolution, ScheduleIteration, SetAddr,
 };
 
 #[allow(dead_code)]
 pub struct SupervisorAgent {
-    supervisor_id: String,
     asset: Asset,
+    supervisor_id: String,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub supervisor_algorithm: SupervisorAlgorithm,
-    tactical_agent_addr: Addr<TacticalAgent>,
-    operational_agent_addrs: HashMap<Id, Addr<OperationalAgent>>,
-    number_of_operational_agents: Arc<AtomicU64>,
     pub notify_orchestrator: NotifyOrchestrator,
 }
 
@@ -48,10 +44,6 @@ impl Actor for SupervisorAgent {
     fn started(&mut self, ctx: &mut Self::Context) {
         self.assert_operational_state_machine_woas_is_subset_of_tactical_shared_solution()
             .unwrap();
-        self.tactical_agent_addr.do_send(SetAddr::Supervisor(
-            self.supervisor_id.clone(),
-            ctx.address(),
-        ));
         ctx.notify(ScheduleIteration::default());
     }
 }
@@ -151,9 +143,7 @@ impl SupervisorAgent {
         supervisor_id: Id,
         asset: Asset,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-        tactical_agent_addr: Addr<TacticalAgent>,
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
-        number_of_operational_agents: Arc<AtomicU64>,
         notify_orchestrator: NotifyOrchestrator,
     ) -> Result<SupervisorAgent> {
         let Id(id, resources, toml_supervisor) = supervisor_id;
@@ -178,9 +168,6 @@ impl SupervisorAgent {
                 arc_swap_shared_solution,
                 supervisor_periods,
             ),
-            tactical_agent_addr,
-            operational_agent_addrs: HashMap::new(),
-            number_of_operational_agents,
             notify_orchestrator,
         })
     }
@@ -202,7 +189,7 @@ impl SupervisorAgent {
 
         for work_order_number in sampled_work_order_numbers {
             self.supervisor_algorithm
-                .unschedule(*work_order_number)
+                .unschedule_specific_work_order(*work_order_number)
                 .with_context(|| {
                     format!(
                         "Could not unschedule work_order_number: {:?}",
@@ -251,8 +238,13 @@ impl SupervisorAgent {
                     &work_order_activity,
                 );
 
-            for operational_agent in &self.operational_agent_addrs {
-                if operational_agent.0 .1.contains(
+            for operational_agent in self
+                .supervisor_algorithm
+                .loaded_shared_solution
+                .operational
+                .keys()
+            {
+                if operational_agent.1.contains(
                     &self
                         .supervisor_algorithm
                         .supervisor_parameters
@@ -275,4 +267,13 @@ impl SupervisorAgent {
         }
         Ok(())
     }
+
+    pub(crate) fn run(&self) -> Result<()> {
+        let options = SupervisorOptions {};
+        loop {
+            self.supervisor_algorithm.run_lns_iteration(options)
+        }
+    }
 }
+
+pub struct SupervisorOptions {}

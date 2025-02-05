@@ -7,7 +7,7 @@ use shared_types::{
 
 use crate::agents::{
     tactical_agent::algorithm::tactical_parameters::TacticalParameters,
-    traits::LargeNeighborhoodSearch, AgentSpecific, SetAddr, StateLink,
+    traits::ActorBasedLargeNeighborhoodSearch, AgentSpecific, SetAddr, StateLink,
 };
 
 use super::TacticalAgent;

@@ -28,6 +28,7 @@ use shared_types::strategic::{StrategicObjectiveValue, StrategicResources};
 use shared_types::tactical::{TacticalObjectiveValue, TacticalResources};
 use supervisor_agent::algorithm::delegate::Delegate;
 use tactical_agent::algorithm::tactical_solution::OperationSolution;
+use traits::Solution;
 
 #[derive(Message, Default)]
 #[rtype(result = "Result<()>")]
@@ -213,6 +214,8 @@ pub struct OperationalSolution {
     pub objective_value: OperationalObjectiveValue,
     pub work_order_activities_assignment: Vec<(WorkOrderActivity, OperationalAssignment)>,
 }
+
+impl Solution for OperationalSolution {}
 
 impl StrategicSolution {
     pub fn supervisor_work_orders_from_strategic(

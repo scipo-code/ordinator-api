@@ -4,7 +4,7 @@ pub mod assert_functions;
 use assert_functions::StrategicAssertions;
 use shared_types::scheduling_environment::time_environment::TimeEnvironment;
 use strum::IntoEnumIterator;
-use crate::agents::traits::LargeNeighborhoodSearch;
+use crate::agents::traits::{ActorBasedLargeNeighborhoodSearch, ObjectiveValueType};
 use crate::agents::{SharedSolution, StrategicSolution, ArcSwapSharedSolution};
 use anyhow::{bail, ensure, Context, Result};
 use strategic_parameters::{StrategicClustering, StrategicParameter, StrategicParameterBuilder, StrategicParameters};
@@ -19,20 +19,21 @@ use shared_types::strategic::{OperationalResource, StrategicObjectiveValue, Stra
 use shared_types::strategic::strategic_request_periods_message::StrategicTimeRequest;
 use shared_types::strategic::strategic_request_resources_message::StrategicResourceRequest;
 use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
-use shared_types::strategic::strategic_response_periods::StrategicResponsePeriods;use shared_types::strategic::strategic_response_resources::StrategicResponseResources;
+use shared_types::strategic::strategic_response_periods::StrategicResponsePeriods;
+use shared_types::strategic::strategic_response_resources::StrategicResponseResources;
 use shared_types::strategic::strategic_response_scheduling::StrategicResponseScheduling;
 use shared_types::{Asset, LoadOperation};
 use std::any::type_name;
-use std::arch::asm;
 use std::collections::{HashMap, HashSet};
-use std::hash::Hash;
 use std::sync::Arc;
 use itertools::Itertools;
 
 use tracing::{event, instrument, Level};
 
+use super::StrategicConfiguration;
+
 pub struct StrategicAlgorithm {
-    pub priority_queues: PriorityQueues<WorkOrderNumber, u64>,
+    pub priority_queue: PriorityQueue<WorkOrderNumber, u64>,
     pub strategic_parameters: StrategicParameters,
     pub strategic_solution: StrategicSolution,
     arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
@@ -42,9 +43,6 @@ pub struct StrategicAlgorithm {
 }
 
 impl StrategicAlgorithm {
-    pub fn load_shared_solution(&mut self) {
-        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
-    }
 
     pub fn make_atomic_pointer_swap(&self) {
         // Performance enhancements:
@@ -166,13 +164,13 @@ impl StrategicAlgorithm {
         Ok(utilization_by_period)
     }
 
-    fn determine_urgency(&mut self, strategic_objective_value: &mut StrategicObjectiveValue) {
+    fn determine_urgency(&mut self, strategic_objective_value: &mut StrategicObjectiveValue) -> Result<()> {
         for (work_order_number, scheduled_period) in &self.strategic_solution.strategic_periods {
             let optimized_period = match scheduled_period {
                 Some(optimized_period) => optimized_period.clone(),
                 None => {
                     event!(Level::ERROR, "{:?} does not have a scheduled period", work_order_number);
-                    panic!("{:?} does not have a scheduled period", work_order_number);
+                    bail!("{:?} does not have a scheduled period", work_order_number);
                 }
             };
 
@@ -194,6 +192,7 @@ impl StrategicAlgorithm {
 
             strategic_objective_value.urgency.1 += period_penalty;
         }
+        Ok(())
     }
 
     fn determine_clustering(&mut self, strategic_objective_value: &mut StrategicObjectiveValue) {
@@ -284,7 +283,6 @@ impl ForcedWorkOrder {
     }
 }
 
-
 #[derive(Debug)]
 pub enum ScheduleWorkOrder {
     Normal,
@@ -296,10 +294,8 @@ impl StrategicAlgorithm {
     pub fn schedule_forced_work_orders(&mut self) -> Result<()> {
         let tactical_work_orders = &self.loaded_shared_solution.tactical.tactical_scheduled_work_orders;
         let mut work_order_numbers: Vec<ForcedWorkOrder> = vec![];
-        // There exists work order parameters that are not in the solution. Is this a problem? I think that it is a problem, but I do not really understand
-        // what should be
+        // We should create a method to update the 
         for (work_order_number, strategic_parameter) in self.strategic_parameters.strategic_work_order_parameters.iter() {
-
             let scheduled_period = self
                 .strategic_solution
                 .strategic_periods
@@ -310,7 +306,6 @@ impl StrategicAlgorithm {
                 .0
                 .get(work_order_number);
 
-
             if scheduled_period == &strategic_parameter.locked_in_period {
                 continue
             }
@@ -318,24 +313,7 @@ impl StrategicAlgorithm {
             if strategic_parameter.locked_in_period.is_some() {
                 work_order_numbers.push(ForcedWorkOrder::Locked(*work_order_number));
             } else if tactical_work_order.is_some() && tactical_work_order.unwrap().is_tactical() {
-                let first_day = tactical_work_order.unwrap()
-                    .tactical_operations()?
-                    .0
-                    .iter()
-                    .min_by(|ele1 , ele2| {
-                        ele1.1.scheduled[0].0.date().date_naive().cmp(&ele2.1.scheduled[0].0.date().date_naive())
-                    }).unwrap()
-                    .1
-                    .scheduled[0].0
-                    .date()
-                    .date_naive();
-
-                let tactical_period = self
-                    .strategic_periods
-                    .iter()
-                    .find(|per| per.contains_date(first_day))
-                    .expect("This result would come directly from the tactical agent. It should always find a Period in the Vec<Period>");
-
+                let tactical_period = self.determine_tactical_period(tactical_work_order)?;
                 work_order_numbers.push(ForcedWorkOrder::FromTactical((*work_order_number, tactical_period.clone())));
             } 
         }
@@ -347,7 +325,27 @@ impl StrategicAlgorithm {
         Ok(())
     }
 
-    pub fn schedule_normal_work_order(
+    fn determine_tactical_period(&self, tactical_work_order: Option<&crate::agents::WhereIsWorkOrder<crate::agents::TacticalScheduledOperations>>) -> Result<&Period, anyhow::Error> {
+        let first_day = tactical_work_order.unwrap()
+            .tactical_operations()?
+            .0
+            .iter()
+            .min_by(|ele1 , ele2| {
+                ele1.1.scheduled[0].0.date().date_naive().cmp(&ele2.1.scheduled[0].0.date().date_naive())
+            }).unwrap()
+            .1
+            .scheduled[0].0
+            .date()
+            .date_naive();
+        let tactical_period = self
+            .strategic_periods
+            .iter()
+            .find(|per| per.contains_date(first_day))
+            .expect("This result would come directly from the tactical agent. It should always find a Period in the Vec<Period>");
+        Ok(tactical_period)
+    }
+
+    pub fn schedule_strategic_work_order(
         &mut self,
         work_order_number: WorkOrderNumber,
         period: &Period,
@@ -366,7 +364,13 @@ impl StrategicAlgorithm {
             .unwrap()
             .work_load;
 
-        let resource_use = if period != self.periods().last().unwrap() {
+        let resource_use = if Some(period) == strategic_parameter.locked_in_period.as_ref() || period == self.periods().last().unwrap() {
+
+            self
+                .determine_best_permutation( work_load.clone(), period, ScheduleWorkOrder::Forced)
+                .with_context(|| format!("{:?}\nfor period\n{:#?}\ncould not be {:?}", work_order_number, period, ScheduleWorkOrder::Forced))?
+                .context("This should never happen when calling ScheduleWorkOrder::Forced")?
+        } else  { // The else condition catches all the normal work order. T
             if strategic_parameter.excluded_periods().contains(period) {
                 return Ok(Some(work_order_number));
             }
@@ -376,8 +380,8 @@ impl StrategicAlgorithm {
             }
 
             let resource_use_option = self
-                .determine_best_permutation( work_load.clone(), period, ScheduleWorkOrder::Normal)
-                .with_context(|| format!("{:?}\n for period\n{:#?}\ncould not be {:?}", work_order_number, period, ScheduleWorkOrder::Normal))?;
+                .determine_best_permutation(work_load.clone(), period, ScheduleWorkOrder::Normal)
+                .with_context(|| format!("{:?}\nfor period\n{:#?}\ncould not be {:?}", work_order_number, period, ScheduleWorkOrder::Normal))?;
 
             match resource_use_option {
                 Some(resource_use_inner) => {
@@ -385,18 +389,13 @@ impl StrategicAlgorithm {
                 },
                 None => return Ok(Some(work_order_number)),
             }
-        } else {
-            self
-                .determine_best_permutation( work_load.clone(), period, ScheduleWorkOrder::Forced)
-                .with_context(|| format!("{:?}\nfor period\n{:#?}\ncould not be {:?}", work_order_number, period, ScheduleWorkOrder::Forced))?
-                .context("This should never happen when calling ScheduleWorkOrder::Forced")?
         };
 
         let previous_period = self
             .strategic_periods_mut()
             .insert(work_order_number, Some(period.clone()));
 
-        ensure!(previous_period.as_ref().unwrap().is_none(), "Previous period: {:#?}. New period: {:#?}", &previous_period, period);
+        ensure!(previous_period.as_ref().unwrap().is_none(), "Previous period: {:#?}\nNew period: {:#?}\nStrategicParameter: {:#?}\nfile: {}\nline: {}", &previous_period, period, strategic_parameter, file!(), line!());
 
         resource_use.assert_well_shaped_resources()?;
         
@@ -404,10 +403,10 @@ impl StrategicAlgorithm {
         Ok(None)
     }
 
+    // Where should this code go now? I think that it should go into the 
     pub fn schedule_forced_work_order(&mut self, force_schedule_work_order: &ForcedWorkOrder) -> Result<()> {
-        
         if self.is_scheduled(force_schedule_work_order.work_order_number()) {
-            self.unschedule(*force_schedule_work_order.work_order_number())
+            self.unschedule_specific_work_order(*force_schedule_work_order.work_order_number())
                 .with_context(|| format!("{:#?}\nfile: {}\nline: {}", force_schedule_work_order, file!(), line!()))?;
         }
 
@@ -442,36 +441,6 @@ impl StrategicAlgorithm {
         Ok(())
     }
 
-    pub fn unschedule_random_work_orders(
-        &mut self,
-        number_of_work_orders: usize,
-        rng: &mut impl rand::Rng,
-    ) -> Result<()> {
-        let strategic_periods = &self.strategic_solution.strategic_periods;
-
-        let strategic_parameters = &self.strategic_parameters.strategic_work_order_parameters;
-
-        let mut filtered_keys: Vec<_> = strategic_periods
-            .iter()
-            .filter(|(won, _)| strategic_parameters.get(won).unwrap().locked_in_period.is_none())
-            .map(|(&won, _)| won)
-            .collect();
-
-        filtered_keys.sort();
-
-        let sampled_work_order_keys = filtered_keys
-            .choose_multiple(rng, number_of_work_orders)
-            .collect::<Vec<_>>()
-            .clone();
-
-        // assert!(self.strategic_solution.scheduled_periods.values().all(|per| per.is_some()));
-        for work_order_number in sampled_work_order_keys {
-            self.unschedule(*work_order_number)
-                .with_context(|| format!("Could not unschedule: {:?}", work_order_number))?;
-            self.populate_priority_queues();
-        }
-        Ok(())
-    }
 
     fn is_scheduled(&self, work_order_number: &WorkOrderNumber) -> bool {
         self.strategic_periods()
@@ -541,6 +510,7 @@ impl StrategicAlgorithm {
     /// * Determine if there is a feasible permutaion
     /// * If true, return the loading that should be put into the StrategicSolution::strategic_loadings.
     pub fn determine_best_permutation(&self, work_load: HashMap<Resources, Work>, period: &Period, schedule: ScheduleWorkOrder) -> Result<Option<StrategicResources>> {
+        let mut rng = rand::thread_rng();
         let mut best_total_excess = Work::from(-999999999.0); 
         let mut best_work_order_resource_loadings = StrategicResources::default();
 
@@ -576,25 +546,21 @@ impl StrategicAlgorithm {
         // * val > 0: capacity is higher than loading
         let difference_resources = determine_difference_resources(capacity_resources, &strategic_resources_loading);
 
-        let mut technician_permutation_counter = 0;
+        // Perform 10 different technician permutations
+        for  _ in 0..10 {
+            let mut technician_permutation = difference_resources.clone().into_values().collect::<Vec<_>>();
+            technician_permutation.shuffle(&mut rng);
 
-        let permutation_length = difference_resources.len();
-        for mut technician_permutation in difference_resources.clone().into_values().permutations(permutation_length) {
-            technician_permutation_counter += 1;
-            // dbg!(technician_permutation_counter);
-            let mut work_load_permutation_counter = 0;
-            for mut work_load_permutation in work_load.clone().into_iter().permutations(work_load.len()) {
+            // Perform 10 different work_load permutations
+            for _ in 0..10 {
+            let mut work_load_permutation = work_load.clone().into_iter().collect::<Vec<_>>();
+            work_load_permutation.shuffle(&mut rng);
 
-                work_load_permutation_counter += 1;
-                if work_load_permutation_counter >= 100 {
-                    break
-                }
                 let strategic_resource_loadings_option = match schedule {
                     ScheduleWorkOrder::Normal => determine_normal_work_order_resource_loadings(period, &mut technician_permutation, &mut work_load_permutation),
-                    ScheduleWorkOrder::Forced if technician_permutation_counter >= 100 => return Ok(Some(best_work_order_resource_loadings)),
                     ScheduleWorkOrder::Forced => {
                         let strategic_resource_loadings_option = determine_forced_work_order_resource_loadings(period, &mut best_total_excess, &mut best_work_order_resource_loadings, &mut technician_permutation, &mut work_load_permutation);
-
+        
                         assert_work_load_equal_to_strategic_resource(period, &best_work_order_resource_loadings, &work_load, LoadOperation::Add)
                             .with_context(||format!("file: {}\nline: {}", file!(), line!()))?;
 
@@ -606,7 +572,11 @@ impl StrategicAlgorithm {
                         strategic_resource_loadings_option
                     },
                     ScheduleWorkOrder::Unschedule => {
-                        let strategic_resources_option = determine_unschedule_work_resource_loadings(period, &strategic_resources_loading, &mut work_load_permutation);
+                        let order_map: HashMap<_, _> = technician_permutation.clone().into_iter().enumerate().map(|(i, v)| (v.id, i)).collect();
+
+                        let strategic_resources_loading_vec: Vec<_> = strategic_resources_loading.clone().into_iter().sorted_by_key(|ele| order_map.get(&ele.0)).map(|ele| ele.1).collect();
+
+                        let strategic_resources_option = determine_unschedule_work_resource_loadings(period, &strategic_resources_loading_vec, &mut work_load_permutation);
 
                         if let Some(ref strategic_resources) = strategic_resources_option {
                             assert_work_load_equal_to_strategic_resource(period, strategic_resources, &work_load, LoadOperation::Sub)
@@ -621,9 +591,13 @@ impl StrategicAlgorithm {
                 // resource_constraint. This means that we should try to work on
                 // a new work_load_permutation. And remember that this one will
                 // be replenished
+                // There are many different cases here. We should work on the one associated with the Unschedule
+                // which means that if the unscheduling operations is not possible we should try to make something.
                 let strategic_resource_loadings = match strategic_resource_loadings_option {
                     Some(strategic_resource_loadings) => strategic_resource_loadings,
-                    None => continue,
+                    None => {
+                        continue
+                    },
                 };
 
                 match schedule {
@@ -701,20 +675,23 @@ fn assert_work_load_equal_to_strategic_resource(period:&Period, strategic_resour
     Ok(())
 }
 
-fn determine_unschedule_work_resource_loadings(period: &Period, loading_resources: &HashMap<String, OperationalResource>, work_load_permutation: &mut [(Resources, Work)]) -> Option<StrategicResources> {
-
+fn determine_unschedule_work_resource_loadings(period: &Period, loading_resources: &[OperationalResource], work_load_permutation: &mut [(Resources, Work)]) -> Option<StrategicResources> {
     let mut strategic_resources = StrategicResources::default();
-    let mut loading_resources_cloned = loading_resources.clone();
+    let mut loading_resources_cloned = loading_resources.to_vec();
     for (resources, work) in work_load_permutation.iter_mut() {
 
         debug_assert!(loading_resources_cloned
-            .values()
+            .iter()
             .flat_map(|or| or.skill_hours.keys())
             .collect::<HashSet<_>>()
             .contains(resources)
         );
 
-        for (_operational_id, operational_resource) in loading_resources_cloned.iter_mut() {
+        // Here we do not want to go over the operational_resource in random order. We want to determine the best possible
+        // way to visit the structure to make a correct scheduling approach.
+        //
+        // 
+        for operational_resource in loading_resources_cloned.iter_mut() {
             if !operational_resource.skill_hours.contains_key(resources) {
                 continue
             }
@@ -745,10 +722,13 @@ fn determine_unschedule_work_resource_loadings(period: &Period, loading_resource
             }
         }
     }
-    Some(strategic_resources)
+    if work_load_permutation.iter().all(|ele| ele.1 == Work::from(0.0)) {
+        Some(strategic_resources)
+    } else {
+        None
+    }
     // If all work_load_permutation are Work::from(0.0) we can simply return the value.
 }
-
 
 /// This function determines the resource load for when a work order should be forced into the
 /// schedule. 
@@ -795,7 +775,6 @@ fn determine_forced_work_order_resource_loadings(
     } else if total_excess > *best_total_excess {
         *best_work_order_resource_loadings = work_order_resource_loadings.clone();
         *best_total_excess = total_excess;
-        dbg!(best_total_excess);
     }
     None
 }
@@ -862,8 +841,6 @@ fn determine_difference_resources(capacity_resources: &HashMap<String, Operation
     difference_resources
 }
 
-
-
 pub fn calculate_period_difference(scheduled_period: Period, latest_period: &Period) -> u64 {
     let scheduled_period_date = scheduled_period.end_date().to_owned();
     let latest_date = latest_period.end_date();
@@ -872,8 +849,7 @@ pub fn calculate_period_difference(scheduled_period: Period, latest_period: &Per
     std::cmp::max(days / 7, 0) as u64
 }
 
-impl LargeNeighborhoodSearch for StrategicAlgorithm {
-    type BetterSolution = ();
+impl ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm {
     type SchedulingRequest = StrategicSchedulingRequest;
     type SchedulingResponse = StrategicResponseScheduling;
     type ResourceRequest = StrategicResourceRequest;
@@ -881,12 +857,14 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
     type TimeRequest = StrategicTimeRequest;
     type TimeResponse = StrategicResponsePeriods;
     type SchedulingUnit = WorkOrderNumber;
+
+    type Options = StrategicConfiguration;
     
-    fn calculate_objective_value(&mut self) -> Self::BetterSolution {
+    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType> {
 
         let mut strategic_objective_value = StrategicObjectiveValue::new((1, 0), (1_000_000_000, 0), (1_000, 0)); 
 
-        self.determine_urgency(&mut strategic_objective_value);
+        self.determine_urgency(&mut strategic_objective_value).context("could not determine strategic urgency")?;
         
         self.determine_resource_penalty(&mut strategic_objective_value);
 
@@ -894,56 +872,86 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
 
         strategic_objective_value.aggregate_objectives();
 
-        self.strategic_solution.objective_value = strategic_objective_value;
+        // This should not happen. We should always work on self and then
+        // substitute out the remaining parts. 
+        if strategic_objective_value.objective_value < self.strategic_solution.objective_value.objective_value {
+            self.strategic_solution.objective_value = strategic_objective_value;
+            Ok(ObjectiveValueType::Better)
+        } else {
+            self.strategic_solution.objective_value = strategic_objective_value;
+            Ok(ObjectiveValueType::Worse)
+            
+        }
+
     }
 
+    // This should be the main schedule function. And each agent should use this one. All work order should go
+    // into the priority queue and then the locked_in_period constaint in simply handled in there.
     #[instrument(level = "trace", skip_all)]
     fn schedule(&mut self) -> Result<()> {
-        while !self.priority_queues.normal.is_empty() {
+
+        self.schedule_forced_work_orders().context("Could not force schedule strategic work orders (Locked or Forced from other metaheuristics)")?;
+        // What should we change here? I think that the best thing would be to make this as
+        // Hmm... you need to think hard about this. You were using the schedule_forced to
+        // handle the state updates. That is not the correct approach here. I think that
+        // we instead should strive to make a clean schedule function. and then we should
+        // make a shared_state_update function.
+        // Maybe it is also time to clean up in all this code.
+        while !self.priority_queue.is_empty() {
             for period in self.strategic_periods.clone() {
-                let (work_order_number, weight) = match self.priority_queues.normal.pop() {
-                    Some((work_order_number, weight)) => (work_order_number, weight),
+                let (work_order_number, weight) = match self.priority_queue.pop() {
+                    Some((work_order_number, weight)) => {
+                        (work_order_number, weight)
+                    },
+
                     None => {
                         break;
                     }
                 };                
 
                 let inf_work_order_number = self
-                    .schedule_normal_work_order(work_order_number, &period)
+                    .schedule_strategic_work_order(work_order_number, &period)
                     .with_context(|| format!("{:?} could not be scheduled normally", work_order_number))?;
 
                 if let Some(work_order_number) = inf_work_order_number {
-                    self.priority_queues.normal.push(work_order_number, weight);
+                    self.priority_queue.push(work_order_number, weight);
                 }
             }
         }
         Ok(())
     }
-    
-    fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) -> Result<()> {
-        let unschedule_from_period= self
-            .strategic_periods_mut()
-            .get_mut(&work_order_number)
-            .with_context(|| format!("{:?}: was not present in the strategic periods", work_order_number))?;
 
-        match unschedule_from_period.take() {
-            Some(unschedule_from_period) => {
-                let strategic_parameter = self.strategic_parameters.strategic_work_order_parameters.get(&work_order_number).unwrap();
-                let work_load = strategic_parameter.work_load.clone();
+    fn unschedule(
+        &mut self,
+        number_of_work_orders: usize,
+        rng: &mut impl rand::Rng,
+    ) -> Result<()> {
+        let strategic_periods = &self.strategic_solution.strategic_periods;
 
-                let strategic_resources = self
-                    .determine_best_permutation(work_load, &unschedule_from_period, ScheduleWorkOrder::Unschedule)
-                    .with_context(|| format!("{:#?}\n{:#?}\nfor {:?}\nfile: {}\nline: {}", strategic_parameter, unschedule_from_period, ScheduleWorkOrder::Unschedule, file!(), line!()))?
-                    .context("Determining the StrategicResources associated with a unscheduling operation should always be possible")?;
+        let strategic_parameters = &self.strategic_parameters.strategic_work_order_parameters;
 
+        let mut filtered_keys: Vec<_> = strategic_periods
+            .iter()
+            .filter(|(won, _)| strategic_parameters.get(won).unwrap().locked_in_period.is_none())
+            .map(|(&won, _)| won)
+            .collect();
 
-                strategic_resources.assert_well_shaped_resources()?;
-                self.update_loadings(strategic_resources, LoadOperation::Sub);
-            }
-            None => bail!("The strategic {:?} was not scheduled but StrategicAlgorithm.unschedule() was called on it.", work_order_number),
+        filtered_keys.sort();
+
+        let sampled_work_order_keys = filtered_keys
+            .choose_multiple(rng, number_of_work_orders)
+            .collect::<Vec<_>>()
+            .clone();
+
+        // assert!(self.strategic_solution.scheduled_periods.values().all(|per| per.is_some()));
+        for work_order_number in sampled_work_order_keys {
+            self.unschedule_specific_work_order(*work_order_number)
+                .with_context(|| format!("Could not unschedule: {:?}", work_order_number))?;
+            self.populate_priority_queue();
         }
         Ok(())
     }
+    
 
     fn update_resources_state(
         &mut self,
@@ -1053,11 +1061,37 @@ impl LargeNeighborhoodSearch for StrategicAlgorithm {
             }
         }
     }
+
+    fn run_lns_iteration(&mut self, parameters: Self::Options) -> Result<()> {
+        let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
+
+        // self.check_messages();
+
+        self.load_shared_solution();
+
+        // self.updated_shared_solution(&mut self)?;
+
+        let current_solution = self.clone_algorithm_solution().clone();
+
+        self.unschedule(parameters)?;
+
+        self.schedule()?;
+
+        let objective_value_type = self.calculate_objective_value()?;
+
+        match objective_value_type {
+            ObjectiveValueType::Better => std::todo!(),
+            ObjectiveValueType::Worse => std::todo!(),
+            ObjectiveValueType::Force => std::todo!(),
+        }
+
+        Ok(())
+    }
 }
 
 impl StrategicAlgorithm {
     pub fn new(
-        priority_queues: PriorityQueues<WorkOrderNumber, u64>,
+        priority_queue: PriorityQueue<WorkOrderNumber, u64>,
         strategic_parameters: StrategicParameters,
         strategic_tactical_solution_arc_swap: Arc<ArcSwapSharedSolution>,
         period_locks: HashSet<Period>,
@@ -1067,15 +1101,39 @@ impl StrategicAlgorithm {
         let loaded_shared_solution = strategic_tactical_solution_arc_swap.0.load();
 
         StrategicAlgorithm {
-            priority_queues,
+            priority_queue,
             strategic_parameters,
             strategic_solution: StrategicSolution::default() ,
             arc_swap_shared_solution: strategic_tactical_solution_arc_swap,
             loaded_shared_solution,
             strategic_periods: periods,
             period_locks,
-            
         }
+    }
+
+    fn unschedule_specific_work_order(&mut self, work_order_number: WorkOrderNumber) -> Result<()> {
+        let unschedule_from_period= self
+            .strategic_periods_mut()
+            .get_mut(&work_order_number)
+            .with_context(|| format!("{:?}: was not present in the strategic periods", work_order_number))?;
+
+        match unschedule_from_period.take() {
+            Some(unschedule_from_period) => {
+                let strategic_parameter = self.strategic_parameters.strategic_work_order_parameters.get(&work_order_number).unwrap();
+                let work_load = strategic_parameter.work_load.clone();
+
+                let strategic_resources = self
+                    .determine_best_permutation(work_load, &unschedule_from_period, ScheduleWorkOrder::Unschedule)
+                    .with_context(|| format!("{:#?}\n{:#?}\nfor {:?}\nfile: {}\nline: {}", strategic_parameter, unschedule_from_period, ScheduleWorkOrder::Unschedule, file!(), line!()))?
+                    .context("Determining the StrategicResources associated with a unscheduling operation should always be possible")?;
+
+
+                strategic_resources.assert_well_shaped_resources()?;
+                self.update_loadings(strategic_resources, LoadOperation::Sub);
+            }
+            None => bail!("The strategic {:?} was not scheduled but StrategicAlgorithm.unschedule() was called on it.", work_order_number),
+        }
+        Ok(())
     }
 
     pub fn resources_loadings(&self) -> &StrategicResources {
@@ -1092,7 +1150,7 @@ impl StrategicAlgorithm {
         &self.strategic_periods
     }
 
-    pub fn populate_priority_queues(&mut self) {
+    pub fn populate_priority_queue(&mut self) {
         for work_order_number in self.strategic_solution.strategic_periods.keys() {
             event!(Level::TRACE, "Work order {:?} has been added to the normal queue", work_order_number);
 
@@ -1103,36 +1161,14 @@ impl StrategicAlgorithm {
                 .get(work_order_number)
                 .expect("The StrategicParameter should always be available for the StrategicSolution");
 
-
-            if strategic_parameter.locked_in_period.is_none()
-                && self.strategic_periods().get(work_order_number).unwrap().is_none() {
-
-              
+            if self.strategic_periods().get(work_order_number).unwrap().is_none() {
                 let strategic_work_order_weight = strategic_parameter.weight;
-                self.priority_queues
-                    .normal
+                self.priority_queue
                     .push(*work_order_number, strategic_work_order_weight);
             }
         }
     }
 
-}
-
-#[derive(Debug, Clone)]
-pub struct PriorityQueues<T, P>
-where
-    T: Hash + Eq,
-    P: Ord,
-{
-    pub normal: PriorityQueue<T, P>,
-}
-
-impl PriorityQueues<WorkOrderNumber, u64> {
-    pub fn new() -> Self {
-        Self {
-            normal: PriorityQueue::<WorkOrderNumber, u64>::new(),
-        }
-    }
 }
 
 #[cfg(test)]
@@ -1145,7 +1181,7 @@ mod tests {
     use shared_types::scheduling_environment::worker_environment::resources::Resources;
 
     use crate::agents::{strategic_agent::algorithm::{
-            PriorityQueues, StrategicAlgorithm, StrategicParameters
+            PriorityQueue, StrategicAlgorithm, StrategicParameters
         }, TacticalSolutionBuilder, WhereIsWorkOrder};
 
     use std::{collections::HashMap, str::FromStr};
@@ -1443,10 +1479,10 @@ mod tests {
             (Resources::MtnElec, Work::from(20.0)),
         ];
 
-        let loading_resources = HashMap::from([
-            ("OP_TEST_0".to_string(), OperationalResource::new("OP_TEST_0", Work::from(20.0), vec![Resources::MtnMech, Resources::MtnElec])),
-            ("OP_TEST_1".to_string(), OperationalResource::new("OP_TEST_1", Work::from(20.0), vec![Resources::MtnScaf, Resources::MtnElec])),
-        ]);
+        let loading_resources = [
+            OperationalResource::new("OP_TEST_0", Work::from(20.0), vec![Resources::MtnMech, Resources::MtnElec]),
+            OperationalResource::new("OP_TEST_1", Work::from(20.0), vec![Resources::MtnScaf, Resources::MtnElec]),
+        ];
         
         let strategic_resources_option = determine_unschedule_work_resource_loadings(
             &period,
@@ -1477,12 +1513,16 @@ mod tests {
             (Resources::MtnElec, Work::from(2.0)),
         ];
 
-        let loading_resources = HashMap::from([
-            ("OP_TEST_0".to_string(), OperationalResource::new("OP_TEST_0", Work::from(2.0), vec![Resources::MtnInst, Resources::MtnMech, Resources::MtnElec])),
-            ("OP_TEST_1".to_string(), OperationalResource::new("OP_TEST_1", Work::from(6.0), vec![Resources::MtnMech, Resources::Prodtech, Resources::MtnElec])),
-            ("OP_TEST_2".to_string(), OperationalResource::new("OP_TEST_2", Work::from(0.0), vec![Resources::MtnScaf, Resources::MtnRigg, Resources::MtnLagg])),
-        ]);
+        let loading_resources = [
+            OperationalResource::new("OP_TEST_1", Work::from(6.0), vec![Resources::MtnMech, Resources::Prodtech, Resources::MtnElec]),
+            OperationalResource::new("OP_TEST_2", Work::from(0.0), vec![Resources::MtnScaf, Resources::MtnRigg, Resources::MtnLagg]),
+            OperationalResource::new("OP_TEST_0", Work::from(2.0), vec![Resources::MtnInst, Resources::MtnMech, Resources::MtnElec]),
+        ];
         
+        // We should readjust this to take in a Vec<T> instead of a HashMap<K, V>. That is a much better approach
+        // for dealing with this. And then we reuse the structure that we already have.
+        // QUESTION:
+        // Can you combine the .permutation() with random access.
         let strategic_resources_option = determine_unschedule_work_resource_loadings(
             &period,
             &loading_resources,
@@ -1498,14 +1538,14 @@ mod tests {
 
         assert!(strategic_resources_option.is_some());
 
-        let operational_resource_1 = OperationalResource::new("OP_TEST_0", Work::from(-20.0), vec![Resources::MtnMech, Resources::MtnElec]);
-        let operational_resource_2 = OperationalResource::new("OP_TEST_1", Work::from(-20.0), vec![Resources::MtnScaf, Resources::MtnElec]);
-        let mut strategic_resources = StrategicResources::default();
+        // let operational_resource_1 = OperationalResource::new("OP_TEST_0", Work::from(-20.0), vec![Resources::MtnMech, Resources::MtnElec]);
+        // let operational_resource_2 = OperationalResource::new("OP_TEST_1", Work::from(-20.0), vec![Resources::MtnScaf, Resources::MtnElec]);
+        // let mut strategic_resources = StrategicResources::default();
 
-        strategic_resources.insert_operational_resource(period.clone(), operational_resource_1);
-        strategic_resources.insert_operational_resource(period.clone(), operational_resource_2);
+        // strategic_resources.insert_operational_resource(period.clone(), operational_resource_1);
+        // strategic_resources.insert_operational_resource(period.clone(), operational_resource_2);
 
-        assert_eq!(strategic_resources, strategic_resources_option.unwrap());
+        // assert_eq!(strategic_resources, strategic_resources_option.unwrap());
 
         //FIX MAKE A PROPTEST
         Ok(())
@@ -1587,7 +1627,7 @@ mod tests {
             .insert(work_order_number_3, strategic_parameter_3);
 
         let mut strategic_algorithm = StrategicAlgorithm::new(
-            PriorityQueues::new(),
+            PriorityQueue::new(),
             strategic_parameters,
             ArcSwapSharedSolution::default().into(),
             HashSet::new(),
@@ -1718,7 +1758,7 @@ mod tests {
         let arc_swap_shared_solution = ArcSwapSharedSolution(ArcSwap::from_pointee(shared_solution));
 
         let mut strategic_algorithm = StrategicAlgorithm::new(
-            PriorityQueues::new(),
+            PriorityQueue::new(),
             strategic_parameters,
             arc_swap_shared_solution.into(),
             HashSet::new(),
@@ -1738,7 +1778,7 @@ mod tests {
             .schedule_forced_work_orders()
             .unwrap();
 
-        strategic_algorithm.unschedule(work_order_number).unwrap();
+        strategic_algorithm.unschedule_specific_work_order(work_order_number).unwrap();
         assert_eq!(
             *strategic_algorithm
                 .strategic_periods()

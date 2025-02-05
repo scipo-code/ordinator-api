@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use actix::Addr;
 use anyhow::Result;
 use shared_types::scheduling_environment::{
     work_order::{WorkOrderActivity, WorkOrderNumber},
@@ -8,8 +7,8 @@ use shared_types::scheduling_environment::{
 };
 
 use crate::agents::{
-    operational_agent::{algorithm::operational_solution::MarginalFitness, OperationalAgent},
-    OperationalSolution, SupervisorSolution,
+    operational_agent::algorithm::operational_solution::MarginalFitness, OperationalSolution,
+    SupervisorSolution,
 };
 
 use super::delegate::Delegate;
@@ -24,12 +23,12 @@ impl SupervisorSolution {
 
     pub fn insert_supervisor_solution(
         &mut self,
-        operational_agent: (&Id, &Addr<OperationalAgent>),
+        operational_agent: &Id,
         delegate: Delegate,
         work_order_activity: WorkOrderActivity,
     ) -> Result<()> {
         self.operational_state_machine
-            .insert((operational_agent.0.clone(), work_order_activity), delegate);
+            .insert((operational_agent.clone(), work_order_activity), delegate);
         Ok(())
     }
 

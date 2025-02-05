@@ -15,7 +15,7 @@ use operational_parameter::{OperationalParameter, OperationalParameters};
 use operational_solution::{
     Assignment, MarginalFitness, OperationalAssignment, OperationalFunctions,
 };
-use rand::seq::SliceRandom;
+use rand::{seq::SliceRandom, thread_rng};
 use shared_types::{
     operational::{
         operational_request_resource::OperationalResourceRequest,
@@ -23,7 +23,8 @@ use shared_types::{
         operational_request_time::OperationalTimeRequest,
         operational_response_resource::OperationalResourceResponse,
         operational_response_scheduling::OperationalSchedulingResponse,
-        operational_response_time::OperationalTimeResponse, TimeInterval,
+        operational_response_time::OperationalTimeResponse, OperationalRequestMessage,
+        OperationalResponseMessage, TimeInterval,
     },
     scheduling_environment::{
         work_order::{
@@ -36,11 +37,12 @@ use shared_types::{
 use tracing::{event, Level};
 
 use crate::agents::{
-    traits::LargeNeighborhoodSearch, ArcSwapSharedSolution, OperationalSolution, SharedSolution,
-    StrategicSolution, TacticalSolution, WhereIsWorkOrder,
+    traits::{ActorBasedLargeNeighborhoodSearch, ObjectiveValueType, Solution},
+    ArcSwapSharedSolution, OperationalSolution, SharedSolution, StrategicSolution,
+    TacticalSolution, WhereIsWorkOrder,
 };
 
-use super::OperationalConfiguration;
+use super::{OperationalConfiguration, OperationalOptions};
 
 pub type OperationalObjectiveValue = u64;
 
@@ -262,25 +264,20 @@ pub enum Unavailability {
     End,
 }
 
-impl LargeNeighborhoodSearch for OperationalAlgorithm {
-    type BetterSolution = Result<bool>;
-    type SchedulingRequest = OperationalSchedulingRequest;
+impl ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm {
+    type MessageRequest = OperationalRequestMessage;
 
-    type SchedulingResponse = OperationalSchedulingResponse;
-
-    type ResourceRequest = OperationalResourceRequest;
-
-    type ResourceResponse = OperationalResourceResponse;
-
-    type TimeRequest = OperationalTimeRequest;
-
-    type TimeResponse = OperationalTimeResponse;
+    type MessageResponse = OperationalResponseMessage;
 
     type SchedulingUnit = (WorkOrderNumber, ActivityNumber);
 
-    fn calculate_objective_value(&mut self) -> Self::BetterSolution {
-        // Here we should determine the objective based on the highest needed skill. Meaning that a MTN-TURB should not bid highly
-        // on a MTN-MECH job. I think that this will be very interesting to solve.
+    type Options = OperationalOptions;
+
+    fn clone_algorithm_solution(&self) -> impl Solution {
+        self.operational_solution.clone()
+    }
+
+    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType> {
         let operational_events: Vec<Assignment> = self
             .operational_solution
             .work_order_activities_assignment
@@ -406,9 +403,9 @@ impl LargeNeighborhoodSearch for OperationalAlgorithm {
 
         if new_value > old_value {
             self.operational_solution.objective_value = new_value;
-            Ok(true)
+            Ok(ObjectiveValueType::Better)
         } else {
-            Ok(false)
+            Ok(ObjectiveValueType::Worse)
         }
     }
 
@@ -485,49 +482,40 @@ impl LargeNeighborhoodSearch for OperationalAlgorithm {
         Ok(())
     }
 
-    fn unschedule(&mut self, work_order_and_activity_number: Self::SchedulingUnit) -> Result<()> {
-        ensure!(self
+    fn unschedule(&mut self, options: Self::Options) -> Result<()> {
+        let mut rng = thread_rng();
+        let operational_solutions_len = self
             .operational_solution
             .work_order_activities_assignment
-            .iter()
-            .any(|os| os.0 == work_order_and_activity_number));
-        dbg!(&self
-            .operational_solution
-            .work_order_activities_assignment
-            .len());
+            .len();
 
-        self.operational_solution
-            .work_order_activities_assignment
-            .retain(|os| os.0 != work_order_and_activity_number);
-        dbg!(&self
+        let operational_solutions_filtered: Vec<WorkOrderActivity> = self
             .operational_solution
-            .work_order_activities_assignment
-            .len());
+            .work_order_activities_assignment[1..operational_solutions_len - 1]
+            .choose_multiple(&mut rng, options.number_of_activities)
+            .map(|operational_solution| operational_solution.0)
+            .collect();
 
-        ensure!(!self
-            .operational_solution
-            .work_order_activities_assignment
-            .iter()
-            .any(|os| os.0 == work_order_and_activity_number));
+        for operational_solution in &operational_solutions_filtered {
+            self.unschedule_single_work_order_activity((
+                operational_solution.0,
+                operational_solution.1,
+            ))
+            .with_context(|| {
+                format!(
+                    "{:?} from {:?}\ncould not be unscheduled",
+                    operational_solution, &operational_solutions_filtered
+                )
+            })?
+        }
         Ok(())
     }
 
-    fn update_scheduling_state(
+    fn update_based_on_message(
         &mut self,
-        _message: Self::SchedulingRequest,
-    ) -> Result<Self::SchedulingResponse> {
+        message: Self::MessageRequest,
+    ) -> Result<Self::MessageResponse> {
         todo!()
-    }
-
-    fn update_time_state(&mut self, _message: Self::TimeRequest) -> Result<Self::TimeResponse> {
-        todo!()
-    }
-
-    fn update_resources_state(
-        &mut self,
-        _message: Self::ResourceRequest,
-    ) -> Result<Self::ResourceResponse> {
-        todo!();
     }
 }
 
@@ -585,6 +573,36 @@ impl OperationalAlgorithm {
         assigned_work
     }
 
+    fn unschedule_single_work_order_activity(
+        &mut self,
+        work_order_and_activity_number: WorkOrderActivity,
+    ) -> Result<()> {
+        ensure!(self
+            .operational_solution
+            .work_order_activities_assignment
+            .iter()
+            .any(|os| os.0 == work_order_and_activity_number));
+        dbg!(&self
+            .operational_solution
+            .work_order_activities_assignment
+            .len());
+
+        self.operational_solution
+            .work_order_activities_assignment
+            .retain(|os| os.0 != work_order_and_activity_number);
+        dbg!(&self
+            .operational_solution
+            .work_order_activities_assignment
+            .len());
+
+        ensure!(!self
+            .operational_solution
+            .work_order_activities_assignment
+            .iter()
+            .any(|os| os.0 == work_order_and_activity_number));
+        Ok(())
+    }
+
     fn determine_next_event(&self, current_time: &DateTime<Utc>) -> (TimeDelta, OperationalEvents) {
         let break_diff = (
             self.break_interval.start - current_time.time(),
@@ -607,35 +625,6 @@ impl OperationalAlgorithm {
             .min_by_key(|&diff_event| diff_event.0.num_seconds())
             .cloned()
             .unwrap()
-    }
-
-    pub fn unschedule_random_work_order_activies(
-        &mut self,
-        rng: &mut impl rand::Rng,
-        number_of_activities: usize,
-    ) -> Result<()> {
-        let operational_solutions_len = self
-            .operational_solution
-            .work_order_activities_assignment
-            .len();
-
-        let operational_solutions_filtered: Vec<WorkOrderActivity> = self
-            .operational_solution
-            .work_order_activities_assignment[1..operational_solutions_len - 1]
-            .choose_multiple(rng, number_of_activities)
-            .map(|operational_solution| operational_solution.0)
-            .collect();
-
-        for operational_solution in &operational_solutions_filtered {
-            self.unschedule((operational_solution.0, operational_solution.1))
-                .with_context(|| {
-                    format!(
-                        "{:?} from {:?}\ncould not be unscheduled",
-                        operational_solution, &operational_solutions_filtered
-                    )
-                })?
-        }
-        Ok(())
     }
 
     fn determine_first_available_start_time(

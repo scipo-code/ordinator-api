@@ -9,8 +9,8 @@ members = [
 
 [profile.dev]
 panic = 'abort'
+force-frame-pointers = "yes"
 debug = true
 
 [profile.release]
-debug = true
 panic = 'abort'

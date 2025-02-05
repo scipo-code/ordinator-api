@@ -4,10 +4,11 @@ pub mod algorithm;
 use actix::prelude::*;
 use anyhow::{Context, Result};
 use algorithm::assert_functions::TacticalAssertions;
-use shared_types::scheduling_environment::worker_environment::resources::Id;
+use shared_types::tactical::tactical_resources_message::TacticalResourceRequest;
 use shared_types::tactical::tactical_response_status::TacticalResponseStatus;
+use shared_types::tactical::TacticalRequestMessage;
 use shared_types::Asset;
-use std::collections::HashMap;
+use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
 use tracing::{event, Level};
 
@@ -16,47 +17,37 @@ use crate::agents::SetAddr;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use super::orchestrator::NotifyOrchestrator;
-use super::strategic_agent::StrategicAgent;
-use super::supervisor_agent::SupervisorAgent;
-use super::traits::LargeNeighborhoodSearch;
+use super::traits::ActorBasedLargeNeighborhoodSearch;
 use super::ScheduleIteration;
 
 #[allow(dead_code)]
 pub struct TacticalAgent {
     asset: Asset,
-    id_tactical: i32,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     tactical_algorithm: TacticalAlgorithm,
-    strategic_addr: Addr<StrategicAgent>,
-    main_supervisor_addr: Option<(String, Addr<SupervisorAgent>)>,
-    _other_supervisor: Option<HashMap<Id, Addr<SupervisorAgent>>>,
+    tactical_receiver: Receiver<TacticalResourceRequest>,
     pub notify_orchestrator: NotifyOrchestrator,
 }
 
 impl TacticalAgent {
     pub fn new(
         asset: Asset,
-        id_tactical: i32,
-        strategic_addr: Addr<StrategicAgent>,
+        tactical_receiver: Receiver<TacticalRequestMessage>,
         tactical_algorithm: TacticalAlgorithm,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         notify_orchestrator: NotifyOrchestrator,
     ) -> Self {
         TacticalAgent {
             asset,
-            id_tactical,
             scheduling_environment: scheduling_environment.clone(),
             tactical_algorithm,
-            strategic_addr,
-            main_supervisor_addr: None,
-            _other_supervisor: None,
+            tactical_receiver,
             notify_orchestrator,
         }
     }
 
     pub fn status(&self) -> Result<TacticalResponseStatus> {
         Ok(TacticalResponseStatus::new(
-            self.id_tactical,
             self.tactical_algorithm.objective_value(),
             self.tactical_algorithm.tactical_days.clone(),
         ))
@@ -73,10 +64,10 @@ impl Actor for TacticalAgent {
             "TacticalAgent {} has started, sending Its address to the StrategicAgent",
             self.id_tactical
         );
-        self.strategic_addr
+        self.tactical_receiver
             .do_send(SetAddr::Tactical(ctx.address()));
-        self.tactical_algorithm.schedule().with_context(|| format!("Initial call of: {}", std::any::type_name::<TacticalAlgorithm>())).expect("Failed initial schedule call");
-        ctx.notify(ScheduleIteration::default());
+        // self.tactical_algorithm.schedule().with_context(|| format!("Initial call of: {}", std::any::type_name::<TacticalAlgorithm>())).expect("Failed initial schedule call");
+        // ctx.notify(ScheduleIteration::default());
     }
 }
 
@@ -155,3 +146,6 @@ impl Handler<ScheduleIteration> for TacticalAgent {
 }
 
 
+pub struct TacticalOptions {
+
+}

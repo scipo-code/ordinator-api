@@ -60,14 +60,23 @@ profile-thread TID DURATION:
     TID={{ TID }} 
     DURATION={{ DURATION }}
 
+    OUTPUT="profiling/out.perf"
+    FOLDED="profiling/folded.perf"
+    SVG="profiling/flamegraph.svg"
+
+    rm -rf profiling/*
+
     echo "Recording perf data for TID=$TID for $DURATION seconds..."
-    perf record --call-graph dwarf --all-user -F 99 -g --tid "$TID" -- sleep "$DURATION"
+    sudo perf record --call-graph dwarf --all-user -F 999 -o "profiling/perf.data" -g --tid "$TID" -- sleep "$DURATION"
 
     echo "Converting perf.data to out.perf..."
-    perf script > out.perf
+    sudo perf script -i "profiling/perf.data" > "$OUTPUT"
+
+    echo "Converting the out.perf to a folded file"
+    stackcollapse-perf.pl "$OUTPUT" > "$FOLDED"
 
     echo "Generating flame graph out.svg..."
-    flamegraph.pl out.folded > out.svg
+    flamegraph.pl "$FOLDED" > "$SVG"
 
     echo "Done. Opening svg file"
-    firefox out.svg
+    firefox "$SVG"

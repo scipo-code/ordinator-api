@@ -27,7 +27,7 @@ use tracing::event;
 use tracing::Level;
 
 use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
-use crate::agents::traits::LargeNeighborhoodSearch;
+use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
 use crate::agents::AgentSpecific;
 use crate::agents::SetAddr;
 use crate::agents::StateLink;
@@ -185,7 +185,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                         )
                     })?;
 
-                self.strategic_algorithm.calculate_objective_value();
+                self.strategic_algorithm.calculate_objective_value()?;
                 event!(Level::INFO, strategic_objective_value = ?self.strategic_algorithm.strategic_solution.objective_value);
                 Ok(StrategicResponseMessage::Scheduling(scheduling_output))
             }
@@ -194,7 +194,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                     .strategic_algorithm
                     .update_resources_state(resources_message);
 
-                self.strategic_algorithm.calculate_objective_value();
+                self.strategic_algorithm.calculate_objective_value()?;
                 event!(Level::INFO, strategic_objective_value = ?self.strategic_algorithm.strategic_solution.objective_value);
                 Ok(StrategicResponseMessage::Resources(
                     resources_output.unwrap(),
@@ -331,7 +331,7 @@ impl Handler<StrategicRequestMessage> for StrategicAgent {
                 }
             },
         };
-        self.strategic_algorithm.calculate_objective_value();
+        self.strategic_algorithm.calculate_objective_value()?;
         strategic_response
     }
 }

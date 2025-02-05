@@ -24,7 +24,8 @@ use shared_types::{
         tactical_response_scheduling::TacticalResponseScheduling,
         tactical_response_time::TacticalResponseTime,
         tactical_scheduling_message::TacticalSchedulingRequest,
-        tactical_time_message::TacticalTimeRequest, TacticalObjectiveValue, TacticalResources,
+        tactical_time_message::TacticalTimeRequest, TacticalObjectiveValue, TacticalRequestMessage,
+        TacticalResources, TacticalResponseMessage,
     },
     LoadOperation,
 };
@@ -38,11 +39,14 @@ use tactical_solution::OperationSolution;
 use tracing::{event, instrument, Level};
 
 use crate::agents::{
-    traits::LargeNeighborhoodSearch, ArcSwapSharedSolution, SharedSolution,
-    TacticalScheduledOperations, TacticalSolution, WhereIsWorkOrder,
+    traits::{ActorBasedLargeNeighborhoodSearch, ObjectiveValueType},
+    ArcSwapSharedSolution, SharedSolution, TacticalScheduledOperations, TacticalSolution,
+    WhereIsWorkOrder,
 };
 
 use shared_types::scheduling_environment::work_order::WorkOrder;
+
+use super::TacticalOptions;
 
 pub struct TacticalAlgorithm {
     pub arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
@@ -157,13 +161,14 @@ impl TacticalAlgorithm {
             work_order_numbers.choose_multiple(rng, number_of_work_orders as usize);
 
         for work_order_number in random_work_order_numbers {
-            self.unschedule(*work_order_number).with_context(|| {
-                format!(
-                    "Could not unschedule tactical work order: {:?} on line: {}",
-                    work_order_number,
-                    line!(),
-                )
-            })?;
+            self.unschedule_specific_work_order(*work_order_number)
+                .with_context(|| {
+                    format!(
+                        "Could not unschedule tactical work order: {:?} on line: {}",
+                        work_order_number,
+                        line!(),
+                    )
+                })?;
         }
         Ok(())
     }
@@ -235,18 +240,14 @@ impl TacticalAlgorithm {
     }
 }
 
-impl LargeNeighborhoodSearch for TacticalAlgorithm {
-    type BetterSolution = Result<TacticalObjectiveValue>;
-    type SchedulingRequest = TacticalSchedulingRequest;
-    type SchedulingResponse = TacticalResponseScheduling;
-    type ResourceRequest = TacticalResourceRequest;
-    type ResourceResponse = TacticalResponseResources;
-    type TimeRequest = TacticalTimeRequest;
-    type TimeResponse = TacticalResponseTime;
+impl ActorBasedLargeNeighborhoodSearch for TacticalAlgorithm {
+    type MessageRequest = TacticalRequestMessage;
+    type MessageResponse = TacticalResponseMessage;
 
     type SchedulingUnit = WorkOrderNumber;
+    type Options = TacticalOptions;
 
-    fn calculate_objective_value(&mut self) -> Self::BetterSolution {
+    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType> {
         let mut objective_value_from_tardiness = 0;
         for (work_order_number, _tactical_solution) in self
             .tactical_solution
@@ -510,7 +511,10 @@ impl LargeNeighborhoodSearch for TacticalAlgorithm {
         Ok(())
     }
 
-    fn unschedule(&mut self, work_order_number: Self::SchedulingUnit) -> Result<()> {
+    fn unschedule_specific_work_order(
+        &mut self,
+        work_order_number: Self::SchedulingUnit,
+    ) -> Result<()> {
         let tactical_solution = self
             .tactical_solution
             .tactical_scheduled_work_orders
@@ -708,7 +712,7 @@ pub mod tests {
     use strum::IntoEnumIterator;
 
     use crate::agents::{
-        tactical_agent::algorithm::OperationSolution, traits::LargeNeighborhoodSearch,
+        tactical_agent::algorithm::OperationSolution, traits::ActorBasedLargeNeighborhoodSearch,
         ArcSwapSharedSolution, TacticalScheduledOperations, WhereIsWorkOrder,
     };
 

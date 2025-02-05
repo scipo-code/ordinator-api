@@ -10,12 +10,14 @@ use shared_types::orchestrator::WorkOrdersStatus;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 
 use shared_types::scheduling_environment::worker_environment::WorkerEnvironment;
+use shared_types::strategic::StrategicRequestMessage;
 use shared_types::strategic::StrategicResponseMessage;
 use shared_types::supervisor::SupervisorRequestMessage;
 use shared_types::Asset;
 use std::collections::HashMap;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::Weak;
@@ -61,6 +63,7 @@ pub struct Orchestrator {
 }
 
 // WARNING: Do not ever make this field public!
+#[derive(Clone)]
 pub struct NotifyOrchestrator(Arc<Mutex<Orchestrator>>);
 
 // WARNING: This should only take immutable references to self!
@@ -102,15 +105,18 @@ impl NotifyOrchestrator {
 }
 
 pub struct ActorRegistry {
-    pub strategic_agent_addr: Addr<StrategicAgent>,
-    pub tactical_agent_addr: Addr<TacticalAgent>,
-    pub supervisor_agent_addrs: HashMap<Id, Addr<SupervisorAgent>>,
-    pub operational_agent_addrs: HashMap<Id, Addr<OperationalAgent>>,
+    pub strategic_agent_addr: Sender<StrategicRequestMessage>,
+    pub tactical_agent_addr: Sender<TacticalRequestMessage>,
+    pub supervisor_agent_addrs: HashMap<Id, Sender<SupervisorRequestMessage>>,
+    pub operational_agent_addrs: HashMap<Id, Sender<OperationalRequestMessage>>,
     pub number_of_operational_agents: Arc<AtomicU64>,
 }
 
 impl ActorRegistry {
-    pub fn get_operational_addr(&self, operational_id: &String) -> Option<Addr<OperationalAgent>> {
+    pub fn get_operational_addr(
+        &self,
+        operational_id: &String,
+    ) -> Option<Sender<OperationalRequestMessage>> {
         let option_id = self
             .operational_agent_addrs
             .iter()
@@ -416,19 +422,20 @@ impl Orchestrator {
                         .unwrap()
                         .number_of_operational_agents,
                 );
+
+                let notify_orchestrator = NotifyOrchestrator(
+                    self.agent_notify
+                        .as_ref()
+                        .expect("Orchestrator is initialized with the Option::Some variant")
+                        .upgrade()
+                        .expect("This Weak reference should always be able to be upgraded."),
+                );
+
                 let supervisor_agent_addr = self.agent_factory.build_supervisor_agent(
                     asset.clone(),
                     id_string.clone(),
-                    tactical_agent_addr,
                     self.arc_swap_shared_solutions.get(&asset).unwrap().clone(),
-                    number_of_operational_agents,
-                    NotifyOrchestrator(
-                        self.agent_notify
-                            .as_ref()
-                            .expect("Orchestrator is initialized with the Option::Some variant")
-                            .upgrade()
-                            .expect("This Weak reference should always be able to be upgraded."),
-                    ),
+                    notify_orchestrator,
                 );
 
                 self.agent_registries
@@ -662,18 +669,19 @@ impl Orchestrator {
             )
             .context("Could not build the StrategicAgent")?;
 
+        let notify_orchestrator = NotifyOrchestrator(
+            self.agent_notify
+                .as_ref()
+                .unwrap()
+                .upgrade()
+                .expect("Weak reference part of initialization"),
+        );
+
         let tactical_agent_addr = self.agent_factory.build_tactical_agent(
             asset.clone(),
-            strategic_agent_addr.clone(),
             &scheduling_environment_guard,
             shared_solutions_arc_swap.clone(),
-            NotifyOrchestrator(
-                self.agent_notify
-                    .as_ref()
-                    .unwrap()
-                    .upgrade()
-                    .expect("Weak reference part of initialization"),
-            ),
+            notify_orchestrator,
         );
 
         let supervisors = scheduling_environment_guard
@@ -693,16 +701,8 @@ impl Orchestrator {
                 .build_supervisor_agent(
                     asset.clone(),
                     id.clone(),
-                    tactical_agent_addr.clone(),
                     shared_solutions_arc_swap.clone(),
-                    Arc::clone(&number_of_operational_agents),
-                    NotifyOrchestrator(
-                        self.agent_notify
-                            .as_ref()
-                            .unwrap()
-                            .upgrade()
-                            .expect("Weak reference part of initialization"),
-                    ),
+                    notify_orchestrator.clone(),
                 )
                 .expect("AgentFactory could not build the specified supervisor agent");
 

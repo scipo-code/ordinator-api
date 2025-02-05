@@ -3,12 +3,13 @@ pub mod display;
 pub mod message_handlers;
 
 use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
-use crate::agents::traits::LargeNeighborhoodSearch;
+use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
 use anyhow::Context;
 use anyhow::Result;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use actix::prelude::*;
+use shared_types::strategic::StrategicRequestMessage;
 use shared_types::Asset;
 use tracing::event;
 use tracing::Level;
@@ -22,11 +23,19 @@ use super::orchestrator::NotifyOrchestrator;
 use super::ScheduleIteration;
 use crate::agents::tactical_agent::TacticalAgent;
 
+struct Agent<Algorithm: ActorBasedLargeNeighborhoodSearch> {
+    asset: Asset,
+    scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
+    pub strategic_algorithm: Algorithm,
+    pub tactical_agent_addr: Option<Addr<TacticalAgent>>,
+    pub notify_orchestrator: NotifyOrchestrator,
+}
+
 pub struct StrategicAgent {
     asset: Asset,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub strategic_algorithm: StrategicAlgorithm,
-    pub tactical_agent_addr: Option<Addr<TacticalAgent>>,
+    pub strategic_receiver: std::sync::mpsc::Receiver<StrategicRequestMessage>,
     pub notify_orchestrator: NotifyOrchestrator,
 }
 
@@ -34,7 +43,7 @@ impl Actor for StrategicAgent {
     type Context = actix::Context<Self>;
 
     fn started(&mut self, ctx: &mut actix::Context<Self>) {
-        self.strategic_algorithm.populate_priority_queues();
+        self.strategic_algorithm.populate_priority_queue();
         event!(
             Level::INFO,
             "StrategicAgent has started for asset: {}",
@@ -60,15 +69,24 @@ impl StrategicAgent {
         asset: Asset,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         strategic_algorithm: StrategicAlgorithm,
-        tactical_agent_addr: Option<Addr<TacticalAgent>>,
+        strategic_receiver: std::sync::mpsc::Receiver<StrategicRequestMessage>,
         notify_orchestrator: NotifyOrchestrator,
     ) -> Self {
         Self {
             asset,
             scheduling_environment,
             strategic_algorithm,
-            tactical_agent_addr,
+            strategic_receiver,
             notify_orchestrator,
+        }
+    }
+
+    pub(crate) fn run(&self) -> Result<()> {
+        loop {
+            // TODO
+            // Insert the remaining logic here! I think that is the best idea.
+            // Good! Keep this up! Remember to
+            self.strategic_algorithm.run_lns_iteration(parameters)?;
         }
     }
 }
@@ -87,16 +105,14 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
 
         self.strategic_algorithm
-            .schedule_forced_work_orders()
+            .calculate_objective_value()
             .with_context(|| format!("{:#?}", schedule_iteration))
-            .expect("It should always be possible to force schedule work orders");
-
-        self.strategic_algorithm.calculate_objective_value();
+            .expect("Could not calculate strategic objective value");
 
         let old_strategic_solution = self.strategic_algorithm.strategic_solution.clone();
 
         self.strategic_algorithm
-            .unschedule_random_work_orders(50, rng)
+            .unschedule(50, rng)
             .with_context(|| {
                 format!(
                     "{:?} of StrategicAlgorithm. {:#?}",
@@ -128,7 +144,10 @@ impl Handler<ScheduleIteration> for StrategicAgent {
         // self.strategic_algorithm.swap_scheduled_work_orders(rng);
         // self.assert_aggregated_load().unwrap();
 
-        self.strategic_algorithm.calculate_objective_value();
+        self.strategic_algorithm
+            .calculate_objective_value()
+            .with_context(|| format!("{:#?}", schedule_iteration))
+            .expect("Could not calculate strategic objective value");
 
         if self
             .strategic_algorithm
@@ -146,9 +165,18 @@ impl Handler<ScheduleIteration> for StrategicAgent {
                 strategic_clustering_value = self.strategic_algorithm.strategic_solution.objective_value.clustering_value.1,
                 scheduled_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.iter().filter(|ele| ele.1.is_some()).count(),
                 total_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.len(),
-                // percentage_utilization_by_period = ?self.strategic_algorithm.calculate_utilization(),
+                percentage_utilization_by_period = ?self.strategic_algorithm.calculate_utilization(),
             );
         } else {
+            event!(Level::INFO,
+                strategic_objective_value = self.strategic_algorithm.strategic_solution.objective_value.objective_value,
+                strategic_urgency = self.strategic_algorithm.strategic_solution.objective_value.urgency.1,
+                strategic_resource_penalty = self.strategic_algorithm.strategic_solution.objective_value.resource_penalty.1,
+                strategic_clustering_value = self.strategic_algorithm.strategic_solution.objective_value.clustering_value.1,
+                scheduled_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.iter().filter(|ele| ele.1.is_some()).count(),
+                total_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.len(),
+                percentage_utilization_by_period = ?self.strategic_algorithm.calculate_utilization(),
+            );
             self.strategic_algorithm.strategic_solution = old_strategic_solution;
         }
 
@@ -169,12 +197,17 @@ impl Handler<ScheduleIteration> for StrategicAgent {
     }
 }
 
+pub struct StrategicConfiguration {
+    number_of_removed_work_order: u64,
+}
+
 #[cfg(test)]
 mod tests {
 
     use algorithm::strategic_parameters::StrategicClustering;
     use algorithm::ForcedWorkOrder;
     use operation::OperationBuilder;
+    use priority_queue::PriorityQueue;
     use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
     use shared_types::scheduling_environment::work_order::operation::Work;
     use shared_types::strategic::strategic_request_scheduling_message::ScheduleChange;
@@ -191,7 +224,7 @@ mod tests {
 
     use crate::agents::ArcSwapSharedSolution;
 
-    use super::{algorithm::PriorityQueues, *};
+    use super::*;
     use shared_types::scheduling_environment::worker_environment::resources::Resources;
 
     use shared_types::scheduling_environment::work_order::operation::Operation;
@@ -260,7 +293,7 @@ mod tests {
         );
 
         let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
-            PriorityQueues::new(),
+            PriorityQueue::new(),
             optimized_work_orders,
             ArcSwapSharedSolution::default().into(),
             HashSet::new(),
@@ -335,7 +368,7 @@ mod tests {
             .insert_strategic_parameter(WorkOrderNumber(2100023841), strategic_parameter);
 
         let mut strategic_algorithm = StrategicAlgorithm::new(
-            PriorityQueues::new(),
+            PriorityQueue::new(),
             strategic_parameters,
             ArcSwapSharedSolution::default().into(),
             HashSet::new(),
@@ -350,7 +383,7 @@ mod tests {
         strategic_algorithm
             .schedule_forced_work_order(&ForcedWorkOrder::Locked(work_order_number))?;
 
-        strategic_algorithm.calculate_objective_value();
+        strategic_algorithm.calculate_objective_value()?;
 
         assert_eq!(
             strategic_algorithm

@@ -9,6 +9,10 @@ license-file = "../LICENSE"
 [features]
 extensive_assertions = []
 
+[profile.dev]
+debug = true
+force-frame-pointers = "yes"
+
 [dev-dependencies]
 criterion = "0.5"
 
