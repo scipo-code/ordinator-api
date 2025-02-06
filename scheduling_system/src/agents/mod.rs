@@ -7,31 +7,68 @@ pub mod traits;
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display};
+use std::sync::mpsc::{Receiver, Sender};
+use std::sync::{Arc, Mutex};
 
-use self::{
-    operational_agent::OperationalAgent, strategic_agent::StrategicAgent,
-    supervisor_agent::SupervisorAgent, tactical_agent::TacticalAgent,
-};
-use actix::{Addr, Message};
 use anyhow::{bail, Context, Result};
 use arc_swap::ArcSwap;
 use colored::Colorize;
 use operational_agent::algorithm::operational_solution::{MarginalFitness, OperationalAssignment};
 use operational_agent::algorithm::OperationalObjectiveValue;
+use orchestrator::NotifyOrchestrator;
 use shared_types::orchestrator::ApiSolution;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::{ActivityNumber, Work};
 use shared_types::scheduling_environment::work_order::{WorkOrderActivity, WorkOrderNumber};
 use shared_types::scheduling_environment::worker_environment::resources::Id;
+use shared_types::scheduling_environment::SchedulingEnvironment;
 use shared_types::strategic::{StrategicObjectiveValue, StrategicResources};
 use shared_types::tactical::{TacticalObjectiveValue, TacticalResources};
+use shared_types::Asset;
 use supervisor_agent::algorithm::delegate::Delegate;
 use tactical_agent::algorithm::tactical_solution::OperationSolution;
-use traits::Solution;
+use traits::{ActorBasedLargeNeighborhoodSearch, Solution};
 
-#[derive(Message, Default)]
-#[rtype(result = "Result<()>")]
+pub struct Agent<Algorithm, AgentRequest, AgentResponse>
+where
+    Algorithm: ActorBasedLargeNeighborhoodSearch,
+{
+    asset: Asset,
+    agent_id: Id,
+    scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
+    pub algorithm: Algorithm,
+    pub receiver_from_orchestrator: Receiver<AgentMessage<AgentRequest>>,
+    pub sender_to_orchestrator: Sender<AgentResponse>,
+    pub notify_orchestrator: NotifyOrchestrator,
+}
+
+impl<Algorithm, AgentRequest, AgentResponse> Agent<Algorithm, AgentRequest, AgentResponse>
+where
+    Algorithm: ActorBasedLargeNeighborhoodSearch,
+{
+    pub fn new(
+        asset: Asset,
+        agent_id: Id,
+        scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
+        algorithm: Algorithm,
+        receiver_from_orchestrator: Receiver<AgentMessage<AgentRequest>>,
+        sender_to_orchestrator: Sender<AgentResponse>,
+        notify_orchestrator: NotifyOrchestrator,
+    ) -> Self {
+        Self {
+            asset,
+            agent_id,
+            scheduling_environment,
+            algorithm,
+            receiver_from_orchestrator,
+            sender_to_orchestrator,
+            notify_orchestrator,
+        }
+    }
+}
+
+#[derive(Default)]
 pub struct ScheduleIteration {
     loop_iteration: u64,
 }
@@ -56,18 +93,6 @@ impl fmt::Debug for ScheduleIteration {
                 .finish()
         }
     }
-}
-
-#[allow(dead_code)]
-pub enum SetAddr {
-    Strategic(Addr<StrategicAgent>),
-    Tactical(Addr<TacticalAgent>),
-    Supervisor(String, Addr<SupervisorAgent>),
-    Operational(Id, Addr<OperationalAgent>),
-}
-
-impl Message for SetAddr {
-    type Result = Result<()>;
 }
 
 #[derive(Default)]
@@ -370,6 +395,14 @@ impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
     }
 }
 
+/// This type is the primary message type that all agents should receive.
+/// All agents should have the `StateLink` and each agent then have its own
+/// ActorRequest which is specifically created for each agent.
+pub enum AgentMessage<ActorRequest> {
+    State(StateLink),
+    Actor(ActorRequest),
+}
+
 /// The StateLink is a generic type that each type of Agent will implement.
 /// The generics mean:
 ///     S: Strategic
@@ -392,8 +425,4 @@ pub enum StateLink {
 #[derive(Debug, Clone)]
 pub enum AgentSpecific {
     Strategic(Vec<WorkOrderNumber>),
-}
-
-impl Message for StateLink {
-    type Result = Result<()>;
 }

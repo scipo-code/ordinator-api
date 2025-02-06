@@ -7,10 +7,8 @@ use shared_types::{
 
 use crate::agents::{
     tactical_agent::algorithm::tactical_parameters::TacticalParameters,
-    traits::ActorBasedLargeNeighborhoodSearch, AgentSpecific, SetAddr, StateLink,
+    traits::ActorBasedLargeNeighborhoodSearch, AgentSpecific, StateLink,
 };
-
-use super::TacticalAgent;
 
 impl Handler<StatusMessage> for TacticalAgent {
     type Result = String;

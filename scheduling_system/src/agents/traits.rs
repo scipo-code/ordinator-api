@@ -16,7 +16,7 @@ pub trait ActorBasedLargeNeighborhoodSearch {
 
     type Options;
 
-    fn run_lns_iteration(&mut self, options: Self::Options) -> Result<()> {
+    fn run_lns_iteration(&mut self, options: &Self::Options) -> Result<()> {
         let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
 
         self.check_messages();

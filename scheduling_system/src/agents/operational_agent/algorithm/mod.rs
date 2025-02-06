@@ -49,6 +49,9 @@ pub type OperationalObjectiveValue = u64;
 pub struct OperationalAlgorithm {
     pub operational_solution: OperationalSolution,
     pub operational_non_productive: OperationalNonProductive,
+    // FIX
+    // Put backup activities into the Algorithm
+    // backup_activities: Option<HashMap<u32, Operation>>,
     pub operational_parameters: OperationalParameters,
     pub history_of_dropped_operational_parameters: HashSet<WorkOrderActivity>,
     pub arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,

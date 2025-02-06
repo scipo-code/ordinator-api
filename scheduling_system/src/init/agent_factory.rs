@@ -1,31 +1,33 @@
-use actix::prelude::*;
-
 use anyhow::{Context, Result};
 use arc_swap::ArcSwap;
 use priority_queue::PriorityQueue;
-use shared_types::operational::OperationalConfiguration;
+use shared_types::operational::{
+    OperationalConfiguration, OperationalRequestMessage, OperationalResponseMessage,
+};
+use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::Work;
-use shared_types::strategic::{StrategicRequestMessage, StrategicResources};
-use shared_types::tactical::{Days, TacticalRequestMessage, TacticalResources};
+use shared_types::strategic::{
+    StrategicRequestMessage, StrategicResources, StrategicResponseMessage,
+};
+use shared_types::supervisor::{SupervisorRequestMessage, SupervisorResponseMessage};
+use shared_types::tactical::{
+    Days, TacticalRequestMessage, TacticalResources, TacticalResponseMessage,
+};
 use shared_types::Asset;
 use std::collections::{HashMap, HashSet};
-use std::sync::atomic::AtomicU64;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Mutex;
 use std::sync::{Arc, MutexGuard};
 
 use crate::agents::operational_agent::algorithm::OperationalAlgorithm;
-use crate::agents::operational_agent::{OperationalAgent, OperationalAgentBuilder};
-use crate::agents::orchestrator::NotifyOrchestrator;
+use crate::agents::orchestrator::{Communication, NotifyOrchestrator};
 use crate::agents::strategic_agent::algorithm::strategic_parameters::{
     StrategicClustering, StrategicParameters,
 };
 use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
-use crate::agents::strategic_agent::StrategicAgent;
-use crate::agents::supervisor_agent::SupervisorAgent;
+use crate::agents::supervisor_agent::algorithm::SupervisorAlgorithm;
 use crate::agents::tactical_agent::algorithm::TacticalAlgorithm;
-use crate::agents::tactical_agent::TacticalAgent;
-use crate::agents::{ArcSwapSharedSolution, SharedSolution};
+use crate::agents::{Agent, AgentMessage, ArcSwapSharedSolution, SharedSolution};
 
 use shared_types::scheduling_environment::worker_environment::resources::{Id, Resources};
 use shared_types::scheduling_environment::SchedulingEnvironment;
@@ -55,8 +57,9 @@ impl AgentFactory {
         asset: Asset,
         scheduling_environment_guard: &MutexGuard<SchedulingEnvironment>,
         shared_solution_arc_swap: Arc<ArcSwapSharedSolution>,
-        sender_for_orchestrator: NotifyOrchestrator,
-    ) -> Result<Sender<StrategicRequestMessage>> {
+        notify_orchestrator: NotifyOrchestrator,
+    ) -> Result<Communication<AgentMessage<StrategicRequestMessage>, StrategicResponseMessage>>
+    {
         let cloned_work_orders = scheduling_environment_guard.work_orders.clone();
 
         // TODO: We should not clone here! We do not want periods in the strategic agent. I think
@@ -130,15 +133,20 @@ impl AgentFactory {
 
         // FIX
         // This whole build process should be encapsulated! I think that this is the best way of doing things.
-        //
-        let (sender, receiver) = std::sync::mpsc::channel();
+        let strategic_id = Id::new("StrategicAgent".to_string(), vec![], None);
 
-        let strategic_agent = StrategicAgent::new(
+        // This send
+        let (sender_to_agent, receiver_from_orchestrator) = std::sync::mpsc::channel();
+        let (sender_to_orchestrator, receiver_from_agent) = std::sync::mpsc::channel();
+
+        let strategic_agent = Agent::new(
             asset.clone(),
+            strategic_id,
             arc_scheduling_environment,
             strategic_algorithm,
-            receiver,
-            sender_for_orchestrator,
+            receiver_from_orchestrator,
+            sender_to_orchestrator,
+            notify_orchestrator,
         );
         // FIX
         // Turn this into a std::thread::spawn and work on that to make the program function correctly.
@@ -146,16 +154,19 @@ impl AgentFactory {
             .name(asset.to_string())
             .spawn(move || strategic_agent.run());
 
-        Ok(sender)
+        Ok(Communication {
+            sender: sender_to_agent,
+            receiver: receiver_from_agent,
+        })
     }
 
     pub fn build_tactical_agent(
         &self,
-        asset: Asset,
+        asset: &Asset,
         scheduling_environment_guard: &MutexGuard<SchedulingEnvironment>,
         strategic_tactical_optimized_work_orders: Arc<ArcSwapSharedSolution>,
         notify_orchestrator: NotifyOrchestrator,
-    ) -> Result<Receiver<TacticalRequestMessage>> {
+    ) -> Result<Communication<AgentMessage<TacticalRequestMessage>, TacticalResponseMessage>> {
         let tactical_resources_capacity =
             initialize_tactical_resources(scheduling_environment_guard, Work::from(0.0));
 
@@ -187,60 +198,85 @@ impl AgentFactory {
 
         tactical_algorithm.create_tactical_parameters(scheduling_environment_guard, &asset);
 
-        let (sender, receiver) = std::sync::mpsc::channel();
+        let id = Id("Tactical".to_string(), vec![], None);
+
+        let (sender_to_agent, receiver_from_orchestrator) = std::sync::mpsc::channel();
+        let (sender_to_orchestrator, receiver_from_agent) = std::sync::mpsc::channel();
 
         let arc_scheduling_environment = self.scheduling_environment.clone();
-        let tactical_agent = TacticalAgent::new(
-            asset,
-            receiver,
-            tactical_algorithm,
+
+        let mut tactical_agent = Agent::new(
+            asset.clone(),
+            id,
             arc_scheduling_environment,
+            tactical_algorithm,
+            receiver_from_orchestrator,
+            sender_to_orchestrator,
             notify_orchestrator,
         );
 
         std::thread::Builder::new()
             .name(asset.to_string())
             .spawn(move || tactical_agent.run());
-        Ok(sender)
+        Ok(Communication {
+            sender: sender_to_agent,
+            receiver: receiver_from_agent,
+        })
     }
 
     pub fn build_supervisor_agent(
         &self,
-        asset: Asset,
+        asset: &Asset,
         id_supervisor: Id,
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
         notify_orchestrator: NotifyOrchestrator,
-    ) -> Result<Addr<SupervisorAgent>> {
-        let (sender, receiver) = std::sync::mpsc::channel::<Addr<SupervisorAgent>>();
-
+        supervisor_periods: &[Period],
+    ) -> Result<Communication<AgentMessage<SupervisorRequestMessage>, SupervisorResponseMessage>>
+    {
         let scheduling_environment = Arc::clone(&self.scheduling_environment);
+        let (sender_to_agent, receiver_from_orchestrator) = std::sync::mpsc::channel();
+        let (sender_to_orchestrator, receiver_from_agent) = std::sync::mpsc::channel();
 
-        let supervisor_agent = SupervisorAgent::new(
-            id_supervisor,
-            asset,
-            scheduling_environment,
+        let supervisor_algorithm = SupervisorAlgorithm::new(
+            id_supervisor.clone().1,
             arc_swap_shared_solution,
+            supervisor_periods,
+        );
+
+        // It is the `Algorithm` that should have the arc_swap_shared_solution, not the
+        // `Agent`. The mutable requirements makes a lot of sense.
+        let mut supervisor_agent = Agent::new(
+            asset.clone(),
+            id_supervisor.clone(),
+            scheduling_environment,
+            supervisor_algorithm,
+            receiver_from_orchestrator,
+            sender_to_orchestrator,
             notify_orchestrator,
-        )
-        .expect("Could not create SupervisorAgent in AgentFactory");
+        );
 
         std::thread::Builder::new()
             .name(asset.to_string() + &id_supervisor.to_string())
             .spawn(move || supervisor_agent.run());
 
-        Ok(sender)
+        Ok(Communication {
+            sender: sender_to_agent,
+            receiver: receiver_from_agent,
+        })
     }
 
     pub fn build_operational_agent(
         &self,
-        operational_id: Id,
+        asset: &Asset,
+        operational_id: &Id,
+
+        // FIX
+        // This should be removed for the program to function correctly.
         operational_configuration: &OperationalConfiguration,
-        supervisor_agent_addr: HashMap<Id, Addr<SupervisorAgent>>,
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
         notify_orchestrator: NotifyOrchestrator,
-    ) -> Addr<OperationalAgent> {
-        let (sender, receiver) = std::sync::mpsc::channel::<Addr<OperationalAgent>>();
-
+    ) -> Result<Communication<AgentMessage<OperationalRequestMessage>, OperationalResponseMessage>>
+    {
         let arc_scheduling_environment = self.scheduling_environment.clone();
 
         let operational_algorithm =
@@ -258,21 +294,27 @@ impl AgentFactory {
             .0
             .store(Arc::new(shared_solution_clone));
 
-        Arbiter::new().spawn_fn(move || {
-            let operational_agent_addr = OperationalAgentBuilder::new(
-                operational_id,
-                arc_scheduling_environment,
-                operational_algorithm,
-                None,
-                supervisor_agent_addr,
-                notify_orchestrator,
-            )
-            .build()
-            .start();
-            sender.send(operational_agent_addr).unwrap();
-        });
+        let (sender_to_agent, receiver_from_orchestrator) = std::sync::mpsc::channel();
+        let (sender_to_orchestrator, receiver_from_agent) = std::sync::mpsc::channel();
 
-        receiver.recv().unwrap()
+        let mut operational_agent = Agent::new(
+            asset.clone(),
+            operational_id.clone(),
+            arc_scheduling_environment,
+            operational_algorithm,
+            receiver_from_orchestrator,
+            sender_to_orchestrator,
+            notify_orchestrator,
+        );
+
+        std::thread::Builder::new()
+            .name(operational_id.0.clone())
+            .spawn(move || operational_agent.run());
+
+        Ok(Communication {
+            sender: sender_to_agent,
+            receiver: receiver_from_agent,
+        })
     }
 }
 

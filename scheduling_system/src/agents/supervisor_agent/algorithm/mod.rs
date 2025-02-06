@@ -32,7 +32,8 @@ use tracing::{event, Level};
 
 use crate::agents::{
     operational_agent::algorithm::operational_solution::MarginalFitness,
-    traits::ActorBasedLargeNeighborhoodSearch, ArcSwapSharedSolution, SharedSolution, SupervisorSolution,
+    traits::ActorBasedLargeNeighborhoodSearch, ArcSwapSharedSolution, SharedSolution,
+    SupervisorSolution,
 };
 
 // pub struct MarginalFitness(pub Arc<AtomicUsize>);
@@ -142,6 +143,20 @@ impl SupervisorAlgorithm {
         supervisor_periods: &[Period],
     ) -> Self {
         let loaded_shared_solution = arc_swap_shared_solution.0.load();
+
+        let Id(id, resources, toml_supervisor) = supervisor_id;
+
+        let number_of_supervisor_periods = toml_supervisor
+            .context("Error with the supervisor configuration file")?
+            .number_of_supervisor_periods;
+
+        let supervisor_periods = &scheduling_environment
+            .lock()
+            .expect("SchedulingEnvironment lock poisoned")
+            .time_environment
+            .strategic_periods()[0..=number_of_supervisor_periods as usize]
+            .to_vec();
+
         Self {
             objective_value: SupervisorObjectiveValue::default(),
             resources,
@@ -283,7 +298,10 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
         Ok(())
     }
 
-    fn unschedule_specific_work_order(&mut self, work_order_number: Self::SchedulingUnit) -> Result<()> {
+    fn unschedule_specific_work_order(
+        &mut self,
+        work_order_number: Self::SchedulingUnit,
+    ) -> Result<()> {
         self.supervisor_solution
             .turn_work_order_into_delegate_assess(work_order_number);
         Ok(())

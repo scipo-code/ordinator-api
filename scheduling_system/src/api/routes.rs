@@ -34,7 +34,7 @@ pub async fn http_to_scheduling_system(
                 .agent_registries
                 .get(&asset)
                 .unwrap()
-                .strategic_agent_addr
+                .strategic_agent_sender
                 .clone();
 
             drop(orchestrator_guard);

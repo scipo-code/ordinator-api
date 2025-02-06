@@ -12,8 +12,6 @@ use tracing::{event, Level};
 
 use crate::agents::{AgentSpecific, StateLink};
 
-use super::OperationalAgent;
-
 impl Handler<StateLink> for OperationalAgent {
     type Result = Result<()>;
 

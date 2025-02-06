@@ -9,24 +9,9 @@ use shared_types::supervisor::{
 };
 use tracing::{event, Level};
 
-use crate::agents::{
-    supervisor_agent::algorithm::SupervisorParameters, AgentSpecific, SetAddr, StateLink,
-};
+use crate::agents::{supervisor_agent::algorithm::SupervisorParameters, AgentSpecific, StateLink};
 
 use super::SupervisorAgent;
-
-impl Handler<SetAddr> for SupervisorAgent {
-    type Result = Result<()>;
-
-    fn handle(&mut self, set_addr: SetAddr, _ctx: &mut Self::Context) -> Self::Result {
-        if let SetAddr::Operational(id, addr) = set_addr {
-            self.operational_agent_addrs.insert(id, addr);
-            Ok(())
-        } else {
-            bail!("We have not created the logic for fixing this yet")
-        }
-    }
-}
 
 impl Handler<StateLink> for SupervisorAgent {
     type Result = Result<()>;

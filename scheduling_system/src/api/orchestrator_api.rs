@@ -36,7 +36,7 @@ impl Orchestrator {
                         };
 
                 let strategic_agent_solution = agent_registry_for_asset
-                    .strategic_agent_addr
+                    .strategic_agent_sender
                     .send(shared_types::SolutionExportMessage {})
                     .await;
 
@@ -109,7 +109,7 @@ impl Orchestrator {
     pub async fn handle_tactical_request(&self, tactical_request: TacticalRequest) -> HttpResponse {
         event!(Level::INFO, tactical_request = ?tactical_request);
         let agent_registry_for_asset = match self.agent_registries.get(&tactical_request.asset) {
-            Some(asset) => asset.tactical_agent_addr.clone(),
+            Some(asset) => asset.tactical_agent_sender.clone(),
             None => {
                 return HttpResponse::BadRequest()
                     .json("TACTICAL: TACTICAL AGENT NOT INITIALIZED FOR THE ASSET");
@@ -134,7 +134,7 @@ impl Orchestrator {
     ) -> HttpResponse {
         event!(Level::INFO, supervisor_request = ?supervisor_request);
         let supervisor_agent_addrs = match self.agent_registries.get(&supervisor_request.asset) {
-            Some(agent_registry) => agent_registry.supervisor_agent_addrs.clone(),
+            Some(agent_registry) => agent_registry.supervisor_agent_senders.clone(),
             None => {
                 return HttpResponse::BadRequest()
                     .json("SUPERVISOR: SUPERVISOR AGENT NOT INITIALIZED FOR THE ASSET");
@@ -170,7 +170,7 @@ impl Orchestrator {
                 self.agent_registries
                     .get(&asset)
                     .expect("This error should be handled higher up")
-                    .operational_agent_addrs
+                    .operational_agent_senders
                     .keys()
                     .for_each(|ele| {
                         operational_ids_by_asset.push(ele.clone());
@@ -220,7 +220,7 @@ impl Orchestrator {
                     }
                 };
 
-                for operational_addr in agent_registry.operational_agent_addrs.values() {
+                for operational_addr in agent_registry.operational_agent_senders.values() {
                     operational_responses.push(
                         operational_addr
                             .send(operational_request_message.clone())

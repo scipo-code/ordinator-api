@@ -2,13 +2,15 @@ use anyhow::{ensure, Result};
 use chrono::TimeDelta;
 use colored::Colorize;
 
-use super::OperationalAgent;
 use crate::agents::{
     operational_agent::algorithm::{
         operational_events::OperationalEvents, operational_solution::MarginalFitness,
     },
     supervisor_agent::algorithm::delegate::Delegate,
+    Agent,
 };
+
+use super::algorithm::OperationalAlgorithm;
 
 #[allow(dead_code)]
 pub trait OperationalAssertions {
@@ -16,13 +18,15 @@ pub trait OperationalAssertions {
     fn assert_marginal_fitness_is_correct(&self) -> Result<()>;
 }
 
-impl OperationalAssertions for OperationalAgent {
+impl<AgentMessage, AgentResponse> OperationalAssertions
+    for Agent<OperationalAlgorithm, AgentMessage, AgentResponse>
+{
     fn assert_operational_solutions_does_not_have_delegate_unassign(&self) -> Result<()> {
         for delegate in self
-            .operational_algorithm
+            .algorithm
             .loaded_shared_solution
             .supervisor
-            .state_of_agent(&self.operational_id)
+            .state_of_agent(&self.agent_id)
             .values()
         {
             ensure!(delegate != &Delegate::Unassign)
@@ -33,7 +37,7 @@ impl OperationalAssertions for OperationalAgent {
 
     fn assert_marginal_fitness_is_correct(&self) -> Result<()> {
         for assignments in self
-            .operational_algorithm
+            .algorithm
             .operational_solution
             .work_order_activities_assignment
             .windows(3)
@@ -41,7 +45,7 @@ impl OperationalAssertions for OperationalAgent {
             let finish_of_prev = assignments[0].1.finish_time();
             let start_of_next = assignments[2].1.start_time();
             let combined_non_productive: TimeDelta = self
-                .operational_algorithm
+                .algorithm
                 .operational_non_productive
                 .0
                 .iter()
@@ -65,7 +69,7 @@ impl OperationalAssertions for OperationalAgent {
                     format!(
                         "{:<10}: {:?}",
                         "Work hours",
-                        self.operational_algorithm
+                        self.algorithm
                             .operational_parameters
                             .work_order_parameters
                             .get(&assignments[1].0)
