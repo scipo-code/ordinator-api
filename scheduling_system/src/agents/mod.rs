@@ -39,7 +39,7 @@ where
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub algorithm: Algorithm,
     pub receiver_from_orchestrator: Receiver<AgentMessage<AgentRequest>>,
-    pub sender_to_orchestrator: Sender<AgentResponse>,
+    pub sender_to_orchestrator: Sender<Result<AgentResponse>>,
     pub notify_orchestrator: NotifyOrchestrator,
 }
 
@@ -53,7 +53,7 @@ where
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         algorithm: Algorithm,
         receiver_from_orchestrator: Receiver<AgentMessage<AgentRequest>>,
-        sender_to_orchestrator: Sender<AgentResponse>,
+        sender_to_orchestrator: Sender<Result<AgentResponse>>,
         notify_orchestrator: NotifyOrchestrator,
     ) -> Self {
         Self {

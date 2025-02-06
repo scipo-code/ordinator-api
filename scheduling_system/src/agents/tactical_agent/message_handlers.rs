@@ -10,18 +10,6 @@ use crate::agents::{
     traits::ActorBasedLargeNeighborhoodSearch, AgentSpecific, StateLink,
 };
 
-impl Handler<StatusMessage> for TacticalAgent {
-    type Result = String;
-
-    fn handle(&mut self, _msg: StatusMessage, _ctx: &mut Self::Context) -> Self::Result {
-        format!(
-            "Id: {}, Time horizon: {:?}, Objective: {:?}",
-            self.id_tactical,
-            self.tactical_algorithm.tactical_days.clone(),
-            self.tactical_algorithm.objective_value()
-        )
-    }
-}
 impl Handler<TacticalRequestMessage> for TacticalAgent {
     type Result = Result<TacticalResponseMessage>;
 
@@ -105,22 +93,6 @@ impl Handler<StateLink> for TacticalAgent {
 
             StateLink::TimeEnvironment => {
                 todo!()
-            }
-        }
-    }
-}
-
-impl Handler<SetAddr> for TacticalAgent {
-    type Result = Result<()>;
-
-    fn handle(&mut self, msg: SetAddr, _ctx: &mut actix::Context<Self>) -> Self::Result {
-        match msg {
-            SetAddr::Supervisor(id, addr) => {
-                self.main_supervisor_addr = Some((id, addr));
-                Ok(())
-            }
-            _ => {
-                bail!("The tactical agent received an Addr<T>, where T is not a valid Actor")
             }
         }
     }

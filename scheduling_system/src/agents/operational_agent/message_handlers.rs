@@ -1,4 +1,3 @@
-use actix::Handler;
 use anyhow::{bail, Result};
 use shared_types::operational::{
     operational_request_scheduling::OperationalSchedulingRequest,
@@ -10,16 +9,38 @@ use shared_types::operational::{
 };
 use tracing::{event, Level};
 
-use crate::agents::{AgentSpecific, StateLink};
+use crate::agents::{Agent, AgentMessage, AgentSpecific, StateLink};
 
-impl Handler<StateLink> for OperationalAgent {
-    type Result = Result<()>;
+use super::algorithm::OperationalAlgorithm;
 
-    fn handle(&mut self, state_link: StateLink, _ctx: &mut Self::Context) -> Self::Result {
+impl Agent<OperationalAlgorithm, OperationalRequestMessage, OperationalResponseMessage> {
+    fn handle(&mut self) -> Result<()> {
+        let message = self.receiver_from_orchestrator.try_recv();
+
+        match message {
+            Ok(message) => match message {
+                AgentMessage::State(state_link) => self.handle_state_link(state_link)?,
+                AgentMessage::Actor(strategic_request_message) => {
+                    let message = self.handle_request_message(strategic_request_message);
+
+                    self.sender_to_orchestrator.send(message)?;
+                }
+            },
+
+            Err(e) => match e {
+                std::sync::mpsc::TryRecvError::Empty => (),
+                std::sync::mpsc::TryRecvError::Disconnected => bail!("Disconnected from "),
+            },
+        }
+        Ok(())
+    }
+}
+impl Agent<OperationalAlgorithm, OperationalRequestMessage, OperationalResponseMessage> {
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<()> {
         event!(
             Level::INFO,
-            self.operational_algorithm.operational_parameters = self
-                .operational_algorithm
+            self.algorithm.operational_parameters = self
+                .algorithm
                 .operational_parameters
                 .work_order_parameters
                 .len()
@@ -34,47 +55,40 @@ impl Handler<StateLink> for OperationalAgent {
             StateLink::TimeEnvironment => todo!(),
         }
     }
-}
 
-impl Handler<OperationalRequestMessage> for OperationalAgent {
-    type Result = Result<OperationalResponseMessage>;
-
-    fn handle(
+    fn handle_request_message(
         &mut self,
         request: OperationalRequestMessage,
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
+    ) -> Result<OperationalResponseMessage> {
         match request {
             OperationalRequestMessage::Status(_) => {
                 // WARN DEBUG: This should be included if you get an error
                 //     format!(
                 //         "ID: {}, traits: {}, Objective: {:?}",
-                //         self.operational_id.0,
-                //         self.operational_id
+                //         self.agent_id.0,
+                //         self.agent_id
                 //             .1
                 //             .iter()
                 //             .map(|resource| resource.to_string())
                 //             .collect::<Vec<String>>()
                 //             .join(", "),
-                //         self.operational_algorithm
+                //         self.algorithm
                 //             .operational_solution
                 //             .objective_value
                 //     )
                 // }
                 let (assign, assess, unassign): (u64, u64, u64) = self
-                    .operational_algorithm
+                    .algorithm
                     .loaded_shared_solution
                     .supervisor
-                    .count_delegate_types(&self.operational_id);
+                    .count_delegate_types(&self.agent_id);
 
                 let operational_response_status = OperationalStatusResponse::new(
-                    self.operational_id.clone(),
+                    self.agent_id.clone(),
                     assign,
                     assess,
                     unassign,
-                    self.operational_algorithm
-                        .operational_solution
-                        .objective_value,
+                    self.algorithm.operational_solution.objective_value,
                 );
                 Ok(OperationalResponseMessage::Status(
                     operational_response_status,
@@ -87,7 +101,7 @@ impl Handler<OperationalRequestMessage> for OperationalAgent {
                         let mut json_assignments_events: Vec<ApiAssignmentEvents> = vec![];
 
                         for (work_order_activity, operational_solution) in &self
-                            .operational_algorithm
+                            .algorithm
                             .operational_solution
                             .work_order_activities_assignment
                         {

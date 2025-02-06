@@ -1,4 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
+use anyhow::{Context, Result};
 use shared_types::strategic::StrategicResponse;
 use shared_types::SystemMessages;
 use shared_types::SystemResponses;
@@ -17,38 +18,38 @@ pub async fn http_to_scheduling_system(
     orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
     _req: HttpRequest,
     system_messages: web::Json<SystemMessages>,
-) -> HttpResponse {
+) -> Result<HttpResponse> {
     event!(Level::INFO, orchestrator_request = ?system_messages);
     match system_messages.into_inner() {
         SystemMessages::Orchestrator(orchestrator_request) => {
             let mut orchestrator = orchestrator.lock().unwrap();
 
-            orchestrator
+            Ok(orchestrator
                 .handle_orchestrator_request(orchestrator_request)
-                .await
+                .await)
         }
         SystemMessages::Strategic(strategic_request) => {
             let asset = strategic_request.asset;
             let orchestrator_guard = orchestrator.lock().unwrap();
-            let strategic = orchestrator_guard
+
+            let strategic = &orchestrator_guard
                 .agent_registries
                 .get(&asset)
                 .unwrap()
-                .strategic_agent_sender
-                .clone();
+                .strategic_agent_sender;
 
             drop(orchestrator_guard);
-            let response = strategic
-                .send(strategic_request.strategic_request_message)
-                .await;
+            strategic.sender.send(crate::agents::AgentMessage::Actor(
+                strategic_request.strategic_request_message,
+            ))?;
 
-            let strategic_response_message = match response
-                .expect("Failed to send StrategicRequestMessage")
-            {
+            let response = strategic.receiver.recv()?;
+
+            let strategic_response_message = match response {
                 Ok(message) => message,
                 Err(e) => {
                     let error = format!("{:?}", e.context("http request could not be completed"));
-                    return HttpResponse::BadRequest().body(error);
+                    return Ok(HttpResponse::BadRequest().body(error));
                 }
             };
 
@@ -56,28 +57,28 @@ pub async fn http_to_scheduling_system(
 
             let system_message = SystemResponses::Strategic(strategic_response);
 
-            HttpResponse::Ok().json(system_message)
+            Ok(HttpResponse::Ok().json(system_message))
         }
         SystemMessages::Tactical(tactical_request) => {
             let orchestrator = orchestrator.lock().unwrap();
 
-            orchestrator.handle_tactical_request(tactical_request).await
+            Ok(orchestrator.handle_tactical_request(tactical_request).await)
         }
         SystemMessages::Supervisor(supervisor_request) => {
             let orchestrator = orchestrator.lock().unwrap();
 
-            orchestrator
+            Ok(orchestrator
                 .handle_supervisor_request(supervisor_request)
-                .await
+                .await)
         }
         SystemMessages::Operational(operational_request) => {
             let orchestrator = orchestrator.lock().unwrap();
 
-            orchestrator
+            Ok(orchestrator
                 .handle_operational_request(operational_request)
-                .await
+                .await)
         }
-        SystemMessages::Sap => HttpResponse::Ok().json(SystemResponses::Sap),
+        SystemMessages::Sap => Ok(HttpResponse::Ok().json(SystemResponses::Sap)),
     }
 }
 

@@ -116,9 +116,6 @@ pub enum StrategicResponseMessage {
     WorkOrder(WorkOrdersStatus),
     Success,
 }
-impl Message for StrategicRequestMessage {
-    type Result = Result<StrategicResponseMessage>;
-}
 
 #[derive(Serialize)]
 pub struct StrategicResponse {

@@ -79,26 +79,37 @@ impl NotifyOrchestrator {
             .get(asset)
             .context("Asset should always be there")?;
 
-        let state_link = StateLink::WorkOrders(AgentSpecific::Strategic(work_orders));
+        let state_link = AgentMessage::State(StateLink::WorkOrders(AgentSpecific::Strategic(
+            work_orders.clone(),
+        )));
 
         agent_registry
             .strategic_agent_sender
-            .send(t)
-            .do_send(state_link.clone());
+            .sender
+            .send(state_link)?;
+
+        let state_link = AgentMessage::State(StateLink::WorkOrders(AgentSpecific::Strategic(
+            work_orders.clone(),
+        )));
 
         agent_registry
             .tactical_agent_sender
-            .do_send(state_link.clone());
+            .sender
+            .send(state_link)?;
 
-        agent_registry
-            .supervisor_agent_senders
-            .values()
-            .for_each(|addr| addr.do_send(state_link.clone()));
+        for comm in agent_registry.supervisor_agent_senders.values() {
+            let state_link = AgentMessage::State(StateLink::WorkOrders(AgentSpecific::Strategic(
+                work_orders.clone(),
+            )));
+            comm.sender.send(state_link)?;
+        }
 
-        agent_registry
-            .operational_agent_senders
-            .values()
-            .for_each(|addr| addr.do_send(state_link.clone()));
+        for addr in agent_registry.operational_agent_senders.values() {
+            let state_link = AgentMessage::State(StateLink::WorkOrders(AgentSpecific::Strategic(
+                work_orders.clone(),
+            )));
+            addr.sender.send(state_link)?;
+        }
 
         Ok(())
     }
@@ -122,7 +133,7 @@ pub struct AgentRegistry {
 
 pub struct Communication<Req, Res> {
     pub sender: Sender<Req>,
-    pub receiver: Receiver<Res>,
+    pub receiver: Receiver<Result<Res>>,
 }
 
 impl AgentRegistry {
@@ -483,7 +494,7 @@ impl Orchestrator {
             OrchestratorRequest::CreateOperationalAgent(asset, id, operational_configuration) => {
                 let response_string = format!("Operational agent created with id {}", id);
 
-                self.create_operational_agent(&asset, id, &operational_configuration);
+                self.create_operational_agent(&asset, &id, &operational_configuration);
 
                 let orchestrator_response = OrchestratorResponse::RequestStatus(response_string);
 
@@ -551,7 +562,11 @@ impl Orchestrator {
                 operational_agent.resources.resources.clone(),
                 None,
             );
-            self.create_operational_agent(&asset, id, &operational_agent.operational_configuration);
+            self.create_operational_agent(
+                &asset,
+                &id,
+                &operational_agent.operational_configuration,
+            );
         }
     }
 
@@ -560,7 +575,7 @@ impl Orchestrator {
         asset: &Asset,
         id: &Id,
         operational_configuration: &OperationalConfiguration,
-    ) {
+    ) -> Result<()> {
         let operational_agent_addr = self.agent_factory.build_operational_agent(
             asset,
             id,
@@ -573,7 +588,7 @@ impl Orchestrator {
                     .upgrade()
                     .expect("This Weak reference should always be able to be updated"),
             ),
-        );
+        )?;
 
         self.agent_registries
             .get(asset)
@@ -585,6 +600,7 @@ impl Orchestrator {
             .get_mut(asset)
             .unwrap()
             .add_operational_agent(id.clone(), operational_agent_addr);
+        Ok(())
     }
 }
 
