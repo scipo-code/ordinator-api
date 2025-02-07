@@ -3,6 +3,7 @@ mod api;
 mod init;
 
 use anyhow::Result;
+use data_processing::sources::TimeInput;
 use std::{
     fs::File,
     io::{Read, Write},
@@ -101,8 +102,14 @@ fn initialize_from_database(path: &Path) -> SchedulingEnvironment {
 }
 
 fn write_to_database(path: &Path) -> Result<SchedulingEnvironment, std::io::Error> {
+    let time_input = TimeInput {
+        number_of_strategic_periods: 52,
+        number_of_tactical_periods: 4,
+        number_of_days: 100,
+        number_of_supervisor_periods: 3,
+    };
     let scheduling_environment =
-        init::model_initializers::initialize_scheduling_environment(52, 4, 100);
+        init::model_initializers::initialize_scheduling_environment(time_input);
 
     let json_scheduling_environment = serde_json::to_string(&scheduling_environment).unwrap();
     let mut file = File::create(path).unwrap();

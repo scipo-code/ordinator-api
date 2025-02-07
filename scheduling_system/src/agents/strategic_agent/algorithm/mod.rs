@@ -2,9 +2,10 @@ pub mod strategic_parameters;
 pub mod assert_functions;
 
 use assert_functions::StrategicAssertions;
+use rand::thread_rng;
 use shared_types::scheduling_environment::time_environment::TimeEnvironment;
 use strum::IntoEnumIterator;
-use crate::agents::traits::{ActorBasedLargeNeighborhoodSearch, ObjectiveValueType};
+use crate::agents::traits::{ActorBasedLargeNeighborhoodSearch, ObjectiveValueType, Solution};
 use crate::agents::{SharedSolution, StrategicSolution, ArcSwapSharedSolution};
 use anyhow::{bail, ensure, Context, Result};
 use strategic_parameters::{StrategicClustering, StrategicParameter, StrategicParameterBuilder, StrategicParameters};
@@ -15,10 +16,10 @@ use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
-use shared_types::strategic::{OperationalResource, StrategicObjectiveValue, StrategicResources};
+use shared_types::strategic::{OperationalResource, StrategicObjectiveValue, StrategicRequestMessage, StrategicResources, StrategicResponse, StrategicResponseMessage};
 use shared_types::strategic::strategic_request_periods_message::StrategicTimeRequest;
-use shared_types::strategic::strategic_request_resources_message::StrategicResourceRequest;
-use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
+use shared_types::strategic::strategic_request_resources_message::StrategicRequestResource;
+use shared_types::strategic::strategic_request_scheduling_message::StrategicRequestScheduling;
 use shared_types::strategic::strategic_response_periods::StrategicResponsePeriods;
 use shared_types::strategic::strategic_response_resources::StrategicResponseResources;
 use shared_types::strategic::strategic_response_scheduling::StrategicResponseScheduling;
@@ -30,7 +31,7 @@ use itertools::Itertools;
 
 use tracing::{event, instrument, Level};
 
-use super::StrategicConfiguration;
+use super::StrategicOptions;
 
 pub struct StrategicAlgorithm {
     pub priority_queue: PriorityQueue<WorkOrderNumber, u64>,
@@ -126,6 +127,10 @@ impl StrategicAlgorithm {
             self.strategic_parameters.insert_strategic_parameter(*work_order_number, strategic_parameter);
             self.make_atomic_pointer_swap();
         }
+    }
+
+    pub fn load_shared_solution(&mut self) {
+        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
     }
 
     fn strategic_capacity_by_resource(&self, resource: &Resources, period: &Period) -> Result<Work> {
@@ -850,15 +855,14 @@ pub fn calculate_period_difference(scheduled_period: Period, latest_period: &Per
 }
 
 impl ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm {
-    type SchedulingRequest = StrategicSchedulingRequest;
-    type SchedulingResponse = StrategicResponseScheduling;
-    type ResourceRequest = StrategicResourceRequest;
-    type ResourceResponse = StrategicResponseResources;
-    type TimeRequest = StrategicTimeRequest;
-    type TimeResponse = StrategicResponsePeriods;
+    type MessageRequest = StrategicRequestMessage;
+    type MessageResponse = StrategicResponseMessage;
     type SchedulingUnit = WorkOrderNumber;
+    type Options = StrategicOptions;
 
-    type Options = StrategicConfiguration;
+    fn clone_algorithm_solution(&self) -> impl Solution {
+        self.strategic_solution.clone()
+    }
     
     fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType> {
 
@@ -923,9 +927,9 @@ impl ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm {
 
     fn unschedule(
         &mut self,
-        number_of_work_orders: usize,
-        rng: &mut impl rand::Rng,
+        strategic_options: StrategicOptions,
     ) -> Result<()> {
+        let mut rng = thread_rng();
         let strategic_periods = &self.strategic_solution.strategic_periods;
 
         let strategic_parameters = &self.strategic_parameters.strategic_work_order_parameters;
@@ -939,7 +943,7 @@ impl ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm {
         filtered_keys.sort();
 
         let sampled_work_order_keys = filtered_keys
-            .choose_multiple(rng, number_of_work_orders)
+            .choose_multiple(&mut rng, strategic_options.number_of_removed_work_order)
             .collect::<Vec<_>>()
             .clone();
 
@@ -953,13 +957,47 @@ impl ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm {
     }
     
 
-    fn update_resources_state(
+    fn update_based_on_message(&mut self, message: Self::MessageRequest) -> Result<Self::MessageResponse> {
+        let response = match message {
+            StrategicRequestMessage::Status(_strategic_status_message) => todo!(),
+            StrategicRequestMessage::Scheduling(strategic_scheduling_request) => StrategicResponseMessage::Scheduling(self.update_scheduling_state(strategic_scheduling_request)?),
+            StrategicRequestMessage::Resources(strategic_resource_request) => StrategicResponseMessage::Resources(self.update_resources_state(strategic_resource_request)?),
+            StrategicRequestMessage::Periods(_strategic_time_request) => todo!(),
+            StrategicRequestMessage::SchedulingEnvironment(_strategic_scheduling_environment_commands) => todo!(),
+        };
+        Ok(response)
+    }
+}
+
+impl StrategicAlgorithm {
+    pub fn new(
+        priority_queue: PriorityQueue<WorkOrderNumber, u64>,
+        strategic_parameters: StrategicParameters,
+        strategic_tactical_solution_arc_swap: Arc<ArcSwapSharedSolution>,
+        period_locks: HashSet<Period>,
+        periods: Vec<Period>,
+    ) -> Self {
+
+        let loaded_shared_solution = strategic_tactical_solution_arc_swap.0.load();
+
+        StrategicAlgorithm {
+            priority_queue,
+            strategic_parameters,
+            strategic_solution: StrategicSolution::default() ,
+            arc_swap_shared_solution: strategic_tactical_solution_arc_swap,
+            loaded_shared_solution,
+            strategic_periods: periods,
+            period_locks,
+        }
+    }
+
+pub fn update_resources_state(
         &mut self,
-        strategic_resources_message: Self::ResourceRequest,
-    ) -> Result<Self::ResourceResponse> 
+        strategic_resources_request: StrategicRequestResource,
+    ) -> Result<StrategicResponseResources> 
     {
-        match strategic_resources_message {
-            StrategicResourceRequest::GetLoadings {
+        match strategic_resources_request {
+            StrategicRequestResource::GetLoadings {
                 periods_end: _,
                 select_resources: _,
             } => {
@@ -968,14 +1006,14 @@ impl ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm {
                 let strategic_response_resources = StrategicResponseResources::LoadingAndCapacities(loading.clone());
                 Ok(strategic_response_resources)
             }
-            StrategicResourceRequest::GetCapacities { periods_end: _, select_resources: _ } => 
+            StrategicRequestResource::GetCapacities { periods_end: _, select_resources: _ } => 
             {         
                 let capacities = self.resources_capacities();
 
                 let strategic_response_resources = StrategicResponseResources::LoadingAndCapacities(capacities.clone());
                 Ok(strategic_response_resources)
             }
-            StrategicResourceRequest::GetPercentageLoadings { periods_end:_, resources: _ } => {
+            StrategicRequestResource::GetPercentageLoadings { periods_end:_, resources: _ } => {
                 let capacities = self.resources_capacities();
                 let loadings = self.resources_loadings();
 
@@ -985,18 +1023,14 @@ impl ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm {
         }
     }
 
-    #[allow(dead_code)]
-    fn update_time_state(&mut self, _time_message: Self::TimeRequest) -> Result<Self::TimeResponse> 
-        { todo!() }
-
     #[instrument(level = "info", skip_all)]
-    fn update_scheduling_state(
+    pub fn update_scheduling_state(
         &mut self,
-        strategic_scheduling_message: StrategicSchedulingRequest,
-    ) -> Result<Self::SchedulingResponse>
+        strategic_scheduling_request: StrategicRequestScheduling,
+    ) -> Result<StrategicResponseScheduling>
 {
-        match strategic_scheduling_message {
-            StrategicSchedulingRequest::Schedule(schedule_work_order) => {
+        match strategic_scheduling_request {
+            StrategicRequestScheduling::Schedule(schedule_work_order) => {
                 let period = self
                     .strategic_periods
                     .iter()
@@ -1021,7 +1055,7 @@ impl ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm {
                 Ok(StrategicResponseScheduling::new(number_of_work_orders, period))
                 
             }
-            StrategicSchedulingRequest::ExcludeFromPeriod(exclude_from_period) => {
+            StrategicRequestScheduling::ExcludeFromPeriod(exclude_from_period) => {
 
                 let period = self.strategic_periods.iter().find(|period| {
                     period.period_string() == exclude_from_period.period_string().clone()
@@ -1061,56 +1095,6 @@ impl ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm {
             }
         }
     }
-
-    fn run_lns_iteration(&mut self, parameters: Self::Options) -> Result<()> {
-        let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
-
-        // self.check_messages();
-
-        self.load_shared_solution();
-
-        // self.updated_shared_solution(&mut self)?;
-
-        let current_solution = self.clone_algorithm_solution().clone();
-
-        self.unschedule(parameters)?;
-
-        self.schedule()?;
-
-        let objective_value_type = self.calculate_objective_value()?;
-
-        match objective_value_type {
-            ObjectiveValueType::Better => std::todo!(),
-            ObjectiveValueType::Worse => std::todo!(),
-            ObjectiveValueType::Force => std::todo!(),
-        }
-
-        Ok(())
-    }
-}
-
-impl StrategicAlgorithm {
-    pub fn new(
-        priority_queue: PriorityQueue<WorkOrderNumber, u64>,
-        strategic_parameters: StrategicParameters,
-        strategic_tactical_solution_arc_swap: Arc<ArcSwapSharedSolution>,
-        period_locks: HashSet<Period>,
-        periods: Vec<Period>,
-    ) -> Self {
-
-        let loaded_shared_solution = strategic_tactical_solution_arc_swap.0.load();
-
-        StrategicAlgorithm {
-            priority_queue,
-            strategic_parameters,
-            strategic_solution: StrategicSolution::default() ,
-            arc_swap_shared_solution: strategic_tactical_solution_arc_swap,
-            loaded_shared_solution,
-            strategic_periods: periods,
-            period_locks,
-        }
-    }
-
     fn unschedule_specific_work_order(&mut self, work_order_number: WorkOrderNumber) -> Result<()> {
         let unschedule_from_period= self
             .strategic_periods_mut()
@@ -1649,10 +1633,10 @@ mod tests {
             25, 26, 27, 28, 29, 30, 31, 32,
         ];
 
-        let mut rng = StdRng::from_seed(seed);
+        let rng = StdRng::from_seed(seed);
 
         strategic_algorithm
-            .unschedule_random_work_orders(2, &mut rng)
+            .unschedule(StrategicOptions { number_of_removed_work_order: 2, rng })
             .expect("It should always be possible to unschedule random work orders in the strategic agent");
 
         assert_eq!(

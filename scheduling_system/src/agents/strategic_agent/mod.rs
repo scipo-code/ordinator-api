@@ -6,6 +6,8 @@ use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
 use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
 use anyhow::Context;
 use anyhow::Result;
+use rand::rngs::StdRng;
+use rand::Rng;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use actix::prelude::*;
@@ -34,11 +36,18 @@ impl Agent<StrategicAlgorithm, StrategicRequestMessage, StrategicResponseMessage
             .schedule()
             .with_context(|| "Initial iteration of StrategicAlgorithm")
             .expect("StrategicAlgorithm.schedule() method failed");
+
+
+        let options = StrategicOptions {
+            number_of_removed_work_order: 50,
+            rng: ,
+        };
+
         loop {
             // TODO
             // Insert the remaining logic here! I think that is the best idea.
             // Good! Keep this up! Remember to
-            self.algorithm.run_lns_iteration(parameters)?;
+            self.algorithm.run_lns_iteration(options)?;
 
             // FIX
             // Review this after refactoring.
@@ -141,8 +150,9 @@ impl Agent<StrategicAlgorithm, StrategicRequestMessage, StrategicResponseMessage
     }
 }
 
-pub struct StrategicConfiguration {
-    number_of_removed_work_order: u64,
+pub struct StrategicOptions {
+    number_of_removed_work_order: usize,
+    rng: StdRng,
 }
 
 #[cfg(test)]
@@ -155,7 +165,7 @@ mod tests {
     use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
     use shared_types::scheduling_environment::work_order::operation::Work;
     use shared_types::strategic::strategic_request_scheduling_message::ScheduleChange;
-    use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
+    use shared_types::strategic::strategic_request_scheduling_message::StrategicRequestScheduling;
     use shared_types::strategic::OperationalResource;
     use shared_types::strategic::StrategicResources;
     use tests::algorithm::strategic_parameters::StrategicParameter;
@@ -226,7 +236,7 @@ mod tests {
         let schedule_work_order = ScheduleChange::new(vec_work_order_number, period_string);
 
         let strategic_scheduling_internal =
-            StrategicSchedulingRequest::Schedule(schedule_work_order);
+            StrategicRequestScheduling::Schedule(schedule_work_order);
 
         let periods: Vec<Period> = vec![Period::from_str("2023-W47-48").unwrap()];
 

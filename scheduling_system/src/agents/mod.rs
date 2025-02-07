@@ -124,6 +124,8 @@ pub struct StrategicSolution {
     pub strategic_loadings: StrategicResources,
 }
 
+impl Solution for StrategicSolution {}
+
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct TacticalSolution {
     pub objective_value: TacticalObjectiveValue,
@@ -398,6 +400,7 @@ impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
 /// This type is the primary message type that all agents should receive.
 /// All agents should have the `StateLink` and each agent then have its own
 /// ActorRequest which is specifically created for each agent.
+#[derive(Clone)]
 pub enum AgentMessage<ActorRequest> {
     State(StateLink),
     Actor(ActorRequest),

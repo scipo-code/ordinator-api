@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use actix::Message;
 use serde::{Deserialize, Serialize};
 
-use crate::operational::operational_response_status::OperationalStatusResponse;
+use crate::operational::operational_response_status::OperationalResponseStatus;
 use crate::operational::OperationalConfiguration;
 use crate::scheduling_environment::time_environment::day::Day;
 use crate::scheduling_environment::time_environment::period::Period;
@@ -60,8 +60,8 @@ impl AgentStatusResponse {
 pub struct AgentStatus {
     pub strategic_status: StrategicResponseStatus,
     pub tactical_status: TacticalResponseStatus,
-    pub supervisor_status: Vec<SupervisorResponseStatus>,
-    pub operational_status: Vec<OperationalStatusResponse>,
+    pub supervisor_statai: Vec<SupervisorResponseStatus>,
+    pub operational_statai: Vec<OperationalResponseStatus>,
 }
 
 impl AgentStatus {
@@ -69,13 +69,13 @@ impl AgentStatus {
         strategic_status: StrategicResponseStatus,
         tactical_status: TacticalResponseStatus,
         supervisor_status: Vec<SupervisorResponseStatus>,
-        operational_status: Vec<OperationalStatusResponse>,
+        operational_status: Vec<OperationalResponseStatus>,
     ) -> Self {
         Self {
             strategic_status,
             tactical_status,
-            supervisor_status,
-            operational_status,
+            supervisor_statai: supervisor_status,
+            operational_statai: operational_status,
         }
     }
 }

@@ -53,7 +53,7 @@ impl Default for SchedulingEnvironment {
         SchedulingEnvironment {
             work_orders: WorkOrders::default(),
             worker_environment: WorkerEnvironment::new(),
-            time_environment: TimeEnvironment::new(Vec::new(), Vec::new(), Vec::new()),
+            time_environment: TimeEnvironment::default(),
         }
     }
 }

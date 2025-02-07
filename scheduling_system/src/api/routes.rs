@@ -38,12 +38,12 @@ pub async fn http_to_scheduling_system(
                 .unwrap()
                 .strategic_agent_sender;
 
-            drop(orchestrator_guard);
             strategic.sender.send(crate::agents::AgentMessage::Actor(
                 strategic_request.strategic_request_message,
             ))?;
 
             let response = strategic.receiver.recv()?;
+            drop(orchestrator_guard);
 
             let strategic_response_message = match response {
                 Ok(message) => message,

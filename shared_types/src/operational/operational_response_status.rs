@@ -3,7 +3,7 @@ use serde::Serialize;
 use crate::scheduling_environment::worker_environment::resources::Id;
 
 #[derive(Serialize)]
-pub struct OperationalStatusResponse {
+pub struct OperationalResponseStatus {
     id: Id,
     assign_number_of_activities: u64,
     assess_number_of_activities: u64,
@@ -11,7 +11,7 @@ pub struct OperationalStatusResponse {
     objective: u64,
 }
 
-impl OperationalStatusResponse {
+impl OperationalResponseStatus {
     pub fn new(
         id: Id,
         assign_number_of_activities: u64,

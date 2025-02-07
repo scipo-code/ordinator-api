@@ -3,6 +3,7 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use colored::Colorize;
+use shared_types::operational::Status;
 use shared_types::orchestrator::OrchestratorRequest;
 
 use shared_types::orchestrator::WorkOrderResponse;
@@ -10,10 +11,12 @@ use shared_types::orchestrator::WorkOrdersStatus;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 
 use shared_types::scheduling_environment::worker_environment::WorkerEnvironment;
+use shared_types::strategic::strategic_response_status::StrategicResponseStatus;
 use shared_types::strategic::StrategicRequestMessage;
 use shared_types::strategic::StrategicResponseMessage;
 use shared_types::supervisor::SupervisorRequestMessage;
 use shared_types::supervisor::SupervisorResponseMessage;
+use shared_types::tactical::tactical_response_status::TacticalResponseStatus;
 use shared_types::Asset;
 use std::collections::HashMap;
 use std::sync::atomic::AtomicU64;
@@ -31,7 +34,7 @@ use crate::init::logging::LogHandles;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use shared_types::operational::operational_request_status::OperationalStatusRequest;
-use shared_types::operational::operational_response_status::OperationalStatusResponse;
+use shared_types::operational::operational_response_status::OperationalResponseStatus;
 use shared_types::operational::{
     OperationalConfiguration, OperationalRequestMessage, OperationalResponseMessage,
 };
@@ -136,17 +139,87 @@ pub struct Communication<Req, Res> {
     pub receiver: Receiver<Result<Res>>,
 }
 
+// This will only work if we have a separate type for `Status` as well
+// I do not see any way around that. You should focus on making the
+// code for all these messages as generic as possible. I believe that
+// is the best approach. You cannot handle all this otherwise.
+struct CombinedResponseStatus<MessageType>
+where
+    MessageType: Status,
+{
+    strategic: MessageType,
+    tactical: MessageType,
+    supervisor: Vec<MessageType>,
+    operational: Vec<MessageType>,
+}
+
 impl AgentRegistry {
     pub fn get_operational_addr(
         &self,
         operational_id: &String,
-    ) -> Option<Sender<OperationalRequestMessage>> {
+    ) -> Option<&Communication<AgentMessage<OperationalRequestMessage>, OperationalResponseMessage>>
+    {
         let option_id = self
             .operational_agent_senders
             .iter()
             .find(|(id, _)| &id.0 == operational_id)
             .map(|(_, addr)| addr);
-        option_id.cloned()
+        option_id
+    }
+
+    // This function should be generic over all the different types of messages.
+    // So the idea behind this function is that it should take a generic for
+    // the interal message, but that the outer message is the same for every
+    // agent! This means that it should take like `Status` or something like
+    // that
+    // FIX
+    // Make this generic
+    // WARN
+    // Making this generic is probably not the best idea.
+    pub fn recv_all_agents_status(&self) -> Result<AgentStatus> {
+        let mut supervisor_statai: Vec<SupervisorResponseStatus> = vec![];
+        let mut operational_statai: Vec<OperationalResponseStatus> = vec![];
+
+        let strategic = self.strategic_agent_sender.receiver.recv()??;
+
+        let strategic_status = if let StrategicResponseMessage::Status(strategic) = strategic {
+            strategic
+        } else {
+            panic!()
+        };
+
+        let tactical = self.tactical_agent_sender.receiver.recv()??;
+        let tactical_status = if let TacticalResponseMessage::Status(tactical) = tactical {
+            tactical
+        } else {
+            panic!()
+        };
+
+        for receiver in self.supervisor_agent_senders.iter() {
+            let supervisor = receiver.1.receiver.recv()??;
+            if let SupervisorResponseMessage::Status(supervisor) = supervisor {
+                supervisor_statai.push(supervisor);
+            } else {
+                panic!()
+            }
+        }
+        for receiver in self.operational_agent_senders.iter() {
+            let operational = receiver.1.receiver.recv()??;
+
+            if let OperationalResponseMessage::Status(operational) = operational {
+                operational_statai.push(operational);
+            } else {
+                panic!()
+            }
+        }
+
+        let agent_status = AgentStatus {
+            strategic_status,
+            tactical_status,
+            supervisor_statai,
+            operational_statai,
+        };
+        Ok(agent_status)
     }
 }
 
@@ -162,48 +235,29 @@ impl Orchestrator {
 
                 let mut agent_status_by_asset = HashMap::<Asset, AgentStatus>::new();
                 for asset in self.agent_registries.keys() {
-                    let strategic_agent_addr = self
+                    let strategic_agent_addr = &self
                         .agent_registries
                         .get(asset)
                         .unwrap()
-                        .strategic_agent_sender
-                        .clone();
+                        .strategic_agent_sender;
 
-                    let tactical_agent_addr = self
+                    let tactical_agent_addr = &self
                         .agent_registries
                         .get(asset)
                         .unwrap()
-                        .tactical_agent_sender
-                        .clone();
+                        .tactical_agent_sender;
 
-                    let strategic_agent_status = if let StrategicResponseMessage::Status(status) =
-                        strategic_agent_addr
-                            .send(AgentMessage::Actor(
-                                shared_types::strategic::StrategicRequestMessage::Status(
-                                    StrategicStatusMessage::General,
-                                ),
-                            ))
-                            // FIX
-                            // There is a problem here. Every agent needs to have either a sender for the `Orchestrator`
-                            // or use the `NotifyOrchestrator` to handle the return of the messages here.
-                            .unwrap()
-                            .unwrap()
-                    {
-                        status
-                    } else {
-                        panic!()
-                    };
+                    // What should we do here? I think that the best approach will be to make the code function
+                    strategic_agent_addr.sender.send(AgentMessage::Actor(
+                        shared_types::strategic::StrategicRequestMessage::Status(
+                            StrategicStatusMessage::General,
+                        ),
+                    ));
 
-                    let tactical_agent_status = if let TacticalResponseMessage::Status(status) =
-                        tactical_agent_addr.send(AgentMessage::Actor(
-                            TacticalRequestMessage::Status(TacticalStatusMessage::General),
-                        )) {
-                        status
-                    } else {
-                        panic!()
-                    };
+                    tactical_agent_addr.sender.send(AgentMessage::Actor(
+                        TacticalRequestMessage::Status(TacticalStatusMessage::General),
+                    ));
 
-                    let mut supervisor_statai: Vec<SupervisorResponseStatus> = vec![];
                     for (_id, addr) in self
                         .agent_registries
                         .get(asset)
@@ -211,19 +265,12 @@ impl Orchestrator {
                         .supervisor_agent_senders
                         .iter()
                     {
-                        let supervisor_agent_response = addr
-                            .send(SupervisorRequestMessage::Status(
+                        addr.sender
+                            .send(AgentMessage::Actor(SupervisorRequestMessage::Status(
                                 SupervisorStatusMessage::General,
-                            ))
-                            .await
-                            .unwrap()
-                            .unwrap();
-
-                        let supervisor_agent_status = supervisor_agent_response.status();
-                        supervisor_statai.push(supervisor_agent_status);
+                            )))?
                     }
 
-                    let mut operational_statai: Vec<OperationalStatusResponse> = vec![];
                     for (_id, addr) in self
                         .agent_registries
                         .get(asset)
@@ -231,28 +278,18 @@ impl Orchestrator {
                         .operational_agent_senders
                         .iter()
                     {
-                        let operational_agent_response = addr
-                            .send(OperationalRequestMessage::Status(
+                        addr.sender
+                            .send(AgentMessage::Actor(OperationalRequestMessage::Status(
                                 OperationalStatusRequest::General,
-                            ))
-                            .await
-                            .unwrap()
-                            .unwrap();
-
-                        if let OperationalResponseMessage::Status(status) =
-                            operational_agent_response
-                        {
-                            operational_statai.push(status)
-                        } else {
-                            panic!()
-                        };
+                            )));
                     }
-                    let agent_status = AgentStatus::new(
-                        strategic_agent_status,
-                        tactical_agent_status,
-                        supervisor_statai,
-                        operational_statai,
-                    );
+
+                    let agent_status = self
+                        .agent_registries
+                        .get(&asset)
+                        .expect("Asset should always be present")
+                        .recv_all_agents_status()?;
+
                     agent_status_by_asset.insert(asset.clone(), agent_status);
                 }
                 let orchestrator_response_status = AgentStatusResponse::new(agent_status_by_asset);
@@ -270,18 +307,19 @@ impl Orchestrator {
                         .system_agents = system_agents;
                 }
 
-                let state_link = StateLink::WorkerEnvironment;
+                let state_link = AgentMessage::State(StateLink::WorkerEnvironment);
                 let agent_registry = self.agent_registries.get(&asset).unwrap();
                 agent_registry
                     .strategic_agent_sender
-                    .do_send(state_link.clone());
+                    .sender
+                    .send(state_link);
 
-                agent_registry
-                    .tactical_agent_sender
-                    .do_send(state_link.clone());
+                let state_link = AgentMessage::State(StateLink::WorkerEnvironment);
+                agent_registry.tactical_agent_sender.sender.send(state_link);
 
                 for supervisor in agent_registry.supervisor_agent_senders.iter() {
-                    supervisor.1.do_send(state_link.clone());
+                    let state_link = AgentMessage::State(StateLink::WorkerEnvironment);
+                    supervisor.1.sender.send(state_link);
                 }
 
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
@@ -292,18 +330,6 @@ impl Orchestrator {
 
                 for agent in operational_agents {
                     let id = Id::new(agent.id.clone(), agent.resources.resources.clone(), None);
-                    let supervisor_addrs = self
-                        .agent_registries
-                        .get(&asset)
-                        .with_context(|| {
-                            format!(
-                                "{:#?} not found for {:#?}",
-                                std::any::type_name::<AgentRegistry>(),
-                                &asset
-                            )
-                        })?
-                        .supervisor_agent_senders
-                        .clone();
                     let arc_swap =
                         self.arc_swap_shared_solutions
                             .get(&asset)
@@ -327,19 +353,22 @@ impl Orchestrator {
                                 )
                             })?,
                     );
-                    let operational_addr = self.agent_factory.build_operational_agent(
-                        id.clone(),
-                        &agent.operational_configuration,
-                        supervisor_addrs,
-                        Arc::clone(arc_swap),
-                        notify_orchestrator,
-                    );
+                    let operational_communication = self
+                        .agent_factory
+                        .build_operational_agent(
+                            &asset,
+                            &id,
+                            &agent.operational_configuration,
+                            Arc::clone(arc_swap),
+                            notify_orchestrator,
+                        )
+                        .context("Could not build OperationalAgent")?;
 
                     self.agent_registries
                         .get_mut(&asset)
                         .unwrap()
                         .operational_agent_senders
-                        .insert(id, operational_addr);
+                        .insert(id, operational_communication);
                 }
                 Ok(OrchestratorResponse::Success)
             }
@@ -431,21 +460,6 @@ impl Orchestrator {
                 Ok(tactical_days)
             }
             OrchestratorRequest::CreateSupervisorAgent(asset, id_string) => {
-                let tactical_agent_addr = self
-                    .agent_registries
-                    .get(&asset)
-                    .unwrap()
-                    .tactical_agent_sender
-                    .clone();
-
-                let number_of_operational_agents = Arc::clone(
-                    &self
-                        .agent_registries
-                        .get(&asset)
-                        .unwrap()
-                        .number_of_operational_agents,
-                );
-
                 let notify_orchestrator = NotifyOrchestrator(
                     self.agent_notify
                         .as_ref()
@@ -455,8 +469,8 @@ impl Orchestrator {
                 );
 
                 let supervisor_agent_addr = self.agent_factory.build_supervisor_agent(
-                    asset.clone(),
-                    id_string.clone(),
+                    &asset,
+                    &id_string,
                     self.arc_swap_shared_solutions.get(&asset).unwrap().clone(),
                     notify_orchestrator,
                 );
@@ -466,9 +480,7 @@ impl Orchestrator {
                     .unwrap()
                     .add_supervisor_agent(
                         id_string.clone(),
-                        supervisor_agent_addr
-                            .expect("Could not create SupervisorAgent")
-                            .clone(),
+                        supervisor_agent_addr.expect("Could not create SupervisorAgent"),
                     );
                 let response_string = format!("Supervisor agent created with id {}", id_string);
                 let orchestrator_response = OrchestratorResponse::RequestStatus(response_string);
@@ -724,12 +736,15 @@ impl Orchestrator {
                 .expect("Weak reference part of initialization"),
         );
 
-        let tactical_agent_addr = self.agent_factory.build_tactical_agent(
-            asset.clone(),
-            &scheduling_environment_guard,
-            shared_solutions_arc_swap.clone(),
-            notify_orchestrator,
-        );
+        let tactical_agent_addr = self
+            .agent_factory
+            .build_tactical_agent(
+                &asset,
+                &scheduling_environment_guard,
+                shared_solutions_arc_swap.clone(),
+                notify_orchestrator.clone(),
+            )
+            .context("Could not build TacticalAgent")?;
 
         let supervisors = scheduling_environment_guard
             .worker_environment
@@ -737,7 +752,10 @@ impl Orchestrator {
             .supervisors
             .clone();
         drop(scheduling_environment_guard);
-        let mut supervisor_addrs = HashMap::<Id, Addr<SupervisorAgent>>::new();
+        let mut supervisor_addrs = HashMap::<
+            Id,
+            Communication<AgentMessage<SupervisorRequestMessage>, SupervisorResponseMessage>,
+        >::new();
         let number_of_operational_agents = Arc::new(AtomicU64::new(0));
 
         for supervisor in supervisors {
@@ -746,8 +764,8 @@ impl Orchestrator {
             let supervisor_addr = self
                 .agent_factory
                 .build_supervisor_agent(
-                    asset.clone(),
-                    id.clone(),
+                    &asset,
+                    &id,
                     shared_solutions_arc_swap.clone(),
                     notify_orchestrator.clone(),
                 )

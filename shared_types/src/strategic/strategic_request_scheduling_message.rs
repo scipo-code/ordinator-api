@@ -9,12 +9,12 @@ use super::TimePeriod;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "scheduling_message_type")]
-pub enum StrategicSchedulingRequest {
+pub enum StrategicRequestScheduling {
     Schedule(ScheduleChange),
     ExcludeFromPeriod(ScheduleChange),
 }
 
-impl StrategicSchedulingRequest {
+impl StrategicRequestScheduling {
     pub fn new_single_work_order(
         work_order_number: Vec<WorkOrderNumber>,
         period_string: String,

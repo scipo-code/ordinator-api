@@ -227,15 +227,16 @@ impl AgentFactory {
     pub fn build_supervisor_agent(
         &self,
         asset: &Asset,
-        id_supervisor: Id,
+        id_supervisor: &Id,
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
         notify_orchestrator: NotifyOrchestrator,
-        supervisor_periods: &[Period],
     ) -> Result<Communication<AgentMessage<SupervisorRequestMessage>, SupervisorResponseMessage>>
     {
-        let scheduling_environment = Arc::clone(&self.scheduling_environment);
-        let (sender_to_agent, receiver_from_orchestrator) = std::sync::mpsc::channel();
-        let (sender_to_orchestrator, receiver_from_agent) = std::sync::mpsc::channel();
+        let scheduling_environment = self.scheduling_environment.lock().unwrap();
+        let supervisor_periods = scheduling_environment
+            .time_environment
+            .supervisor_periods
+            .as_slice();
 
         let supervisor_algorithm = SupervisorAlgorithm::new(
             id_supervisor.clone().1,
@@ -243,6 +244,9 @@ impl AgentFactory {
             supervisor_periods,
         );
 
+        let scheduling_environment = Arc::clone(&self.scheduling_environment);
+        let (sender_to_agent, receiver_from_orchestrator) = std::sync::mpsc::channel();
+        let (sender_to_orchestrator, receiver_from_agent) = std::sync::mpsc::channel();
         // It is the `Algorithm` that should have the arc_swap_shared_solution, not the
         // `Agent`. The mutable requirements makes a lot of sense.
         let mut supervisor_agent = Agent::new(

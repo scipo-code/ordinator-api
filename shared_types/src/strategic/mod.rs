@@ -15,7 +15,6 @@ use std::{
     fmt::{self},
 };
 
-use actix::Message;
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::any_key_map;
 
@@ -31,8 +30,8 @@ use crate::{
 
 use self::{
     strategic_request_periods_message::StrategicTimeRequest,
-    strategic_request_resources_message::{ManualResource, StrategicResourceRequest},
-    strategic_request_scheduling_message::StrategicSchedulingRequest,
+    strategic_request_resources_message::{ManualResource, StrategicRequestResource},
+    strategic_request_scheduling_message::StrategicRequestScheduling,
     strategic_request_status_message::StrategicStatusMessage,
     strategic_response_periods::StrategicResponsePeriods,
     strategic_response_resources::StrategicResponseResources,
@@ -100,8 +99,8 @@ pub enum StrategicSchedulingEnvironmentCommands {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum StrategicRequestMessage {
     Status(StrategicStatusMessage),
-    Scheduling(StrategicSchedulingRequest),
-    Resources(StrategicResourceRequest),
+    Scheduling(StrategicRequestScheduling),
+    Resources(StrategicRequestResource),
     Periods(StrategicTimeRequest),
     SchedulingEnvironment(StrategicSchedulingEnvironmentCommands),
 }

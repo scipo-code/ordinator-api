@@ -2,14 +2,11 @@ pub mod algorithm;
 pub mod assert_functions;
 pub mod message_handlers;
 
-use algorithm::assert_functions::OperationalAlgorithmAsserts;
 use algorithm::{
     operational_parameter::OperationalParameter,
-    operational_solution::{Assignment, MarginalFitness, OperationalAssignment},
+    operational_solution::{Assignment, OperationalAssignment},
 };
 use anyhow::{Context, Result};
-use assert_functions::OperationalAssertions;
-use std::sync::{Arc, Mutex};
 
 use shared_types::operational::{
     OperationalConfiguration, OperationalRequestMessage, OperationalResponseMessage,
@@ -18,21 +15,15 @@ use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
 use shared_types::scheduling_environment::work_order::{
     operation::Work, WorkOrderActivity, WorkOrderNumber,
 };
-use shared_types::scheduling_environment::worker_environment::resources::Id;
 
 use shared_types::scheduling_environment::{
     work_order::operation::Operation, SchedulingEnvironment,
 };
 
-use tracing::{event, Level};
-
-use crate::agents::{supervisor_agent::algorithm::delegate::Delegate, OperationalSolution};
-
 use self::algorithm::OperationalAlgorithm;
 
-use super::orchestrator::NotifyOrchestrator;
 use super::traits::ActorBasedLargeNeighborhoodSearch;
-use super::{Agent, AgentMessage, ScheduleIteration};
+use super::{Agent, ScheduleIteration};
 
 impl Agent<OperationalAlgorithm, OperationalRequestMessage, OperationalResponseMessage> {
     pub fn create_operational_parameter(

@@ -17,7 +17,7 @@ use shared_types::{
             operation::{operation_info::NumberOfPeople, ActivityNumber},
             WorkOrderActivity, WorkOrderNumber,
         },
-        worker_environment::resources::Resources,
+        worker_environment::resources::{Id, Resources},
         SchedulingEnvironment,
     },
     supervisor::{

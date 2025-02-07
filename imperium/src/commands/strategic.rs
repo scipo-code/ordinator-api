@@ -4,9 +4,9 @@ use clap::Args;
 use clap::Subcommand;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
-use shared_types::strategic::strategic_request_resources_message::StrategicResourceRequest;
+use shared_types::strategic::strategic_request_resources_message::StrategicRequestResource;
 use shared_types::strategic::strategic_request_scheduling_message::ScheduleChange;
-use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
+use shared_types::strategic::strategic_request_scheduling_message::StrategicRequestScheduling;
 use shared_types::strategic::strategic_request_status_message::StrategicStatusMessage;
 use shared_types::strategic::StrategicRequest;
 use shared_types::strategic::StrategicRequestMessage;
@@ -148,8 +148,8 @@ impl StrategicCommands {
                 scheduling_commands: subcommand,
             } => match subcommand {
                 SchedulingCommands::Schedule(schedule) => {
-                    let strategic_scheduling_message: StrategicSchedulingRequest =
-                        StrategicSchedulingRequest::Schedule(schedule);
+                    let strategic_scheduling_message: StrategicRequestScheduling =
+                        StrategicRequestScheduling::Schedule(schedule);
 
                     let strategic_request_message =
                         StrategicRequestMessage::Scheduling(strategic_scheduling_message);
@@ -165,8 +165,8 @@ impl StrategicCommands {
                     todo!()
                 }
                 SchedulingCommands::Exclude(schedule_change) => {
-                    let strategic_scheduling_message: StrategicSchedulingRequest =
-                        StrategicSchedulingRequest::ExcludeFromPeriod(schedule_change);
+                    let strategic_scheduling_message: StrategicRequestScheduling =
+                        StrategicRequestScheduling::ExcludeFromPeriod(schedule_change);
 
                     let strategic_request_message =
                         StrategicRequestMessage::Scheduling(strategic_scheduling_message);
@@ -198,7 +198,7 @@ impl StrategicCommands {
                         None => None,
                     };
 
-                    let strategic_resources_message = StrategicResourceRequest::GetLoadings {
+                    let strategic_resources_message = StrategicRequestResource::GetLoadings {
                         periods_end: periods_end.to_string(),
                         select_resources: resources,
                     };
@@ -228,7 +228,7 @@ impl StrategicCommands {
                         None => None,
                     };
 
-                    let strategic_resources_message = StrategicResourceRequest::GetCapacities {
+                    let strategic_resources_message = StrategicRequestResource::GetCapacities {
                         periods_end: periods_end.to_string(),
                         select_resources: resources,
                     };
@@ -260,7 +260,7 @@ impl StrategicCommands {
                     };
 
                     let strategic_resources_message =
-                        StrategicResourceRequest::GetPercentageLoadings {
+                        StrategicRequestResource::GetPercentageLoadings {
                             periods_end: periods_end.to_string(),
                             resources,
                         };

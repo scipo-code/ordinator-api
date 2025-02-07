@@ -22,23 +22,10 @@ pub trait SchedulingEnvironmentFactory<DataSource> {
 }
 
 pub struct TimeInput {
-    number_of_strategic_periods: u64,
-    number_of_tactical_periods: u64,
-    number_of_days: u64,
-}
-
-impl TimeInput {
-    pub fn new(
-        number_of_strategic_periods: u64,
-        number_of_tactical_periods: u64,
-        number_of_days: u64,
-    ) -> Self {
-        Self {
-            number_of_strategic_periods,
-            number_of_tactical_periods,
-            number_of_days,
-        }
-    }
+    pub number_of_strategic_periods: u64,
+    pub number_of_tactical_periods: u64,
+    pub number_of_days: u64,
+    pub number_of_supervisor_periods: u64,
 }
 
 pub fn create_time_environment(time_input: &TimeInput) -> TimeEnvironment {
@@ -58,11 +45,14 @@ pub fn create_time_environment(time_input: &TimeInput) -> TimeEnvironment {
         }
         days
     };
+    let supervisor_periods =
+        strategic_periods.clone()[0..time_input.number_of_supervisor_periods as usize].to_vec();
 
     TimeEnvironment::new(
         strategic_periods,
         tactical_periods.to_vec(),
         tactical_days(time_input.number_of_days),
+        supervisor_periods,
     )
 }
 

@@ -4,7 +4,7 @@ use shared_types::operational::{
     operational_response_scheduling::{
         ApiAssignment, ApiAssignmentEvents, EventInfo, OperationalSchedulingResponse,
     },
-    operational_response_status::OperationalStatusResponse,
+    operational_response_status::OperationalResponseStatus,
     OperationalRequestMessage, OperationalResponseMessage,
 };
 use tracing::{event, Level};
@@ -83,7 +83,7 @@ impl Agent<OperationalAlgorithm, OperationalRequestMessage, OperationalResponseM
                     .supervisor
                     .count_delegate_types(&self.agent_id);
 
-                let operational_response_status = OperationalStatusResponse::new(
+                let operational_response_status = OperationalResponseStatus::new(
                     self.agent_id.clone(),
                     assign,
                     assess,

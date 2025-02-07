@@ -15,7 +15,7 @@ use self::{
     operational_request_time::OperationalTimeRequest,
     operational_response_resource::OperationalResourceResponse,
     operational_response_scheduling::OperationalSchedulingResponse,
-    operational_response_status::OperationalStatusResponse,
+    operational_response_status::OperationalResponseStatus,
     operational_response_time::OperationalTimeResponse,
 };
 
@@ -38,6 +38,31 @@ pub enum OperationalRequest {
     ForOperationalAgent((Asset, String, OperationalRequestMessage)),
 }
 
+pub trait Status {}
+pub trait Scheduling {}
+pub trait Resource {}
+pub trait Time {}
+
+pub enum RequestMessage<S, Sc, R, T>
+where
+    S: Status,
+    Sc: Scheduling,
+    R: Resource,
+    T: Time,
+{
+    Status(S),
+    Scheduling(Sc),
+    Resource(R),
+    Time(T),
+}
+
+pub enum ResponseMessage<S, Sc, R, T> {
+    Status(S),
+    Scheduling(Sc),
+    Resource(R),
+    Time(T),
+}
+
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub enum OperationalRequestMessage {
     Status(OperationalStatusRequest),
@@ -52,7 +77,7 @@ impl Message for OperationalRequestMessage {
 
 #[derive(Serialize)]
 pub enum OperationalResponseMessage {
-    Status(OperationalStatusResponse),
+    Status(OperationalResponseStatus),
     Scheduling(OperationalSchedulingResponse),
     Resource(OperationalResourceResponse),
     Time(OperationalTimeResponse),

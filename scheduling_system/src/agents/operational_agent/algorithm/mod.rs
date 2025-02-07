@@ -17,15 +17,7 @@ use operational_solution::{
 };
 use rand::{seq::SliceRandom, thread_rng};
 use shared_types::{
-    operational::{
-        operational_request_resource::OperationalResourceRequest,
-        operational_request_scheduling::OperationalSchedulingRequest,
-        operational_request_time::OperationalTimeRequest,
-        operational_response_resource::OperationalResourceResponse,
-        operational_response_scheduling::OperationalSchedulingResponse,
-        operational_response_time::OperationalTimeResponse, OperationalRequestMessage,
-        OperationalResponseMessage, TimeInterval,
-    },
+    operational::{OperationalRequestMessage, OperationalResponseMessage, TimeInterval},
     scheduling_environment::{
         work_order::{
             operation::{ActivityNumber, Work},

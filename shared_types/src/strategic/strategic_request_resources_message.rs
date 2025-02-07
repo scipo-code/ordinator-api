@@ -5,7 +5,7 @@ use crate::scheduling_environment::worker_environment::resources::Resources;
 use super::TimePeriod;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub enum StrategicResourceRequest {
+pub enum StrategicRequestResource {
     // SetResources {
     //     resources: Vec<Resources>,
     //     period_imperium: Period,

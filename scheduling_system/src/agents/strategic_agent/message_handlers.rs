@@ -10,7 +10,7 @@ use shared_types::orchestrator::StrategicApiSolution;
 use shared_types::orchestrator::WorkOrderResponse;
 use shared_types::orchestrator::WorkOrdersStatus;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::strategic::strategic_request_scheduling_message::StrategicSchedulingRequest;
+use shared_types::strategic::strategic_request_scheduling_message::StrategicRequestScheduling;
 use shared_types::strategic::strategic_request_status_message::StrategicStatusMessage;
 use shared_types::strategic::strategic_response_periods::StrategicResponsePeriods;
 use shared_types::strategic::strategic_response_scheduling::StrategicResponseScheduling;
@@ -41,9 +41,7 @@ impl Agent<StrategicAlgorithm, StrategicRequestMessage, StrategicResponseMessage
             Ok(message) => match message {
                 AgentMessage::State(state_link) => self.handle_state_link(state_link)?,
                 AgentMessage::Actor(strategic_request_message) => {
-                    let message = self
-                        .handle_request_message(strategic_request_message)
-                        .unwrap();
+                    let message = self.handle_request_message(strategic_request_message);
 
                     self.sender_to_orchestrator.send(message)?;
                 }
@@ -193,7 +191,7 @@ impl Agent<StrategicAlgorithm, StrategicRequestMessage, StrategicResponseMessage
                     .with_context(|| {
                         format!(
                             "{} was not Resolved",
-                            type_name::<StrategicSchedulingRequest>()
+                            type_name::<StrategicRequestScheduling>()
                                 .split("::")
                                 .last()
                                 .unwrap()
@@ -396,17 +394,5 @@ impl Agent<StrategicAlgorithm, StrategicRequestMessage, StrategicResponseMessage
             }
             StateLink::TimeEnvironment => todo!(),
         }
-    }
-}
-
-impl Handler<SolutionExportMessage> for StrategicAgent {
-    type Result = Option<AgentExports>;
-
-    fn handle(&mut self, _msg: SolutionExportMessage, _ctx: &mut Self::Context) -> Self::Result {
-        let mut strategic_solution = HashMap::new();
-        for (work_order_number, scheduled_period) in self.algorithm.strategic_periods().iter() {
-            strategic_solution.insert(*work_order_number, scheduled_period.clone().unwrap());
-        }
-        Some(AgentExports::Strategic(strategic_solution))
     }
 }
