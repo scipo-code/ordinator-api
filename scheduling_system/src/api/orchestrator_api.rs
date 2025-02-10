@@ -39,7 +39,7 @@ impl Orchestrator {
                             asset
                         )
                     })
-                    .map_err(|err| actix_web::error::ErrorInternalServerError(err))?
+                    .map_err(actix_web::error::ErrorInternalServerError)?
                     .0
                     .load();
 
@@ -134,13 +134,13 @@ impl Orchestrator {
             .send(crate::agents::AgentMessage::Actor(
                 tactical_request.tactical_request_message,
             ))
-            .map_err(|err| actix_web::error::ErrorInternalServerError(err))?;
+            .map_err(actix_web::error::ErrorInternalServerError)?;
 
         let response = agent_registry_for_asset
             .receiver
             .recv()
-            .map_err(|err| actix_web::error::ErrorInternalServerError(err))?
-            .map_err(|err| actix_web::error::ErrorInternalServerError(err))?;
+            .map_err(actix_web::error::ErrorInternalServerError)?
+            .map_err(actix_web::error::ErrorInternalServerError)?;
 
         let tactical_response = TacticalResponse::new(tactical_request.asset, response);
         let system_responses = SystemResponses::Tactical(tactical_response);
@@ -171,13 +171,13 @@ impl Orchestrator {
             .send(crate::agents::AgentMessage::Actor(
                 supervisor_request.supervisor_request_message,
             ))
-            .map_err(|err| actix_web::error::ErrorInternalServerError(err))?;
+            .map_err(actix_web::error::ErrorInternalServerError)?;
 
         let response = supervisor_agent_addr
             .receiver
             .recv()
-            .map_err(|err| actix_web::error::ErrorInternalServerError(err))?
-            .map_err(|err| actix_web::error::ErrorInternalServerError(err))?;
+            .map_err(actix_web::error::ErrorInternalServerError)?
+            .map_err(actix_web::error::ErrorInternalServerError)?;
 
         let supervisor_response = SupervisorResponse::new(supervisor_request.asset, response);
 
@@ -221,13 +221,13 @@ impl Orchestrator {
                             .sender
                             .send(crate::agents::AgentMessage::Actor(operational_request_message))
                             .context("Could not await the message sending, theard problems are the most likely")
-                            .map_err(|err| actix_web::error::ErrorInternalServerError(err))?;
+                            .map_err(actix_web::error::ErrorInternalServerError)?;
 
                         let response = agent_communication
                             .receiver
                             .recv()
-                            .map_err(|err| actix_web::error::ErrorInternalServerError(err))?
-                            .map_err(|err| actix_web::error::ErrorInternalServerError(err))?;
+                            .map_err(actix_web::error::ErrorInternalServerError)?
+                            .map_err(actix_web::error::ErrorInternalServerError)?;
 
                         OperationalResponse::OperationalState(response)
                     }

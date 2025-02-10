@@ -28,7 +28,7 @@ use shared_types::tactical::{TacticalObjectiveValue, TacticalResources};
 use shared_types::Asset;
 use supervisor_agent::algorithm::delegate::Delegate;
 use tactical_agent::algorithm::tactical_solution::OperationSolution;
-use traits::{ActorBasedLargeNeighborhoodSearch, Solution};
+use traits::ActorBasedLargeNeighborhoodSearch;
 
 pub struct Agent<Algorithm, AgentRequest, AgentResponse>
 where
@@ -77,7 +77,7 @@ where
 
         loop {
             while let Ok(message) = self.receiver_from_orchestrator.try_recv() {
-                self.handle(message);
+                self.handle(message)?;
             }
 
             self.algorithm.run_lns_iteration(&mut options)?;
@@ -156,16 +156,12 @@ pub struct StrategicSolution {
     pub strategic_loadings: StrategicResources,
 }
 
-impl Solution for StrategicSolution {}
-
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct TacticalSolution {
     pub objective_value: TacticalObjectiveValue,
     pub tactical_scheduled_work_orders: TacticalScheduledWorkOrders,
     pub tactical_loadings: TacticalResources,
 }
-
-impl Solution for TacticalSolution {}
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct TacticalScheduledWorkOrders(
@@ -270,15 +266,11 @@ pub struct SupervisorSolution {
     operational_state_machine: HashMap<(Id, WorkOrderActivity), Delegate>,
 }
 
-impl Solution for SupervisorSolution {}
-
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct OperationalSolution {
     pub objective_value: OperationalObjectiveValue,
     pub work_order_activities_assignment: Vec<(WorkOrderActivity, OperationalAssignment)>,
 }
-
-impl Solution for OperationalSolution {}
 
 impl StrategicSolution {
     pub fn supervisor_work_orders_from_strategic(
@@ -491,7 +483,7 @@ pub enum AgentSpecific {
     Strategic(Vec<WorkOrderNumber>),
 }
 
-trait MessageHandler {
+pub trait MessageHandler {
     type Req;
     type Res;
 

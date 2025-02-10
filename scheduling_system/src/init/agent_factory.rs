@@ -157,7 +157,7 @@ impl AgentFactory {
         // Turn this into a std::thread::spawn and work on that to make the program function correctly.
         std::thread::Builder::new()
             .name(asset.to_string())
-            .spawn(move || strategic_agent.run(options));
+            .spawn(move || strategic_agent.run(options))?;
 
         Ok(Communication {
             sender: sender_to_agent,
@@ -201,7 +201,7 @@ impl AgentFactory {
             .tactical_capacity
             .update_resources(tactical_resources_from_file);
 
-        tactical_algorithm.create_tactical_parameters(scheduling_environment_guard, &asset);
+        tactical_algorithm.create_tactical_parameters(scheduling_environment_guard, asset);
 
         let id = Id("Tactical".to_string(), vec![], None);
 
@@ -224,7 +224,7 @@ impl AgentFactory {
 
         std::thread::Builder::new()
             .name(asset.to_string())
-            .spawn(move || tactical_agent.run(options));
+            .spawn(move || tactical_agent.run(options))?;
 
         Ok(Communication {
             sender: sender_to_agent,
@@ -271,7 +271,7 @@ impl AgentFactory {
 
         std::thread::Builder::new()
             .name(asset.to_string() + &id_supervisor.to_string())
-            .spawn(move || supervisor_agent.run(options));
+            .spawn(move || supervisor_agent.run(options))?;
 
         Ok(Communication {
             sender: sender_to_agent,
@@ -325,7 +325,7 @@ impl AgentFactory {
 
         std::thread::Builder::new()
             .name(operational_id.0.clone())
-            .spawn(move || operational_agent.run(options));
+            .spawn(move || operational_agent.run(options))?;
 
         Ok(Communication {
             sender: sender_to_agent,

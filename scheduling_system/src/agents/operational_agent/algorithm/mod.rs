@@ -219,10 +219,6 @@ impl OperationalAlgorithm {
             .marginal_fitness = MarginalFitness::Scheduled(time_delta_usize);
     }
 
-    pub(crate) fn load_shared_solution(&mut self) {
-        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
-    }
-
     pub(crate) fn make_atomic_pointer_swap(&self, operational_id: &Id) {
         // Performance enhancements:
         // * COW:
@@ -849,7 +845,8 @@ mod tests {
     };
 
     use crate::agents::{
-        operational_agent::algorithm::OperationalEvents, ArcSwapSharedSolution, WhereIsWorkOrder,
+        operational_agent::algorithm::OperationalEvents, traits::ActorBasedLargeNeighborhoodSearch,
+        ArcSwapSharedSolution, WhereIsWorkOrder,
     };
 
     use super::{OperationalAlgorithm, OperationalParameter};

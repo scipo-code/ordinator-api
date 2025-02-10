@@ -43,12 +43,12 @@ pub async fn http_to_scheduling_system(
                 .send(crate::agents::AgentMessage::Actor(
                     strategic_request.strategic_request_message,
                 ))
-                .map_err(|err| actix_web::error::ErrorInternalServerError(err))?;
+                .map_err(actix_web::error::ErrorInternalServerError)?;
 
             let response = strategic
                 .receiver
                 .recv()
-                .map_err(|err| actix_web::error::ErrorInternalServerError(err))?;
+                .map_err(actix_web::error::ErrorInternalServerError)?;
             drop(orchestrator_guard);
 
             let strategic_response_message = match response {

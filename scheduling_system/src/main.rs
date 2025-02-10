@@ -2,7 +2,7 @@ mod agents;
 mod api;
 mod init;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use data_processing::sources::TimeInput;
 use std::{
     fs::File,
@@ -20,7 +20,7 @@ use crate::init::logging;
 use shared_types::{scheduling_environment::SchedulingEnvironment, Asset};
 
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> Result<()> {
     dotenvy::dotenv()
         .expect("You need to provide an .env file. Look at the .env.example if for guidance");
 
@@ -73,7 +73,8 @@ async fn main() -> std::io::Result<()> {
     orchestrator
         .lock()
         .unwrap()
-        .initialize_operational_agents(asset);
+        .initialize_operational_agents(asset)
+        .map_err(|err| std::io::Error::new(std::io::ErrorKind::ReadOnlyFilesystem, err))?;
     // WARN FINISH: USED FOR CONVENIENCE
 
     HttpServer::new(move || {
@@ -90,6 +91,7 @@ async fn main() -> std::io::Result<()> {
     .bind(dotenvy::var("ORDINATOR_API_ADDRESS").unwrap())?
     .run()
     .await
+    .map_err(|err| anyhow!(err))
 }
 
 fn initialize_from_database(path: &Path) -> SchedulingEnvironment {

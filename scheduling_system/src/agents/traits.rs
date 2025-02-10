@@ -54,8 +54,6 @@ pub trait ActorBasedLargeNeighborhoodSearch {
     // fn update_shared_solution(&mut self) -> Result<()>;
 }
 
-pub trait Solution: Clone + 'static {}
-
 pub enum ObjectiveValueType {
     Better,
     Worse,

@@ -224,25 +224,21 @@ impl TacticalAlgorithm {
             Arc::new(shared_solution)
         });
     }
-
-    pub fn load_shared_solution(&mut self) {
-        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
-    }
-
-    pub(crate) fn objective_value(&self) -> TacticalObjectiveValue {
-        self.tactical_solution.objective_value.clone()
-    }
 }
 
 impl ActorBasedLargeNeighborhoodSearch for TacticalAlgorithm {
     type MessageRequest = TacticalRequestMessage;
     type MessageResponse = TacticalResponseMessage;
-
     type SchedulingUnit = WorkOrderNumber;
+    type Solution = TacticalSolution;
     type Options = TacticalOptions;
 
-    fn clone_algorithm_solution(&self) -> impl crate::agents::traits::Solution {
+    fn clone_algorithm_solution(&self) -> Self::Solution {
         self.tactical_solution.clone()
+    }
+
+    fn swap_solution(&mut self, solution: Self::Solution) {
+        self.tactical_solution = solution;
     }
 
     fn load_shared_solution(&mut self) {
@@ -302,8 +298,8 @@ impl ActorBasedLargeNeighborhoodSearch for TacticalAlgorithm {
 
         // Calculate penalty for exceeding the capacity
         let objective_value_from_excess = 1000000000 * self.determine_aggregate_excess();
-        self.tactical_solution.objective_value.0 =
-            objective_value_from_tardiness + objective_value_from_excess;
+
+        let tactical_objective_value = objective_value_from_tardiness + objective_value_from_excess;
         event!(
             Level::WARN,
             objective_value_from_excess = ?objective_value_from_excess,
@@ -311,7 +307,11 @@ impl ActorBasedLargeNeighborhoodSearch for TacticalAlgorithm {
             tactical_objective_value = ?self.tactical_solution.objective_value
         );
 
-        Ok(self.tactical_solution.objective_value.clone())
+        if tactical_objective_value < self.tactical_solution.objective_value.0 {
+            Ok(ObjectiveValueType::Better)
+        } else {
+            Ok(ObjectiveValueType::Worse)
+        }
     }
 
     fn schedule(&mut self) -> Result<()> {
@@ -509,6 +509,30 @@ impl ActorBasedLargeNeighborhoodSearch for TacticalAlgorithm {
                 .tactical_insert_work_order(current_work_order_number, operation_solutions);
             self.asset_that_loading_matches_scheduled()
                 .with_context(|| format!("TESTING_ASSERTION on line: {}", line!()))?;
+        }
+        Ok(())
+    }
+    fn unschedule(&mut self, options: &mut Self::Options) -> Result<()> {
+        let work_order_numbers: Vec<WorkOrderNumber> = self
+            .tactical_solution
+            .tactical_scheduled_work_orders
+            .0
+            .clone()
+            .into_keys()
+            .collect();
+
+        let random_work_order_numbers = work_order_numbers
+            .choose_multiple(&mut options.rng, options.number_of_removed_work_orders);
+
+        for work_order_number in random_work_order_numbers {
+            self.unschedule_specific_work_order(*work_order_number)
+                .with_context(|| {
+                    format!(
+                        "Could not unschedule tactical work order: {:?} on line: {}",
+                        work_order_number,
+                        line!(),
+                    )
+                })?;
         }
         Ok(())
     }

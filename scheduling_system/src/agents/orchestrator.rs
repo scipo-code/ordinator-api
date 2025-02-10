@@ -249,11 +249,11 @@ impl Orchestrator {
                         shared_types::strategic::StrategicRequestMessage::Status(
                             StrategicStatusMessage::General,
                         ),
-                    ));
+                    ))?;
 
                     tactical_agent_addr.sender.send(AgentMessage::Actor(
                         TacticalRequestMessage::Status(TacticalStatusMessage::General),
-                    ));
+                    ))?;
 
                     for (_id, addr) in self
                         .agent_registries
@@ -275,15 +275,14 @@ impl Orchestrator {
                         .operational_agent_senders
                         .iter()
                     {
-                        addr.sender
-                            .send(AgentMessage::Actor(OperationalRequestMessage::Status(
-                                OperationalStatusRequest::General,
-                            )));
+                        addr.sender.send(AgentMessage::Actor(
+                            OperationalRequestMessage::Status(OperationalStatusRequest::General),
+                        ))?;
                     }
 
                     let agent_status = self
                         .agent_registries
-                        .get(&asset)
+                        .get(asset)
                         .expect("Asset should always be present")
                         .recv_all_agents_status()?;
 
@@ -309,14 +308,17 @@ impl Orchestrator {
                 agent_registry
                     .strategic_agent_sender
                     .sender
-                    .send(state_link);
+                    .send(state_link)?;
 
                 let state_link = AgentMessage::State(StateLink::WorkerEnvironment);
-                agent_registry.tactical_agent_sender.sender.send(state_link);
+                agent_registry
+                    .tactical_agent_sender
+                    .sender
+                    .send(state_link)?;
 
                 for supervisor in agent_registry.supervisor_agent_senders.iter() {
                     let state_link = AgentMessage::State(StateLink::WorkerEnvironment);
-                    supervisor.1.sender.send(state_link);
+                    supervisor.1.sender.send(state_link)?;
                 }
 
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
@@ -503,7 +505,7 @@ impl Orchestrator {
             OrchestratorRequest::CreateOperationalAgent(asset, id, operational_configuration) => {
                 let response_string = format!("Operational agent created with id {}", id);
 
-                self.create_operational_agent(&asset, &id, &operational_configuration);
+                self.create_operational_agent(&asset, &id, &operational_configuration)?;
 
                 let orchestrator_response = OrchestratorResponse::RequestStatus(response_string);
 
@@ -556,7 +558,7 @@ impl Orchestrator {
         }
     }
 
-    pub fn initialize_operational_agents(&mut self, asset: Asset) {
+    pub fn initialize_operational_agents(&mut self, asset: Asset) -> Result<()> {
         let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
         let worker_environment = &scheduling_environment_guard
             .worker_environment
@@ -575,8 +577,9 @@ impl Orchestrator {
                 &asset,
                 &id,
                 &operational_agent.operational_configuration,
-            );
+            )?;
         }
+        Ok(())
     }
 
     fn create_operational_agent(
