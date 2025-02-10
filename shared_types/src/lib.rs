@@ -9,7 +9,6 @@ use std::{
     fmt::{self, Display},
 };
 
-use actix::prelude::*;
 use clap::{Subcommand, ValueEnum};
 
 use operational::{OperationalConfiguration, OperationalRequest, OperationalResponse};
@@ -47,32 +46,12 @@ pub enum SystemResponses {
     Sap,
 }
 
-impl Message for SystemMessages {
-    type Result = ();
-}
-
-pub struct StopMessage {}
-
-impl Message for StopMessage {
-    type Result = ();
-}
-
-pub struct StatusMessage {}
-
-impl Message for StatusMessage {
-    type Result = String;
-}
-
 pub struct SolutionExportMessage;
 
 #[derive(Clone)]
 pub enum AgentExports {
     Strategic(HashMap<WorkOrderNumber, Period>),
     Tactical(HashMap<WorkOrderActivity, Day>),
-}
-
-impl Message for SolutionExportMessage {
-    type Result = Option<AgentExports>;
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, ValueEnum)]

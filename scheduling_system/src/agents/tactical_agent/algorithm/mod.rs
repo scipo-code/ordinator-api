@@ -7,7 +7,7 @@ use arc_swap::Guard;
 use assert_functions::TacticalAssertions;
 use chrono::TimeDelta;
 use priority_queue::PriorityQueue;
-use rand::seq::SliceRandom;
+use rand::seq::IndexedRandom;
 use shared_types::{
     scheduling_environment::{
         time_environment::day::Day,
@@ -19,13 +19,7 @@ use shared_types::{
         SchedulingEnvironment,
     },
     tactical::{
-        tactical_resources_message::TacticalResourceRequest,
-        tactical_response_resources::TacticalResponseResources,
-        tactical_response_scheduling::TacticalResponseScheduling,
-        tactical_response_time::TacticalResponseTime,
-        tactical_scheduling_message::TacticalSchedulingRequest,
-        tactical_time_message::TacticalTimeRequest, TacticalObjectiveValue, TacticalRequestMessage,
-        TacticalResources, TacticalResponseMessage,
+        TacticalObjectiveValue, TacticalRequestMessage, TacticalResources, TacticalResponseMessage,
     },
     LoadOperation,
 };
@@ -36,7 +30,7 @@ use std::{
 };
 use tactical_parameters::{OperationParameter, TacticalParameter, TacticalParameters};
 use tactical_solution::OperationSolution;
-use tracing::{event, instrument, Level};
+use tracing::{event, Level};
 
 use crate::agents::{
     traits::{ActorBasedLargeNeighborhoodSearch, ObjectiveValueType},
@@ -247,6 +241,14 @@ impl ActorBasedLargeNeighborhoodSearch for TacticalAlgorithm {
     type SchedulingUnit = WorkOrderNumber;
     type Options = TacticalOptions;
 
+    fn clone_algorithm_solution(&self) -> impl crate::agents::traits::Solution {
+        self.tactical_solution.clone()
+    }
+
+    fn load_shared_solution(&mut self) {
+        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
+    }
+
     fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType> {
         let mut objective_value_from_tardiness = 0;
         for (work_order_number, _tactical_solution) in self
@@ -264,7 +266,7 @@ impl ActorBasedLargeNeighborhoodSearch for TacticalAlgorithm {
             let period_start_date = match &self
                 .loaded_shared_solution
                 .strategic
-                .strategic_periods
+                .strategic_scheduled_work_orders
                 .get(work_order_number)
                 .unwrap_or(&Option::None)
             {
@@ -510,108 +512,6 @@ impl ActorBasedLargeNeighborhoodSearch for TacticalAlgorithm {
         }
         Ok(())
     }
-
-    fn unschedule_specific_work_order(
-        &mut self,
-        work_order_number: Self::SchedulingUnit,
-    ) -> Result<()> {
-        let tactical_solution = self
-            .tactical_solution
-            .tactical_scheduled_work_orders
-            .0
-            .insert(work_order_number, WhereIsWorkOrder::NotScheduled)
-            .context("This means that the TacticalAlgorithm has been initialized wrong")?;
-
-        match tactical_solution {
-            WhereIsWorkOrder::Strategic => {
-                Ok(())
-
-            }
-            WhereIsWorkOrder::Tactical(operation_solutions) => {
-                self.update_loadings(&operation_solutions.clone(), LoadOperation::Sub)
-            }
-            WhereIsWorkOrder::NotScheduled => bail!(
-                "Unschedule should never be called on the {}. The state slipped through the tactical scheduling process",
-                std::any::type_name_of_val(&tactical_solution)
-            ),
-        }
-    }
-
-    fn update_scheduling_state(
-        &mut self,
-        _scheduling_message: Self::SchedulingRequest,
-    ) -> Result<Self::SchedulingResponse> {
-        Ok(TacticalResponseScheduling {})
-        // This is where the algorithm will update the scheduling state.
-    }
-
-    fn update_time_state(
-        &mut self,
-        _time_message: Self::TimeRequest,
-    ) -> Result<Self::TimeResponse> {
-        // This is where the algorithm will update the time state.
-        Ok(TacticalResponseTime {})
-    }
-
-    #[instrument(level = "info", skip(self))]
-    fn update_resources_state(
-        &mut self,
-        resource_message: Self::ResourceRequest,
-    ) -> Result<Self::ResourceResponse> {
-        match resource_message {
-            TacticalResourceRequest::SetResources(resources) => {
-                // The resources should be initialized together with the Agent itself
-                let mut count = 0;
-                for (resource, days) in resources.resources {
-                    for (day, capacity) in days.days {
-                        let day: Day = match self.tactical_days.iter().find(|d| **d == day) {
-                            Some(day) => {
-                                count += 1;
-                                day.clone()
-                            }
-                            None => {
-                                bail!("Day not found in the tactical days".to_string(),);
-                            }
-                        };
-
-                        *self.capacity_mut(&resource, &day) = capacity;
-                    }
-                }
-                Ok(TacticalResponseResources::UpdatedResources(count))
-            }
-            TacticalResourceRequest::GetLoadings {
-                days_end: _,
-                select_resources: _,
-            } => {
-                let loadings = self.tactical_solution.tactical_loadings.clone();
-
-                event!(Level::DEBUG,loadings = ?loadings);
-                let tactical_response_resources = TacticalResponseResources::Loading(loadings);
-                Ok(tactical_response_resources)
-            }
-            TacticalResourceRequest::GetCapacities {
-                days_end: _,
-                select_resources: _,
-            } => {
-                let capacities = self.tactical_parameters.tactical_capacity.clone();
-
-                let tactical_response_resources = TacticalResponseResources::Capacity(capacities);
-
-                Ok(tactical_response_resources)
-            }
-            TacticalResourceRequest::GetPercentageLoadings {
-                days_end: _,
-                resources: _,
-            } => {
-                let capacities = &self.tactical_parameters.tactical_capacity;
-                let loadings = &self.tactical_solution.tactical_loadings;
-
-                let tactical_response_resources =
-                    TacticalResponseResources::Percentage((capacities.clone(), loadings.clone()));
-                Ok(tactical_response_resources)
-            }
-        }
-    }
 }
 
 enum LoopState {
@@ -641,6 +541,29 @@ impl TacticalAlgorithm {
             }
         }
         Ok(())
+    }
+
+    fn unschedule_specific_work_order(&mut self, work_order_number: WorkOrderNumber) -> Result<()> {
+        let tactical_solution = self
+            .tactical_solution
+            .tactical_scheduled_work_orders
+            .0
+            .insert(work_order_number, WhereIsWorkOrder::NotScheduled)
+            .context("This means that the TacticalAlgorithm has been initialized wrong")?;
+
+        match tactical_solution {
+            WhereIsWorkOrder::Strategic => {
+                Ok(())
+
+            }
+            WhereIsWorkOrder::Tactical(operation_solutions) => {
+                self.update_loadings(&operation_solutions.clone(), LoadOperation::Sub)
+            }
+            WhereIsWorkOrder::NotScheduled => bail!(
+                "Unschedule should never be called on the {}. The state slipped through the tactical scheduling process",
+                std::any::type_name_of_val(&tactical_solution)
+            ),
+        }
     }
 
     fn remaining_capacity(&self, resource: &Resources, day: &Day) -> Option<Work> {

@@ -7,8 +7,6 @@ pub mod supervisor_status_message;
 
 use std::fmt::Display;
 
-use actix::Message;
-use anyhow::Result;
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
@@ -50,10 +48,6 @@ pub enum SupervisorRequestMessage {
     Status(SupervisorStatusMessage),
     Scheduling(SupervisorSchedulingMessage),
     Update,
-}
-
-impl Message for SupervisorRequestMessage {
-    type Result = Result<SupervisorResponseMessage>;
 }
 
 #[derive(Serialize)]

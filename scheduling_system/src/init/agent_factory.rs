@@ -4,7 +4,6 @@ use priority_queue::PriorityQueue;
 use shared_types::operational::{
     OperationalConfiguration, OperationalRequestMessage, OperationalResponseMessage,
 };
-use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::strategic::{
     StrategicRequestMessage, StrategicResources, StrategicResponseMessage,
@@ -15,18 +14,21 @@ use shared_types::tactical::{
 };
 use shared_types::Asset;
 use std::collections::{HashMap, HashSet};
-use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Mutex;
 use std::sync::{Arc, MutexGuard};
 
 use crate::agents::operational_agent::algorithm::OperationalAlgorithm;
+use crate::agents::operational_agent::OperationalOptions;
 use crate::agents::orchestrator::{Communication, NotifyOrchestrator};
 use crate::agents::strategic_agent::algorithm::strategic_parameters::{
     StrategicClustering, StrategicParameters,
 };
 use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
+use crate::agents::strategic_agent::StrategicOptions;
 use crate::agents::supervisor_agent::algorithm::SupervisorAlgorithm;
+use crate::agents::supervisor_agent::SupervisorOptions;
 use crate::agents::tactical_agent::algorithm::TacticalAlgorithm;
+use crate::agents::tactical_agent::TacticalOptions;
 use crate::agents::{Agent, AgentMessage, ArcSwapSharedSolution, SharedSolution};
 
 use shared_types::scheduling_environment::worker_environment::resources::{Id, Resources};
@@ -125,7 +127,7 @@ impl AgentFactory {
         {
             strategic_algorithm
                 .strategic_solution
-                .strategic_periods
+                .strategic_scheduled_work_orders
                 .insert(*work_order_number, None);
         }
 
@@ -139,7 +141,7 @@ impl AgentFactory {
         let (sender_to_agent, receiver_from_orchestrator) = std::sync::mpsc::channel();
         let (sender_to_orchestrator, receiver_from_agent) = std::sync::mpsc::channel();
 
-        let strategic_agent = Agent::new(
+        let mut strategic_agent = Agent::new(
             asset.clone(),
             strategic_id,
             arc_scheduling_environment,
@@ -148,11 +150,14 @@ impl AgentFactory {
             sender_to_orchestrator,
             notify_orchestrator,
         );
+
+        let options = StrategicOptions::default();
+
         // FIX
         // Turn this into a std::thread::spawn and work on that to make the program function correctly.
         std::thread::Builder::new()
             .name(asset.to_string())
-            .spawn(move || strategic_agent.run());
+            .spawn(move || strategic_agent.run(options));
 
         Ok(Communication {
             sender: sender_to_agent,
@@ -215,9 +220,12 @@ impl AgentFactory {
             notify_orchestrator,
         );
 
+        let options = TacticalOptions::default();
+
         std::thread::Builder::new()
             .name(asset.to_string())
-            .spawn(move || tactical_agent.run());
+            .spawn(move || tactical_agent.run(options));
+
         Ok(Communication {
             sender: sender_to_agent,
             receiver: receiver_from_agent,
@@ -259,9 +267,11 @@ impl AgentFactory {
             notify_orchestrator,
         );
 
+        let options = SupervisorOptions::default();
+
         std::thread::Builder::new()
             .name(asset.to_string() + &id_supervisor.to_string())
-            .spawn(move || supervisor_agent.run());
+            .spawn(move || supervisor_agent.run(options));
 
         Ok(Communication {
             sender: sender_to_agent,
@@ -311,9 +321,11 @@ impl AgentFactory {
             notify_orchestrator,
         );
 
+        let options = OperationalOptions::default();
+
         std::thread::Builder::new()
             .name(operational_id.0.clone())
-            .spawn(move || operational_agent.run());
+            .spawn(move || operational_agent.run(options));
 
         Ok(Communication {
             sender: sender_to_agent,

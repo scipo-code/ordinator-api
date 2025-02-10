@@ -17,7 +17,6 @@ force-frame-pointers = "yes"
 criterion = "0.5"
 
 [dependencies]
-actix = "*"
 actix-rt = "*"
 actix-web = "*"
 actix-web-actors = "*"

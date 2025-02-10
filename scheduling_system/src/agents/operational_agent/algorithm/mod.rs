@@ -15,7 +15,7 @@ use operational_parameter::{OperationalParameter, OperationalParameters};
 use operational_solution::{
     Assignment, MarginalFitness, OperationalAssignment, OperationalFunctions,
 };
-use rand::{seq::SliceRandom, thread_rng};
+use rand::seq::IndexedRandom;
 use shared_types::{
     operational::{OperationalRequestMessage, OperationalResponseMessage, TimeInterval},
     scheduling_environment::{
@@ -29,7 +29,7 @@ use shared_types::{
 use tracing::{event, Level};
 
 use crate::agents::{
-    traits::{ActorBasedLargeNeighborhoodSearch, ObjectiveValueType, Solution},
+    traits::{ActorBasedLargeNeighborhoodSearch, ObjectiveValueType},
     ArcSwapSharedSolution, OperationalSolution, SharedSolution, StrategicSolution,
     TacticalSolution, WhereIsWorkOrder,
 };
@@ -266,10 +266,20 @@ impl ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm {
 
     type SchedulingUnit = (WorkOrderNumber, ActivityNumber);
 
+    type Solution = OperationalSolution;
+
     type Options = OperationalOptions;
 
-    fn clone_algorithm_solution(&self) -> impl Solution {
+    fn clone_algorithm_solution(&self) -> Self::Solution {
         self.operational_solution.clone()
+    }
+
+    fn swap_solution(&mut self, solution: Self::Solution) {
+        self.operational_solution = solution
+    }
+
+    fn load_shared_solution(&mut self) {
+        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
     }
 
     fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType> {
@@ -477,8 +487,7 @@ impl ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm {
         Ok(())
     }
 
-    fn unschedule(&mut self, options: Self::Options) -> Result<()> {
-        let mut rng = thread_rng();
+    fn unschedule(&mut self, options: &mut Self::Options) -> Result<()> {
         let operational_solutions_len = self
             .operational_solution
             .work_order_activities_assignment
@@ -487,7 +496,7 @@ impl ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm {
         let operational_solutions_filtered: Vec<WorkOrderActivity> = self
             .operational_solution
             .work_order_activities_assignment[1..operational_solutions_len - 1]
-            .choose_multiple(&mut rng, options.number_of_activities)
+            .choose_multiple(&mut options.rng, options.number_of_activities)
             .map(|operational_solution| operational_solution.0)
             .collect();
 
@@ -504,13 +513,6 @@ impl ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm {
             })?
         }
         Ok(())
-    }
-
-    fn update_based_on_message(
-        &mut self,
-        message: Self::MessageRequest,
-    ) -> Result<Self::MessageResponse> {
-        todo!()
     }
 }
 
@@ -639,7 +641,7 @@ impl OperationalAlgorithm {
         let strategic_period_option = self
             .loaded_shared_solution
             .strategic
-            .strategic_periods
+            .strategic_scheduled_work_orders
             .get(&work_order_activity.0)
             .expect("This should always be present. If this occurs you should check the initialization. The implementation is that the tactical and strategic algorithm always provide a key for each WorkOrderNumber");
 
@@ -1030,7 +1032,7 @@ mod tests {
 
         strategic_updated_shared_solution
             .strategic
-            .strategic_periods
+            .strategic_scheduled_work_orders
             .insert(
                 WorkOrderNumber(0),
                 Some(Period::from_str("2024-W41-42").unwrap()),

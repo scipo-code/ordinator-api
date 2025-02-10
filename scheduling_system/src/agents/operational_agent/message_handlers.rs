@@ -9,33 +9,38 @@ use shared_types::operational::{
 };
 use tracing::{event, Level};
 
-use crate::agents::{Agent, AgentMessage, AgentSpecific, StateLink};
+use crate::agents::{Agent, AgentSpecific, MessageHandler, StateLink};
 
 use super::algorithm::OperationalAlgorithm;
 
-impl Agent<OperationalAlgorithm, OperationalRequestMessage, OperationalResponseMessage> {
-    fn handle(&mut self) -> Result<()> {
-        let message = self.receiver_from_orchestrator.try_recv();
+// impl Agent<OperationalAlgorithm, OperationalRequestMessage, OperationalResponseMessage> {
+//     fn handle(&mut self) -> Result<()> {
+//         let message = self.receiver_from_orchestrator.try_recv();
 
-        match message {
-            Ok(message) => match message {
-                AgentMessage::State(state_link) => self.handle_state_link(state_link)?,
-                AgentMessage::Actor(strategic_request_message) => {
-                    let message = self.handle_request_message(strategic_request_message);
+//         match message {
+//             Ok(message) => match message {
+//                 AgentMessage::State(state_link) => self.handle_state_link(state_link)?,
+//                 AgentMessage::Actor(strategic_request_message) => {
+//                     let message = self.handle_request_message(strategic_request_message);
 
-                    self.sender_to_orchestrator.send(message)?;
-                }
-            },
+//                     self.sender_to_orchestrator.send(message)?;
+//                 }
+//             },
 
-            Err(e) => match e {
-                std::sync::mpsc::TryRecvError::Empty => (),
-                std::sync::mpsc::TryRecvError::Disconnected => bail!("Disconnected from "),
-            },
-        }
-        Ok(())
-    }
-}
-impl Agent<OperationalAlgorithm, OperationalRequestMessage, OperationalResponseMessage> {
+//             Err(e) => match e {
+//                 std::sync::mpsc::TryRecvError::Empty => (),
+//                 std::sync::mpsc::TryRecvError::Disconnected => bail!("Disconnected from "),
+//             },
+//         }
+//         Ok(())
+//     }
+// }
+impl MessageHandler
+    for Agent<OperationalAlgorithm, OperationalRequestMessage, OperationalResponseMessage>
+{
+    type Req = OperationalRequestMessage;
+    type Res = OperationalResponseMessage;
+
     fn handle_state_link(&mut self, state_link: StateLink) -> Result<()> {
         event!(
             Level::INFO,

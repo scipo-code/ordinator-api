@@ -1,4 +1,3 @@
-use actix::Message;
 use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
 use serde::{de, Deserialize, Deserializer, Serialize};
 
@@ -69,10 +68,6 @@ pub enum OperationalRequestMessage {
     Scheduling(OperationalSchedulingRequest),
     Resource(OperationalResourceRequest),
     Time(OperationalTimeRequest),
-}
-
-impl Message for OperationalRequestMessage {
-    type Result = Result<OperationalResponseMessage>;
 }
 
 #[derive(Serialize)]

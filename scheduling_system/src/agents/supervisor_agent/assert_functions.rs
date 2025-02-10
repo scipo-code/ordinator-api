@@ -4,7 +4,9 @@ use anyhow::{bail, Result};
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use tracing::{event, Level};
 
-use super::SupervisorAgent;
+use crate::agents::Agent;
+
+use super::algorithm::SupervisorAlgorithm;
 
 #[allow(dead_code)]
 pub trait SupervisorAssertions {
@@ -16,23 +18,22 @@ pub trait SupervisorAssertions {
     ) -> Result<()>;
 }
 
-impl SupervisorAssertions for SupervisorAgent {
+impl<MessageRequest, MessageResponse> SupervisorAssertions
+    for Agent<SupervisorAlgorithm, MessageRequest, MessageResponse>
+{
     fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(
         &self,
     ) -> Result<()> {
         let tactical_operation_woas: HashSet<WorkOrderNumber> = self
-            .supervisor_algorithm
+            .algorithm
             .loaded_shared_solution
             .strategic
             .supervisor_work_orders_from_strategic(
-                &self
-                    .supervisor_algorithm
-                    .supervisor_parameters
-                    .supervisor_periods,
+                &self.algorithm.supervisor_parameters.supervisor_periods,
             );
 
         let operational_state_woas: HashSet<WorkOrderNumber> = self
-            .supervisor_algorithm
+            .algorithm
             .supervisor_solution
             .get_iter()
             .map(|(woa, _)| woa.1 .0)
@@ -59,18 +60,15 @@ impl SupervisorAssertions for SupervisorAgent {
         &self,
     ) -> Result<()> {
         let strategic_work_orders: HashSet<WorkOrderNumber> = self
-            .supervisor_algorithm
+            .algorithm
             .loaded_shared_solution
             .strategic
             .supervisor_work_orders_from_strategic(
-                &self
-                    .supervisor_algorithm
-                    .supervisor_parameters
-                    .supervisor_periods,
+                &self.algorithm.supervisor_parameters.supervisor_periods,
             );
 
         let operational_state_work_order_activities: HashSet<WorkOrderNumber> = self
-            .supervisor_algorithm
+            .algorithm
             .supervisor_solution
             .get_iter()
             .map(|(woa, _)| woa.1 .0)

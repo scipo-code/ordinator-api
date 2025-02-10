@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use actix::Handler;
 use anyhow::{bail, Context, Result};
 use shared_types::supervisor::{
     supervisor_response_scheduling::SupervisorResponseScheduling,
@@ -9,14 +8,20 @@ use shared_types::supervisor::{
 };
 use tracing::{event, Level};
 
-use crate::agents::{supervisor_agent::algorithm::SupervisorParameters, AgentSpecific, StateLink};
+use crate::agents::{
+    supervisor_agent::algorithm::SupervisorParameters, Agent, AgentSpecific, MessageHandler,
+    StateLink,
+};
 
-use super::SupervisorAgent;
+use super::algorithm::SupervisorAlgorithm;
 
-impl Handler<StateLink> for SupervisorAgent {
-    type Result = Result<()>;
+impl MessageHandler
+    for Agent<SupervisorAlgorithm, SupervisorRequestMessage, SupervisorResponseMessage>
+{
+    type Req = SupervisorRequestMessage;
+    type Res = SupervisorResponseMessage;
 
-    fn handle(&mut self, state_link: StateLink, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<()> {
         match state_link {
             StateLink::WorkOrders(agent_specific) => match agent_specific {
                 AgentSpecific::Strategic(changed_work_orders) => {
@@ -34,7 +39,7 @@ impl Handler<StateLink> for SupervisorAgent {
                                 )
                             })?;
                         for activity_number in work_order.operations.keys() {
-                            self.supervisor_algorithm
+                            self.algorithm
                                 .supervisor_parameters
                                 .create_and_insert_supervisor_parameter(
                                     &scheduling_environment_guard,
@@ -57,7 +62,10 @@ impl Handler<StateLink> for SupervisorAgent {
                     .collect::<HashSet<&String>>();
 
                 event!(Level::ERROR,
-                    does_state_ids_and_addr_ids_match = self.operational_agent_addrs
+                    does_state_ids_and_addr_ids_match = self
+                        .algorithm
+                        .loaded_shared_solution
+                        .operational
                         .keys()
                         .map(|id| &id.0)
                         .collect::<HashSet<&String>>()
@@ -70,37 +78,14 @@ impl Handler<StateLink> for SupervisorAgent {
             StateLink::TimeEnvironment => todo!(),
         }
     }
-}
 
-impl Handler<SupervisorRequestMessage> for SupervisorAgent {
-    type Result = Result<SupervisorResponseMessage>;
-
-    fn handle(
+    fn handle_request_message(
         &mut self,
         supervisor_request_message: SupervisorRequestMessage,
-        _ctx: &mut Self::Context,
-    ) -> Self::Result {
+    ) -> Result<SupervisorResponseMessage> {
         event!(Level::WARN, "start_of_supervisor_handler");
 
         match supervisor_request_message {
-            SupervisorRequestMessage::Status(supervisor_status_message) => {
-                event!(Level::WARN, "start of status message initialization");
-                tracing::info!(
-                    "Received SupervisorStatusMessage: {:?}",
-                    supervisor_status_message
-                );
-                let supervisor_status = SupervisorResponseStatus::new(
-                    self.supervisor_algorithm.resources.clone(),
-                    self.supervisor_algorithm
-                        .supervisor_solution
-                        .count_unique_woa(),
-                    self.supervisor_algorithm.objective_value,
-                );
-                event!(Level::WARN, "after creation of the supervisor_status");
-
-                Ok(SupervisorResponseMessage::Status(supervisor_status))
-            }
-
             SupervisorRequestMessage::Scheduling(_scheduling_message) => Ok(
                 SupervisorResponseMessage::Scheduling(SupervisorResponseScheduling {}),
             ),
@@ -109,6 +94,21 @@ impl Handler<SupervisorRequestMessage> for SupervisorAgent {
                     "IMPLEMENT update logic for Supervisor for Asset: {:?}",
                     self.asset
                 );
+            }
+            SupervisorRequestMessage::Status(supervisor_status_message) => {
+                event!(Level::WARN, "start of status message initialization");
+                tracing::info!(
+                    "Received SupervisorStatusMessage: {:?}",
+                    supervisor_status_message
+                );
+                let supervisor_status = SupervisorResponseStatus::new(
+                    self.algorithm.resources.clone(),
+                    self.algorithm.supervisor_solution.count_unique_woa(),
+                    self.algorithm.objective_value,
+                );
+                event!(Level::WARN, "after creation of the supervisor_status");
+
+                Ok(SupervisorResponseMessage::Status(supervisor_status))
             }
         }
     }

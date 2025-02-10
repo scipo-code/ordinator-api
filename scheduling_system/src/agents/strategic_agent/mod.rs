@@ -2,157 +2,21 @@ pub mod algorithm;
 pub mod display;
 pub mod message_handlers;
 
-use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
-use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
-use anyhow::Context;
-use anyhow::Result;
 use rand::rngs::StdRng;
-use rand::Rng;
-use shared_types::scheduling_environment::SchedulingEnvironment;
-
-use actix::prelude::*;
-use shared_types::strategic::StrategicRequestMessage;
-use shared_types::strategic::StrategicResponseMessage;
-use shared_types::Asset;
-use tracing::event;
-use tracing::Level;
-
-use std::sync::mpsc::Receiver;
-use std::sync::mpsc::Sender;
-use std::sync::Arc;
-use std::sync::Mutex;
-use tracing::instrument;
-use tracing::warn;
-
-use super::orchestrator::NotifyOrchestrator;
-use super::AgentMessage;
-use super::ScheduleIteration;
-
-use super::Agent;
-impl Agent<StrategicAlgorithm, StrategicRequestMessage, StrategicResponseMessage> {
-    pub(crate) fn run(&self) -> Result<()> {
-        self.algorithm.populate_priority_queue();
-        self.algorithm
-            .schedule()
-            .with_context(|| "Initial iteration of StrategicAlgorithm")
-            .expect("StrategicAlgorithm.schedule() method failed");
-
-
-        let options = StrategicOptions {
-            number_of_removed_work_order: 50,
-            rng: ,
-        };
-
-        loop {
-            // TODO
-            // Insert the remaining logic here! I think that is the best idea.
-            // Good! Keep this up! Remember to
-            self.algorithm.run_lns_iteration(options)?;
-
-            // FIX
-            // Review this after refactoring.
-            //     self.strategic_algorithm.load_shared_solution();
-
-            //     let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
-
-            //     self.strategic_algorithm
-            //         .calculate_objective_value()
-            //         .with_context(|| format!("{:#?}", schedule_iteration))
-            //         .expect("Could not calculate strategic objective value");
-
-            //     let old_strategic_solution = self.strategic_algorithm.strategic_solution.clone();
-
-            //     self.strategic_algorithm
-            //         .unschedule(50, rng)
-            //         .with_context(|| {
-            //             format!(
-            //                 "{:?} of StrategicAlgorithm. {:#?}",
-            //                 schedule_iteration,
-            //                 self.strategic_algorithm.calculate_utilization()
-            //             )
-            //         })
-            //         .expect("Unscheduling random work order should always be possible");
-
-            //     // assert_eq!(self.strategic_algorithm.priority_queues.normal.len(), 1000);
-            //     // assert!(self
-            //     //     .strategic_algorithm
-            //     //     .priority_queues
-            //     //     .normal
-            //     //     .iter()
-            //     //     .all(|ele| {
-            //     //         self.strategic_algorithm
-            //     //             .strategic_solution
-            //     //             .strategic_periods
-            //     //             .get(&ele.0)
-            //     //             .unwrap()
-            //     //             .is_none()
-            //     //     }));
-            //     self.strategic_algorithm
-            //         .schedule()
-            //         .with_context(|| format!("{:?} of StrategicAlgorithm", schedule_iteration))
-            //         .expect("StrategicAlgorithm::schedule method failed");
-
-            //     // self.strategic_algorithm.swap_scheduled_work_orders(rng);
-            //     // self.assert_aggregated_load().unwrap();
-
-            //     self.strategic_algorithm
-            //         .calculate_objective_value()
-            //         .with_context(|| format!("{:#?}", schedule_iteration))
-            //         .expect("Could not calculate strategic objective value");
-
-            //     if self
-            //         .strategic_algorithm
-            //         .strategic_solution
-            //         .objective_value
-            //         .objective_value
-            //         < old_strategic_solution.objective_value.objective_value
-            //     {
-            //         self.strategic_algorithm.make_atomic_pointer_swap();
-
-            //         event!(Level::INFO,
-            //             strategic_objective_value = self.strategic_algorithm.strategic_solution.objective_value.objective_value,
-            //             strategic_urgency = self.strategic_algorithm.strategic_solution.objective_value.urgency.1,
-            //             strategic_resource_penalty = self.strategic_algorithm.strategic_solution.objective_value.resource_penalty.1,
-            //             strategic_clustering_value = self.strategic_algorithm.strategic_solution.objective_value.clustering_value.1,
-            //             scheduled_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.iter().filter(|ele| ele.1.is_some()).count(),
-            //             total_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.len(),
-            //             percentage_utilization_by_period = ?self.strategic_algorithm.calculate_utilization(),
-            //         );
-            //     } else {
-            //         event!(Level::INFO,
-            //             strategic_objective_value = self.strategic_algorithm.strategic_solution.objective_value.objective_value,
-            //             strategic_urgency = self.strategic_algorithm.strategic_solution.objective_value.urgency.1,
-            //             strategic_resource_penalty = self.strategic_algorithm.strategic_solution.objective_value.resource_penalty.1,
-            //             strategic_clustering_value = self.strategic_algorithm.strategic_solution.objective_value.clustering_value.1,
-            //             scheduled_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.iter().filter(|ele| ele.1.is_some()).count(),
-            //             total_work_orders = ?self.strategic_algorithm.strategic_solution.strategic_periods.len(),
-            //             percentage_utilization_by_period = ?self.strategic_algorithm.calculate_utilization(),
-            //         );
-            //         self.strategic_algorithm.strategic_solution = old_strategic_solution;
-            //     }
-
-            //     ctx.wait(
-            //         tokio::time::sleep(tokio::time::Duration::from_millis(
-            //             dotenvy::var("STRATEGIC_THROTTLING")
-            //                 .expect("The STRATEGIC_THROTTLING environment variable should always be set")
-            //                 .parse::<u64>()
-            //                 .expect("The STRATEGIC_THROTTLING environment variable have to be an u64 compatible type"),
-            //         ))
-            //         .into_actor(self),
-            //     );
-
-            //     ctx.notify(ScheduleIteration {
-            //         loop_iteration: schedule_iteration.loop_iteration + 1,
-            //     });
-            //     Ok(())
-            // }
-        }
-    }
-}
+use rand::SeedableRng;
 
 pub struct StrategicOptions {
     number_of_removed_work_order: usize,
     rng: StdRng,
+}
+
+impl Default for StrategicOptions {
+    fn default() -> Self {
+        StrategicOptions {
+            number_of_removed_work_order: 50,
+            rng: StdRng::from_os_rng(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -160,6 +24,8 @@ mod tests {
 
     use algorithm::strategic_parameters::StrategicClustering;
     use algorithm::ForcedWorkOrder;
+    use algorithm::StrategicAlgorithm;
+    use anyhow::Result;
     use operation::OperationBuilder;
     use priority_queue::PriorityQueue;
     use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
@@ -176,6 +42,7 @@ mod tests {
     use std::collections::HashSet;
     use std::str::FromStr;
 
+    use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
     use crate::agents::ArcSwapSharedSolution;
 
     use super::*;
@@ -331,7 +198,7 @@ mod tests {
 
         strategic_algorithm
             .strategic_solution
-            .strategic_periods
+            .strategic_scheduled_work_orders
             .insert(work_order_number, None);
 
         strategic_algorithm

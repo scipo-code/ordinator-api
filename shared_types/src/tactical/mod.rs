@@ -18,14 +18,13 @@ use crate::{
     },
     Asset, ConstraintState,
 };
-use actix::Message;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::*;
 
 use self::{
     tactical_resources_message::TacticalResourceRequest,
-    tactical_response_resources::TacticalResponseResources,
+    tactical_response_resources::TacticalResourceResponse,
     tactical_response_scheduling::TacticalResponseScheduling,
     tactical_response_status::TacticalResponseStatus, tactical_response_time::TacticalResponseTime,
     tactical_scheduling_message::TacticalSchedulingRequest,
@@ -56,10 +55,6 @@ pub enum TacticalRequestMessage {
     Update,
 }
 
-impl Message for TacticalRequestMessage {
-    type Result = Result<TacticalResponseMessage>;
-}
-
 #[derive(Serialize)]
 pub struct TacticalResponse {
     asset: Asset,
@@ -79,7 +74,7 @@ impl TacticalResponse {
 pub enum TacticalResponseMessage {
     Status(TacticalResponseStatus),
     Scheduling(TacticalResponseScheduling),
-    Resources(TacticalResponseResources),
+    Resources(TacticalResourceResponse),
     Time(TacticalResponseTime),
     Update,
 }

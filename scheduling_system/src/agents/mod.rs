@@ -45,7 +45,10 @@ where
 
 impl<Algorithm, AgentRequest, AgentResponse> Agent<Algorithm, AgentRequest, AgentResponse>
 where
+    Self: MessageHandler<Req = AgentRequest, Res = AgentResponse>,
     Algorithm: ActorBasedLargeNeighborhoodSearch,
+    AgentRequest: Send + Sync + 'static,
+    AgentResponse: Send + Sync + 'static,
 {
     pub fn new(
         asset: Asset,
@@ -66,11 +69,40 @@ where
             notify_orchestrator,
         }
     }
+
+    pub fn run(&mut self, mut options: Algorithm::Options) -> Result<()> {
+        // self.tactical_algorithm.schedule().with_context(|| format!("Initial call of: {}", std::any::type_name::<TacticalAlgorithm>())).expect("Failed initial schedule call");
+        // let options = Algorithm::Options {};
+        let mut schedule_iteration = ScheduleIteration::default();
+
+        loop {
+            while let Ok(message) = self.receiver_from_orchestrator.try_recv() {
+                self.handle(message);
+            }
+
+            self.algorithm.run_lns_iteration(&mut options)?;
+
+            schedule_iteration.increment();
+        }
+    }
+
+    // WARN
+    // This should only ever be created if we decide to make the `Algorithm` generics as well, which
+    // we will do to make this code scale.
+    // fn load_shared_solution(&mut self) {
+    //     self.algorithm.loaded_shared_solution = self.algorithm.arc_swap_shared_solution.0.load();
+    // }
 }
 
 #[derive(Default)]
 pub struct ScheduleIteration {
     loop_iteration: u64,
+}
+
+impl ScheduleIteration {
+    pub fn increment(&mut self) {
+        self.loop_iteration += 1;
+    }
 }
 
 impl fmt::Debug for ScheduleIteration {
@@ -100,7 +132,7 @@ pub struct ArcSwapSharedSolution(pub ArcSwap<SharedSolution>);
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct SharedSolution {
-    strategic: StrategicSolution,
+    pub strategic: StrategicSolution,
     pub tactical: TacticalSolution,
     pub supervisor: SupervisorSolution,
     pub operational: HashMap<Id, OperationalSolution>,
@@ -120,7 +152,7 @@ impl From<SharedSolution> for ApiSolution {
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct StrategicSolution {
     pub objective_value: StrategicObjectiveValue,
-    pub strategic_periods: HashMap<WorkOrderNumber, Option<Period>>,
+    pub strategic_scheduled_work_orders: HashMap<WorkOrderNumber, Option<Period>>,
     pub strategic_loadings: StrategicResources,
 }
 
@@ -132,6 +164,8 @@ pub struct TacticalSolution {
     pub tactical_scheduled_work_orders: TacticalScheduledWorkOrders,
     pub tactical_loadings: TacticalResources,
 }
+
+impl Solution for TacticalSolution {}
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct TacticalScheduledWorkOrders(
@@ -236,6 +270,8 @@ pub struct SupervisorSolution {
     operational_state_machine: HashMap<(Id, WorkOrderActivity), Delegate>,
 }
 
+impl Solution for SupervisorSolution {}
+
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct OperationalSolution {
     pub objective_value: OperationalObjectiveValue,
@@ -251,13 +287,15 @@ impl StrategicSolution {
     ) -> HashSet<WorkOrderNumber> {
         let mut supervisor_work_orders: HashSet<WorkOrderNumber> = HashSet::new();
 
-        self.strategic_periods.iter().for_each(|(won, opt_per)| {
-            if let Some(period) = opt_per {
-                if supervisor_periods.contains(period) {
-                    supervisor_work_orders.insert(*won);
+        self.strategic_scheduled_work_orders
+            .iter()
+            .for_each(|(won, opt_per)| {
+                if let Some(period) = opt_per {
+                    if supervisor_periods.contains(period) {
+                        supervisor_work_orders.insert(*won);
+                    }
                 }
-            }
-        });
+            });
         supervisor_work_orders
     }
 }
@@ -396,6 +434,26 @@ impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
             })
     }
 }
+// FIX
+// This could be generic! I think that it should.
+impl<Algorithm, AgentRequest, ResponseMessage> Agent<Algorithm, AgentRequest, ResponseMessage>
+where
+    Self: MessageHandler<Req = AgentRequest, Res = ResponseMessage>,
+    Algorithm: ActorBasedLargeNeighborhoodSearch,
+    ResponseMessage: Sync + Send + 'static,
+{
+    pub fn handle(&mut self, agent_message: AgentMessage<AgentRequest>) -> Result<()> {
+        match agent_message {
+            AgentMessage::State(state_link) => self.handle_state_link(state_link)?,
+            AgentMessage::Actor(strategic_request_message) => {
+                let message = self.handle_request_message(strategic_request_message);
+
+                self.sender_to_orchestrator.send(message)?;
+            }
+        }
+        Ok(())
+    }
+}
 
 /// This type is the primary message type that all agents should receive.
 /// All agents should have the `StateLink` and each agent then have its own
@@ -404,6 +462,9 @@ impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
 pub enum AgentMessage<ActorRequest> {
     State(StateLink),
     Actor(ActorRequest),
+    // FIX
+    // Add Options here so that every agent can have its options updated at run time.
+    // Options(),
 }
 
 /// The StateLink is a generic type that each type of Agent will implement.
@@ -428,4 +489,13 @@ pub enum StateLink {
 #[derive(Debug, Clone)]
 pub enum AgentSpecific {
     Strategic(Vec<WorkOrderNumber>),
+}
+
+trait MessageHandler {
+    type Req;
+    type Res;
+
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<()>;
+
+    fn handle_request_message(&mut self, request_message: Self::Req) -> Result<Self::Res>;
 }

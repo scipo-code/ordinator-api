@@ -58,7 +58,7 @@ impl StrategicAssertions for StrategicAlgorithm {
         let mut aggregated_strategic_load = HashMap::new();
         for period in self.periods() {
             for (work_order_number, strategic_solution) in
-                self.strategic_solution.strategic_periods.iter()
+                self.strategic_solution.strategic_scheduled_work_orders.iter()
             {
                 let strategic_parameter = self
                     .strategic_parameters
@@ -114,7 +114,7 @@ impl StrategicAssertions for StrategicAlgorithm {
 
             let scheduled_period = self
                 .strategic_solution
-                .strategic_periods
+                .strategic_scheduled_work_orders
                 .get(work_order_number)
                 .unwrap();
 

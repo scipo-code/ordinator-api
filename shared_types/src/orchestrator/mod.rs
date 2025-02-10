@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use actix::Message;
 use serde::{Deserialize, Serialize};
 
 use crate::operational::operational_response_status::OperationalResponseStatus;
@@ -190,10 +189,6 @@ impl OptimizedWorkOrderResponse {
     }
 }
 
-impl Message for OrchestratorRequest {
-    type Result = String;
-}
-
 #[derive(Clone, Debug)]
 pub struct OrchestratorMessage<T> {
     pub message_from_orchestrator: T,
@@ -205,8 +200,4 @@ impl<T> OrchestratorMessage<T> {
             message_from_orchestrator,
         }
     }
-}
-
-impl<T> Message for OrchestratorMessage<T> {
-    type Result = ();
 }

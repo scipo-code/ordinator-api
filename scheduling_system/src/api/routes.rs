@@ -1,5 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use shared_types::strategic::StrategicResponse;
 use shared_types::SystemMessages;
 use shared_types::SystemResponses;
@@ -18,7 +18,7 @@ pub async fn http_to_scheduling_system(
     orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
     _req: HttpRequest,
     system_messages: web::Json<SystemMessages>,
-) -> Result<HttpResponse> {
+) -> Result<HttpResponse, actix_web::Error> {
     event!(Level::INFO, orchestrator_request = ?system_messages);
     match system_messages.into_inner() {
         SystemMessages::Orchestrator(orchestrator_request) => {
@@ -26,7 +26,7 @@ pub async fn http_to_scheduling_system(
 
             Ok(orchestrator
                 .handle_orchestrator_request(orchestrator_request)
-                .await)
+                .await?)
         }
         SystemMessages::Strategic(strategic_request) => {
             let asset = strategic_request.asset;
@@ -38,11 +38,17 @@ pub async fn http_to_scheduling_system(
                 .unwrap()
                 .strategic_agent_sender;
 
-            strategic.sender.send(crate::agents::AgentMessage::Actor(
-                strategic_request.strategic_request_message,
-            ))?;
+            strategic
+                .sender
+                .send(crate::agents::AgentMessage::Actor(
+                    strategic_request.strategic_request_message,
+                ))
+                .map_err(|err| actix_web::error::ErrorInternalServerError(err))?;
 
-            let response = strategic.receiver.recv()?;
+            let response = strategic
+                .receiver
+                .recv()
+                .map_err(|err| actix_web::error::ErrorInternalServerError(err))?;
             drop(orchestrator_guard);
 
             let strategic_response_message = match response {
@@ -62,21 +68,23 @@ pub async fn http_to_scheduling_system(
         SystemMessages::Tactical(tactical_request) => {
             let orchestrator = orchestrator.lock().unwrap();
 
-            Ok(orchestrator.handle_tactical_request(tactical_request).await)
+            Ok(orchestrator
+                .handle_tactical_request(tactical_request)
+                .await?)
         }
         SystemMessages::Supervisor(supervisor_request) => {
             let orchestrator = orchestrator.lock().unwrap();
 
             Ok(orchestrator
                 .handle_supervisor_request(supervisor_request)
-                .await)
+                .await?)
         }
         SystemMessages::Operational(operational_request) => {
             let orchestrator = orchestrator.lock().unwrap();
 
             Ok(orchestrator
                 .handle_operational_request(operational_request)
-                .await)
+                .await?)
         }
         SystemMessages::Sap => Ok(HttpResponse::Ok().json(SystemResponses::Sap)),
     }

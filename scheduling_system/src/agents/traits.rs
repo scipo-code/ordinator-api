@@ -7,25 +7,22 @@ use anyhow::Result;
 /// changed that we update that correctly in the solution.
 #[allow(dead_code)]
 pub trait ActorBasedLargeNeighborhoodSearch {
-
     type MessageRequest;
 
     type MessageResponse;
+
+    type Solution;
 
     type SchedulingUnit;
 
     type Options;
 
-    fn run_lns_iteration(&mut self, options: &Self::Options) -> Result<()> {
-        let rng: &mut rand::rngs::ThreadRng = &mut rand::thread_rng();
-
-        self.check_messages();
-
+    fn run_lns_iteration(&mut self, options: &mut Self::Options) -> Result<()> {
         self.load_shared_solution();
 
         // self.updated_shared_solution(&mut self)?;
 
-        let current_solution = self.clone_algorithm_solution().clone();
+        let current_solution = self.clone_algorithm_solution();
 
         self.unschedule(options)?;
 
@@ -35,31 +32,29 @@ pub trait ActorBasedLargeNeighborhoodSearch {
 
         match objective_value_type {
             ObjectiveValueType::Better => todo!(),
-            ObjectiveValueType::Worse => todo!(),
+            ObjectiveValueType::Worse => self.swap_solution(current_solution),
             ObjectiveValueType::Force => todo!(),
         }
 
         Ok(())
     }
 
-    // fn load_shared_solution(&mut self) {
-    //     self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
-    // }
+    fn load_shared_solution(&mut self);
 
-    fn clone_algorithm_solution(&self) -> impl Solution;
+    fn clone_algorithm_solution(&self) -> Self::Solution;
+
+    fn swap_solution(&mut self, solution: Self::Solution);
 
     fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType>;
 
     fn schedule(&mut self) -> Result<()>;
 
-    fn unschedule(&mut self, unschedule_options: Self::Options) -> Result<()>;
-
-    fn update_based_on_message(&mut self, Self::MessageRequest) -> Result<Self::MessageResponse>;
+    fn unschedule(&mut self, unschedule_options: &mut Self::Options) -> Result<()>;
 
     // fn update_shared_solution(&mut self) -> Result<()>;
 }
 
-pub trait Solution: Clone {}
+pub trait Solution: Clone + 'static {}
 
 pub enum ObjectiveValueType {
     Better,

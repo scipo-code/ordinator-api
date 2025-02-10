@@ -1,7 +1,6 @@
 use std::any::type_name;
 use std::collections::HashMap;
 
-use actix::Handler;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -17,50 +16,30 @@ use shared_types::strategic::strategic_response_scheduling::StrategicResponseSch
 use shared_types::strategic::strategic_response_status::StrategicResponseStatus;
 use shared_types::strategic::StrategicSchedulingEnvironmentCommands;
 use shared_types::strategic::{StrategicRequestMessage, StrategicResponseMessage};
-use shared_types::AgentExports;
-use shared_types::SolutionExportMessage;
 use tracing::event;
 use tracing::Level;
 
 use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
 use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
 use crate::agents::Agent;
-use crate::agents::AgentMessage;
 use crate::agents::AgentSpecific;
+use crate::agents::MessageHandler;
 use crate::agents::StateLink;
 
 use super::algorithm::strategic_parameters::StrategicParameter;
 use super::algorithm::strategic_parameters::StrategicParameterBuilder;
 use super::algorithm::ScheduleWorkOrder;
 
-impl Agent<StrategicAlgorithm, StrategicRequestMessage, StrategicResponseMessage> {
-    fn handle(&mut self) -> Result<()> {
-        let message = self.receiver_from_orchestrator.try_recv();
+impl MessageHandler
+    for Agent<StrategicAlgorithm, StrategicRequestMessage, StrategicResponseMessage>
+{
+    type Req = StrategicRequestMessage;
+    type Res = StrategicResponseMessage;
 
-        match message {
-            Ok(message) => match message {
-                AgentMessage::State(state_link) => self.handle_state_link(state_link)?,
-                AgentMessage::Actor(strategic_request_message) => {
-                    let message = self.handle_request_message(strategic_request_message);
-
-                    self.sender_to_orchestrator.send(message)?;
-                }
-            },
-
-            Err(e) => match e {
-                std::sync::mpsc::TryRecvError::Empty => (),
-                std::sync::mpsc::TryRecvError::Disconnected => bail!("Disconnected from "),
-            },
-        }
-        Ok(())
-    }
-}
-
-impl Agent<StrategicAlgorithm, StrategicRequestMessage, StrategicResponseMessage> {
     fn handle_request_message(
         &mut self,
-        strategic_request_message: StrategicRequestMessage,
-    ) -> Result<StrategicResponseMessage> {
+        strategic_request_message: Self::Req,
+    ) -> Result<Self::Res> {
         let strategic_response = match strategic_request_message {
             StrategicRequestMessage::Status(strategic_status_message) => {
                 match strategic_status_message {
@@ -141,7 +120,7 @@ impl Agent<StrategicAlgorithm, StrategicRequestMessage, StrategicResponseMessage
                         let strategic_solution_for_specific_work_order = self
                             .algorithm
                             .strategic_solution
-                            .strategic_periods
+                            .strategic_scheduled_work_orders
                             .get(&work_order_number)
                             .with_context(|| {
                                 format!(
@@ -271,7 +250,7 @@ impl Agent<StrategicAlgorithm, StrategicRequestMessage, StrategicResponseMessage
                         let unscheduled_period = self
                             .algorithm
                             .strategic_solution
-                            .strategic_periods
+                            .strategic_scheduled_work_orders
                             .insert(*work_order_number, last_period.clone())
                             .expect("WorkOrderNumber should always be present")
                             .expect(

@@ -10,6 +10,7 @@ use std::{
 use anyhow::{Context, Result};
 use arc_swap::Guard;
 use delegate::Delegate;
+use rand::seq::IndexedRandom;
 use shared_types::{
     scheduling_environment::{
         time_environment::period::Period,
@@ -17,14 +18,10 @@ use shared_types::{
             operation::{operation_info::NumberOfPeople, ActivityNumber},
             WorkOrderActivity, WorkOrderNumber,
         },
-        worker_environment::resources::{Id, Resources},
+        worker_environment::resources::Resources,
         SchedulingEnvironment,
     },
-    supervisor::{
-        supervisor_response_resources::SupervisorResponseResources,
-        supervisor_response_scheduling::SupervisorResponseScheduling,
-        supervisor_response_time::SupervisorResponseTime, SupervisorObjectiveValue,
-    },
+    supervisor::{SupervisorObjectiveValue, SupervisorRequestMessage, SupervisorResponseMessage},
 };
 
 #[allow(unused_imports)]
@@ -32,40 +29,11 @@ use tracing::{event, Level};
 
 use crate::agents::{
     operational_agent::algorithm::operational_solution::MarginalFitness,
-    traits::ActorBasedLargeNeighborhoodSearch, ArcSwapSharedSolution, SharedSolution,
-    SupervisorSolution,
+    traits::{ActorBasedLargeNeighborhoodSearch, ObjectiveValueType},
+    ArcSwapSharedSolution, SharedSolution, SupervisorSolution,
 };
 
-// pub struct MarginalFitness(pub Arc<AtomicUsize>);
-
-// impl MarginalFitness {
-//     pub fn inner(&self) -> u64 {
-//         self.0
-//     }
-
-//     pub fn store(&self, value: usize) {
-//         self.0.store(value, std::sync::atomic::Ordering::SeqCst)
-//     }
-
-//     pub fn compare(&self, other: &Self) -> Ordering {
-//         let self_value = self.inner();
-//         let other_value = other.inner();
-
-//         if self_value == other_value {
-//             return Ordering::Equal;
-//         } else if self_value > other_value {
-//             return Ordering::Greater;
-//         } else {
-//             return Ordering::Less;
-//         }
-//     }
-// }
-
-// impl Default for MarginalFitness {
-//     fn default() -> Self {
-//         MarginalFitness(Arc::new(AtomicUsize::new(usize::MAX)))
-//     }
-// }
+use super::SupervisorOptions;
 
 pub struct SupervisorSchedulingRequest;
 pub struct SupervisorResourceRequest;
@@ -144,19 +112,6 @@ impl SupervisorAlgorithm {
     ) -> Self {
         let loaded_shared_solution = arc_swap_shared_solution.0.load();
 
-        let Id(id, resources, toml_supervisor) = supervisor_id;
-
-        let number_of_supervisor_periods = toml_supervisor
-            .context("Error with the supervisor configuration file")?
-            .number_of_supervisor_periods;
-
-        let supervisor_periods = &scheduling_environment
-            .lock()
-            .expect("SchedulingEnvironment lock poisoned")
-            .time_environment
-            .strategic_periods()[0..=number_of_supervisor_periods as usize]
-            .to_vec();
-
         Self {
             objective_value: SupervisorObjectiveValue::default(),
             resources,
@@ -166,9 +121,10 @@ impl SupervisorAlgorithm {
             loaded_shared_solution,
         }
     }
-
-    pub fn load_shared_solution(&mut self) {
-        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
+    fn unschedule_specific_work_order(&mut self, work_order_number: WorkOrderNumber) -> Result<()> {
+        self.supervisor_solution
+            .turn_work_order_into_delegate_assess(work_order_number);
+        Ok(())
     }
 
     pub fn make_atomic_pointer_swap(&self) {
@@ -195,17 +151,25 @@ impl SupervisorAlgorithm {
 }
 
 impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
-    type BetterSolution = SupervisorObjectiveValue;
-    type SchedulingRequest = SupervisorSchedulingRequest;
-    type SchedulingResponse = SupervisorResponseScheduling;
-    type ResourceRequest = SupervisorResourceRequest;
-    type ResourceResponse = SupervisorResponseResources;
-    type TimeRequest = SupervisorTimeRequest;
-    type TimeResponse = SupervisorResponseTime;
-
+    type MessageRequest = SupervisorRequestMessage;
+    type MessageResponse = SupervisorResponseMessage;
+    type Options = SupervisorOptions;
+    type Solution = SupervisorSolution;
     type SchedulingUnit = WorkOrderNumber;
 
-    fn calculate_objective_value(&mut self) -> Self::BetterSolution {
+    fn clone_algorithm_solution(&self) -> Self::Solution {
+        self.supervisor_solution.clone()
+    }
+
+    fn swap_solution(&mut self, solution: Self::Solution) {
+        self.supervisor_solution = solution;
+    }
+
+    fn load_shared_solution(&mut self) {
+        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
+    }
+
+    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType> {
         let assigned_woas = &self.supervisor_solution.number_of_assigned_work_orders();
 
         let all_woas: HashSet<_> = self.supervisor_solution.get_work_order_activities();
@@ -220,7 +184,11 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
         let objective_value = (intermediate * 1000.0) as u64;
 
         self.objective_value = objective_value;
-        objective_value
+        if self.objective_value < objective_value {
+            Ok(ObjectiveValueType::Better)
+        } else {
+            Ok(ObjectiveValueType::Worse)
+        }
     }
 
     fn schedule(&mut self) -> Result<()> {
@@ -298,31 +266,30 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
         Ok(())
     }
 
-    fn unschedule_specific_work_order(
-        &mut self,
-        work_order_number: Self::SchedulingUnit,
-    ) -> Result<()> {
-        self.supervisor_solution
-            .turn_work_order_into_delegate_assess(work_order_number);
+    fn unschedule(&mut self, supervisor_options: &mut Self::Options) -> Result<()> {
+        let work_order_numbers = self
+            .supervisor_solution
+            .get_assigned_and_unassigned_work_orders();
+
+        let sampled_work_order_numbers = work_order_numbers
+            .choose_multiple(
+                &mut supervisor_options.rng,
+                supervisor_options.number_of_unassigned_work_orders,
+            )
+            .collect::<Vec<_>>()
+            .clone();
+
+        for work_order_number in sampled_work_order_numbers {
+            self.unschedule_specific_work_order(*work_order_number)
+                .with_context(|| {
+                    format!(
+                        "Could not unschedule work_order_number: {:?}",
+                        work_order_number
+                    )
+                })?;
+        }
         Ok(())
-    }
-
-    fn update_scheduling_state(
-        &mut self,
-        _message: Self::SchedulingRequest,
-    ) -> Result<Self::SchedulingResponse> {
-        todo!()
-    }
-
-    fn update_time_state(&mut self, _message: Self::TimeRequest) -> Result<Self::TimeResponse> {
-        todo!()
-    }
-
-    fn update_resources_state(
-        &mut self,
-        _message: Self::ResourceRequest,
-    ) -> Result<Self::ResourceResponse> {
-        todo!()
+        // self.algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&old_state).unwrap();
     }
 }
 

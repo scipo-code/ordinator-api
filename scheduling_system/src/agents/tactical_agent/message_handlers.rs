@@ -1,34 +1,39 @@
-use actix::prelude::*;
 use anyhow::{bail, Context, Result};
 use shared_types::{
-    tactical::{TacticalRequestMessage, TacticalResponseMessage},
-    StatusMessage,
+    scheduling_environment::time_environment::day::Day,
+    tactical::{
+        tactical_resources_message::TacticalResourceRequest,
+        tactical_response_resources::TacticalResourceResponse, TacticalRequestMessage,
+        TacticalResponseMessage,
+    },
 };
 
 use crate::agents::{
-    tactical_agent::algorithm::tactical_parameters::TacticalParameters,
-    traits::ActorBasedLargeNeighborhoodSearch, AgentSpecific, StateLink,
+    tactical_agent::algorithm::tactical_parameters::TacticalParameters, Agent, AgentSpecific,
+    MessageHandler, StateLink,
 };
 
-impl Handler<TacticalRequestMessage> for TacticalAgent {
-    type Result = Result<TacticalResponseMessage>;
+use super::algorithm::TacticalAlgorithm;
 
-    fn handle(
+impl MessageHandler for Agent<TacticalAlgorithm, TacticalRequestMessage, TacticalResponseMessage> {
+    type Req = TacticalRequestMessage;
+    type Res = TacticalResponseMessage;
+
+    fn handle_request_message(
         &mut self,
         tactical_request: TacticalRequestMessage,
-        _ctx: &mut actix::Context<Self>,
-    ) -> Self::Result {
+    ) -> Result<Self::Res> {
         match tactical_request {
             TacticalRequestMessage::Status(_tactical_status_message) => {
-                let status_message = self.status().unwrap();
-                Ok(TacticalResponseMessage::Status(status_message))
+                // let status_message = self.status().unwrap();
+                // Ok(TacticalResponseMessage::Status(status_message))
+                todo!()
             }
             TacticalRequestMessage::Scheduling(_tactical_scheduling_message) => {
                 todo!()
             }
             TacticalRequestMessage::Resources(tactical_resources_message) => {
                 let resource_response = self
-                    .tactical_algorithm
                     .update_resources_state(tactical_resources_message)
                     .unwrap();
                 Ok(TacticalResponseMessage::Resources(resource_response))
@@ -40,18 +45,14 @@ impl Handler<TacticalRequestMessage> for TacticalAgent {
                 let locked_scheduling_environment = &self.scheduling_environment.lock().unwrap();
                 let asset = &self.asset;
 
-                self.tactical_algorithm
+                self.algorithm
                     .create_tactical_parameters(locked_scheduling_environment, asset);
                 Ok(TacticalResponseMessage::Update)
             }
         }
     }
-}
 
-impl Handler<StateLink> for TacticalAgent {
-    type Result = Result<()>;
-
-    fn handle(&mut self, state_link: StateLink, _ctx: &mut actix::Context<Self>) -> Self::Result {
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<()> {
         match state_link {
             StateLink::WorkOrders(agent_specific) => match agent_specific {
                 AgentSpecific::Strategic(changed_work_orders) => {
@@ -69,7 +70,7 @@ impl Handler<StateLink> for TacticalAgent {
                                 )
                             })?;
 
-                        self.tactical_algorithm
+                        self.algorithm
                             .create_and_insert_tactical_parameter_and_initialize_solution(
                                 work_order,
                             )
@@ -81,9 +82,9 @@ impl Handler<StateLink> for TacticalAgent {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
                 let tactical_resources = scheduling_environment_guard
                     .worker_environment
-                    .generate_tactical_resources(&self.tactical_algorithm.tactical_days);
+                    .generate_tactical_resources(&self.algorithm.tactical_days);
 
-                self.tactical_algorithm
+                self.algorithm
                     .tactical_parameters
                     .tactical_capacity
                     .update_resources(tactical_resources);
@@ -93,6 +94,67 @@ impl Handler<StateLink> for TacticalAgent {
 
             StateLink::TimeEnvironment => {
                 todo!()
+            }
+        }
+    }
+}
+
+impl Agent<TacticalAlgorithm, TacticalRequestMessage, TacticalResponseMessage> {
+    fn update_resources_state(
+        &mut self,
+        resource_message: TacticalResourceRequest,
+    ) -> Result<TacticalResourceResponse> {
+        match resource_message {
+            TacticalResourceRequest::SetResources(resources) => {
+                // The resources should be initialized together with the Agent itself
+                let mut count = 0;
+                for (resource, days) in resources.resources {
+                    for (day, capacity) in days.days {
+                        let day: Day =
+                            match self.algorithm.tactical_days.iter().find(|d| **d == day) {
+                                Some(day) => {
+                                    count += 1;
+                                    day.clone()
+                                }
+                                None => {
+                                    bail!("Day not found in the tactical days".to_string(),);
+                                }
+                            };
+
+                        *self.algorithm.capacity_mut(&resource, &day) = capacity;
+                    }
+                }
+                Ok(TacticalResourceResponse::UpdatedResources(count))
+            }
+            TacticalResourceRequest::GetLoadings {
+                days_end: _,
+                select_resources: _,
+            } => {
+                let loadings = self.algorithm.tactical_solution.tactical_loadings.clone();
+
+                let tactical_response_resources = TacticalResourceResponse::Loading(loadings);
+                Ok(tactical_response_resources)
+            }
+            TacticalResourceRequest::GetCapacities {
+                days_end: _,
+                select_resources: _,
+            } => {
+                let capacities = self.algorithm.tactical_parameters.tactical_capacity.clone();
+
+                let tactical_response_resources = TacticalResourceResponse::Capacity(capacities);
+
+                Ok(tactical_response_resources)
+            }
+            TacticalResourceRequest::GetPercentageLoadings {
+                days_end: _,
+                resources: _,
+            } => {
+                let capacities = &self.algorithm.tactical_parameters.tactical_capacity;
+                let loadings = &self.algorithm.tactical_solution.tactical_loadings;
+
+                let tactical_response_resources =
+                    TacticalResourceResponse::Percentage((capacities.clone(), loadings.clone()));
+                Ok(tactical_response_resources)
             }
         }
     }
