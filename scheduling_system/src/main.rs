@@ -11,6 +11,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use actix_files;
 use actix_web::{guard, web, App, HttpServer};
 use agents::orchestrator::Orchestrator;
 use anyhow::Context;
@@ -24,7 +25,6 @@ async fn main() -> Result<()> {
     dotenvy::dotenv()
         .expect("You need to provide an .env file. Look at the .env.example if for guidance");
 
-    event!(Level::WARN, "The start of main");
     let (log_handles, _logging_guard) = logging::setup_logging();
 
     let database_path_string =
@@ -80,6 +80,11 @@ async fn main() -> Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(orchestrator.clone()))
+            .service(actix_files::Files::new("/strategic", "./static/strategic"))
+            .service(actix_files::Files::new(
+                "/supervisor",
+                "./static/supervisor",
+            ))
             .route(
                 &dotenvy::var("ORDINATOR_MAIN_ENDPOINT").unwrap(),
                 web::post()

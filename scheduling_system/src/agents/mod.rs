@@ -70,9 +70,17 @@ where
         }
     }
 
+    // TODO
+    // - [x] Move the Strategic logic in here
+    //     - [x] Move `populate_priority_queues`
+    // - [ ] Move the Tactical logic in here
+    // - [ ] Move the Supervisor logic in here
+    // - [ ] Move the Operational logic in here
     pub fn run(&mut self, mut options: Algorithm::Options) -> Result<()> {
-        // self.tactical_algorithm.schedule().with_context(|| format!("Initial call of: {}", std::any::type_name::<TacticalAlgorithm>())).expect("Failed initial schedule call");
-        // let options = Algorithm::Options {};
+        self.algorithm
+            .schedule()
+            .context("Could not perform initial schedule iteration")?;
+
         let mut schedule_iteration = ScheduleIteration::default();
 
         loop {

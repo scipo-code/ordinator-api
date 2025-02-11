@@ -901,6 +901,9 @@ impl ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm {
     #[instrument(level = "trace", skip_all)]
     fn schedule(&mut self) -> Result<()> {
 
+        // WARNING
+        // I am not sure that this is the correct place of putting this.
+        self.populate_priority_queue();
         self.schedule_forced_work_orders().context("Could not force schedule strategic work orders (Locked or Forced from other metaheuristics)")?;
         // What should we change here? I think that the best thing would be to make this as
         // Hmm... you need to think hard about this. You were using the schedule_forced to
