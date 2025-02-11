@@ -18,9 +18,7 @@ use shared_types::{
         worker_environment::resources::Resources,
         SchedulingEnvironment,
     },
-    tactical::{
-        TacticalObjectiveValue, TacticalRequestMessage, TacticalResources, TacticalResponseMessage,
-    },
+    tactical::{TacticalRequestMessage, TacticalResources, TacticalResponseMessage},
     LoadOperation,
 };
 use std::collections::HashMap;
@@ -138,35 +136,6 @@ impl TacticalAlgorithm {
             .insert(*work_order.work_order_number(), tactical_parameter);
     }
 
-    pub fn unschedule_random_work_orders(
-        &mut self,
-        rng: &mut impl rand::Rng,
-        number_of_work_orders: u32,
-    ) -> Result<()> {
-        let work_order_numbers: Vec<WorkOrderNumber> = self
-            .tactical_solution
-            .tactical_scheduled_work_orders
-            .0
-            .clone()
-            .into_keys()
-            .collect();
-
-        let random_work_order_numbers =
-            work_order_numbers.choose_multiple(rng, number_of_work_orders as usize);
-
-        for work_order_number in random_work_order_numbers {
-            self.unschedule_specific_work_order(*work_order_number)
-                .with_context(|| {
-                    format!(
-                        "Could not unschedule tactical work order: {:?} on line: {}",
-                        work_order_number,
-                        line!(),
-                    )
-                })?;
-        }
-        Ok(())
-    }
-
     fn determine_aggregate_excess(&mut self) -> u64 {
         let mut objective_value_from_excess = 0;
         for resource in self.tactical_parameters.tactical_capacity.resources.keys() {
@@ -202,8 +171,27 @@ impl TacticalAlgorithm {
         }
         self.make_atomic_pointer_swap();
     }
+}
 
-    pub(crate) fn make_atomic_pointer_swap(&self) {
+impl ActorBasedLargeNeighborhoodSearch for TacticalAlgorithm {
+    type MessageRequest = TacticalRequestMessage;
+    type MessageResponse = TacticalResponseMessage;
+    type Solution = TacticalSolution;
+    type Options = TacticalOptions;
+
+    fn clone_algorithm_solution(&self) -> Self::Solution {
+        self.tactical_solution.clone()
+    }
+
+    fn update_based_on_shared_solution(&mut self) -> Result<()> {
+        Ok(())
+    }
+
+    fn swap_solution(&mut self, solution: Self::Solution) {
+        self.tactical_solution = solution;
+    }
+
+    fn make_atomic_pointer_swap(&self) {
         // Performance enhancements:
         // * COW:
         //      #[derive(Clone)]
@@ -223,22 +211,6 @@ impl TacticalAlgorithm {
             shared_solution.tactical = self.tactical_solution.clone();
             Arc::new(shared_solution)
         });
-    }
-}
-
-impl ActorBasedLargeNeighborhoodSearch for TacticalAlgorithm {
-    type MessageRequest = TacticalRequestMessage;
-    type MessageResponse = TacticalResponseMessage;
-    type SchedulingUnit = WorkOrderNumber;
-    type Solution = TacticalSolution;
-    type Options = TacticalOptions;
-
-    fn clone_algorithm_solution(&self) -> Self::Solution {
-        self.tactical_solution.clone()
-    }
-
-    fn swap_solution(&mut self, solution: Self::Solution) {
-        self.tactical_solution = solution;
     }
 
     fn load_shared_solution(&mut self) {

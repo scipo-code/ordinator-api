@@ -12,6 +12,7 @@ use crate::agents::{operational_agent::algorithm::no_overlap_by_ref, Operational
 
 use super::{operational_events::OperationalEvents, ContainOrNextOrNone, Unavailability};
 
+// I think that we should have a Generic solution struct.
 impl OperationalSolution {
     pub fn new(work_order_activities: Vec<(WorkOrderActivity, OperationalAssignment)>) -> Self {
         Self {

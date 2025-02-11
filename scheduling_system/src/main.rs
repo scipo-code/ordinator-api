@@ -11,11 +11,9 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use actix_files;
 use actix_web::{guard, web, App, HttpServer};
 use agents::orchestrator::Orchestrator;
 use anyhow::Context;
-use tracing::{event, Level};
 
 use crate::init::logging;
 use shared_types::{scheduling_environment::SchedulingEnvironment, Asset};
@@ -80,10 +78,13 @@ async fn main() -> Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(orchestrator.clone()))
-            .service(actix_files::Files::new("/strategic", "./static/strategic"))
+            .service(actix_files::Files::new(
+                "/scheduler",
+                "./static_files/scheduler/dist",
+            ))
             .service(actix_files::Files::new(
                 "/supervisor",
-                "./static/supervisor",
+                "./static_files/supervisor/dist",
             ))
             .route(
                 &dotenvy::var("ORDINATOR_MAIN_ENDPOINT").unwrap(),

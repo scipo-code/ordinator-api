@@ -2,7 +2,6 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use colored::Colorize;
-use shared_types::operational::Status;
 use shared_types::orchestrator::OrchestratorRequest;
 
 use shared_types::orchestrator::WorkOrderResponse;
@@ -134,20 +133,6 @@ pub struct AgentRegistry {
 pub struct Communication<Req, Res> {
     pub sender: Sender<Req>,
     pub receiver: Receiver<Result<Res>>,
-}
-
-// This will only work if we have a separate type for `Status` as well
-// I do not see any way around that. You should focus on making the
-// code for all these messages as generic as possible. I believe that
-// is the best approach. You cannot handle all this otherwise.
-struct CombinedResponseStatus<MessageType>
-where
-    MessageType: Status,
-{
-    strategic: MessageType,
-    tactical: MessageType,
-    supervisor: Vec<MessageType>,
-    operational: Vec<MessageType>,
 }
 
 impl AgentRegistry {

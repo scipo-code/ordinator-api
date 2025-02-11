@@ -4,7 +4,7 @@ pub mod supervisor_solution;
 
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, MutexGuard},
+    sync::Arc,
 };
 
 use anyhow::{Context, Result};
@@ -15,11 +15,10 @@ use shared_types::{
     scheduling_environment::{
         time_environment::period::Period,
         work_order::{
-            operation::{operation_info::NumberOfPeople, ActivityNumber},
+            operation::{operation_info::NumberOfPeople, ActivityNumber, Operation},
             WorkOrderActivity, WorkOrderNumber,
         },
         worker_environment::resources::Resources,
-        SchedulingEnvironment,
     },
     supervisor::{SupervisorObjectiveValue, SupervisorRequestMessage, SupervisorResponseMessage},
 };
@@ -34,10 +33,6 @@ use crate::agents::{
 };
 
 use super::SupervisorOptions;
-
-pub struct SupervisorSchedulingRequest;
-pub struct SupervisorResourceRequest;
-pub struct SupervisorTimeRequest;
 
 pub struct SupervisorAlgorithm {
     pub objective_value: SupervisorObjectiveValue,
@@ -77,11 +72,9 @@ impl SupervisorParameters {
 
     pub(crate) fn create_and_insert_supervisor_parameter(
         &mut self,
-        scheduling_environment_lock: &MutexGuard<SchedulingEnvironment>,
+        operation: &Operation,
         work_order_activity: &WorkOrderActivity,
     ) {
-        let operation = scheduling_environment_lock.operation(work_order_activity);
-
         let supervisor_parameter =
             SupervisorParameter::new(operation.resource, operation.operation_info.number);
         let _assert_option = self
@@ -126,8 +119,23 @@ impl SupervisorAlgorithm {
             .turn_work_order_into_delegate_assess(work_order_number);
         Ok(())
     }
+}
 
-    pub fn make_atomic_pointer_swap(&self) {
+impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
+    type MessageRequest = SupervisorRequestMessage;
+    type MessageResponse = SupervisorResponseMessage;
+    type Options = SupervisorOptions;
+    type Solution = SupervisorSolution;
+
+    fn clone_algorithm_solution(&self) -> Self::Solution {
+        self.supervisor_solution.clone()
+    }
+
+    fn swap_solution(&mut self, solution: Self::Solution) {
+        self.supervisor_solution = solution;
+    }
+
+    fn make_atomic_pointer_swap(&self) {
         // Performance enhancements:
         // * COW:
         //      #[derive(Clone)]
@@ -147,22 +155,6 @@ impl SupervisorAlgorithm {
             shared_solution.supervisor = self.supervisor_solution.clone();
             Arc::new(shared_solution)
         });
-    }
-}
-
-impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
-    type MessageRequest = SupervisorRequestMessage;
-    type MessageResponse = SupervisorResponseMessage;
-    type Options = SupervisorOptions;
-    type Solution = SupervisorSolution;
-    type SchedulingUnit = WorkOrderNumber;
-
-    fn clone_algorithm_solution(&self) -> Self::Solution {
-        self.supervisor_solution.clone()
-    }
-
-    fn swap_solution(&mut self, solution: Self::Solution) {
-        self.supervisor_solution = solution;
     }
 
     fn load_shared_solution(&mut self) {
@@ -290,6 +282,98 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
         }
         Ok(())
         // self.algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&old_state).unwrap();
+    }
+
+    // WARNING
+    // THIS IS A GOOD WAY OF FILTERING THE WORK ORDERS
+    // fn remove_leaving_work_order_activities(
+    //     &mut self,
+    //     entering_work_orders_from_strategic: &HashSet<WorkOrderNumber>,
+    // ) {
+    //     let supervisor_work_orders: HashSet<WorkOrderNumber> = self
+    //         .operational_state_machine
+    //         .iter()
+    //         .map(|((_, woa), _)| woa.0)
+    //         .collect();
+
+    //     let leaving: HashSet<_> = supervisor_work_orders
+    //         .difference(entering_work_orders_from_strategic)
+    //         .collect();
+
+    //     self.operational_state_machine
+    //         .retain(|(_, woa), _| !leaving.contains(&woa.0));
+    // }
+    // WARNING
+    fn update_based_on_shared_solution(&mut self) -> Result<()> {
+        // List current activities in the `SupervisorAgent`
+        let current_activities = self
+            .supervisor_solution
+            .operational_state_machine
+            .keys()
+            .map(|(_, woa)| woa.0)
+            .collect::<HashSet<_>>();
+
+        // Filter for Strategic scheduled work orders that are inside of the `SupervisorAlgorithm.parameters.strategic_periods`
+        let activities_in_supervisor_period = self
+            .loaded_shared_solution
+            .strategic
+            .strategic_scheduled_work_orders
+            .iter()
+            .filter_map(|(won, opt_per)| {
+                opt_per.as_ref().map(|per| {
+                    self.supervisor_parameters
+                        .supervisor_periods
+                        .contains(per)
+                        .then_some((won, per))
+                })
+            })
+            .map(|opt| opt.unwrap());
+
+        // Select only those that are not part of the `SupervisorAgent` already
+        let incoming_activities = activities_in_supervisor_period
+            .clone()
+            .filter(|(won, _)| current_activities.contains(won));
+
+        // Insert all the incoming activities as Delegate::default() for each `OperationalAgent` that
+        // has the required skill, `enum Resources`
+        for (work_order_number, _) in incoming_activities {
+            for (activity_number, _) in self
+                .supervisor_parameters
+                .supervisor_work_orders
+                .get(work_order_number)
+                .context("Missing WorkOrder Parameter in Supervisor")?
+            {
+                for operational_id in self.loaded_shared_solution.operational.keys() {
+                    if operational_id.1.contains(
+                        &self
+                            .supervisor_parameters
+                            .supervisor_work_orders
+                            .get(work_order_number)
+                            .context("Missing WorkOrder Parameter in Supervisor")?
+                            .get(activity_number)
+                            .context("Missing Activity Parameter in Supervisor")?
+                            .resource,
+                    ) {
+                        self.supervisor_solution.operational_state_machine.insert(
+                            (
+                                operational_id.clone(),
+                                (*work_order_number, *activity_number),
+                            ),
+                            Delegate::default(),
+                        );
+                    }
+                }
+            }
+        }
+
+        // Now we have to remove the the activities that are not part of the SharedSolution::strategic
+        for (strategic_work_order_number, _) in activities_in_supervisor_period {
+            self.supervisor_solution
+                .operational_state_machine
+                .retain(|id_woa, _| id_woa.1 .0 == *strategic_work_order_number)
+        }
+
+        Ok(())
     }
 }
 

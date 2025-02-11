@@ -73,17 +73,23 @@ where
     // TODO
     // - [x] Move the Strategic logic in here
     //     - [x] Move `populate_priority_queues`
-    // - [ ] Move the Tactical logic in here
+    // - [x] Move the Tactical logic in here
     // - [ ] Move the Supervisor logic in here
+    //     - [ ] Handle the `update_supervisor_solution_and_parameters`
     // - [ ] Move the Operational logic in here
+    // QUESTION
+    // How should the updates be handled in general? I think that the
+    // best would be to make the code function in a generic way instead
     pub fn run(&mut self, mut options: Algorithm::Options) -> Result<()> {
         self.algorithm
             .schedule()
             .context("Could not perform initial schedule iteration")?;
+        dbg!();
 
         let mut schedule_iteration = ScheduleIteration::default();
 
         loop {
+            dbg!();
             while let Ok(message) = self.receiver_from_orchestrator.try_recv() {
                 self.handle(message)?;
             }
@@ -324,24 +330,6 @@ impl SupervisorSolution {
             }
         }
         (count_assign, count_assess, count_unassign)
-    }
-
-    fn remove_leaving_work_order_activities(
-        &mut self,
-        entering_work_orders_from_strategic: &HashSet<WorkOrderNumber>,
-    ) {
-        let supervisor_work_orders: HashSet<WorkOrderNumber> = self
-            .operational_state_machine
-            .iter()
-            .map(|((_, woa), _)| woa.0)
-            .collect();
-
-        let leaving: HashSet<_> = supervisor_work_orders
-            .difference(entering_work_orders_from_strategic)
-            .collect();
-
-        self.operational_state_machine
-            .retain(|(_, woa), _| !leaving.contains(&woa.0));
     }
 }
 

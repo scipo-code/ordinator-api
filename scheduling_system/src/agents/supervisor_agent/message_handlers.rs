@@ -39,10 +39,12 @@ impl MessageHandler
                                 )
                             })?;
                         for activity_number in work_order.operations.keys() {
+                            let operation = scheduling_environment_guard
+                                .operation(&(work_order_number, *activity_number));
                             self.algorithm
                                 .supervisor_parameters
                                 .create_and_insert_supervisor_parameter(
-                                    &scheduling_environment_guard,
+                                    operation,
                                     &(work_order_number, *activity_number),
                                 )
                         }

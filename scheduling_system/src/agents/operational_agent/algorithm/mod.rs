@@ -39,13 +39,13 @@ use super::{OperationalConfiguration, OperationalOptions};
 pub type OperationalObjectiveValue = u64;
 
 pub struct OperationalAlgorithm {
+    pub id: Id,
     pub operational_solution: OperationalSolution,
     pub operational_non_productive: OperationalNonProductive,
     // FIX
     // Put backup activities into the Algorithm
     // backup_activities: Option<HashMap<u32, Operation>>,
     pub operational_parameters: OperationalParameters,
-    pub history_of_dropped_operational_parameters: HashSet<WorkOrderActivity>,
     pub arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
     pub loaded_shared_solution: Guard<Arc<SharedSolution>>,
     pub availability: Availability,
@@ -59,15 +59,41 @@ pub struct OperationalNonProductive(pub Vec<Assignment>);
 
 impl OperationalAlgorithm {
     pub fn new(
+        id: &Id,
         operational_configuration: &OperationalConfiguration,
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
     ) -> Self {
         let loaded_shared_solution = arc_swap_shared_solution.0.load();
+        let start_event = Assignment::make_unavailable_event(
+            Unavailability::Beginning,
+            &operational_configuration.availability,
+        );
+
+        let end_event = Assignment::make_unavailable_event(
+            Unavailability::End,
+            &operational_configuration.availability,
+        );
+
+        let unavailability_start_event = OperationalAssignment::new(vec![start_event]);
+
+        let unavailability_end_event = OperationalAssignment::new(vec![end_event]);
+
+        let mut operational_solution = OperationalSolution::new(Vec::new());
+
+        operational_solution.work_order_activities_assignment.push((
+            (WorkOrderNumber(0), ActivityNumber(0)),
+            unavailability_start_event,
+        ));
+
+        operational_solution.work_order_activities_assignment.push((
+            (WorkOrderNumber(0), ActivityNumber(0)),
+            unavailability_end_event,
+        ));
         Self {
-            operational_solution: OperationalSolution::new(Vec::new()),
+            id: id.clone(),
+            operational_solution,
             operational_non_productive: OperationalNonProductive(Vec::new()),
             operational_parameters: OperationalParameters::default(),
-            history_of_dropped_operational_parameters: HashSet::new(),
             availability: operational_configuration.availability.clone(),
             off_shift_interval: operational_configuration.off_shift_interval.clone(),
             break_interval: operational_configuration.break_interval.clone(),
@@ -77,13 +103,13 @@ impl OperationalAlgorithm {
         }
     }
 
-    fn remove_drop_delegates(&mut self, operational_agent: &Id) -> HashSet<WorkOrderActivity> {
+    fn remove_drop_delegates(&mut self) -> HashSet<WorkOrderActivity> {
         let mut removed_work_order_activities = HashSet::new();
 
         let mut operational_shared_solution = self
             .loaded_shared_solution
             .supervisor
-            .state_of_agent(operational_agent)
+            .state_of_agent(&self.id)
             .into_keys();
 
         self.operational_parameters
@@ -99,8 +125,8 @@ impl OperationalAlgorithm {
         removed_work_order_activities
     }
 
-    pub fn remove_delegate_drop(&mut self, operational_agent: &Id) {
-        let woas_to_be_deleted = self.remove_drop_delegates(operational_agent);
+    pub fn remove_delegate_drop(&mut self) {
+        let woas_to_be_deleted = self.remove_drop_delegates();
 
         for work_order_activity in woas_to_be_deleted {
             self.operational_solution
@@ -218,8 +244,35 @@ impl OperationalAlgorithm {
             .1
             .marginal_fitness = MarginalFitness::Scheduled(time_delta_usize);
     }
+}
 
-    pub(crate) fn make_atomic_pointer_swap(&self, operational_id: &Id) {
+pub enum ContainOrNextOrNone {
+    Contain(OperationalAssignment),
+    Next(OperationalAssignment),
+    None,
+}
+
+pub enum Unavailability {
+    Beginning,
+    End,
+}
+
+impl ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm {
+    type MessageRequest = OperationalRequestMessage;
+    type MessageResponse = OperationalResponseMessage;
+    type Solution = OperationalSolution;
+    type Options = OperationalOptions;
+
+    fn clone_algorithm_solution(&self) -> Self::Solution {
+        self.operational_solution.clone()
+    }
+
+    fn update_based_on_shared_solution(&mut self) -> Result<()> {
+        self.remove_delegate_drop();
+        Ok(())
+    }
+
+    fn make_atomic_pointer_swap(&self) {
         // Performance enhancements:
         // * COW:
         //      #[derive(Clone)]
@@ -238,36 +291,9 @@ impl OperationalAlgorithm {
             let mut shared_solution = (**old).clone();
             shared_solution
                 .operational
-                .insert(operational_id.clone(), self.operational_solution.clone());
+                .insert(self.id.clone(), self.operational_solution.clone());
             Arc::new(shared_solution)
         });
-    }
-}
-
-pub enum ContainOrNextOrNone {
-    Contain(OperationalAssignment),
-    Next(OperationalAssignment),
-    None,
-}
-
-pub enum Unavailability {
-    Beginning,
-    End,
-}
-
-impl ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm {
-    type MessageRequest = OperationalRequestMessage;
-
-    type MessageResponse = OperationalResponseMessage;
-
-    type SchedulingUnit = (WorkOrderNumber, ActivityNumber);
-
-    type Solution = OperationalSolution;
-
-    type Options = OperationalOptions;
-
-    fn clone_algorithm_solution(&self) -> Self::Solution {
-        self.operational_solution.clone()
     }
 
     fn swap_solution(&mut self, solution: Self::Solution) {
@@ -840,7 +866,7 @@ mod tests {
                 operation::{ActivityNumber, Work},
                 WorkOrderNumber,
             },
-            worker_environment::availability::Availability,
+            worker_environment::{availability::Availability, resources::Id},
         },
     };
 
@@ -882,6 +908,7 @@ mod tests {
         );
 
         let operational_algorithm = OperationalAlgorithm::new(
+            &Id::new("TEST_OPERATIONAL".to_string(), vec![], None),
             &operational_configuration,
             Arc::new(ArcSwapSharedSolution::default()),
         );
@@ -928,6 +955,7 @@ mod tests {
         );
 
         let operational_algorithm = OperationalAlgorithm::new(
+            &Id::new("TEST_OPERATIONAL".to_string(), vec![], None),
             &operational_configuration,
             Arc::new(ArcSwapSharedSolution::default()),
         );
@@ -973,6 +1001,7 @@ mod tests {
         );
 
         let operational_algorithm = OperationalAlgorithm::new(
+            &Id::new("TEST_OPERATIONAL".to_string(), vec![], None),
             &operational_configuration,
             Arc::new(ArcSwapSharedSolution::default()),
         );
@@ -1018,6 +1047,7 @@ mod tests {
         );
 
         let mut operational_algorithm = OperationalAlgorithm::new(
+            &Id::new("TEST_OPERATIONAL".to_string(), vec![], None),
             &operational_configuration,
             Arc::new(ArcSwapSharedSolution::default()),
         );

@@ -25,6 +25,7 @@ use crate::agents::strategic_agent::algorithm::strategic_parameters::{
 };
 use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
 use crate::agents::strategic_agent::StrategicOptions;
+use crate::agents::supervisor_agent::algorithm::delegate::Delegate;
 use crate::agents::supervisor_agent::algorithm::SupervisorAlgorithm;
 use crate::agents::supervisor_agent::SupervisorOptions;
 use crate::agents::tactical_agent::algorithm::TacticalAlgorithm;
@@ -246,11 +247,47 @@ impl AgentFactory {
             .supervisor_periods
             .as_slice();
 
-        let supervisor_algorithm = SupervisorAlgorithm::new(
+        let mut supervisor_algorithm = SupervisorAlgorithm::new(
             id_supervisor.clone().1,
             arc_swap_shared_solution,
             supervisor_periods,
         );
+
+        for (work_order_number, work_order) in &scheduling_environment.work_orders.inner {
+            for (activity_number, operation) in &work_order.operations {
+                let work_order_activity = &(*work_order_number, *activity_number);
+                supervisor_algorithm
+                    .supervisor_parameters
+                    .create_and_insert_supervisor_parameter(&operation, work_order_activity);
+
+                for operational_agent in supervisor_algorithm
+                    .loaded_shared_solution
+                    .operational
+                    .keys()
+                {
+                    if operational_agent.1.contains(
+                        &supervisor_algorithm
+                            .supervisor_parameters
+                            .supervisor_parameter(work_order_activity)
+                            .context("The SupervisorParameter was not found")?
+                            .resource,
+                    ) {
+                        let operation = scheduling_environment.operation(work_order_activity);
+                        let delegate = Delegate::build(operation);
+                        supervisor_algorithm
+                            .supervisor_solution
+                            .insert_supervisor_solution(
+                                operational_agent,
+                                delegate,
+                                *work_order_activity,
+                            )
+                            .context(
+                                "Supervisor could not insert operational solution correctly",
+                            )?;
+                    }
+                }
+            }
+        }
 
         let scheduling_environment = Arc::clone(&self.scheduling_environment);
         let (sender_to_agent, receiver_from_orchestrator) = std::sync::mpsc::channel();
@@ -283,7 +320,6 @@ impl AgentFactory {
         &self,
         asset: &Asset,
         operational_id: &Id,
-
         // FIX
         // This should be removed for the program to function correctly.
         operational_configuration: &OperationalConfiguration,
@@ -293,8 +329,59 @@ impl AgentFactory {
     {
         let arc_scheduling_environment = self.scheduling_environment.clone();
 
-        let operational_algorithm =
-            OperationalAlgorithm::new(operational_configuration, arc_swap_shared_solution);
+        // FIX
+        // for (work_order_activity, delegate) in self
+        //     .loaded_shared_solution
+        //     .supervisor
+        //     .state_of_agent(&self.id)
+        // {
+        //     if delegate == Delegate::Done {
+        //         continue;
+        //     }
+        //     self.create_operational_parameter(&work_order_activity)
+        //         .expect("Could not create OperationalParameter");
+        // }
+        //     pub fn create_operational_parameter(
+        //         &mut self,
+        //         work_order_activity: &WorkOrderActivity,
+        //     ) -> Result<()> {
+        //         let scheduling_environment = self.scheduling_environment.lock().unwrap();
+
+        //         let operation: &Operation = scheduling_environment.operation(work_order_activity);
+
+        //         assert!(
+        //             operation.work_remaining() > &Some(Work::from(0.0))
+        //                 || self
+        //                     .algorithm
+        //                     .loaded_shared_solution
+        //                     .supervisor
+        //                     .operational_state_machine
+        //                     .get(&(self.agent_id.clone(), *work_order_activity))
+        //                     .unwrap()
+        //                     .is_done()
+        //         );
+
+        //         // TODO: move this around
+        //         let operational_parameter = OperationalParameter::new(
+        //             operation.work_remaining().unwrap(),
+        //             operation.operation_analytic.preparation_time,
+        //         );
+
+        //         self.algorithm
+        //             .insert_operational_parameter(*work_order_activity, operational_parameter);
+
+        //         self.algorithm
+        //             .history_of_dropped_operational_parameters
+        //             .insert(*work_order_activity);
+
+        //         Ok(())
+        //     }
+        // }
+        let operational_algorithm = OperationalAlgorithm::new(
+            operational_id,
+            operational_configuration,
+            arc_swap_shared_solution,
+        );
 
         let mut shared_solution_clone = (**operational_algorithm.loaded_shared_solution).clone();
 

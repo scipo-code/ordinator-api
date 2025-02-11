@@ -42,30 +42,6 @@ pub struct StrategicAlgorithm {
 }
 
 impl StrategicAlgorithm {
-
-    pub fn make_atomic_pointer_swap(&self) {
-        // Performance enhancements:
-        // * COW:
-        //      #[derive(Clone)]
-        //      struct SharedSolution<'a> {
-        //          tactical: Cow<'a, TacticalSolution>,
-        //          // other fields...
-        //      }
-        //
-        // * Reuse the old SharedSolution, cloning only the fields that are needed.
-        //     let shared_solution = Arc::new(SharedSolution {
-        //             tactical: self.tactical_solution.clone(),
-        //             // Copy over other fields without cloning
-        //             ..(**old).clone()
-        //         });
-        self.arc_swap_shared_solution.0.rcu(|old| {
-            let mut shared_solution = (**old).clone();
-            shared_solution.strategic = self.strategic_solution.clone();
-            Arc::new(shared_solution)
-        });
-    
-    } 
-
     pub fn strategic_periods(&self) -> &HashMap<WorkOrderNumber, Option<Period>> {
         &self.strategic_solution.strategic_scheduled_work_orders
     }
@@ -125,10 +101,6 @@ impl StrategicAlgorithm {
             self.strategic_parameters.insert_strategic_parameter(*work_order_number, strategic_parameter);
             self.make_atomic_pointer_swap();
         }
-    }
-
-    pub fn load_shared_solution(&mut self) {
-        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
     }
 
     fn strategic_capacity_by_resource(&self, resource: &Resources, period: &Period) -> Result<Work> {
@@ -855,13 +827,39 @@ pub fn calculate_period_difference(scheduled_period: Period, latest_period: &Per
 impl ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm {
     type MessageRequest = StrategicRequestMessage;
     type MessageResponse = StrategicResponseMessage;
-    type SchedulingUnit = WorkOrderNumber;
     type Solution = StrategicSolution;
     type Options = StrategicOptions;
 
     fn clone_algorithm_solution(&self) -> Self::Solution {
         self.strategic_solution.clone()
     }
+
+    fn update_based_on_shared_solution(&mut self) -> Result<()> {
+        Ok(())
+    }
+
+    fn make_atomic_pointer_swap(&self) {
+        // Performance enhancements:
+        // * COW:
+        //      #[derive(Clone)]
+        //      struct SharedSolution<'a> {
+        //          tactical: Cow<'a, TacticalSolution>,
+        //          // other fields...
+        //      }
+        //
+        // * Reuse the old SharedSolution, cloning only the fields that are needed.
+        //     let shared_solution = Arc::new(SharedSolution {
+        //             tactical: self.tactical_solution.clone(),
+        //             // Copy over other fields without cloning
+        //             ..(**old).clone()
+        //         });
+        self.arc_swap_shared_solution.0.rcu(|old| {
+            let mut shared_solution = (**old).clone();
+            shared_solution.strategic = self.strategic_solution.clone();
+            Arc::new(shared_solution)
+        });
+    
+    } 
 
     fn swap_solution(&mut self, solution: Self::Solution) {
         self.strategic_solution = solution;
