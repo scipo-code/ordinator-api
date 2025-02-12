@@ -157,7 +157,11 @@ impl AgentFactory {
         // FIX
         // Turn this into a std::thread::spawn and work on that to make the program function correctly.
         std::thread::Builder::new()
-            .name(asset.to_string())
+            .name(format!(
+                "{} for Asset: {}",
+                std::any::type_name::<StrategicAlgorithm>(),
+                asset,
+            ))
             .spawn(move || strategic_agent.run(options))?;
 
         Ok(Communication {
@@ -224,7 +228,11 @@ impl AgentFactory {
         let options = TacticalOptions::default();
 
         std::thread::Builder::new()
-            .name(asset.to_string())
+            .name(format!(
+                "{} for Asset: {}",
+                std::any::type_name::<TacticalAlgorithm>(),
+                asset,
+            ))
             .spawn(move || tactical_agent.run(options))?;
 
         Ok(Communication {
@@ -258,7 +266,7 @@ impl AgentFactory {
                 let work_order_activity = &(*work_order_number, *activity_number);
                 supervisor_algorithm
                     .supervisor_parameters
-                    .create_and_insert_supervisor_parameter(&operation, work_order_activity);
+                    .create_and_insert_supervisor_parameter(operation, work_order_activity);
 
                 for operational_agent in supervisor_algorithm
                     .loaded_shared_solution
@@ -307,7 +315,12 @@ impl AgentFactory {
         let options = SupervisorOptions::default();
 
         std::thread::Builder::new()
-            .name(asset.to_string() + &id_supervisor.to_string())
+            .name(format!(
+                "{} for Asset: {} for Id: {}",
+                std::any::type_name::<SupervisorAlgorithm>(),
+                asset,
+                &id_supervisor,
+            ))
             .spawn(move || supervisor_agent.run(options))?;
 
         Ok(Communication {
@@ -411,7 +424,12 @@ impl AgentFactory {
         let options = OperationalOptions::default();
 
         std::thread::Builder::new()
-            .name(operational_id.0.clone())
+            .name(format!(
+                "{} for Asset: {} for Id: {}",
+                std::any::type_name::<OperationalAlgorithm>(),
+                asset,
+                &operational_id,
+            ))
             .spawn(move || operational_agent.run(options))?;
 
         Ok(Communication {

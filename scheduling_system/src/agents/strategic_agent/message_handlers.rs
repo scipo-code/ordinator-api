@@ -54,7 +54,7 @@ impl MessageHandler
 
                         let asset = &self.asset;
 
-                        let number_of_periods = self.algorithm.periods().len();
+                        let number_of_periods = self.algorithm.strategic_periods.len();
 
                         let strategic_response_status = StrategicResponseStatus::new(
                             asset.clone(),
@@ -70,7 +70,7 @@ impl MessageHandler
                     StrategicStatusMessage::Period(period) => {
                         if !self
                             .algorithm
-                            .periods()
+                            .strategic_periods
                             .iter()
                             .map(|period| period.period_string())
                             .collect::<Vec<_>>()
@@ -81,7 +81,8 @@ impl MessageHandler
 
                         let work_orders_by_period: HashMap<WorkOrderNumber, WorkOrderResponse> =
                             self.algorithm
-                                .strategic_periods()
+                                .strategic_solution
+                                .strategic_scheduled_work_orders
                                 .iter()
                                 .filter(|(_, sch_per)| match sch_per {
                                     Some(scheduled_period) => {
@@ -207,7 +208,7 @@ impl MessageHandler
                         event!(Level::ERROR, "periods not handled correctly");
                     }
                 }
-                self.algorithm.set_periods(periods.to_vec());
+                self.algorithm.strategic_periods = periods.to_vec();
                 let strategic_response_periods = StrategicResponsePeriods::new(periods.clone());
                 Ok(StrategicResponseMessage::Periods(
                     strategic_response_periods,
@@ -345,7 +346,10 @@ impl MessageHandler
                                 })?;
 
                             let strategic_parameter = StrategicParameterBuilder::new()
-                                .build_from_work_order(work_order, self.algorithm.periods())
+                                .build_from_work_order(
+                                    work_order,
+                                    &self.algorithm.strategic_periods,
+                                )
                                 .build();
 
                             self.algorithm

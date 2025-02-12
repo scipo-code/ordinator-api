@@ -83,18 +83,26 @@ where
     pub fn run(&mut self, mut options: Algorithm::Options) -> Result<()> {
         self.algorithm
             .schedule()
-            .context("Could not perform initial schedule iteration")?;
-        dbg!();
+            .with_context(|| {
+                format!(
+                    "Could not perform initial schedule iteration\nfile: {}\nline: {}",
+                    file!(),
+                    line!()
+                )
+            })
+            .unwrap();
 
         let mut schedule_iteration = ScheduleIteration::default();
 
         loop {
-            dbg!();
             while let Ok(message) = self.receiver_from_orchestrator.try_recv() {
-                self.handle(message)?;
+                self.handle(message).unwrap();
             }
 
-            self.algorithm.run_lns_iteration(&mut options)?;
+            self.algorithm
+                .run_lns_iteration(&mut options)
+                .with_context(|| format!("{:#?}", schedule_iteration))
+                .unwrap();
 
             schedule_iteration.increment();
         }

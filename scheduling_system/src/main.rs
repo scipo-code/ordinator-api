@@ -72,20 +72,26 @@ async fn main() -> Result<()> {
         .lock()
         .unwrap()
         .initialize_operational_agents(asset)
-        .map_err(|err| std::io::Error::new(std::io::ErrorKind::ReadOnlyFilesystem, err))?;
+        .map_err(|err| anyhow!(err))?;
     // WARN FINISH: USED FOR CONVENIENCE
-
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(orchestrator.clone()))
-            .service(actix_files::Files::new(
-                "/scheduler",
-                "./static_files/scheduler/dist",
-            ))
-            .service(actix_files::Files::new(
-                "/supervisor",
-                "./static_files/supervisor/dist",
-            ))
+            .service(
+                actix_files::Files::new("/scheduler", "./static_files/scheduler/dist")
+                    .index_file("index.html")
+                    .show_files_listing()
+                    .use_last_modified(true),
+            )
+            .service(
+                actix_files::Files::new(
+                    "/supervisor",
+                    "./static_files/supervisor/dist/supervisor-calendar/browser",
+                )
+                .index_file("index.html")
+                .show_files_listing()
+                .use_last_modified(true),
+            )
             .route(
                 &dotenvy::var("ORDINATOR_MAIN_ENDPOINT").unwrap(),
                 web::post()

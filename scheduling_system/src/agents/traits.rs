@@ -1,4 +1,5 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
+use std::fmt::Debug;
 
 /// This trait will be crucial for making this whole thing work correctly.
 /// I think that the best approach will be to make only a single message
@@ -8,7 +9,7 @@ use anyhow::Result;
 pub trait ActorBasedLargeNeighborhoodSearch {
     type MessageRequest;
     type MessageResponse;
-    type Solution;
+    type Solution: Debug;
     type Options;
 
     fn run_lns_iteration(&mut self, options: &mut Self::Options) -> Result<()> {
@@ -18,7 +19,8 @@ pub trait ActorBasedLargeNeighborhoodSearch {
 
         let current_solution = self.clone_algorithm_solution();
 
-        self.unschedule(options)?;
+        self.unschedule(options)
+            .with_context(|| format!("{:#?}", current_solution))?;
 
         self.schedule()?;
 
@@ -29,7 +31,7 @@ pub trait ActorBasedLargeNeighborhoodSearch {
                 // FIX
                 // This can be Solved be making the Algorithm generic. I think that is a really good idea.
                 // You have to prepare the project plan now though. And then later go running. Do you need
-                // to go to work today?
+                // to go to work today? You need to create simple test data and simple.
                 self.make_atomic_pointer_swap();
             }
             ObjectiveValueType::Worse => self.swap_solution(current_solution),

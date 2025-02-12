@@ -48,7 +48,7 @@ impl Orchestrator {
                     .strategic_scheduled_work_orders
                     .clone()
                     .into_iter()
-                    .filter_map(|e| e.1.map(|t| (e.0, t)))
+                    // .filter_map(|(won, opt_per)| opt_per.map(|per| (won, per)))
                     .collect::<HashMap<_, _>>();
 
                 let tactical_agent_solution = self

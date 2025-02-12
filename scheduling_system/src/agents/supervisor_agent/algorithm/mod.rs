@@ -177,8 +177,10 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
 
         self.objective_value = objective_value;
         if self.objective_value < objective_value {
+            event!(Level::INFO, supervisor_objective_value = objective_value);
             Ok(ObjectiveValueType::Better)
         } else {
+            event!(Level::INFO, supervisor_objective_value = objective_value);
             Ok(ObjectiveValueType::Worse)
         }
     }
@@ -319,15 +321,14 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
             .strategic
             .strategic_scheduled_work_orders
             .iter()
-            .filter_map(|(won, opt_per)| {
-                opt_per.as_ref().map(|per| {
+            .filter_map(|(won, opt_str_per)| {
+                opt_str_per.as_ref().and_then(|per| {
                     self.supervisor_parameters
                         .supervisor_periods
                         .contains(per)
                         .then_some((won, per))
                 })
-            })
-            .map(|opt| opt.unwrap());
+            });
 
         // Select only those that are not part of the `SupervisorAgent` already
         let incoming_activities = activities_in_supervisor_period
@@ -337,11 +338,12 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
         // Insert all the incoming activities as Delegate::default() for each `OperationalAgent` that
         // has the required skill, `enum Resources`
         for (work_order_number, _) in incoming_activities {
-            for (activity_number, _) in self
+            for activity_number in (self
                 .supervisor_parameters
                 .supervisor_work_orders
                 .get(work_order_number)
-                .context("Missing WorkOrder Parameter in Supervisor")?
+                .context("Missing WorkOrder Parameter in Supervisor")?)
+            .keys()
             {
                 for operational_id in self.loaded_shared_solution.operational.keys() {
                     if operational_id.1.contains(

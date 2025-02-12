@@ -56,9 +56,11 @@ impl StrategicAssertions for StrategicAlgorithm {
     fn assert_aggregated_load(&self) -> Result<()> {
         // let mut aggregated_strategic_load = StrategicResources::default();
         let mut aggregated_strategic_load = HashMap::new();
-        for period in self.periods() {
-            for (work_order_number, strategic_solution) in
-                self.strategic_solution.strategic_scheduled_work_orders.iter()
+        for period in &self.strategic_periods {
+            for (work_order_number, strategic_solution) in self
+                .strategic_solution
+                .strategic_scheduled_work_orders
+                .iter()
             {
                 let strategic_parameter = self
                     .strategic_parameters
@@ -90,7 +92,8 @@ impl StrategicAssertions for StrategicAlgorithm {
         // all the total hours for the actual loadings.
         for (resource, total_work) in aggregated_strategic_load {
             let loadings = self
-                .resources_loadings()
+                .strategic_solution
+                .strategic_loadings
                 .0
                 .get(resource.0)
                 .unwrap()
