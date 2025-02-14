@@ -881,7 +881,7 @@ impl ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm {
         // This should not happen. We should always work on self and then
         // substitute out the remaining parts. 
         if strategic_objective_value.objective_value < self.strategic_solution.objective_value.objective_value {
-            event!(Level::INFO, strategic_objective_value = ?strategic_objective_value);
+            event!(Level::INFO, strategic_objective_value_better = ?strategic_objective_value);
             self.strategic_solution.objective_value = strategic_objective_value;
             Ok(ObjectiveValueType::Better)
         } else {

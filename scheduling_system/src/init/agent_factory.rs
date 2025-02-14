@@ -1,11 +1,10 @@
-use anyhow::{ensure, Context, Result};
+use anyhow::{Context, Result};
 use arc_swap::ArcSwap;
 use priority_queue::PriorityQueue;
 use shared_types::operational::{
     OperationalConfiguration, OperationalRequestMessage, OperationalResponseMessage,
 };
-use shared_types::scheduling_environment::work_order::operation::{ActivityNumber, Work};
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::strategic::{
     StrategicRequestMessage, StrategicResources, StrategicResponseMessage,
 };

@@ -70,16 +70,6 @@ where
         }
     }
 
-    // TODO
-    // - [x] Move the Strategic logic in here
-    //     - [x] Move `populate_priority_queues`
-    // - [x] Move the Tactical logic in here
-    // - [ ] Move the Supervisor logic in here
-    //     - [ ] Handle the `update_supervisor_solution_and_parameters`
-    // - [ ] Move the Operational logic in here
-    // QUESTION
-    // How should the updates be handled in general? I think that the
-    // best would be to make the code function in a generic way instead
     pub fn run(&mut self, mut options: Algorithm::Options) -> Result<()> {
         let mut schedule_iteration = ScheduleIteration::default();
 

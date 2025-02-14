@@ -280,8 +280,10 @@ impl ActorBasedLargeNeighborhoodSearch for TacticalAlgorithm {
         );
 
         if tactical_objective_value < self.tactical_solution.objective_value.0 {
+            event!(Level::INFO, tactical_objective_value_better = ?tactical_objective_value);
             Ok(ObjectiveValueType::Better)
         } else {
+            event!(Level::INFO, tactical_objective_value_worse = ?tactical_objective_value);
             Ok(ObjectiveValueType::Worse)
         }
     }

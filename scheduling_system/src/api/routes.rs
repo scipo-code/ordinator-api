@@ -8,11 +8,9 @@ use tracing::Level;
 
 use std::sync::Arc;
 use std::sync::Mutex;
-use tracing::instrument;
 
 use crate::agents::orchestrator::Orchestrator;
 
-#[instrument(level = "info", skip_all)]
 #[allow(clippy::await_holding_lock)]
 pub async fn http_to_scheduling_system(
     orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,

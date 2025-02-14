@@ -177,10 +177,16 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
 
         self.objective_value = objective_value;
         if self.objective_value < objective_value {
-            event!(Level::INFO, supervisor_objective_value = objective_value);
+            event!(
+                Level::INFO,
+                supervisor_objective_value_better = objective_value
+            );
             Ok(ObjectiveValueType::Better)
         } else {
-            event!(Level::INFO, supervisor_objective_value = objective_value);
+            event!(
+                Level::INFO,
+                supervisor_objective_value_worse = objective_value
+            );
             Ok(ObjectiveValueType::Worse)
         }
     }

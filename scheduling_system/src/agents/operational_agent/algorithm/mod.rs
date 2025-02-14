@@ -412,17 +412,17 @@ impl ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm {
         break_time = ?break_time,
         toolbox_time = ?toolbox_time,
         non_productive_time = ?non_productive_time);
-        let new_value = ((wrench_time).num_seconds() * 100) as u64
+        let new_objective_value = ((wrench_time).num_seconds() * 100) as u64
             / (wrench_time + break_time + toolbox_time + non_productive_time).num_seconds() as u64;
 
-        let old_value = self.operational_solution.objective_value;
+        let old_objective_value = self.operational_solution.objective_value;
 
-        if new_value > old_value {
-            self.operational_solution.objective_value = new_value;
-            event!(Level::INFO, operational_objective_value = ?new_value);
+        self.operational_solution.objective_value = new_objective_value;
+        if new_objective_value > old_objective_value {
+            event!(Level::INFO, operational_objective_value_better = ?new_objective_value);
             Ok(ObjectiveValueType::Better)
         } else {
-            event!(Level::INFO, operational_objective_value = ?new_value);
+            event!(Level::INFO, operational_objective_value_worse = ?new_objective_value);
             Ok(ObjectiveValueType::Worse)
         }
     }

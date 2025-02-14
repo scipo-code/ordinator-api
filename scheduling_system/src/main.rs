@@ -3,6 +3,7 @@ mod api;
 mod init;
 
 use anyhow::{anyhow, Result};
+use api::orchestrator_api::{scheduler_asset_names, scheduler_excel_export};
 use data_processing::sources::TimeInput;
 use std::{
     fs::File,
@@ -77,6 +78,7 @@ async fn main() -> Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(orchestrator.clone()))
+            .service(api_scope())
             .service(
                 actix_files::Files::new("/scheduler", "./static_files/scheduler/dist")
                     .index_file("index.html")
@@ -104,6 +106,15 @@ async fn main() -> Result<()> {
     .run()
     .await
     .map_err(|err| anyhow!(err))
+}
+
+fn api_scope() -> actix_web::Scope {
+    web::scope("/api")
+        .route(
+            "/scheduler/export/{asset}",
+            web::get().to(scheduler_excel_export),
+        )
+        .route("/scheduler/assets", web::get().to(scheduler_asset_names))
 }
 
 fn initialize_from_database(path: &Path) -> SchedulingEnvironment {
