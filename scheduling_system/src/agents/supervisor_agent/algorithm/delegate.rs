@@ -35,6 +35,13 @@ impl Delegate {
     pub fn is_assign(&self) -> bool {
         matches!(self, Self::Assign)
     }
+    pub fn is_assess(&self) -> bool {
+        matches!(self, Self::Assess)
+    }
+
+    pub fn is_drop(&self) -> bool {
+        matches!(self, Self::Drop)
+    }
 
     pub fn state_change_to_unassign(&mut self) {
         match self {

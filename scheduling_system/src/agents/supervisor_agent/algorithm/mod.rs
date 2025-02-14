@@ -186,9 +186,7 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
     }
 
     fn schedule(&mut self) -> Result<()> {
-        'next_work_order_activity: for work_order_activity in
-            &self.supervisor_solution.get_work_order_activities()
-        {
+        for work_order_activity in &self.supervisor_solution.get_work_order_activities() {
             let number = self
                 .supervisor_parameters
                 .supervisor_work_orders
@@ -205,8 +203,6 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
                     work_order_activity,
                     operational_solutions,
                 );
-
-            // dbg!(operational);
 
             operational_status_by_work_order_activity
                 .retain(|(_, _, mar_fit)| matches!(mar_fit, MarginalFitness::Scheduled(_)));
@@ -313,10 +309,10 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
             .operational_state_machine
             .keys()
             .map(|(_, woa)| woa.0)
-            .collect::<HashSet<_>>();
+            .collect::<HashSet<WorkOrderNumber>>();
 
         // Filter for Strategic scheduled work orders that are inside of the `SupervisorAlgorithm.parameters.strategic_periods`
-        let activities_in_supervisor_period = self
+        let strategic_activities_in_supervisor_period = self
             .loaded_shared_solution
             .strategic
             .strategic_scheduled_work_orders
@@ -331,9 +327,9 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
             });
 
         // Select only those that are not part of the `SupervisorAgent` already
-        let incoming_activities = activities_in_supervisor_period
+        let incoming_activities = strategic_activities_in_supervisor_period
             .clone()
-            .filter(|(won, _)| current_activities.contains(won));
+            .filter(|(won, _)| !current_activities.contains(won));
 
         // Insert all the incoming activities as Delegate::default() for each `OperationalAgent` that
         // has the required skill, `enum Resources`
@@ -346,35 +342,45 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
             .keys()
             {
                 for operational_id in self.loaded_shared_solution.operational.keys() {
-                    if operational_id.1.contains(
-                        &self
-                            .supervisor_parameters
-                            .supervisor_work_orders
-                            .get(work_order_number)
-                            .context("Missing WorkOrder Parameter in Supervisor")?
-                            .get(activity_number)
-                            .context("Missing Activity Parameter in Supervisor")?
-                            .resource,
-                    ) {
-                        self.supervisor_solution.operational_state_machine.insert(
-                            (
-                                operational_id.clone(),
-                                (*work_order_number, *activity_number),
-                            ),
-                            Delegate::default(),
-                        );
+                    let supervisor_parameter_resource = &self
+                        .supervisor_parameters
+                        .supervisor_work_orders
+                        .get(work_order_number)
+                        .context("Missing WorkOrder Parameter in Supervisor")?
+                        .get(activity_number)
+                        .context("Missing Activity Parameter in Supervisor")?
+                        .resource;
+
+                    if operational_id.1.contains(supervisor_parameter_resource) {
+                        let work_order_activity = (*work_order_number, *activity_number);
+                        let operational_state = (operational_id.clone(), work_order_activity);
+
+                        self.supervisor_solution
+                            .operational_state_machine
+                            .insert(operational_state, Delegate::default());
                     }
                 }
             }
         }
 
         // Now we have to remove the the activities that are not part of the SharedSolution::strategic
-        for (strategic_work_order_number, _) in activities_in_supervisor_period {
-            self.supervisor_solution
-                .operational_state_machine
-                .retain(|id_woa, _| id_woa.1 .0 == *strategic_work_order_number)
-        }
+        // FIX
+        // You are doing this wrong. You are retaining only a single `WorkOrderNumber` on each iteration.
+        // We will fix this by making the two into HashSet and then removing the correct ones.
+        //
+        let strategic_activities_hash_set = strategic_activities_in_supervisor_period
+            .map(|e| e.0)
+            .cloned()
+            .collect::<HashSet<_>>();
 
+        // FIX
+        // We need a system for making this work well with `Activities` that have been forced internally.
+        self.supervisor_solution
+            .operational_state_machine
+            .retain(|id_woa, _| strategic_activities_hash_set.contains(&id_woa.1 .0));
+
+        self.calculate_objective_value()?;
+        self.make_atomic_pointer_swap();
         Ok(())
     }
 }

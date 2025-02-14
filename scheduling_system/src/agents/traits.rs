@@ -22,7 +22,8 @@ pub trait ActorBasedLargeNeighborhoodSearch {
         self.unschedule(options)
             .with_context(|| format!("{:#?}", current_solution))?;
 
-        self.schedule()?;
+        self.schedule()
+            .with_context(|| format!("Could not schedule\n{:#?}", current_solution))?;
 
         let objective_value_type = self.calculate_objective_value()?;
 
@@ -55,6 +56,10 @@ pub trait ActorBasedLargeNeighborhoodSearch {
 
     fn unschedule(&mut self, unschedule_options: &mut Self::Options) -> Result<()>;
 
+    /// This method is for updating the algorithm based on external inputs and
+    /// the shared solution. That means that this method has to look at relevant
+    /// state in the others `Agent`s and incorporate that and handled changes in
+    /// parameters coming from external inputs.
     fn update_based_on_shared_solution(&mut self) -> Result<()>;
 }
 

@@ -1,10 +1,11 @@
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 use arc_swap::ArcSwap;
 use priority_queue::PriorityQueue;
 use shared_types::operational::{
     OperationalConfiguration, OperationalRequestMessage, OperationalResponseMessage,
 };
-use shared_types::scheduling_environment::work_order::operation::Work;
+use shared_types::scheduling_environment::work_order::operation::{ActivityNumber, Work};
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::strategic::{
     StrategicRequestMessage, StrategicResources, StrategicResponseMessage,
 };
@@ -17,6 +18,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use std::sync::{Arc, MutexGuard};
 
+use crate::agents::operational_agent::algorithm::operational_parameter::OperationalParameter;
 use crate::agents::operational_agent::algorithm::OperationalAlgorithm;
 use crate::agents::operational_agent::OperationalOptions;
 use crate::agents::orchestrator::{Communication, NotifyOrchestrator};
@@ -342,59 +344,36 @@ impl AgentFactory {
     {
         let arc_scheduling_environment = self.scheduling_environment.clone();
 
-        // FIX
-        // for (work_order_activity, delegate) in self
-        //     .loaded_shared_solution
-        //     .supervisor
-        //     .state_of_agent(&self.id)
-        // {
-        //     if delegate == Delegate::Done {
-        //         continue;
-        //     }
-        //     self.create_operational_parameter(&work_order_activity)
-        //         .expect("Could not create OperationalParameter");
-        // }
-        //     pub fn create_operational_parameter(
-        //         &mut self,
-        //         work_order_activity: &WorkOrderActivity,
-        //     ) -> Result<()> {
-        //         let scheduling_environment = self.scheduling_environment.lock().unwrap();
-
-        //         let operation: &Operation = scheduling_environment.operation(work_order_activity);
-
-        //         assert!(
-        //             operation.work_remaining() > &Some(Work::from(0.0))
-        //                 || self
-        //                     .algorithm
-        //                     .loaded_shared_solution
-        //                     .supervisor
-        //                     .operational_state_machine
-        //                     .get(&(self.agent_id.clone(), *work_order_activity))
-        //                     .unwrap()
-        //                     .is_done()
-        //         );
-
-        //         // TODO: move this around
-        //         let operational_parameter = OperationalParameter::new(
-        //             operation.work_remaining().unwrap(),
-        //             operation.operation_analytic.preparation_time,
-        //         );
-
-        //         self.algorithm
-        //             .insert_operational_parameter(*work_order_activity, operational_parameter);
-
-        //         self.algorithm
-        //             .history_of_dropped_operational_parameters
-        //             .insert(*work_order_activity);
-
-        //         Ok(())
-        //     }
-        // }
-        let operational_algorithm = OperationalAlgorithm::new(
+        let mut operational_algorithm = OperationalAlgorithm::new(
             operational_id,
             operational_configuration,
             arc_swap_shared_solution,
         );
+
+        for (work_order_number, work_order) in &self
+            .scheduling_environment
+            .lock()
+            .unwrap()
+            .work_orders
+            .inner
+        {
+            for (activity_number, operation) in work_order.operations() {
+                let work_order_activity = (*work_order_number, *activity_number);
+
+                let operational_parameter_option = OperationalParameter::new(
+                    operation.work_remaining().unwrap(),
+                    operation.operation_analytic.preparation_time,
+                );
+
+                let operational_parameter = match operational_parameter_option {
+                    Some(operational_parameter) => operational_parameter,
+                    None => continue,
+                };
+
+                operational_algorithm
+                    .insert_operational_parameter(work_order_activity, operational_parameter);
+            }
+        }
 
         let mut shared_solution_clone = (**operational_algorithm.loaded_shared_solution).clone();
 
@@ -420,17 +399,36 @@ impl AgentFactory {
             sender_to_orchestrator,
             notify_orchestrator,
         );
+        assert!(!operational_agent
+            .algorithm
+            .operational_parameters
+            .work_order_parameters
+            .is_empty());
 
         let options = OperationalOptions::default();
 
+        assert!(!operational_agent
+            .algorithm
+            .operational_parameters
+            .work_order_parameters
+            .is_empty());
+
+        let thread_name = format!(
+            "{} for Asset: {} for Id: {}",
+            std::any::type_name::<OperationalAlgorithm>(),
+            asset,
+            &operational_id,
+        );
         std::thread::Builder::new()
-            .name(format!(
-                "{} for Asset: {} for Id: {}",
-                std::any::type_name::<OperationalAlgorithm>(),
-                asset,
-                &operational_id,
-            ))
-            .spawn(move || operational_agent.run(options))?;
+            .name(thread_name.clone())
+            .spawn(move || {
+                assert!(!operational_agent
+                    .algorithm
+                    .operational_parameters
+                    .work_order_parameters
+                    .is_empty());
+                operational_agent.run(options)
+            })?;
 
         Ok(Communication {
             sender: sender_to_agent,

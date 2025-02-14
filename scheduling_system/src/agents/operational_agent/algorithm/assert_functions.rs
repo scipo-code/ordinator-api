@@ -10,7 +10,7 @@ impl OperationalAlgorithmAsserts for OperationalAlgorithm {
     fn assert_no_operation_overlap(&self) -> Result<()> {
         let operational_solutions = self
             .operational_solution
-            .work_order_activities_assignment
+            .scheduled_work_order_activities
             .iter()
             .flat_map(|woa_os| woa_os.1.assignments.clone())
             .chain(self.operational_non_productive.0.clone());

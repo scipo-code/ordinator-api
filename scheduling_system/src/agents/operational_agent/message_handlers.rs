@@ -108,7 +108,7 @@ impl MessageHandler
                         for (work_order_activity, operational_solution) in &self
                             .algorithm
                             .operational_solution
-                            .work_order_activities_assignment
+                            .scheduled_work_order_activities
                         {
                             let mut json_assignments = vec![];
                             for assignment in &operational_solution.assignments {

@@ -26,7 +26,7 @@ impl<AgentMessage, AgentResponse> OperationalAssertions
             .algorithm
             .loaded_shared_solution
             .supervisor
-            .state_of_agent(&self.agent_id)
+            .delegates_for_agent(&self.agent_id)
             .values()
         {
             ensure!(delegate != &Delegate::Unassign)
@@ -39,7 +39,7 @@ impl<AgentMessage, AgentResponse> OperationalAssertions
         for assignments in self
             .algorithm
             .operational_solution
-            .work_order_activities_assignment
+            .scheduled_work_order_activities
             .windows(3)
         {
             let finish_of_prev = assignments[0].1.finish_time();

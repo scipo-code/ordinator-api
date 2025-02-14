@@ -6,7 +6,7 @@ pub mod tactical_agent;
 pub mod traits;
 
 use std::collections::{HashMap, HashSet};
-use std::fmt::{self, Display};
+use std::fmt::{self, Debug, Display};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
@@ -81,6 +81,8 @@ where
     // How should the updates be handled in general? I think that the
     // best would be to make the code function in a generic way instead
     pub fn run(&mut self, mut options: Algorithm::Options) -> Result<()> {
+        let mut schedule_iteration = ScheduleIteration::default();
+
         self.algorithm
             .schedule()
             .with_context(|| {
@@ -92,8 +94,7 @@ where
             })
             .unwrap();
 
-        let mut schedule_iteration = ScheduleIteration::default();
-
+        schedule_iteration.increment();
         loop {
             while let Ok(message) = self.receiver_from_orchestrator.try_recv() {
                 self.handle(message).unwrap();
@@ -107,13 +108,6 @@ where
             schedule_iteration.increment();
         }
     }
-
-    // WARN
-    // This should only ever be created if we decide to make the `Algorithm` generics as well, which
-    // we will do to make this code scale.
-    // fn load_shared_solution(&mut self) {
-    //     self.algorithm.loaded_shared_solution = self.algorithm.arc_swap_shared_solution.0.load();
-    // }
 }
 
 #[derive(Default)]
@@ -291,7 +285,7 @@ pub struct SupervisorSolution {
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct OperationalSolution {
     pub objective_value: OperationalObjectiveValue,
-    pub work_order_activities_assignment: Vec<(WorkOrderActivity, OperationalAssignment)>,
+    pub scheduled_work_order_activities: Vec<(WorkOrderActivity, OperationalAssignment)>,
 }
 
 impl StrategicSolution {
@@ -315,7 +309,10 @@ impl StrategicSolution {
 }
 
 impl SupervisorSolution {
-    pub fn state_of_agent(&self, operational_agent: &Id) -> HashMap<WorkOrderActivity, Delegate> {
+    pub fn delegates_for_agent(
+        &self,
+        operational_agent: &Id,
+    ) -> HashMap<WorkOrderActivity, Delegate> {
         self.operational_state_machine
             .iter()
             .filter(|(id_woa, _)| &id_woa.0 == operational_agent)
@@ -327,7 +324,7 @@ impl SupervisorSolution {
         let mut count_assign = 0;
         let mut count_assess = 0;
         let mut count_unassign = 0;
-        for delegate in self.state_of_agent(operational_agent).values() {
+        for delegate in self.delegates_for_agent(operational_agent).values() {
             match delegate {
                 Delegate::Assess => count_assess += 1,
                 Delegate::Assign => count_assign += 1,
@@ -417,7 +414,7 @@ impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
                     operational_agent,
                 )
             })?
-            .work_order_activities_assignment
+            .scheduled_work_order_activities
             .iter()
             .find(|woa_os| woa_os.0 == *work_order_activity)
             .map(|os| &os.1.marginal_fitness)

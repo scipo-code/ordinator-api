@@ -28,13 +28,13 @@ impl OperationalParameter {
         // end_window: DateTime<Utc>,
         // delegated: Delegate,
         // marginal_fitness: MarginalFitness,
-    ) -> Self {
+    ) -> Option<Self> {
         let combined_time = (work + _preparation).in_seconds();
         let operation_time_delta = TimeDelta::new(combined_time as i64, 0).unwrap();
-        assert_ne!(work.to_f64(), 0.0);
-        assert!(!operation_time_delta.is_zero());
-        assert_eq!(combined_time, work.in_seconds() + _preparation.in_seconds());
-        Self {
+        if work.to_f64() == 0.0 {
+            return None;
+        }
+        Some(Self {
             work,
             _preparation,
             operation_time_delta,
@@ -42,6 +42,6 @@ impl OperationalParameter {
             // end_window,
             // delegated,
             // marginal_fitness,
-        }
+        })
     }
 }

@@ -789,9 +789,15 @@ impl ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm {
         self.strategic_solution.clone()
     }
 
+    // FIX
+    // We should make this generic as well! Every algorithm has to implement this.
+    // 
     fn update_based_on_shared_solution(&mut self) -> Result<()> {
-        let tactical_work_orders = &self.loaded_shared_solution.tactical.tactical_scheduled_work_orders;
+        // Mutable state
         let mut work_order_numbers: Vec<ForcedWorkOrder> = vec![];
+        let mut state_change = false;
+
+        let tactical_work_orders = &self.loaded_shared_solution.tactical.tactical_scheduled_work_orders;
         // We should create a method to update the 
         for (work_order_number, strategic_parameter) in self.strategic_parameters.strategic_work_order_parameters.iter() {
             let scheduled_period = self
@@ -817,10 +823,15 @@ impl ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm {
         }
 
         for forced_work_order_numbers in work_order_numbers {
+            state_change = true;
             self.schedule_forced_work_order(&forced_work_order_numbers)
                 .with_context(|| format!("{:#?} could not be force scheduled", forced_work_order_numbers))?;
         }
-        self.calculate_objective_value()?;
+
+        if state_change {
+            self.calculate_objective_value()?;
+            self.make_atomic_pointer_swap();
+        }
         Ok(())
     }
 
@@ -885,7 +896,6 @@ impl ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm {
     #[instrument(level = "trace", skip_all)]
     fn schedule(&mut self) -> Result<()> {
 
-        dbg!(self.strategic_parameters.strategic_work_order_parameters.len(), self.strategic_solution.strategic_scheduled_work_orders.len());
         // WARNING
         // I am not sure that this is the correct place of putting this.
         // What should we change here? I think that the best thing would be to make this as
@@ -951,21 +961,6 @@ impl ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm {
         }
         Ok(())
     }
-    
-    // // Where should this be updated? I think that the best spot is in the. The issue is that why should update
-    // // both based on the `StateLink` and the `RequestMessage`. I think that the system should be generic
-    // // over the `StateLink` as well. I do not see a different way of implementing the system. 
-    // // This should be deleted and put into the `run` function. 
-    // fn update_based_on_messages<T>(&mut self, message: Self::MessageRequest) -> Result<Self::MessageResponse> {
-    //     let response = match message {
-    //         StrategicRequestMessage::Status(_strategic_status_message) => todo!(),
-    //         StrategicRequestMessage::Scheduling(strategic_scheduling_request) => StrategicResponseMessage::Scheduling(self.update_scheduling_state(strategic_scheduling_request)?),
-    //         StrategicRequestMessage::Resources(strategic_resource_request) => StrategicResponseMessage::Resources(self.update_resources_state(strategic_resource_request)?),
-    //         StrategicRequestMessage::Periods(_strategic_time_request) => todo!(),
-    //         StrategicRequestMessage::SchedulingEnvironment(_strategic_scheduling_environment_commands) => todo!(),
-    //     };
-    //     Ok(response)
-    // }
 }
 
 impl StrategicAlgorithm {
@@ -990,7 +985,7 @@ impl StrategicAlgorithm {
         }
     }
 
-pub fn update_resources_state(
+    pub fn update_resources_state(
         &mut self,
         strategic_resources_request: StrategicRequestResource,
     ) -> Result<StrategicResponseResources> 
@@ -1118,6 +1113,8 @@ pub fn update_resources_state(
         Ok(())
     }
 
+    // FIX
+    // Determine what to do with this
     pub fn populate_priority_queue(&mut self) {
         for work_order_number in self.strategic_solution.strategic_scheduled_work_orders.keys() {
             let strategic_parameter = self

@@ -29,6 +29,7 @@ use shared_types::{
 use tracing::{event, Level};
 
 use crate::agents::{
+    supervisor_agent::algorithm::delegate::Delegate,
     traits::{ActorBasedLargeNeighborhoodSearch, ObjectiveValueType},
     ArcSwapSharedSolution, OperationalSolution, SharedSolution, StrategicSolution,
     TacticalSolution, WhereIsWorkOrder,
@@ -54,7 +55,7 @@ pub struct OperationalAlgorithm {
     pub toolbox_interval: TimeInterval,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct OperationalNonProductive(pub Vec<Assignment>);
 
 impl OperationalAlgorithm {
@@ -80,58 +81,28 @@ impl OperationalAlgorithm {
 
         let mut operational_solution = OperationalSolution::new(Vec::new());
 
-        operational_solution.work_order_activities_assignment.push((
+        operational_solution.scheduled_work_order_activities.push((
             (WorkOrderNumber(0), ActivityNumber(0)),
             unavailability_start_event,
         ));
 
-        operational_solution.work_order_activities_assignment.push((
+        operational_solution.scheduled_work_order_activities.push((
             (WorkOrderNumber(0), ActivityNumber(0)),
             unavailability_end_event,
         ));
         Self {
             id: id.clone(),
             operational_solution,
-            operational_non_productive: OperationalNonProductive(Vec::new()),
+            operational_non_productive: OperationalNonProductive::default(),
             operational_parameters: OperationalParameters::default(),
+            // FIX
+            // This should be refactored
             availability: operational_configuration.availability.clone(),
             off_shift_interval: operational_configuration.off_shift_interval.clone(),
             break_interval: operational_configuration.break_interval.clone(),
             toolbox_interval: operational_configuration.toolbox_interval.clone(),
             arc_swap_shared_solution,
             loaded_shared_solution,
-        }
-    }
-
-    fn remove_drop_delegates(&mut self) -> HashSet<WorkOrderActivity> {
-        let mut removed_work_order_activities = HashSet::new();
-
-        let mut operational_shared_solution = self
-            .loaded_shared_solution
-            .supervisor
-            .state_of_agent(&self.id)
-            .into_keys();
-
-        self.operational_parameters
-            .work_order_parameters
-            .retain(|woa, _| {
-                if operational_shared_solution.contains(woa) {
-                    removed_work_order_activities.insert(*woa);
-                    true
-                } else {
-                    false
-                }
-            });
-        removed_work_order_activities
-    }
-
-    pub fn remove_delegate_drop(&mut self) {
-        let woas_to_be_deleted = self.remove_drop_delegates();
-
-        for work_order_activity in woas_to_be_deleted {
-            self.operational_solution
-                .work_order_activities_assignment
-                .retain(|os| os.0 != work_order_activity)
         }
     }
 
@@ -192,8 +163,8 @@ impl OperationalAlgorithm {
                     next_operational_event,
                 )
             } else {
-                if self.availability.end_date < new_current_time {
-                    new_current_time = self.availability.end_date;
+                if self.availability.finish_date < new_current_time {
+                    new_current_time = self.availability.finish_date;
                 }
                 let time_interval = TimeInterval::new(start.time(), new_current_time.time());
                 (
@@ -237,7 +208,7 @@ impl OperationalAlgorithm {
         let time_delta_usize = time_delta.num_seconds() as u64;
 
         self.operational_solution
-            .work_order_activities_assignment
+            .scheduled_work_order_activities
             .iter_mut()
             .find(|oper_sol| oper_sol.0 == work_order_activity_previous)
             .unwrap()
@@ -268,7 +239,25 @@ impl ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm {
     }
 
     fn update_based_on_shared_solution(&mut self) -> Result<()> {
-        self.remove_delegate_drop();
+        let operational_shared_solution = self
+            .loaded_shared_solution
+            .supervisor
+            .delegates_for_agent(&self.id);
+
+        self.operational_solution
+            .scheduled_work_order_activities
+            // We remain all `OperationalSolution` which are not `Delegate::Drop` where
+            // the `Delegate` variant is decided by the
+            .retain(|(woa, _)| {
+                !operational_shared_solution
+                    .get(woa)
+                    .unwrap_or_else(|| {
+                        assert!(*woa == (WorkOrderNumber(0), ActivityNumber(0)));
+                        &Delegate::Assign
+                    })
+                    .is_drop()
+            });
+
         Ok(())
     }
 
@@ -307,7 +296,7 @@ impl ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm {
     fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType> {
         let operational_events: Vec<Assignment> = self
             .operational_solution
-            .work_order_activities_assignment
+            .scheduled_work_order_activities
             .iter()
             .flat_map(|(_, os)| os.assignments.iter())
             .cloned()
@@ -339,7 +328,7 @@ impl ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm {
             all_events
                 .clone()
                 .fold(TimeDelta::zero(), |acc, ass| acc + (ass.finish - ass.start)),
-            self.availability.end_date - self.availability.start_date
+            self.availability.finish_date - self.availability.start_date
                 + TimeDelta::new(57599, 0).unwrap()
         );
 
@@ -430,17 +419,35 @@ impl ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm {
 
         if new_value > old_value {
             self.operational_solution.objective_value = new_value;
+            event!(Level::INFO, operational_objective_value = ?new_value);
             Ok(ObjectiveValueType::Better)
         } else {
+            event!(Level::INFO, operational_objective_value = ?new_value);
             Ok(ObjectiveValueType::Worse)
         }
     }
 
     fn schedule(&mut self) -> Result<()> {
         self.operational_non_productive.0.clear();
-        for (work_order_activity, operational_parameter) in
-            &self.operational_parameters.work_order_parameters
-        {
+        let work_order_activities = &self
+            .loaded_shared_solution
+            .supervisor
+            .operational_state_machine
+            .iter()
+            .filter(|(id_woa, del)| id_woa.0 == self.id && (del.is_assign() || del.is_assess()))
+            .map(|(id_woa, _)| id_woa.1)
+            .collect::<HashSet<_>>();
+
+        for work_order_activity in work_order_activities {
+            let operational_parameter = match self
+                .operational_parameters
+                .work_order_parameters
+                .get(work_order_activity)
+            {
+                Some(operational_parameter) => operational_parameter,
+                None => continue,
+            };
+
             let start_time = self
                 .determine_first_available_start_time(work_order_activity, operational_parameter)
                 .with_context(|| format!("{:#?}", work_order_activity))?;
@@ -453,13 +460,11 @@ impl ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm {
 
             self.operational_solution
                 .try_insert(*work_order_activity, assignments);
-
-            event!(Level::TRACE, number_of_operations = ?self.operational_solution.work_order_activities_assignment.len());
         }
 
-        // fill the schedule
         let mut current_time = self.availability.start_date;
 
+        // Fill the schedule
         loop {
             match self
                 .operational_solution
@@ -499,9 +504,9 @@ impl ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm {
                 }
             };
 
-            if current_time >= self.availability.end_date {
+            if current_time >= self.availability.finish_date {
                 self.operational_non_productive.0.last_mut().unwrap().finish =
-                    self.availability.end_date;
+                    self.availability.finish_date;
                 break;
             };
         }
@@ -512,12 +517,12 @@ impl ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm {
     fn unschedule(&mut self, options: &mut Self::Options) -> Result<()> {
         let operational_solutions_len = self
             .operational_solution
-            .work_order_activities_assignment
+            .scheduled_work_order_activities
             .len();
 
         let operational_solutions_filtered: Vec<WorkOrderActivity> = self
             .operational_solution
-            .work_order_activities_assignment[1..operational_solutions_len - 1]
+            .scheduled_work_order_activities[1..operational_solutions_len - 1]
             .choose_multiple(&mut options.rng, options.number_of_activities)
             .map(|operational_solution| operational_solution.0)
             .collect();
@@ -598,25 +603,25 @@ impl OperationalAlgorithm {
     ) -> Result<()> {
         ensure!(self
             .operational_solution
-            .work_order_activities_assignment
+            .scheduled_work_order_activities
             .iter()
             .any(|os| os.0 == work_order_and_activity_number));
         dbg!(&self
             .operational_solution
-            .work_order_activities_assignment
+            .scheduled_work_order_activities
             .len());
 
         self.operational_solution
-            .work_order_activities_assignment
+            .scheduled_work_order_activities
             .retain(|os| os.0 != work_order_and_activity_number);
         dbg!(&self
             .operational_solution
-            .work_order_activities_assignment
+            .scheduled_work_order_activities
             .len());
 
         ensure!(!self
             .operational_solution
-            .work_order_activities_assignment
+            .scheduled_work_order_activities
             .iter()
             .any(|os| os.0 == work_order_and_activity_number));
         Ok(())
@@ -651,25 +656,38 @@ impl OperationalAlgorithm {
         work_order_activity: &WorkOrderActivity,
         operational_parameter: &OperationalParameter,
     ) -> Result<DateTime<Utc>> {
-        // What should be done here? I think that the goal is to create a
+        // Here we load in the `TacticalSolution` from the `loaded_shared_solution`. This should function to
+        // make the code work more seamlessly with the `TacticalSolution`. Are we doing this correctly? I do
+        // not think that we are. The thing is that the supervisor can force a work order here and then the
+        // Tactical and Strategic Agent has to respect that. That means that initialially this could be
+        // None, but we should strive to make this as perfect as possible. If there is a tactical days we should
+        // use that. If there is a Strategic period we should use that. If there is none we should check the
+        // manual part. The issue here is not that it is not scheduled, the issue is that the entry does not
+        // exist. What should you do here?
         let tactical_days_option = self
             .loaded_shared_solution
             .tactical
             .tactical_scheduled_work_orders
             .0
-            .get(&work_order_activity.0)
-            .expect("This should always be present. If this occurs you should check the initialization. The implementation is that the tactical and strategic algorithm always provide a key for each WorkOrderNumber");
+            .get(&work_order_activity.0);
+
+        // .expect("This should always be present. If this occurs you should check the initialization. The implementation is that the tactical and strategic algorithm always provide a key for each WorkOrderNumber");
 
         let strategic_period_option = self
             .loaded_shared_solution
             .strategic
             .strategic_scheduled_work_orders
-            .get(&work_order_activity.0)
-            .expect("This should always be present. If this occurs you should check the initialization. The implementation is that the tactical and strategic algorithm always provide a key for each WorkOrderNumber");
+            .get(&work_order_activity.0);
+
+        // .expect("This should always be present. If this occurs you should check the initialization. The implementation is that the tactical and strategic algorithm always provide a key for each WorkOrderNumber");
 
         let (start_window, end_window) = match (strategic_period_option, tactical_days_option) {
             // What is actually happening here?
-            (_, WhereIsWorkOrder::Tactical(activities)) => {
+            (None, None) => (
+                &self.availability.start_date,
+                &self.availability.finish_date,
+            ),
+            (_, Some(WhereIsWorkOrder::Tactical(activities))) => {
                 let scheduled_days = &activities.0.get(&work_order_activity.1).unwrap().scheduled;
 
                 let start = scheduled_days.first().unwrap().0.date();
@@ -677,7 +695,7 @@ impl OperationalAlgorithm {
 
                 (start, end)
             }
-            (Some(period), _) => (period.start_date(), period.end_date()),
+            (Some(Some(period)), _) => (period.start_date(), period.end_date()),
 
             _ => bail!(
                 "{}: {:#?}\n{}: {:#?}\n",
@@ -687,12 +705,13 @@ impl OperationalAlgorithm {
                 tactical_days_option
             ),
         };
+
         for operational_solution in self
             .operational_solution
-            .work_order_activities_assignment
+            .scheduled_work_order_activities
             .windows(2)
         {
-            let start_of_interval = {
+            let start_of_availability = {
                 let mut current_time = operational_solution[0].1.assignments.last().unwrap().finish;
 
                 if current_time < *start_window {
@@ -717,12 +736,12 @@ impl OperationalAlgorithm {
                 }
             };
 
-            let end_of_interval = operational_solution[1].1.assignments.first().unwrap().start;
+            let end_of_availability = operational_solution[1].1.assignments.first().unwrap().start;
 
-            if (*end_window).min(end_of_interval) - (*start_window).max(start_of_interval)
+            if (*end_window).min(end_of_availability) - (*start_window).max(start_of_availability)
                 > operational_parameter.operation_time_delta
             {
-                return Ok(*start_window.max(&start_of_interval));
+                return Ok(*start_window.max(&start_of_availability));
             }
         }
 
@@ -830,7 +849,7 @@ fn is_assignments_in_bounds(events: &Vec<Assignment>, availability: &Availabilit
             dbg!(event, availability);
             return false;
         }
-        if availability.end_date < event.finish && !event.event_type.unavail() {
+        if availability.finish_date < event.finish && !event.event_type.unavail() {
             dbg!(event, availability);
             return false;
         }
@@ -1087,7 +1106,8 @@ mod tests {
 
         operational_algorithm.load_shared_solution();
 
-        let operational_parameter = OperationalParameter::new(Work::from(20.0), Work::from(0.0));
+        let operational_parameter = OperationalParameter::new(Work::from(20.0), Work::from(0.0))
+            .expect("Work has to be non-zero to create an OperationalParameter");
 
         let start_time = operational_algorithm
             .determine_first_available_start_time(

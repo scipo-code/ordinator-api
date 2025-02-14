@@ -69,7 +69,7 @@ impl SupervisorSolution {
                     operational_solutions
                         .get(&id_woa.0)
                         .expect("The agent should be present")
-                        .work_order_activities_assignment
+                        .scheduled_work_order_activities
                         .iter()
                         .find(|woa_ass| woa_ass.0 == id_woa.1)
                         .map(|woa_ass| &woa_ass.1.marginal_fitness), // What should be done if the Agent does not yet have a
