@@ -5,6 +5,7 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use colored::Colorize;
+use priority_queue::PriorityQueue;
 use shared_types::orchestrator::StrategicApiSolution;
 use shared_types::orchestrator::WorkOrderResponse;
 use shared_types::orchestrator::WorkOrdersStatus;
@@ -19,16 +20,21 @@ use shared_types::strategic::{StrategicRequestMessage, StrategicResponseMessage}
 use tracing::event;
 use tracing::Level;
 
-use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
 use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
 use crate::agents::Agent;
 use crate::agents::AgentSpecific;
+use crate::agents::Algorithm;
 use crate::agents::MessageHandler;
 use crate::agents::StateLink;
+use crate::agents::StrategicSolution;
 
 use super::algorithm::strategic_parameters::StrategicParameter;
 use super::algorithm::strategic_parameters::StrategicParameterBuilder;
+use super::algorithm::strategic_parameters::StrategicParameters;
 use super::algorithm::ScheduleWorkOrder;
+
+type StrategicAlgorithm =
+    Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>>;
 
 impl MessageHandler
     for Agent<StrategicAlgorithm, StrategicRequestMessage, StrategicResponseMessage>
@@ -44,17 +50,16 @@ impl MessageHandler
             StrategicRequestMessage::Status(strategic_status_message) => {
                 match strategic_status_message {
                     StrategicStatusMessage::General => {
-                        let strategic_objective_value =
-                            &self.algorithm.strategic_solution.objective_value;
+                        let strategic_objective_value = &self.algorithm.solution.objective_value;
 
-                        let strategic_parameters = &self.algorithm.strategic_parameters;
+                        let strategic_parameters = &self.algorithm.parameters;
 
                         let number_of_strategic_work_orders =
                             strategic_parameters.strategic_work_order_parameters.len();
 
                         let asset = &self.asset;
 
-                        let number_of_periods = self.algorithm.strategic_periods.len();
+                        let number_of_periods = self.algorithm.parameters.strategic_periods.len();
 
                         let strategic_response_status = StrategicResponseStatus::new(
                             asset.clone(),
@@ -70,6 +75,7 @@ impl MessageHandler
                     StrategicStatusMessage::Period(period) => {
                         if !self
                             .algorithm
+                            .parameters
                             .strategic_periods
                             .iter()
                             .map(|period| period.period_string())
@@ -81,7 +87,7 @@ impl MessageHandler
 
                         let work_orders_by_period: HashMap<WorkOrderNumber, WorkOrderResponse> =
                             self.algorithm
-                                .strategic_solution
+                                .solution
                                 .strategic_scheduled_work_orders
                                 .iter()
                                 .filter(|(_, sch_per)| match sch_per {
@@ -120,7 +126,7 @@ impl MessageHandler
                     StrategicStatusMessage::WorkOrder(work_order_number) => {
                         let strategic_solution_for_specific_work_order = self
                             .algorithm
-                            .strategic_solution
+                            .solution
                             .strategic_scheduled_work_orders
                             .get(&work_order_number)
                             .with_context(|| {
@@ -133,7 +139,7 @@ impl MessageHandler
 
                         let strategic_parameter = self
                             .algorithm
-                            .strategic_parameters
+                            .parameters
                             .strategic_work_order_parameters
                             .get(&work_order_number)
                             .with_context(|| {
@@ -180,14 +186,14 @@ impl MessageHandler
                     })?;
 
                 self.algorithm.calculate_objective_value()?;
-                event!(Level::INFO, strategic_objective_value = ?self.algorithm.strategic_solution.objective_value);
+                event!(Level::INFO, strategic_objective_value = ?self.algorithm.solution.objective_value);
                 Ok(StrategicResponseMessage::Scheduling(scheduling_output))
             }
             StrategicRequestMessage::Resources(resources_message) => {
                 let resources_output = self.algorithm.update_resources_state(resources_message);
 
                 self.algorithm.calculate_objective_value()?;
-                event!(Level::INFO, strategic_objective_value = ?self.algorithm.strategic_solution.objective_value);
+                event!(Level::INFO, strategic_objective_value = ?self.algorithm.solution.objective_value);
                 Ok(StrategicResponseMessage::Resources(
                     resources_output.unwrap(),
                 ))
@@ -195,9 +201,9 @@ impl MessageHandler
             StrategicRequestMessage::Periods(periods_message) => {
                 let mut scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
-                let periods = scheduling_environment_guard
+                let mut periods = scheduling_environment_guard
                     .time_environment
-                    .strategic_periods_mut();
+                    .strategic_periods;
 
                 for period_id in periods_message.periods.iter() {
                     if periods.last().unwrap().id() + 1 == *period_id {
@@ -208,7 +214,7 @@ impl MessageHandler
                         event!(Level::ERROR, "periods not handled correctly");
                     }
                 }
-                self.algorithm.strategic_periods = periods.to_vec();
+                self.algorithm.parameters.strategic_periods = periods.to_vec();
                 let strategic_response_periods = StrategicResponsePeriods::new(periods.clone());
                 Ok(StrategicResponseMessage::Periods(
                     strategic_response_periods,
@@ -246,11 +252,12 @@ impl MessageHandler
 
                         work_order.initialize_weight();
 
-                        let last_period = self.algorithm.strategic_periods.last().cloned();
+                        let last_period =
+                            self.algorithm.parameters.strategic_periods.last().cloned();
 
                         let unscheduled_period = self
                             .algorithm
-                            .strategic_solution
+                            .solution
                             .strategic_scheduled_work_orders
                             .insert(*work_order_number, last_period.clone())
                             .expect("WorkOrderNumber should always be present")
@@ -260,7 +267,7 @@ impl MessageHandler
 
                         let work_load = self
                             .algorithm
-                            .strategic_parameters
+                            .parameters
                             .strategic_work_order_parameters
                             .get(work_order_number)
                             .unwrap()
@@ -348,12 +355,12 @@ impl MessageHandler
                             let strategic_parameter = StrategicParameterBuilder::new()
                                 .build_from_work_order(
                                     work_order,
-                                    &self.algorithm.strategic_periods,
+                                    &self.algorithm.parameters.strategic_periods,
                                 )
                                 .build();
 
                             self.algorithm
-                                .strategic_parameters
+                                .parameters
                                 .insert_strategic_parameter(work_order_number, strategic_parameter);
                         }
                     }
@@ -365,10 +372,10 @@ impl MessageHandler
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
                 let strategic_resources = scheduling_environment_guard
                     .worker_environment
-                    .generate_strategic_resources(&self.algorithm.strategic_periods);
+                    .generate_strategic_resources(&self.algorithm.parameters.strategic_periods);
 
                 self.algorithm
-                    .strategic_parameters
+                    .parameters
                     .strategic_capacity
                     .update_resource_capacities(strategic_resources)
                     .expect("Could not update the StrategicResources");

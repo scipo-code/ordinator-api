@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::MutexGuard};
 
 use chrono::TimeDelta;
 use shared_types::{
@@ -6,6 +6,7 @@ use shared_types::{
     scheduling_environment::{
         work_order::{operation::Work, WorkOrderActivity},
         worker_environment::availability::Availability,
+        SchedulingEnvironment,
     },
 };
 
@@ -19,12 +20,12 @@ pub struct OperationalParameters {
 }
 impl OperationalParameters {
     pub(crate) fn new(
-        scheduling_environment: Guard,
+        scheduling_environment: MutexGuard<SchedulingEnvironment>,
         operational_configuration: &shared_types::operational::OperationalConfiguration,
     ) -> Self {
         let mut work_order_parameters = HashMap::default();
 
-        for (work_order_number, work_order) in scheduling_environment.work_orders.inner {
+        for (work_order_number, work_order) in &scheduling_environment.work_orders.inner {
             for (activity_number, operation) in work_order.operations() {
                 let work_order_activity = (*work_order_number, *activity_number);
 

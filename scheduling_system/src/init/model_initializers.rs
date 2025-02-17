@@ -23,7 +23,7 @@ pub fn initialize_scheduling_environment(time_input: TimeInput) -> SchedulingEnv
     scheduling_environment.initialize_work_orders(
         &scheduling_environment
             .time_environment
-            .strategic_periods()
+            .strategic_periods
             .clone(),
     );
     // scheduling_environment

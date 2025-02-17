@@ -1,37 +1,31 @@
 use anyhow::{Context, Result};
 use arc_swap::ArcSwap;
-use priority_queue::PriorityQueue;
 use shared_types::operational::{
     OperationalConfiguration, OperationalRequestMessage, OperationalResponseMessage,
 };
 use shared_types::scheduling_environment::work_order::operation::Work;
-use shared_types::strategic::{
-    StrategicRequestMessage, StrategicResources, StrategicResponseMessage,
-};
+use shared_types::strategic::{StrategicRequestMessage, StrategicResponseMessage};
 use shared_types::supervisor::{SupervisorRequestMessage, SupervisorResponseMessage};
 use shared_types::tactical::{
     Days, TacticalRequestMessage, TacticalResources, TacticalResponseMessage,
 };
 use shared_types::Asset;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Mutex;
 use std::sync::{Arc, MutexGuard};
 
-use crate::agents::operational_agent::algorithm::operational_parameter::{
-    OperationalParameter, OperationalParameters,
-};
+use crate::agents::operational_agent::algorithm::operational_parameter::OperationalParameters;
 use crate::agents::operational_agent::OperationalOptions;
 use crate::agents::orchestrator::{Communication, NotifyOrchestrator};
-use crate::agents::strategic_agent::algorithm::strategic_parameters::{
-    StrategicClustering, StrategicParameters,
-};
+use crate::agents::strategic_agent::algorithm::strategic_parameters::StrategicParameters;
 use crate::agents::strategic_agent::StrategicOptions;
 use crate::agents::supervisor_agent::algorithm::delegate::Delegate;
 use crate::agents::supervisor_agent::SupervisorOptions;
 use crate::agents::tactical_agent::TacticalOptions;
+use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
 use crate::agents::{
-    Agent, AgentMessage, Algorithm, ArcSwapSharedSolution, OperationalSolution, SharedSolution,
-    StrategicSolution,
+    Agent, AgentMessage, Algorithm, AlgorithmUtils, ArcSwapSharedSolution, OperationalSolution,
+    SharedSolution, StrategicSolution, TacticalSolution,
 };
 
 use shared_types::scheduling_environment::worker_environment::resources::{Id, Resources};
@@ -59,84 +53,47 @@ impl AgentFactory {
 
     pub fn build_strategic_agent(
         &self,
-        asset: Asset,
+        asset: &Asset,
         scheduling_environment_guard: &MutexGuard<SchedulingEnvironment>,
         shared_solution_arc_swap: Arc<ArcSwapSharedSolution>,
         notify_orchestrator: NotifyOrchestrator,
     ) -> Result<Communication<AgentMessage<StrategicRequestMessage>, StrategicResponseMessage>>
     {
-        let cloned_work_orders = scheduling_environment_guard.work_orders.clone();
+        let strategic_parameters = StrategicParameters::new(asset, *scheduling_environment_guard);
 
-        // TODO: We should not clone here! We do not want periods in the strategic agent. I think
-        let cloned_periods = scheduling_environment_guard
-            .time_environment
-            .strategic_periods()
-            .clone();
+        let strategic_solution = StrategicSolution::new();
 
-        let period_locks = HashSet::new();
-
-        // period_locks.insert(locked_scheduling_environment.periods()[0].clone());
-        // period_locks.insert(locked_scheduling_environment.get_periods()[1].clone());
-
-        strategic_clustering.calculate_clustering_values(&asset, &cloned_work_orders)?;
-        // FIX
-        // This whole build process should be encapsulated! I think that this is the best way of doing things.
         let strategic_id = Id::new("StrategicAgent".to_string(), vec![], None);
 
-        let strategic_solution StrategicSolution::new(
-            
-        )
-
-        let strategic_parameters = StrategicParameters::new(
-            HashMap::new(),
-            StrategicResources::default(),
-            strategic_clustering,
-        );
-
-        let mut strategic_algorithm = Algorithm::new(
+        let strategic_algorithm = Algorithm::new(
             &strategic_id,
+            strategic_solution,
+            strategic_parameters,
             shared_solution_arc_swap,
-            period_locks,
-            scheduling_environment_guard
-                .time_environment
-                .strategic_periods()
-                .clone(),
         );
 
-        let strategic_resources_from_work_environment = scheduling_environment_guard
-            .worker_environment
-            .generate_strategic_resources(&cloned_periods);
-
+        // These loadings should come from the SchedulingEnvironment. You have had issues with this
+        // for a long time. I am not really sure what the best way is to handle this. I think that
+        // standardizing the interface is probably going to be the best solution. Hmm... This is
+        // really difficult to understand correctly. What should you do here?
         strategic_algorithm
-            .strategic_parameters
-            .strategic_capacity
-            .update_resource_capacities(strategic_resources_from_work_environment.clone())
-            .with_context(|| {
-                format!(
-                    "Could not initialize the initialial StrategicResources. Line: {}",
-                    line!()
-                )
-            })?;
-
-        // These loadings should come from the SchedulingEnvironment
-        strategic_algorithm
-            .strategic_solution
+            .solution
             .strategic_loadings
             .initialize_resource_loadings(strategic_resources_from_work_environment.clone());
 
-        strategic_algorithm.create_strategic_parameters(
-            &cloned_work_orders,
-            &cloned_periods,
-            &asset,
-        );
+        // FIX
+        // This does not have a common interface! That is a problem. Every type does it in his
+        // own weird way and that is not a good approach.
 
+        // Should you even initialize this to make it work? I think that we should. There
+        // are some issues.
         for work_order_number in strategic_algorithm
-            .strategic_parameters
+            .parameters
             .strategic_work_order_parameters
             .keys()
         {
             strategic_algorithm
-                .strategic_solution
+                .solution
                 .strategic_scheduled_work_orders
                 .insert(*work_order_number, None);
         }
@@ -161,12 +118,13 @@ impl AgentFactory {
 
         // FIX
         // Turn this into a std::thread::spawn and work on that to make the program function correctly.
+        let thread_name = format!(
+            "{} for Asset: {}",
+            std::any::type_name_of_val(&options),
+            asset,
+        );
         std::thread::Builder::new()
-            .name(format!(
-                "{} for Asset: {}",
-                std::any::type_name::<StrategicAlgorithm>(),
-                asset,
-            ))
+            .name(thread_name)
             .spawn(move || strategic_agent.run(options))?;
 
         Ok(Communication {
@@ -188,10 +146,17 @@ impl AgentFactory {
         let tactical_resources_loading =
             initialize_tactical_resources(scheduling_environment_guard, Work::from(0.0));
 
-        let mut tactical_algorithm = TacticalAlgorithm::new(
-            scheduling_environment_guard
+        let tactical_id = Id::new("TACTICAL".to_string() + &asset.to_string(), vec![], None);
+
+        let tactical_solution = TacticalSolution::new();
+
+        let tactical_parameters = TacticalParameters::new();
+
+        let mut tactical_algorithm = Algorithm::new(
+            &tactical_id,
+            &scheduling_environment_guard
                 .time_environment
-                .tactical_days()
+                .tactical_days
                 .clone(),
             tactical_resources_capacity,
             tactical_resources_loading,
@@ -201,9 +166,7 @@ impl AgentFactory {
         let tactical_resources_from_file = scheduling_environment_guard
             .worker_environment
             .generate_tactical_resources(
-                scheduling_environment_guard
-                    .time_environment
-                    .tactical_days(),
+                &scheduling_environment_guard.time_environment.tactical_days,
             );
 
         tactical_algorithm
@@ -232,12 +195,14 @@ impl AgentFactory {
 
         let options = TacticalOptions::default();
 
+        let thread_name = format!(
+            "{} for Asset: {}",
+            std::any::type_name_of_val(&options),
+            asset,
+        );
+
         std::thread::Builder::new()
-            .name(format!(
-                "{} for Asset: {}",
-                std::any::type_name::<TacticalAlgorithm>(),
-                asset,
-            ))
+            .name(thread_name)
             .spawn(move || tactical_agent.run(options))?;
 
         Ok(Communication {
@@ -322,7 +287,7 @@ impl AgentFactory {
         std::thread::Builder::new()
             .name(format!(
                 "{} for Asset: {} for Id: {}",
-                std::any::type_name::<SupervisorAlgorithm>(),
+                std::any::type_name_of_val(&options),
                 asset,
                 &id_supervisor,
             ))
@@ -345,11 +310,12 @@ impl AgentFactory {
         notify_orchestrator: NotifyOrchestrator,
     ) -> Result<Communication<AgentMessage<OperationalRequestMessage>, OperationalResponseMessage>>
     {
-        let arc_scheduling_environment = self.scheduling_environment.clone();
+        let arc_scheduling_environment = self.scheduling_environment.lock().unwrap();
 
         let operational_solution = OperationalSolution::new(operational_configuration);
 
-        let operational_parameters = OperationalParameters::new(operational_configuration);
+        let operational_parameters =
+            OperationalParameters::new(arc_scheduling_environment, operational_configuration);
 
         let operational_algorithm = Algorithm::new(
             operational_id,
@@ -367,60 +333,41 @@ impl AgentFactory {
         // The API for the construction of the Algorithm::parameters have to be flawless. It is that interface
         // that have to carry the business logic. So this kind of creation that you have here is simply not
         // possible. You have to be much more professional than this if this is to succeed.
-        let mut shared_solution_clone = (**operational_algorithm.loaded_shared_solution).clone();
 
-        shared_solution_clone.operational.insert(
-            operational_id.clone(),
-            operational_algorithm.operational_solution.clone(),
-        );
-
-        operational_algorithm
-            .arc_swap_shared_solution
-            .0
-            .store(Arc::new(shared_solution_clone));
-
-        let (sender_to_agent, receiver_from_orchestrator) = std::sync::mpsc::channel();
-        let (sender_to_orchestrator, receiver_from_agent) = std::sync::mpsc::channel();
+        let (sender_to_agent, receiver_from_orchestrator): (
+            std::sync::mpsc::Sender<AgentMessage<OperationalRequestMessage>>,
+            std::sync::mpsc::Receiver<AgentMessage<OperationalRequestMessage>>,
+        ) = std::sync::mpsc::channel();
+        let (sender_to_orchestrator, receiver_from_agent): (
+            std::sync::mpsc::Sender<std::result::Result<OperationalResponseMessage, anyhow::Error>>,
+            std::sync::mpsc::Receiver<
+                std::result::Result<OperationalResponseMessage, anyhow::Error>,
+            >,
+        ) = std::sync::mpsc::channel();
 
         let mut operational_agent = Agent::new(
             asset.clone(),
             operational_id.clone(),
-            arc_scheduling_environment,
+            self.scheduling_environment.clone(),
             operational_algorithm,
             receiver_from_orchestrator,
             sender_to_orchestrator,
             notify_orchestrator,
         );
-        assert!(!operational_agent
-            .algorithm
-            .operational_parameters
-            .work_order_parameters
-            .is_empty());
 
         let options = OperationalOptions::default();
 
-        assert!(!operational_agent
-            .algorithm
-            .operational_parameters
-            .work_order_parameters
-            .is_empty());
-
+        operational_agent.algorithm.make_atomic_pointer_swap();
         let thread_name = format!(
             "{} for Asset: {} for Id: {}",
             std::any::type_name::<OperationalSolution>(),
             asset,
             &operational_id,
         );
+
         std::thread::Builder::new()
             .name(thread_name.clone())
-            .spawn(move || {
-                assert!(!operational_agent
-                    .algorithm
-                    .operational_parameters
-                    .work_order_parameters
-                    .is_empty());
-                operational_agent.run(options)
-            })?;
+            .spawn(move || operational_agent.run(options))?;
 
         Ok(Communication {
             sender: sender_to_agent,
@@ -473,11 +420,7 @@ fn initialize_tactical_resources(
         .iter()
     {
         let mut days = HashMap::new();
-        for day in scheduling_environment
-            .time_environment
-            .tactical_days()
-            .iter()
-        {
+        for day in scheduling_environment.time_environment.tactical_days.iter() {
             days.insert(day.clone(), start_value);
         }
         resource_capacity.insert(*resource, Days::new(days));

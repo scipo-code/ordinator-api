@@ -207,22 +207,10 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
 }
 
 impl ActorBasedLargeNeighborhoodSearch for TacticalAlgorithm {
-    type MessageRequest = TacticalRequestMessage;
-    type MessageResponse = TacticalResponseMessage;
-    type Solution = TacticalSolution;
-    type ObjectiveValue = TacticalObjectiveValue;
     type Options = TacticalOptions;
-
-    fn clone_algorithm_solution(&self) -> Self::Solution {
-        self.solution.clone()
-    }
 
     fn incorporate_shared_state(&mut self) -> Result<bool> {
         Ok(true)
-    }
-
-    fn swap_solution(&mut self, solution: Self::Solution) {
-        self.solution = solution;
     }
 
     fn make_atomic_pointer_swap(&self) {
@@ -245,10 +233,6 @@ impl ActorBasedLargeNeighborhoodSearch for TacticalAlgorithm {
             shared_solution.tactical = self.solution.clone();
             Arc::new(shared_solution)
         });
-    }
-
-    fn update_objective_value(&mut self, objective_value: Self::ObjectiveValue) {
-        self.solution.objective_value = objective_value;
     }
 
     fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType<Self::ObjectiveValue>> {

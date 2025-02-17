@@ -16,7 +16,7 @@ use operational_solution::{
 };
 use rand::seq::IndexedRandom;
 use shared_types::{
-    operational::{OperationalRequestMessage, OperationalResponseMessage, TimeInterval},
+    operational::TimeInterval,
     scheduling_environment::{
         work_order::{
             operation::{ActivityNumber, Work},
@@ -159,18 +159,12 @@ pub enum Unavailability {
 // FIX
 // Some of the methods here should be moved out of the agent. That will be crucial. You have one hour to m
 // make this compile again.
+// QUESTION
+// What should be changed here to make the ABLNS work on the Algorithm again?
 impl ActorBasedLargeNeighborhoodSearch
     for Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive>
 {
-    type MessageRequest = OperationalRequestMessage;
-    type MessageResponse = OperationalResponseMessage;
-    type Solution = OperationalSolution;
-    type ObjectiveValue = OperationalObjectiveValue;
     type Options = OperationalOptions;
-
-    fn clone_algorithm_solution(&self) -> Self::Solution {
-        self.solution.clone()
-    }
 
     fn incorporate_shared_state(&mut self) -> Result<bool> {
         let operational_shared_solution = self
@@ -798,7 +792,7 @@ mod tests {
         operational_agent::algorithm::{
             operational_parameter::OperationalParameters, OperationalEvents,
         },
-        Algorithm, ArcSwapSharedSolution, OperationalSolution, WhereIsWorkOrder,
+        Algorithm, AlgorithmUtils, ArcSwapSharedSolution, OperationalSolution, WhereIsWorkOrder,
     };
 
     use super::OperationalParameter;

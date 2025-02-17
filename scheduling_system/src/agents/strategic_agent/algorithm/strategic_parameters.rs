@@ -2,10 +2,11 @@ use anyhow::{bail, Context, Result};
 use serde::Serialize;
 use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
-use shared_types::scheduling_environment::WorkOrders;
+use shared_types::scheduling_environment::{SchedulingEnvironment, WorkOrders};
 use shared_types::strategic::StrategicResources;
 use shared_types::Asset;
 use std::str::FromStr;
+use std::sync::MutexGuard;
 use std::{collections::HashMap, collections::HashSet, hash::Hash, hash::Hasher};
 
 use shared_types::scheduling_environment::time_environment::period::Period;
@@ -47,43 +48,37 @@ pub struct StrategicParameterBuilder(StrategicParameter);
 //     FMCMainWorkCenter,
 // }
 
-impl Hash for StrategicParameters {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        // Hash the length of the HashMap to ensure different lengths produce different hashes
-        self.strategic_work_order_parameters.len().hash(state);
-
-        // Iterate over the HashMap and hash each key-value pair
-        for (key, value) in &self.strategic_work_order_parameters {
-            key.hash(state);
-            value.hash(state);
-        }
-    }
-}
-
-impl Hash for StrategicParameter {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        // Hash the length of the HashMap to ensure different lengths produce different hashes
-        self.locked_in_period.hash(state);
-        for period in &self.excluded_periods {
-            period.hash(state);
-        }
-    }
-}
-
 impl StrategicParameters {
     pub fn new(
-        strategic_work_order_parameters: HashMap<WorkOrderNumber, StrategicParameter>,
-        strategic_capacity: StrategicResources,
-    ) -> Self {
-        let strategic_clustering = StrategicClustering::default();
+        asset: &Asset,
+        scheduling_environment: MutexGuard<SchedulingEnvironment>,
+    ) -> Result<Self> {
+        let mut strategic_clustering = StrategicClustering::default();
 
-        Self {
+        let work_orders = &scheduling_environment.work_orders;
+        let strategic_periods = &scheduling_environment.time_environment.strategic_periods;
+
+        strategic_clustering.calculate_clustering_values(asset, &work_orders)?;
+
+        let strategic_capacity = scheduling_environment
+            .worker_environment
+            .generate_strategic_resources(&strategic_periods);
+
+        let strategic_work_order_parameters =
+            create_strategic_parameters(&work_orders, &strategic_periods, &asset).with_context(
+                || format!("StrategicParameters for {:#?} could not be created", &asset),
+            )?;
+
+        Ok(Self {
             strategic_work_order_parameters,
             strategic_capacity,
             strategic_clustering,
-            period_locks: todo!(),
-            strategic_periods: todo!(),
-        }
+            period_locks: HashSet::default(),
+            strategic_periods: scheduling_environment
+                .time_environment
+                .strategic_periods
+                .clone(),
+        })
     }
 
     pub fn insert_strategic_parameter(
@@ -342,4 +337,24 @@ impl StrategicClustering {
 
         Ok(())
     }
+}
+pub fn create_strategic_parameters(
+    work_orders: &WorkOrders,
+    periods: &[Period],
+    asset: &Asset,
+) -> Result<HashMap<WorkOrderNumber, StrategicParameter>> {
+    let mut strategic_work_order_parameters = HashMap::new();
+
+    for (work_order_number, work_order) in work_orders
+        .inner
+        .iter()
+        .filter(|(_, wo)| wo.functional_location().asset == *asset)
+    {
+        let strategic_parameter = StrategicParameterBuilder::new()
+            .build_from_work_order(work_order, periods)
+            .build();
+
+        strategic_work_order_parameters.insert(*work_order_number, strategic_parameter);
+    }
+    Ok(strategic_work_order_parameters)
 }

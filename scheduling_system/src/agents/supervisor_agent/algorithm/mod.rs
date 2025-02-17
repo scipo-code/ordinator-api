@@ -110,10 +110,6 @@ impl ActorBasedLargeNeighborhoodSearch for Algorithm<SupervisorSolution, Supervi
         self.solution.clone()
     }
 
-    fn swap_solution(&mut self, solution: Self::Solution) {
-        self.solution = solution;
-    }
-
     fn make_atomic_pointer_swap(&self) {
         // Performance enhancements:
         // * COW:
@@ -134,10 +130,6 @@ impl ActorBasedLargeNeighborhoodSearch for Algorithm<SupervisorSolution, Supervi
             shared_solution.supervisor = self.solution.clone();
             Arc::new(shared_solution)
         });
-    }
-
-    fn update_objective_value(&mut self, objective_value: Self::ObjectiveValue) {
-        self.solution.objective_value = objective_value;
     }
 
     fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType<Self::ObjectiveValue>> {

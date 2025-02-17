@@ -427,7 +427,7 @@ impl Orchestrator {
 
                 let periods = scheduling_environment_guard
                     .time_environment
-                    .strategic_periods()
+                    .strategic_periods
                     .clone();
 
                 let strategic_periods = OrchestratorResponse::Periods(periods);
@@ -438,9 +438,10 @@ impl Orchestrator {
 
                 let days = scheduling_environment_guard
                     .time_environment
-                    .tactical_days();
+                    .tactical_days
+                    .clone();
 
-                let tactical_days = OrchestratorResponse::Days(days.clone());
+                let tactical_days = OrchestratorResponse::Days(days);
                 Ok(tactical_days)
             }
             OrchestratorRequest::CreateSupervisorAgent(asset, id_string) => {
@@ -700,7 +701,7 @@ impl Orchestrator {
         let strategic_agent_addr = self
             .agent_factory
             .build_strategic_agent(
-                asset.clone(),
+                &asset,
                 &scheduling_environment_guard,
                 shared_solutions_arc_swap.clone(),
                 NotifyOrchestrator(

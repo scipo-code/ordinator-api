@@ -1,17 +1,19 @@
 use anyhow::{bail, Result};
 use colored::Colorize;
+use priority_queue::PriorityQueue;
 use std::{borrow::Cow, collections::HashMap};
 use strum::IntoEnumIterator;
 use tracing::{event, Level};
 
 use shared_types::scheduling_environment::{
-    time_environment::day::Day, work_order::operation::Work,
+    time_environment::day::Day,
+    work_order::{operation::Work, WorkOrderNumber},
     worker_environment::resources::Resources,
 };
 
 use crate::agents::TacticalSolution;
 
-use super::{tactical_parameters::TacticalParameters, Algorithm, TacticalAlgorithm};
+use super::{tactical_parameters::TacticalParameters, Algorithm};
 
 type TotalExcessHours = Work;
 
@@ -22,7 +24,9 @@ pub trait TacticalAssertions {
     fn asset_that_capacity_is_not_exceeded(&self) -> Result<TotalExcessHours>;
 }
 
-impl TacticalAssertions for Algorithm<TacticalSolution, TacticalParameters> {
+impl TacticalAssertions
+    for Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>>
+{
     fn asset_that_loading_matches_scheduled(&self) -> Result<()> {
         let mut aggregated_load: HashMap<Resources, HashMap<Day, Work>> = HashMap::new();
 

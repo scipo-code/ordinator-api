@@ -10,7 +10,6 @@ use shared_types::{
     },
 };
 use strum_macros::AsRefStr;
-use tracing::{event, Level};
 
 use crate::agents::{operational_agent::algorithm::no_overlap_by_ref, OperationalSolution};
 
@@ -44,6 +43,7 @@ impl OperationalSolution {
             (WorkOrderNumber(0), ActivityNumber(0)),
             unavailability_end_event,
         ));
+
         Self {
             objective_value: 0,
             scheduled_work_order_activities,

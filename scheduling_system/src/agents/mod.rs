@@ -110,21 +110,54 @@ pub struct Algorithm<S, P, I> {
     loaded_shared_solution: Guard<Arc<SharedSolution>>,
 }
 
-impl<S, P, I> Algorithm<S, P, I>
+pub trait AlgorithmUtils {
+    type Parameters;
+    type ObjectiveValue;
+    type Sol: Solution<ObjectiveValue = Self::ObjectiveValue> + Debug + Clone;
+
+    fn new(
+        id: &Id,
+        solution: Self::Sol,
+        parameters: Self::Parameters,
+        arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
+    ) -> Self;
+
+    fn load_shared_solution(&mut self);
+
+    fn clone_algorithm_solution(&self) -> Self::Sol;
+
+    fn swap_solution(&mut self, solution: Self::Sol);
+
+    fn update_objective_value(&mut self, objective_value: Self::ObjectiveValue);
+}
+
+trait Solution {
+    type ObjectiveValue;
+
+    fn update_objective_value(&mut self, other_objective: Self::ObjectiveValue);
+}
+
+impl<S, P, I> AlgorithmUtils for Algorithm<S, P, I>
 where
     I: Default,
+    S: Solution + Debug + Clone,
 {
-    fn load_shared_solution(&mut self) {
-        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
-    }
+    type Sol = S;
+    type ObjectiveValue = S::ObjectiveValue;
+    type Parameters = P;
 
-    pub fn new(
+    fn new(
         id: &Id,
         solution: S,
         parameters: P,
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
     ) -> Self {
         let loaded_shared_solution = arc_swap_shared_solution.0.load();
+
+        let mut shared_solution_clone = (**loaded_shared_solution).clone();
+
+        // This is the kind of code that is not acceptable in the code base! You need to implement this so
+        // that the you do not call one of code on the fields like this. It is a bad practice.
 
         Self {
             id: id.clone(),
@@ -134,6 +167,22 @@ where
             arc_swap_shared_solution,
             loaded_shared_solution,
         }
+    }
+
+    fn load_shared_solution(&mut self) {
+        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
+    }
+
+    fn clone_algorithm_solution(&self) -> S {
+        self.solution.clone()
+    }
+
+    fn swap_solution(&mut self, solution: S) {
+        self.solution = solution;
+    }
+
+    fn update_objective_value(&mut self, objective_value: Self::ObjectiveValue) {
+        self.solution.update_objective_value(objective_value);
     }
 }
 
@@ -313,6 +362,35 @@ pub struct SupervisorSolution {
 pub struct OperationalSolution {
     pub objective_value: OperationalObjectiveValue,
     pub scheduled_work_order_activities: Vec<(WorkOrderActivity, OperationalAssignment)>,
+}
+
+impl Solution for StrategicSolution {
+    type ObjectiveValue = StrategicObjectiveValue;
+
+    fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue) {
+        self.objective_value = other_objective_value;
+    }
+}
+impl Solution for TacticalSolution {
+    type ObjectiveValue = TacticalObjectiveValue;
+
+    fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue) {
+        self.objective_value = other_objective_value;
+    }
+}
+impl Solution for SupervisorSolution {
+    type ObjectiveValue = SupervisorObjectiveValue;
+
+    fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue) {
+        self.objective_value = other_objective_value;
+    }
+}
+impl Solution for OperationalSolution {
+    type ObjectiveValue = OperationalObjectiveValue;
+
+    fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue) {
+        self.objective_value = other_objective_value;
+    }
 }
 
 impl StrategicSolution {

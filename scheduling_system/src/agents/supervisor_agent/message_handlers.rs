@@ -9,12 +9,11 @@ use shared_types::supervisor::{
 use tracing::{event, Level};
 
 use crate::agents::{
-    supervisor_agent::algorithm::SupervisorParameters, Agent, AgentSpecific, MessageHandler,
-    StateLink,
+    supervisor_agent::algorithm::SupervisorParameters, Agent, AgentSpecific, Algorithm,
+    MessageHandler, StateLink, SupervisorSolution,
 };
 
-use super::algorithm::SupervisorAlgorithm;
-
+type SupervisorAlgorithm = Algorithm<SupervisorSolution, SupervisorParameters, ()>;
 impl MessageHandler
     for Agent<SupervisorAlgorithm, SupervisorRequestMessage, SupervisorResponseMessage>
 {
@@ -42,7 +41,7 @@ impl MessageHandler
                             let operation = scheduling_environment_guard
                                 .operation(&(work_order_number, *activity_number));
                             self.algorithm
-                                .supervisor_parameters
+                                .parameters
                                 .create_and_insert_supervisor_parameter(
                                     operation,
                                     &(work_order_number, *activity_number),
@@ -104,9 +103,9 @@ impl MessageHandler
                     supervisor_status_message
                 );
                 let supervisor_status = SupervisorResponseStatus::new(
-                    self.algorithm.resources.clone(),
-                    self.algorithm.supervisor_solution.count_unique_woa(),
-                    self.algorithm.objective_value,
+                    self.algorithm.parameters.resources.clone(),
+                    self.algorithm.solution.count_unique_woa(),
+                    self.algorithm.solution.objective_value,
                 );
                 event!(Level::WARN, "after creation of the supervisor_status");
 

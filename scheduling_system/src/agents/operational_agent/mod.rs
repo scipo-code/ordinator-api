@@ -3,7 +3,6 @@ pub mod assert_functions;
 pub mod message_handlers;
 
 use rand::{rngs::StdRng, SeedableRng};
-use shared_types::operational::OperationalConfiguration;
 
 pub struct OperationalOptions {
     number_of_activities: usize,

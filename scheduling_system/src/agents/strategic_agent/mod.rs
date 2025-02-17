@@ -24,16 +24,18 @@ mod tests {
 
     use algorithm::strategic_parameters::StrategicClustering;
     use algorithm::ForcedWorkOrder;
-    use algorithm::StrategicAlgorithm;
     use anyhow::Result;
     use operation::OperationBuilder;
     use priority_queue::PriorityQueue;
     use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
     use shared_types::scheduling_environment::work_order::operation::Work;
+    use shared_types::scheduling_environment::worker_environment::resources::Id;
+    use shared_types::scheduling_environment::SchedulingEnvironment;
     use shared_types::strategic::strategic_request_scheduling_message::ScheduleChange;
     use shared_types::strategic::strategic_request_scheduling_message::StrategicRequestScheduling;
     use shared_types::strategic::OperationalResource;
     use shared_types::strategic::StrategicResources;
+    use shared_types::Asset;
     use tests::algorithm::strategic_parameters::StrategicParameter;
     use tests::algorithm::strategic_parameters::StrategicParameters;
     use unloading_point::UnloadingPoint;
@@ -41,10 +43,15 @@ mod tests {
     use std::collections::HashMap;
     use std::collections::HashSet;
     use std::str::FromStr;
+    use std::sync::Arc;
+    use std::sync::Mutex;
 
     use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
     use crate::agents::traits::ObjectiveValueType;
+    use crate::agents::Algorithm;
+    use crate::agents::AlgorithmUtils;
     use crate::agents::ArcSwapSharedSolution;
+    use crate::agents::StrategicSolution;
 
     use super::*;
     use shared_types::scheduling_environment::worker_environment::resources::Resources;
@@ -96,7 +103,7 @@ mod tests {
     }
 
     #[test]
-    fn test_update_scheduler_state() {
+    fn test_update_scheduler_state() -> Result<()> {
         let work_order_number = WorkOrderNumber(2200002020);
         let vec_work_order_number = vec![work_order_number];
         let period_string: String = "2023-W47-48".to_string();
@@ -108,21 +115,21 @@ mod tests {
 
         let periods: Vec<Period> = vec![Period::from_str("2023-W47-48").unwrap()];
 
-        let optimized_work_orders = StrategicParameters::new(
-            HashMap::new(),
-            StrategicResources::default(),
-            StrategicClustering::default(),
-        );
+        let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
 
-        let mut scheduler_agent_algorithm = StrategicAlgorithm::new(
-            PriorityQueue::new(),
-            optimized_work_orders,
+        let strategic_solution = StrategicSolution::new();
+
+        let mut strategic_parameters =
+            StrategicParameters::new(&Asset::Unknown, scheduling_environment.lock().unwrap())?;
+
+        let mut strategic_algorithm = Algorithm::new(
+            &Id::default(),
+            strategic_solution,
+            strategic_parameters,
             ArcSwapSharedSolution::default().into(),
-            HashSet::new(),
-            periods.clone(),
         );
 
-        let optimized_work_order = StrategicParameter::new(
+        let strategic_parameter = StrategicParameter::new(
             Some(periods[0].clone()),
             HashSet::new(),
             periods.first().unwrap().clone(),
@@ -130,15 +137,18 @@ mod tests {
             HashMap::new(),
         );
 
-        scheduler_agent_algorithm.set_strategic_parameter(work_order_number, optimized_work_order);
+        strategic_algorithm
+            .parameters
+            .strategic_work_order_parameters
+            .insert(work_order_number, strategic_parameter);
 
-        scheduler_agent_algorithm
+        strategic_algorithm
             .update_scheduling_state(strategic_scheduling_internal)
             .unwrap();
 
         assert_eq!(
-            scheduler_agent_algorithm
-                .strategic_parameters
+            strategic_algorithm
+                .parameters
                 .strategic_work_order_parameters
                 .get(&work_order_number)
                 .as_ref()
@@ -149,6 +159,7 @@ mod tests {
                 .period_string(),
             "2023-W47-48"
         );
+        Ok(())
     }
 
     #[test]
