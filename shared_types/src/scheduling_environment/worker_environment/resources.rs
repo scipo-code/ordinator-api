@@ -296,7 +296,7 @@ impl Display for Resources {
     }
 }
 
-#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug)]
+#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Id(pub String, pub Vec<Resources>, pub Option<InputSupervisor>);
 
 impl Id {

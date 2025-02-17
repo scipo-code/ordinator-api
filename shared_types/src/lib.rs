@@ -10,9 +10,12 @@ use std::{
 };
 
 use clap::{Subcommand, ValueEnum};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 use operational::{OperationalConfiguration, OperationalRequest, OperationalResponse};
 use orchestrator::{OrchestratorRequest, OrchestratorResponse};
+use rust_xlsxwriter::IntoExcelData;
 use scheduling_environment::{
     time_environment::{day::Day, period::Period},
     work_order::{WorkOrderActivity, WorkOrderNumber},
@@ -48,9 +51,46 @@ pub enum SystemResponses {
 
 pub struct SolutionExportMessage;
 
+#[derive(Debug, Clone)]
+pub enum ReasonForNotScheduling {
+    Scheduled(Period),
+    Unknown(String),
+}
+
+impl IntoExcelData for ReasonForNotScheduling {
+    fn write(
+        self,
+        worksheet: &mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        let value = match self {
+            ReasonForNotScheduling::Scheduled(period) => period.period_string(),
+            ReasonForNotScheduling::Unknown(unknown) => unknown,
+        };
+        worksheet.write_string(row, col, value)
+    }
+
+    fn write_with_format<'a>(
+        self,
+        worksheet: &'a mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+        format: &rust_xlsxwriter::Format,
+    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        let value = match self {
+            ReasonForNotScheduling::Scheduled(period) => period.period_string(),
+            ReasonForNotScheduling::Unknown(unknown) => unknown,
+        };
+        worksheet.write_string_with_format(row, col, value, format)
+    }
+}
+
 #[derive(Clone)]
 pub enum AgentExports {
-    Strategic(HashMap<WorkOrderNumber, Period>),
+    // TODO
+    // This Option should be changed into the reason is
+    Strategic(HashMap<WorkOrderNumber, Option<Period>>),
     Tactical(HashMap<WorkOrderActivity, Day>),
 }
 
@@ -81,7 +121,7 @@ impl LogLevel {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Serialize, Deserialize, Debug, Clone, ValueEnum)]
+#[derive(PartialEq, Eq, Hash, Serialize, Deserialize, Debug, Clone, ValueEnum, EnumIter)]
 pub enum Asset {
     DF,
     DM,
@@ -101,6 +141,12 @@ pub enum Asset {
     VA,
     VB,
     Unknown,
+}
+
+#[derive(Serialize)]
+pub struct AssetNames {
+    value: String,
+    label: String,
 }
 
 impl Display for Asset {
@@ -150,6 +196,18 @@ impl Asset {
             "VB" => Some(Asset::VB),
             _ => None,
         }
+    }
+
+    pub fn convert_to_asset_names() -> Vec<AssetNames> {
+        let mut vec = Vec::new();
+        for asset in Asset::iter() {
+            let asset_name = AssetNames {
+                value: asset.to_string(),
+                label: asset.to_string(),
+            };
+            vec.push(asset_name);
+        }
+        vec
     }
 }
 
@@ -285,7 +343,7 @@ mod tests {
             operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
             operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
             operational_configuration.availability.start_date = "2024-12-02T07:00:00Z"
-            operational_configuration.availability.end_date = "2024-12-15T15:00:00Z"
+            operational_configuration.availability.finish_date = "2024-12-15T15:00:00Z"
         "#;
 
         let system_agents: SystemAgents = toml::from_str(toml_operational_string).unwrap();

@@ -19,6 +19,8 @@
 **.data
 **.old
 **.perf
+**node_modules**
+
 
 # Output of the scheduling_system
 /output/*.xlsx

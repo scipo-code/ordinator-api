@@ -100,7 +100,7 @@ impl Period {
         );
         let second = std::cmp::max(
             self.end_date.date_naive(),
-            availability.end_date.date_naive(),
+            availability.finish_date.date_naive(),
         );
 
         let range = second - first;

@@ -1,13 +1,11 @@
 use crate::sap_mapper_and_types::DATS;
+use anyhow::{Context, Result};
 use rust_xlsxwriter::Worksheet;
 use std::{collections::HashMap, path::PathBuf};
 
 use shared_types::{
     scheduling_environment::{
-        time_environment::{
-            day::{Day, OptionDay},
-            period::Period,
-        },
+        time_environment::day::{Day, OptionDay},
         work_order::{
             functional_location::FunctionalLocation,
             operation::{ActivityNumber, Work},
@@ -22,7 +20,7 @@ use shared_types::{
         worker_environment::resources::Resources,
         WorkOrders,
     },
-    AgentExports, Asset,
+    AgentExports, Asset, ReasonForNotScheduling,
 };
 
 #[derive(Debug)]
@@ -162,7 +160,7 @@ impl AllRows {
 
 #[derive(Debug)]
 struct RowNames {
-    strategic_schedule: Period,
+    strategic_schedule: ReasonForNotScheduling,
     tactical_schedule: OptionDay,
     priority: Priority,
     revision: Revision,
@@ -210,7 +208,7 @@ pub fn create_excel_dump(
     work_orders: WorkOrders,
     strategic_solution: AgentExports,
     tactical_solution: HashMap<WorkOrderNumber, HashMap<ActivityNumber, Day>>,
-) -> Result<PathBuf, std::io::Error> {
+) -> Result<PathBuf> {
     let mut all_rows: Vec<RowNames> = Vec::new();
 
     dbg!("Total WorkOrder(s):", work_orders.inner.len());
@@ -228,10 +226,19 @@ pub fn create_excel_dump(
             .sort_unstable_by(|value1, value2| value1.0.partial_cmp(value2.0).unwrap());
 
         let strategic_period = match strategic_solution.clone() {
-            AgentExports::Strategic(solution) => solution
-                .get(work_order.work_order_number())
-                .unwrap()
-                .clone(),
+            AgentExports::Strategic(solution) => {
+                let reason_for_scheduling = solution
+                    .get(work_order.work_order_number())
+                    .with_context(|| format!("{:#?}", work_order))?
+                    .clone();
+
+                match reason_for_scheduling {
+                    Some(period) => ReasonForNotScheduling::Scheduled(period),
+                    None => {
+                        ReasonForNotScheduling::Unknown("COULD NOT BE SCHEDULED, WHY?".to_string())
+                    }
+                }
+            }
             AgentExports::Tactical(_) => panic!(),
         };
         for activity in sorted_operations {

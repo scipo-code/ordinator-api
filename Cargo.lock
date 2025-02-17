@@ -961,6 +961,7 @@ dependencies = [
 name = "data_processing"
 version = "0.2.2"
 dependencies = [
+ "anyhow",
  "atoi",
  "calamine",
  "chrono",

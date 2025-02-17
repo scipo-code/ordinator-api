@@ -423,8 +423,6 @@ fn create_work_orders(
 
             let operation_analytic = OperationAnalytic::new(Work::from(1.0), planned_work);
 
-            // TODO start here
-
             // We need to use the DATS here! I think that is the only way forward! I think that to scale this
             // we also need to be very clear on the remaining types of the system.
             let naive_start_DATS: NaiveDate = DATS(operation_csv.OPR_Start_Date.clone()).try_into().expect("The OPR_Start_Date should have been filtered out, we should not experience this error.");

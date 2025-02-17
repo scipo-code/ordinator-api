@@ -31,19 +31,4 @@ impl TimeEnvironment {
             supervisor_periods,
         }
     }
-
-    pub fn strategic_periods(&self) -> &Vec<Period> {
-        &self.strategic_periods
-    }
-    pub fn strategic_periods_mut(&mut self) -> &mut Vec<Period> {
-        &mut self.strategic_periods
-    }
-
-    pub fn tactical_periods(&self) -> &Vec<Period> {
-        &self.tactical_periods
-    }
-
-    pub fn tactical_days(&self) -> &Vec<Day> {
-        &self.tactical_days
-    }
 }

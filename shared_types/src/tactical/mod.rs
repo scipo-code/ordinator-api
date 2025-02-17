@@ -32,11 +32,33 @@ use self::{
 };
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Clone)]
-pub struct TacticalObjectiveValue(pub u64);
-
+pub struct TacticalObjectiveValue {
+    pub objective_value: u64,
+    pub urgency: (u64, u64),
+    pub resource_penalty: (u64, u64),
+}
 impl Default for TacticalObjectiveValue {
     fn default() -> Self {
-        Self(u64::MAX)
+        Self {
+            objective_value: u64::MAX,
+            urgency: (u64::MAX, u64::MAX),
+            resource_penalty: (u64::MAX, u64::MAX),
+        }
+    }
+}
+
+impl TacticalObjectiveValue {
+    pub fn new(objective_value: u64, urgency: (u64, u64), resource_penalty: (u64, u64)) -> Self {
+        Self {
+            objective_value,
+            urgency,
+            resource_penalty,
+        }
+    }
+
+    pub fn aggregate_objectives(&mut self) {
+        self.objective_value =
+            self.urgency.0 * self.urgency.1 + self.resource_penalty.0 * self.resource_penalty.1;
     }
 }
 
