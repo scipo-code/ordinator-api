@@ -79,6 +79,7 @@ async fn main() -> Result<()> {
         App::new()
             .app_data(web::Data::new(orchestrator.clone()))
             .service(api_scope())
+            // TEMP
             .service(
                 actix_files::Files::new("/scheduler", "./static_files/scheduler/dist")
                     .index_file("index.html")
@@ -94,6 +95,7 @@ async fn main() -> Result<()> {
                 .show_files_listing()
                 .use_last_modified(true),
             )
+            // TEMP
             .route(
                 &dotenvy::var("ORDINATOR_MAIN_ENDPOINT").unwrap(),
                 web::post()
@@ -116,7 +118,6 @@ fn api_scope() -> actix_web::Scope {
         )
         .route("/scheduler/assets", web::get().to(scheduler_asset_names))
 }
-
 fn initialize_from_database(path: &Path) -> SchedulingEnvironment {
     let mut file = File::open(path).unwrap();
     let mut data = String::new();

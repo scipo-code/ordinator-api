@@ -1,16 +1,20 @@
 use std::collections::{hash_map::Entry, HashMap};
 
 use anyhow::{bail, ensure, Result};
+use priority_queue::PriorityQueue;
 use shared_types::{
     scheduling_environment::{
-        work_order::operation::Work, worker_environment::resources::Resources,
+        work_order::{operation::Work, WorkOrderNumber},
+        worker_environment::resources::Resources,
     },
     strategic::StrategicResources,
 };
 use strum::IntoEnumIterator;
 use tracing::{event, Level};
 
-use super::StrategicAlgorithm;
+use crate::agents::{Algorithm, StrategicSolution};
+
+use super::strategic_parameters::StrategicParameters;
 
 #[allow(dead_code)]
 pub trait StrategicAssertions {
@@ -22,7 +26,9 @@ pub trait StrategicAssertions {
     fn assert_excluded_periods(&self) -> Result<()>;
 }
 
-impl StrategicAssertions for StrategicAlgorithm {
+impl StrategicAssertions
+    for Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>>
+{
     fn assert_that_capacity_is_respected(
         strategic_loading: &StrategicResources,
         strategic_capacity: &StrategicResources,
@@ -56,14 +62,12 @@ impl StrategicAssertions for StrategicAlgorithm {
     fn assert_aggregated_load(&self) -> Result<()> {
         // let mut aggregated_strategic_load = StrategicResources::default();
         let mut aggregated_strategic_load = HashMap::new();
-        for period in &self.strategic_periods {
-            for (work_order_number, strategic_solution) in self
-                .strategic_solution
-                .strategic_scheduled_work_orders
-                .iter()
+        for period in &self.parameters.strategic_periods {
+            for (work_order_number, strategic_solution) in
+                self.solution.strategic_scheduled_work_orders.iter()
             {
                 let strategic_parameter = self
-                    .strategic_parameters
+                    .parameters
                     .strategic_work_order_parameters
                     .get(work_order_number)
                     .unwrap();
@@ -92,7 +96,7 @@ impl StrategicAssertions for StrategicAlgorithm {
         // all the total hours for the actual loadings.
         for (resource, total_work) in aggregated_strategic_load {
             let loadings = self
-                .strategic_solution
+                .solution
                 .strategic_loadings
                 .0
                 .get(resource.0)
@@ -110,13 +114,13 @@ impl StrategicAssertions for StrategicAlgorithm {
 
     fn assert_excluded_periods(&self) -> Result<()> {
         for (work_order_number, strategic_parameter) in
-            &self.strategic_parameters.strategic_work_order_parameters
+            &self.parameters.strategic_work_order_parameters
         {
             let excluded_periods = &strategic_parameter.excluded_periods;
             let locked_in_period = &strategic_parameter.locked_in_period;
 
             let scheduled_period = self
-                .strategic_solution
+                .solution
                 .strategic_scheduled_work_orders
                 .get(work_order_number)
                 .unwrap();

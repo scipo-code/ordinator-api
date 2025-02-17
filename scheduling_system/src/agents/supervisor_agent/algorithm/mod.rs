@@ -8,7 +8,6 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use arc_swap::Guard;
 use delegate::Delegate;
 use rand::seq::IndexedRandom;
 use shared_types::{
@@ -29,24 +28,16 @@ use tracing::{event, Level};
 use crate::agents::{
     operational_agent::algorithm::operational_solution::MarginalFitness,
     traits::{ActorBasedLargeNeighborhoodSearch, ObjectiveValueType},
-    ArcSwapSharedSolution, SharedSolution, SupervisorSolution,
+    Algorithm, ArcSwapSharedSolution, SupervisorSolution,
 };
 
 use super::SupervisorOptions;
-
-pub struct SupervisorAlgorithm {
-    pub objective_value: SupervisorObjectiveValue,
-    pub resources: Vec<Resources>,
-    pub supervisor_parameters: SupervisorParameters,
-    pub supervisor_solution: SupervisorSolution,
-    arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
-    pub loaded_shared_solution: Guard<Arc<SharedSolution>>,
-}
 
 pub struct SupervisorParameters {
     pub supervisor_work_orders:
         HashMap<WorkOrderNumber, HashMap<ActivityNumber, SupervisorParameter>>,
     pub supervisor_periods: Vec<Period>,
+    pub resources: Vec<Resources>,
 }
 
 impl SupervisorParameters {
@@ -97,42 +88,30 @@ impl SupervisorParameter {
     }
 }
 
-impl SupervisorAlgorithm {
-    pub fn new(
-        resources: Vec<Resources>,
-        arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
-        supervisor_periods: &[Period],
-    ) -> Self {
-        let loaded_shared_solution = arc_swap_shared_solution.0.load();
-
-        Self {
-            objective_value: SupervisorObjectiveValue::default(),
-            resources,
-            supervisor_parameters: SupervisorParameters::new(supervisor_periods.to_vec()),
-            supervisor_solution: SupervisorSolution::default(),
-            arc_swap_shared_solution,
-            loaded_shared_solution,
-        }
-    }
-    fn unschedule_specific_work_order(&mut self, work_order_number: WorkOrderNumber) -> Result<()> {
-        self.supervisor_solution
+impl Algorithm<SupervisorSolution, SupervisorParameters, ()> {
+    pub fn unschedule_specific_work_order(
+        &mut self,
+        work_order_number: WorkOrderNumber,
+    ) -> Result<()> {
+        self.solution
             .turn_work_order_into_delegate_assess(work_order_number);
         Ok(())
     }
 }
 
-impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
+impl ActorBasedLargeNeighborhoodSearch for Algorithm<SupervisorSolution, SupervisorParameters, ()> {
     type MessageRequest = SupervisorRequestMessage;
     type MessageResponse = SupervisorResponseMessage;
     type Options = SupervisorOptions;
+    type ObjectiveValue = SupervisorObjectiveValue;
     type Solution = SupervisorSolution;
 
     fn clone_algorithm_solution(&self) -> Self::Solution {
-        self.supervisor_solution.clone()
+        self.solution.clone()
     }
 
     fn swap_solution(&mut self, solution: Self::Solution) {
-        self.supervisor_solution = solution;
+        self.solution = solution;
     }
 
     fn make_atomic_pointer_swap(&self) {
@@ -152,19 +131,19 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
         //         });
         self.arc_swap_shared_solution.0.rcu(|old| {
             let mut shared_solution = (**old).clone();
-            shared_solution.supervisor = self.supervisor_solution.clone();
+            shared_solution.supervisor = self.solution.clone();
             Arc::new(shared_solution)
         });
     }
 
-    fn load_shared_solution(&mut self) {
-        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
+    fn update_objective_value(&mut self, objective_value: Self::ObjectiveValue) {
+        self.solution.objective_value = objective_value;
     }
 
-    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType> {
-        let assigned_woas = &self.supervisor_solution.number_of_assigned_work_orders();
+    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType<Self::ObjectiveValue>> {
+        let assigned_woas = &self.solution.number_of_assigned_work_orders();
 
-        let all_woas: HashSet<_> = self.supervisor_solution.get_work_order_activities();
+        let all_woas: HashSet<_> = self.solution.get_work_order_activities();
 
         assert!(is_assigned_part_of_all(assigned_woas, &all_woas));
 
@@ -175,13 +154,12 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
 
         let objective_value = (intermediate * 1000.0) as u64;
 
-        self.objective_value = objective_value;
-        if self.objective_value < objective_value {
+        if self.solution.objective_value < objective_value {
             event!(
                 Level::INFO,
                 supervisor_objective_value_better = objective_value
             );
-            Ok(ObjectiveValueType::Better)
+            Ok(ObjectiveValueType::Better(objective_value))
         } else {
             event!(
                 Level::INFO,
@@ -192,9 +170,9 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
     }
 
     fn schedule(&mut self) -> Result<()> {
-        for work_order_activity in &self.supervisor_solution.get_work_order_activities() {
+        for work_order_activity in &self.solution.get_work_order_activities() {
             let number = self
-                .supervisor_parameters
+                .parameters
                 .supervisor_work_orders
                 .get(&work_order_activity.0)
                 .and_then(|activities| activities.get(&work_order_activity.1))
@@ -203,9 +181,8 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
 
             let operational_solutions = &self.loaded_shared_solution.operational;
 
-            let mut operational_status_by_work_order_activity = self
-                .supervisor_solution
-                .operational_status_by_work_order_activity(
+            let mut operational_status_by_work_order_activity =
+                self.solution.operational_status_by_work_order_activity(
                     work_order_activity,
                     operational_solutions,
                 );
@@ -244,7 +221,7 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
 
                 if remaining_to_assign >= 1 {
                     remaining_to_assign -= 1;
-                    self.supervisor_solution
+                    self.solution
                         .operational_state_machine
                         .get_mut(&(agent_id.clone(), *work_order_activity)).expect("This value should always be present. Check the generation of keys and values if this fails")
                         .state_change_to_assign();
@@ -252,7 +229,7 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
                     if *delegate_status == Delegate::Assign {
                         continue;
                     }
-                    self.supervisor_solution
+                    self.solution
                         .operational_state_machine
                         .get_mut(&(agent_id.clone(), *work_order_activity)).expect("This value should always be present. Check the generation of keys and values if this fails")
                         .state_change_to_unassign();
@@ -263,9 +240,7 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
     }
 
     fn unschedule(&mut self, supervisor_options: &mut Self::Options) -> Result<()> {
-        let work_order_numbers = self
-            .supervisor_solution
-            .get_assigned_and_unassigned_work_orders();
+        let work_order_numbers = self.solution.get_assigned_and_unassigned_work_orders();
 
         let sampled_work_order_numbers = work_order_numbers
             .choose_multiple(
@@ -288,36 +263,17 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
         // self.algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&old_state).unwrap();
     }
 
-    // WARNING
-    // THIS IS A GOOD WAY OF FILTERING THE WORK ORDERS
-    // fn remove_leaving_work_order_activities(
-    //     &mut self,
-    //     entering_work_orders_from_strategic: &HashSet<WorkOrderNumber>,
-    // ) {
-    //     let supervisor_work_orders: HashSet<WorkOrderNumber> = self
-    //         .operational_state_machine
-    //         .iter()
-    //         .map(|((_, woa), _)| woa.0)
-    //         .collect();
-
-    //     let leaving: HashSet<_> = supervisor_work_orders
-    //         .difference(entering_work_orders_from_strategic)
-    //         .collect();
-
-    //     self.operational_state_machine
-    //         .retain(|(_, woa), _| !leaving.contains(&woa.0));
-    // }
-    // WARNING
-    fn update_based_on_shared_solution(&mut self) -> Result<()> {
+    fn incorporate_shared_state(&mut self) -> Result<bool> {
         // List current activities in the `SupervisorAgent`
         let current_activities = self
-            .supervisor_solution
+            .solution
             .operational_state_machine
             .keys()
             .map(|(_, woa)| woa.0)
             .collect::<HashSet<WorkOrderNumber>>();
 
-        // Filter for Strategic scheduled work orders that are inside of the `SupervisorAlgorithm.parameters.strategic_periods`
+        // Filter for Strategic scheduled work orders that are inside of the `SupervisorAlgorithm.parameters.strategic_periods`.
+        // This can be made cleaner! Much cleaner,
         let strategic_activities_in_supervisor_period = self
             .loaded_shared_solution
             .strategic
@@ -325,7 +281,7 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
             .iter()
             .filter_map(|(won, opt_str_per)| {
                 opt_str_per.as_ref().and_then(|per| {
-                    self.supervisor_parameters
+                    self.parameters
                         .supervisor_periods
                         .contains(per)
                         .then_some((won, per))
@@ -341,7 +297,7 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
         // has the required skill, `enum Resources`
         for (work_order_number, _) in incoming_activities {
             for activity_number in (self
-                .supervisor_parameters
+                .parameters
                 .supervisor_work_orders
                 .get(work_order_number)
                 .context("Missing WorkOrder Parameter in Supervisor")?)
@@ -349,7 +305,7 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
             {
                 for operational_id in self.loaded_shared_solution.operational.keys() {
                     let supervisor_parameter_resource = &self
-                        .supervisor_parameters
+                        .parameters
                         .supervisor_work_orders
                         .get(work_order_number)
                         .context("Missing WorkOrder Parameter in Supervisor")?
@@ -361,7 +317,7 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
                         let work_order_activity = (*work_order_number, *activity_number);
                         let operational_state = (operational_id.clone(), work_order_activity);
 
-                        self.supervisor_solution
+                        self.solution
                             .operational_state_machine
                             .insert(operational_state, Delegate::default());
                     }
@@ -369,25 +325,16 @@ impl ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm {
             }
         }
 
-        // Now we have to remove the the activities that are not part of the SharedSolution::strategic
-        // FIX
-        // You are doing this wrong. You are retaining only a single `WorkOrderNumber` on each iteration.
-        // We will fix this by making the two into HashSet and then removing the correct ones.
-        //
         let strategic_activities_hash_set = strategic_activities_in_supervisor_period
             .map(|e| e.0)
             .cloned()
             .collect::<HashSet<_>>();
 
-        // FIX
-        // We need a system for making this work well with `Activities` that have been forced internally.
-        self.supervisor_solution
+        self.solution
             .operational_state_machine
             .retain(|id_woa, _| strategic_activities_hash_set.contains(&id_woa.1 .0));
 
-        self.calculate_objective_value()?;
-        self.make_atomic_pointer_swap();
-        Ok(())
+        Ok(true)
     }
 }
 

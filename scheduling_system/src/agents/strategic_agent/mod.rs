@@ -43,6 +43,7 @@ mod tests {
     use std::str::FromStr;
 
     use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
+    use crate::agents::traits::ObjectiveValueType;
     use crate::agents::ArcSwapSharedSolution;
 
     use super::*;
@@ -204,14 +205,25 @@ mod tests {
         strategic_algorithm
             .schedule_forced_work_order(&ForcedWorkOrder::Locked(work_order_number))?;
 
-        strategic_algorithm.calculate_objective_value()?;
+        let objective_value_type = strategic_algorithm.calculate_objective_value()?;
+
+        let objective_value =
+            if let ObjectiveValueType::Better(objective_value) = objective_value_type {
+                objective_value
+            } else {
+                panic!();
+            };
+
+        strategic_algorithm.strategic_solution.objective_value = objective_value;
 
         assert_eq!(
             strategic_algorithm
                 .strategic_solution
                 .objective_value
                 .objective_value,
-            2000
+            2000,
+            "{:#?}",
+            strategic_algorithm.strategic_solution.objective_value
         );
         Ok(())
     }

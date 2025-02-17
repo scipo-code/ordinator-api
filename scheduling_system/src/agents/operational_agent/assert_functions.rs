@@ -7,10 +7,10 @@ use crate::agents::{
         operational_events::OperationalEvents, operational_solution::MarginalFitness,
     },
     supervisor_agent::algorithm::delegate::Delegate,
-    Agent,
+    Algorithm, OperationalSolution,
 };
 
-use super::algorithm::OperationalAlgorithm;
+use super::algorithm::{operational_parameter::OperationalParameters, OperationalNonProductive};
 
 #[allow(dead_code)]
 pub trait OperationalAssertions {
@@ -18,15 +18,14 @@ pub trait OperationalAssertions {
     fn assert_marginal_fitness_is_correct(&self) -> Result<()>;
 }
 
-impl<AgentMessage, AgentResponse> OperationalAssertions
-    for Agent<OperationalAlgorithm, AgentMessage, AgentResponse>
+impl OperationalAssertions
+    for Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive>
 {
     fn assert_operational_solutions_does_not_have_delegate_unassign(&self) -> Result<()> {
         for delegate in self
-            .algorithm
             .loaded_shared_solution
             .supervisor
-            .delegates_for_agent(&self.agent_id)
+            .delegates_for_agent(&self.id)
             .values()
         {
             ensure!(delegate != &Delegate::Unassign)
@@ -36,17 +35,11 @@ impl<AgentMessage, AgentResponse> OperationalAssertions
     }
 
     fn assert_marginal_fitness_is_correct(&self) -> Result<()> {
-        for assignments in self
-            .algorithm
-            .operational_solution
-            .scheduled_work_order_activities
-            .windows(3)
-        {
+        for assignments in self.solution.scheduled_work_order_activities.windows(3) {
             let finish_of_prev = assignments[0].1.finish_time();
             let start_of_next = assignments[2].1.start_time();
             let combined_non_productive: TimeDelta = self
-                .algorithm
-                .operational_non_productive
+                .solution_intermediate
                 .0
                 .iter()
                 .filter(|non_prod| match &non_prod.event_type {
@@ -69,8 +62,7 @@ impl<AgentMessage, AgentResponse> OperationalAssertions
                     format!(
                         "{:<10}: {:?}",
                         "Work hours",
-                        self.algorithm
-                            .operational_parameters
+                        self.parameters
                             .work_order_parameters
                             .get(&assignments[1].0)
                             .unwrap()

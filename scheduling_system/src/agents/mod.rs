@@ -11,7 +11,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, Context, Result};
-use arc_swap::ArcSwap;
+use arc_swap::{ArcSwap, Guard};
 use colored::Colorize;
 use operational_agent::algorithm::operational_solution::{MarginalFitness, OperationalAssignment};
 use operational_agent::algorithm::OperationalObjectiveValue;
@@ -24,6 +24,7 @@ use shared_types::scheduling_environment::work_order::{WorkOrderActivity, WorkOr
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 use shared_types::strategic::{StrategicObjectiveValue, StrategicResources};
+use shared_types::supervisor::SupervisorObjectiveValue;
 use shared_types::tactical::{TacticalObjectiveValue, TacticalResources};
 use shared_types::Asset;
 use supervisor_agent::algorithm::delegate::Delegate;
@@ -96,6 +97,42 @@ where
                 .unwrap();
 
             schedule_iteration.increment();
+        }
+    }
+}
+
+pub struct Algorithm<S, P, I> {
+    id: Id,
+    solution_intermediate: I,
+    solution: S,
+    parameters: P,
+    arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
+    loaded_shared_solution: Guard<Arc<SharedSolution>>,
+}
+
+impl<S, P, I> Algorithm<S, P, I>
+where
+    I: Default,
+{
+    fn load_shared_solution(&mut self) {
+        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
+    }
+
+    pub fn new(
+        id: &Id,
+        solution: S,
+        parameters: P,
+        arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
+    ) -> Self {
+        let loaded_shared_solution = arc_swap_shared_solution.0.load();
+
+        Self {
+            id: id.clone(),
+            solution_intermediate: I::default(),
+            solution,
+            parameters,
+            arc_swap_shared_solution,
+            loaded_shared_solution,
         }
     }
 }
@@ -268,7 +305,7 @@ impl TacticalSolutionBuilder {
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct SupervisorSolution {
-    objective_value: u64,
+    pub objective_value: SupervisorObjectiveValue,
     operational_state_machine: HashMap<(Id, WorkOrderActivity), Delegate>,
 }
 
@@ -295,6 +332,14 @@ impl StrategicSolution {
                 }
             });
         supervisor_work_orders
+    }
+
+    pub(crate) fn new() -> Self {
+        Self {
+            objective_value: todo!(),
+            strategic_scheduled_work_orders: todo!(),
+            strategic_loadings: todo!(),
+        }
     }
 }
 

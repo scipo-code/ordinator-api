@@ -7,6 +7,7 @@ use chrono::NaiveDate;
 use serde::Serialize;
 use shared_types::{
     scheduling_environment::{
+        time_environment::day::Day,
         work_order::{
             operation::{operation_info::NumberOfPeople, ActivityNumber, Work},
             ActivityRelation, WorkOrderNumber,
@@ -19,6 +20,7 @@ use shared_types::{
 #[derive(Default, Clone)]
 pub struct TacticalParameters {
     pub tactical_work_orders: HashMap<WorkOrderNumber, TacticalParameter>,
+    pub tactical_days: Vec<Day>,
     pub tactical_capacity: TacticalResources,
 }
 

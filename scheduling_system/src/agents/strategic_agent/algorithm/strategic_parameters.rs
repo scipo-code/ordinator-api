@@ -16,6 +16,8 @@ pub struct StrategicParameters {
     pub strategic_work_order_parameters: HashMap<WorkOrderNumber, StrategicParameter>,
     pub strategic_capacity: StrategicResources,
     pub strategic_clustering: StrategicClustering,
+    pub period_locks: HashSet<Period>,
+    pub strategic_periods: Vec<Period>,
 }
 
 pub type ClusteringValue = u64;
@@ -72,12 +74,15 @@ impl StrategicParameters {
     pub fn new(
         strategic_work_order_parameters: HashMap<WorkOrderNumber, StrategicParameter>,
         strategic_capacity: StrategicResources,
-        strategic_clustering: StrategicClustering,
     ) -> Self {
+        let strategic_clustering = StrategicClustering::default();
+
         Self {
             strategic_work_order_parameters,
             strategic_capacity,
             strategic_clustering,
+            period_locks: todo!(),
+            strategic_periods: todo!(),
         }
     }
 

@@ -17,21 +17,22 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use std::sync::{Arc, MutexGuard};
 
-use crate::agents::operational_agent::algorithm::operational_parameter::OperationalParameter;
-use crate::agents::operational_agent::algorithm::OperationalAlgorithm;
+use crate::agents::operational_agent::algorithm::operational_parameter::{
+    OperationalParameter, OperationalParameters,
+};
 use crate::agents::operational_agent::OperationalOptions;
 use crate::agents::orchestrator::{Communication, NotifyOrchestrator};
 use crate::agents::strategic_agent::algorithm::strategic_parameters::{
     StrategicClustering, StrategicParameters,
 };
-use crate::agents::strategic_agent::algorithm::StrategicAlgorithm;
 use crate::agents::strategic_agent::StrategicOptions;
 use crate::agents::supervisor_agent::algorithm::delegate::Delegate;
-use crate::agents::supervisor_agent::algorithm::SupervisorAlgorithm;
 use crate::agents::supervisor_agent::SupervisorOptions;
-use crate::agents::tactical_agent::algorithm::TacticalAlgorithm;
 use crate::agents::tactical_agent::TacticalOptions;
-use crate::agents::{Agent, AgentMessage, ArcSwapSharedSolution, SharedSolution};
+use crate::agents::{
+    Agent, AgentMessage, Algorithm, ArcSwapSharedSolution, OperationalSolution, SharedSolution,
+    StrategicSolution,
+};
 
 use shared_types::scheduling_environment::worker_environment::resources::{Id, Resources};
 use shared_types::scheduling_environment::SchedulingEnvironment;
@@ -77,16 +78,23 @@ impl AgentFactory {
         // period_locks.insert(locked_scheduling_environment.periods()[0].clone());
         // period_locks.insert(locked_scheduling_environment.get_periods()[1].clone());
 
-        let mut strategic_clustering = StrategicClustering::default();
         strategic_clustering.calculate_clustering_values(&asset, &cloned_work_orders)?;
+        // FIX
+        // This whole build process should be encapsulated! I think that this is the best way of doing things.
+        let strategic_id = Id::new("StrategicAgent".to_string(), vec![], None);
 
-        let mut strategic_algorithm = StrategicAlgorithm::new(
-            PriorityQueue::new(),
-            StrategicParameters::new(
-                HashMap::new(),
-                StrategicResources::default(),
-                strategic_clustering,
-            ),
+        let strategic_solution StrategicSolution::new(
+            
+        )
+
+        let strategic_parameters = StrategicParameters::new(
+            HashMap::new(),
+            StrategicResources::default(),
+            strategic_clustering,
+        );
+
+        let mut strategic_algorithm = Algorithm::new(
+            &strategic_id,
             shared_solution_arc_swap,
             period_locks,
             scheduling_environment_guard
@@ -134,10 +142,6 @@ impl AgentFactory {
         }
 
         let arc_scheduling_environment = self.scheduling_environment.clone();
-
-        // FIX
-        // This whole build process should be encapsulated! I think that this is the best way of doing things.
-        let strategic_id = Id::new("StrategicAgent".to_string(), vec![], None);
 
         // This send
         let (sender_to_agent, receiver_from_orchestrator) = std::sync::mpsc::channel();
@@ -343,37 +347,26 @@ impl AgentFactory {
     {
         let arc_scheduling_environment = self.scheduling_environment.clone();
 
-        let mut operational_algorithm = OperationalAlgorithm::new(
+        let operational_solution = OperationalSolution::new(operational_configuration);
+
+        let operational_parameters = OperationalParameters::new(operational_configuration);
+
+        let operational_algorithm = Algorithm::new(
             operational_id,
-            operational_configuration,
-            arc_swap_shared_solution,
+            operational_solution,
+            operational_parameters,
+            Arc::new(ArcSwapSharedSolution::default()),
         );
 
-        for (work_order_number, work_order) in &self
-            .scheduling_environment
-            .lock()
-            .unwrap()
-            .work_orders
-            .inner
-        {
-            for (activity_number, operation) in work_order.operations() {
-                let work_order_activity = (*work_order_number, *activity_number);
-
-                let operational_parameter_option = OperationalParameter::new(
-                    operation.work_remaining().unwrap(),
-                    operation.operation_analytic.preparation_time,
-                );
-
-                let operational_parameter = match operational_parameter_option {
-                    Some(operational_parameter) => operational_parameter,
-                    None => continue,
-                };
-
-                operational_algorithm
-                    .insert_operational_parameter(work_order_activity, operational_parameter);
-            }
-        }
-
+        // WARN
+        // These fields are private for a reason! It is important that you respect that. You should not deviate
+        // from this in anyway. You have caused a lot of harm by setting struct fields to `pub` when they should
+        // not have been. This is a practice that you should stop.
+        //
+        // TODO
+        // The API for the construction of the Algorithm::parameters have to be flawless. It is that interface
+        // that have to carry the business logic. So this kind of creation that you have here is simply not
+        // possible. You have to be much more professional than this if this is to succeed.
         let mut shared_solution_clone = (**operational_algorithm.loaded_shared_solution).clone();
 
         shared_solution_clone.operational.insert(
@@ -414,7 +407,7 @@ impl AgentFactory {
 
         let thread_name = format!(
             "{} for Asset: {} for Id: {}",
-            std::any::type_name::<OperationalAlgorithm>(),
+            std::any::type_name::<OperationalSolution>(),
             asset,
             &operational_id,
         );

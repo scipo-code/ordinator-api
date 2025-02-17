@@ -9,32 +9,14 @@ use shared_types::operational::{
 };
 use tracing::{event, Level};
 
-use crate::agents::{Agent, AgentSpecific, MessageHandler, StateLink};
+use crate::agents::{
+    Agent, AgentSpecific, Algorithm, MessageHandler, OperationalSolution, StateLink,
+};
 
-use super::algorithm::OperationalAlgorithm;
+use super::algorithm::{operational_parameter::OperationalParameters, OperationalNonProductive};
 
-// impl Agent<OperationalAlgorithm, OperationalRequestMessage, OperationalResponseMessage> {
-//     fn handle(&mut self) -> Result<()> {
-//         let message = self.receiver_from_orchestrator.try_recv();
-
-//         match message {
-//             Ok(message) => match message {
-//                 AgentMessage::State(state_link) => self.handle_state_link(state_link)?,
-//                 AgentMessage::Actor(strategic_request_message) => {
-//                     let message = self.handle_request_message(strategic_request_message);
-
-//                     self.sender_to_orchestrator.send(message)?;
-//                 }
-//             },
-
-//             Err(e) => match e {
-//                 std::sync::mpsc::TryRecvError::Empty => (),
-//                 std::sync::mpsc::TryRecvError::Disconnected => bail!("Disconnected from "),
-//             },
-//         }
-//         Ok(())
-//     }
-// }
+type OperationalAlgorithm =
+    Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive>;
 impl MessageHandler
     for Agent<OperationalAlgorithm, OperationalRequestMessage, OperationalResponseMessage>
 {
@@ -44,11 +26,8 @@ impl MessageHandler
     fn handle_state_link(&mut self, state_link: StateLink) -> Result<()> {
         event!(
             Level::INFO,
-            self.algorithm.operational_parameters = self
-                .algorithm
-                .operational_parameters
-                .work_order_parameters
-                .len()
+            self.algorithm.operational_parameters =
+                self.algorithm.parameters.work_order_parameters.len()
         );
         match state_link {
             StateLink::WorkOrders(AgentSpecific::Strategic(changed_work_orders)) => {
@@ -93,7 +72,7 @@ impl MessageHandler
                     assign,
                     assess,
                     unassign,
-                    self.algorithm.operational_solution.objective_value,
+                    self.algorithm.solution.objective_value,
                 );
                 Ok(OperationalResponseMessage::Status(
                     operational_response_status,
@@ -105,10 +84,8 @@ impl MessageHandler
                     OperationalSchedulingRequest::OperationalState(_) => {
                         let mut json_assignments_events: Vec<ApiAssignmentEvents> = vec![];
 
-                        for (work_order_activity, operational_solution) in &self
-                            .algorithm
-                            .operational_solution
-                            .scheduled_work_order_activities
+                        for (work_order_activity, operational_solution) in
+                            &self.algorithm.solution.scheduled_work_order_activities
                         {
                             let mut json_assignments = vec![];
                             for assignment in &operational_solution.assignments {

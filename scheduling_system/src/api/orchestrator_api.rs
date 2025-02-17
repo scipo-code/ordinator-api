@@ -41,9 +41,7 @@ pub async fn scheduler_excel_export(
     Ok(http_response)
 }
 
-pub async fn scheduler_asset_names(
-    orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
-) -> Result<HttpResponse, actix_web::Error> {
+pub async fn scheduler_asset_names() -> Result<HttpResponse, actix_web::Error> {
     let asset_names = Asset::convert_to_asset_names();
 
     let http_response = HttpResponse::Ok().json(asset_names);

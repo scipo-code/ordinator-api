@@ -10,11 +10,10 @@ pub trait ActorBasedLargeNeighborhoodSearch {
     type MessageRequest;
     type MessageResponse;
     type Solution: Debug;
+    type ObjectiveValue;
     type Options;
 
     fn run_lns_iteration(&mut self, options: &mut Self::Options) -> Result<()> {
-        self.load_shared_solution();
-
         self.update_based_on_shared_solution()?;
 
         let current_solution = self.clone_algorithm_solution();
@@ -28,11 +27,8 @@ pub trait ActorBasedLargeNeighborhoodSearch {
         let objective_value_type = self.calculate_objective_value()?;
 
         match objective_value_type {
-            ObjectiveValueType::Better => {
-                // FIX
-                // This can be Solved be making the Algorithm generic. I think that is a really good idea.
-                // You have to prepare the project plan now though. And then later go running. Do you need
-                // to go to work today? You need to create simple test data and simple.
+            ObjectiveValueType::Better(objective_value) => {
+                self.update_objective_value(objective_value);
                 self.make_atomic_pointer_swap();
             }
             ObjectiveValueType::Worse => self.swap_solution(current_solution),
@@ -42,15 +38,15 @@ pub trait ActorBasedLargeNeighborhoodSearch {
         Ok(())
     }
 
-    fn load_shared_solution(&mut self);
-
     fn clone_algorithm_solution(&self) -> Self::Solution;
 
     fn swap_solution(&mut self, solution: Self::Solution);
 
     fn make_atomic_pointer_swap(&self);
 
-    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType>;
+    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType<Self::ObjectiveValue>>;
+
+    fn update_objective_value(&mut self, objective_value: Self::ObjectiveValue);
 
     fn schedule(&mut self) -> Result<()>;
 
@@ -60,12 +56,27 @@ pub trait ActorBasedLargeNeighborhoodSearch {
     /// the shared solution. That means that this method has to look at relevant
     /// state in the others `Agent`s and incorporate that and handled changes in
     /// parameters coming from external inputs.
-    fn update_based_on_shared_solution(&mut self) -> Result<()>;
+    fn update_based_on_shared_solution(&mut self) -> Result<()> {
+        self.load_shared_solution();
+
+        let state_change = self.incorporate_shared_state()?;
+
+        if state_change {
+            self.calculate_objective_value()?;
+            self.make_atomic_pointer_swap();
+        }
+
+        Ok(())
+    }
+
+    fn incorporate_shared_state(&mut self) -> Result<bool>;
 }
 
 #[allow(dead_code)]
-pub enum ObjectiveValueType {
-    Better,
+pub enum ObjectiveValueType<O> {
+    Better(O),
     Worse,
     Force,
 }
+
+trait ObjectiveValue {}

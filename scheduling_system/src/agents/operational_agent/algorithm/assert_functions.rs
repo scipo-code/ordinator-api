@@ -1,19 +1,23 @@
 use anyhow::{ensure, Result};
 
-use super::OperationalAlgorithm;
+use crate::agents::{Algorithm, OperationalSolution};
+
+use super::{operational_parameter::OperationalParameters, OperationalNonProductive};
 
 pub trait OperationalAlgorithmAsserts {
     fn assert_no_operation_overlap(&self) -> Result<()>;
 }
 
-impl OperationalAlgorithmAsserts for OperationalAlgorithm {
+impl OperationalAlgorithmAsserts
+    for Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive>
+{
     fn assert_no_operation_overlap(&self) -> Result<()> {
         let operational_solutions = self
-            .operational_solution
+            .solution
             .scheduled_work_order_activities
             .iter()
             .flat_map(|woa_os| woa_os.1.assignments.clone())
-            .chain(self.operational_non_productive.0.clone());
+            .chain(self.solution_intermediate.0.clone());
 
         for (index_1, operational_solution_1) in operational_solutions.clone().enumerate() {
             for (index_2, operational_solution_2) in operational_solutions.clone().enumerate() {

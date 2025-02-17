@@ -9,7 +9,9 @@ use shared_types::scheduling_environment::{
     worker_environment::resources::Resources,
 };
 
-use super::TacticalAlgorithm;
+use crate::agents::TacticalSolution;
+
+use super::{tactical_parameters::TacticalParameters, Algorithm, TacticalAlgorithm};
 
 type TotalExcessHours = Work;
 
@@ -20,19 +22,19 @@ pub trait TacticalAssertions {
     fn asset_that_capacity_is_not_exceeded(&self) -> Result<TotalExcessHours>;
 }
 
-impl TacticalAssertions for TacticalAlgorithm {
+impl TacticalAssertions for Algorithm<TacticalSolution, TacticalParameters> {
     fn asset_that_loading_matches_scheduled(&self) -> Result<()> {
         let mut aggregated_load: HashMap<Resources, HashMap<Day, Work>> = HashMap::new();
 
-        for (_work_order_number, tactical_solution) in &self
-            .tactical_solution
+        for (_work_order_number, solution) in &self
+            .solution
             .tactical_scheduled_work_orders
             .0
             .iter()
             .filter(|(_, whe_tac_sch)| whe_tac_sch.is_tactical())
             .collect::<Vec<_>>()
         {
-            for operation_solution in tactical_solution.tactical_operations()?.0.values() {
+            for operation_solution in solution.tactical_operations()?.0.values() {
                 let resource = &operation_solution.resource;
 
                 for (day, load) in &operation_solution.scheduled {
@@ -46,7 +48,7 @@ impl TacticalAssertions for TacticalAlgorithm {
         }
 
         for resource in Resources::iter() {
-            for day in &self.tactical_days {
+            for day in &self.parameters.tactical_days {
                 let resource_map = match aggregated_load.get(&resource) {
                     Some(map) => Cow::Borrowed(map),
                     None => Cow::Owned(HashMap::new()),
@@ -54,10 +56,7 @@ impl TacticalAssertions for TacticalAlgorithm {
 
                 let zero_work = Work::from(0.0);
                 let agg_load = resource_map.get(day).unwrap_or(&zero_work);
-                let sch_load = self
-                    .tactical_solution
-                    .tactical_loadings
-                    .get_resource(&resource, day);
+                let sch_load = self.solution.tactical_loadings.get_resource(&resource, day);
 
                 if (agg_load - sch_load).0.round_dp(9) != Work::from(0.0).0 {
                     event!(Level::ERROR, agg_load = ?agg_load, sch_load = ?sch_load, resource = ?resource, day = ?day);
@@ -71,10 +70,10 @@ impl TacticalAssertions for TacticalAlgorithm {
 
     fn asset_that_capacity_is_not_exceeded(&self) -> Result<TotalExcessHours> {
         let mut total_excess_hours = Work::from(0.0);
-        for (resource, days) in &self.tactical_solution.tactical_loadings.resources {
+        for (resource, days) in &self.solution.tactical_loadings.resources {
             for (day, load) in &days.days {
                 let capacity = self
-                    .tactical_parameters
+                    .parameters
                     .tactical_capacity
                     .get_resource(resource, day);
 
@@ -96,7 +95,7 @@ impl TacticalAssertions for TacticalAlgorithm {
 //             .infeasible_cases_mut()
 //             .unwrap()
 //             .earliest_start_day = (|| {
-//             for (work_order_number, optimized_work_order) in self.tactical_parameters().clone() {
+//             for (work_order_number, optimized_work_order) in self.parameters().clone() {
 //                 let start_date_from_period = match optimized_work_order.scheduled_period {
 //                     Some(period) => period.start_date().date_naive(),
 //                     None => optimized_work_order.earliest_allowed_start_date,
@@ -134,7 +133,7 @@ impl TacticalAssertions for TacticalAlgorithm {
 //             .infeasible_cases_mut()
 //             .unwrap()
 //             .all_scheduled = (|| {
-//             for (work_order_number, optimized_work_order) in self.tactical_parameters().clone() {
+//             for (work_order_number, optimized_work_order) in self.parameters().clone() {
 //                 if optimized_work_order.operation_solutions.is_none() {
 //                     return ConstraintState::Infeasible(work_order_number.0.to_string());
 //                 }
@@ -146,7 +145,7 @@ impl TacticalAssertions for TacticalAlgorithm {
 //             .infeasible_cases_mut()
 //             .unwrap()
 //             .respect_period_id = (|| {
-//             for (_work_order_number, optimized_work_order) in self.tactical_parameters().clone() {
+//             for (_work_order_number, optimized_work_order) in self.parameters().clone() {
 //                 let scheduled_period = match optimized_work_order.scheduled_period {
 //                     Some(period) => period,
 //                     None => return ConstraintState::Feasible,

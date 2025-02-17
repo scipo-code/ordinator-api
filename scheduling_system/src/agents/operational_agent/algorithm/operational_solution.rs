@@ -1,8 +1,12 @@
 use chrono::{DateTime, Utc};
 use shared_types::{
-    operational::{operational_response_scheduling::ApiAssignmentEvents, TimeInterval},
+    operational::{
+        operational_response_scheduling::ApiAssignmentEvents, OperationalConfiguration,
+        TimeInterval,
+    },
     scheduling_environment::{
-        work_order::WorkOrderActivity, worker_environment::availability::Availability,
+        work_order::{operation::ActivityNumber, WorkOrderActivity, WorkOrderNumber},
+        worker_environment::availability::Availability,
     },
 };
 use strum_macros::AsRefStr;
@@ -14,10 +18,35 @@ use super::{operational_events::OperationalEvents, ContainOrNextOrNone, Unavaila
 
 // I think that we should have a Generic solution struct.
 impl OperationalSolution {
-    pub fn new(work_order_activities: Vec<(WorkOrderActivity, OperationalAssignment)>) -> Self {
+    pub fn new(operational_configuration: &OperationalConfiguration) -> Self {
+        let mut scheduled_work_order_activities = Vec::new();
+
+        let start_event = Assignment::make_unavailable_event(
+            Unavailability::Beginning,
+            &operational_configuration.availability,
+        );
+
+        let end_event = Assignment::make_unavailable_event(
+            Unavailability::End,
+            &operational_configuration.availability,
+        );
+
+        let unavailability_start_event = OperationalAssignment::new(vec![start_event]);
+
+        let unavailability_end_event = OperationalAssignment::new(vec![end_event]);
+
+        scheduled_work_order_activities.push((
+            (WorkOrderNumber(0), ActivityNumber(0)),
+            unavailability_start_event,
+        ));
+
+        scheduled_work_order_activities.push((
+            (WorkOrderNumber(0), ActivityNumber(0)),
+            unavailability_end_event,
+        ));
         Self {
             objective_value: 0,
-            scheduled_work_order_activities: work_order_activities,
+            scheduled_work_order_activities,
         }
     }
 
@@ -57,16 +86,6 @@ impl OperationalFunctions for OperationalSolution {
             let start_of_solution_window = operational_solution.0.finish_time();
 
             let end_of_solution_window = operational_solution.1.start_time();
-
-            event!(Level::TRACE, start_window = ?start_of_solution_window);
-            event!(Level::TRACE,
-                first_assignment = ?assignments
-                    .first()
-                    .expect("No Assignment in the OperationalSolution")
-                    .start,
-            );
-            event!(Level::TRACE, last_assignment = ?assignments.last().unwrap().finish);
-            event!(Level::TRACE, end_window = ?end_of_solution_window);
 
             if start_of_solution_window
                 < assignments
@@ -121,6 +140,9 @@ impl OperationalFunctions for OperationalSolution {
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct OperationalAssignment {
+    // This is an auxilliary objective value. Where should it lie to solve this issue? You
+    // need one per `WorkOrderActivity` so removing it does not really make that much sense
+    // I think that you have to store them in the solution.
     pub marginal_fitness: MarginalFitness,
     pub assignments: Vec<Assignment>,
 }
