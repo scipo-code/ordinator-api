@@ -1,0 +1,87 @@
+use std::collections::HashSet;
+
+use anyhow::{bail, Result};
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use tracing::{event, Level};
+
+use crate::agents::{Agent, Algorithm, SupervisorSolution};
+
+use super::algorithm::SupervisorParameters;
+
+#[allow(dead_code)]
+pub trait SupervisorAssertions {
+    fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(
+        &self,
+    ) -> Result<()>;
+    fn assert_operational_state_machine_woas_is_subset_of_tactical_shared_solution(
+        &self,
+    ) -> Result<()>;
+}
+
+type SupervisorAlgorithm = Algorithm<SupervisorSolution, SupervisorParameters, ()>;
+
+impl<MessageRequest, MessageResponse> SupervisorAssertions
+    for Agent<SupervisorAlgorithm, MessageRequest, MessageResponse>
+{
+    fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(
+        &self,
+    ) -> Result<()> {
+        let tactical_operation_woas: HashSet<WorkOrderNumber> = self
+            .algorithm
+            .loaded_shared_solution
+            .strategic
+            .supervisor_work_orders_from_strategic(&self.algorithm.parameters.supervisor_periods);
+
+        let operational_state_woas: HashSet<WorkOrderNumber> = self
+            .algorithm
+            .solution
+            .get_iter()
+            .map(|(woa, _)| woa.1 .0)
+            .collect();
+        // What would it mean to schedule these work
+        let symmetric_difference = tactical_operation_woas
+            .symmetric_difference(&operational_state_woas)
+            .cloned()
+            .collect::<HashSet<WorkOrderNumber>>();
+
+        if !symmetric_difference.is_empty() {
+            event!(Level::ERROR,
+                non_corresponding_work_order_activities = ? symmetric_difference,
+                in_the_tactical_operations = ?symmetric_difference.intersection(&tactical_operation_woas),
+                in_the_operational_state_woas = ?symmetric_difference.intersection(&operational_state_woas),
+            );
+            bail!("If the symmetric difference is empty it means that there are state inconsistencies");
+        }
+        Ok(())
+    }
+
+    // This assertion tests that
+    fn assert_operational_state_machine_woas_is_subset_of_tactical_shared_solution(
+        &self,
+    ) -> Result<()> {
+        let strategic_work_orders: HashSet<WorkOrderNumber> = self
+            .algorithm
+            .loaded_shared_solution
+            .strategic
+            .supervisor_work_orders_from_strategic(&self.algorithm.parameters.supervisor_periods);
+
+        let operational_state_work_order_activities: HashSet<WorkOrderNumber> = self
+            .algorithm
+            .solution
+            .get_iter()
+            .map(|(woa, _)| woa.1 .0)
+            .collect();
+
+        if !operational_state_work_order_activities.is_subset(&strategic_work_orders) {
+            event!(
+                Level::ERROR,
+                operational_difference_with_tactical_operations = ?operational_state_work_order_activities
+                    .difference(&strategic_work_orders)
+                    .cloned()
+                    .collect::<HashSet<_>>()
+            );
+            bail!("The tactical_operations should always hold all the work_order_activities of the operational_state_machine");
+        }
+        Ok(())
+    }
+}

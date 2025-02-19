@@ -1,0 +1,9 @@
+<div class="">
+  <ng-container *ngFor="let calendar of calendarData">
+    <ng-container *ngFor="let instance of calendar.calendarData">
+      <app-calendar-section [calendarData]="instance"></app-calendar-section>
+    </ng-container>
+  </ng-container>
+
+  <div class="pt-2 pb-2 border-t border-gray-400"></div>
+</div>

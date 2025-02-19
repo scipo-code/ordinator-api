@@ -1,10 +1,10 @@
 [workspace]
 resolver = "2"
 members = [
-    "scheduling_system",
-    "shared_types",
-    "imperium",
-    "data_processing",
+    "crates/scheduling_system",
+    "crates/shared_types",
+    "crates/imperium",
+    "crates/data_processing",
 ]
 
 [profile.dev]

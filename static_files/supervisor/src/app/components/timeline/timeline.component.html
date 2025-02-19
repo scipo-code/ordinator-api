@@ -1,0 +1,31 @@
+<div class="flex items-center justify-center bg-gray-500">
+  <div class="grid grid-cols-12 w-full h-8 bg-gray-200">
+    <div
+      *ngFor="let hour of hours"
+      class="flex items-center justify-center border-r border-gray-500 last:border-r-0"
+    >
+      <span class="text-xs text-black">{{ hour }}:00</span>
+    </div>
+  </div>
+</div>
+
+<div class="h-4 items-center flex justify-center">
+  <a
+    class="w-full text-xs hover:bg-red-600 hover:text-white"
+    (click)="addHours(-12)"
+    role="button"
+    tabindex="0"
+    (keydown.enter)="addHours(-12)"
+  >
+    -12 timer</a
+  >
+  <a
+    class="w-full text-xs text-right hover:bg-red-600 hover:text-white"
+    (click)="addHours(12)"
+    role="button"
+    tabindex="0"
+    (keydown.enter)="addHours(12)"
+  >
+    +12 timer</a
+  >
+</div>

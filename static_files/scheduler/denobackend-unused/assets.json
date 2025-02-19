@@ -1,0 +1,21 @@
+{
+  "assets": [
+    { "value": "DF", "label": "DF" },
+    { "value": "DM", "label": "DM" },
+    { "value": "DE", "label": "DE" },
+    { "value": "GO", "label": "GO" },
+    { "value": "HB", "label": "HB" },
+    { "value": "HC", "label": "HC" },
+    { "value": "HD", "label": "HD" },
+    { "value": "HW", "label": "HW" },
+    { "value": "KR", "label": "KR" },
+    { "value": "RO", "label": "RO" },
+    { "value": "RF", "label": "RF" },
+    { "value": "SK", "label": "SK" },
+    { "value": "SV", "label": "SV" },
+    { "value": "TE", "label": "TE" },
+    { "value": "TS", "label": "TS" },
+    { "value": "VA", "label": "VA" },
+    { "value": "VB", "label": "VB" }
+  ]
+}
