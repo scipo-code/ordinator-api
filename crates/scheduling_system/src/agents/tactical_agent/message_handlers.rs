@@ -6,7 +6,9 @@ use shared_types::{
         responses::tactical_response_resources::TacticalResourceResponse, TacticalRequestMessage,
         TacticalResponseMessage,
     },
-    scheduling_environment::{time_environment::day::Day, work_order::WorkOrderNumber},
+    scheduling_environment::{
+        time_environment::day::Day, work_order::WorkOrderNumber, worker_environment::EmptyFull,
+    },
 };
 
 use crate::agents::{
@@ -44,12 +46,13 @@ impl MessageHandler for Agent<TacticalAlgorithm, TacticalRequestMessage, Tactica
                 todo!()
             }
             TacticalRequestMessage::Update => {
-                let locked_scheduling_environment = &self.scheduling_environment.lock().unwrap();
-                let asset = &self.asset;
+                todo!()
+                // let locked_scheduling_environment = &self.scheduling_environment.lock().unwrap();
+                // let asset = &self.asset;
 
-                self.algorithm
-                    .create_tactical_parameters(locked_scheduling_environment, asset);
-                Ok(TacticalResponseMessage::Update)
+                // self.algorithm
+                //     .create_tactical_parameters(locked_scheduling_environment, asset);
+                // Ok(TacticalResponseMessage::Update)
             }
         }
     }
@@ -72,10 +75,12 @@ impl MessageHandler for Agent<TacticalAlgorithm, TacticalRequestMessage, Tactica
                                 )
                             })?;
 
-                        self.algorithm
-                            .create_and_insert_tactical_parameter_and_initialize_solution(
-                                work_order,
-                            )
+                        // FIX
+                        // The solution should also be updated here. Think about how you can make
+                        // this generic.
+                        panic!();
+                        // FIX
+                        self.algorithm.create_tactical_parameter(work_order)
                     }
                     Ok(())
                 }
@@ -84,10 +89,13 @@ impl MessageHandler for Agent<TacticalAlgorithm, TacticalRequestMessage, Tactica
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
                 let tactical_resources = scheduling_environment_guard
                     .worker_environment
-                    .generate_tactical_resources(&self.algorithm.tactical_days);
+                    .generate_tactical_resources(
+                        &self.algorithm.parameters.tactical_days,
+                        EmptyFull::Full,
+                    );
 
                 self.algorithm
-                    .tactical_parameters
+                    .parameters
                     .tactical_capacity
                     .update_resources(tactical_resources);
 
@@ -112,16 +120,21 @@ impl Agent<TacticalAlgorithm, TacticalRequestMessage, TacticalResponseMessage> {
                 let mut count = 0;
                 for (resource, days) in resources.resources {
                     for (day, capacity) in days.days {
-                        let day: Day =
-                            match self.algorithm.tactical_days.iter().find(|d| **d == day) {
-                                Some(day) => {
-                                    count += 1;
-                                    day.clone()
-                                }
-                                None => {
-                                    bail!("Day not found in the tactical days".to_string(),);
-                                }
-                            };
+                        let day: Day = match self
+                            .algorithm
+                            .parameters
+                            .tactical_days
+                            .iter()
+                            .find(|d| **d == day)
+                        {
+                            Some(day) => {
+                                count += 1;
+                                day.clone()
+                            }
+                            None => {
+                                bail!("Day not found in the tactical days".to_string(),);
+                            }
+                        };
 
                         *self.algorithm.capacity_mut(&resource, &day) = capacity;
                     }
@@ -132,7 +145,7 @@ impl Agent<TacticalAlgorithm, TacticalRequestMessage, TacticalResponseMessage> {
                 days_end: _,
                 select_resources: _,
             } => {
-                let loadings = self.algorithm.tactical_solution.tactical_loadings.clone();
+                let loadings = self.algorithm.solution.tactical_loadings.clone();
 
                 let tactical_response_resources = TacticalResourceResponse::Loading(loadings);
                 Ok(tactical_response_resources)
@@ -141,7 +154,7 @@ impl Agent<TacticalAlgorithm, TacticalRequestMessage, TacticalResponseMessage> {
                 days_end: _,
                 select_resources: _,
             } => {
-                let capacities = self.algorithm.tactical_parameters.tactical_capacity.clone();
+                let capacities = self.algorithm.parameters.tactical_capacity.clone();
 
                 let tactical_response_resources = TacticalResourceResponse::Capacity(capacities);
 
@@ -151,8 +164,8 @@ impl Agent<TacticalAlgorithm, TacticalRequestMessage, TacticalResponseMessage> {
                 days_end: _,
                 resources: _,
             } => {
-                let capacities = &self.algorithm.tactical_parameters.tactical_capacity;
-                let loadings = &self.algorithm.tactical_solution.tactical_loadings;
+                let capacities = &self.algorithm.parameters.tactical_capacity;
+                let loadings = &self.algorithm.solution.tactical_loadings;
 
                 let tactical_response_resources =
                     TacticalResourceResponse::Percentage((capacities.clone(), loadings.clone()));

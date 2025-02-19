@@ -1,10 +1,10 @@
 use anyhow::{bail, Result};
-use shared_types::operational::{
-    operational_request_scheduling::OperationalSchedulingRequest,
-    operational_response_scheduling::{
+use shared_types::agents::operational::{
+    requests::operational_request_scheduling::OperationalSchedulingRequest,
+    responses::operational_response_scheduling::{
         ApiAssignment, ApiAssignmentEvents, EventInfo, OperationalSchedulingResponse,
     },
-    operational_response_status::OperationalResponseStatus,
+    responses::operational_response_status::OperationalResponseStatus,
     OperationalRequestMessage, OperationalResponseMessage,
 };
 use tracing::{event, Level};

@@ -22,13 +22,13 @@ use operational_agent::algorithm::{OperationalObjectiveValue, Unavailability};
 use orchestrator::NotifyOrchestrator;
 use shared_types::agents::strategic::{OperationalResource, StrategicResources};
 use shared_types::agents::supervisor::SupervisorObjectiveValue;
-use shared_types::agents::tactical::{TacticalObjectiveValue, TacticalResources};
+use shared_types::agents::tactical::{Days, TacticalObjectiveValue, TacticalResources};
 use shared_types::orchestrator::ApiSolution;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::{ActivityNumber, Work};
 use shared_types::scheduling_environment::work_order::{WorkOrderActivity, WorkOrderNumber};
-use shared_types::scheduling_environment::worker_environment::resources::Id;
+use shared_types::scheduling_environment::worker_environment::resources::{Id, Resources};
 use shared_types::scheduling_environment::SchedulingEnvironment;
 use shared_types::Asset;
 use strategic_agent::algorithm::strategic_parameters::StrategicParameters;
@@ -426,15 +426,35 @@ impl Solution for TacticalSolution {
     type Parameters = TacticalParameters;
 
     fn new(parameters: &Self::Parameters) -> Self {
+        let tactical_loadings_inner: HashMap<Resources, Days> = parameters
+            .tactical_capacity
+            .resources
+            .iter()
+            .map(|(wo, days)| {
+                let inner_map = days
+                    .days
+                    .iter()
+                    .map(|(day, _)| (day.clone(), Work::from(0.0)))
+                    .collect();
+                (*wo, Days::new(inner_map))
+            })
+            .collect();
 
-        let tactical_loadings = parameters.tactical_capacity.
+        let tactical_scheduled_work_orders_inner: HashMap<_, _> = parameters
+            .tactical_work_orders
+            .iter()
+            .map(|(won, _)| (*won, WhereIsWorkOrder::NotScheduled))
+            .collect();
 
         Self {
             objective_value: TacticalObjectiveValue::default(),
-            tactical_scheduled_work_orders: TacticalScheduledWorkOrders::default(),
-            tactical_loadings,
+            tactical_scheduled_work_orders: TacticalScheduledWorkOrders(
+                tactical_scheduled_work_orders_inner,
+            ),
+            tactical_loadings: TacticalResources::new(tactical_loadings_inner),
         }
     }
+
     fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue) {
         self.objective_value = other_objective_value;
     }
@@ -444,6 +464,12 @@ impl Solution for SupervisorSolution {
     type Parameters = SupervisorParameters;
 
     fn new(parameters: &Self::Parameters) -> Self {
+        let worker_environment = scheduling_environment
+            .worker_environment
+            .system_agents
+            .operational;
+
+        // The SupervisorParameters should have knowledge of the
         supervisor_algorithm
             .supervisor_solution
             .insert_supervisor_solution(operational_agent, delegate, *work_order_activity)

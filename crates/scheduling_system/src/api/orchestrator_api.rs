@@ -4,6 +4,7 @@ use std::{collections::HashMap, fs::File, io::Read};
 use actix_web::{web, HttpResponse};
 use anyhow::Context;
 use data_processing::excel_dumps::create_excel_dump;
+use shared_types::agents::operational::requests::operational_request_status::OperationalStatusRequest;
 use shared_types::agents::operational::{
     OperationalRequest, OperationalRequestMessage, OperationalResponse, OperationalResponseMessage,
 };

@@ -226,10 +226,6 @@ impl WorkOrder {
         &self.work_order_info.functional_location
     }
 
-    pub fn operations(&self) -> &HashMap<ActivityNumber, Operation> {
-        &self.operations
-    }
-
     pub fn work_order_number(&self) -> &WorkOrderNumber {
         &self.work_order_number
     }

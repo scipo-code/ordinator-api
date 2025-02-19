@@ -12,8 +12,8 @@ use shared_types::{
     scheduling_environment::{
         time_environment::day::Day,
         work_order::{
-            operation::{operation_info::NumberOfPeople, ActivityNumber, Work},
-            ActivityRelation, WorkOrderActivity, WorkOrderNumber,
+            operation::{operation_info::NumberOfPeople, ActivityNumber, Operation, Work},
+            ActivityRelation, WorkOrder, WorkOrderNumber,
         },
         worker_environment::{resources::Resources, EmptyFull},
         SchedulingEnvironment,
@@ -22,11 +22,12 @@ use shared_types::{
 
 use crate::agents::{tactical_agent::TacticalOptions, traits::Parameters};
 
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub struct TacticalParameters {
     pub tactical_work_orders: HashMap<WorkOrderNumber, TacticalParameter>,
     pub tactical_days: Vec<Day>,
     pub tactical_capacity: TacticalResources,
+    pub options: TacticalOptions,
 }
 
 // TODO
@@ -47,17 +48,21 @@ impl Parameters for TacticalParameters {
             .worker_environment
             .generate_tactical_resources(tactical_days, EmptyFull::Full);
 
+        let work_orders = scheduling_environment
+            .work_orders
+            .inner
+            .iter()
+            .filter(|(_, wo)| &wo.functional_location().asset == asset);
 
-        let work_orders = scheduling_environment.work_orders.inner.iter().filter(|(won, wo)| &wo.functional_location().asset == asset);
-
-        for work_order_number in work_orders {
-            
-        }
+        let tactical_work_orders: HashMap<WorkOrderNumber, TacticalParameter> = work_orders
+            .map(|(won, wo)| (*won, create_tactical_parameter(wo)))
+            .collect();
 
         Ok(Self {
-            tactical_work_orders: todo!(),
+            tactical_work_orders,
             tactical_days: tactical_days.clone(),
             tactical_capacity,
+            options,
         })
     }
 
@@ -67,9 +72,26 @@ impl Parameters for TacticalParameters {
         key: Self::Key,
         scheduling_environment: MutexGuard<SchedulingEnvironment>,
     ) {
-        TacticalParameter::new(main_work_center, operation_parameters, weight, relations, earliest_allowed_start_date)
         todo!()
     }
+}
+
+// TODO
+// We should think carefully about putting this into the `Parameters` trait as an
+// associated function.
+fn create_tactical_parameter(work_order: &WorkOrder) -> TacticalParameter {
+    let operation_parameters = work_order
+        .operations
+        .iter()
+        .map(|(acn, op)| {
+            (
+                *acn,
+                OperationParameter::new(work_order.work_order_number, op),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+
+    TacticalParameter::new(work_order, operation_parameters)
 }
 
 #[derive(Clone, Serialize)]
@@ -84,18 +106,15 @@ pub struct TacticalParameter {
 
 impl TacticalParameter {
     pub fn new(
-        main_work_center: Resources,
+        work_order: &WorkOrder,
         operation_parameters: HashMap<ActivityNumber, OperationParameter>,
-        weight: u64,
-        relations: Vec<ActivityRelation>,
-        earliest_allowed_start_date: NaiveDate,
     ) -> Self {
         Self {
-            main_work_center,
+            main_work_center: work_order.main_work_center,
             tactical_operation_parameters: operation_parameters,
-            weight,
-            relations,
-            earliest_allowed_start_date,
+            weight: work_order.work_order_weight(),
+            relations: work_order.relations.clone(),
+            earliest_allowed_start_date: work_order.work_order_dates.earliest_allowed_start_date,
         }
     }
 }
@@ -111,21 +130,16 @@ pub struct OperationParameter {
 }
 
 impl OperationParameter {
-    pub fn new(
-        work_order_number: WorkOrderNumber,
-        number: NumberOfPeople,
-        duration: Work,
-        operating_time: Work,
-        work_remaining: Work,
-        resource: Resources,
-    ) -> Self {
+    pub fn new(work_order_number: WorkOrderNumber, operation: &Operation) -> Self {
         Self {
             work_order_number,
-            number,
-            duration,
-            operating_time,
-            work_remaining,
-            resource,
+            number: operation.number(),
+            // FIX
+            // This should also have been created differently.
+            duration: operation.duration().unwrap(),
+            operating_time: operation.operating_time().unwrap(),
+            work_remaining: operation.work_remaining().unwrap(),
+            resource: *operation.resource(),
         }
     }
 }

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use shared_types::{
-    operational::{
-        operational_response_scheduling::ApiAssignmentEvents, OperationalConfiguration,
+    agents::operational::{
+        responses::operational_response_scheduling::ApiAssignmentEvents, OperationalConfiguration,
         TimeInterval,
     },
     scheduling_environment::{

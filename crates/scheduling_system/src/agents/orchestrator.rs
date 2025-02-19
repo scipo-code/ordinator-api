@@ -2,6 +2,15 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use colored::Colorize;
+use shared_types::agents::operational::requests::operational_request_status::OperationalStatusRequest;
+use shared_types::agents::operational::OperationalRequestMessage;
+use shared_types::agents::operational::OperationalResponseMessage;
+use shared_types::agents::strategic::requests::strategic_request_status_message::StrategicStatusMessage;
+use shared_types::agents::strategic::StrategicRequestMessage;
+use shared_types::agents::strategic::StrategicResponseMessage;
+use shared_types::agents::supervisor::requests::supervisor_status_message::SupervisorStatusMessage;
+use shared_types::agents::supervisor::SupervisorRequestMessage;
+use shared_types::agents::supervisor::SupervisorResponseMessage;
 use shared_types::orchestrator::OrchestratorRequest;
 
 use shared_types::orchestrator::WorkOrderResponse;
@@ -27,13 +36,11 @@ use crate::init::agent_factory::AgentFactory;
 use crate::init::logging::LogHandles;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
-use shared_types::agents::operational;
-use shared_types::agents::strategic;
 use shared_types::orchestrator::{AgentStatus, AgentStatusResponse, OrchestratorResponse};
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 
-use shared_types::tactical::tactical_status_message::TacticalStatusMessage;
-use shared_types::tactical::{TacticalRequestMessage, TacticalResponseMessage};
+use shared_types::agents::tactical::requests::tactical_status_message::TacticalStatusMessage;
+use shared_types::agents::tactical::{TacticalRequestMessage, TacticalResponseMessage};
 use tracing_subscriber::EnvFilter;
 
 use shared_types::scheduling_environment::WorkOrders;
@@ -223,9 +230,7 @@ impl Orchestrator {
 
                     // What should we do here? I think that the best approach will be to make the code function
                     strategic_agent_addr.sender.send(AgentMessage::Actor(
-                        shared_types::strategic::StrategicRequestMessage::Status(
-                            StrategicStatusMessage::General,
-                        ),
+                        StrategicRequestMessage::Status(StrategicStatusMessage::General),
                     ))?;
 
                     tactical_agent_addr.sender.send(AgentMessage::Actor(
@@ -561,12 +566,7 @@ impl Orchestrator {
         Ok(())
     }
 
-    fn create_operational_agent(
-        &mut self,
-        asset: &Asset,
-        id: &Id,
-        operational_configuration: &OperationalConfiguration,
-    ) -> Result<()> {
+    fn create_operational_agent(&mut self, asset: &Asset, id: &Id) -> Result<()> {
         let operational_agent_addr = self.agent_factory.build_operational_agent(
             asset,
             id,

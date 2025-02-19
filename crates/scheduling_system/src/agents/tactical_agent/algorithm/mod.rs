@@ -83,36 +83,6 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
             .day_mut(day)
     }
 
-    pub fn create_and_insert_tactical_parameter_and_initialize_solution(
-        &mut self,
-        work_order: &WorkOrder,
-    ) {
-        let mut tactical_parameter = TacticalParameter::new(
-            work_order.main_work_center,
-            HashMap::new(),
-            work_order.work_order_weight(),
-            work_order.relations().clone(),
-            work_order.work_order_dates.earliest_allowed_start_date,
-        );
-
-        for (activity, operation) in work_order.operations() {
-            let optimized_operation = OperationParameter::new(
-                *work_order.work_order_number(),
-                operation.number(),
-                operation.duration().unwrap(),
-                operation.operating_time().unwrap(),
-                operation.work_remaining().unwrap(),
-                *operation.resource(),
-            );
-            tactical_parameter
-                .tactical_operation_parameters
-                .insert(*activity, optimized_operation);
-        }
-        self.parameters
-            .tactical_work_orders
-            .insert(*work_order.work_order_number(), tactical_parameter);
-    }
-
     fn determine_aggregate_excess(&self, tactical_objective_value: &mut TacticalObjectiveValue) {
         let mut objective_value_from_excess = 0;
         for resource in self.parameters.tactical_capacity.resources.keys() {
@@ -140,13 +110,15 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
             .work_orders_by_asset(asset);
 
         for (work_order_number, work_order) in work_orders {
-            self.create_and_insert_tactical_parameter_and_initialize_solution(work_order);
+            let tactical_parameter = self.create_tactical_parameter(work_order);
+
             self.solution
                 .tactical_scheduled_work_orders
                 .0
                 .insert(*work_order_number, WhereIsWorkOrder::NotScheduled);
         }
         // This kind of thing should be handled centrally not in here
+        // WARN This is refering to the `make_atomic_poiter_swap`
     }
 
     fn determine_tardiness(&mut self, tactical_objective_value: &mut TacticalObjectiveValue) {
@@ -565,14 +537,6 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
             work_remaining -= load;
         }
         loadings
-    }
-
-    pub fn parameters_mut(&mut self) -> &mut HashMap<WorkOrderNumber, TacticalParameter> {
-        &mut self.parameters.tactical_work_orders
-    }
-
-    pub fn parameters(&self) -> &HashMap<WorkOrderNumber, TacticalParameter> {
-        &self.parameters.tactical_work_orders
     }
 }
 

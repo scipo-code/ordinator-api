@@ -31,37 +31,28 @@ impl Parameters for SupervisorParameters {
     ) -> Result<Self> {
         let supervisor_periods = &scheduling_environment.time_environment.supervisor_periods;
 
-        for (work_order_number, work_order) in &scheduling_environment.work_orders.inner {
-            for (activity_number, operation) in &work_order.operations {
-                let work_order_activity = &(*work_order_number, *activity_number);
-                supervisor_algorithm
-                    .supervisor_parameters
-                    .create_and_insert_supervisor_parameter(operation, work_order_activity);
+        // What is it that you want to do here? I think that the best approach will be to make the system
+        //
+        //
 
-                for operational_agent in supervisor_algorithm
-                    // This should run on the `SchedulingEnvironment::worker_environment`
-                    .loaded_shared_solution
-                    .operational
-                    .keys()
-                {
-                    if operational_agent.1.contains(
-                        &supervisor_algorithm
-                            .supervisor_parameters
-                            .supervisor_parameter(work_order_activity)
-                            .context("The SupervisorParameter was not found")?
-                            .resource,
-                    ) {
-                        let operation = scheduling_environment_guard.operation(work_order_activity);
-                        let delegate = Delegate::build(operation);
-                    }
-                }
-            }
+        let mut supervisor_parameters = HashMap::new();
+        for (work_order_number, work_order) in &scheduling_environment.work_orders.inner {
+            let inner_map = work_order.operations.iter().map(|(acn, op)| {
+                (
+                    *acn,
+                    SupervisorParameter::new(op.resource, op.operation_info.number),
+                )
+            });
+
+            let _assert_option = supervisor_parameters.insert(*work_order_number, inner_map);
+
+            assert!(_assert_option.is_none());
         }
 
         Ok(Self {
             supervisor_work_orders: HashMap::new(),
             supervisor_periods: supervisor_periods.clone(),
-            resources,
+            resources: vec![],
         })
     }
 
@@ -95,13 +86,6 @@ impl SupervisorParameters {
         operation: &Operation,
         work_order_activity: &WorkOrderActivity,
     ) {
-        let supervisor_parameter =
-            SupervisorParameter::new(operation.resource, operation.operation_info.number);
-        let _assert_option = self
-            .supervisor_work_orders
-            .entry(work_order_activity.0)
-            .or_default()
-            .insert(work_order_activity.1, supervisor_parameter);
         // DEBUG: Make assertions here!
     }
 }

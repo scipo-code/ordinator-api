@@ -1,6 +1,6 @@
 use chrono::{NaiveTime, TimeDelta};
 use shared_types::{
-    operational::{operational_response_scheduling::EventType, TimeInterval},
+    agents::operational::{responses::operational_response_scheduling::EventType, TimeInterval},
     scheduling_environment::work_order::WorkOrderActivity,
 };
 

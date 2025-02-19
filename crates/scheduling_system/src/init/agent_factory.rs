@@ -156,7 +156,7 @@ impl AgentFactory {
 
         std::thread::Builder::new()
             .name(thread_name)
-            .spawn(move || tactical_agent.run(options))?;
+            .spawn(move || tactical_agent.run())?;
 
         Ok(Communication {
             sender: sender_to_agent,

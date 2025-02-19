@@ -16,7 +16,7 @@ use operational_solution::{
 };
 use rand::seq::IndexedRandom;
 use shared_types::{
-    operational::TimeInterval,
+    agents::operational::TimeInterval,
     scheduling_environment::{
         work_order::{
             operation::{ActivityNumber, Work},
@@ -423,12 +423,15 @@ impl ActorBasedLargeNeighborhoodSearch
         Ok(())
     }
 
-    fn unschedule(&mut self, options: &mut Self::Options) -> Result<()> {
+    fn unschedule(&mut self) -> Result<()> {
         let operational_solutions_len = self.solution.scheduled_work_order_activities.len();
 
         let operational_solutions_filtered: Vec<WorkOrderActivity> =
             self.solution.scheduled_work_order_activities[1..operational_solutions_len - 1]
-                .choose_multiple(&mut options.rng, options.number_of_activities)
+                .choose_multiple(
+                    &mut self.parameters.options.rng,
+                    self.parameters.options.number_of_activities,
+                )
                 .map(|operational_solution| operational_solution.0)
                 .collect();
 
@@ -776,8 +779,7 @@ mod tests {
     use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
     use proptest::prelude::*;
     use shared_types::{
-        agents::operational::OperationalConfiguration,
-        operational::{shared_types::agents::operational, TimeInterval},
+        agents::operational::{OperationalConfiguration, TimeInterval},
         scheduling_environment::{
             time_environment::period::Period,
             work_order::{

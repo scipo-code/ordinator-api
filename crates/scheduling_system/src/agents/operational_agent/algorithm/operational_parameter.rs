@@ -14,17 +14,19 @@ use shared_types::{
 
 use crate::agents::{operational_agent::OperationalOptions, traits::Parameters};
 
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct OperationalParameters {
     pub work_order_parameters: HashMap<WorkOrderActivity, OperationalParameter>,
     pub availability: Availability,
     pub off_shift_interval: TimeInterval,
     pub break_interval: TimeInterval,
     pub toolbox_interval: TimeInterval,
+    pub options: OperationalOptions,
 }
 
 impl Parameters for OperationalParameters {
     type Key = WorkOrderActivity;
+    // You should not put it in the Options
     type Options = OperationalOptions;
     fn new(
         asset: &Asset,
@@ -34,7 +36,7 @@ impl Parameters for OperationalParameters {
         let mut work_order_parameters = HashMap::default();
 
         for (work_order_number, work_order) in &scheduling_environment.work_orders.inner {
-            for (activity_number, operation) in work_order.operations() {
+            for (activity_number, operation) in &work_order.operations {
                 let work_order_activity = (*work_order_number, *activity_number);
 
                 let operational_parameter_option = OperationalParameter::new(
