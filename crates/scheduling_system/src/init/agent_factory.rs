@@ -4,7 +4,7 @@ use shared_types::agents::operational::{OperationalRequestMessage, OperationalRe
 use shared_types::agents::strategic::{StrategicRequestMessage, StrategicResponseMessage};
 use shared_types::agents::supervisor::{SupervisorRequestMessage, SupervisorResponseMessage};
 use shared_types::agents::tactical::{
-    TacticalRequestMessage, TacticalResources, TacticalResponseMessage,
+    Days, TacticalRequestMessage, TacticalResources, TacticalResponseMessage,
 };
 use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::Asset;
@@ -227,8 +227,6 @@ impl AgentFactory {
         asset: &Asset,
         operational_id: &Id,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
-        // FIX
-        // Move this into the `SchedulingEnvironment`.
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
         notify_orchestrator: NotifyOrchestrator,
     ) -> Result<Communication<AgentMessage<OperationalRequestMessage>, OperationalResponseMessage>>
@@ -323,23 +321,3 @@ impl AgentFactory {
 //     }
 //     StrategicResources::new(resource_capacity)
 // }
-
-// DEBUG: This should be removed later on.
-fn initialize_tactical_resources(
-    scheduling_environment: &SchedulingEnvironment,
-    start_value: Work,
-) -> TacticalResources {
-    let mut resource_capacity: HashMap<Resources, Days> = HashMap::new();
-    for resource in scheduling_environment
-        .worker_environment
-        .get_work_centers()
-        .iter()
-    {
-        let mut days = HashMap::new();
-        for day in scheduling_environment.time_environment.tactical_days.iter() {
-            days.insert(day.clone(), start_value);
-        }
-        resource_capacity.insert(*resource, Days::new(days));
-    }
-    TacticalResources::new(resource_capacity)
-}

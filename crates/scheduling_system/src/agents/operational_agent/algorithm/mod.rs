@@ -776,6 +776,7 @@ mod tests {
     use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
     use proptest::prelude::*;
     use shared_types::{
+        agents::operational::OperationalConfiguration,
         operational::{shared_types::agents::operational, TimeInterval},
         scheduling_environment::{
             time_environment::period::Period,
@@ -786,19 +787,24 @@ mod tests {
             worker_environment::{availability::Availability, resources::Id},
             SchedulingEnvironment,
         },
+        Asset,
     };
 
     use crate::agents::{
-        operational_agent::algorithm::{
-            operational_parameter::OperationalParameters, OperationalEvents,
+        operational_agent::{
+            algorithm::{operational_parameter::OperationalParameters, OperationalEvents},
+            OperationalOptions,
         },
-        Algorithm, AlgorithmUtils, ArcSwapSharedSolution, OperationalSolution, WhereIsWorkOrder,
+        traits::Parameters,
+        Algorithm, AlgorithmUtils, ArcSwapSharedSolution, OperationalSolution, Solution,
+        WhereIsWorkOrder,
     };
+    use anyhow::Result;
 
     use super::OperationalParameter;
 
     #[test]
-    fn test_determine_next_event_1() {
+    fn test_determine_next_event_1() -> Result<()> {
         let availability_start: DateTime<Utc> =
             DateTime::parse_from_rfc3339("2024-05-16T07:00:00Z")
                 .unwrap()
@@ -827,14 +833,17 @@ mod tests {
             toolbox_interval,
         );
 
-        let operational_solution = OperationalSolution::new(&operational_configuration);
-
         let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
 
         let operational_parameters = OperationalParameters::new(
-            scheduling_environment.lock().unwrap(),
-            &operational_configuration,
-        );
+            &Asset::Unknown,
+            OperationalOptions::default(),
+            &scheduling_environment.lock().unwrap(),
+        )?;
+
+        let operational_solution = OperationalSolution::new(&operational_parameters);
+
+        let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
 
         let operational_algorithm = Algorithm::new(
             &Id::new("TEST_OPERATIONAL".to_string(), vec![], None),
@@ -852,10 +861,11 @@ mod tests {
         assert_eq!(time_delta, TimeDelta::new(3600 * 7, 0).unwrap());
 
         assert_eq!(next_event, OperationalEvents::OffShift(off_shift_interval));
+        Ok(())
     }
 
     #[test]
-    fn test_determine_next_event_2() {
+    fn test_determine_next_event_2() -> Result<()> {
         let availability_start: DateTime<Utc> =
             DateTime::parse_from_rfc3339("2024-05-16T07:00:00Z")
                 .unwrap()
@@ -883,14 +893,15 @@ mod tests {
             off_shift_interval.clone(),
             toolbox_interval.clone(),
         );
-        let operational_solution = OperationalSolution::new(&operational_configuration);
-
         let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
 
         let operational_parameters = OperationalParameters::new(
-            scheduling_environment.lock().unwrap(),
-            &operational_configuration,
-        );
+            &Asset::Unknown,
+            OperationalOptions::default(),
+            &scheduling_environment.lock().unwrap(),
+        )?;
+
+        let operational_solution = OperationalSolution::new(&operational_parameters);
 
         let operational_algorithm = Algorithm::new(
             &Id::new("TEST_OPERATIONAL".to_string(), vec![], None),
@@ -907,10 +918,11 @@ mod tests {
 
         assert_eq!(time_delta, TimeDelta::new(3600 * 7, 0).unwrap());
         assert_eq!(next_event, OperationalEvents::Toolbox(toolbox_interval));
+        Ok(())
     }
 
     #[test]
-    fn test_determine_next_event_3() {
+    fn test_determine_next_event_3() -> Result<()> {
         let availability_start: DateTime<Utc> =
             DateTime::parse_from_rfc3339("2024-05-16T07:00:00Z")
                 .unwrap()
@@ -938,14 +950,15 @@ mod tests {
             off_shift_interval.clone(),
             toolbox_interval.clone(),
         );
-        let operational_solution = OperationalSolution::new(&operational_configuration);
-
         let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
 
         let operational_parameters = OperationalParameters::new(
-            scheduling_environment.lock().unwrap(),
-            &operational_configuration,
-        );
+            &Asset::Unknown,
+            OperationalOptions::default(),
+            &scheduling_environment.lock().unwrap(),
+        )?;
+
+        let operational_solution = OperationalSolution::new(&operational_parameters);
 
         let operational_algorithm = Algorithm::new(
             &Id::new("TEST_OPERATIONAL".to_string(), vec![], None),
@@ -962,10 +975,11 @@ mod tests {
 
         assert_eq!(time_delta, TimeDelta::new(3600 * 6, 0).unwrap());
         assert_eq!(next_event, OperationalEvents::Toolbox(toolbox_interval));
+        Ok(())
     }
 
     #[test]
-    fn test_determine_first_available_start_time() {
+    fn test_determine_first_available_start_time() -> Result<()> {
         let availability_start: DateTime<Utc> =
             DateTime::parse_from_rfc3339("2024-10-07T07:00:00Z")
                 .unwrap()
@@ -994,14 +1008,15 @@ mod tests {
             toolbox_interval.clone(),
         );
 
-        let operational_solution = OperationalSolution::new(&operational_configuration);
-
         let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
 
         let operational_parameters = OperationalParameters::new(
-            scheduling_environment.lock().unwrap(),
-            &operational_configuration,
-        );
+            &Asset::Unknown,
+            OperationalOptions::default(),
+            &scheduling_environment.lock().unwrap(),
+        )?;
+
+        let operational_solution = OperationalSolution::new(&operational_parameters);
 
         let mut operational_algorithm = Algorithm::new(
             &Id::new("TEST_OPERATIONAL".to_string(), vec![], None),
@@ -1061,6 +1076,7 @@ mod tests {
                 .unwrap()
                 .to_utc()
         );
+        Ok(())
     }
 
     fn reverse(s: &str) -> String {

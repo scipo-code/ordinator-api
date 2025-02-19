@@ -1,4 +1,4 @@
-use shared_types::strategic::strategic_response_status;
+use shared_types::agents::strategic::responses::StrategicObjectiveValueResponse;
 
 use crate::agents::strategic_agent::StrategicObjectiveValue;
 

@@ -8,19 +8,19 @@ use std::{
 use chrono::NaiveDate;
 use serde::Serialize;
 use shared_types::{
+    agents::tactical::TacticalResources,
     scheduling_environment::{
         time_environment::day::Day,
         work_order::{
             operation::{operation_info::NumberOfPeople, ActivityNumber, Work},
             ActivityRelation, WorkOrderActivity, WorkOrderNumber,
         },
-        worker_environment::resources::Resources,
+        worker_environment::{resources::Resources, EmptyFull},
         SchedulingEnvironment,
     },
-    tactical::TacticalResources,
 };
 
-use crate::agents::traits::Parameters;
+use crate::agents::{tactical_agent::TacticalOptions, traits::Parameters};
 
 #[derive(Default, Clone)]
 pub struct TacticalParameters {
@@ -33,7 +33,7 @@ pub struct TacticalParameters {
 // We should move all the code from the `AgentFactory` in here! That is the
 // best option that we have.
 impl Parameters for TacticalParameters {
-    type Key = WorkOrderActivity;
+    type Key = WorkOrderNumber;
     type Options = TacticalOptions;
 
     fn new(
@@ -41,35 +41,33 @@ impl Parameters for TacticalParameters {
         options: Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self> {
-        let tactical_resources_from_file = scheduling_environment_guard
+        let tactical_days = &scheduling_environment.time_environment.tactical_days;
+
+        let tactical_capacity = scheduling_environment
             .worker_environment
-            .generate_tactical_resources(
-                &scheduling_environment_guard.time_environment.tactical_days,
-            );
+            .generate_tactical_resources(tactical_days, EmptyFull::Full);
 
-        tactical_algorithm
-            .tactical_parameters
-            .tactical_capacity
-            .update_resources(tactical_resources_from_file);
 
-        tactical_algorithm.create_tactical_parameters(scheduling_environment_guard, asset);
-        let tactical_resources_capacity =
-            initialize_tactical_resources(scheduling_environment_guard, Work::from(0.0));
+        let work_orders = scheduling_environment.work_orders.inner.iter().filter(|(won, wo)| &wo.functional_location().asset == asset);
+
+        for work_order_number in work_orders {
+            
+        }
 
         Ok(Self {
             tactical_work_orders: todo!(),
-            tactical_days: todo!(),
-            tactical_capacity: todo!(),
+            tactical_days: tactical_days.clone(),
+            tactical_capacity,
         })
     }
 
+    // We cannot reuse this component.
     fn create_and_insert_new_parameter(
         &mut self,
         key: Self::Key,
-        scheduling_environment: std::sync::MutexGuard<
-            shared_types::scheduling_environment::SchedulingEnvironment,
-        >,
+        scheduling_environment: MutexGuard<SchedulingEnvironment>,
     ) {
+        TacticalParameter::new(main_work_center, operation_parameters, weight, relations, earliest_allowed_start_date)
         todo!()
     }
 }

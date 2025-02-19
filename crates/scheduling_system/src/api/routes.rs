@@ -1,6 +1,9 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use anyhow::Result;
-use shared_types::strategic::StrategicResponse;
+
+// FIX
+// This is a wrong way to import dependencies. It should be refactored.
+use shared_types::agents::strategic::StrategicResponse;
 use shared_types::SystemMessages;
 use shared_types::SystemResponses;
 use tracing::event;
@@ -94,11 +97,11 @@ mod tests {
 
     use chrono::Utc;
     use shared_types::{
+        agents::tactical::{Days, TacticalResources},
         scheduling_environment::{
             time_environment::day::Day, work_order::operation::Work,
             worker_environment::resources::Resources,
         },
-        tactical::{Days, TacticalResources},
     };
 
     #[test]

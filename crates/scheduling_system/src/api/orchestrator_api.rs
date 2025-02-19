@@ -4,20 +4,19 @@ use std::{collections::HashMap, fs::File, io::Read};
 use actix_web::{web, HttpResponse};
 use anyhow::Context;
 use data_processing::excel_dumps::create_excel_dump;
-use shared_types::operational::{
-    operational_request_status::OperationalStatusRequest, OperationalRequest,
-    OperationalRequestMessage, OperationalResponse, OperationalResponseMessage,
+use shared_types::agents::operational::{
+    OperationalRequest, OperationalRequestMessage, OperationalResponse, OperationalResponseMessage,
 };
+use shared_types::agents::supervisor::{SupervisorRequest, SupervisorResponse};
 use shared_types::scheduling_environment::{
     time_environment::day::Day,
     work_order::{operation::ActivityNumber, WorkOrderNumber},
     worker_environment::resources::Id,
 };
-use shared_types::supervisor::{SupervisorRequest, SupervisorResponse};
 use shared_types::Asset;
 use shared_types::{
+    agents::tactical::{TacticalRequest, TacticalResponse},
     orchestrator::OrchestratorRequest,
-    tactical::{TacticalRequest, TacticalResponse},
     SystemResponses,
 };
 use tracing::{event, Level};

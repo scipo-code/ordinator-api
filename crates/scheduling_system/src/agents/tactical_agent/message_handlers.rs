@@ -1,19 +1,21 @@
 use anyhow::{bail, Context, Result};
+use priority_queue::PriorityQueue;
 use shared_types::{
-    scheduling_environment::time_environment::day::Day,
-    tactical::{
-        tactical_resources_message::TacticalResourceRequest,
-        tactical_response_resources::TacticalResourceResponse, TacticalRequestMessage,
+    agents::tactical::{
+        requests::tactical_resources_message::TacticalResourceRequest,
+        responses::tactical_response_resources::TacticalResourceResponse, TacticalRequestMessage,
         TacticalResponseMessage,
     },
+    scheduling_environment::{time_environment::day::Day, work_order::WorkOrderNumber},
 };
 
 use crate::agents::{
     tactical_agent::algorithm::tactical_parameters::TacticalParameters, Agent, AgentSpecific,
-    MessageHandler, StateLink,
+    Algorithm, MessageHandler, StateLink, TacticalSolution,
 };
 
-use super::algorithm::TacticalAlgorithm;
+type TacticalAlgorithm =
+    Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>>;
 
 impl MessageHandler for Agent<TacticalAlgorithm, TacticalRequestMessage, TacticalResponseMessage> {
     type Req = TacticalRequestMessage;

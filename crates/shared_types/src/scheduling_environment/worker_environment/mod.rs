@@ -112,7 +112,11 @@ impl WorkerEnvironment {
         StrategicResources::new(strategic_resources_inner)
     }
 
-    pub fn generate_tactical_resources(&self, days: &[Day]) -> TacticalResources {
+    pub fn generate_tactical_resources(
+        &self,
+        days: &[Day],
+        empty_full: EmptyFull,
+    ) -> TacticalResources {
         let _hours_per_day = 6.0;
 
         let gradual_reduction = |i: usize| -> f64 {
@@ -146,4 +150,8 @@ impl WorkerEnvironment {
         }
         TacticalResources::new(tactical_resources_inner)
     }
+}
+pub enum EmptyFull {
+    Empty,
+    Full,
 }

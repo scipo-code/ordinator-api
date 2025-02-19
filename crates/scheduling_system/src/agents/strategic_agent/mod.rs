@@ -27,7 +27,8 @@ impl Default for StrategicOptions {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+// This will al
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Default)]
 pub struct StrategicObjectiveValue {
     pub objective_value: u64,
     pub urgency: (u64, u64),

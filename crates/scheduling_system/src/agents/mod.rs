@@ -228,9 +228,10 @@ impl fmt::Debug for ScheduleIteration {
     }
 }
 
+#[derive(Default)]
 pub struct ArcSwapSharedSolution(pub ArcSwap<SharedSolution>);
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Default)]
 pub struct SharedSolution {
     pub strategic: StrategicSolution,
     pub tactical: TacticalSolution,
@@ -249,7 +250,7 @@ impl From<SharedSolution> for ApiSolution {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Default)]
 pub struct StrategicSolution {
     pub objective_value: StrategicObjectiveValue,
     pub strategic_scheduled_work_orders: HashMap<WorkOrderNumber, Option<Period>>,
@@ -425,13 +426,13 @@ impl Solution for TacticalSolution {
     type Parameters = TacticalParameters;
 
     fn new(parameters: &Self::Parameters) -> Self {
-        let tactical_resources_loading =
-            initialize_tactical_resources(scheduling_environment_guard, Work::from(0.0));
+
+        let tactical_loadings = parameters.tactical_capacity.
 
         Self {
             objective_value: TacticalObjectiveValue::default(),
             tactical_scheduled_work_orders: TacticalScheduledWorkOrders::default(),
-            tactical_loadings: TacticalResources,
+            tactical_loadings,
         }
     }
     fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue) {
