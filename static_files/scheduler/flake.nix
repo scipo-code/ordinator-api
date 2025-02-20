@@ -17,7 +17,6 @@
           buildInputs = [
             # pkgs.deno    # for deno
             pkgs.nodejs  # for vite frontend development
-            pkgs.vite
             pkgs.nodePackages.typescript-language-server # typescript language server
           
           ];
