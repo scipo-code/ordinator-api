@@ -1,19 +1,19 @@
 use serde::Serialize;
 
-use crate::scheduling_environment::worker_environment::resources::Resources;
+use crate::scheduling_environment::worker_environment::resources::Id;
 
 use crate::agents::supervisor::SupervisorObjectiveValue;
 
 #[derive(Serialize)]
 pub struct SupervisorResponseStatus {
-    supervisor_resource: Vec<Resources>,
+    supervisor_resource: Vec<Id>,
     delegated_work_order_activities: usize,
     objective: SupervisorObjectiveValue,
 }
 
 impl SupervisorResponseStatus {
     pub fn new(
-        main_work_center: Vec<Resources>,
+        main_work_center: Vec<Id>,
         delegated_work_order_activities: usize,
         objective: SupervisorObjectiveValue,
     ) -> Self {

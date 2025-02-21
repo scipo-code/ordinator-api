@@ -1,11 +1,11 @@
 use anyhow::{bail, Context, Result};
 use serde::Serialize;
+use shared_types::agents::strategic::StrategicResources;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::work_order::{WorkOrder, WorkOrderNumber};
-use shared_types::scheduling_environment::worker_environment::resources::Resources;
+use shared_types::scheduling_environment::worker_environment::resources::{Id, Resources};
 use shared_types::scheduling_environment::{SchedulingEnvironment, WorkOrders};
-use shared_types::strategic::StrategicResources;
 use shared_types::Asset;
 use std::str::FromStr;
 use std::sync::MutexGuard;
@@ -28,11 +28,14 @@ impl Parameters for StrategicParameters {
     type Key = WorkOrderNumber;
     type Options = StrategicOptions;
 
+    // That change in the asset, was not complete without downsides.
     fn new(
-        asset: &Asset,
+        id: &Id,
         options: Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self> {
+        let asset = id.2.first().expect("This should never happen");
+
         let mut strategic_clustering = StrategicClustering::default();
 
         let work_orders = &scheduling_environment.work_orders;

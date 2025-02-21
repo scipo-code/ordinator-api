@@ -17,21 +17,6 @@ use super::delegate::Delegate;
 /// states of the operational agents. It is a solution representation of
 /// a **iterative combinatorial auction algorithms**.
 impl SupervisorSolution {
-    pub fn len(&self) -> usize {
-        self.operational_state_machine.len()
-    }
-
-    pub fn insert_supervisor_solution(
-        &mut self,
-        operational_agent: &Id,
-        delegate: Delegate,
-        work_order_activity: WorkOrderActivity,
-    ) -> Result<()> {
-        self.operational_state_machine
-            .insert((operational_agent.clone(), work_order_activity), delegate);
-        Ok(())
-    }
-
     pub fn turn_work_order_into_delegate_assess(&mut self, work_order_number: WorkOrderNumber) {
         self.operational_state_machine
             .iter_mut()

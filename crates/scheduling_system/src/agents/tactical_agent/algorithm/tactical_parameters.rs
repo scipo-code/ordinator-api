@@ -15,7 +15,10 @@ use shared_types::{
             operation::{operation_info::NumberOfPeople, ActivityNumber, Operation, Work},
             ActivityRelation, WorkOrder, WorkOrderNumber,
         },
-        worker_environment::{resources::Resources, EmptyFull},
+        worker_environment::{
+            resources::{Id, Resources},
+            EmptyFull,
+        },
         SchedulingEnvironment,
     },
 };
@@ -38,7 +41,7 @@ impl Parameters for TacticalParameters {
     type Options = TacticalOptions;
 
     fn new(
-        asset: &shared_types::Asset,
+        id: &Id,
         options: Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self> {
@@ -52,7 +55,9 @@ impl Parameters for TacticalParameters {
             .work_orders
             .inner
             .iter()
-            .filter(|(_, wo)| &wo.functional_location().asset == asset);
+            // WARN: Unwrap accepted. Every agent should always be connected to an Asset
+            // QUESTION: Is this actually true?
+            .filter(|(_, wo)| &wo.functional_location().asset == id.2.first().unwrap());
 
         let tactical_work_orders: HashMap<WorkOrderNumber, TacticalParameter> = work_orders
             .map(|(won, wo)| (*won, create_tactical_parameter(wo)))
@@ -78,8 +83,12 @@ impl Parameters for TacticalParameters {
 
 // TODO
 // We should think carefully about putting this into the `Parameters` trait as an
-// associated function.
-fn create_tactical_parameter(work_order: &WorkOrder) -> TacticalParameter {
+// associated function. These `create_parameter` functions will be insanely important
+// later on. Say every algorithm should have their own of these functions... No there
+// should only be one and that one should accept a Generic?
+//
+// Is that even possible? I think that it is. Keep this up! You have to continue.
+pub fn create_tactical_parameter(work_order: &WorkOrder) -> TacticalParameter {
     let operation_parameters = work_order
         .operations
         .iter()

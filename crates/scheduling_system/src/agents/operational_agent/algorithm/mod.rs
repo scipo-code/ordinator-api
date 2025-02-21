@@ -569,7 +569,7 @@ impl Algorithm<OperationalSolution, OperationalParameters, OperationalNonProduct
         let tactical_days_option = self
             .loaded_shared_solution
             .tactical
-            .tactical_scheduled_work_orders
+            .tactical_work_orders
             .0
             .get(&work_order_activity.0);
 
@@ -789,7 +789,7 @@ mod tests {
             worker_environment::{availability::Availability, resources::Id},
             SchedulingEnvironment,
         },
-        Asset,
+        OperationalConfigurationAll,
     };
 
     use crate::agents::{
@@ -828,6 +828,10 @@ mod tests {
             NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
             NaiveTime::from_hms_opt(8, 0, 0).unwrap(),
         );
+
+        // An OperationalAgent should be be able to run without this. It is crucial that
+        // it is functioning correctly.
+
         let operational_configuration = OperationalConfiguration::new(
             Availability::new(availability_start, availability_end),
             break_interval,
@@ -835,20 +839,31 @@ mod tests {
             toolbox_interval,
         );
 
-        let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
+        let mut scheduling_environment = SchedulingEnvironment::default();
+
+        let id = &Id::new("TEST_OPERATIONAL", vec![], vec![]);
+
+        let operational_configuration_all =
+            OperationalConfigurationAll::new(id.clone(), 6.0, operational_configuration);
+
+        scheduling_environment
+            .worker_environment
+            .agent_environment
+            .operational
+            .insert(id.clone(), operational_configuration_all);
+
+        let scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
 
         let operational_parameters = OperationalParameters::new(
-            &Asset::Unknown,
+            id,
             OperationalOptions::default(),
             &scheduling_environment.lock().unwrap(),
         )?;
 
         let operational_solution = OperationalSolution::new(&operational_parameters);
 
-        let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
-
         let operational_algorithm = Algorithm::new(
-            &Id::new("TEST_OPERATIONAL".to_string(), vec![], None),
+            id,
             operational_solution,
             operational_parameters,
             Arc::new(ArcSwapSharedSolution::default()),
@@ -889,16 +904,31 @@ mod tests {
             NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
             NaiveTime::from_hms_opt(8, 0, 0).unwrap(),
         );
+
         let operational_configuration = OperationalConfiguration::new(
             Availability::new(availability_start, availability_end),
-            break_interval,
+            break_interval.clone(),
             off_shift_interval.clone(),
             toolbox_interval.clone(),
         );
-        let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
+
+        let mut scheduling_environment = SchedulingEnvironment::default();
+
+        let id = &Id::new("TEST_OPERATIONAL", vec![], vec![]);
+
+        let operational_configuration_all =
+            OperationalConfigurationAll::new(id.clone(), 6.0, operational_configuration);
+
+        scheduling_environment
+            .worker_environment
+            .agent_environment
+            .operational
+            .insert(id.clone(), operational_configuration_all);
+
+        let scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
 
         let operational_parameters = OperationalParameters::new(
-            &Asset::Unknown,
+            &id,
             OperationalOptions::default(),
             &scheduling_environment.lock().unwrap(),
         )?;
@@ -906,7 +936,7 @@ mod tests {
         let operational_solution = OperationalSolution::new(&operational_parameters);
 
         let operational_algorithm = Algorithm::new(
-            &Id::new("TEST_OPERATIONAL".to_string(), vec![], None),
+            &Id::new("TEST_OPERATIONAL", vec![], vec![]),
             operational_solution,
             operational_parameters,
             Arc::new(ArcSwapSharedSolution::default()),
@@ -948,14 +978,28 @@ mod tests {
         );
         let operational_configuration = OperationalConfiguration::new(
             Availability::new(availability_start, availability_end),
-            break_interval,
+            break_interval.clone(),
             off_shift_interval.clone(),
             toolbox_interval.clone(),
         );
-        let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
+
+        let mut scheduling_environment = SchedulingEnvironment::default();
+
+        let id = &Id::new("TEST_OPERATIONAL", vec![], vec![]);
+
+        let operational_configuration_all =
+            OperationalConfigurationAll::new(id.clone(), 6.0, operational_configuration);
+
+        scheduling_environment
+            .worker_environment
+            .agent_environment
+            .operational
+            .insert(id.clone(), operational_configuration_all);
+
+        let scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
 
         let operational_parameters = OperationalParameters::new(
-            &Asset::Unknown,
+            &id,
             OperationalOptions::default(),
             &scheduling_environment.lock().unwrap(),
         )?;
@@ -963,7 +1007,7 @@ mod tests {
         let operational_solution = OperationalSolution::new(&operational_parameters);
 
         let operational_algorithm = Algorithm::new(
-            &Id::new("TEST_OPERATIONAL".to_string(), vec![], None),
+            &Id::new("TEST_OPERATIONAL", vec![], vec![]),
             operational_solution,
             operational_parameters,
             Arc::new(ArcSwapSharedSolution::default()),
@@ -1005,15 +1049,28 @@ mod tests {
         );
         let operational_configuration = OperationalConfiguration::new(
             Availability::new(availability_start, availability_end),
-            break_interval,
+            break_interval.clone(),
             off_shift_interval.clone(),
             toolbox_interval.clone(),
         );
 
-        let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
+        let mut scheduling_environment = SchedulingEnvironment::default();
+
+        let id = &Id::new("TEST_OPERATIONAL", vec![], vec![]);
+
+        let operational_configuration_all =
+            OperationalConfigurationAll::new(id.clone(), 6.0, operational_configuration);
+
+        scheduling_environment
+            .worker_environment
+            .agent_environment
+            .operational
+            .insert(id.clone(), operational_configuration_all);
+
+        let scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
 
         let operational_parameters = OperationalParameters::new(
-            &Asset::Unknown,
+            &id,
             OperationalOptions::default(),
             &scheduling_environment.lock().unwrap(),
         )?;
@@ -1021,7 +1078,7 @@ mod tests {
         let operational_solution = OperationalSolution::new(&operational_parameters);
 
         let mut operational_algorithm = Algorithm::new(
-            &Id::new("TEST_OPERATIONAL".to_string(), vec![], None),
+            &Id::new("TEST_OPERATIONAL", vec![], vec![]),
             operational_solution,
             operational_parameters,
             Arc::new(ArcSwapSharedSolution::default()),
@@ -1051,7 +1108,7 @@ mod tests {
 
         tactical_updated_shared_solution
             .tactical
-            .tactical_scheduled_work_orders
+            .tactical_work_orders
             .0
             .insert(WorkOrderNumber(0), WhereIsWorkOrder::NotScheduled);
 

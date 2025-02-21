@@ -3,11 +3,11 @@ use std::collections::{hash_map::Entry, HashMap};
 use anyhow::{bail, ensure, Result};
 use priority_queue::PriorityQueue;
 use shared_types::{
+    agents::strategic::StrategicResources,
     scheduling_environment::{
         work_order::{operation::Work, WorkOrderNumber},
         worker_environment::resources::Resources,
     },
-    strategic::StrategicResources,
 };
 use strum::IntoEnumIterator;
 use tracing::{event, Level};

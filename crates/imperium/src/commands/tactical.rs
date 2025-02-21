@@ -177,14 +177,7 @@ fn generate_manual_resources(client: &Client, toml_path: String) -> TacticalReso
     for operational_agent in config.operational {
         for (i, day) in days.clone().iter().enumerate() {
             let resource_periods = resources_hash_map
-                .entry(
-                    operational_agent
-                        .resources
-                        .resources
-                        .first()
-                        .cloned()
-                        .unwrap(),
-                )
+                .entry(operational_agent.resources.first().cloned().unwrap())
                 .or_insert(Days::new(HashMap::new()));
 
             *resource_periods.days.entry(day.clone()).or_insert_with(|| {

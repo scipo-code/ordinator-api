@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::strategic::StrategicResources;
+use crate::agents::strategic::StrategicResources;
 
 #[derive(Serialize)]
 pub enum StrategicResponseResources {

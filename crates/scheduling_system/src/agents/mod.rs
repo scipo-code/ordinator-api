@@ -30,7 +30,6 @@ use shared_types::scheduling_environment::work_order::operation::{ActivityNumber
 use shared_types::scheduling_environment::work_order::{WorkOrderActivity, WorkOrderNumber};
 use shared_types::scheduling_environment::worker_environment::resources::{Id, Resources};
 use shared_types::scheduling_environment::SchedulingEnvironment;
-use shared_types::Asset;
 use strategic_agent::algorithm::strategic_parameters::StrategicParameters;
 use strategic_agent::StrategicObjectiveValue;
 use supervisor_agent::algorithm::delegate::Delegate;
@@ -43,7 +42,6 @@ pub struct Agent<Algorithm, AgentRequest, AgentResponse>
 where
     Algorithm: ActorBasedLargeNeighborhoodSearch,
 {
-    asset: Asset,
     agent_id: Id,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub algorithm: Algorithm,
@@ -60,7 +58,6 @@ where
     AgentResponse: Send + Sync + 'static,
 {
     pub fn new(
-        asset: Asset,
         agent_id: Id,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
         algorithm: Algorithm,
@@ -69,7 +66,6 @@ where
         notify_orchestrator: NotifyOrchestrator,
     ) -> Self {
         Self {
-            asset,
             agent_id,
             scheduling_environment,
             algorithm,
@@ -260,7 +256,7 @@ pub struct StrategicSolution {
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct TacticalSolution {
     pub objective_value: TacticalObjectiveValue,
-    pub tactical_scheduled_work_orders: TacticalScheduledWorkOrders,
+    pub tactical_work_orders: TacticalScheduledWorkOrders,
     pub tactical_loadings: TacticalResources,
 }
 
@@ -348,14 +344,14 @@ impl TacticalSolutionBuilder {
         mut self,
         tactical_days: HashMap<WorkOrderNumber, WhereIsWorkOrder<TacticalScheduledOperations>>,
     ) -> Self {
-        self.0.tactical_scheduled_work_orders.0 = tactical_days;
+        self.0.tactical_work_orders.0 = tactical_days;
         self
     }
 
     pub fn build(self) -> TacticalSolution {
         TacticalSolution {
             objective_value: self.0.objective_value,
-            tactical_scheduled_work_orders: self.0.tactical_scheduled_work_orders,
+            tactical_work_orders: self.0.tactical_work_orders,
             tactical_loadings: self.0.tactical_loadings,
         }
     }
@@ -448,9 +444,7 @@ impl Solution for TacticalSolution {
 
         Self {
             objective_value: TacticalObjectiveValue::default(),
-            tactical_scheduled_work_orders: TacticalScheduledWorkOrders(
-                tactical_scheduled_work_orders_inner,
-            ),
+            tactical_work_orders: TacticalScheduledWorkOrders(tactical_scheduled_work_orders_inner),
             tactical_loadings: TacticalResources::new(tactical_loadings_inner),
         }
     }
@@ -464,16 +458,28 @@ impl Solution for SupervisorSolution {
     type Parameters = SupervisorParameters;
 
     fn new(parameters: &Self::Parameters) -> Self {
-        let worker_environment = scheduling_environment
-            .worker_environment
-            .system_agents
-            .operational;
+        // The SupervisorParameters should have knowledge of the agents.
 
-        // The SupervisorParameters should have knowledge of the
-        supervisor_algorithm
-            .supervisor_solution
-            .insert_supervisor_solution(operational_agent, delegate, *work_order_activity)
-            .context("Supervisor could not insert operational solution correctly")?;
+        let operational_state_machine: HashMap<(Id, WorkOrderActivity), Delegate> = parameters
+            .supervisor_work_orders
+            .iter()
+            .flat_map(|(won, inner)| {
+                inner.iter().flat_map(|(acn, sp)| {
+                    parameters
+                        .operational_ids
+                        .iter()
+                        .filter(|e| e.1.contains(&sp.resource))
+                        .map(|e| ((e.clone(), (*won, *acn)), Delegate::Assess))
+                })
+            })
+            .collect();
+
+        let objective_value = Self::ObjectiveValue::default();
+
+        Self {
+            objective_value,
+            operational_state_machine,
+        }
     }
 
     fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue) {
@@ -571,7 +577,7 @@ impl SupervisorSolution {
 // Should the new function take in the `parameters` as an function parameter?
 impl TacticalSolution {
     pub fn release_from_tactical_solution(&mut self, work_order_number: &WorkOrderNumber) {
-        self.tactical_scheduled_work_orders
+        self.tactical_work_orders
             .0
             .insert(*work_order_number, WhereIsWorkOrder::Strategic);
     }
@@ -581,7 +587,7 @@ impl TacticalSolution {
         activity_number: &ActivityNumber,
     ) -> Result<&Vec<(Day, Work)>> {
         let tactical_day = &self
-            .tactical_scheduled_work_orders
+            .tactical_work_orders
             .0
             .get(work_order_number)
             .with_context(|| {
@@ -615,7 +621,7 @@ impl TacticalSolution {
         work_order_number: WorkOrderNumber,
         tactical_scheduled_operations: TacticalScheduledOperations,
     ) {
-        self.tactical_scheduled_work_orders.0.insert(
+        self.tactical_work_orders.0.insert(
             work_order_number,
             WhereIsWorkOrder::Tactical(tactical_scheduled_operations),
         );

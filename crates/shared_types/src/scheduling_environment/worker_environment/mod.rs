@@ -9,10 +9,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use strum::IntoEnumIterator;
 
+use crate::agents::strategic::{OperationalResource, StrategicResources};
 use crate::agents::tactical::{Days, TacticalResources};
 use crate::scheduling_environment::worker_environment::resources::Resources;
-use crate::strategic::{OperationalResource, StrategicResources};
-use crate::{OperationalId, SystemAgents};
+use crate::{AgentEnvironment, OperationalId, SystemAgents};
 
 use super::time_environment::day::Day;
 use super::time_environment::period::Period;
@@ -23,7 +23,7 @@ use super::work_order::operation::Work;
 // forcast how the system will behave.
 #[derive(Default, Serialize, Deserialize, Debug)]
 pub struct WorkerEnvironment {
-    pub system_agents: SystemAgents,
+    pub agent_environment: AgentEnvironment,
     work_centers: HashSet<Resources>,
 }
 
@@ -34,7 +34,7 @@ impl WorkerEnvironment {
             work_centers.insert(resource);
         }
         WorkerEnvironment {
-            system_agents: SystemAgents::default(),
+            agent_environment: AgentEnvironment::default(),
             work_centers,
         }
     }
@@ -53,7 +53,7 @@ impl WorkerEnvironment {
         let system_agents: SystemAgents = toml::from_str(contents)
             .with_context(|| format!("configuration file string could not be parsed into {}. Likely a toml parsing error", std::any::type_name::<SystemAgents>().bright_red()))?;
 
-        self.system_agents = system_agents;
+        self.agent_environment = system_agents.into();
         Ok(())
     }
 
@@ -75,7 +75,7 @@ impl WorkerEnvironment {
 
         for (i, period) in periods.iter().enumerate() {
             let mut operational_resource_map = HashMap::new();
-            for operational_agent in &self.system_agents.operational {
+            for operational_agent in &self.agent_environment.operational {
                 // What is it that you are trying to do here? You want to instantiate an agent
                 // TODO: Could you reuse the OperationalResource. No could you inplement a
                 // into formulation here? I think that is a that ... THis is actually fun!
@@ -87,24 +87,27 @@ impl WorkerEnvironment {
                 // rely on the 13 days.
                 let days_in_period = 13.0; // WARN: period.count_overlapping_days(availability);
 
-                for resource in &operational_agent.resources.resources {
+                for resource in &operational_agent.1.id.1 {
                     skill_hours.insert(
                         *resource,
                         Work::from(
-                            operational_agent.hours_per_day * days_in_period * gradual_reduction(i),
+                            operational_agent.1.hours_per_day
+                                * days_in_period
+                                * gradual_reduction(i),
                         ),
                     );
                 }
 
                 let operational_resource = OperationalResource::new(
-                    &operational_agent.id,
+                    &operational_agent.1.id.0,
                     Work::from(
-                        operational_agent.hours_per_day * days_in_period * gradual_reduction(i),
+                        operational_agent.1.hours_per_day * days_in_period * gradual_reduction(i),
                     ),
-                    operational_agent.resources.resources.clone(),
+                    operational_agent.1.id.1.clone(),
                 );
 
-                operational_resource_map.insert(operational_agent.id.clone(), operational_resource);
+                operational_resource_map
+                    .insert(operational_agent.0 .0.clone(), operational_resource);
             }
             strategic_resources_inner.insert(period.clone(), operational_resource_map);
         }
@@ -115,7 +118,7 @@ impl WorkerEnvironment {
     pub fn generate_tactical_resources(
         &self,
         days: &[Day],
-        empty_full: EmptyFull,
+        _empty_full: EmptyFull,
     ) -> TacticalResources {
         let _hours_per_day = 6.0;
 
@@ -127,25 +130,23 @@ impl WorkerEnvironment {
             }
         };
 
+        // WARN
+        // Should this be multi skill?
         let mut tactical_resources_inner = HashMap::<Resources, Days>::new();
-        for operational_agent in &self.system_agents.operational {
+        for operational_configuration_all in self.agent_environment.operational.values() {
             for (i, day) in days.iter().enumerate() {
                 let resource_periods = tactical_resources_inner
-                    .entry(
-                        operational_agent
-                            .resources
-                            .resources
-                            .first()
-                            .cloned()
-                            .unwrap(),
-                    )
+                    // FIX
+                    // WARN
+                    // There is a logic error here. If we want to compare with the `StrategicAgent`.
+                    .entry(operational_configuration_all.id.1.first().cloned().unwrap())
                     .or_insert(Days::new(HashMap::new()));
 
                 *resource_periods
                     .days
                     .entry(day.clone())
                     .or_insert_with(|| Work::from(0.0)) +=
-                    Work::from(operational_agent.hours_per_day * gradual_reduction(i));
+                    Work::from(operational_configuration_all.hours_per_day * gradual_reduction(i));
             }
         }
         TacticalResources::new(tactical_resources_inner)

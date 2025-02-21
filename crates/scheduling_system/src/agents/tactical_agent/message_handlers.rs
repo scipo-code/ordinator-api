@@ -12,8 +12,10 @@ use shared_types::{
 };
 
 use crate::agents::{
-    tactical_agent::algorithm::tactical_parameters::TacticalParameters, Agent, AgentSpecific,
-    Algorithm, MessageHandler, StateLink, TacticalSolution,
+    tactical_agent::algorithm::tactical_parameters::{
+        create_tactical_parameter, TacticalParameters,
+    },
+    Agent, AgentSpecific, Algorithm, MessageHandler, StateLink, TacticalSolution, WhereIsWorkOrder,
 };
 
 type TacticalAlgorithm =
@@ -78,9 +80,22 @@ impl MessageHandler for Agent<TacticalAlgorithm, TacticalRequestMessage, Tactica
                         // FIX
                         // The solution should also be updated here. Think about how you can make
                         // this generic.
-                        panic!();
-                        // FIX
-                        self.algorithm.create_tactical_parameter(work_order)
+                        // QUESTION
+                        // Is this a good way of coding the program? I think that there is common behavior
+                        // here that we are going to have to exploit to make sense of this.
+                        let tactical_work_order = create_tactical_parameter(work_order);
+
+                        // It is only the agent that can modify parameters. Not
+                        self.algorithm
+                            .parameters
+                            .tactical_work_orders
+                            .insert(work_order_number, tactical_work_order);
+
+                        self.algorithm
+                            .solution
+                            .tactical_work_orders
+                            .0
+                            .insert(work_order_number, WhereIsWorkOrder::NotScheduled);
                     }
                     Ok(())
                 }

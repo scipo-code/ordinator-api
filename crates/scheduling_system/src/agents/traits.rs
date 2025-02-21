@@ -1,5 +1,8 @@
 use anyhow::{Context, Result};
-use shared_types::{scheduling_environment::SchedulingEnvironment, Asset};
+use shared_types::{
+    scheduling_environment::{worker_environment::resources::Id, SchedulingEnvironment},
+    Asset,
+};
 use std::sync::MutexGuard;
 
 use super::AlgorithmUtils;
@@ -93,7 +96,7 @@ where
     type Options;
 
     fn new(
-        asset: &Asset,
+        id: &Id,
         options: Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self>;
