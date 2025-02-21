@@ -158,13 +158,13 @@ impl ActorBasedLargeNeighborhoodSearch for Algorithm<SupervisorSolution, Supervi
         Ok(())
     }
 
-    fn unschedule(&mut self, supervisor_options: &mut Self::Options) -> Result<()> {
+    fn unschedule(&mut self) -> Result<()> {
         let work_order_numbers = self.solution.get_assigned_and_unassigned_work_orders();
 
         let sampled_work_order_numbers = work_order_numbers
             .choose_multiple(
-                &mut supervisor_options.rng,
-                supervisor_options.number_of_unassigned_work_orders,
+                &mut self.parameters.options.rng,
+                self.parameters.options.number_of_unassigned_work_orders,
             )
             .collect::<Vec<_>>()
             .clone();

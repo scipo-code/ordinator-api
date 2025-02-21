@@ -1,15 +1,13 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
+use shared_types::scheduling_environment::worker_environment::resources::Id;
 use std::{collections::HashMap, sync::MutexGuard};
 
 use chrono::TimeDelta;
 use shared_types::agents::operational::TimeInterval;
-use shared_types::{
-    scheduling_environment::{
-        work_order::{operation::Work, WorkOrderActivity},
-        worker_environment::availability::Availability,
-        SchedulingEnvironment,
-    },
-    Asset,
+use shared_types::scheduling_environment::{
+    work_order::{operation::Work, WorkOrderActivity},
+    worker_environment::availability::Availability,
+    SchedulingEnvironment,
 };
 
 use crate::agents::{operational_agent::OperationalOptions, traits::Parameters};
@@ -29,7 +27,7 @@ impl Parameters for OperationalParameters {
     // You should not put it in the Options
     type Options = OperationalOptions;
     fn new(
-        asset: &Asset,
+        asset: &Id,
         options: Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self> {
@@ -53,7 +51,14 @@ impl Parameters for OperationalParameters {
             }
         }
 
-        let operational_configuration = scheduling_environment.worker_environment.system_agents.operational.get(index)
+        let operational_configuration = &scheduling_environment
+            .worker_environment
+            .agent_environment
+            .operational
+            .values()
+            .find(|oca| asset == &oca.id)
+            .with_context(|| format!("{:#?} did not exist", asset.0))?
+            .operational_configuration;
 
         Ok(Self {
             work_order_parameters,
@@ -61,6 +66,7 @@ impl Parameters for OperationalParameters {
             off_shift_interval: operational_configuration.off_shift_interval.clone(),
             break_interval: operational_configuration.break_interval.clone(),
             toolbox_interval: operational_configuration.toolbox_interval.clone(),
+            options,
         })
     }
 

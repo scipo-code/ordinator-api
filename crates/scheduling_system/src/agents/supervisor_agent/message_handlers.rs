@@ -1,16 +1,19 @@
 use std::collections::HashSet;
 
 use anyhow::{bail, Context, Result};
-use shared_types::supervisor::{
-    supervisor_response_scheduling::SupervisorResponseScheduling,
-    supervisor_response_status::SupervisorResponseStatus, SupervisorRequestMessage,
-    SupervisorResponseMessage,
+use shared_types::{
+    agents::supervisor::{
+        responses::supervisor_response_scheduling::SupervisorResponseScheduling,
+        responses::supervisor_response_status::SupervisorResponseStatus, SupervisorRequestMessage,
+        SupervisorResponseMessage,
+    },
+    scheduling_environment::worker_environment::resources::Id,
 };
 use tracing::{event, Level};
 
 use crate::agents::{
-    supervisor_agent::algorithm::SupervisorParameters, Agent, AgentSpecific, Algorithm,
-    MessageHandler, StateLink, SupervisorSolution,
+    supervisor_agent::algorithm::supervisor_parameters::SupervisorParameters, Agent, AgentSpecific,
+    Algorithm, MessageHandler, StateLink, SupervisorSolution,
 };
 
 type SupervisorAlgorithm = Algorithm<SupervisorSolution, SupervisorParameters, ()>;
@@ -56,11 +59,10 @@ impl MessageHandler
 
                 let operational_agents = scheduling_environment_guard
                     .worker_environment
-                    .system_agents
+                    .agent_environment
                     .operational
-                    .iter()
-                    .map(|in_op| &in_op.id)
-                    .collect::<HashSet<&String>>();
+                    .keys()
+                    .collect::<HashSet<&Id>>();
 
                 event!(Level::ERROR,
                     does_state_ids_and_addr_ids_match = self
@@ -68,8 +70,7 @@ impl MessageHandler
                         .loaded_shared_solution
                         .operational
                         .keys()
-                        .map(|id| &id.0)
-                        .collect::<HashSet<&String>>()
+                        .collect::<HashSet<&Id>>()
                         == operational_agents,
                         "Check this error later. FIX: YOU SHOULD call '.send()' instead of '.do_send()' and use the lldb debugger to trace the flow."
                 );
@@ -93,7 +94,7 @@ impl MessageHandler
             SupervisorRequestMessage::Update => {
                 bail!(
                     "IMPLEMENT update logic for Supervisor for Asset: {:?}",
-                    self.asset
+                    self.agent_id.asset()
                 );
             }
             SupervisorRequestMessage::Status(supervisor_status_message) => {
@@ -103,7 +104,7 @@ impl MessageHandler
                     supervisor_status_message
                 );
                 let supervisor_status = SupervisorResponseStatus::new(
-                    self.algorithm.parameters.resources.clone(),
+                    self.algorithm.parameters.operational_ids.clone(),
                     self.algorithm.solution.count_unique_woa(),
                     self.algorithm.solution.objective_value,
                 );

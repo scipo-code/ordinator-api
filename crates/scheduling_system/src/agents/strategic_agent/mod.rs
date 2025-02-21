@@ -55,21 +55,17 @@ impl StrategicObjectiveValue {
 
 #[cfg(test)]
 mod tests {
-
-    use algorithm::strategic_parameters::StrategicClustering;
     use algorithm::ForcedWorkOrder;
     use anyhow::Result;
     use operation::OperationBuilder;
-    use priority_queue::PriorityQueue;
+    use shared_types::agents::strategic::requests::strategic_request_scheduling_message::ScheduleChange;
+    use shared_types::agents::strategic::requests::strategic_request_scheduling_message::StrategicRequestScheduling;
+    use shared_types::agents::strategic::OperationalResource;
+    use shared_types::agents::strategic::StrategicResources;
     use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
     use shared_types::scheduling_environment::work_order::operation::Work;
     use shared_types::scheduling_environment::worker_environment::resources::Id;
     use shared_types::scheduling_environment::SchedulingEnvironment;
-    use shared_types::strategic::strategic_request_scheduling_message::ScheduleChange;
-    use shared_types::strategic::strategic_request_scheduling_message::StrategicRequestScheduling;
-    use shared_types::strategic::OperationalResource;
-    use shared_types::strategic::StrategicResources;
-    use shared_types::Asset;
     use tests::algorithm::strategic_parameters::StrategicParameter;
     use tests::algorithm::strategic_parameters::StrategicParameters;
     use unloading_point::UnloadingPoint;
@@ -82,9 +78,11 @@ mod tests {
 
     use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
     use crate::agents::traits::ObjectiveValueType;
+    use crate::agents::traits::Parameters;
     use crate::agents::Algorithm;
     use crate::agents::AlgorithmUtils;
     use crate::agents::ArcSwapSharedSolution;
+    use crate::agents::Solution;
     use crate::agents::StrategicSolution;
 
     use super::*;
@@ -151,13 +149,24 @@ mod tests {
 
         let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
 
-        let strategic_solution = StrategicSolution::new();
+        let id = Id::default();
 
-        let strategic_parameters =
-            StrategicParameters::new(&Asset::Unknown, scheduling_environment.lock().unwrap())?;
+        // WARN
+        // This is an error. It should be implemented in a different way. I think
+        // that. So the supervisors could be traits. You should think about how this
+        // can be designed.
+        let strategic_options = StrategicOptions::default();
+
+        let strategic_parameters = StrategicParameters::new(
+            &id,
+            strategic_options,
+            &scheduling_environment.lock().unwrap(),
+        )?;
+
+        let strategic_solution = StrategicSolution::new(&strategic_parameters);
 
         let mut strategic_algorithm = Algorithm::new(
-            &Id::default(),
+            &id,
             strategic_solution,
             strategic_parameters,
             ArcSwapSharedSolution::default().into(),
@@ -219,8 +228,15 @@ mod tests {
 
         let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
 
-        let mut strategic_parameters =
-            StrategicParameters::new(&Asset::Unknown, scheduling_environment.lock().unwrap())?;
+        let id = Id::default();
+
+        let strategic_options = StrategicOptions::default();
+
+        let mut strategic_parameters = StrategicParameters::new(
+            &id,
+            strategic_options,
+            &scheduling_environment.lock().unwrap(),
+        )?;
 
         let strategic_parameter = StrategicParameter::new(
             Some(period),
@@ -232,10 +248,13 @@ mod tests {
 
         // QUESTION
         // Should you create a Dependency injection for the `SchedulingEnvironment`?
+        // TODO
+        // This should be created so that each type that implements `Parameters` have
+        // an insert function.
         strategic_parameters
             .insert_strategic_parameter(WorkOrderNumber(2100023841), strategic_parameter);
 
-        let strategic_solution = StrategicSolution::new();
+        let strategic_solution = StrategicSolution::new(&strategic_parameters);
         let mut strategic_algorithm = Algorithm::new(
             &Id::default(),
             strategic_solution,

@@ -32,7 +32,7 @@ impl TacticalAssertions
 
         for (_work_order_number, solution) in &self
             .solution
-            .tactical_scheduled_work_orders
+            .tactical_work_orders
             .0
             .iter()
             .filter(|(_, whe_tac_sch)| whe_tac_sch.is_tactical())

@@ -69,11 +69,15 @@ async fn main() -> Result<()> {
         })
         .expect("Could not add asset");
 
+    // This is much more understandable. You initialize all the agents in theb
+    // `SchedulingEnvironment` and then you simply create them. This is the
+    // way that it should be done.
     orchestrator
         .lock()
         .unwrap()
-        .initialize_operational_agents(asset)
+        .initialize_operational_agents()
         .map_err(|err| anyhow!(err))?;
+
     // WARN FINISH: USED FOR CONVENIENCE
     HttpServer::new(move || {
         App::new()

@@ -14,7 +14,7 @@ use shared_types::{
     orchestrator::OrchestratorRequest, scheduling_environment::worker_environment::resources::Id,
     SystemMessages,
 };
-use shared_types::{Asset, InputSupervisor, SystemAgents};
+use shared_types::{Asset, SystemAgents};
 
 #[derive(Subcommand, Debug)]
 pub enum OrchestratorCommands {
@@ -142,6 +142,8 @@ impl OrchestratorCommands {
             }
             OrchestratorCommands::SupervisorAgent(supervisor_agent_command) => {
                 match supervisor_agent_command {
+                    // WARN
+                    // I strongly believe that this is coded in the wrong way.
                     SupervisorAgentCommands::Create {
                         asset,
                         shift: _,
@@ -149,14 +151,14 @@ impl OrchestratorCommands {
                         supervisor_id,
                         number_of_supervisor_periods,
                     } => {
-                        let toml_supervisor = InputSupervisor {
-                            id: supervisor_id,
-                            resource,
-                            number_of_supervisor_periods,
+                        let resource = match resource {
+                            Some(resource) => vec![resource],
+                            None => vec![],
                         };
                         let create_supervisor_agent = OrchestratorRequest::CreateSupervisorAgent(
                             asset.clone(),
-                            Id::new(toml_supervisor.id.clone(), vec![], Some(toml_supervisor)),
+                            number_of_supervisor_periods,
+                            Id::new(&supervisor_id, resource, vec![asset]),
                         );
                         SystemMessages::Orchestrator(create_supervisor_agent)
                     }

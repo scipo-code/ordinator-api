@@ -5,7 +5,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::scheduling_environment::work_order::WorkOrderNumber;
 
-use crate::strategic::TimePeriod;
+use crate::agents::strategic::TimePeriod;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "scheduling_message_type")]

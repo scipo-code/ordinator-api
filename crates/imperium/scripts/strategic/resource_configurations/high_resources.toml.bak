@@ -1,0 +1,711 @@
+[[supervisors]]
+id = "main"
+number_of_supervisor_periods = 3
+
+# [[supervisors]]
+# id = "supervisor-second"
+################################
+###          MTN-ELEC        ###
+################################
+[[operational]]
+id = "OP-01-001"
+resources.resources = ["MTN-ELEC" ]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-01-002"
+resources.resources = [ "MTN-ELEC" ]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-01-003"
+resources.resources = [ "MTN-ELEC" ]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-01-004"
+resources.resources = [ "MTN-ELEC" ]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-01-005"
+resources.resources = [ "MTN-ELEC" ]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-01-006"
+resources.resources = [ "MTN-ELEC" ]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+################################
+###          MTN-INST        ###
+################################
+[[operational]]
+id = "OP-02-001"
+resources.resources = [ "MTN-INST" ]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-02-002"
+resources.resources = [ "MTN-INST" ]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-02-003"
+resources.resources = [ "MTN-INST" ]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-02-004"
+resources.resources = [ "MTN-INST" ]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+################################
+###          MTN-MECH        ###
+################################
+[[operational]]
+id = "OP-02-001"
+resources.resources = [ "MTN-MECH" ]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-02-002"
+resources.resources = [ "MTN-MECH" ]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-02-003"
+resources.resources = [ "MTN-MECH" ]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-02-004"
+resources.resources = [ "MTN-MECH"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-02-005"
+resources.resources = [ "MTN-MECH"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-02-006"
+resources.resources = [ "MTN-MECH"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+################################
+###          MTN-TURB        ###
+################################
+[[operational]]
+id = "OP-03-001"
+resources.resources = [ "MTN-TURB"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-03-002"
+resources.resources = [ "MTN-TURB"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-03-003"
+resources.resources = [ "MTN-TURB"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-03-004"
+resources.resources = [ "MTN-TURB"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-03-005"
+resources.resources = [ "MTN-TURB"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+################################
+###          MTN-TELE        ###
+################################
+[[operational]]
+id = "OP-03-001"
+resources.resources = [ "MTN-TELE"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-03-002"
+resources.resources = [ "MTN-TELE"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-03-003"
+resources.resources = [ "MTN-TELE"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-03-004"
+resources.resources = [ "MTN-TELE"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-03-005"
+resources.resources = [ "MTN-TELE"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+################################
+###          MTN-ROUS        ###
+################################
+[[operational]]
+id = "OP-04-001"
+resources.resources = [ "MTN-ROUS"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-04-002"
+resources.resources = [ "MTN-ROUS"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-04-003"
+resources.resources = [ "MTN-ROUS"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-04-004"
+resources.resources = [ "MTN-ROUS"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-04-005"
+resources.resources = [ "MTN-ROUS"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+################################
+###          MEDIC           ###
+################################
+[[operational]]
+id = "OP-05-001"
+resources.resources = [ "MEDIC" ]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+################################
+###          MTN-LAGG        ###
+################################
+[[operational]]
+id = "OP-05-001"
+resources.resources = [ "MTN-LAGG"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-05-002"
+resources.resources = [ "MTN-LAGG"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-05-003"
+resources.resources = [ "MTN-LAGG"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-05-004"
+resources.resources = [ "MTN-LAGG"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+################################
+###          MTN-PAIN        ###
+################################
+[[operational]]
+id = "OP-06-001"
+resources.resources = [ "MTN-PAIN"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-06-002"
+resources.resources = [ "MTN-PAIN"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-06-003"
+resources.resources = [ "MTN-PAIN"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-06-004"
+resources.resources = [ "MTN-PAIN"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+################################
+###          MTN-PIPF        ###
+################################
+[[operational]]
+id = "OP-07-001"
+resources.resources = [ "MTN-PIPF"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-07-002"
+resources.resources = [ "MTN-PIPF"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-07-003"
+resources.resources = [ "MTN-PIPF"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-07-004"
+resources.resources = [ "MTN-PIPF"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-07-005"
+resources.resources = [ "MTN-PIPF"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-07-006"
+resources.resources = [ "MTN-PIPF"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+################################
+###          MTN-ROPE        ###
+################################
+[[operational]]
+id = "OP-08-001"
+resources.resources = [ "MTN-ROPE"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-08-002"
+resources.resources = [ "MTN-ROPE"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-08-003"
+resources.resources = [ "MTN-ROPE"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-08-004"
+resources.resources = [ "MTN-ROPE"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-08-005"
+resources.resources = [ "MTN-ROPE"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-08-006"
+resources.resources = [ "MTN-ROPE"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+################################
+###          MTN-SCAF        ###
+################################
+[[operational]]
+id = "OP-09-001"
+resources.resources = [ "MTN-SCAF"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-09-002"
+resources.resources = [ "MTN-SCAF"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-09-003"
+resources.resources = [ "MTN-SCAF"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-09-004"
+resources.resources = [ "MTN-SCAF"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-09-005"
+resources.resources = [ "MTN-SCAF"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+[[operational]]
+id = "OP-09-006"
+resources.resources = [ "MTN-SCAF"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+################################
+###          INP-SITE        ###
+################################
+[[operational]]
+id = "OP-10-001"
+resources.resources = [ "INP-SITE"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-10-002"
+resources.resources = [ "INP-SITE"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-10-003"
+resources.resources = [ "INP-SITE"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-10-004"
+resources.resources = [ "INP-SITE"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-10-005"
+resources.resources = [ "INP-SITE"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+
+################################
+###          PRODTECH        ###
+################################
+[[operational]]
+id = "OP-11-001"
+resources.resources = [ "PRODTECH"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-11-002"
+resources.resources = [ "PRODTECH"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-11-003"
+resources.resources = [ "PRODTECH"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-11-004"
+resources.resources = [ "PRODTECH"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-11-005"
+resources.resources = [ "PRODTECH"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-11-006"
+resources.resources = [ "PRODTECH"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"
+[[operational]]
+id = "OP-11-007"
+resources.resources = [ "PRODTECH"]
+hours_per_day = 6.0
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = "2025-01-13T07:00:00Z"
+operational_configuration.availability.finish_date = "2025-01-27T15:00:00Z"

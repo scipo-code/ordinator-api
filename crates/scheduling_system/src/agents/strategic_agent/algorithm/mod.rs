@@ -16,11 +16,11 @@ use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
-use shared_types::strategic::{OperationalResource, StrategicObjectiveValue, StrategicResources};
-use shared_types::strategic::strategic_request_resources_message::StrategicRequestResource;
-use shared_types::strategic::strategic_request_scheduling_message::StrategicRequestScheduling;
-use shared_types::strategic::strategic_response_resources::StrategicResponseResources;
-use shared_types::strategic::strategic_response_scheduling::StrategicResponseScheduling;
+use shared_types::agents::strategic::{OperationalResource,  StrategicResources};
+use shared_types::agents::strategic::requests::strategic_request_resources_message::StrategicRequestResource;
+use shared_types::agents::strategic::requests::strategic_request_scheduling_message::StrategicRequestScheduling;
+use shared_types::agents::strategic::responses::strategic_response_resources::StrategicResponseResources;
+use shared_types::agents::strategic::responses::strategic_response_scheduling::StrategicResponseScheduling;
 use shared_types::LoadOperation;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -28,7 +28,7 @@ use itertools::Itertools;
 
 use tracing::{event, instrument, Level};
 
-use super::StrategicOptions;
+use super::{StrategicObjectiveValue, StrategicOptions};
 
 // How would it look like here if you made it generic? impl Algorithm<StrategicSolution, StrategicParameters, StrategicAssertions> {
 // 
@@ -763,7 +763,7 @@ impl ActorBasedLargeNeighborhoodSearch for Algorithm<StrategicSolution, Strategi
         let mut work_order_numbers: Vec<ForcedWorkOrder> = vec![];
         let mut state_change = false;
 
-        let tactical_work_orders = &self.loaded_shared_solution.tactical.tactical_scheduled_work_orders;
+        let tactical_work_orders = &self.loaded_shared_solution.tactical.tactical_work_orders;
         // We should create a method to update the 
         for (work_order_number, strategic_parameter) in self.parameters.strategic_work_order_parameters.iter() {
             let scheduled_period = self
@@ -885,7 +885,6 @@ impl ActorBasedLargeNeighborhoodSearch for Algorithm<StrategicSolution, Strategi
 
     fn unschedule(
         &mut self,
-        strategic_options: &mut Self::Options,
     ) -> Result<()> {
         let strategic_work_orders = &self.solution.strategic_scheduled_work_orders;
 
@@ -900,7 +899,7 @@ impl ActorBasedLargeNeighborhoodSearch for Algorithm<StrategicSolution, Strategi
         filtered_keys.sort();
 
         let sampled_work_order_keys = filtered_keys
-            .choose_multiple(&mut strategic_options.rng, strategic_options.number_of_removed_work_order)
+            .choose_multiple(&mut self.parameters.strategic_options.rng, self.parameters.strategic_options.number_of_removed_work_order)
             .collect::<Vec<_>>()
             .clone();
 
@@ -1076,14 +1075,14 @@ impl Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNu
 mod tests {
     use super::*;
     use arc_swap::ArcSwap;
-    use strategic_parameters::{StrategicClustering, StrategicParameter};
+    use strategic_parameters::StrategicParameter;
     use rand::{rngs::StdRng, SeedableRng};
 
-    use shared_types::{scheduling_environment::{self, worker_environment::resources::{Id, Resources}, SchedulingEnvironment}, Asset};
+    use shared_types::{scheduling_environment::{worker_environment::resources::{Id, Resources}, SchedulingEnvironment}, Asset};
 
-    use crate::agents::{strategic_agent::algorithm::{
-            PriorityQueue,  StrategicParameters
-        }, traits::Parameters, AlgorithmUtils, ArcSwapSharedSolution, SharedSolution, TacticalSolutionBuilder, WhereIsWorkOrder};
+    use crate::agents::{strategic_agent::algorithm::
+              StrategicParameters
+        , traits::Parameters, AlgorithmUtils, ArcSwapSharedSolution, SharedSolution, Solution, TacticalSolutionBuilder, WhereIsWorkOrder};
 
     use std::{collections::HashMap, str::FromStr, sync::Mutex};
 
@@ -1487,9 +1486,11 @@ mod tests {
 
         let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
 
-        let mut strategic_parameters = StrategicParameters::new(&Asset::Unknown, StrategicOptions::default(), &scheduling_environment.lock().unwrap())?;
+        let id = Id::new("Strategic", vec![], vec![Asset::Unknown]);
 
-        let strategic_parameter_1 = StrategicParameter&::new(
+        let mut strategic_parameters = StrategicParameters::new(&id, StrategicOptions::default(), &scheduling_environment.lock().unwrap())?;
+
+        let strategic_parameter_1 = StrategicParameter::new(
             None,
             HashSet::new(),
             latest_period.clone(),
@@ -1531,9 +1532,11 @@ mod tests {
 
         let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
 
-        let strategic_parameters = StrategicParameters::new(&Asset::Unknown, StrategicOptions::default(), scheduling_environment.lock().unwrap&())?;
+        let id = Id::new("Strategic", vec![], vec![Asset::Unknown]);
 
-        let strategic_solution = StrategicSolution::new();
+        let strategic_parameters = StrategicParameters::new(&id, StrategicOptions::default(), &scheduling_environment.lock().unwrap())?;
+
+        let strategic_solution = StrategicSolution::new(&strategic_parameters);
 
         let mut strategic_algorithm = Algorithm::new(
             &Id::default(),
@@ -1567,8 +1570,10 @@ mod tests {
             clustering_weight: 1,
         };
 
+        strategic_algorithm.parameters.strategic_options = strategic_options;
+
         strategic_algorithm
-            .unschedule(&mut strategic_options)
+            .unschedule()
             .expect("It should always be possible to unschedule random work orders in the strategic agent");
 
         assert_eq!(
@@ -1649,7 +1654,11 @@ mod tests {
 
         let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
 
-        let mut strategic_parameters = StrategicParameters::new(&Asset::Unknown, StrategicOptions::default(), &scheduling_environment.lock().unwrap())?;
+        let id = Id::new("Strategic", vec![], vec![Asset::Unknown]);
+
+
+        
+        let mut strategic_parameters = StrategicParameters::new(&id, StrategicOptions::default(), &scheduling_environment.lock().unwrap())?;
 
         let strategic_parameter = StrategicParameter::new(
             None,
@@ -1679,7 +1688,7 @@ mod tests {
 
         let arc_swap_shared_solution = ArcSwapSharedSolution(ArcSwap::from_pointee(shared_solution));
 
-        let mut strategic_solution = StrategicSolution::new();
+        let mut strategic_solution = StrategicSolution::new(&strategic_parameters);
 
         strategic_solution
             .strategic_scheduled_work_orders

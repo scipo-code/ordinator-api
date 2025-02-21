@@ -17,7 +17,6 @@ use crate::agents::operational_agent::OperationalOptions;
 use crate::agents::orchestrator::{Communication, NotifyOrchestrator};
 use crate::agents::strategic_agent::algorithm::strategic_parameters::StrategicParameters;
 use crate::agents::strategic_agent::StrategicOptions;
-use crate::agents::supervisor_agent::algorithm::delegate::Delegate;
 use crate::agents::supervisor_agent::algorithm::supervisor_parameters::SupervisorParameters;
 use crate::agents::supervisor_agent::SupervisorOptions;
 use crate::agents::tactical_agent::algorithm::tactical_parameters::TacticalParameters;
@@ -28,7 +27,7 @@ use crate::agents::{
     SharedSolution, Solution, StrategicSolution, SupervisorSolution, TacticalSolution,
 };
 
-use shared_types::scheduling_environment::worker_environment::resources::{Id, Resources};
+use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 #[derive(Debug, Clone)]
@@ -62,28 +61,41 @@ impl AgentFactory {
     {
         let options = StrategicOptions::default();
 
+        let strategic_id = Id::new("StrategicAgent", vec![], vec![asset.clone()]);
+
         let strategic_parameters =
-            StrategicParameters::new(asset, options, scheduling_environment_guard)
+            StrategicParameters::new(&strategic_id, options, scheduling_environment_guard)
                 .with_context(|| format!("Failed to create StrategicParameters for {}", asset))?;
 
         let strategic_solution = StrategicSolution::new(&strategic_parameters);
 
-        let strategic_id = Id::new("StrategicAgent".to_string(), vec![], None);
-
-        let strategic_algorithm = Algorithm::new(
+        let strategic_algorithm: Algorithm<
+            StrategicSolution,
+            StrategicParameters,
+            priority_queue::PriorityQueue<
+                shared_types::scheduling_environment::work_order::WorkOrderNumber,
+                u64,
+            >,
+        > = Algorithm::new(
             &strategic_id,
             strategic_solution,
             strategic_parameters,
             shared_solution_arc_swap,
         );
 
-        let arc_scheduling_environment = self.scheduling_environment.clone();
+        let arc_scheduling_environment = Arc::clone(&self.scheduling_environment);
 
-        let (sender_to_agent, receiver_from_orchestrator) = std::sync::mpsc::channel();
-        let (sender_to_orchestrator, receiver_from_agent) = std::sync::mpsc::channel();
+        let (sender_to_agent, receiver_from_orchestrator): (
+            std::sync::mpsc::Sender<AgentMessage<StrategicRequestMessage>>,
+            std::sync::mpsc::Receiver<AgentMessage<StrategicRequestMessage>>,
+        ) = std::sync::mpsc::channel();
+
+        let (sender_to_orchestrator, receiver_from_agent): (
+            std::sync::mpsc::Sender<std::result::Result<StrategicResponseMessage, anyhow::Error>>,
+            std::sync::mpsc::Receiver<std::result::Result<StrategicResponseMessage, anyhow::Error>>,
+        ) = std::sync::mpsc::channel();
 
         let mut strategic_agent = Agent::new(
-            asset.clone(),
             strategic_id,
             arc_scheduling_environment,
             strategic_algorithm,
@@ -94,7 +106,7 @@ impl AgentFactory {
 
         let thread_name = format!(
             "{} for Asset: {}",
-            std::any::type_name_of_val(&options),
+            std::any::type_name_of_val(&strategic_agent),
             asset,
         );
         std::thread::Builder::new()
@@ -116,16 +128,20 @@ impl AgentFactory {
     ) -> Result<Communication<AgentMessage<TacticalRequestMessage>, TacticalResponseMessage>> {
         // This is a horrible approach. You should centralize it first.
 
-        let tactical_id = Id::new("TACTICAL".to_string() + &asset.to_string(), vec![], None);
+        let tactical_id = Id::new(
+            &("TACTICAL".to_string() + &asset.to_string()),
+            vec![],
+            vec![asset.clone()],
+        );
 
         let options = TacticalOptions::default();
 
         let tactical_parameters =
-            TacticalParameters::new(asset, options, scheduling_environment_guard)?;
+            TacticalParameters::new(&tactical_id, options, scheduling_environment_guard)?;
 
         let tactical_solution = TacticalSolution::new(&tactical_parameters);
 
-        let mut tactical_algorithm = Algorithm::new(
+        let tactical_algorithm = Algorithm::new(
             &tactical_id,
             tactical_solution,
             tactical_parameters,
@@ -138,7 +154,6 @@ impl AgentFactory {
         let arc_scheduling_environment = self.scheduling_environment.clone();
 
         let mut tactical_agent = Agent::new(
-            asset.clone(),
             tactical_id,
             arc_scheduling_environment,
             tactical_algorithm,
@@ -150,7 +165,7 @@ impl AgentFactory {
         tactical_agent.algorithm.make_atomic_pointer_swap();
         let thread_name = format!(
             "{} for Asset: {}",
-            std::any::type_name_of_val(&options),
+            std::any::type_name_of_val(&tactical_agent.algorithm),
             asset,
         );
 
@@ -176,11 +191,11 @@ impl AgentFactory {
         let options = SupervisorOptions::default();
 
         let supervisor_parameters =
-            SupervisorParameters::new(asset, options, scheduling_environment_guard)?;
+            SupervisorParameters::new(id_supervisor, options, scheduling_environment_guard)?;
 
         let supervisor_solution = SupervisorSolution::new(&supervisor_parameters);
 
-        let mut supervisor_algorithm = Algorithm::new(
+        let supervisor_algorithm = Algorithm::new(
             id_supervisor,
             supervisor_solution,
             supervisor_parameters,
@@ -194,7 +209,6 @@ impl AgentFactory {
         // It is the `Algorithm` that should have the arc_swap_shared_solution, not the
         // `Agent`. The mutable requirements makes a lot of sense.
         let mut supervisor_agent = Agent::new(
-            asset.clone(),
             id_supervisor.clone(),
             scheduling_environment,
             supervisor_algorithm,
@@ -205,9 +219,8 @@ impl AgentFactory {
 
         std::thread::Builder::new()
             .name(format!(
-                "{} for Asset: {} for Id: {}",
-                std::any::type_name_of_val(&options),
-                asset,
+                "{} for Id: {}",
+                std::any::type_name_of_val(&supervisor_agent),
                 &id_supervisor,
             ))
             .spawn(move || supervisor_agent.run())?;
@@ -222,9 +235,10 @@ impl AgentFactory {
     // `SchedulingEnvironment`? Yes I think that it should.
     // FIX
     // Move the OperationalConfiguration into the `SchedulingEnvironment`.
+    // QUESTION
+    // Is it a good idea that the asset is part of the ID? Yes that is a good idea!
     pub fn build_operational_agent(
         &self,
-        asset: &Asset,
         operational_id: &Id,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
@@ -234,7 +248,7 @@ impl AgentFactory {
         let options = OperationalOptions::default();
 
         let operational_parameters =
-            OperationalParameters::new(&asset, options, scheduling_environment)
+            OperationalParameters::new(operational_id, options, scheduling_environment)
                 .context("Parameters could not be created")?;
 
         let operational_solution = OperationalSolution::new(&operational_parameters);
@@ -258,7 +272,6 @@ impl AgentFactory {
         ) = std::sync::mpsc::channel();
 
         let mut operational_agent = Agent::new(
-            asset.clone(),
             operational_id.clone(),
             self.scheduling_environment.clone(),
             operational_algorithm,
@@ -272,10 +285,10 @@ impl AgentFactory {
         // WARN
         operational_agent.algorithm.make_atomic_pointer_swap();
 
+        // Standardize thread names.
         let thread_name = format!(
-            "{} for Asset: {} for Id: {}",
+            "{} for Id: {}",
             std::any::type_name::<OperationalSolution>(),
-            asset,
             &operational_id,
         );
 

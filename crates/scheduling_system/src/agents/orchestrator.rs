@@ -3,12 +3,14 @@ use anyhow::Context;
 use anyhow::Result;
 use colored::Colorize;
 use shared_types::agents::operational::requests::operational_request_status::OperationalStatusRequest;
+use shared_types::agents::operational::responses::operational_response_status::OperationalResponseStatus;
 use shared_types::agents::operational::OperationalRequestMessage;
 use shared_types::agents::operational::OperationalResponseMessage;
 use shared_types::agents::strategic::requests::strategic_request_status_message::StrategicStatusMessage;
 use shared_types::agents::strategic::StrategicRequestMessage;
 use shared_types::agents::strategic::StrategicResponseMessage;
 use shared_types::agents::supervisor::requests::supervisor_status_message::SupervisorStatusMessage;
+use shared_types::agents::supervisor::responses::supervisor_response_status::SupervisorResponseStatus;
 use shared_types::agents::supervisor::SupervisorRequestMessage;
 use shared_types::agents::supervisor::SupervisorResponseMessage;
 use shared_types::orchestrator::OrchestratorRequest;
@@ -17,13 +19,10 @@ use shared_types::orchestrator::WorkOrderResponse;
 use shared_types::orchestrator::WorkOrdersStatus;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 
-use shared_types::agents::strategic;
-use shared_types::agents::supervisor;
 use shared_types::scheduling_environment::worker_environment::WorkerEnvironment;
 use shared_types::Asset;
+use shared_types::OperationalConfigurationAll;
 use std::collections::HashMap;
-use std::sync::atomic::AtomicU64;
-use std::sync::atomic::Ordering;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
@@ -126,7 +125,6 @@ pub struct AgentRegistry {
         Id,
         Communication<AgentMessage<OperationalRequestMessage>, OperationalResponseMessage>,
     >,
-    pub number_of_operational_agents: Arc<AtomicU64>,
 }
 
 pub struct Communication<Req, Res> {
@@ -282,7 +280,7 @@ impl Orchestrator {
                         self.scheduling_environment.lock().unwrap();
                     scheduling_environment_guard
                         .worker_environment
-                        .system_agents = system_agents;
+                        .agent_environment = system_agents.into();
                 }
 
                 let state_link = AgentMessage::State(StateLink::WorkerEnvironment);
@@ -306,11 +304,10 @@ impl Orchestrator {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
                 let operational_agents = &scheduling_environment_guard
                     .worker_environment
-                    .system_agents
+                    .agent_environment
                     .operational;
 
-                for agent in operational_agents {
-                    let id = Id::new(agent.id.clone(), agent.resources.resources.clone(), None);
+                for agent in operational_agents.values() {
                     let arc_swap =
                         self.arc_swap_shared_solutions
                             .get(&asset)
@@ -337,8 +334,7 @@ impl Orchestrator {
                     let operational_communication = self
                         .agent_factory
                         .build_operational_agent(
-                            &asset,
-                            &id,
+                            &agent.id,
                             &self.scheduling_environment.lock().unwrap(),
                             Arc::clone(arc_swap),
                             notify_orchestrator,
@@ -349,7 +345,7 @@ impl Orchestrator {
                         .get_mut(&asset)
                         .unwrap()
                         .operational_agent_senders
-                        .insert(id, operational_communication);
+                        .insert(agent.id.clone(), operational_communication);
                 }
                 Ok(OrchestratorResponse::Success)
             }
@@ -441,7 +437,15 @@ impl Orchestrator {
                 let tactical_days = OrchestratorResponse::Days(days);
                 Ok(tactical_days)
             }
-            OrchestratorRequest::CreateSupervisorAgent(asset, id_string) => {
+            OrchestratorRequest::CreateSupervisorAgent(
+                asset,
+                number_of_supervisor_periods,
+                id_string,
+            ) => {
+                // FIX
+                // Here you should create the system so that an entry in the `SchedulingEnvironment` is created.
+                todo!();
+                // FIX
                 let notify_orchestrator = NotifyOrchestrator(
                     self.agent_notify
                         .as_ref()
@@ -486,10 +490,44 @@ impl Orchestrator {
                 let orchestrator_response = OrchestratorResponse::RequestStatus(response_string);
                 Ok(orchestrator_response)
             }
-            OrchestratorRequest::CreateOperationalAgent(asset, id, operational_configuration) => {
+            // Do we even want this?
+            // Yes it is crucial that `OperationalAgent`s can be created on demand. There is no excuse for not having that
+            // function.
+            OrchestratorRequest::CreateOperationalAgent(
+                asset,
+                id,
+                hours_per_day,
+                operational_configuration,
+            ) => {
+                // This function should update the scheduling environment and then create
+                // a function should be called on the scheduling environment to process the
+                // requests to create an agent.
+                // FIX
+                // QUESTION
+                // What should this function do?
+                // It creates an `OperationalAgent` but that is not enough.
                 let response_string = format!("Operational agent created with id {}", id);
 
-                self.create_operational_agent(&asset, &id, &operational_configuration)?;
+                let operational_configuration_all = OperationalConfigurationAll::new(
+                    id.clone(),
+                    hours_per_day,
+                    operational_configuration,
+                );
+
+                // WARN
+                // You should create this so that the whole system is optimized
+                // you should create the configuration. Let `create_operational_agent`
+                // borrow it. And then insert it into the `SchedulingEnvironment`.
+                self.create_operational_agent(&operational_configuration_all)?;
+                // WARN
+                // Is this API fault tolerant enough? I am not really sure.
+                self.scheduling_environment
+                    .lock()
+                    .unwrap()
+                    .worker_environment
+                    .agent_environment
+                    .operational
+                    .insert(id, operational_configuration_all);
 
                 let orchestrator_response = OrchestratorResponse::RequestStatus(response_string);
 
@@ -542,55 +580,76 @@ impl Orchestrator {
         }
     }
 
-    pub fn initialize_operational_agents(&mut self, asset: Asset) -> Result<()> {
-        let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
-        let worker_environment = &scheduling_environment_guard
+    // QUESTION
+    // Is it correct to remove the agents here? I believe yes, the system have the
+    // agents that it does. In the scheduling environment. I do not think that
+    // we should move too much with this.
+    pub fn initialize_operational_agents(&mut self) -> Result<()> {
+        let operational_agents = &self
+            .scheduling_environment
+            .lock()
+            .unwrap()
             .worker_environment
-            .system_agents
+            .agent_environment
             .operational
             .clone();
-        drop(scheduling_environment_guard);
 
-        for operational_agent in worker_environment.iter() {
-            let id: Id = Id::new(
-                operational_agent.id.clone(),
-                operational_agent.resources.resources.clone(),
-                None,
-            );
-            self.create_operational_agent(
-                &asset,
-                &id,
-                &operational_agent.operational_configuration,
-            )?;
+        // WARN
+        // You should always initialize the `SchedulingEnvironment` and make sure that is the
+        // single source of truth.
+        for operational_agent in operational_agents.values() {
+            // QUESTION
+            // How should this be build? I think that the best approach will be to make
+            // what is the best approach to making something like this work?
+            // Maybe it is actually okay to do it like this? This issue is that the
+            // `SchedulingEnvironment` might not be updated and this will be a bug
+            // later on.
+            self.create_operational_agent(operational_agent)?;
         }
         Ok(())
     }
 
-    fn create_operational_agent(&mut self, asset: &Asset, id: &Id) -> Result<()> {
+    fn create_operational_agent(
+        &mut self,
+        operational_agent: &OperationalConfigurationAll,
+    ) -> Result<()> {
+        let notify_orchestrator = NotifyOrchestrator(
+            self.agent_notify
+                .as_ref()
+                .expect("Orchestrator is initialized with the Option::Some variant")
+                .upgrade()
+                .expect("This Weak reference should always be able to be updated"),
+        );
+
+        let shared_solution = self
+            .arc_swap_shared_solutions
+            .get(
+                operational_agent
+                    .id
+                    .2
+                    .first()
+                    .expect("TODO: we should not simply grap the first element here."),
+            )
+            .unwrap()
+            .clone();
+
         let operational_agent_addr = self.agent_factory.build_operational_agent(
-            asset,
-            id,
-            operational_configuration,
-            self.arc_swap_shared_solutions.get(asset).unwrap().clone(),
-            NotifyOrchestrator(
-                self.agent_notify
-                    .as_ref()
-                    .expect("Orchestrator is initialized with the Option::Some variant")
-                    .upgrade()
-                    .expect("This Weak reference should always be able to be updated"),
-            ),
+            &operational_agent.id,
+            &self.scheduling_environment.lock().unwrap(),
+            shared_solution,
+            notify_orchestrator,
         )?;
 
-        self.agent_registries
-            .get(asset)
-            .unwrap()
-            .number_of_operational_agents
-            .fetch_add(1, Ordering::SeqCst);
+        let asset = operational_agent
+            .id
+            .2
+            .first()
+            .expect("There should always be an asset available");
 
         self.agent_registries
             .get_mut(asset)
             .unwrap()
-            .add_operational_agent(id.clone(), operational_agent_addr);
+            .add_operational_agent(operational_agent.id.clone(), operational_agent_addr);
         Ok(())
     }
 }
@@ -609,14 +668,12 @@ impl AgentRegistry {
             Id,
             Communication<AgentMessage<SupervisorRequestMessage>, SupervisorResponseMessage>,
         >,
-        number_of_operational_agents: Arc<AtomicU64>,
     ) -> Self {
         AgentRegistry {
             strategic_agent_sender: strategic_agent_addr,
             tactical_agent_sender: tactical_agent_addr,
             supervisor_agent_senders: supervisor_agent_addrs,
             operational_agent_senders: HashMap::new(),
-            number_of_operational_agents,
         }
     }
 
@@ -727,39 +784,39 @@ impl Orchestrator {
 
         let supervisors = scheduling_environment_guard
             .worker_environment
-            .system_agents
-            .supervisors
+            .agent_environment
+            .supervisor
             .clone();
-        drop(scheduling_environment_guard);
 
-        let mut supervisor_addrs = HashMap::<
+        let mut supervisor_communication = HashMap::<
             Id,
             Communication<AgentMessage<SupervisorRequestMessage>, SupervisorResponseMessage>,
         >::new();
-        let number_of_operational_agents = Arc::new(AtomicU64::new(0));
 
-        for supervisor in supervisors {
-            let id = Id::new("default".to_string(), vec![], Some(supervisor.clone()));
-
+        // This is a good sign. It means that the system is performing correctly. What should be
+        // done about the code in general?
+        // Why is the supervisor no used here?
+        for (id, _supervisor_configuration_all) in supervisors {
             let supervisor_addr = self
                 .agent_factory
                 .build_supervisor_agent(
                     &asset,
+                    &scheduling_environment_guard,
                     &id,
                     shared_solutions_arc_swap.clone(),
                     notify_orchestrator.clone(),
                 )
                 .expect("AgentFactory could not build the specified supervisor agent");
 
-            supervisor_addrs.insert(id, supervisor_addr);
+            supervisor_communication.insert(id, supervisor_addr);
         }
 
         let agent_registry = AgentRegistry::new(
             strategic_agent_addr,
             tactical_agent_addr,
-            supervisor_addrs,
-            number_of_operational_agents,
+            supervisor_communication,
         );
+
         self.arc_swap_shared_solutions
             .insert(asset.clone(), shared_solutions_arc_swap);
 

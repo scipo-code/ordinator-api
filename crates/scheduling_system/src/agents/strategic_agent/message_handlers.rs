@@ -6,17 +6,17 @@ use anyhow::Context;
 use anyhow::Result;
 use colored::Colorize;
 use priority_queue::PriorityQueue;
+use shared_types::agents::strategic::requests::strategic_request_scheduling_message::StrategicRequestScheduling;
+use shared_types::agents::strategic::requests::strategic_request_status_message::StrategicStatusMessage;
+use shared_types::agents::strategic::responses::strategic_response_periods::StrategicResponsePeriods;
+use shared_types::agents::strategic::responses::strategic_response_scheduling::StrategicResponseScheduling;
+use shared_types::agents::strategic::responses::strategic_response_status::StrategicResponseStatus;
+use shared_types::agents::strategic::StrategicSchedulingEnvironmentCommands;
+use shared_types::agents::strategic::{StrategicRequestMessage, StrategicResponseMessage};
 use shared_types::orchestrator::StrategicApiSolution;
 use shared_types::orchestrator::WorkOrderResponse;
 use shared_types::orchestrator::WorkOrdersStatus;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::strategic::strategic_request_scheduling_message::StrategicRequestScheduling;
-use shared_types::strategic::strategic_request_status_message::StrategicStatusMessage;
-use shared_types::strategic::strategic_response_periods::StrategicResponsePeriods;
-use shared_types::strategic::strategic_response_scheduling::StrategicResponseScheduling;
-use shared_types::strategic::strategic_response_status::StrategicResponseStatus;
-use shared_types::strategic::StrategicSchedulingEnvironmentCommands;
-use shared_types::strategic::{StrategicRequestMessage, StrategicResponseMessage};
 use tracing::event;
 use tracing::Level;
 
@@ -57,13 +57,14 @@ impl MessageHandler
                         let number_of_strategic_work_orders =
                             strategic_parameters.strategic_work_order_parameters.len();
 
-                        let asset = &self.asset;
+                        let asset = self.agent_id.asset();
 
                         let number_of_periods = self.algorithm.parameters.strategic_periods.len();
 
+                        // Yes so you use
                         let strategic_response_status = StrategicResponseStatus::new(
                             asset.clone(),
-                            strategic_objective_value,
+                            (strategic_objective_value.clone()).into(),
                             number_of_strategic_work_orders,
                             number_of_periods,
                         );
@@ -233,7 +234,11 @@ impl MessageHandler
                             .inner
                             .get_mut(work_order_number)
                             .with_context(|| {
-                                format!("{:?} is not found for {:?}", work_order_number, self.asset)
+                                format!(
+                                    "{:?} is not found for {:?}",
+                                    work_order_number,
+                                    self.agent_id.asset()
+                                )
                             })?;
 
                         // This should ideally be encapsulated into the a method on the WorkOrder that accepts a StrategicUserStatusCodes
@@ -321,7 +326,7 @@ impl MessageHandler
                     self.notify_orchestrator
                         .notify_all_agents_of_work_order_change(
                             strategic_user_status_codes.work_order_numbers,
-                            &self.asset,
+                            &self.agent_id.asset(),
                         )
                         .context("Could not notify Orchestrator")?;
 

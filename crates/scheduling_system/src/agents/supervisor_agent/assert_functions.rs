@@ -6,7 +6,7 @@ use tracing::{event, Level};
 
 use crate::agents::{Agent, Algorithm, SupervisorSolution};
 
-use super::algorithm::SupervisorParameters;
+use super::algorithm::supervisor_parameters::SupervisorParameters;
 
 #[allow(dead_code)]
 pub trait SupervisorAssertions {

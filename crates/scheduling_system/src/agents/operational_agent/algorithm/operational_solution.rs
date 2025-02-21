@@ -1,26 +1,17 @@
 use chrono::{DateTime, Utc};
 use shared_types::{
     agents::operational::{
-        responses::operational_response_scheduling::ApiAssignmentEvents, OperationalConfiguration,
-        TimeInterval,
+        responses::operational_response_scheduling::ApiAssignmentEvents, TimeInterval,
     },
     scheduling_environment::{
-        work_order::{operation::ActivityNumber, WorkOrderActivity, WorkOrderNumber},
-        worker_environment::availability::Availability,
+        work_order::WorkOrderActivity, worker_environment::availability::Availability,
     },
 };
 use strum_macros::AsRefStr;
 
-use crate::agents::{
-    operational_agent::{algorithm::no_overlap_by_ref, OperationalOptions},
-    traits::Parameters,
-    OperationalSolution, Solution,
-};
+use crate::agents::{operational_agent::algorithm::no_overlap_by_ref, OperationalSolution};
 
-use super::{
-    operational_events::OperationalEvents, operational_parameter::OperationalParameters,
-    ContainOrNextOrNone, OperationalObjectiveValue, Unavailability,
-};
+use super::{operational_events::OperationalEvents, ContainOrNextOrNone, Unavailability};
 
 // I think that we should have a Generic solution struct.
 

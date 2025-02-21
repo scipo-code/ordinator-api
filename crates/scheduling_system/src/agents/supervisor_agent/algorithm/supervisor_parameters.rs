@@ -7,7 +7,7 @@ use shared_types::scheduling_environment::{
         operation::{operation_info::NumberOfPeople, ActivityNumber, Operation},
         WorkOrderActivity, WorkOrderNumber,
     },
-    worker_environment::resources::Resources,
+    worker_environment::resources::{Id, Resources},
     SchedulingEnvironment,
 };
 
@@ -17,7 +17,8 @@ pub struct SupervisorParameters {
     pub supervisor_work_orders:
         HashMap<WorkOrderNumber, HashMap<ActivityNumber, SupervisorParameter>>,
     pub supervisor_periods: Vec<Period>,
-    pub resources: Vec<Resources>,
+    pub operational_ids: Vec<Id>,
+    pub options: SupervisorOptions,
 }
 
 impl Parameters for SupervisorParameters {
@@ -25,34 +26,60 @@ impl Parameters for SupervisorParameters {
     type Options = SupervisorOptions;
 
     fn new(
-        asset: &shared_types::Asset,
+        id: &Id,
         options: Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self> {
         let supervisor_periods = &scheduling_environment.time_environment.supervisor_periods;
 
-        // What is it that you want to do here? I think that the best approach will be to make the system
-        //
-        //
-
         let mut supervisor_parameters = HashMap::new();
-        for (work_order_number, work_order) in &scheduling_environment.work_orders.inner {
-            let inner_map = work_order.operations.iter().map(|(acn, op)| {
-                (
-                    *acn,
-                    SupervisorParameter::new(op.resource, op.operation_info.number),
-                )
-            });
+
+        for (work_order_number, work_order) in scheduling_environment
+            .work_orders
+            .inner
+            .iter()
+            .filter(|(_, wo)| {
+                &wo.functional_location().asset
+                    == id
+                        .2
+                        .first()
+                        .expect("TODO: Implement multi-asset technicians")
+            })
+        {
+            let inner_map = work_order
+                .operations
+                .iter()
+                .map(|(acn, op)| {
+                    (
+                        *acn,
+                        SupervisorParameter::new(op.resource, op.operation_info.number),
+                    )
+                })
+                .collect();
 
             let _assert_option = supervisor_parameters.insert(*work_order_number, inner_map);
 
             assert!(_assert_option.is_none());
         }
 
+        // FIX
+        // You should not select all agents. You should instead pick the ones that fit the correct supervisor.
+        // WARN
+        // You made a huge mistake here! The types in the `SchedulingEnvironment` was wrong and then you
+        // created state duplication to fix the issue.
+        let operational_ids: Vec<Id> = scheduling_environment
+            .worker_environment
+            .agent_environment
+            .operational
+            .keys()
+            .cloned()
+            .collect();
+
         Ok(Self {
-            supervisor_work_orders: HashMap::new(),
+            supervisor_work_orders: supervisor_parameters,
             supervisor_periods: supervisor_periods.clone(),
-            resources: vec![],
+            operational_ids,
+            options,
         })
     }
 

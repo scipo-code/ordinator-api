@@ -46,8 +46,23 @@ impl SchedulingEnvironment {
             work_order.initialize(periods);
         }
     }
+
+    pub fn builder() -> SchedulingEnvironmentBuilder {
+        SchedulingEnvironmentBuilder::new()
+    }
 }
 
+struct SchedulingEnvironmentBuilder(SchedulingEnvironment);
+
+impl SchedulingEnvironmentBuilder {
+    pub fn build(self) -> SchedulingEnvironment {
+        SchedulingEnvironment {
+            work_orders: self.0.work_orders,
+            worker_environment: self.0.worker_environment,
+            time_environment: self.0.time_environment,
+        }
+    }
+}
 impl Default for SchedulingEnvironment {
     fn default() -> Self {
         SchedulingEnvironment {
@@ -93,7 +108,7 @@ impl FromIterator<(WorkOrderNumber, WorkOrder)> for WorkOrders {
 
 impl fmt::Display for SchedulingEnvironment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let workers = self.worker_environment.system_agents.operational.len();
+        let workers = self.worker_environment.agent_environment.operational.len();
         write!(
             f,
             "The Scheduling Environment is currently comprised of

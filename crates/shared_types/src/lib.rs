@@ -6,7 +6,6 @@ use std::{
     fmt::{self, Display},
 };
 
-use agents::strategic;
 use clap::{Subcommand, ValueEnum};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -17,13 +16,13 @@ use rust_xlsxwriter::IntoExcelData;
 use scheduling_environment::{
     time_environment::{day::Day, period::Period},
     work_order::{WorkOrderActivity, WorkOrderNumber},
-    worker_environment::resources::Resources,
+    worker_environment::resources::{Id, Resources},
 };
 
+use agents::strategic::{StrategicRequest, StrategicResponse};
 use agents::supervisor::{SupervisorRequest, SupervisorResponse};
 use agents::tactical::{TacticalRequest, TacticalResponse};
 use serde::{Deserialize, Serialize};
-use strategic::{StrategicRequest, StrategicResponse};
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "message_type")]
@@ -247,10 +246,99 @@ pub struct TomlResources {
     pub wellsupv: f64,
 }
 
+// WARN
+// This type if for initializing data based on the configuration
+// .toml files. It should not be used as the structure for the
+// `WorkerEnvironments` that is inappropriate.
+// Good, so this type is an `API` types. And all API types
+// should be located together. I think that is the best approach
+// here.
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct SystemAgents {
     pub supervisors: Vec<InputSupervisor>,
+    // QUESTION
+    // Why not just store the OperationalParameters here?
+    // Hmm... because the WorkOrders should not be part of this
+    // what about the options? The options should be defined in
+    // a separate config file
+    // TODO [] Make separate config files for options
     pub operational: Vec<InputOperational>,
+}
+
+impl From<SystemAgents> for AgentEnvironment {
+    fn from(value: SystemAgents) -> Self {
+        let operational = value
+            .operational
+            .into_iter()
+            .map(|io| {
+                let id = Id::new(&io.id, vec![], io.assets);
+                let operational_config = OperationalConfigurationAll {
+                    id: id.clone(),
+                    hours_per_day: io.hours_per_day,
+                    operational_configuration: io.operational_configuration,
+                };
+
+                (id, operational_config)
+            })
+            .collect();
+
+        let supervisor = value
+            .supervisors
+            .into_iter()
+            .map(|is| {
+                // The umber of supervisor periods is misleading.
+                let id = Id::new(&is.id, vec![], is.assets);
+                let supervisor_config = SupervisorConfigurationAll {
+                    id: id.clone(),
+                    number_of_supervisor_periods: is.number_of_supervisor_periods,
+                };
+                (id.clone(), supervisor_config)
+            })
+            .collect();
+
+        Self {
+            operational,
+            supervisor,
+        }
+    }
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub struct AgentEnvironment {
+    pub operational: HashMap<Id, OperationalConfigurationAll>,
+    pub supervisor: HashMap<Id, SupervisorConfigurationAll>,
+}
+
+// WARN
+// You should never be able to clone this.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OperationalConfigurationAll {
+    pub id: Id,
+    hours_per_day: f64,
+    pub operational_configuration: OperationalConfiguration,
+}
+
+impl OperationalConfigurationAll {
+    pub fn new(
+        id: Id,
+        hours_per_day: f64,
+        operational_configuration: OperationalConfiguration,
+    ) -> Self {
+        Self {
+            id,
+            hours_per_day,
+            operational_configuration,
+        }
+    }
+}
+
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
+pub struct SupervisorConfigurationAll {
+    id: Id,
+    // FIX
+    // This information is found in two different places. That is an
+    // error that has to be fixed.
+    number_of_supervisor_periods: u64,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug)]
@@ -258,23 +346,24 @@ pub struct InputSupervisor {
     pub id: String,
     pub resource: Option<Resources>,
     pub number_of_supervisor_periods: u64,
+    pub assets: Vec<Asset>,
 }
 
 pub type OperationalId = String;
 
 // I think that this should be refactored. You do not really understand
 // why it is that way.
+//
+// You should make a new type here. One that does the best it
+// can to be what we need this. `From<InputOperational> for OperationalConfiguration`
+// is needed!
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InputOperational {
     pub id: OperationalId,
-    pub resources: TomlResourcesArray,
+    pub resources: Vec<Resources>,
     pub hours_per_day: f64,
     pub operational_configuration: OperationalConfiguration,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct TomlResourcesArray {
-    pub resources: Vec<Resources>,
+    pub assets: Vec<Asset>,
 }
 
 #[derive(Debug, Serialize)]
@@ -328,7 +417,7 @@ mod tests {
         let toml_operational_string = r#"
             [[supervisors]]
             id = "main"
-            number_of_supervisor_periods = 3
+            number_of_supervisAgentEnvironmentr_periods = 3
 
             # [[supervisors]]
             # id = "supervisor-second"
@@ -350,10 +439,7 @@ mod tests {
 
         assert_eq!(system_agents.operational[0].id, "OP-01-001".to_string());
 
-        assert_eq!(
-            system_agents.operational[0].resources.resources,
-            [Resources::MtnElec]
-        );
+        assert_eq!(system_agents.operational[0].resources, [Resources::MtnElec]);
 
         assert_eq!(
             system_agents.operational[0]

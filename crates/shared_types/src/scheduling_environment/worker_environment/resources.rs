@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Display, str::FromStr};
 use strum_macros::EnumIter;
 
-use crate::InputSupervisor;
+use crate::Asset;
 
 /// This enum holds all the resources that are available needed to schedule work order.
 #[derive(
@@ -296,16 +296,18 @@ impl Display for Resources {
     }
 }
 
+// TODO
+// You should add a function here to make the code work with the.
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug, Default)]
-pub struct Id(pub String, pub Vec<Resources>, pub Option<InputSupervisor>);
+pub struct Id(pub String, pub Vec<Resources>, pub Vec<Asset>);
 
 impl Id {
-    pub fn new(
-        id_employee: String,
-        resources: Vec<Resources>,
-        supervisor: Option<InputSupervisor>,
-    ) -> Self {
-        Id(id_employee, resources, supervisor)
+    pub fn new(id_employee: &str, resources: Vec<Resources>, related_assets: Vec<Asset>) -> Self {
+        Id(id_employee.to_string(), resources, related_assets)
+    }
+
+    pub fn asset(&self) -> &Asset {
+        self.2.first().unwrap()
     }
 }
 

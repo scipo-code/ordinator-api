@@ -113,7 +113,7 @@ impl Orchestrator {
             .0
             .load()
             .tactical
-            .tactical_scheduled_work_orders
+            .tactical_work_orders
             .0
             .iter()
             .filter(|(_, tac_sch)| tac_sch.is_tactical())
@@ -198,7 +198,7 @@ impl Orchestrator {
         };
         let supervisor_agent_addr = supervisor_agent_addrs
                 .iter()
-                .find(|(id, _)| id.2.as_ref().unwrap().id == supervisor_request.supervisor.to_string())
+                .find(|(id, _)| id.0 == supervisor_request.supervisor.to_string())
                 .expect("This will error at somepoint you will need to handle if you have added additional supervisors")
                 .1;
 
