@@ -15,13 +15,14 @@ export default function AssetPage() {
     <Container maxWidth="full" padding="sm" className="bg-white min-h-screen">
       <h1 className="text-4xl font-bold">Dashboard</h1>
       <br/>
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-        <Tabs defaultValue="loading-graph" className="max-w-screen-lg">
+      <Tabs defaultValue="loading-graph" className="w-full">
+        <div className="flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="loading-graph">Graph</TabsTrigger>
             <TabsTrigger value="loading-page">Loadings</TabsTrigger>
           </TabsList>
+          <ExportDialog asset={asset}/>
+        </div>
           <TabsContent value="loading-graph">
             <p>Graph</p>
           </TabsContent>
@@ -29,12 +30,6 @@ export default function AssetPage() {
             <ResourceOverview />
           </TabsContent>
         </Tabs>
-      </div>
-      <div className="ml-4">
-        <ExportDialog asset={asset}/>
-      </div>
-    </div>
-      
     </Container>
   );
 }
