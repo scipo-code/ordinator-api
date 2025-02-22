@@ -3,12 +3,13 @@ use serde::{Deserialize, Serialize};
 
 use super::priority::Priority;
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub enum WorkOrderType {
     Wdf(Priority),
     Wgn(Priority),
     Wpm(Priority),
     Wro(Priority),
+    #[default]
     Other,
 }
 

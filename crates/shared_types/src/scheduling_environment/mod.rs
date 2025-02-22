@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
+use time_environment::TimeEnvironmentBuilder;
 
 use crate::scheduling_environment::time_environment::period::Period;
 use crate::scheduling_environment::work_order::WorkOrder;
@@ -45,6 +46,68 @@ impl SchedulingEnvironment {
             work_order.initialize(periods);
         }
     }
+
+    pub fn builder() -> SchedulingEnvironmentBuilder {
+        SchedulingEnvironmentBuilder::new()
+    }
+}
+
+#[derive(Default)]
+pub struct SchedulingEnvironmentBuilder {
+    pub work_orders: Option<WorkOrders>,
+    pub worker_environment: Option<WorkerEnvironment>,
+    pub time_environment: Option<TimeEnvironment>,
+}
+
+impl SchedulingEnvironmentBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn build(self) -> SchedulingEnvironment {
+        SchedulingEnvironment {
+            work_orders: self.work_orders.unwrap_or_default(),
+            worker_environment: self.worker_environment.unwrap_or_default(),
+            time_environment: self.time_environment.unwrap_or_default(),
+        }
+    }
+
+    pub fn time_environment(&mut self, time_environment: TimeEnvironment) -> &mut Self {
+        self.time_environment = Some(time_environment);
+        self
+    }
+
+    pub fn time_environment_builder<F>(&mut self, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut TimeEnvironmentBuilder) -> &mut TimeEnvironmentBuilder,
+    {
+        let mut time_environment_builder = TimeEnvironmentBuilder::default();
+
+        f(&mut time_environment_builder);
+
+        self.time_environment = Some(time_environment_builder.build());
+        self
+    }
+
+    pub fn worker_environment(&mut self, worker_environment: WorkerEnvironment) -> &mut Self {
+        self.worker_environment = Some(worker_environment);
+        self
+    }
+    pub fn work_orders(&mut self, work_orders: WorkOrders) -> &mut Self {
+        self.work_orders = Some(work_orders);
+        self
+    }
+
+    pub fn work_orders_builder<F>(&mut self, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut WorkOrdersBuilder) -> &mut WorkOrdersBuilder,
+    {
+        let mut work_orders_builder = WorkOrdersBuilder::default();
+
+        f(&mut work_orders_builder);
+
+        self.work_orders = Some(work_orders_builder.build());
+        self
+    }
 }
 
 impl Default for SchedulingEnvironment {
@@ -60,6 +123,31 @@ impl Default for SchedulingEnvironment {
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct WorkOrders {
     pub inner: HashMap<WorkOrderNumber, WorkOrder>,
+}
+
+#[derive(Default)]
+pub struct WorkOrdersBuilder {
+    inner: Option<HashMap<WorkOrderNumber, WorkOrder>>,
+}
+
+impl WorkOrdersBuilder {
+    pub fn build(self) -> WorkOrders {
+        WorkOrders {
+            inner: self.inner.unwrap_or_default(),
+        }
+    }
+
+    pub fn work_order_builder<F>(&mut self, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut WorkOrderBuilder) -> &mut WorkOrderBuilder,
+    {
+        let mut work_order_builder = WorkOrderBuilder::default();
+
+        f(&mut work_order_builder);
+
+        work_order_builder.inner = Some(work_order_builder.build());
+        self
+    }
 }
 
 impl WorkOrders {

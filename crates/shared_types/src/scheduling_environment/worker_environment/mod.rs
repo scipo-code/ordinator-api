@@ -27,6 +27,11 @@ pub struct WorkerEnvironment {
     work_centers: HashSet<Resources>,
 }
 
+pub struct WorkerEnvironmentBuilder {
+    pub agent_environment: Option<AgentEnvironment>,
+    work_centers: Option<HashSet<Resources>>,
+}
+
 impl WorkerEnvironment {
     pub fn new() -> Self {
         let mut work_centers = HashSet::new();
@@ -155,4 +160,18 @@ impl WorkerEnvironment {
 pub enum EmptyFull {
     Empty,
     Full,
+}
+
+impl WorkerEnvironmentBuilder {
+    pub fn build(self) -> WorkerEnvironment {
+        WorkerEnvironment {
+            agent_environment: self.agent_environment.unwrap_or_default(),
+            work_centers: self.work_centers.unwrap_or_default(),
+        }
+    }
+
+    pub fn agent_environment(&mut self, agent_environment: AgentEnvironment) -> &mut Self {
+        self.agent_environment = Some(agent_environment);
+        self
+    }
 }
