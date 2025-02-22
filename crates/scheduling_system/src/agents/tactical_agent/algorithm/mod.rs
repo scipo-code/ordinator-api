@@ -534,7 +534,7 @@ enum OperationDifference {
 pub mod tests {
     use std::{collections::HashMap, str::FromStr};
 
-    use chrono::Days;
+    use chrono::{DateTime, Datelike, Days};
     use shared_types::{
         agents::tactical::TacticalResources,
         scheduling_environment::{
@@ -645,7 +645,7 @@ pub mod tests {
         // Work::from(1.0),
         // Resources::MtnMech,
         let scheduling_environment = SchedulingEnvironmentBuilder::default()
-            .with_tactical_days(56)
+            .time_environment_builder(|ib| ib.tactical_days("2025-02-22T07:00:00Z", 56))
             .with_work_order()
             .with_operation();
 

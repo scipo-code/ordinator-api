@@ -41,14 +41,14 @@ impl Parameters for StrategicParameters {
         let work_orders = &scheduling_environment.work_orders;
         let strategic_periods = &scheduling_environment.time_environment.strategic_periods;
 
-        strategic_clustering.calculate_clustering_values(asset, &work_orders)?;
+        strategic_clustering.calculate_clustering_values(asset, work_orders)?;
 
         let strategic_capacity = scheduling_environment
             .worker_environment
-            .generate_strategic_resources(&strategic_periods);
+            .generate_strategic_resources(strategic_periods);
 
         let strategic_work_order_parameters =
-            create_strategic_parameters(&work_orders, &strategic_periods, &asset).with_context(
+            create_strategic_parameters(work_orders, strategic_periods, asset).with_context(
                 || format!("StrategicParameters for {:#?} could not be created", &asset),
             )?;
 

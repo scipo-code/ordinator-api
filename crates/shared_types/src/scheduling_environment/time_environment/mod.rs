@@ -1,3 +1,4 @@
+use chrono::{DateTime, Days, Utc};
 use serde::{Deserialize, Serialize};
 
 use self::day::Day;
@@ -30,5 +31,58 @@ impl TimeEnvironment {
             tactical_days,
             supervisor_periods,
         }
+    }
+
+    pub fn builder() -> TimeEnvironmentBuilder {
+        TimeEnvironmentBuilder::default()
+    }
+}
+
+#[derive(Default)]
+pub struct TimeEnvironmentBuilder {
+    pub strategic_periods: Option<Vec<Period>>,
+    pub supervisor_periods: Option<Vec<Period>>,
+    pub tactical_days: Option<Vec<Day>>,
+    pub tactical_periods: Option<Vec<Period>>,
+}
+
+impl TimeEnvironmentBuilder {
+    pub fn build(self) -> TimeEnvironment {
+        TimeEnvironment {
+            strategic_periods: self.strategic_periods.unwrap_or_default(),
+            tactical_periods: self.tactical_periods.unwrap_or_default(),
+            tactical_days: self.tactical_days.unwrap_or_default(),
+            supervisor_periods: self.supervisor_periods.unwrap_or_default(),
+        }
+    }
+
+    pub fn strategic_periods(&mut self, strategic_periods: Vec<Period>) -> &mut Self {
+        self.strategic_periods = Some(strategic_periods);
+        self
+    }
+
+    pub fn tactical_periods(&mut self, tactical_periods: Vec<Period>) -> &mut Self {
+        self.tactical_periods = Some(tactical_periods);
+        self
+    }
+
+    pub fn tactical_days(&mut self, first_day: &str, number_of_tactical_days: u64) -> &mut Self {
+        let mut first_day: DateTime<Utc> =
+            first_day.parse().expect("You did not provide a valid date");
+        let mut tactical_days = |number_of_tactical_days: u64| -> Vec<Day> {
+            let mut days: Vec<Day> = Vec::new();
+            for day_index in 0..number_of_tactical_days {
+                days.push(Day::new(day_index as usize, first_day.to_owned()));
+                first_day = first_day.checked_add_days(Days::new(1)).unwrap();
+            }
+            days
+        };
+        self.tactical_days = Some(tactical_days(number_of_tactical_days));
+        self
+    }
+
+    pub fn supervisor_periods(&mut self, supervisor_periods: Vec<Period>) -> &mut Self {
+        self.supervisor_periods = Some(supervisor_periods);
+        self
     }
 }

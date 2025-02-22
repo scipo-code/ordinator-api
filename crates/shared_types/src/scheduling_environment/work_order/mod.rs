@@ -105,6 +105,95 @@ pub struct WorkOrder {
     pub work_order_info: WorkOrderInfo,
 }
 
+pub struct WorkOrderBuilder {
+    pub work_order_number: WorkOrderNumber,
+    pub main_work_center: Resources,
+    pub operations: Option<HashMap<ActivityNumber, Operation>>,
+    // FIX
+    // Every operation needs to have a relation between them. There
+    // is no way around this. It should be an enforced invariant.
+    pub relations: Vec<ActivityRelation>,
+    pub work_order_analytic: WorkOrderAnalytic,
+    pub work_order_dates: WorkOrderDates,
+    pub work_order_info: WorkOrderInfo,
+}
+
+impl WorkOrderBuilder {
+    pub fn build(self) -> WorkOrder {
+        WorkOrder {
+            work_order_number: self.work_order_number,
+            main_work_center: self.main_work_center,
+            operations: self.operations.unwrap_or_default(),
+            relations: self.relations.unwrap_or_default(),
+            work_order_analytic: self.work_order_analytic,
+            work_order_dates: self.work_order_dates,
+            work_order_info: self.work_order_info,
+        }
+    }
+
+    pub fn work_order_number(&mut self, work_order_number: WorkOrderNumber) -> &mut Self {
+        self.work_order_number = work_order_number;
+        self
+    }
+
+    pub fn main_work_center(&mut self, main_work_center: Resources) -> &mut Self {
+        self.main_work_center = main_work_center;
+        self
+        
+    }
+
+    pub fn operations_builder<F>(&mut self, operations: ) -> &mut Self
+    where
+        F: FnOnce(&mut OperationsBuilder) -> &mut OperationsBuilder,
+    {
+        let mut operations_builder = OperationsBuilder::new();
+
+        f(&mut operations_builder);
+
+        self.operations = Some(operations_builder.build());
+        self
+    }
+
+    pub fn work_order_analytic_builder<F>(&mut self, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut WorkOrderAnalyticBuilder) -> &mut WorkOrderAnalyticBuilder,
+    {
+        let work_order_analytic_builder = WorkOrderAnalyticBuilder::new();
+
+        f(&mut work_order_analytic_builder);
+
+        self.work_order_analytic = Some(work_order_analytic_builder.build());
+        self
+    
+    }
+
+    pub fn work_order_dates(&mut self, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut WorkOrderAnalyticBuilder) -> &mut WorkOrderAnalyticBuilder,
+    {
+        let work_order_analytic_builder = WorkOrderAnalyticBuilder::new();
+
+        f(&mut work_order_analytic_builder);
+
+        self.work_order_analytic = Some(work_order_analytic_builder.build());
+        self
+    }
+
+    pub fn work_order_info(&mut self, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut WorkOrderInfoBuilder) -> &mut WorkOrderInfoBuilder,
+    {
+        let work_order_info_builder = WorkOrderInfoBuilder::new();
+
+        f(&mut work_order_info_builder);
+
+        self.work_order_info = Some(work_order_info_builder.build());
+        self
+    }
+
+    
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrderInfo {
     pub priority: Priority,
@@ -147,6 +236,36 @@ pub struct WorkOrderAnalytic {
     pub vendor: bool,
     pub system_status_codes: SystemStatusCodes,
     pub user_status_codes: UserStatusCodes,
+}
+
+pub struct WorkOrderAnalyticBuilder {
+    pub work_order_weight: u64,
+    pub work_order_work: Work,
+    pub work_load: HashMap<Resources, Work>,
+    pub fixed: bool,
+    pub vendor: bool,
+    // TODO [ ]
+    // You should make a builder for these if needed
+    pub system_status_codes: SystemStatusCodes,
+    // TODO [ ]
+    // You should make a builder for these if needed
+    pub user_status_codes: UserStatusCodes,
+}
+
+impl WorkOrderAnalyticBuilder {
+
+    pub fn build(self, operations: HashMap<ActivityNumber, Operation>) -> WorkOrderAnalytic {
+        WorkOrderAnalytic {
+            work_order_weight: todo!(),
+            work_order_work: todo!(),
+            work_load: todo!(),
+            fixed: todo!(),
+            vendor: todo!(),
+            system_status_codes: todo!(),
+            user_status_codes: todo!(),
+        }
+    }
+    
 }
 
 impl WorkOrderAnalytic {
@@ -423,6 +542,10 @@ impl WorkOrder {
     /// TODO : A stance will have to be taken on the VEN, SHUTDOWN, and SUBNETWORKS.
     /// We will get an error here! The problem is that after this the EASD will not be contained
     /// anymore.
+    // TODO [ ]
+    // Extract these parameters into a config file.
+    // TODO [ ]
+    // Move this code into the Builder
     fn initialize_material(&mut self, periods: &[Period]) {
         match &self.work_order_analytic.user_status_codes.clone().into() {
             MaterialStatus::Nmat => {

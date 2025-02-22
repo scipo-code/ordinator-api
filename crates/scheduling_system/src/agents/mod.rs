@@ -132,7 +132,9 @@ pub trait AlgorithmUtils {
 
     fn swap_solution(&mut self, solution: Self::Sol);
 
-    fn update_objective_value(&mut self, objective_value: Self::ObjectiveValue);
+    // WARN
+    // You may have to reintroduce this.
+    // fn update_objective_value(&mut self, objective_value: Self::ObjectiveValue);
 }
 
 pub trait Solution {
@@ -184,10 +186,6 @@ where
 
     fn swap_solution(&mut self, solution: S) {
         self.solution = solution;
-    }
-
-    fn update_objective_value(&mut self, objective_value: Self::ObjectiveValue) {
-        self.solution.update_objective_value(objective_value);
     }
 }
 
@@ -429,8 +427,8 @@ impl Solution for TacticalSolution {
             .map(|(wo, days)| {
                 let inner_map = days
                     .days
-                    .iter()
-                    .map(|(day, _)| (day.clone(), Work::from(0.0)))
+                    .keys()
+                    .map(|day| (day.clone(), Work::from(0.0)))
                     .collect();
                 (*wo, Days::new(inner_map))
             })
@@ -438,8 +436,8 @@ impl Solution for TacticalSolution {
 
         let tactical_scheduled_work_orders_inner: HashMap<_, _> = parameters
             .tactical_work_orders
-            .iter()
-            .map(|(won, _)| (*won, WhereIsWorkOrder::NotScheduled))
+            .keys()
+            .map(|won| (*won, WhereIsWorkOrder::NotScheduled))
             .collect();
 
         Self {
