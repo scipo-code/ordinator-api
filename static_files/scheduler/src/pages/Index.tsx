@@ -25,16 +25,25 @@ export default function Index() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [selectedAsset, setSelectedAsset] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState<null | string>(null);
   // const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAssets = async () => {
       try {
         const response = await axios.get('api/scheduler/assets');
+        console.debug("Response data: ", response.data);
         const assetsData = response.data;
+
+        if (Array.isArray(assetsData)) {
+          setAssets(assetsData);
+        } else {
+          console.error("Unexpected error for response data: ",response.data);
+          setAssets([]);
+          setError("Unexpected response data received from server");
+        }
+
         
-        console.debug("Retrived assets");
-        setAssets(assetsData);
       } catch (error) {
         // setError('Error fetching assets');
         setAssets([]);
@@ -71,9 +80,9 @@ export default function Index() {
       link.parentNode?.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      setDownloading(false);
-    }  catch (error) {
+    } catch (error) {
       console.error('Error downloading file', error);
+    } finally {
       setDownloading(false);
     }
   };
@@ -93,28 +102,35 @@ export default function Index() {
             <CardDescription>Download a spreadsheet with the currently scheduled workorders</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <p className="text-left font-medium">Asset</p>
-            <Select onValueChange={handleAssetChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select an asset" />
-              </SelectTrigger>
-              <SelectContent>
+            { error ? (
+              <p className='text-red-600'>{error}</p>
+            ) : (
+              <>
+                <p className="text-left font-medium">Asset</p>
+                <Select onValueChange={handleAssetChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an asset" />
+                  </SelectTrigger>
+                  <SelectContent>
                 
-                {
-                assets && assets.length > 0 ? (
-                  assets.map((asset: Asset) => {
-                    return(
-                      <SelectItem key={asset.value} value={asset.value}>
-                        {asset.label}
-                      </SelectItem>
-                    );
-                  })
-                ) : (
-                  <p> Could not fetch assets </p>
-                )
-               }
-            </SelectContent>
-          </Select>
+                    {
+                    assets && assets.length > 0 ? (
+                      assets.map((asset: Asset) => {
+                        return(
+                          <SelectItem key={asset.value} value={asset.value}>
+                            {asset.label}
+                          </SelectItem>
+                        );
+                      })
+                    ) : (
+                      <p> Could not fetch assets </p>
+                    )
+                   }
+                </SelectContent>
+              </Select>
+
+              </>
+            )}
           </CardContent>
           <CardFooter>
             <Button 
