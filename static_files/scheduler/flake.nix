@@ -15,7 +15,7 @@
       in {
         devShells.default = pkgs.mkShell {
           buildInputs = [
-            # pkgs.deno    # for deno
+            pkgs.deno    # for deno
             pkgs.nodejs  # for vite frontend development
             pkgs.nodePackages.typescript-language-server # typescript language server
           
