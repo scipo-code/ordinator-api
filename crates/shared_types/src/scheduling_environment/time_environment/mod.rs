@@ -9,7 +9,7 @@ pub mod period;
 // WARN: Make the fields private. It does not make sense to change these individually.
 // FIX
 // All Periods here refer to the same thing. You should use references
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct TimeEnvironment {
     pub strategic_periods: Vec<Period>,
     pub tactical_periods: Vec<Period>,

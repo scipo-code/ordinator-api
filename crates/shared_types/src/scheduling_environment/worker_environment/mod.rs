@@ -21,7 +21,7 @@ use super::work_order::operation::Work;
 // There is something rotten about all this! I think that the best
 // approach is to create something that will allow us to better
 // forcast how the system will behave.
-#[derive(Default, Serialize, Deserialize, Debug)]
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
 pub struct WorkerEnvironment {
     pub agent_environment: AgentEnvironment,
     work_centers: HashSet<Resources>,
