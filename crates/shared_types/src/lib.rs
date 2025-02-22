@@ -303,7 +303,7 @@ impl From<SystemAgents> for AgentEnvironment {
     }
 }
 
-#[derive(Default, Serialize, Deserialize, Debug)]
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
 pub struct AgentEnvironment {
     pub operational: HashMap<Id, OperationalConfigurationAll>,
     pub supervisor: HashMap<Id, SupervisorConfigurationAll>,

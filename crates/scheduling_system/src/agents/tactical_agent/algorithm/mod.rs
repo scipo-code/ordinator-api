@@ -348,7 +348,7 @@ impl ActorBasedLargeNeighborhoodSearch
                         }
                     };
 
-                let loadings = self.determine_load(
+                let loadings = Self::determine_load(
                     first_day_remaining_capacity,
                     &operation_parameters.operating_time,
                     operation_parameters.work_remaining,
@@ -534,25 +534,24 @@ enum OperationDifference {
 pub mod tests {
     use std::{collections::HashMap, str::FromStr};
 
-    use chrono::{Days, NaiveDate};
+    use chrono::Days;
     use shared_types::{
         agents::tactical::TacticalResources,
         scheduling_environment::{
+            self,
             work_order::{
                 operation::{ActivityNumber, Work},
                 WorkOrderNumber,
             },
             worker_environment::resources::{Id, Resources},
-            SchedulingEnvironment,
+            SchedulingEnvironment, SchedulingEnvironmentBuilder,
         },
     };
     use strum::IntoEnumIterator;
 
     use crate::agents::{
         tactical_agent::{
-            algorithm::{
-                determine_load, tactical_parameters::TacticalParameters, OperationSolution,
-            },
+            algorithm::{tactical_parameters::TacticalParameters, OperationSolution},
             TacticalOptions,
         },
         traits::{ActorBasedLargeNeighborhoodSearch, Parameters},
@@ -570,7 +569,8 @@ pub mod tests {
         let operating_time = Work::from(5.0);
         let work_remaining = Work::from(10.0);
 
-        let loadings = determine_load(remaining_capacity, &operating_time, work_remaining);
+        let loadings =
+            Algorithm::determine_load(remaining_capacity, &operating_time, work_remaining);
 
         assert_eq!(
             loadings,
@@ -586,7 +586,8 @@ pub mod tests {
         let operating_time = Work::from(3.0);
         let work_remaining = Work::from(10.0);
 
-        let loadings = determine_load(remaining_capacity, &operating_time, work_remaining);
+        let loadings =
+            Algorithm::determine_load(remaining_capacity, &operating_time, work_remaining);
 
         assert_eq!(
             loadings,
@@ -643,11 +644,23 @@ pub mod tests {
         // Work::from(1.0),
         // Work::from(1.0),
         // Resources::MtnMech,
+        let scheduling_environment = SchedulingEnvironmentBuilder::default()
+            .with_tactical_days(56)
+            .with_work_order()
+            .with_operation();
 
-        let mut tactical_algorithm = super::TacticalAlgorithm::new(
-            tactical_days(56),
-            super::TacticalResources::new(HashMap::new()),
-            super::TacticalResources::new(HashMap::new()),
+        // TODO
+        // Insert the needed functions here to create the `SchedulingEnvironment`
+
+        let id = Id::default();
+
+        let parameters = TacticalParameters::new(&scheduling_environment);
+        let solution = TacticalSolution::new(&parameters);
+
+        let mut tactical_algorithm = Algorithm::new(
+            &id,
+            solution,
+            parameters,
             ArcSwapSharedSolution::default().into(),
         );
 
@@ -792,7 +805,7 @@ pub mod tests {
         let options = TacticalOptions::default();
         let scheduling_environment = SchedulingEnvironment::default();
 
-        SchedulingEnvironment
+        // SchedulingEnvironment
 
         let tactical_parameters = TacticalParameters::new(&id, options, &scheduling_environment)?;
         let tactical_solution = TacticalSolution::new(&tactical_solution);

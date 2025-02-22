@@ -17,7 +17,6 @@ use self::work_order::operation::Operation;
 use self::work_order::{WorkOrderActivity, WorkOrderNumber};
 
 #[derive(Deserialize, Serialize, Debug)]
-
 pub struct SchedulingEnvironment {
     pub work_orders: WorkOrders,
     pub worker_environment: WorkerEnvironment,
@@ -46,23 +45,8 @@ impl SchedulingEnvironment {
             work_order.initialize(periods);
         }
     }
-
-    pub fn builder() -> SchedulingEnvironmentBuilder {
-        SchedulingEnvironmentBuilder::new()
-    }
 }
 
-struct SchedulingEnvironmentBuilder(SchedulingEnvironment);
-
-impl SchedulingEnvironmentBuilder {
-    pub fn build(self) -> SchedulingEnvironment {
-        SchedulingEnvironment {
-            work_orders: self.0.work_orders,
-            worker_environment: self.0.worker_environment,
-            time_environment: self.0.time_environment,
-        }
-    }
-}
 impl Default for SchedulingEnvironment {
     fn default() -> Self {
         SchedulingEnvironment {
