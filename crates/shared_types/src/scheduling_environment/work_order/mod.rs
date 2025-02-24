@@ -1,16 +1,10 @@
 pub mod display;
-pub mod functional_location;
 pub mod operation;
-pub mod priority;
-pub mod revision;
-pub mod status_codes;
-pub mod system_condition;
-pub mod unloading_point;
 pub mod work_order_dates;
-pub mod work_order_text;
-pub mod work_order_type;
+pub mod work_order_analytic;
+pub mod work_order_info;
 
-use crate::scheduling_environment::work_order::functional_location::FunctionalLocation;
+use crate::scheduling_environment::work_order::work_order_info::functional_location::FunctionalLocation;
 use crate::scheduling_environment::work_order::operation::Operation;
 use crate::scheduling_environment::work_order::priority::Priority;
 use crate::scheduling_environment::work_order::revision::Revision;
@@ -58,42 +52,6 @@ impl std::fmt::Debug for WorkOrderNumber {
     }
 }
 
-impl FromStr for WorkOrderNumber {
-    type Err = ParseIntError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let number = s.parse::<u64>()?;
-        Ok(Self(number))
-    }
-}
-
-pub type WorkOrderActivity = (WorkOrderNumber, ActivityNumber);
-
-impl From<u64> for WorkOrderNumber {
-    fn from(value: u64) -> Self {
-        WorkOrderNumber(value)
-    }
-}
-
-impl Serialize for WorkOrderNumber {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(&self.0.to_string())
-    }
-}
-
-impl<'de> Deserialize<'de> for WorkOrderNumber {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let work_order_number_string = String::deserialize(deserializer).unwrap();
-        let work_order_number_primitive = work_order_number_string.parse::<u64>().unwrap();
-        Ok(WorkOrderNumber(work_order_number_primitive))
-    }
-}
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrder {
     pub work_order_number: WorkOrderNumber,
@@ -124,7 +82,7 @@ impl WorkOrderBuilder {
             work_order_number: self.work_order_number,
             main_work_center: self.main_work_center,
             operations: self.operations.unwrap_or_default(),
-            relations: self.relations.unwrap_or_default(),
+            relations: self.relations,
             work_order_analytic: self.work_order_analytic,
             work_order_dates: self.work_order_dates,
             work_order_info: self.work_order_info,
@@ -167,11 +125,11 @@ impl WorkOrderBuilder {
     
     }
 
-    pub fn work_order_dates(&mut self, f: F) -> &mut Self
+    pub fn work_order_dates<F>(&mut self, f: F) -> &mut Self
     where
-        F: FnOnce(&mut WorkOrderAnalyticBuilder) -> &mut WorkOrderAnalyticBuilder,
+        F: FnOnce(&mut WorkOrderDatesBuilder) -> &mut WorkOrderDatesBuilder,
     {
-        let work_order_analytic_builder = WorkOrderAnalyticBuilder::new();
+        let work_order_analytic_builder = WorkOrderDatesBuilder::new();
 
         f(&mut work_order_analytic_builder);
 
@@ -179,7 +137,7 @@ impl WorkOrderBuilder {
         self
     }
 
-    pub fn work_order_info(&mut self, f: F) -> &mut Self
+    pub fn work_order_info<F>(&mut self, f: F) -> &mut Self
     where
         F: FnOnce(&mut WorkOrderInfoBuilder) -> &mut WorkOrderInfoBuilder,
     {
@@ -190,135 +148,10 @@ impl WorkOrderBuilder {
         self.work_order_info = Some(work_order_info_builder.build());
         self
     }
-
-    
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct WorkOrderInfo {
-    pub priority: Priority,
-    pub work_order_type: WorkOrderType,
-    pub functional_location: FunctionalLocation,
-    pub work_order_text: WorkOrderText,
-    pub revision: Revision,
-    pub system_condition: SystemCondition,
-    pub work_order_info_detail: WorkOrderInfoDetail,
-}
 
-impl WorkOrderInfo {
-    pub fn new(
-        priority: Priority,
-        work_order_type: WorkOrderType,
-        functional_location: FunctionalLocation,
-        work_order_text: WorkOrderText,
-        revision: Revision,
-        system_condition: SystemCondition,
-        work_order_info_detail: WorkOrderInfoDetail,
-    ) -> Self {
-        WorkOrderInfo {
-            priority,
-            work_order_type,
-            functional_location,
-            work_order_text,
-            revision,
-            system_condition,
-            work_order_info_detail,
-        }
-    }
-}
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct WorkOrderAnalytic {
-    pub work_order_weight: u64,
-    pub work_order_work: Work,
-    pub work_load: HashMap<Resources, Work>,
-    pub fixed: bool,
-    pub vendor: bool,
-    pub system_status_codes: SystemStatusCodes,
-    pub user_status_codes: UserStatusCodes,
-}
-
-pub struct WorkOrderAnalyticBuilder {
-    pub work_order_weight: u64,
-    pub work_order_work: Work,
-    pub work_load: HashMap<Resources, Work>,
-    pub fixed: bool,
-    pub vendor: bool,
-    // TODO [ ]
-    // You should make a builder for these if needed
-    pub system_status_codes: SystemStatusCodes,
-    // TODO [ ]
-    // You should make a builder for these if needed
-    pub user_status_codes: UserStatusCodes,
-}
-
-impl WorkOrderAnalyticBuilder {
-
-    pub fn build(self, operations: HashMap<ActivityNumber, Operation>) -> WorkOrderAnalytic {
-        WorkOrderAnalytic {
-            work_order_weight: todo!(),
-            work_order_work: todo!(),
-            work_load: todo!(),
-            fixed: todo!(),
-            vendor: todo!(),
-            system_status_codes: todo!(),
-            user_status_codes: todo!(),
-        }
-    }
-    
-}
-
-impl WorkOrderAnalytic {
-    pub fn new(
-        work_order_weight: u64,
-        work_order_work: Work,
-        work_load: HashMap<Resources, Work>,
-        fixed: bool,
-        vendor: bool,
-        system_status_codes: SystemStatusCodes,
-        user_status_codes: UserStatusCodes,
-    ) -> Self {
-        WorkOrderAnalytic {
-            work_order_weight,
-            work_order_work,
-            work_load,
-            fixed,
-            vendor,
-            system_status_codes,
-            user_status_codes,
-        }
-    }
-}
-
-#[derive(Default, Serialize, Deserialize, Clone, Debug)]
-pub struct WorkOrderInfoDetail {
-    pub subnetwork: String,
-    pub maintenance_plan: String,
-    pub planner_group: String,
-    pub maintenance_plant: String,
-    pub pm_collective: String,
-    pub room: String,
-}
-
-impl WorkOrderInfoDetail {
-    pub fn new(
-        subnetwork: String,
-        maintenance_plan: String,
-        planner_group: String,
-        maintenance_plant: String,
-        pm_collective: String,
-        room: String,
-    ) -> Self {
-        Self {
-            subnetwork,
-            maintenance_plan,
-            planner_group,
-            maintenance_plant,
-            pm_collective,
-            room,
-        }
-    }
-}
 
 impl WorkOrder {
     pub fn new(
@@ -596,8 +429,45 @@ impl WorkOrder {
         excluded_periods
     }
 }
+impl FromStr for WorkOrderNumber {
+    type Err = ParseIntError;
 
-//TODO This should not be the default tr
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let number = s.parse::<u64>()?;
+        Ok(Self(number))
+    }
+}
+
+pub type WorkOrderActivity = (WorkOrderNumber, ActivityNumber);
+
+impl From<u64> for WorkOrderNumber {
+    fn from(value: u64) -> Self {
+        WorkOrderNumber(value)
+    }
+}
+
+impl Serialize for WorkOrderNumber {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.0.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for WorkOrderNumber {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let work_order_number_string = String::deserialize(deserializer).unwrap();
+        let work_order_number_primitive = work_order_number_string.parse::<u64>().unwrap();
+        Ok(WorkOrderNumber(work_order_number_primitive))
+    }
+}
+
+// TODO [ ]
+// This is a horrible practice! You should refactor it.
 impl WorkOrder {
     pub fn work_order_test() -> Self {
         let mut operations = HashMap::new();
