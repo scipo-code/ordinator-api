@@ -1,8 +1,17 @@
+use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
+use status_codes::{SystemStatusCodes, UserStatusCodes};
+
+use crate::scheduling_environment::worker_environment::resources::Resources;
+
+use super::operation::{ActivityNumber, Operation, Work};
+
+pub mod status_codes;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrderAnalytic {
     pub work_order_weight: u64,
     pub work_order_work: Work,
-    pub work_load: HashMap<Resources, Work>,
     pub fixed: bool,
     pub vendor: bool,
     pub system_status_codes: SystemStatusCodes,
@@ -12,7 +21,6 @@ pub struct WorkOrderAnalytic {
 pub struct WorkOrderAnalyticBuilder {
     pub work_order_weight: u64,
     pub work_order_work: Work,
-    pub work_load: HashMap<Resources, Work>,
     pub fixed: bool,
     pub vendor: bool,
     // TODO [ ]
@@ -28,7 +36,6 @@ impl WorkOrderAnalyticBuilder {
         WorkOrderAnalytic {
             work_order_weight: todo!(),
             work_order_work: todo!(),
-            work_load: todo!(),
             fixed: todo!(),
             vendor: todo!(),
             system_status_codes: todo!(),
@@ -41,7 +48,6 @@ impl WorkOrderAnalytic {
     pub fn new(
         work_order_weight: u64,
         work_order_work: Work,
-        work_load: HashMap<Resources, Work>,
         fixed: bool,
         vendor: bool,
         system_status_codes: SystemStatusCodes,
@@ -50,7 +56,6 @@ impl WorkOrderAnalytic {
         WorkOrderAnalytic {
             work_order_weight,
             work_order_work,
-            work_load,
             fixed,
             vendor,
             system_status_codes,

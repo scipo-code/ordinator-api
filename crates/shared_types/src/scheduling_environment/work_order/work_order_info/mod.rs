@@ -1,4 +1,10 @@
+use functional_location::FunctionalLocation;
+use priority::Priority;
+use revision::Revision;
 use serde::{Deserialize, Serialize};
+use system_condition::SystemCondition;
+use work_order_text::WorkOrderText;
+use work_order_type::WorkOrderType;
 
 pub mod functional_location;
 pub mod priority;

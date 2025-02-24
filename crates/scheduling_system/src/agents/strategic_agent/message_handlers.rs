@@ -255,7 +255,7 @@ impl MessageHandler
                             user_status_codes.awsc = awsc;
                         }
 
-                        work_order.initialize_weight();
+                        work_order.work_order_weight();
 
                         let last_period =
                             self.algorithm.parameters.strategic_periods.last().cloned();

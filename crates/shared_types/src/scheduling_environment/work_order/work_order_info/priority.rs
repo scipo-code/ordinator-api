@@ -14,7 +14,6 @@ impl Priority {
         match self {
             Priority::Int(priority) => priority.to_string(),
             Priority::Char(priority) => priority.to_string(),
-            Priority::NotSet => todo!(),
         }
     }
 

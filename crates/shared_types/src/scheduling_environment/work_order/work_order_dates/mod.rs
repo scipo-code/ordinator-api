@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::scheduling_environment::time_environment::period::Period;
 
+use super::work_order_analytic::status_codes::MaterialStatus;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrderDates {
     pub earliest_allowed_start_date: NaiveDate,

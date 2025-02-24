@@ -23,7 +23,9 @@ use crate::{
     orchestrator::WorkOrdersStatus,
     scheduling_environment::{
         time_environment::period::Period,
-        work_order::{operation::Work, status_codes::StrategicUserStatusCodes},
+        work_order::{
+            operation::Work, work_order_analytic::status_codes::StrategicUserStatusCodes,
+        },
         worker_environment::resources::Resources,
     },
     Asset, ConstraintState, LoadOperation, OperationalId,
