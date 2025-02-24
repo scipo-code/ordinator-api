@@ -1,31 +1,36 @@
 pub mod display;
 pub mod operation;
-pub mod work_order_dates;
 pub mod work_order_analytic;
+pub mod work_order_dates;
 pub mod work_order_info;
 
-use crate::scheduling_environment::work_order::work_order_info::functional_location::FunctionalLocation;
 use crate::scheduling_environment::work_order::operation::Operation;
-use crate::scheduling_environment::work_order::priority::Priority;
-use crate::scheduling_environment::work_order::revision::Revision;
-use crate::scheduling_environment::work_order::status_codes::MaterialStatus;
-use crate::scheduling_environment::work_order::status_codes::SystemStatusCodes;
-use crate::scheduling_environment::work_order::system_condition::SystemCondition;
-use crate::scheduling_environment::work_order::unloading_point::UnloadingPoint;
+use crate::scheduling_environment::work_order::work_order_analytic::status_codes::MaterialStatus;
+use crate::scheduling_environment::work_order::work_order_analytic::status_codes::SystemStatusCodes;
+use crate::scheduling_environment::work_order::work_order_dates::unloading_point::UnloadingPoint;
 use crate::scheduling_environment::work_order::work_order_dates::WorkOrderDates;
-use crate::scheduling_environment::work_order::work_order_text::WorkOrderText;
-use crate::scheduling_environment::work_order::work_order_type::WorkOrderType;
+use crate::scheduling_environment::work_order::work_order_info::functional_location::FunctionalLocation;
+use crate::scheduling_environment::work_order::work_order_info::priority::Priority;
+use crate::scheduling_environment::work_order::work_order_info::revision::Revision;
+use crate::scheduling_environment::work_order::work_order_info::system_condition::SystemCondition;
+use crate::scheduling_environment::work_order::work_order_info::work_order_text::WorkOrderText;
+use crate::scheduling_environment::work_order::work_order_info::work_order_type::WorkOrderType;
 use chrono::{DateTime, Utc};
 use colored::Colorize;
 use operation::OperationBuilder;
+use operation::OperationsBuilder;
 use serde::{Deserialize, Serialize};
-use status_codes::UserStatusCodes;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::num::ParseIntError;
 use std::str::FromStr;
+use work_order_analytic::status_codes::UserStatusCodes;
+use work_order_analytic::WorkOrderAnalytic;
+use work_order_analytic::WorkOrderAnalyticBuilder;
+use work_order_info::WorkOrderInfo;
+use work_order_info::WorkOrderInfoDetail;
 
 use crate::scheduling_environment::worker_environment::resources::Resources;
 
@@ -97,10 +102,9 @@ impl WorkOrderBuilder {
     pub fn main_work_center(&mut self, main_work_center: Resources) -> &mut Self {
         self.main_work_center = main_work_center;
         self
-        
     }
 
-    pub fn operations_builder<F>(&mut self, operations: ) -> &mut Self
+    pub fn operations_builder<F>(&mut self, f: F) -> &mut Self
     where
         F: FnOnce(&mut OperationsBuilder) -> &mut OperationsBuilder,
     {
@@ -120,9 +124,8 @@ impl WorkOrderBuilder {
 
         f(&mut work_order_analytic_builder);
 
-        self.work_order_analytic = Some(work_order_analytic_builder.build());
+        self.work_order_analytic = work_order_analytic_builder.build();
         self
-    
     }
 
     pub fn work_order_dates<F>(&mut self, f: F) -> &mut Self
@@ -133,7 +136,7 @@ impl WorkOrderBuilder {
 
         f(&mut work_order_analytic_builder);
 
-        self.work_order_analytic = Some(work_order_analytic_builder.build());
+        self.work_order_dates = work_order_analytic_builder.build();
         self
     }
 
@@ -145,103 +148,9 @@ impl WorkOrderBuilder {
 
         f(&mut work_order_info_builder);
 
-        self.work_order_info = Some(work_order_info_builder.build());
+        self.work_order_info = work_order_info_builder.build();
         self
     }
-}
-
-
-
-
-impl WorkOrder {
-    pub fn new(
-        work_order_number: WorkOrderNumber,
-        main_work_center: Resources,
-        operations: HashMap<ActivityNumber, Operation>,
-        relations: Vec<ActivityRelation>,
-        work_order_analytic: WorkOrderAnalytic,
-        order_dates: WorkOrderDates,
-        work_order_info: WorkOrderInfo,
-    ) -> Self {
-        WorkOrder {
-            work_order_number,
-            main_work_center,
-            operations,
-            relations,
-            work_order_analytic,
-            work_order_dates: order_dates,
-            work_order_info,
-        }
-    }
-
-    pub fn functional_location(&self) -> &FunctionalLocation {
-        &self.work_order_info.functional_location
-    }
-
-    pub fn work_order_number(&self) -> &WorkOrderNumber {
-        &self.work_order_number
-    }
-
-    pub fn insert_operation(&mut self, operation: Operation) {
-        self.operations.insert(operation.activity, operation);
-    }
-
-    pub fn order_dates_mut(&mut self) -> &mut WorkOrderDates {
-        &mut self.work_order_dates
-    }
-
-    pub fn order_dates(&self) -> &WorkOrderDates {
-        &self.work_order_dates
-    }
-
-    pub fn revision(&self) -> &Revision {
-        &self.work_order_info.revision
-    }
-
-    pub fn work_order_type(&self) -> &WorkOrderType {
-        &self.work_order_info.work_order_type
-    }
-
-    pub fn priority(&self) -> &Priority {
-        &self.work_order_info.priority
-    }
-
-    pub fn work_load(&self) -> &HashMap<Resources, Work> {
-        &self.work_order_analytic.work_load
-    }
-
-    pub fn work_order_weight(&self) -> u64 {
-        self.work_order_analytic.work_order_weight
-    }
-
-    pub fn is_vendor(&self) -> bool {
-        self.work_order_analytic.vendor
-    }
-
-    pub fn relations(&self) -> &Vec<ActivityRelation> {
-        &self.relations
-    }
-
-    pub fn unloading_point_contains_period(&self, clone: Period) -> bool {
-        for operation in &self.operations {
-            if operation.1.unloading_point.period == Some(clone.clone()) {
-                return true;
-            }
-        }
-        false
-    }
-
-    pub fn unloading_point(&self) -> Option<Period> {
-        self.operations
-            .values()
-            .find_map(|opr| opr.unloading_point.period.clone())
-    }
-
-    // fn random_latest_periods(&mut self, periods: &[Period]) {
-    //     let mut rng = thread_rng();
-    //     let random_period = periods.choose(&mut rng).unwrap();
-    //     self.work_order_dates.latest_allowed_finish_period = random_period.clone();
-    // }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -273,12 +182,11 @@ impl WeightParams {
     }
 }
 
+// You can remove all the initialization logic! So cool! I am not sure about the
+// builder though.
 impl WorkOrder {
     pub fn initialize(&mut self, periods: &[Period]) {
-        self.initialize_work_load();
-        self.initialize_weight();
-        self.initialize_vendor();
-        self.initialize_material(periods);
+        self.work_order_weight();
         // FIX
         // self.random_latest_periods(periods);
         // FIX
@@ -292,7 +200,15 @@ impl WorkOrder {
         // TODO : Other fields
     }
 
-    pub fn initialize_weight(&mut self) {
+    pub fn work_order_weight(&mut self) {
+        // FIX
+        // This should be removed. Where should the global configs be read
+        // from? I am not really sure. You have done a lot today! I think that
+        // reading more. Is a really good idea. Maybe finish the one you started
+        // quickly.
+        // TODO [ ]
+        // There can be no stray `configs` like these! They have to be handled
+        // in a higher level.
         let parameters: WeightParams = WeightParams::read_config().unwrap();
         self.work_order_analytic.work_order_weight = 0;
 
@@ -343,31 +259,31 @@ impl WorkOrder {
         self.work_order_analytic.work_order_weight *=
             self.work_order_analytic.work_order_work.to_f64() as u64
 
-        // TODO Implement for VIS and ABC
+        // TODO [ ]
+        // Shame yourself for writing so horrible code! It is actually disgusting, you
+        // must rewrite all the horrible parts.
+        // Implement for VIS and ABC
+        //
+        //
     }
 
-    pub fn initialize_work_load(&mut self) {
-        let mut work_load: HashMap<Resources, Work> = HashMap::new();
+    pub fn work_order_load(&mut self) -> HashMap<Resources, Work> {
+        self.operations
+            .values()
+            .fold(HashMap::default(), |mut acc, ele_opr| {
+                *acc.entry(*ele_opr.resource()).or_insert(Work::from(0.0)) +=
+                    ele_opr.work_remaining().unwrap();
+                acc
+            })
+    }
 
-        for (_, operation) in self.operations.iter() {
-            *work_load
-                .entry(*operation.resource())
-                .or_insert(Work::from(0.0)) += operation.work_remaining().unwrap();
+    pub fn vendor(&mut self) -> bool {
+        for operation in self.operations.values() {
+            if operation.resource.is_ven_variant() {
+                return true;
+            }
         }
-
-        self.work_order_analytic.work_order_work = work_load
-            .clone()
-            .into_values()
-            .reduce(|acc, work| acc + work)
-            .unwrap();
-        self.work_order_analytic.work_load = work_load;
-    }
-
-    pub fn initialize_vendor(&mut self) {
-        let work_load = self.work_load().clone();
-        self.work_order_analytic.vendor = work_load
-            .iter()
-            .any(|(resource, _)| resource.is_ven_variant())
+        false
     }
 
     /// This method determines that earliest allow start date and period for the work order. This is
@@ -379,42 +295,12 @@ impl WorkOrder {
     // Extract these parameters into a config file.
     // TODO [ ]
     // Move this code into the Builder
-    fn initialize_material(&mut self, periods: &[Period]) {
-        match &self.work_order_analytic.user_status_codes.clone().into() {
-            MaterialStatus::Nmat => {
-                self.order_dates_mut().earliest_allowed_start_period = periods[0]
-                    .clone()
-                    .max(self.work_order_dates.earliest_allowed_start_period.clone());
-            }
-            MaterialStatus::Smat => {
-                self.order_dates_mut().earliest_allowed_start_period = periods[0]
-                    .clone()
-                    .max(self.work_order_dates.earliest_allowed_start_period.clone());
-            }
-            MaterialStatus::Cmat => {
-                self.order_dates_mut().earliest_allowed_start_period = periods[2]
-                    .clone()
-                    .max(self.work_order_dates.earliest_allowed_start_period.clone());
-            }
-            MaterialStatus::Pmat => {
-                self.order_dates_mut().earliest_allowed_start_period = periods[3]
-                    .clone()
-                    .max(self.work_order_dates.earliest_allowed_start_period.clone());
-            }
-            MaterialStatus::Wmat => {
-                self.order_dates_mut().earliest_allowed_start_period = periods[3]
-                    .clone()
-                    .max(self.work_order_dates.earliest_allowed_start_period.clone());
-            }
-            MaterialStatus::Unknown => {}
-        }
-    }
     pub fn find_excluded_periods(&self, periods: &[Period]) -> HashSet<Period> {
         let mut excluded_periods: HashSet<Period> = HashSet::new();
         for (i, period) in periods.iter().enumerate() {
             if *period < self.work_order_dates.earliest_allowed_start_period
-                || (self.is_vendor() && i <= 3)
-                || (self.revision().shutdown && i <= 3)
+                || (self.work_order_analytic.vendor && i <= 3)
+                || (self.work_order_info.revision.shutdown && i <= 3)
             {
                 assert!(
                     self.work_order_dates
@@ -428,6 +314,61 @@ impl WorkOrder {
         }
         excluded_periods
     }
+
+    pub fn functional_location(&self) -> &FunctionalLocation {
+        &self.work_order_info.functional_location
+    }
+
+    pub fn insert_operation(&mut self, operation: Operation) {
+        self.operations.insert(operation.activity, operation);
+    }
+
+    pub fn work_order_weight(&self) -> u64 {
+        self.work_order_analytic.work_order_weight
+    }
+
+    pub fn earliest_allowed_start_period<'a>(&'a mut self, periods: &'a [Period]) -> &'a Period {
+        // This whole thing is bull shit.
+        match &self.work_order_analytic.user_status_codes.clone().into() {
+            MaterialStatus::Nmat => {
+                (&periods[0]).max(&self.work_order_dates.earliest_allowed_start_period)
+            }
+            MaterialStatus::Smat => {
+                (&periods[0]).max(&self.work_order_dates.earliest_allowed_start_period)
+            }
+            MaterialStatus::Cmat => {
+                (&periods[2]).max(&self.work_order_dates.earliest_allowed_start_period)
+            }
+            MaterialStatus::Pmat => {
+                (&periods[3]).max(&self.work_order_dates.earliest_allowed_start_period)
+            }
+            MaterialStatus::Wmat => {
+                (&periods[3]).max(&self.work_order_dates.earliest_allowed_start_period)
+            }
+            MaterialStatus::Unknown => panic!("WorkOrder does not have a material status"),
+        }
+    }
+
+    pub fn unloading_point_contains_period(&self, clone: Period) -> bool {
+        for operation in &self.operations {
+            if operation.1.unloading_point.period == Some(clone.clone()) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn unloading_point(&self) -> Option<Period> {
+        self.operations
+            .values()
+            .find_map(|opr| opr.unloading_point.period.clone())
+    }
+
+    // fn random_latest_periods(&mut self, periods: &[Period]) {
+    //     let mut rng = thread_rng();
+    //     let random_period = periods.choose(&mut rng).unwrap();
+    //     self.work_order_dates.latest_allowed_finish_period = random_period.clone();
+    // }
 }
 impl FromStr for WorkOrderNumber {
     type Err = ParseIntError;
@@ -562,7 +503,7 @@ mod tests {
     fn test_initialize_work_load() {
         let mut work_order = WorkOrder::new_test();
 
-        work_order.initialize_work_load();
+        work_order.work_order_load();
 
         dbg!(work_order.work_load());
         assert_eq!(

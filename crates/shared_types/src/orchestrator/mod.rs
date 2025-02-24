@@ -10,8 +10,12 @@ use crate::agents::tactical::responses::tactical_response_status::TacticalRespon
 use crate::scheduling_environment::time_environment::day::Day;
 use crate::scheduling_environment::time_environment::period::Period;
 use crate::scheduling_environment::work_order::operation::Work;
-use crate::scheduling_environment::work_order::status_codes::{SystemStatusCodes, UserStatusCodes};
-use crate::scheduling_environment::work_order::{WorkOrder, WorkOrderInfo, WorkOrderNumber};
+use crate::scheduling_environment::work_order::work_order_analytic::status_codes::{
+    SystemStatusCodes, UserStatusCodes,
+};
+use crate::scheduling_environment::work_order::{
+    work_order_info::WorkOrderInfo, WorkOrder, WorkOrderNumber,
+};
 use crate::scheduling_environment::worker_environment::resources::{Id, Resources};
 use crate::{Asset, LevelOfDetail, LogLevel, SystemAgents};
 
@@ -146,7 +150,7 @@ impl WorkOrderResponse {
             .clone();
 
         let work_order_info = work_order.work_order_info.clone();
-        let work_order_work_load = work_order.work_order_analytic.work_load.clone();
+        let work_order_work_load = work_order.work_order_load();
         let vendor = work_order.work_order_analytic.vendor;
         let weight = work_order.work_order_analytic.work_order_weight;
         let system_status_codes = work_order.work_order_analytic.system_status_codes.clone();
