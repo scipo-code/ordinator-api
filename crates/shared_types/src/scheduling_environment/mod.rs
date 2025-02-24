@@ -7,6 +7,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use time_environment::TimeEnvironmentBuilder;
+use work_order::WorkOrderBuilder;
 
 use crate::scheduling_environment::time_environment::period::Period;
 use crate::scheduling_environment::work_order::WorkOrder;

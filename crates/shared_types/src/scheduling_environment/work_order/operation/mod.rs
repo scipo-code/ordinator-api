@@ -33,6 +33,15 @@ pub struct Operation {
     pub operation_dates: OperationDates,
 }
 
+pub struct OperationsBuilder {
+    pub activity: ActivityNumber,
+    pub resource: Resources,
+    pub unloading_point: Option<UnloadingPoint>,
+    pub operation_info: Option<OperationInfo>,
+    pub operation_analytic: Option<OperationAnalytic>,
+    pub operation_dates: Option<OperationDates>,
+}
+
 #[derive(Copy, Default, Hash, Eq, PartialOrd, Ord, PartialEq, Clone)]
 pub struct Work(pub Decimal);
 
