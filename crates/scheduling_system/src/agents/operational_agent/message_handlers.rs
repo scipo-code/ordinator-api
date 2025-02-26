@@ -10,7 +10,7 @@ use shared_types::agents::operational::{
 use tracing::{event, Level};
 
 use crate::agents::{
-    Agent, AgentSpecific, Algorithm, MessageHandler, OperationalSolution, StateLink,
+    Agent, ActorSpecific, Algorithm, MessageHandler, OperationalSolution, StateLink,
 };
 
 use super::algorithm::{operational_parameter::OperationalParameters, OperationalNonProductive};
@@ -30,7 +30,7 @@ impl MessageHandler
                 self.algorithm.parameters.work_order_parameters.len()
         );
         match state_link {
-            StateLink::WorkOrders(AgentSpecific::Strategic(changed_work_orders)) => {
+            StateLink::WorkOrders(ActorSpecific::Strategic(changed_work_orders)) => {
                 // TODO:
                 event!(Level::ERROR, unhandled_work_orders = ?changed_work_orders);
                 bail!("IMPLEMENT STATELINK FOR THE OPERATIONAL AGENT");

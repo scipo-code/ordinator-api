@@ -15,7 +15,7 @@ use crate::agents::{
     tactical_agent::algorithm::tactical_parameters::{
         create_tactical_parameter, TacticalParameters,
     },
-    Agent, AgentSpecific, Algorithm, MessageHandler, StateLink, TacticalSolution, WhereIsWorkOrder,
+    Agent, ActorSpecific, Algorithm, MessageHandler, StateLink, TacticalSolution, WhereIsWorkOrder,
 };
 
 type TacticalAlgorithm =
@@ -62,7 +62,7 @@ impl MessageHandler for Agent<TacticalAlgorithm, TacticalRequestMessage, Tactica
     fn handle_state_link(&mut self, state_link: StateLink) -> Result<()> {
         match state_link {
             StateLink::WorkOrders(agent_specific) => match agent_specific {
-                AgentSpecific::Strategic(changed_work_orders) => {
+                ActorSpecific::Strategic(changed_work_orders) => {
                     let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
                     let work_orders = &scheduling_environment_guard.work_orders.inner;

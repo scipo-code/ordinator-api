@@ -254,7 +254,7 @@ pub struct TomlResources {
 // should be located together. I think that is the best approach
 // here.
 #[derive(Serialize, Deserialize, Debug, Default)]
-pub struct SystemAgents {
+pub struct ActorSpecifications {
     pub supervisors: Vec<InputSupervisor>,
     // QUESTION
     // Why not just store the OperationalParameters here?
@@ -265,8 +265,8 @@ pub struct SystemAgents {
     pub operational: Vec<InputOperational>,
 }
 
-impl From<SystemAgents> for AgentEnvironment {
-    fn from(value: SystemAgents) -> Self {
+impl From<ActorSpecifications> for AgentEnvironment {
+    fn from(value: ActorSpecifications) -> Self {
         let operational = value
             .operational
             .into_iter()
@@ -410,7 +410,7 @@ mod tests {
 
     use chrono::NaiveTime;
 
-    use crate::{scheduling_environment::worker_environment::resources::Resources, SystemAgents};
+    use crate::{scheduling_environment::worker_environment::resources::Resources, ActorSpecifications};
 
     #[test]
     fn test_toml_operational_parsing() {
@@ -435,7 +435,7 @@ mod tests {
             operational_configuration.availability.finish_date = "2024-12-15T15:00:00Z"
         "#;
 
-        let system_agents: SystemAgents = toml::from_str(toml_operational_string).unwrap();
+        let system_agents: ActorSpecifications = toml::from_str(toml_operational_string).unwrap();
 
         assert_eq!(system_agents.operational[0].id, "OP-01-001".to_string());
 

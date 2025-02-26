@@ -146,7 +146,7 @@ impl WorkOrderBuilder {
     where
         F: FnOnce(&mut WorkOrderInfoBuilder) -> &mut WorkOrderInfoBuilder,
     {
-        let work_order_info_builder = WorkOrderInfoBuilder::new();
+        let work_order_info_builder = WorkOrderInfo::builder();
 
         f(&mut work_order_info_builder);
 
@@ -163,7 +163,7 @@ pub enum ActivityRelation {
 }
 
 #[allow(dead_code)]
-#[derive(serde::Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct WorkOrderConfigurations {
     order_type_weights: HashMap<String, u64>,
     status_weights: HashMap<String, u64>,

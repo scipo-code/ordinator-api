@@ -17,7 +17,7 @@ use crate::scheduling_environment::work_order::{
     work_order_info::WorkOrderInfo, WorkOrder, WorkOrderNumber,
 };
 use crate::scheduling_environment::worker_environment::resources::{Id, Resources};
-use crate::{Asset, LevelOfDetail, LogLevel, SystemAgents};
+use crate::{ActorSpecifications, Asset, LevelOfDetail, LogLevel};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum OrchestratorRequest {
@@ -26,7 +26,7 @@ pub enum OrchestratorRequest {
     GetPeriods,
     GetDays,
     AgentStatusRequest,
-    InitializeSystemAgentsFromFile(Asset, SystemAgents),
+    InitializeSystemAgentsFromFile(Asset, ActorSpecifications),
     CreateSupervisorAgent(Asset, u64, Id),
     DeleteSupervisorAgent(Asset, String),
     CreateOperationalAgent(Asset, Id, f64, OperationalConfiguration),
@@ -152,7 +152,9 @@ impl WorkOrderResponse {
         let work_order_info = work_order.work_order_info.clone();
         let work_order_work_load = work_order.work_order_load();
         let vendor = work_order.work_order_analytic.vendor;
-        let weight = work_order.work_order_analytic.work_order_value;
+        // This is a good sign. You should be able to provide the work_order_configurations for this
+        // and the `MessageHandler` trait has to be updated.
+        let weight = work_order.work_order_value(work_order_configurations);
         let system_status_codes = work_order.work_order_analytic.system_status_codes.clone();
         let user_status_codes = work_order.work_order_analytic.user_status_codes.clone();
 

@@ -41,7 +41,7 @@ pub async fn http_to_scheduling_system(
 
             strategic
                 .sender
-                .send(crate::agents::AgentMessage::Actor(
+                .send(crate::agents::ActorMessage::Actor(
                     strategic_request.strategic_request_message,
                 ))
                 .map_err(actix_web::error::ErrorInternalServerError)?;

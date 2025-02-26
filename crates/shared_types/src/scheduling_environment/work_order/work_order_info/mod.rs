@@ -23,8 +23,19 @@ pub struct WorkOrderInfo {
     pub system_condition: SystemCondition,
     pub work_order_info_detail: WorkOrderInfoDetail,
 }
+pub struct WorkOrderInfoBuilder {
+    pub priority: Priority,
+    pub work_order_type: WorkOrderType,
+    pub functional_location: FunctionalLocation,
+    pub work_order_text: WorkOrderText,
+    pub revision: Revision,
+    pub system_condition: SystemCondition,
+    pub work_order_info_detail: WorkOrderInfoDetail,
+}
 
+// What should you do
 impl WorkOrderInfo {
+    pub fn builder()
     pub fn new(
         priority: Priority,
         work_order_type: WorkOrderType,
