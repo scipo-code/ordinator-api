@@ -114,41 +114,6 @@ pub struct Algorithm<S, P, I> {
     loaded_shared_solution: Guard<Arc<SharedSolution>>,
 }
 
-pub trait AlgorithmUtils {
-    type Parameters;
-    type ObjectiveValue;
-    type Sol: Solution<ObjectiveValue = Self::ObjectiveValue> + Debug + Clone;
-
-    fn new(
-        id: &Id,
-        solution: Self::Sol,
-        parameters: Self::Parameters,
-        arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
-    ) -> Self;
-
-    fn load_shared_solution(&mut self);
-
-    fn clone_algorithm_solution(&self) -> Self::Sol;
-
-    fn swap_solution(&mut self, solution: Self::Sol);
-
-    // WARN
-    // You may have to reintroduce this.
-    // fn update_objective_value(&mut self, objective_value: Self::ObjectiveValue);
-}
-
-pub trait Solution {
-    type ObjectiveValue;
-    type Parameters;
-
-    // QUESTION
-    // Is this a good idea to create the Solution? I actually believe that it
-    // is!
-    fn new(parameters: &Self::Parameters) -> Self;
-
-    fn update_objective_value(&mut self, other_objective: Self::ObjectiveValue);
-}
-
 impl<S, P, I> AlgorithmUtils for Algorithm<S, P, I>
 where
     I: Default,
@@ -626,15 +591,6 @@ impl TacticalSolution {
     }
 }
 
-#[allow(dead_code)]
-pub trait GetMarginalFitness {
-    fn marginal_fitness(
-        &self,
-        operational_agent: &Id,
-        work_order_activity: &WorkOrderActivity,
-    ) -> Result<&MarginalFitness>;
-}
-
 impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
     fn marginal_fitness(
         &self,
@@ -717,13 +673,4 @@ pub enum StateLink {
 #[derive(Debug, Clone)]
 pub enum AgentSpecific {
     Strategic(Vec<WorkOrderNumber>),
-}
-
-pub trait MessageHandler {
-    type Req;
-    type Res;
-
-    fn handle_state_link(&mut self, state_link: StateLink) -> Result<()>;
-
-    fn handle_request_message(&mut self, request_message: Self::Req) -> Result<Self::Res>;
 }

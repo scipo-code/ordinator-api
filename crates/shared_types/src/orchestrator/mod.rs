@@ -152,7 +152,7 @@ impl WorkOrderResponse {
         let work_order_info = work_order.work_order_info.clone();
         let work_order_work_load = work_order.work_order_load();
         let vendor = work_order.work_order_analytic.vendor;
-        let weight = work_order.work_order_analytic.work_order_weight;
+        let weight = work_order.work_order_analytic.work_order_value;
         let system_status_codes = work_order.work_order_analytic.system_status_codes.clone();
         let user_status_codes = work_order.work_order_analytic.user_status_codes.clone();
 

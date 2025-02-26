@@ -121,7 +121,7 @@ impl TacticalParameter {
         Self {
             main_work_center: work_order.main_work_center,
             tactical_operation_parameters: operation_parameters,
-            weight: work_order.work_order_weight(),
+            weight: work_order.work_order_value(),
             relations: work_order.relations.clone(),
             earliest_allowed_start_date: work_order.work_order_dates.earliest_allowed_start_date,
         }

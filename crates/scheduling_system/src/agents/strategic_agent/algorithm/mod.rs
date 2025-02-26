@@ -9,7 +9,7 @@ use strum::IntoEnumIterator;
 use crate::agents::traits::{ActorBasedLargeNeighborhoodSearch, ObjectiveValueType};
 use crate::agents::{Algorithm, StrategicSolution};
 use anyhow::{ ensure, Context, Result};
-use strategic_parameters::{StrategicClustering, StrategicParameter, StrategicParameters};
+use strategic_parameters::{StrategicClustering, WorkOrderParameter, StrategicParameters};
 use priority_queue::PriorityQueue;
 use rand::prelude::SliceRandom;
 use shared_types::scheduling_environment::time_environment::period::Period;
@@ -994,7 +994,7 @@ impl Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNu
                             .parameters
                             .strategic_work_order_parameters
                             .get_mut(&work_order_number)
-                            .with_context(|| format!("The {:?} was not found in the {:#?}. The {:#?} should have been initialized at creation.", work_order_number, type_name::<StrategicParameter>(), type_name::<StrategicParameter>()))?;
+                            .with_context(|| format!("The {:?} was not found in the {:#?}. The {:#?} should have been initialized at creation.", work_order_number, type_name::<WorkOrderParameter>(), type_name::<WorkOrderParameter>()))?;
             
                     assert!(!strategic_parameter.excluded_periods.contains(self.solution.strategic_scheduled_work_orders.get(&work_order_number).as_ref().unwrap().as_ref().unwrap()));
                     strategic_parameter
@@ -1075,7 +1075,7 @@ impl Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNu
 mod tests {
     use super::*;
     use arc_swap::ArcSwap;
-    use strategic_parameters::StrategicParameter;
+    use strategic_parameters::WorkOrderParameter;
     use rand::{rngs::StdRng, SeedableRng};
 
     use shared_types::{scheduling_environment::{worker_environment::resources::{Id, Resources}, SchedulingEnvironment}, Asset};
@@ -1087,7 +1087,7 @@ mod tests {
     use std::{collections::HashMap, str::FromStr, sync::Mutex};
 
 
-    impl StrategicParameter {
+    impl WorkOrderParameter {
         pub fn new(
             locked_in_period: Option<Period>,
             excluded_periods: HashSet<Period>,
@@ -1490,7 +1490,7 @@ mod tests {
 
         let mut strategic_parameters = StrategicParameters::new(&id, StrategicOptions::default(), &scheduling_environment.lock().unwrap())?;
 
-        let strategic_parameter_1 = StrategicParameter::new(
+        let strategic_parameter_1 = WorkOrderParameter::new(
             None,
             HashSet::new(),
             latest_period.clone(),
@@ -1498,7 +1498,7 @@ mod tests {
             work_load_1,
         );
 
-        let strategic_parameter_2 = StrategicParameter::new(
+        let strategic_parameter_2 = WorkOrderParameter::new(
             None,
             HashSet::new(),
             latest_period.clone(),
@@ -1506,7 +1506,7 @@ mod tests {
             work_load_2,
         );
 
-        let strategic_parameter_3 = StrategicParameter::new(
+        let strategic_parameter_3 = WorkOrderParameter::new(
             None,
             HashSet::new(),
             latest_period.clone(),
@@ -1660,7 +1660,7 @@ mod tests {
         
         let mut strategic_parameters = StrategicParameters::new(&id, StrategicOptions::default(), &scheduling_environment.lock().unwrap())?;
 
-        let strategic_parameter = StrategicParameter::new(
+        let strategic_parameter = WorkOrderParameter::new(
             None,
             HashSet::new(),
             periods[0].clone(),

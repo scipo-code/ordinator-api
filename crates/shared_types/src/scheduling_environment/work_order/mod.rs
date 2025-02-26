@@ -39,6 +39,8 @@ use self::operation::Work;
 
 use super::time_environment::period::Period;
 
+pub type WorkOrderValue = u64;
+
 #[derive(Copy, Clone, PartialOrd, Ord, Hash, PartialEq, Eq)]
 pub struct WorkOrderNumber(pub u64);
 impl WorkOrderNumber {
@@ -162,7 +164,7 @@ pub enum ActivityRelation {
 
 #[allow(dead_code)]
 #[derive(serde::Deserialize, Debug)]
-pub struct WeightParams {
+pub struct WorkOrderConfigurations {
     order_type_weights: HashMap<String, u64>,
     status_weights: HashMap<String, u64>,
     vis_priority_map: HashMap<char, u64>,
@@ -171,36 +173,41 @@ pub struct WeightParams {
     wpm_priority_map: HashMap<char, u64>,
 }
 
-impl WeightParams {
+impl WorkOrderConfigurations {
     pub fn read_config() -> Result<Self, Box<dyn std::error::Error>> {
         let config_path = env::var("WORK_ORDER_WEIGHTINGS").expect("Work Order configuration parameters should always be provided through configuraion files specified in the .env file");
         let config_contents = fs::read_to_string(config_path).expect("Could not read config file");
 
-        let config: WeightParams = serde_json::from_str(&config_contents)?;
+        let config: WorkOrderConfigurations = serde_json::from_str(&config_contents)?;
 
         Ok(config)
     }
 }
 
 // You can remove all the initialization logic! So cool! I am not sure about the
+//
 // builder though.
+// FIX [ ]
+// Move all initialization into function calls.
+// FIX [ ]
+// Move the `latest_allowed_period` into a function as well.
 impl WorkOrder {
-    pub fn initialize(&mut self, periods: &[Period]) {
-        self.work_order_weight();
-        // FIX
-        // self.random_latest_periods(periods);
-        // FIX
-        assert!(
-            self.work_order_dates
-                .earliest_allowed_start_period
-                .end_date()
-                .date_naive()
-                >= self.work_order_dates.earliest_allowed_start_date
-        );
-        // TODO : Other fields
+    pub fn builder(work_order_number: WorkOrderNumber) -> WorkOrderBuilder {
+        WorkOrderBuilder {
+            work_order_number,
+            main_work_center: todo!(),
+            operations: todo!(),
+            relations: todo!(),
+            work_order_analytic: todo!(),
+            work_order_dates: todo!(),
+            work_order_info: todo!(),
+        }
     }
 
-    pub fn work_order_weight(&mut self) {
+    pub fn work_order_value(
+        &mut self,
+        work_order_configurations: WorkOrderConfigurations,
+    ) -> WorkOrderValue {
         // FIX
         // This should be removed. Where should the global configs be read
         // from? I am not really sure. You have done a lot today! I think that
@@ -209,65 +216,62 @@ impl WorkOrder {
         // TODO [ ]
         // There can be no stray `configs` like these! They have to be handled
         // in a higher level.
-        let parameters: WeightParams = WeightParams::read_config().unwrap();
-        self.work_order_analytic.work_order_weight = 0;
-
-        match &self.work_order_info.work_order_type {
+        let base_value = match &self.work_order_info.work_order_type {
             WorkOrderType::Wdf(wdf_priority) => match wdf_priority {
                 Priority::Int(int) if (&0..=&8).contains(&int) => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wdf_priority_map[int] * parameters.order_type_weights["WDF"]
+                    work_order_configurations.wdf_priority_map[int]
+                        * work_order_configurations.order_type_weights["WDF"]
                 }
                 _ => panic!("Received a wrong input number work order priority"),
             },
             WorkOrderType::Wgn(wgn_priority) => match wgn_priority {
                 Priority::Int(int) if (&0..&8).contains(&int) => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wgn_priority_map[int] * parameters.order_type_weights["WGN"]
+                    work_order_configurations.wgn_priority_map[int]
+                        * work_order_configurations.order_type_weights["WGN"]
                 }
                 _ => panic!("Received a wrong input number work order priority"),
             },
             WorkOrderType::Wpm(wpm_priority) => match wpm_priority {
                 Priority::Char(char) if (&'A'..=&'D').contains(&char) => {
-                    self.work_order_analytic.work_order_weight +=
-                        parameters.wpm_priority_map[char] * parameters.order_type_weights["WPM"]
+                    work_order_configurations.wpm_priority_map[char]
+                        * work_order_configurations.order_type_weights["WPM"]
                 }
                 _ => panic!("Received a wrong input number work order priority"),
             },
-            WorkOrderType::Wro(_) => (),
-            WorkOrderType::Other => {
-                self.work_order_analytic.work_order_weight += parameters.order_type_weights["Other"]
-            }
+            WorkOrderType::Wro(_) => todo!(),
+            WorkOrderType::Other => work_order_configurations.order_type_weights["Other"],
         };
 
-        if self.work_order_analytic.user_status_codes.awsc {
-            self.work_order_analytic.work_order_weight += parameters.status_weights["AWSC"];
-        }
+        let status_weight = {
+            let mut work_order_value = 0;
+            if self.work_order_analytic.user_status_codes.awsc {
+                work_order_value += work_order_configurations.status_weights["AWSC"];
+            }
 
-        if self.work_order_analytic.user_status_codes.sece {
-            self.work_order_analytic.work_order_weight += parameters.status_weights["SECE"];
-        }
+            if self.work_order_analytic.user_status_codes.sece {
+                work_order_value += work_order_configurations.status_weights["SECE"];
+            }
 
-        if self.work_order_analytic.system_status_codes.pcnf
-            && self.work_order_analytic.system_status_codes.nmat
-            || self.work_order_analytic.user_status_codes.smat
-        {
-            self.work_order_analytic.work_order_weight +=
-                parameters.status_weights["PCNF_NMAT_SMAT"];
-        }
+            if self.work_order_analytic.system_status_codes.pcnf
+                && self.work_order_analytic.system_status_codes.nmat
+                || self.work_order_analytic.user_status_codes.smat
+            {
+                work_order_value += work_order_configurations.status_weights["PCNF_NMAT_SMAT"];
+            }
 
-        self.work_order_analytic.work_order_weight *=
-            self.work_order_analytic.work_order_work.to_f64() as u64
+            work_order_value
+        };
 
-        // TODO [ ]
-        // Shame yourself for writing so horrible code! It is actually disgusting, you
-        // must rewrite all the horrible parts.
-        // Implement for VIS and ABC
-        //
-        //
+        let total_weight = (base_value + status_weight)
+            * self
+                .work_order_load()
+                .values()
+                .map(|wor| wor.to_f64())
+                .sum::<f64>() as u64;
+        total_weight
     }
 
-    pub fn work_order_load(&mut self) -> HashMap<Resources, Work> {
+    pub fn work_order_load(&self) -> HashMap<Resources, Work> {
         self.operations
             .values()
             .fold(HashMap::default(), |mut acc, ele_opr| {
@@ -321,10 +325,6 @@ impl WorkOrder {
 
     pub fn insert_operation(&mut self, operation: Operation) {
         self.operations.insert(operation.activity, operation);
-    }
-
-    pub fn work_order_weight(&self) -> u64 {
-        self.work_order_analytic.work_order_weight
     }
 
     pub fn earliest_allowed_start_period<'a>(&'a mut self, periods: &'a [Period]) -> &'a Period {

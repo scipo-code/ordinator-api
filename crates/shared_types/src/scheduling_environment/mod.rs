@@ -7,7 +7,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use time_environment::TimeEnvironmentBuilder;
-use work_order::WorkOrderBuilder;
+use work_order::{WorkOrderBuilder, WorkOrderConfigurations};
 
 use crate::scheduling_environment::time_environment::period::Period;
 use crate::scheduling_environment::work_order::WorkOrder;
@@ -124,17 +124,19 @@ impl Default for SchedulingEnvironment {
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct WorkOrders {
     pub inner: HashMap<WorkOrderNumber, WorkOrder>,
+    pub work_order_configurations: WorkOrderConfigurations,
 }
 
-#[derive(Default)]
 pub struct WorkOrdersBuilder {
     inner: Option<HashMap<WorkOrderNumber, WorkOrder>>,
+    work_order_configurations: WorkOrderConfigurations,
 }
 
 impl WorkOrdersBuilder {
-    pub fn build(self) -> WorkOrders {
+    pub fn build(self, work_order_configurations: WorkOrderConfigurations) -> WorkOrders {
         WorkOrders {
             inner: self.inner.unwrap_or_default(),
+            work_order_configurations,
         }
     }
 
@@ -142,16 +144,37 @@ impl WorkOrdersBuilder {
     where
         F: FnOnce(&mut WorkOrderBuilder) -> &mut WorkOrderBuilder,
     {
-        let mut work_order_builder = WorkOrderBuilder::default();
+        let mut work_order_builder = WorkOrder::builder(work_order_number);
 
         f(&mut work_order_builder);
 
-        work_order_builder.inner = Some(work_order_builder.build());
+        match &mut self.inner {
+            Some(work_orders_inner) => {
+                work_orders_inner.insert(
+                    work_order_builder.work_order_number,
+                    work_order_builder.build(),
+                );
+            }
+            None => {
+                let work_order_inner = HashMap::from([(
+                    work_order_builder.work_order_number,
+                    work_order_builder.build(),
+                )]);
+
+                self.inner = Some(work_order_inner);
+            }
+        }
         self
     }
 }
 
 impl WorkOrders {
+    pub fn builder() -> WorkOrdersBuilder {
+        WorkOrdersBuilder {
+            inner: todo!(),
+            work_order_configurations: todo!(),
+        }
+    }
     pub fn insert(&mut self, work_order: WorkOrder) {
         self.inner.insert(work_order.work_order_number, work_order);
     }
