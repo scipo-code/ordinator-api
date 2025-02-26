@@ -3,7 +3,9 @@ use serde::Serialize;
 use shared_types::agents::strategic::StrategicResources;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::Work;
-use shared_types::scheduling_environment::work_order::{WorkOrder, WorkOrderNumber};
+use shared_types::scheduling_environment::work_order::{
+    WorkOrder, WorkOrderConfigurations, WorkOrderNumber,
+};
 use shared_types::scheduling_environment::worker_environment::resources::{Id, Resources};
 use shared_types::scheduling_environment::{SchedulingEnvironment, WorkOrders};
 use shared_types::Asset;
@@ -14,9 +16,9 @@ use std::{collections::HashMap, collections::HashSet};
 use crate::agents::strategic_agent::StrategicOptions;
 use crate::agents::traits::Parameters;
 
-#[derive(Default, Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct StrategicParameters {
-    pub strategic_work_order_parameters: HashMap<WorkOrderNumber, StrategicParameter>,
+    pub strategic_work_order_parameters: HashMap<WorkOrderNumber, WorkOrderParameter>,
     pub strategic_capacity: StrategicResources,
     pub strategic_clustering: StrategicClustering,
     pub period_locks: HashSet<Period>,
@@ -39,9 +41,10 @@ impl Parameters for StrategicParameters {
         let mut strategic_clustering = StrategicClustering::default();
 
         let work_orders = &scheduling_environment.work_orders;
+
         let strategic_periods = &scheduling_environment.time_environment.strategic_periods;
 
-        strategic_clustering.calculate_clustering_values(asset, work_orders)?;
+        strategic_clustering.calculate_clustering_values(asset, work_orders, options)?;
 
         let strategic_capacity = scheduling_environment
             .worker_environment
@@ -64,6 +67,9 @@ impl Parameters for StrategicParameters {
         })
     }
 
+    // TODO [ ]
+    // This should be created as a `Builder` I am not sure that the best decision will
+    // be here.
     fn create_and_insert_new_parameter(
         &mut self,
         key: Self::Key,
@@ -80,8 +86,12 @@ pub struct StrategicClustering {
     pub inner: HashMap<(WorkOrderNumber, WorkOrderNumber), ClusteringValue>,
 }
 
+/// WARNING
+/// There is a good change that there should be a generic parameter in this
+/// type as there are so many different ways that a `StrategicParameter`
+/// can be handled.
 #[derive(Debug, PartialEq, Clone, Default, Serialize)]
-pub struct StrategicParameter {
+pub struct WorkOrderParameter {
     pub locked_in_period: Option<Period>,
     pub excluded_periods: HashSet<Period>,
     pub latest_period: Period,
@@ -90,7 +100,7 @@ pub struct StrategicParameter {
 }
 
 #[derive(Debug)]
-pub struct StrategicParameterBuilder(StrategicParameter);
+pub struct WorkOrderParameterBuilder(WorkOrderParameter);
 
 // TODO: Use this for testing the scheduling program
 // enum StrategicParameterStates {
@@ -101,15 +111,6 @@ pub struct StrategicParameterBuilder(StrategicParameter);
 // }
 
 impl StrategicParameters {
-    pub fn insert_strategic_parameter(
-        &mut self,
-        work_order_number: WorkOrderNumber,
-        strategic_parameter: StrategicParameter,
-    ) -> Option<StrategicParameter> {
-        self.strategic_work_order_parameters
-            .insert(work_order_number, strategic_parameter)
-    }
-
     pub fn get_locked_in_period<'a>(
         &'a self,
         work_order_number: &'a WorkOrderNumber,
@@ -147,21 +148,26 @@ impl StrategicParameters {
     }
 }
 
-impl StrategicParameterBuilder {
-    pub fn new() -> Self {
-        Self(StrategicParameter {
-            locked_in_period: None,
-            excluded_periods: HashSet::new(),
-            latest_period: Period::from_str("2024-W01-02").unwrap(),
-            weight: 0,
-            work_load: HashMap::new(),
-        })
-    }
-
-    pub fn build_from_work_order(mut self, work_order: &WorkOrder, periods: &[Period]) -> Self {
+impl WorkOrderParameterBuilder {
+    // WARN
+    // This builder is crucial for the whole business logic of things. I am not sure what the
+    // best approach is for continuing this.
+    // TODO [ ]
+    // You need a function for each field here, and you have to understand what each of them
+    // means.
+    // QUESTION
+    // _Where should the configs come from?_
+    // The higher level Parameters implementation includes the `SchedulingEnvironment` that
+    // means that it should be possible to include the `WorkOrderConfigurations` here.
+    pub fn with_scheduling_environment(
+        &mut self,
+        work_order: &WorkOrder,
+        periods: &[Period],
+        work_order_configurations: WorkOrderConfigurations,
+    ) -> &mut Self {
         self.0.excluded_periods = work_order.find_excluded_periods(periods);
 
-        self.0.weight = work_order.work_order_weight();
+        self.0.weight = work_order.work_order_value(work_order_configurations);
 
         self.0.work_load.clone_from(work_order.work_load());
 
@@ -256,12 +262,12 @@ impl StrategicParameterBuilder {
         self
     }
 
-    pub fn build(self) -> StrategicParameter {
+    pub fn build(self) -> WorkOrderParameter {
         if let Some(ref locked_in_period) = self.0.locked_in_period {
             assert!(!self.0.excluded_periods.contains(locked_in_period));
         }
 
-        StrategicParameter {
+        WorkOrderParameter {
             locked_in_period: self.0.locked_in_period,
             excluded_periods: self.0.excluded_periods,
             latest_period: self.0.latest_period,
@@ -271,9 +277,15 @@ impl StrategicParameterBuilder {
     }
 }
 
-impl StrategicParameter {
-    pub fn excluded_periods(&self) -> &HashSet<Period> {
-        &self.excluded_periods
+impl WorkOrderParameter {
+    fn builder() -> WorkOrderParameterBuilder {
+        WorkOrderParameterBuilder(WorkOrderParameter {
+            locked_in_period: todo!(),
+            excluded_periods: todo!(),
+            latest_period: todo!(),
+            weight: todo!(),
+            work_load: todo!(),
+        })
     }
 }
 
@@ -282,6 +294,7 @@ impl StrategicClustering {
         &mut self,
         asset: &Asset,
         work_orders: &WorkOrders,
+        clustering_weights: ClusteringWrights,
     ) -> Result<()> {
         #[derive(serde::Deserialize, Debug)]
         pub struct ClusteringWeights {
@@ -293,14 +306,9 @@ impl StrategicClustering {
         }
 
         // Load clustering weights from config
-        let clustering_weights: ClusteringWeights = {
-            let clustering_config_path = dotenvy::var("CLUSTER_WEIGHTINGS")
-                .context("CLUSTER_WEIGHTINGS should be defined in the env")?;
-            let clustering_config_contents = std::fs::read_to_string(clustering_config_path)
-                .context("Could not read config file")?;
-            serde_json::from_str(&clustering_config_contents)?
-        };
-
+        // TODO [ ]
+        // This should be moved up as well. It should be simple to remove centrally. I think that this
+        // is the best approach forward. I do not see what other approach that we have.
         let mut clustering_similarity: HashMap<
             (WorkOrderNumber, WorkOrderNumber),
             ClusteringValue,
@@ -362,7 +370,7 @@ pub fn create_strategic_parameters(
     work_orders: &WorkOrders,
     periods: &[Period],
     asset: &Asset,
-) -> Result<HashMap<WorkOrderNumber, StrategicParameter>> {
+) -> Result<HashMap<WorkOrderNumber, WorkOrderParameter>> {
     let mut strategic_work_order_parameters = HashMap::new();
 
     for (work_order_number, work_order) in work_orders
@@ -370,8 +378,8 @@ pub fn create_strategic_parameters(
         .iter()
         .filter(|(_, wo)| wo.functional_location().asset == *asset)
     {
-        let strategic_parameter = StrategicParameterBuilder::new()
-            .build_from_work_order(work_order, periods)
+        let strategic_parameter = WorkOrderParameter::builder()
+            .with_scheduling_environment(work_order, periods)
             .build();
 
         strategic_work_order_parameters.insert(*work_order_number, strategic_parameter);

@@ -28,9 +28,9 @@ use crate::agents::MessageHandler;
 use crate::agents::StateLink;
 use crate::agents::StrategicSolution;
 
-use super::algorithm::strategic_parameters::StrategicParameter;
-use super::algorithm::strategic_parameters::StrategicParameterBuilder;
 use super::algorithm::strategic_parameters::StrategicParameters;
+use super::algorithm::strategic_parameters::WorkOrderParameter;
+use super::algorithm::strategic_parameters::WorkOrderParameterBuilder;
 use super::algorithm::ScheduleWorkOrder;
 
 type StrategicAlgorithm =
@@ -147,7 +147,7 @@ impl MessageHandler
                                 format!(
                                     "{:?} does not have a {} in {}",
                                     work_order_number,
-                                    std::any::type_name::<StrategicParameter>(),
+                                    std::any::type_name::<WorkOrderParameter>(),
                                     std::any::type_name::<StrategicAlgorithm>()
                                 )
                             })?;
@@ -255,7 +255,7 @@ impl MessageHandler
                             user_status_codes.awsc = awsc;
                         }
 
-                        work_order.work_order_weight();
+                        work_order.work_order_value();
 
                         let last_period =
                             self.algorithm.parameters.strategic_periods.last().cloned();
@@ -357,7 +357,7 @@ impl MessageHandler
                                     )
                                 })?;
 
-                            let strategic_parameter = StrategicParameterBuilder::new()
+                            let strategic_parameter = WorkOrderParameterBuilder::new()
                                 .build_from_work_order(
                                     work_order,
                                     &self.algorithm.parameters.strategic_periods,

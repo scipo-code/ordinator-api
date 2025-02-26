@@ -13,16 +13,26 @@ pub struct StrategicOptions {
     urgency_weight: u64,
     resource_penalty_weight: u64,
     clustering_weight: u64,
+    clustering_configs: ClusteringWeights,
 }
 
 impl Default for StrategicOptions {
     fn default() -> Self {
+        let clustering_weights: ClusteringWeights = {
+            let clustering_config_path = dotenvy::var("CLUSTER_WEIGHTINGS")
+                .context("CLUSTER_WEIGHTINGS should be defined in the env")?;
+            let clustering_config_contents = std::fs::read_to_string(clustering_config_path)
+                .context("Could not read config file")?;
+            serde_json::from_str(&clustering_config_contents)?
+        };
+
         StrategicOptions {
             number_of_removed_work_order: 50,
             rng: StdRng::from_os_rng(),
             urgency_weight: todo!(),
             resource_penalty_weight: todo!(),
             clustering_weight: todo!(),
+            clustering_configs: todo!(),
         }
     }
 }
@@ -66,8 +76,8 @@ mod tests {
     use shared_types::scheduling_environment::work_order::operation::Work;
     use shared_types::scheduling_environment::worker_environment::resources::Id;
     use shared_types::scheduling_environment::SchedulingEnvironment;
-    use tests::algorithm::strategic_parameters::StrategicParameter;
     use tests::algorithm::strategic_parameters::StrategicParameters;
+    use tests::algorithm::strategic_parameters::WorkOrderParameter;
     use unloading_point::UnloadingPoint;
 
     use std::collections::HashMap;
@@ -172,7 +182,7 @@ mod tests {
             ArcSwapSharedSolution::default().into(),
         );
 
-        let strategic_parameter = StrategicParameter::new(
+        let strategic_parameter = WorkOrderParameter::new(
             Some(periods[0].clone()),
             HashSet::new(),
             periods.first().unwrap().clone(),
@@ -238,7 +248,7 @@ mod tests {
             &scheduling_environment.lock().unwrap(),
         )?;
 
-        let strategic_parameter = StrategicParameter::new(
+        let strategic_parameter = WorkOrderParameter::new(
             Some(period),
             HashSet::new(),
             Period::from_str("2023-W47-48").unwrap(),

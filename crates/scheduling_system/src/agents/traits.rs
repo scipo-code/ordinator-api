@@ -74,6 +74,29 @@ where
     fn incorporate_shared_state(&mut self) -> Result<bool>;
 }
 
+pub trait AlgorithmUtils {
+    type Parameters;
+    type ObjectiveValue;
+    type Sol: Solution<ObjectiveValue = Self::ObjectiveValue> + Debug + Clone;
+
+    fn new(
+        id: &Id,
+        solution: Self::Sol,
+        parameters: Self::Parameters,
+        arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
+    ) -> Self;
+
+    fn load_shared_solution(&mut self);
+
+    fn clone_algorithm_solution(&self) -> Self::Sol;
+
+    fn swap_solution(&mut self, solution: Self::Sol);
+
+    // WARN
+    // You may have to reintroduce this.
+    // fn update_objective_value(&mut self, objective_value: Self::ObjectiveValue);
+}
+
 #[allow(dead_code)]
 pub enum ObjectiveValueType<O> {
     Better(O),
@@ -109,4 +132,35 @@ where
         key: Self::Key,
         scheduling_environment: MutexGuard<SchedulingEnvironment>,
     );
+}
+
+pub trait Solution {
+    type ObjectiveValue;
+    type Parameters;
+
+    // QUESTION
+    // Is this a good idea to create the Solution? I actually believe that it
+    // is!
+    fn new(parameters: &Self::Parameters) -> Self;
+
+    fn update_objective_value(&mut self, other_objective: Self::ObjectiveValue);
+}
+
+pub trait MessageHandler {
+    type Req;
+    type Res;
+
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<()>;
+
+    fn handle_request_message(&mut self, request_message: Self::Req) -> Result<Self::Res>;
+}
+
+/// You should most likely remove this and insert something else instead. I think
+#[allow(dead_code)]
+pub trait GetMarginalFitness {
+    fn marginal_fitness(
+        &self,
+        operational_agent: &Id,
+        work_order_activity: &WorkOrderActivity,
+    ) -> Result<&MarginalFitness>;
 }
