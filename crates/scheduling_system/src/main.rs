@@ -16,7 +16,7 @@ use actix_web::{guard, web, App, HttpServer};
 use agents::orchestrator::Orchestrator;
 use anyhow::Context;
 
-use crate::init::logging;
+use crate::orchestrator::logging;
 use shared_types::{scheduling_environment::SchedulingEnvironment, Asset};
 
 #[actix_web::main]

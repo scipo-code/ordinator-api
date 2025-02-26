@@ -14,7 +14,7 @@ use shared_types::{
         time_environment::day::Day, work_order::operation::Work,
         worker_environment::resources::Resources,
     },
-    Asset, SystemAgents, SystemMessages,
+    Asset, ActorSpecifications, SystemMessages,
 };
 
 use super::orchestrator;
@@ -161,7 +161,7 @@ fn generate_manual_resources(client: &Client, toml_path: String) -> TacticalReso
     let days: Vec<Day> = orchestrator::tactical_days(client);
     let contents = std::fs::read_to_string(toml_path).unwrap();
 
-    let config: SystemAgents = toml::from_str(&contents).unwrap();
+    let config: ActorSpecifications = toml::from_str(&contents).unwrap();
 
     let _hours_per_day = 6.0;
 

@@ -12,7 +12,7 @@ use shared_types::{
 use tracing::{event, Level};
 
 use crate::agents::{
-    supervisor_agent::algorithm::supervisor_parameters::SupervisorParameters, Agent, AgentSpecific,
+    supervisor_agent::algorithm::supervisor_parameters::SupervisorParameters, Agent, ActorSpecific,
     Algorithm, MessageHandler, StateLink, SupervisorSolution,
 };
 
@@ -26,7 +26,7 @@ impl MessageHandler
     fn handle_state_link(&mut self, state_link: StateLink) -> Result<()> {
         match state_link {
             StateLink::WorkOrders(agent_specific) => match agent_specific {
-                AgentSpecific::Strategic(changed_work_orders) => {
+                ActorSpecific::Strategic(changed_work_orders) => {
                     let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
                     let work_orders = &scheduling_environment_guard.work_orders.inner;

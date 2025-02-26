@@ -42,18 +42,15 @@ impl SchedulingEnvironment {
         self.work_orders.inner.get(&work_order_activity.0).expect("WorkOrder not found in SchedulinEnvironment. User is responsible for calling this method with the right arguments").operations.get(&work_order_activity.1).expect("ActivityNumber is not present in the WorkOrder")
     }
 
-    pub fn initialize_work_orders(&mut self, periods: &[Period]) {
-        for (_, work_order) in self.work_orders.inner.iter_mut() {
-            work_order.initialize(periods);
-        }
-    }
-
     pub fn builder() -> SchedulingEnvironmentBuilder {
-        SchedulingEnvironmentBuilder::new()
+        SchedulingEnvironmentBuilder {
+            work_orders: todo!(),
+            worker_environment: todo!(),
+            time_environment: todo!(),
+        }
     }
 }
 
-#[derive(Default)]
 pub struct SchedulingEnvironmentBuilder {
     pub work_orders: Option<WorkOrders>,
     pub worker_environment: Option<WorkerEnvironment>,
@@ -61,9 +58,6 @@ pub struct SchedulingEnvironmentBuilder {
 }
 
 impl SchedulingEnvironmentBuilder {
-    pub fn new() -> Self {
-        Self::default()
-    }
     pub fn build(self) -> SchedulingEnvironment {
         SchedulingEnvironment {
             work_orders: self.work_orders.unwrap_or_default(),
@@ -98,11 +92,15 @@ impl SchedulingEnvironmentBuilder {
         self
     }
 
-    pub fn work_orders_builder<F>(&mut self, f: F) -> &mut Self
+    pub fn work_orders_builder<F>(
+        &mut self,
+        f: F,
+        work_order_configurations: WorkOrderConfigurations,
+    ) -> &mut Self
     where
         F: FnOnce(&mut WorkOrdersBuilder) -> &mut WorkOrdersBuilder,
     {
-        let mut work_orders_builder = WorkOrdersBuilder::default();
+        let mut work_orders_builder = WorkOrders::builder();
 
         f(&mut work_orders_builder);
 
@@ -121,9 +119,13 @@ impl Default for SchedulingEnvironment {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+// Everything in the `SchedulingEnvironment` should implement
+// `Serialize` it has to, to be able to go into the database.
+#[derive(Serialize, Deserialize, Debug)]
 pub struct WorkOrders {
     pub inner: HashMap<WorkOrderNumber, WorkOrder>,
+    // Are these in the correct place in the code? Yes I think
+    // that they are.
     pub work_order_configurations: WorkOrderConfigurations,
 }
 
@@ -133,14 +135,14 @@ pub struct WorkOrdersBuilder {
 }
 
 impl WorkOrdersBuilder {
-    pub fn build(self, work_order_configurations: WorkOrderConfigurations) -> WorkOrders {
+    pub fn build(self) -> WorkOrders {
         WorkOrders {
             inner: self.inner.unwrap_or_default(),
-            work_order_configurations,
+            work_order_configurations: self.work_order_configurations,
         }
     }
 
-    pub fn work_order_builder<F>(&mut self, f: F) -> &mut Self
+    pub fn work_order_builder<F>(&mut self, f: F, work_order_number: WorkOrderNumber) -> &mut Self
     where
         F: FnOnce(&mut WorkOrderBuilder) -> &mut WorkOrderBuilder,
     {
@@ -169,10 +171,10 @@ impl WorkOrdersBuilder {
 }
 
 impl WorkOrders {
-    pub fn builder() -> WorkOrdersBuilder {
+    pub fn builder(work_order_configurations: WorkOrderConfigurations) -> WorkOrdersBuilder {
         WorkOrdersBuilder {
-            inner: todo!(),
-            work_order_configurations: todo!(),
+            inner: Some(HashMap::new()),
+            work_order_configurations,
         }
     }
     pub fn insert(&mut self, work_order: WorkOrder) {

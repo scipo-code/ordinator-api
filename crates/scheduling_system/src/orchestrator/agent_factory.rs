@@ -23,7 +23,7 @@ use crate::agents::tactical_agent::algorithm::tactical_parameters::TacticalParam
 use crate::agents::tactical_agent::TacticalOptions;
 use crate::agents::traits::{ActorBasedLargeNeighborhoodSearch, Parameters};
 use crate::agents::{
-    Agent, AgentMessage, Algorithm, AlgorithmUtils, ArcSwapSharedSolution, OperationalSolution,
+    Agent, ActorMessage, Algorithm, AlgorithmUtils, ArcSwapSharedSolution, OperationalSolution,
     SharedSolution, Solution, StrategicSolution, SupervisorSolution, TacticalSolution,
 };
 
@@ -57,7 +57,7 @@ impl AgentFactory {
         scheduling_environment_guard: &MutexGuard<SchedulingEnvironment>,
         shared_solution_arc_swap: Arc<ArcSwapSharedSolution>,
         notify_orchestrator: NotifyOrchestrator,
-    ) -> Result<Communication<AgentMessage<StrategicRequestMessage>, StrategicResponseMessage>>
+    ) -> Result<Communication<ActorMessage<StrategicRequestMessage>, StrategicResponseMessage>>
     {
         let options = StrategicOptions::default();
 
@@ -86,8 +86,8 @@ impl AgentFactory {
         let arc_scheduling_environment = Arc::clone(&self.scheduling_environment);
 
         let (sender_to_agent, receiver_from_orchestrator): (
-            std::sync::mpsc::Sender<AgentMessage<StrategicRequestMessage>>,
-            std::sync::mpsc::Receiver<AgentMessage<StrategicRequestMessage>>,
+            std::sync::mpsc::Sender<ActorMessage<StrategicRequestMessage>>,
+            std::sync::mpsc::Receiver<ActorMessage<StrategicRequestMessage>>,
         ) = std::sync::mpsc::channel();
 
         let (sender_to_orchestrator, receiver_from_agent): (
@@ -125,7 +125,7 @@ impl AgentFactory {
         scheduling_environment_guard: &MutexGuard<SchedulingEnvironment>,
         strategic_tactical_optimized_work_orders: Arc<ArcSwapSharedSolution>,
         notify_orchestrator: NotifyOrchestrator,
-    ) -> Result<Communication<AgentMessage<TacticalRequestMessage>, TacticalResponseMessage>> {
+    ) -> Result<Communication<ActorMessage<TacticalRequestMessage>, TacticalResponseMessage>> {
         // This is a horrible approach. You should centralize it first.
 
         let tactical_id = Id::new(
@@ -186,7 +186,7 @@ impl AgentFactory {
         id_supervisor: &Id,
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
         notify_orchestrator: NotifyOrchestrator,
-    ) -> Result<Communication<AgentMessage<SupervisorRequestMessage>, SupervisorResponseMessage>>
+    ) -> Result<Communication<ActorMessage<SupervisorRequestMessage>, SupervisorResponseMessage>>
     {
         let options = SupervisorOptions::default();
 
@@ -243,7 +243,7 @@ impl AgentFactory {
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
         arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
         notify_orchestrator: NotifyOrchestrator,
-    ) -> Result<Communication<AgentMessage<OperationalRequestMessage>, OperationalResponseMessage>>
+    ) -> Result<Communication<ActorMessage<OperationalRequestMessage>, OperationalResponseMessage>>
     {
         let options = OperationalOptions::default();
 
@@ -261,8 +261,8 @@ impl AgentFactory {
         );
 
         let (sender_to_agent, receiver_from_orchestrator): (
-            std::sync::mpsc::Sender<AgentMessage<OperationalRequestMessage>>,
-            std::sync::mpsc::Receiver<AgentMessage<OperationalRequestMessage>>,
+            std::sync::mpsc::Sender<ActorMessage<OperationalRequestMessage>>,
+            std::sync::mpsc::Receiver<ActorMessage<OperationalRequestMessage>>,
         ) = std::sync::mpsc::channel();
         let (sender_to_orchestrator, receiver_from_agent): (
             std::sync::mpsc::Sender<std::result::Result<OperationalResponseMessage, anyhow::Error>>,

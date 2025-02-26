@@ -21,8 +21,8 @@ use tracing::event;
 use tracing::Level;
 
 use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
+use crate::agents::ActorSpecific;
 use crate::agents::Agent;
-use crate::agents::AgentSpecific;
 use crate::agents::Algorithm;
 use crate::agents::MessageHandler;
 use crate::agents::StateLink;
@@ -255,8 +255,6 @@ impl MessageHandler
                             user_status_codes.awsc = awsc;
                         }
 
-                        work_order.work_order_value();
-
                         let last_period =
                             self.algorithm.parameters.strategic_periods.last().cloned();
 
@@ -342,7 +340,7 @@ impl MessageHandler
         match msg {
             StateLink::WorkOrders(agent_specific) => {
                 match agent_specific {
-                    AgentSpecific::Strategic(changed_work_orders) => {
+                    ActorSpecific::Strategic(changed_work_orders) => {
                         for work_order_number in changed_work_orders {
                             let scheduling_environment_guard =
                                 self.scheduling_environment.lock().unwrap();

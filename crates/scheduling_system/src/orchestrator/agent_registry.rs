@@ -1,15 +1,29 @@
-pub struct AgentRegistry {
+use std::collections::HashMap;
+
+use shared_types::{
+    agents::{
+        operational::{OperationalRequestMessage, OperationalResponseMessage},
+        strategic::{StrategicRequestMessage, StrategicResponseMessage},
+        supervisor::{SupervisorRequestMessage, SupervisorResponseMessage},
+        tactical::{TacticalRequestMessage, TacticalResponseMessage},
+    },
+    scheduling_environment::worker_environment::resources::Id,
+};
+
+use crate::agents::ActorMessage;
+
+pub struct ActorRegistry {
     pub strategic_agent_sender:
-        Communication<AgentMessage<StrategicRequestMessage>, StrategicResponseMessage>,
+        Communication<ActorMessage<StrategicRequestMessage>, StrategicResponseMessage>,
     pub tactical_agent_sender:
-        Communication<AgentMessage<TacticalRequestMessage>, TacticalResponseMessage>,
+        Communication<ActorMessage<TacticalRequestMessage>, TacticalResponseMessage>,
     pub supervisor_agent_senders: HashMap<
         Id,
-        Communication<AgentMessage<SupervisorRequestMessage>, SupervisorResponseMessage>,
+        Communication<ActorMessage<SupervisorRequestMessage>, SupervisorResponseMessage>,
     >,
     pub operational_agent_senders: HashMap<
         Id,
-        Communication<AgentMessage<OperationalRequestMessage>, OperationalResponseMessage>,
+        Communication<ActorMessage<OperationalRequestMessage>, OperationalResponseMessage>,
     >,
 }
 
@@ -18,11 +32,11 @@ pub struct Communication<Req, Res> {
     pub receiver: Receiver<Result<Res>>,
 }
 
-impl AgentRegistry {
+impl ActorRegistry {
     pub fn get_operational_addr(
         &self,
         operational_id: &String,
-    ) -> Option<&Communication<AgentMessage<OperationalRequestMessage>, OperationalResponseMessage>>
+    ) -> Option<&Communication<ActorMessage<OperationalRequestMessage>, OperationalResponseMessage>>
     {
         let option_id = self
             .operational_agent_senders

@@ -1,7 +1,9 @@
 pub mod agent_factory;
+pub mod agent_registry;
+pub mod configuration;
+pub mod database;
 pub mod logging;
 pub mod model_initializers;
-pub mod agent_registry;
 
 use anyhow::bail;
 use anyhow::Context;
@@ -60,7 +62,7 @@ pub struct Orchestrator {
     pub agent_factory: AgentFactory,
     pub agent_registries: HashMap<Asset, AgentRegistry>,
     pub configurations: HashMap<Asset, Configurations>,
-    pub databases_connections: 
+    pub databases_connections: Mon,
     pub agent_notify: Option<Weak<Mutex<Orchestrator>>>,
     pub log_handles: LogHandles,
 }
@@ -118,7 +120,6 @@ impl NotifyOrchestrator {
         Ok(())
     }
 }
-
 
 impl Orchestrator {
     #[instrument(level = "info", skip_all)]
@@ -640,6 +641,8 @@ impl Orchestrator {
             agent_registries: HashMap::new(),
             log_handles,
             agent_notify: None,
+            configurations: todo!(),
+            databases_connections: todo!(),
         };
 
         let arc_orchestrator = Arc::new(Mutex::new(orchestrator));

@@ -14,7 +14,7 @@ use shared_types::{
     orchestrator::OrchestratorRequest, scheduling_environment::worker_environment::resources::Id,
     SystemMessages,
 };
-use shared_types::{Asset, SystemAgents};
+use shared_types::{Asset, ActorSpecifications};
 
 #[derive(Subcommand, Debug)]
 pub enum OrchestratorCommands {
@@ -205,7 +205,7 @@ impl OrchestratorCommands {
                 resource_configuration_file: resource_toml,
             } => {
                 let contents = std::fs::read_to_string(resource_toml).unwrap();
-                let system_agents: SystemAgents = toml::from_str(&contents).unwrap();
+                let system_agents: ActorSpecifications = toml::from_str(&contents).unwrap();
 
                 // FIX: STRATEGIC AND TACTICAL SHOULD ALSO BE UPDATED HERE.
                 // Actually this whole thing should be reworked. I think that

@@ -167,7 +167,7 @@ impl Orchestrator {
 
         agent_registry_for_asset
             .sender
-            .send(crate::agents::AgentMessage::Actor(
+            .send(crate::agents::ActorMessage::Actor(
                 tactical_request.tactical_request_message,
             ))
             .map_err(actix_web::error::ErrorInternalServerError)?;
@@ -204,7 +204,7 @@ impl Orchestrator {
 
         supervisor_agent_addr
             .sender
-            .send(crate::agents::AgentMessage::Actor(
+            .send(crate::agents::ActorMessage::Actor(
                 supervisor_request.supervisor_request_message,
             ))
             .map_err(actix_web::error::ErrorInternalServerError)?;
@@ -255,7 +255,7 @@ impl Orchestrator {
                     Some(agent_communication) => {
                         agent_communication
                             .sender
-                            .send(crate::agents::AgentMessage::Actor(operational_request_message))
+                            .send(crate::agents::ActorMessage::Actor(operational_request_message))
                             .context("Could not await the message sending, theard problems are the most likely")
                             .map_err(actix_web::error::ErrorInternalServerError)?;
 
@@ -289,7 +289,7 @@ impl Orchestrator {
                 for operational_addr in agent_registry.operational_agent_senders.values() {
                     operational_addr
                         .sender
-                        .send(crate::agents::AgentMessage::Actor(
+                        .send(crate::agents::ActorMessage::Actor(
                             operational_request_message.clone(),
                         ))
                         .unwrap();
