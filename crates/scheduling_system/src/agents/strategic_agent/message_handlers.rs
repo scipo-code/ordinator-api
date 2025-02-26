@@ -73,6 +73,7 @@ impl MessageHandler
                             StrategicResponseMessage::Status(strategic_response_status);
                         Ok(strategic_response_message)
                     }
+                    // This could be created by the `Orchestrator` instead
                     StrategicStatusMessage::Period(period) => {
                         if !self
                             .algorithm
@@ -98,19 +99,19 @@ impl MessageHandler
                                     None => false,
                                 })
                                 .map(|(work_order_number, _)| {
-                                    let work_order = self
-                                        .scheduling_environment
-                                        .lock()
-                                        .unwrap()
-                                        .work_orders
-                                        .inner
-                                        .get(work_order_number)
-                                        .unwrap()
-                                        .clone();
+                                    let work_orders =
+                                        self.scheduling_environment.lock().unwrap().work_orders;
+
+                                    let work_order_configurations =
+                                        &work_orders.work_order_configurations;
+
+                                    let work_order =
+                                        &work_orders.inner.get(work_order_number).unwrap().clone();
 
                                     let work_order_response = WorkOrderResponse::new(
-                                        &work_order,
+                                        work_order,
                                         (**self.algorithm.loaded_shared_solution).clone().into(),
+                                        work_order_configurations,
                                     );
                                     (*work_order_number, work_order_response)
                                 })
