@@ -35,6 +35,7 @@ export default function ResourceOverview() {
     fetchData()
   }, [asset])
 
+  // TODO: Better error handling for when data is not available.
   return (
     <Container maxWidth="full" padding="sm" className="bg-white border border-gray-300 shadow rounded-lg">
       <DataTable columns={columns} data={tableData} />
