@@ -5,9 +5,9 @@ use regex::Regex;
 use rust_xlsxwriter::IntoExcelData;
 use serde::{Deserialize, Serialize};
 
-use crate::scheduling_environment::time_environment::period::Period;
-
-use super::WorkOrderNumber;
+use crate::scheduling_environment::{
+    time_environment::period::Period, work_order::WorkOrderNumber,
+};
 
 // pub material_status: MaterialStatus,
 // #[arg(long)]
@@ -71,6 +71,19 @@ pub struct SystemStatusCodes {
     pub relr: bool,
     #[arg(long)]
     pub gmco: bool,
+}
+impl SystemStatusCodes {
+    pub(crate) fn builder() -> SystemStatusCodesBuilder {
+        // QUESTION
+        // How to handle this?
+        // You should use the `Default` trait and then rely on
+        // a `from_data` methods when you need to initialize
+        // directly from SAP data. I do not see a different
+        // way of doing it.
+        //
+        //
+        SystemStatusCodesBuilder(SystemStatusCodes)
+    }
 }
 
 #[derive(Default, Args, Clone, Serialize, Deserialize, Debug)]
@@ -161,6 +174,106 @@ pub struct UserStatusCodes {
     pub dfap: bool,
     #[arg(long)]
     pub awpr: bool,
+}
+
+struct UserStatusCodesBuilder(UserStatusCodes);
+
+impl UserStatusCodesBuilder {
+    pub fn build(self) -> UserStatusCodes {
+        UserStatusCodes {
+            appr: self.0.appr,
+            smat: self.0.smat,
+            init: self.0.init,
+            rdbl: self.0.rdbl,
+            qcap: self.0.qcap,
+            rfrz: self.0.rfrz,
+            wmat: self.0.wmat,
+            cmat: self.0.cmat,
+            pmat: self.0.pmat,
+            apog: self.0.apog,
+            prok: self.0.prok,
+            wrea: self.0.wrea,
+            exdo: self.0.exdo,
+            swe: self.0.swe,
+            awdo: self.0.awdo,
+            rout: self.0.rout,
+            wta: self.0.wta,
+            sch: self.0.sch,
+            sece: self.0.sece,
+            rel: self.0.rel,
+            rees: self.0.rees,
+            reap: self.0.reap,
+            wrel: self.0.wrel,
+            awsd: self.0.awsd,
+            sraa: self.0.sraa,
+            qcrj: self.0.qcrj,
+            awsc: self.0.awsc,
+            lprq: self.0.lprq,
+            rrev: self.0.rrev,
+            awca: self.0.awca,
+            rreq: self.0.rreq,
+            vfal: self.0.vfal,
+            sreq: self.0.sreq,
+            amcr: self.0.amcr,
+            dfrj: self.0.dfrj,
+            vpas: self.0.vpas,
+            dfcr: self.0.dfcr,
+            ireq: self.0.ireq,
+            atvd: self.0.atvd,
+            awmd: self.0.awmd,
+            dfex: self.0.dfex,
+            dfap: self.0.dfap,
+            awpr: self.0.awpr,
+        }
+    }
+
+    // These functions will be crucial for testing! I do not
+    pub fn smat(&mut self, smat: bool) -> &mut Self {
+        self.0.smat = smat;
+        self
+    }
+}
+
+struct SystemStatusCodesBuilder(SystemStatusCodes);
+
+/// Builder this correctly could be a real hassel
+// TODO [ ]
+// Add remaining fields that are also needed.
+// All these status codes should by definition never change
+// there is needed something else.
+//
+// A builder would primarily be for testing.
+impl SystemStatusCodesBuilder {
+    pub fn build(self) -> SystemStatusCodes {
+        SystemStatusCodes {
+            rel: self.0.rel,
+            prc: self.0.prc,
+            setc: self.0.setc,
+            ssap: self.0.ssap,
+            gmps: self.0.gmps,
+            manc: self.0.manc,
+            crtd: self.0.crtd,
+            nmat: self.0.nmat,
+            teco: self.0.teco,
+            macm: self.0.macm,
+            mspt: self.0.mspt,
+            pprt: self.0.pprt,
+            ncmp: self.0.ncmp,
+            clsd: self.0.clsd,
+            pcnf: self.0.pcnf,
+            cser: self.0.cser,
+            prt: self.0.prt,
+            cnf: self.0.cnf,
+            ntup: self.0.ntup,
+            estc: self.0.estc,
+            relr: self.0.relr,
+            gmco: self.0.gmco,
+        }
+    }
+    pub fn rel(&mut self, rel: bool) -> &mut Self {
+        self.0.rel = rel;
+        self
+    }
 }
 
 #[derive(Args, Clone, Serialize, Deserialize, Debug)]

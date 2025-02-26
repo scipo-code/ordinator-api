@@ -23,19 +23,23 @@ pub struct WorkOrderInfo {
     pub system_condition: SystemCondition,
     pub work_order_info_detail: WorkOrderInfoDetail,
 }
+
+#[derive(Default)]
 pub struct WorkOrderInfoBuilder {
-    pub priority: Priority,
-    pub work_order_type: WorkOrderType,
-    pub functional_location: FunctionalLocation,
-    pub work_order_text: WorkOrderText,
-    pub revision: Revision,
-    pub system_condition: SystemCondition,
-    pub work_order_info_detail: WorkOrderInfoDetail,
+    pub priority: Option<Priority>,
+    pub work_order_type: Option<WorkOrderType>,
+    pub functional_location: Option<FunctionalLocation>,
+    pub work_order_text: Option<WorkOrderText>,
+    pub revision: Option<Revision>,
+    pub system_condition: Option<SystemCondition>,
+    pub work_order_info_detail: Option<WorkOrderInfoDetail>,
 }
 
-// What should you do
 impl WorkOrderInfo {
-    pub fn builder()
+    pub fn builder() -> WorkOrderInfoBuilder {
+        WorkOrderInfoBuilder::default()
+    }
+
     pub fn new(
         priority: Priority,
         work_order_type: WorkOrderType,
@@ -57,7 +61,55 @@ impl WorkOrderInfo {
     }
 }
 
-#[derive(Default, Serialize, Deserialize, Clone, Debug)]
+impl WorkOrderInfoBuilder {
+    pub fn build(self) -> WorkOrderInfo {
+        WorkOrderInfo {
+            priority: self.priority.unwrap(),
+            work_order_type: self.work_order_type.unwrap(),
+            functional_location: self.functional_location.unwrap(),
+            work_order_text: self.work_order_text.unwrap(),
+            revision: self.revision.unwrap(),
+            system_condition: self.system_condition.unwrap(),
+            work_order_info_detail: self.work_order_info_detail.unwrap(),
+        }
+    }
+
+    pub fn priority(&mut self, priority: Priority) -> &mut Self {
+        self.priority = Some(priority);
+        self
+    }
+    pub fn work_order_type(&mut self, work_order_type: WorkOrderType) -> &mut Self {
+        self.work_order_type = Some(work_order_type);
+        self
+    }
+    pub fn functional_location(&mut self, functional_location: FunctionalLocation) -> &mut Self {
+        self.functional_location = Some(functional_location);
+        self
+    }
+    pub fn work_order_text(&mut self, work_order_text: WorkOrderText) -> &mut Self {
+        self.work_order_text = Some(work_order_text);
+        self
+    }
+    pub fn revision(&mut self, revision: Revision) -> &mut Self {
+        self.revision = Some(revision);
+        self
+    }
+    pub fn system_condition(&mut self, system_condition: SystemCondition) -> &mut Self {
+        self.system_condition = Some(system_condition);
+        self
+    }
+    pub fn work_order_info_detail(
+        &mut self,
+        work_order_info_detail: WorkOrderInfoDetail,
+    ) -> &mut Self {
+        self.work_order_info_detail = Some(work_order_info_detail);
+        self
+    }
+}
+
+// WARN
+// You should be careful with this here.
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct WorkOrderInfoDetail {
     pub subnetwork: String,
     pub maintenance_plan: String,

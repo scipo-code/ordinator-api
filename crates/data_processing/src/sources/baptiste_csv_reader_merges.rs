@@ -161,6 +161,9 @@ fn create_work_orders(
                     let relr_pattern = regex::Regex::new(r"RELR").unwrap(); 
                     let gmco_pattern = regex::Regex::new(r"GMCO").unwrap(); 
 
+                // TODO [ ]
+                // These should all be part of the builder instead. I think that is the best
+                // thing that we can do here. 
                 SystemStatusCodes {
                     rel: rel_pattern.is_match(string),
                     prc: prc_pattern.is_match(string),

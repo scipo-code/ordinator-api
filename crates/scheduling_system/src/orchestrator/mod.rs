@@ -9,6 +9,7 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use colored::Colorize;
+use database::DataBaseConnection;
 use shared_types::agents::operational::requests::operational_request_status::OperationalStatusRequest;
 use shared_types::agents::operational::responses::operational_response_status::OperationalResponseStatus;
 use shared_types::agents::operational::OperationalRequestMessage;
@@ -62,7 +63,7 @@ pub struct Orchestrator {
     pub agent_factory: AgentFactory,
     pub agent_registries: HashMap<Asset, AgentRegistry>,
     pub configurations: HashMap<Asset, Configurations>,
-    pub databases_connections: Mon,
+    pub databases_connections: DataBaseConnection,
     pub agent_notify: Option<Weak<Mutex<Orchestrator>>>,
     pub log_handles: LogHandles,
 }
@@ -274,10 +275,11 @@ impl Orchestrator {
                 let cloned_work_orders: WorkOrders =
                     scheduling_environment_guard.work_orders.clone();
 
+                let work_order_configurations = &cloned_work_orders.work_order_configurations;
+
                 let (_, work_order) = cloned_work_orders
                     .inner
-                    .iter()
-                    .find(|(won, _)| work_order_number == **won)
+                    .get(&work_order_number)
                     .with_context(|| {
                         format!(
                             "{:?} is not part of the SchedulingEnvironment",
@@ -292,8 +294,11 @@ impl Orchestrator {
                     None => bail!("Asset: {:?} is not initialzed", &asset),
                 };
 
-                let work_order_response =
-                    WorkOrderResponse::new(work_order, (**api_solution).clone().into());
+                let work_order_response = WorkOrderResponse::new(
+                    work_order,
+                    (**api_solution).clone().into(),
+                    work_order_configurations,
+                );
 
                 let work_orders_status = WorkOrdersStatus::Single(work_order_response);
 
@@ -316,6 +321,8 @@ impl Orchestrator {
                     Some(arc_swap_shared_solution) => arc_swap_shared_solution.0.load(),
                     None => bail!("Ordinator has not been initialized for asset: {}", &asset),
                 };
+
+                let work_order_configurations = &work_orders.work_order_configurations;
                 let work_order_responses: HashMap<WorkOrderNumber, WorkOrderResponse> = work_orders
                     .inner
                     .iter()
@@ -323,6 +330,7 @@ impl Orchestrator {
                         let work_order_response = WorkOrderResponse::new(
                             work_order,
                             (**loaded_shared_solution).clone().into(),
+                            work_order_configurations,
                         );
                         (*work_order_number, work_order_response)
                     })

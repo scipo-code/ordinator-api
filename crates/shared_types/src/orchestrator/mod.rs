@@ -13,6 +13,7 @@ use crate::scheduling_environment::work_order::operation::Work;
 use crate::scheduling_environment::work_order::work_order_analytic::status_codes::{
     SystemStatusCodes, UserStatusCodes,
 };
+use crate::scheduling_environment::work_order::WorkOrderConfigurations;
 use crate::scheduling_environment::work_order::{
     work_order_info::WorkOrderInfo, WorkOrder, WorkOrderNumber,
 };
@@ -142,16 +143,25 @@ struct ApiOperational {
     solution_data: String,
 }
 
+/// Should you delete this thing?
 impl WorkOrderResponse {
-    pub fn new(work_order: &WorkOrder, api_solution: ApiSolution) -> Self {
-        let earliest_period = work_order
-            .work_order_dates
-            .earliest_allowed_start_period
-            .clone();
+    pub fn new(
+        work_order: &WorkOrder,
+        api_solution: ApiSolution,
+        work_order_configurations: &WorkOrderConfigurations,
+    ) -> Self {
+        // WARN
+        // Crucial lesson here. Derived needed information with functions allows you to
+        // expose weak structures in data flow. Below we see that introducing a function
+        // makes the code require an argument.
+        // QUESTION
+        // Do you even need `Periods` can they not always be derived instead? I think that
+        // they can.
+        let earliest_period = work_order.earliest_allowed_start_period(periods).clone();
 
         let work_order_info = work_order.work_order_info.clone();
         let work_order_work_load = work_order.work_order_load();
-        let vendor = work_order.work_order_analytic.vendor;
+        let vendor = work_order.vendor();
         // This is a good sign. You should be able to provide the work_order_configurations for this
         // and the `MessageHandler` trait has to be updated.
         let weight = work_order.work_order_value(work_order_configurations);

@@ -11,7 +11,9 @@ use super::work_order_analytic::status_codes::MaterialStatus;
 pub struct WorkOrderDates {
     pub earliest_allowed_start_date: NaiveDate,
     pub latest_allowed_finish_date: NaiveDate,
-    pub earliest_allowed_start_period: Period,
+    // TODO [ ]
+    // This should be a function. It can be uniquely
+    // derived from the other fields.
     pub latest_allowed_finish_period: Period,
     pub basic_start_date: NaiveDate,
     pub basic_finish_date: NaiveDate,
@@ -22,15 +24,19 @@ pub struct WorkOrderDates {
     pub duration: Duration,
     pub basic_start_scheduled: Option<DateTime<Utc>>,
     pub basic_finish_scheduled: Option<DateTime<Utc>>,
+    // TODO [ ]
+    // This should be a function. It can be uniquely
+    // derived from the other fields.
     pub material_expected_date: Option<DateTime<Utc>>,
 }
 
+// It is crucial that you separate source data from derived fields, that is the
+// only way that this will ever work correctly.
 #[allow(clippy::too_many_arguments)]
 impl WorkOrderDates {
     pub fn new(
         earliest_allowed_start_date: NaiveDate,
         latest_allowed_finish_date: NaiveDate,
-        earliest_allowed_start_period: Period,
         latest_allowed_finish_period: Period,
         basic_start_date: NaiveDate,
         basic_finish_date: NaiveDate,
@@ -42,7 +48,6 @@ impl WorkOrderDates {
         Self {
             earliest_allowed_start_date,
             latest_allowed_finish_date,
-            earliest_allowed_start_period,
             latest_allowed_finish_period,
             basic_start_date,
             basic_finish_date,
@@ -50,21 +55,6 @@ impl WorkOrderDates {
             basic_start_scheduled,
             basic_finish_scheduled,
             material_expected_date,
-        }
-    }
-
-    pub fn new_test() -> Self {
-        Self {
-            earliest_allowed_start_date: NaiveDate::from_ymd_opt(2023, 10, 20).unwrap(),
-            latest_allowed_finish_date: NaiveDate::from_ymd_opt(2023, 12, 20).unwrap(),
-            earliest_allowed_start_period: Period::default(),
-            latest_allowed_finish_period: Period::default(),
-            basic_start_date: NaiveDate::from_ymd_opt(2023, 11, 20).unwrap(),
-            basic_finish_date: NaiveDate::from_ymd_opt(2023, 11, 20).unwrap(),
-            duration: Duration::seconds(0),
-            basic_start_scheduled: None,
-            basic_finish_scheduled: None,
-            material_expected_date: None,
         }
     }
 }

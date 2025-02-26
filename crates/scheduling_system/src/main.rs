@@ -13,8 +13,8 @@ use std::{
 };
 
 use actix_web::{guard, web, App, HttpServer};
-use agents::orchestrator::Orchestrator;
 use anyhow::Context;
+use orchestrator::Orchestrator;
 
 use crate::orchestrator::logging;
 use shared_types::{scheduling_environment::SchedulingEnvironment, Asset};

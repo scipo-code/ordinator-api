@@ -4,40 +4,44 @@ pub mod work_order_analytic;
 pub mod work_order_dates;
 pub mod work_order_info;
 
-use crate::scheduling_environment::work_order::operation::Operation;
-use crate::scheduling_environment::work_order::work_order_analytic::status_codes::MaterialStatus;
-use crate::scheduling_environment::work_order::work_order_analytic::status_codes::SystemStatusCodes;
-use crate::scheduling_environment::work_order::work_order_dates::unloading_point::UnloadingPoint;
-use crate::scheduling_environment::work_order::work_order_dates::WorkOrderDates;
-use crate::scheduling_environment::work_order::work_order_info::functional_location::FunctionalLocation;
-use crate::scheduling_environment::work_order::work_order_info::priority::Priority;
-use crate::scheduling_environment::work_order::work_order_info::revision::Revision;
-use crate::scheduling_environment::work_order::work_order_info::system_condition::SystemCondition;
-use crate::scheduling_environment::work_order::work_order_info::work_order_text::WorkOrderText;
-use crate::scheduling_environment::work_order::work_order_info::work_order_type::WorkOrderType;
 use chrono::{DateTime, Utc};
 use colored::Colorize;
-use operation::OperationBuilder;
 use operation::OperationsBuilder;
 use serde::{Deserialize, Serialize};
+
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::num::ParseIntError;
 use std::str::FromStr;
-use work_order_analytic::status_codes::UserStatusCodes;
-use work_order_analytic::WorkOrderAnalytic;
-use work_order_analytic::WorkOrderAnalyticBuilder;
-use work_order_info::WorkOrderInfo;
-use work_order_info::WorkOrderInfoDetail;
 
-use crate::scheduling_environment::worker_environment::resources::Resources;
-
-use self::operation::ActivityNumber;
-use self::operation::Work;
+use crate::Asset;
 
 use super::time_environment::period::Period;
+use super::worker_environment::resources::Resources;
+
+use self::operation::ActivityNumber;
+use self::operation::Operation;
+use self::operation::OperationBuilder;
+use self::operation::Operations;
+use self::operation::Work;
+use self::work_order_analytic::status_codes::MaterialStatus;
+use self::work_order_analytic::status_codes::SystemStatusCodes;
+use self::work_order_analytic::status_codes::UserStatusCodes;
+use self::work_order_analytic::WorkOrderAnalytic;
+use self::work_order_analytic::WorkOrderAnalyticBuilder;
+use self::work_order_dates::unloading_point::UnloadingPoint;
+use self::work_order_dates::WorkOrderDates;
+use self::work_order_info::functional_location::FunctionalLocation;
+use self::work_order_info::priority::Priority;
+use self::work_order_info::revision::Revision;
+use self::work_order_info::system_condition::SystemCondition;
+use self::work_order_info::work_order_text::WorkOrderText;
+use self::work_order_info::work_order_type::WorkOrderType;
+use self::work_order_info::WorkOrderInfo;
+use self::work_order_info::WorkOrderInfoBuilder;
+use self::work_order_info::WorkOrderInfoDetail;
 
 pub type WorkOrderValue = u64;
 
@@ -58,13 +62,85 @@ impl std::fmt::Debug for WorkOrderNumber {
         )
     }
 }
+// Everything in the `SchedulingEnvironment` should implement
+// `Serialize` it has to, to be able to go into the database.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WorkOrders {
+    pub inner: HashMap<WorkOrderNumber, WorkOrder>,
+    // Are these in the correct place in the code? Yes I think
+    // that they are.
+    pub work_order_configurations: WorkOrderConfigurations,
+}
+
+pub struct WorkOrdersBuilder {
+    inner: Option<HashMap<WorkOrderNumber, WorkOrder>>,
+    work_order_configurations: WorkOrderConfigurations,
+}
+
+impl WorkOrdersBuilder {
+    pub fn build(self) -> WorkOrders {
+        WorkOrders {
+            inner: self.inner.unwrap_or_default(),
+            work_order_configurations: self.work_order_configurations,
+        }
+    }
+
+    pub fn work_order_builder<F>(&mut self, f: F, work_order_number: WorkOrderNumber) -> &mut Self
+    where
+        F: FnOnce(&mut WorkOrderBuilder) -> &mut WorkOrderBuilder,
+    {
+        let mut work_order_builder = WorkOrder::builder(work_order_number);
+
+        f(&mut work_order_builder);
+
+        match &mut self.inner {
+            Some(work_orders_inner) => {
+                work_orders_inner.insert(
+                    work_order_builder.work_order_number,
+                    work_order_builder.build(),
+                );
+            }
+            None => {
+                let work_order_inner = HashMap::from([(
+                    work_order_builder.work_order_number,
+                    work_order_builder.build(),
+                )]);
+
+                self.inner = Some(work_order_inner);
+            }
+        }
+        self
+    }
+}
+
+impl WorkOrders {
+    pub fn builder(work_order_configurations: WorkOrderConfigurations) -> WorkOrdersBuilder {
+        WorkOrdersBuilder {
+            inner: Some(HashMap::new()),
+            work_order_configurations,
+        }
+    }
+    pub fn insert(&mut self, work_order: WorkOrder) {
+        self.inner.insert(work_order.work_order_number, work_order);
+    }
+
+    pub fn new_work_order(&self, work_order_number: WorkOrderNumber) -> bool {
+        !self.inner.contains_key(&work_order_number)
+    }
+
+    pub fn work_orders_by_asset(&self, asset: &Asset) -> HashMap<&WorkOrderNumber, &WorkOrder> {
+        self.inner
+            .iter()
+            .filter(|(_, wo)| &wo.work_order_info.functional_location.asset == asset)
+            .collect()
+    }
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrder {
     pub work_order_number: WorkOrderNumber,
     pub main_work_center: Resources,
-    pub operations: HashMap<ActivityNumber, Operation>,
-    pub relations: Vec<ActivityRelation>,
+    pub operations: Operations,
     pub work_order_analytic: WorkOrderAnalytic,
     pub work_order_dates: WorkOrderDates,
     pub work_order_info: WorkOrderInfo,
@@ -73,11 +149,10 @@ pub struct WorkOrder {
 pub struct WorkOrderBuilder {
     pub work_order_number: WorkOrderNumber,
     pub main_work_center: Resources,
-    pub operations: Option<HashMap<ActivityNumber, Operation>>,
+    pub operations: Option<Operations>,
     // FIX
     // Every operation needs to have a relation between them. There
     // is no way around this. It should be an enforced invariant.
-    pub relations: Vec<ActivityRelation>,
     pub work_order_analytic: WorkOrderAnalytic,
     pub work_order_dates: WorkOrderDates,
     pub work_order_info: WorkOrderInfo,
@@ -89,7 +164,8 @@ impl WorkOrderBuilder {
             work_order_number: self.work_order_number,
             main_work_center: self.main_work_center,
             operations: self.operations.unwrap_or_default(),
-            relations: self.relations,
+            // TODO [ ]
+            // Relations should be a function between the different on the `Operations` field.
             work_order_analytic: self.work_order_analytic,
             work_order_dates: self.work_order_dates,
             work_order_info: self.work_order_info,
@@ -110,7 +186,7 @@ impl WorkOrderBuilder {
     where
         F: FnOnce(&mut OperationsBuilder) -> &mut OperationsBuilder,
     {
-        let mut operations_builder = OperationsBuilder::new();
+        let mut operations_builder = Operations::builder();
 
         f(&mut operations_builder);
 
@@ -122,7 +198,7 @@ impl WorkOrderBuilder {
     where
         F: FnOnce(&mut WorkOrderAnalyticBuilder) -> &mut WorkOrderAnalyticBuilder,
     {
-        let work_order_analytic_builder = WorkOrderAnalyticBuilder::new();
+        let mut work_order_analytic_builder = WorkOrderAnalytic::builder();
 
         f(&mut work_order_analytic_builder);
 
@@ -130,23 +206,11 @@ impl WorkOrderBuilder {
         self
     }
 
-    pub fn work_order_dates<F>(&mut self, f: F) -> &mut Self
-    where
-        F: FnOnce(&mut WorkOrderDatesBuilder) -> &mut WorkOrderDatesBuilder,
-    {
-        let work_order_analytic_builder = WorkOrderDatesBuilder::new();
-
-        f(&mut work_order_analytic_builder);
-
-        self.work_order_dates = work_order_analytic_builder.build();
-        self
-    }
-
     pub fn work_order_info<F>(&mut self, f: F) -> &mut Self
     where
         F: FnOnce(&mut WorkOrderInfoBuilder) -> &mut WorkOrderInfoBuilder,
     {
-        let work_order_info_builder = WorkOrderInfo::builder();
+        let mut work_order_info_builder = WorkOrderInfo::builder();
 
         f(&mut work_order_info_builder);
 
@@ -197,16 +261,21 @@ impl WorkOrder {
             work_order_number,
             main_work_center: todo!(),
             operations: todo!(),
-            relations: todo!(),
             work_order_analytic: todo!(),
             work_order_dates: todo!(),
             work_order_info: todo!(),
         }
     }
 
+    pub fn vendor(&self) -> bool {
+        self.operations
+            .values()
+            .any(|opr| opr.resource.is_ven_variant())
+    }
+
     pub fn work_order_value(
-        &mut self,
-        work_order_configurations: WorkOrderConfigurations,
+        &self,
+        work_order_configurations: &WorkOrderConfigurations,
     ) -> WorkOrderValue {
         // FIX
         // This should be removed. Where should the global configs be read
@@ -281,15 +350,6 @@ impl WorkOrder {
             })
     }
 
-    pub fn vendor(&mut self) -> bool {
-        for operation in self.operations.values() {
-            if operation.resource.is_ven_variant() {
-                return true;
-            }
-        }
-        false
-    }
-
     /// This method determines that earliest allow start date and period for the work order. This is
     /// a maximum of the material status and the earliest start period of the operations.
     /// TODO : A stance will have to be taken on the VEN, SHUTDOWN, and SUBNETWORKS.
@@ -302,13 +362,12 @@ impl WorkOrder {
     pub fn find_excluded_periods(&self, periods: &[Period]) -> HashSet<Period> {
         let mut excluded_periods: HashSet<Period> = HashSet::new();
         for (i, period) in periods.iter().enumerate() {
-            if *period < self.work_order_dates.earliest_allowed_start_period
-                || (self.work_order_analytic.vendor && i <= 3)
+            if period < self.earliest_allowed_start_period(periods)
+                || (self.vendor() && i <= 3)
                 || (self.work_order_info.revision.shutdown && i <= 3)
             {
                 assert!(
-                    self.work_order_dates
-                        .earliest_allowed_start_period
+                    self.earliest_allowed_start_period(&periods)
                         .end_date()
                         .date_naive()
                         >= self.work_order_dates.earliest_allowed_start_date
@@ -327,23 +386,23 @@ impl WorkOrder {
         self.operations.insert(operation.activity, operation);
     }
 
-    pub fn earliest_allowed_start_period<'a>(&'a mut self, periods: &'a [Period]) -> &'a Period {
+    pub fn earliest_allowed_start_period<'a>(&'a self, periods: &'a [Period]) -> &'a Period {
         // This whole thing is bull shit.
         match &self.work_order_analytic.user_status_codes.clone().into() {
             MaterialStatus::Nmat => {
-                (&periods[0]).max(&self.work_order_dates.earliest_allowed_start_period)
+                (&periods[0]).max(&self.earliest_allowed_start_period(&periods))
             }
             MaterialStatus::Smat => {
-                (&periods[0]).max(&self.work_order_dates.earliest_allowed_start_period)
+                (&periods[0]).max(&self.earliest_allowed_start_period(&periods))
             }
             MaterialStatus::Cmat => {
-                (&periods[2]).max(&self.work_order_dates.earliest_allowed_start_period)
+                (&periods[2]).max(&self.earliest_allowed_start_period(&periods))
             }
             MaterialStatus::Pmat => {
-                (&periods[3]).max(&self.work_order_dates.earliest_allowed_start_period)
+                (&periods[3]).max(&self.earliest_allowed_start_period(&periods))
             }
             MaterialStatus::Wmat => {
-                (&periods[3]).max(&self.work_order_dates.earliest_allowed_start_period)
+                (&periods[3]).max(&self.earliest_allowed_start_period(&periods))
             }
             MaterialStatus::Unknown => panic!("WorkOrder does not have a material status"),
         }

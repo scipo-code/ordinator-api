@@ -15,13 +15,63 @@ use rust_xlsxwriter::IntoExcelData;
 use serde::de::{self, MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::num::ParseFloatError;
 use std::str::FromStr;
 
 use self::operation_info::NumberOfPeople;
 
-use super::unloading_point::UnloadingPoint;
+use super::work_order_dates::unloading_point::UnloadingPoint;
+use super::ActivityRelation;
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct Operations(pub HashMap<ActivityNumber, Operation>);
+
+impl Operations {
+    pub fn relations(&self) -> Vec<ActivityRelation> {
+        todo!()
+    }
+
+    pub(crate) fn builder() -> OperationsBuilder {
+        OperationsBuilder(None)
+    }
+}
+
+pub struct OperationsBuilder(Option<Operations>);
+
+impl OperationsBuilder {
+    pub fn build(self) -> Operations {
+        Operations(self.0.unwrap_or_default().0)
+    }
+
+    pub fn operations_builder<F>(&mut self, f: F, operations_number: ActivityNumber) -> &mut Self
+    where
+        F: FnOnce(&mut OperationBuilder) -> &mut OperationBuilder,
+    {
+        let mut operations_builder = Operation::builder(operations_number);
+
+        f(&mut operations_builder);
+
+        match &mut self.0 {
+            Some(operationss_inner) => {
+                operationss_inner.0.insert(
+                    operations_builder.operations_number,
+                    operations_builder.build(),
+                );
+            }
+            None => {
+                let operations_inner = HashMap::from([(
+                    operations_builder.operations_number,
+                    operations_builder.build(),
+                )]);
+
+                self.0 = Some(Operations(operations_inner));
+            }
+        }
+        self
+    }
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Operation {
@@ -33,7 +83,7 @@ pub struct Operation {
     pub operation_dates: OperationDates,
 }
 
-pub struct OperationsBuilder {
+pub struct OperationBuilder {
     pub activity: ActivityNumber,
     pub resource: Resources,
     pub unloading_point: Option<UnloadingPoint>,
@@ -281,24 +331,8 @@ impl Operation {
         }
     }
 
-    pub fn work_remaining(&self) -> &Option<Work> {
-        self.operation_info.work_remaining()
-    }
-
-    pub fn resource(&self) -> &Resources {
-        &self.resource
-    }
-
-    pub fn number(&self) -> NumberOfPeople {
-        self.operation_info.number()
-    }
-
-    pub fn duration(&self) -> &Option<Work> {
-        &self.operation_analytic.duration
-    }
-
-    pub fn operating_time(&self) -> &Option<Work> {
-        self.operation_info.operating_time()
+    fn builder(operations_number: ActivityNumber) -> Operatio {
+        todo!()
     }
 }
 
