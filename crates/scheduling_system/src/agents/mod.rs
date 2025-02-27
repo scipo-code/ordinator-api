@@ -13,10 +13,13 @@ use anyhow::{bail, Context, Result};
 use arc_swap::{ArcSwap, Guard};
 use colored::Colorize;
 use itertools::Itertools;
+
+use traits::ActorBasedLargeNeighborhoodSearch;
+
 use operational_agent::algorithm::operational_parameter::OperationalParameters;
-use operational_agent::algorithm::operational_solution::{
-    Assignment, MarginalFitness, OperationalAssignment,
-};
+use operational_agent::algorithm::operational_solution::Assignment;
+use operational_agent::algorithm::operational_solution::MarginalFitness;
+use operational_agent::algorithm::operational_solution::OperationalAssignment;
 use operational_agent::algorithm::{OperationalObjectiveValue, Unavailability};
 use orchestrator::NotifyOrchestrator;
 use shared_types::agents::strategic::{OperationalResource, StrategicResources};
@@ -35,7 +38,6 @@ use supervisor_agent::algorithm::delegate::Delegate;
 use supervisor_agent::algorithm::supervisor_parameters::SupervisorParameters;
 use tactical_agent::algorithm::tactical_parameters::TacticalParameters;
 use tactical_agent::algorithm::tactical_solution::OperationSolution;
-use traits::ActorBasedLargeNeighborhoodSearch;
 
 pub struct Agent<Algorithm, AgentRequest, AgentResponse>
 where
@@ -46,6 +48,7 @@ where
     pub algorithm: Algorithm,
     pub receiver_from_orchestrator: Receiver<AgentMessage<AgentRequest>>,
     pub sender_to_orchestrator: Sender<Result<AgentResponse>>,
+    pub configurations: Arc<RwLock<SystemConfigurations>>,
     pub notify_orchestrator: NotifyOrchestrator,
 }
 
@@ -56,24 +59,6 @@ where
     AgentRequest: Send + Sync + 'static,
     AgentResponse: Send + Sync + 'static,
 {
-    pub fn new(
-        agent_id: Id,
-        scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-        algorithm: Algorithm,
-        receiver_from_orchestrator: Receiver<AgentMessage<AgentRequest>>,
-        sender_to_orchestrator: Sender<Result<AgentResponse>>,
-        notify_orchestrator: NotifyOrchestrator,
-    ) -> Self {
-        Self {
-            agent_id,
-            scheduling_environment,
-            algorithm,
-            receiver_from_orchestrator,
-            sender_to_orchestrator,
-            notify_orchestrator,
-        }
-    }
-
     pub fn run(&mut self) -> Result<()> {
         let mut schedule_iteration = ScheduleIteration::default();
 
@@ -89,6 +74,7 @@ where
             .unwrap();
 
         schedule_iteration.increment();
+
         loop {
             while let Ok(message) = self.receiver_from_orchestrator.try_recv() {
                 self.handle(message).unwrap();
@@ -101,6 +87,83 @@ where
 
             schedule_iteration.increment();
         }
+    }
+
+    pub fn builder() -> AgentBuilder<Algorithm, AgentRequest, AgentResponse> {
+        AgentBuilder {
+            agent_id: None,
+            scheduling_environment: None,
+            algorithm: None,
+            receiver_from_orchestrator: None,
+            sender_to_orchestrator: None,
+            configurations: None,
+            notify_orchestrator: None,
+        }
+    }
+}
+
+pub struct AgentBuilder<Algorithm, AgentRequest, AgentResponse> {
+    agent_id: Option<Id>,
+    scheduling_environment: Option<Arc<Mutex<SchedulingEnvironment>>>,
+    algorithm: Option<Algorithm>,
+    receiver_from_orchestrator: Option<Receiver<AgentMessage<AgentRequest>>>,
+    sender_to_orchestrator: Option<Sender<Result<AgentResponse>>>,
+    configurations: Option<Arc<RwLock<SystemConfigurations>>>,
+    notify_orchestrator: Option<NotifyOrchestrator>,
+}
+
+impl<Algorithm, AgentRequest, AgentResponse> AgentBuilder {
+    pub fn build(self) -> Agent<Algorithm, AgentRequest, AgentResponse> {
+        Agent {
+            agent_id: self.agent_id.unwrap_or_default(),
+            scheduling_environment: self.scheduling_environment.unwrap_or_default(),
+            algorithm: self.algorithm.unwrap_or_default(),
+            receiver_from_orchestrator: self.receiver_from_orchestrator.unwrap_or_default(),
+            sender_to_orchestrator: self.sender_to_orchestrator.unwrap_or_default(),
+            configurations: self.configurations.unwrap_or_default(),
+            notify_orchestrator: self.notify_orchestrator.unwrap_or_default(),
+        }
+    }
+
+    pub fn agent_id(&mut self, agent_id: Id) -> &mut Self {
+        self.agent_id = Some(agent_id);
+        self
+    }
+    pub fn scheduling_environment(
+        &mut self,
+        scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
+    ) -> &mut Self {
+        self.scheduling_environment = Some(scheduling_environment);
+        self
+    }
+    pub fn algorithm(&mut self, algorithm: Algorithm) -> &mut Self {
+        self.algorithm = Some(algorithm);
+        self
+    }
+    pub fn receiver_from_orchestrator(
+        &mut self,
+        receiver_from_orchestrator: Receiver<AgentMessage<AgentRequest>>,
+    ) -> &mut Self {
+        self.receiver_from_orchestrator = Some(receiver_from_orchestrator);
+        self
+    }
+    pub fn sender_to_orchestrator(
+        &mut self,
+        sender_to_orchestrator: Sender<Result<AgentResponse>>,
+    ) -> &mut Self {
+        self.sender_to_orchestrator = Some(sender_to_orchestrator);
+        self
+    }
+    pub fn configurations(
+        &mut self,
+        configurations: Arc<RwLock<SystemConfigurations>>,
+    ) -> &mut Self {
+        self.configurations = Some(configurations);
+        self
+    }
+    pub fn notify_orchestrator(&mut self, notify_orchestrator: NotifyOrchestrator) -> &mut Self {
+        self.notify_orchestrator = Some(notify_orchestrator);
+        self
     }
 }
 

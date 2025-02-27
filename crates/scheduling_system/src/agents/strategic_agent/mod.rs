@@ -18,14 +18,6 @@ pub struct StrategicOptions {
 
 impl Default for StrategicOptions {
     fn default() -> Self {
-        let clustering_weights: ClusteringWeights = {
-            let clustering_config_path = dotenvy::var("CLUSTER_WEIGHTINGS")
-                .context("CLUSTER_WEIGHTINGS should be defined in the env")?;
-            let clustering_config_contents = std::fs::read_to_string(clustering_config_path)
-                .context("Could not read config file")?;
-            serde_json::from_str(&clustering_config_contents)?
-        };
-
         StrategicOptions {
             number_of_removed_work_order: 50,
             rng: StdRng::from_os_rng(),
@@ -38,7 +30,8 @@ impl Default for StrategicOptions {
 }
 
 // This will al
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Default)]
+// Default does not make sense here you should remove it.
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct StrategicObjectiveValue {
     pub objective_value: u64,
     pub urgency: (u64, u64),

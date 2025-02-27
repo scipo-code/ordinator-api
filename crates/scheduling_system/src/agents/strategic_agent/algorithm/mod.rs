@@ -869,6 +869,8 @@ impl ActorBasedLargeNeighborhoodSearch for Algorithm<StrategicSolution, Strategi
                     }
                 };                
 
+                // You are a little overloaded! I think that you should forget about this for now, but remember
+                // about it.
                 let inf_work_order_number = self
                     .schedule_strategic_work_order(work_order_number, &period)
                     .with_context(|| format!("{:?} could not be scheduled normally", work_order_number))?;

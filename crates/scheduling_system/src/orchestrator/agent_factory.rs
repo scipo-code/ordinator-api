@@ -23,7 +23,7 @@ use crate::agents::tactical_agent::algorithm::tactical_parameters::TacticalParam
 use crate::agents::tactical_agent::TacticalOptions;
 use crate::agents::traits::{ActorBasedLargeNeighborhoodSearch, Parameters};
 use crate::agents::{
-    Agent, ActorMessage, Algorithm, AlgorithmUtils, ArcSwapSharedSolution, OperationalSolution,
+    ActorMessage, Agent, Algorithm, AlgorithmUtils, ArcSwapSharedSolution, OperationalSolution,
     SharedSolution, Solution, StrategicSolution, SupervisorSolution, TacticalSolution,
 };
 
@@ -50,32 +50,37 @@ impl AgentFactory {
         ))))
     }
 
-    // Okay very good! Every solution should look like this! That is important.
+    // Okay very good! Every agent should look like this! That is important.
     pub fn build_strategic_agent(
         &self,
         asset: &Asset,
         scheduling_environment_guard: &MutexGuard<SchedulingEnvironment>,
         shared_solution_arc_swap: Arc<ArcSwapSharedSolution>,
         notify_orchestrator: NotifyOrchestrator,
+        // Okay now the issue is that we have to decide what to do with the
+        // general configurations. I think that this is the best approach for
+        // generating the best result.
+        strategic_options: StrategicOptions,
     ) -> Result<Communication<ActorMessage<StrategicRequestMessage>, StrategicResponseMessage>>
     {
-        let options = StrategicOptions::default();
-
         let strategic_id = Id::new("StrategicAgent", vec![], vec![asset.clone()]);
 
-        let strategic_parameters =
-            StrategicParameters::new(&strategic_id, options, scheduling_environment_guard)
-                .with_context(|| format!("Failed to create StrategicParameters for {}", asset))?;
+        let strategic_parameters = StrategicParameters::new(
+            &strategic_id,
+            strategic_options,
+            scheduling_environment_guard,
+        )
+        .with_context(|| format!("Failed to create StrategicParameters for {}", asset))?;
 
         let strategic_solution = StrategicSolution::new(&strategic_parameters);
 
         let strategic_algorithm: Algorithm<
             StrategicSolution,
             StrategicParameters,
-            priority_queue::PriorityQueue<
-                shared_types::scheduling_environment::work_order::WorkOrderNumber,
-                u64,
-            >,
+            // FIX
+            // You do not want a priority queue you want a BinaryHeap. That is a much
+            // better choice.
+            priority_queue::PriorityQueue<WorkOrderNumber, u64>,
         > = Algorithm::new(
             &strategic_id,
             strategic_solution,
@@ -88,7 +93,7 @@ impl AgentFactory {
         let (sender_to_agent, receiver_from_orchestrator): (
             std::sync::mpsc::Sender<ActorMessage<StrategicRequestMessage>>,
             std::sync::mpsc::Receiver<ActorMessage<StrategicRequestMessage>>,
-        ) = std::sync::mpsc::channel();
+        ) = sync::mpsc::channel();
 
         let (sender_to_orchestrator, receiver_from_agent): (
             std::sync::mpsc::Sender<std::result::Result<StrategicResponseMessage, anyhow::Error>>,

@@ -9,6 +9,14 @@ pub enum Priority {
     Char(char),
 }
 
+// Is this a better way of doing it? Yes it is a much better way
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+struct IntPriority(u64);
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+struct CharPriority(char);
+
 impl Priority {
     pub fn get_priority_string(&self) -> String {
         match self {

@@ -1,29 +1,31 @@
 pub mod operation_analytic;
 pub mod operation_info;
 
-use crate::scheduling_environment::work_order::operation::operation_info::OperationInfo;
-use crate::scheduling_environment::{
-    time_environment::day::Day, work_order::operation::operation_analytic::OperationAnalytic,
-};
-
-use crate::scheduling_environment::worker_environment::resources::Resources;
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use colored::Colorize;
+use operation_info::OperationInfoBuilder;
 use rust_decimal::prelude::*;
 use rust_xlsxwriter::IntoExcelData;
 use serde::de::{self, MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize};
+
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::num::ParseFloatError;
 use std::str::FromStr;
 
-use self::operation_info::NumberOfPeople;
+use crate::scheduling_environment::time_environment::day::Day;
+use crate::scheduling_environment::worker_environment::resources::Resources;
+
+use self::operation_analytic::OperationAnalytic;
+use self::operation_info::OperationInfo;
 
 use super::work_order_dates::unloading_point::UnloadingPoint;
 use super::ActivityRelation;
+
+pub type ActivityNumber = u64;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Operations(pub HashMap<ActivityNumber, Operation>);
@@ -34,41 +36,57 @@ impl Operations {
     }
 
     pub(crate) fn builder() -> OperationsBuilder {
-        OperationsBuilder(None)
+        OperationsBuilder(Operations::default())
     }
 }
 
-pub struct OperationsBuilder(Option<Operations>);
+// QUESTION [ ]
+// Should it be possible for there to be one `Operations`?
+// No it should not be possible
+pub struct OperationsBuilder(Operations);
+
+impl Operation {
+    pub fn builder(operations_number: ActivityNumber, resource: Resources) -> OperationBuilder {
+        todo!()
+    }
+}
+
+impl OperationBuilder {
+    pub fn build(self) -> Operation {
+        Operation {
+            activity: self.activity,
+            resource: self.resource,
+            unloading_point: self.unloading_point.unwrap_or_default(),
+            operation_info: self.operation_info.unwrap_or_default(),
+            operation_analytic: self.operation_analytic.unwrap_or_default(),
+            operation_dates: self.operation_dates.unwrap_or_default(),
+        }
+    }
+}
 
 impl OperationsBuilder {
     pub fn build(self) -> Operations {
-        Operations(self.0.unwrap_or_default().0)
+        Operations(self.0 .0)
     }
 
-    pub fn operations_builder<F>(&mut self, f: F, operations_number: ActivityNumber) -> &mut Self
+    // This should insert values into the `Operations` if there are no one there.
+    pub fn operations_builder<F>(
+        &mut self,
+        operation_number: u64,
+        resource: Resources,
+        f: F,
+    ) -> &mut Self
     where
         F: FnOnce(&mut OperationBuilder) -> &mut OperationBuilder,
     {
-        let mut operations_builder = Operation::builder(operations_number);
+        let mut operations_builder = Operation::builder(operation_number, resource);
 
         f(&mut operations_builder);
 
-        match &mut self.0 {
-            Some(operationss_inner) => {
-                operationss_inner.0.insert(
-                    operations_builder.operations_number,
-                    operations_builder.build(),
-                );
-            }
-            None => {
-                let operations_inner = HashMap::from([(
-                    operations_builder.operations_number,
-                    operations_builder.build(),
-                )]);
+        self.0
+             .0
+            .insert(operations_builder.activity, operations_builder.build());
 
-                self.0 = Some(Operations(operations_inner));
-            }
-        }
         self
     }
 }
@@ -84,12 +102,46 @@ pub struct Operation {
 }
 
 pub struct OperationBuilder {
-    pub activity: ActivityNumber,
-    pub resource: Resources,
-    pub unloading_point: Option<UnloadingPoint>,
-    pub operation_info: Option<OperationInfo>,
-    pub operation_analytic: Option<OperationAnalytic>,
-    pub operation_dates: Option<OperationDates>,
+    activity: ActivityNumber,
+    resource: Resources,
+    unloading_point: Option<UnloadingPoint>,
+    operation_info: Option<OperationInfo>,
+    operation_analytic: Option<OperationAnalytic>,
+    operation_dates: Option<OperationDates>,
+}
+
+impl OperationBuilder {
+    pub fn activity(&mut self, activity: u64) -> &mut Self {
+        self.activity = activity;
+        self
+    }
+    pub fn resource(&mut self, resource: Resources) -> &mut Self {
+        self.resource = resource;
+        self
+    }
+    pub fn unloading_point(&mut self, unloading_point: UnloadingPoint) -> &mut Self {
+        self.unloading_point = Some(unloading_point);
+        self
+    }
+    pub fn operation_info<F>(&mut self, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut OperationInfoBuilder) -> &mut OperationInfoBuilder,
+    {
+        let mut operation_info_builder = OperationInfo::builder();
+
+        f(&mut operation_info_builder);
+
+        self.operation_info = Some(operation_info_builder.build());
+        self
+    }
+    pub fn operation_analytic(&mut self, operation_analytic: OperationAnalytic) -> &mut Self {
+        self.operation_analytic = Some(operation_analytic);
+        self
+    }
+    pub fn operation_dates(&mut self, operation_dates: OperationDates) -> &mut Self {
+        self.operation_dates = Some(operation_dates);
+        self
+    }
 }
 
 #[derive(Copy, Default, Hash, Eq, PartialOrd, Ord, PartialEq, Clone)]
@@ -312,60 +364,6 @@ impl Display for Work {
     }
 }
 
-impl Operation {
-    pub fn new(
-        activity: ActivityNumber,
-        resource: Resources,
-        unloading_point: UnloadingPoint,
-        operation_info: OperationInfo,
-        operation_analytic: OperationAnalytic,
-        operation_dates: OperationDates,
-    ) -> Self {
-        Operation {
-            activity,
-            resource,
-            unloading_point,
-            operation_info,
-            operation_analytic,
-            operation_dates,
-        }
-    }
-
-    fn builder(operations_number: ActivityNumber) -> Operatio {
-        todo!()
-    }
-}
-
-#[derive(Default, Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
-pub struct ActivityNumber(pub u64);
-
-impl From<u64> for ActivityNumber {
-    fn from(value: u64) -> Self {
-        ActivityNumber(value)
-    }
-}
-
-impl Serialize for ActivityNumber {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(&self.0.to_string())
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for ActivityNumber {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let activity_number_string = String::deserialize(deserializer).unwrap();
-        let activity_number_primitive = activity_number_string.parse::<u64>().unwrap();
-
-        Ok(ActivityNumber(activity_number_primitive))
-    }
-}
-
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct OperationDates {
     pub possible_start: Day,
@@ -398,58 +396,10 @@ impl Display for Operation {
             "    Activity: {:>8?}    |{:>11}|{:>14?}|{:>8}|{:>6}|",
             self.activity,
             self.resource.to_string(),
-            self.operation_info.work_remaining(),
+            self.operation_info.work_remaining,
             self.operation_analytic.duration.as_ref().unwrap().work(),
-            self.operation_info.number(),
+            self.operation_info.number,
         )
-    }
-}
-
-pub struct OperationBuilder(Operation);
-
-impl OperationBuilder {
-    pub fn new(
-        activity: ActivityNumber,
-        unloading_point: UnloadingPoint,
-        resource: Resources,
-        work_remaining: Option<Work>,
-    ) -> Self {
-        let operation_info = OperationInfo::new(
-            1,
-            work_remaining,
-            Some(Work::from(0.0)),
-            Some(Work::from(0.0)),
-            Some(Work::from(6.0)),
-        );
-
-        let operation_analytic = OperationAnalytic::new(Work::from(1.0), None);
-
-        let operation_dates = OperationDates::new(
-            Day::new(0, Utc::now()),
-            Day::new(0, Utc::now()),
-            Utc::now(),
-            Utc::now(),
-        );
-
-        OperationBuilder(Operation {
-            activity,
-            resource,
-            unloading_point,
-            operation_info,
-            operation_analytic,
-            operation_dates,
-        })
-    }
-
-    pub fn build(self) -> Operation {
-        Operation {
-            activity: self.0.activity,
-            resource: self.0.resource,
-            unloading_point: self.0.unloading_point,
-            operation_info: self.0.operation_info,
-            operation_analytic: self.0.operation_analytic,
-            operation_dates: self.0.operation_dates,
-        }
     }
 }
 

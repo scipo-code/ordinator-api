@@ -82,7 +82,7 @@ impl SystemStatusCodes {
         // way of doing it.
         //
         //
-        SystemStatusCodesBuilder(SystemStatusCodes)
+        SystemStatusCodesBuilder(SystemStatusCodes:)
     }
 }
 
@@ -175,8 +175,14 @@ pub struct UserStatusCodes {
     #[arg(long)]
     pub awpr: bool,
 }
+impl UserStatusCodes {
+    pub(crate) fn builder() -> UserStatusCodesBuilder {
+        UserStatusCodesBuilder(UserStatusCodes::default())
+        
+    }
+}
 
-struct UserStatusCodesBuilder(UserStatusCodes);
+pub struct UserStatusCodesBuilder(UserStatusCodes);
 
 impl UserStatusCodesBuilder {
     pub fn build(self) -> UserStatusCodes {
@@ -234,7 +240,8 @@ impl UserStatusCodesBuilder {
     }
 }
 
-struct SystemStatusCodesBuilder(SystemStatusCodes);
+#[derive(Default)]
+pub struct SystemStatusCodesBuilder(SystemStatusCodes);
 
 /// Builder this correctly could be a real hassel
 // TODO [ ]
