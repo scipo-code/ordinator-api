@@ -63,7 +63,9 @@ impl AgentFactory {
         strategic_options: StrategicOptions,
     ) -> Result<Communication<ActorMessage<StrategicRequestMessage>, StrategicResponseMessage>>
     {
-        let strategic_id = Id::new("StrategicAgent", vec![], vec![asset.clone()]);
+        let agent = Agent::builder()
+            .agent_id(Id::new("StrategicAgent", vec![], vec![asset.clone()]))
+            .scheduling_environment(Arc::clone(&self.scheduling_environment));
 
         let strategic_parameters = StrategicParameters::new(
             &strategic_id,
