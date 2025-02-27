@@ -30,35 +30,49 @@ pub struct WorkOrderDates {
     pub material_expected_date: Option<DateTime<Utc>>,
 }
 
-// It is crucial that you separate source data from derived fields, that is the
-// only way that this will ever work correctly.
-#[allow(clippy::too_many_arguments)]
+pub struct WorkOrderDatesBuilder {
+    earliest_allowed_start_date: NaiveDate,
+    latest_allowed_finish_date: NaiveDate,
+    latest_allowed_finish_period: Period,
+    basic_start_date: NaiveDate,
+    basic_finish_date: NaiveDate,
+    duration: Duration,
+    basic_start_scheduled: Option<DateTime<Utc>>,
+    basic_finish_scheduled: Option<DateTime<Utc>>,
+    material_expected_date: Option<DateTime<Utc>>,
+}
+
 impl WorkOrderDates {
-    pub fn new(
-        earliest_allowed_start_date: NaiveDate,
-        latest_allowed_finish_date: NaiveDate,
-        latest_allowed_finish_period: Period,
-        basic_start_date: NaiveDate,
-        basic_finish_date: NaiveDate,
-        duration: Duration,
-        basic_start_scheduled: Option<DateTime<Utc>>,
-        basic_finish_scheduled: Option<DateTime<Utc>>,
-        material_expected_date: Option<DateTime<Utc>>,
-    ) -> Self {
-        Self {
-            earliest_allowed_start_date,
-            latest_allowed_finish_date,
-            latest_allowed_finish_period,
-            basic_start_date,
-            basic_finish_date,
-            duration,
-            basic_start_scheduled,
-            basic_finish_scheduled,
-            material_expected_date,
+    pub fn builder() -> WorkOrderDatesBuilder {
+        WorkOrderDatesBuilder {
+            earliest_allowed_start_date: todo!(),
+            latest_allowed_finish_date: todo!(),
+            latest_allowed_finish_period: todo!(),
+            basic_start_date: todo!(),
+            basic_finish_date: todo!(),
+            duration: todo!(),
+            basic_start_scheduled: todo!(),
+            basic_finish_scheduled: todo!(),
+            material_expected_date: todo!(),
         }
     }
 }
 
+impl WorkOrderDatesBuilder {
+    pub fn build(self) -> WorkOrderDates {
+        WorkOrderDates {
+            earliest_allowed_start_date: todo!(),
+            latest_allowed_finish_date: todo!(),
+            latest_allowed_finish_period: todo!(),
+            basic_start_date: todo!(),
+            basic_finish_date: todo!(),
+            duration: todo!(),
+            basic_start_scheduled: todo!(),
+            basic_finish_scheduled: todo!(),
+            material_expected_date: todo!(),
+        }
+    }
+}
 fn serialize_duration<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,

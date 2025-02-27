@@ -662,9 +662,15 @@ impl Orchestrator {
     // How should this asset function be implemented. The real question is what should be done about the
     // the files versus bitstream. One thing is for sure if the add_asset function should be reused
     // there can be no file handling inside of it.
-    pub fn add_asset(&mut self, asset: Asset, system_agents_bytes: Vec<u8>) -> Result<()> {
+    // FIX
+    // What the fuck is this? Loading in configurations as a `system_agents_bytes` You are a
+    // pathetic idiot! You knew better even when you wrote this. This is a horrible way to
+    // live your life, God must be ashamed of you!
+    pub fn asset_factory(&mut self, asset: Asset, system_agents_bytes: Vec<u8>) -> Result<()> {
         let mut scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
+        // Initialization should not occur in here. Also the configurations should come in
+        // from the
         scheduling_environment_guard
             .worker_environment
             .initialize_from_resource_configuration_file(system_agents_bytes)
@@ -677,22 +683,6 @@ impl Orchestrator {
 
         let shared_solutions_arc_swap = AgentFactory::create_shared_solution_arc_swap();
 
-        let strategic_agent_addr = self
-            .agent_factory
-            .build_strategic_agent(
-                &asset,
-                &scheduling_environment_guard,
-                shared_solutions_arc_swap.clone(),
-                NotifyOrchestrator(
-                    self.agent_notify
-                        .as_ref()
-                        .unwrap()
-                        .upgrade()
-                        .expect("Weak reference part of initialization"),
-                ),
-            )
-            .context("Could not build the StrategicAgent")?;
-
         let notify_orchestrator = NotifyOrchestrator(
             self.agent_notify
                 .as_ref()
@@ -700,6 +690,16 @@ impl Orchestrator {
                 .upgrade()
                 .expect("Weak reference part of initialization"),
         );
+
+        let strategic_agent_addr = self
+            .agent_factory
+            .build_strategic_agent(
+                &asset,
+                &scheduling_environment_guard,
+                shared_solutions_arc_swap.clone(),
+                notify_orchestrator.clone(),
+            )
+            .context("Could not build the StrategicAgent")?;
 
         let tactical_agent_addr = self
             .agent_factory

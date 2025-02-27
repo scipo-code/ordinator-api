@@ -83,15 +83,11 @@ impl SchedulingEnvironmentBuilder {
         self
     }
 
-    pub fn work_orders_builder<F>(
-        &mut self,
-        f: F,
-        work_order_configurations: WorkOrderConfigurations,
-    ) -> &mut Self
+    pub fn work_orders_builder<F>(&mut self, f: F) -> &mut Self
     where
         F: FnOnce(&mut WorkOrdersBuilder) -> &mut WorkOrdersBuilder,
     {
-        let mut work_orders_builder = WorkOrders::builder(work_order_configurations);
+        let mut work_orders_builder = WorkOrders::builder();
 
         f(&mut work_orders_builder);
 

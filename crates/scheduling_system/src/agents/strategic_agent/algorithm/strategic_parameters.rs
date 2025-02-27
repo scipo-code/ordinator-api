@@ -38,22 +38,35 @@ impl Parameters for StrategicParameters {
     ) -> Result<Self> {
         let asset = id.2.first().expect("This should never happen");
 
-        let mut strategic_clustering = StrategicClustering::default();
+        let strategic_work_order_parameters = work_orders
+            .inner
+            .iter()
+            .filter(|(won, wo)| wo.functional_location().asset == *asset)
+            .map(|(won, wo)| {
+                (
+                    won,
+                    // TODO [ ]
+                    // Okay parameters are needed here and you are stuck because you do not know
+                    // what to do about it. I think that the best course of action is to make the
+                    // whole system work with dependency injection. The primary goal is to
+                    // centralize the configurations.
+                    WorkOrderParameter::builder()
+                        .with_scheduling_environment(wo, periods)
+                        .build(),
+                )
+            })
+            .collect();
 
         let work_orders = &scheduling_environment.work_orders;
 
         let strategic_periods = &scheduling_environment.time_environment.strategic_periods;
 
-        strategic_clustering.calculate_clustering_values(asset, work_orders, options)?;
+        let strategic_clustering =
+            StrategicClustering::calculate_clustering_values(asset, work_orders, options)?;
 
         let strategic_capacity = scheduling_environment
             .worker_environment
             .generate_strategic_resources(strategic_periods);
-
-        let strategic_work_order_parameters =
-            create_strategic_parameters(work_orders, strategic_periods, asset).with_context(
-                || format!("StrategicParameters for {:#?} could not be created", &asset),
-            )?;
 
         Ok(Self {
             strategic_work_order_parameters,
@@ -81,7 +94,7 @@ impl Parameters for StrategicParameters {
 
 pub type ClusteringValue = u64;
 
-#[derive(Default, Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct StrategicClustering {
     pub inner: HashMap<(WorkOrderNumber, WorkOrderNumber), ClusteringValue>,
 }
@@ -163,18 +176,18 @@ impl WorkOrderParameterBuilder {
         &mut self,
         work_order: &WorkOrder,
         periods: &[Period],
-        work_order_configurations: WorkOrderConfigurations,
+        work_order_configurations: &WorkOrderConfigurations,
     ) -> &mut Self {
+        // FIX [ ]
+        // This is horribly written and very error prone
         self.0.excluded_periods = work_order.find_excluded_periods(periods);
 
         self.0.weight = work_order.work_order_value(work_order_configurations);
 
-        self.0.work_load.clone_from(work_order.work_load());
+        self.0.work_load = work_order.work_load();
 
-        self.0.latest_period = work_order
-            .work_order_dates
-            .latest_allowed_finish_period
-            .clone();
+        self.0.latest_period = work_order.latest_allowed_finish_period(periods).clone();
+        // FIX
 
         let unloading_point_period = work_order.unloading_point().clone();
 
@@ -291,11 +304,10 @@ impl WorkOrderParameter {
 
 impl StrategicClustering {
     pub fn calculate_clustering_values(
-        &mut self,
         asset: &Asset,
         work_orders: &WorkOrders,
         clustering_weights: ClusteringWrights,
-    ) -> Result<()> {
+    ) -> Result<HashMap<(WorkOrderNumber, WorkOrderNumber), ClusteringValue>> {
         #[derive(serde::Deserialize, Debug)]
         pub struct ClusteringWeights {
             asset: u64,
@@ -305,16 +317,6 @@ impl StrategicClustering {
             equipment_tag: u64,
         }
 
-        // Load clustering weights from config
-        // TODO [ ]
-        // This should be moved up as well. It should be simple to remove centrally. I think that this
-        // is the best approach forward. I do not see what other approach that we have.
-        let mut clustering_similarity: HashMap<
-            (WorkOrderNumber, WorkOrderNumber),
-            ClusteringValue,
-        > = HashMap::new();
-
-        // Precompute functional locations for all work orders
         let work_orders_data: Vec<_> = work_orders
             .inner
             .iter()
@@ -361,28 +363,13 @@ impl StrategicClustering {
                 clustering_similarity.insert((**wo_num1, **wo_num2), similarity);
             }
         }
-        self.inner = clustering_similarity;
-
-        Ok(())
+        Ok(clustering_similarity)
     }
 }
+
 pub fn create_strategic_parameters(
     work_orders: &WorkOrders,
     periods: &[Period],
     asset: &Asset,
 ) -> Result<HashMap<WorkOrderNumber, WorkOrderParameter>> {
-    let mut strategic_work_order_parameters = HashMap::new();
-
-    for (work_order_number, work_order) in work_orders
-        .inner
-        .iter()
-        .filter(|(_, wo)| wo.functional_location().asset == *asset)
-    {
-        let strategic_parameter = WorkOrderParameter::builder()
-            .with_scheduling_environment(work_order, periods)
-            .build();
-
-        strategic_work_order_parameters.insert(*work_order_number, strategic_parameter);
-    }
-    Ok(strategic_work_order_parameters)
 }

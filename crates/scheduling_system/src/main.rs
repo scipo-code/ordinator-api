@@ -59,7 +59,7 @@ async fn main() -> Result<()> {
     orchestrator
         .lock()
         .unwrap()
-        .add_asset(asset.clone(), system_agent_bytes)
+        .asset_factory(asset.clone(), system_agent_bytes)
         .with_context(|| {
             format!(
                 "{}: {} could not be added",
@@ -138,6 +138,9 @@ fn write_to_database(path: &Path) -> Result<SchedulingEnvironment, std::io::Erro
         number_of_days: 100,
         number_of_supervisor_periods: 3,
     };
+
+    // FIX [ ]
+    //
     let scheduling_environment =
         init::model_initializers::initialize_scheduling_environment(time_input);
 

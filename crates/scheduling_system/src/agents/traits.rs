@@ -132,6 +132,9 @@ where
         key: Self::Key,
         scheduling_environment: MutexGuard<SchedulingEnvironment>,
     );
+
+    // TODO [ ]
+    // Add methods for updating configurations.
 }
 
 pub trait Solution {

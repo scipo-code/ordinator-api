@@ -148,6 +148,7 @@ impl WorkOrderResponse {
     pub fn new(
         work_order: &WorkOrder,
         api_solution: ApiSolution,
+        periods: &[Period],
         work_order_configurations: &WorkOrderConfigurations,
     ) -> Self {
         // WARN

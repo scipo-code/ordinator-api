@@ -4,9 +4,9 @@ pub mod work_order_analytic;
 pub mod work_order_dates;
 pub mod work_order_info;
 
+use anyhow::Result;
 use chrono::{DateTime, Utc};
 use colored::Colorize;
-use operation::OperationsBuilder;
 use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
@@ -27,21 +27,14 @@ use self::operation::OperationBuilder;
 use self::operation::Operations;
 use self::operation::Work;
 use self::work_order_analytic::status_codes::MaterialStatus;
-use self::work_order_analytic::status_codes::SystemStatusCodes;
-use self::work_order_analytic::status_codes::UserStatusCodes;
 use self::work_order_analytic::WorkOrderAnalytic;
 use self::work_order_analytic::WorkOrderAnalyticBuilder;
-use self::work_order_dates::unloading_point::UnloadingPoint;
 use self::work_order_dates::WorkOrderDates;
 use self::work_order_info::functional_location::FunctionalLocation;
 use self::work_order_info::priority::Priority;
-use self::work_order_info::revision::Revision;
-use self::work_order_info::system_condition::SystemCondition;
-use self::work_order_info::work_order_text::WorkOrderText;
 use self::work_order_info::work_order_type::WorkOrderType;
 use self::work_order_info::WorkOrderInfo;
 use self::work_order_info::WorkOrderInfoBuilder;
-use self::work_order_info::WorkOrderInfoDetail;
 
 pub type WorkOrderValue = u64;
 
@@ -69,19 +62,19 @@ pub struct WorkOrders {
     pub inner: HashMap<WorkOrderNumber, WorkOrder>,
     // Are these in the correct place in the code? Yes I think
     // that they are.
-    pub work_order_configurations: WorkOrderConfigurations,
 }
 
+// WARN
+// Configurations should only be used during initialization not the
+// remaining parts of the code. 
 pub struct WorkOrdersBuilder {
     inner: Option<HashMap<WorkOrderNumber, WorkOrder>>,
-    work_order_configurations: WorkOrderConfigurations,
 }
 
 impl WorkOrdersBuilder {
     pub fn build(self) -> WorkOrders {
         WorkOrders {
             inner: self.inner.unwrap_or_default(),
-            work_order_configurations: self.work_order_configurations,
         }
     }
 
@@ -114,12 +107,12 @@ impl WorkOrdersBuilder {
 }
 
 impl WorkOrders {
-    pub fn builder(work_order_configurations: WorkOrderConfigurations) -> WorkOrdersBuilder {
+    pub fn builder() -> WorkOrdersBuilder {
         WorkOrdersBuilder {
             inner: Some(HashMap::new()),
-            work_order_configurations,
         }
     }
+
     pub fn insert(&mut self, work_order: WorkOrder) {
         self.inner.insert(work_order.work_order_number, work_order);
     }
@@ -147,15 +140,15 @@ pub struct WorkOrder {
 }
 
 pub struct WorkOrderBuilder {
-    pub work_order_number: WorkOrderNumber,
-    pub main_work_center: Resources,
-    pub operations: Option<Operations>,
+    work_order_number: WorkOrderNumber,
+    main_work_center: Resources,
+    operations: Operations,
     // FIX
     // Every operation needs to have a relation between them. There
     // is no way around this. It should be an enforced invariant.
-    pub work_order_analytic: WorkOrderAnalytic,
-    pub work_order_dates: WorkOrderDates,
-    pub work_order_info: WorkOrderInfo,
+    work_order_analytic: WorkOrderAnalytic,
+    work_order_dates: WorkOrderDates,
+    work_order_info: WorkOrderInfo,
 }
 
 impl WorkOrderBuilder {
@@ -163,7 +156,7 @@ impl WorkOrderBuilder {
         WorkOrder {
             work_order_number: self.work_order_number,
             main_work_center: self.main_work_center,
-            operations: self.operations.unwrap_or_default(),
+            operations: self.operations,
             // TODO [ ]
             // Relations should be a function between the different on the `Operations` field.
             work_order_analytic: self.work_order_analytic,
@@ -182,15 +175,29 @@ impl WorkOrderBuilder {
         self
     }
 
-    pub fn operations_builder<F>(&mut self, f: F) -> &mut Self
+    // TODO [ ]
+    // Make this function simply reuse the functionality of the `Operations`.
+    // QUESTION
+    // How do we do this?
+    // This is crucial! There is something that you do not understand here
+    // How do we extract this so that it works?
+    pub fn operations_builder<F>(
+        &mut self,
+        operation_number: u64,
+        resource: Resources,
+        f: F,
+    ) -> &mut Self
     where
-        F: FnOnce(&mut OperationsBuilder) -> &mut OperationsBuilder,
+        F: FnOnce(&mut OperationBuilder) -> &mut OperationBuilder,
     {
-        let mut operations_builder = Operations::builder();
+        let mut operations_builder = Operation::builder(operation_number, resource);
 
         f(&mut operations_builder);
 
-        self.operations = Some(operations_builder.build());
+        self.operations
+            .0
+            .insert(operation_number, operations_builder.build());
+
         self
     }
 
@@ -238,7 +245,7 @@ pub struct WorkOrderConfigurations {
 }
 
 impl WorkOrderConfigurations {
-    pub fn read_config() -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn read_config() -> Result<Self> {
         let config_path = env::var("WORK_ORDER_WEIGHTINGS").expect("Work Order configuration parameters should always be provided through configuraion files specified in the .env file");
         let config_contents = fs::read_to_string(config_path).expect("Could not read config file");
 
@@ -269,6 +276,7 @@ impl WorkOrder {
 
     pub fn vendor(&self) -> bool {
         self.operations
+            .0
             .values()
             .any(|opr| opr.resource.is_ven_variant())
     }
@@ -342,10 +350,11 @@ impl WorkOrder {
 
     pub fn work_order_load(&self) -> HashMap<Resources, Work> {
         self.operations
+            .0
             .values()
             .fold(HashMap::default(), |mut acc, ele_opr| {
-                *acc.entry(*ele_opr.resource()).or_insert(Work::from(0.0)) +=
-                    ele_opr.work_remaining().unwrap();
+                *acc.entry(ele_opr.resource).or_insert(Work::from(0.0)) +=
+                    ele_opr.operation_info.work_remaining;
                 acc
             })
     }
@@ -364,7 +373,7 @@ impl WorkOrder {
         for (i, period) in periods.iter().enumerate() {
             if period < self.earliest_allowed_start_period(periods)
                 || (self.vendor() && i <= 3)
-                || (self.work_order_info.revision.shutdown && i <= 3)
+                || (self.work_order_info.revision.shutdown() && i <= 3)
             {
                 assert!(
                     self.earliest_allowed_start_period(&periods)
@@ -383,7 +392,7 @@ impl WorkOrder {
     }
 
     pub fn insert_operation(&mut self, operation: Operation) {
-        self.operations.insert(operation.activity, operation);
+        self.operations.0.insert(operation.activity, operation);
     }
 
     pub fn earliest_allowed_start_period<'a>(&'a self, periods: &'a [Period]) -> &'a Period {
@@ -409,7 +418,7 @@ impl WorkOrder {
     }
 
     pub fn unloading_point_contains_period(&self, clone: Period) -> bool {
-        for operation in &self.operations {
+        for operation in &self.operations.0 {
             if operation.1.unloading_point.period == Some(clone.clone()) {
                 return true;
             }
@@ -419,6 +428,7 @@ impl WorkOrder {
 
     pub fn unloading_point(&self) -> Option<Period> {
         self.operations
+            .0
             .values()
             .find_map(|opr| opr.unloading_point.period.clone())
     }
@@ -470,72 +480,47 @@ impl<'de> Deserialize<'de> for WorkOrderNumber {
 // This is a horrible practice! You should refactor it.
 impl WorkOrder {
     pub fn work_order_test() -> Self {
-        let mut operations = HashMap::new();
+        // The most important thing here is to make the construction as clean as possible.
+        // QUESTION [ ]
+        // How to best handle the `operation_analytic`?
+        // I think we should make it seamless we that you cannot do it in the wrong way here.
 
-        let unloading_point = UnloadingPoint::default();
-        let operation_0010 = OperationBuilder::new(
-            ActivityNumber(10),
-            unloading_point.clone(),
-            Resources::Prodtech,
-            Some(Work::from(10.0)),
-        )
-        .build();
-        let operation_0020 = OperationBuilder::new(
-            ActivityNumber(20),
-            unloading_point.clone(),
-            Resources::MtnMech,
-            Some(Work::from(20.0)),
-        )
-        .build();
-        let operation_0030 = OperationBuilder::new(
-            ActivityNumber(30),
-            unloading_point.clone(),
-            Resources::MtnMech,
-            Some(Work::from(30.0)),
-        )
-        .build();
-        let operation_0040 = OperationBuilder::new(
-            ActivityNumber(40),
-            unloading_point.clone(),
-            Resources::Prodtech,
-            Some(Work::from(40.0)),
-        )
-        .build();
+        let work_order_builder = WorkOrder::builder(WorkOrderNumber(2100000001))
+            .main_work_center(Resources::MtnMech)
+            .operations_builder(10, Resources::Prodtech, |e| {
+                e.operation_info(|oi| oi.number(1).work_remaining(10.0).operating_time(6.0))
+            })
+            .operations_builder(20, Resources::MtnMech, |ob| {
+                ob.operation_info(|oi| oi.number(1).work_remaining(20.0).operating_time(6.0))
+            })
+            .operations_builder(20, Resources::MtnMech, |ob| {
+                ob.operation_info(|oi| oi.number(1).work_remaining(30.0).operating_time(6.0))
+            })
+            .operations_builder(40, Resources::Prodtech, |ob| {
+                ob.operation_info(|oi| oi.number(1).work_remaining(40.0).operating_time(6.0))
+            })
+            .work_order_analytic_builder(|woab| {
+                woab.system_status_codes(|sta| sta.rel(true));
+                woab.user_status_codes(|sta| sta.smat(true))
+            })
+            .work_order_info(|woib| {
+                // FIX [ ]
+                // This is wrong and it should be fixed. You should make the
+                // code work correctly no matter what.
+                woib.priority(Priority::Int(1));
+                woib.work_order_type(WorkOrderType::Wdf(Priority::Int(1)))
+            })
+            .work_order_dates(|e| )
+            .build();
 
-        operations.insert(ActivityNumber(10), operation_0010);
-        operations.insert(ActivityNumber(20), operation_0020);
-        operations.insert(ActivityNumber(30), operation_0030);
-        operations.insert(ActivityNumber(40), operation_0040);
+        let work_order_analytic = WorkOrderAnalytic::builder()
+            .system_status_codes(|e| e.rel(true))
+            .user_status_codes(|e| e.smat(true))
+            .build();
 
-        let work_order_analytic = WorkOrderAnalytic::new(
-            1000,
-            Work::from(100.0),
-            HashMap::new(),
-            false,
-            false,
-            SystemStatusCodes::default(),
-            UserStatusCodes::default(),
-        );
-
-        let work_order_info = WorkOrderInfo::new(
-            Priority::new_int(1),
-            WorkOrderType::Wdf(Priority::dyn_new(Box::new(1_u64))),
-            FunctionalLocation::default(),
-            WorkOrderText::default(),
-            Revision::default(),
-            SystemCondition::Unknown,
-            WorkOrderInfoDetail::default(),
-        );
-
-        WorkOrder::new(
-            WorkOrderNumber(2100000001),
-            Resources::MtnMech,
-            operations,
-            Vec::new(),
-            work_order_analytic,
-            WorkOrderDates::new_test(),
-            work_order_info,
-        )
+        let work_order_info_builder = WorkOrderInfo::builder()
+            .priority(Priority::Int(1))
+            .work_order_type(WorkOrderType::Wdf(Priority::Int(1)));
     }
 }
 #[cfg(test)]
@@ -545,36 +530,33 @@ mod tests {
     use crate::scheduling_environment::worker_environment::resources::Resources;
 
     use super::{
-        functional_location::FunctionalLocation,
         operation::{ActivityNumber, OperationBuilder, Work},
-        priority::Priority,
-        revision::Revision,
-        status_codes::{SystemStatusCodes, UserStatusCodes},
-        system_condition::SystemCondition,
-        unloading_point::UnloadingPoint,
+        work_order_analytic::status_codes::{SystemStatusCodes, UserStatusCodes},
+        work_order_dates::unloading_point::UnloadingPoint,
         work_order_dates::WorkOrderDates,
-        work_order_text::WorkOrderText,
-        work_order_type::WorkOrderType,
+        work_order_info::functional_location::FunctionalLocation,
+        work_order_info::priority::Priority,
+        work_order_info::revision::Revision,
+        work_order_info::system_condition::SystemCondition,
+        work_order_info::work_order_text::WorkOrderText,
+        work_order_info::work_order_type::WorkOrderType,
         WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderInfoDetail, WorkOrderNumber,
     };
 
     #[test]
     fn test_initialize_work_load() {
-        let mut work_order = WorkOrder::new_test();
+        let work_order = WorkOrder::new_test();
 
-        work_order.work_order_load();
-
-        dbg!(work_order.work_load());
         assert_eq!(
             *work_order
-                .work_load()
+                .work_order_load()
                 .get(&Resources::from_str("PRODTECH").unwrap())
                 .unwrap(),
             Work::from(50.0)
         );
         assert_eq!(
             *work_order
-                .work_load()
+                .work_order_load()
                 .get(&Resources::from_str("MTN-MECH").unwrap())
                 .unwrap(),
             Work::from(50.0)

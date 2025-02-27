@@ -12,7 +12,7 @@ use strum::IntoEnumIterator;
 use crate::agents::strategic::{OperationalResource, StrategicResources};
 use crate::agents::tactical::{Days, TacticalResources};
 use crate::scheduling_environment::worker_environment::resources::Resources;
-use crate::{AgentEnvironment, OperationalId, ActorSpecifications};
+use crate::{ActorSpecifications, AgentEnvironment, OperationalId};
 
 use super::time_environment::day::Day;
 use super::time_environment::period::Period;
@@ -46,20 +46,6 @@ impl WorkerEnvironment {
 
     pub fn get_work_centers(&self) -> &HashSet<Resources> {
         &self.work_centers
-    }
-
-    pub fn initialize_from_resource_configuration_file(
-        &mut self,
-        system_agents_bytes: Vec<u8>,
-    ) -> Result<()> {
-        let contents = std::str::from_utf8(&system_agents_bytes)
-            .context("configuration file bitstream not read correct")?;
-
-        let system_agents: ActorSpecifications = toml::from_str(contents)
-            .with_context(|| format!("configuration file string could not be parsed into {}. Likely a toml parsing error", std::any::type_name::<ActorSpecifications>().bright_red()))?;
-
-        self.agent_environment = system_agents.into();
-        Ok(())
     }
 
     pub fn generate_strategic_resources(&self, periods: &[Period]) -> StrategicResources {
