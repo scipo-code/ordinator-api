@@ -6,6 +6,7 @@ pub mod work_order_info;
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use chrono::{Duration, NaiveDate};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
@@ -66,7 +67,7 @@ pub struct WorkOrders {
 
 // WARN
 // Configurations should only be used during initialization not the
-// remaining parts of the code. 
+// remaining parts of the code.
 pub struct WorkOrdersBuilder {
     inner: Option<HashMap<WorkOrderNumber, WorkOrder>>,
 }
@@ -170,7 +171,7 @@ impl WorkOrderBuilder {
         self
     }
 
-    pub fn main_work_center(&mut self, main_work_center: Resources) -> &mut Self {
+    pub fn main_work_center(mut self, main_work_center: Resources) -> Self {
         self.main_work_center = main_work_center;
         self
     }
@@ -395,26 +396,49 @@ impl WorkOrder {
         self.operations.0.insert(operation.activity, operation);
     }
 
+    // QUESTION
+    // What should this function do? I think that the best approach is to
+    // create something that will
+    pub fn date_to_period<'a>(periods: &'a [Period], date_time: &NaiveDate) -> &'a Period {
+        let period: Option<&Period> = periods.iter().find(|period| {
+            period.start_date().date_naive() <= *date_time
+                && period.end_date().date_naive() >= *date_time
+        });
+
+        // This is created in a horrible way. I think that the best approach here
+        // is to make.
+        // You are effectively making a new instance period which is not. Should
+        // the work orders age? That is the fundamental question? I do not believe
+        // so. One thing is for sure, the old period should be in the
+        // `SchedulingEnvironment::time_environment`.
+        match period {
+            Some(period) => period,
+            None => periods.first().unwrap(),
+        }
+    }
+
+    // FIX
+    // This should be based on a different formulation. This whole thing should be
+    // formulated differently
     pub fn earliest_allowed_start_period<'a>(&'a self, periods: &'a [Period]) -> &'a Period {
         // This whole thing is bull shit.
+        // TODO [ ]
+        //
+
+        let period =
+            Self::date_to_period(periods, &self.work_order_dates.earliest_allowed_start_date);
         match &self.work_order_analytic.user_status_codes.clone().into() {
-            MaterialStatus::Nmat => {
-                (&periods[0]).max(&self.earliest_allowed_start_period(&periods))
-            }
-            MaterialStatus::Smat => {
-                (&periods[0]).max(&self.earliest_allowed_start_period(&periods))
-            }
-            MaterialStatus::Cmat => {
-                (&periods[2]).max(&self.earliest_allowed_start_period(&periods))
-            }
-            MaterialStatus::Pmat => {
-                (&periods[3]).max(&self.earliest_allowed_start_period(&periods))
-            }
-            MaterialStatus::Wmat => {
-                (&periods[3]).max(&self.earliest_allowed_start_period(&periods))
-            }
+            MaterialStatus::Nmat => (&periods[0]).max(&period),
+            MaterialStatus::Smat => (&periods[0]).max(&period),
+            MaterialStatus::Cmat => (&periods[2]).max(&period),
+            MaterialStatus::Pmat => (&periods[3]).max(&period),
+            MaterialStatus::Wmat => (&periods[3]).max(&period),
             MaterialStatus::Unknown => panic!("WorkOrder does not have a material status"),
         }
+    }
+
+    pub fn latest_allowed_finish_period<'a>(&'a self, periods: &'a [Period]) -> &'a Period {
+        todo!("Make the code for extracting this information")
     }
 
     pub fn unloading_point_contains_period(&self, clone: Period) -> bool {
@@ -485,42 +509,34 @@ impl WorkOrder {
         // How to best handle the `operation_analytic`?
         // I think we should make it seamless we that you cannot do it in the wrong way here.
 
-        let work_order_builder = WorkOrder::builder(WorkOrderNumber(2100000001))
+        let work_order = WorkOrder::builder(WorkOrderNumber(2100000001))
             .main_work_center(Resources::MtnMech)
-            .operations_builder(10, Resources::Prodtech, |e| {
-                e.operation_info(|oi| oi.number(1).work_remaining(10.0).operating_time(6.0))
-            })
-            .operations_builder(20, Resources::MtnMech, |ob| {
-                ob.operation_info(|oi| oi.number(1).work_remaining(20.0).operating_time(6.0))
-            })
-            .operations_builder(20, Resources::MtnMech, |ob| {
-                ob.operation_info(|oi| oi.number(1).work_remaining(30.0).operating_time(6.0))
-            })
-            .operations_builder(40, Resources::Prodtech, |ob| {
-                ob.operation_info(|oi| oi.number(1).work_remaining(40.0).operating_time(6.0))
-            })
-            .work_order_analytic_builder(|woab| {
-                woab.system_status_codes(|sta| sta.rel(true));
-                woab.user_status_codes(|sta| sta.smat(true))
-            })
-            .work_order_info(|woib| {
-                // FIX [ ]
-                // This is wrong and it should be fixed. You should make the
-                // code work correctly no matter what.
-                woib.priority(Priority::Int(1));
-                woib.work_order_type(WorkOrderType::Wdf(Priority::Int(1)))
-            })
-            .work_order_dates(|e| )
+            // .operations_builder(10, Resources::Prodtech, |e| {
+            //     e.operation_info(|oi| oi.number(1).work_remaining(10.0).operating_time(6.0))
+            // })
+            // .operations_builder(20, Resources::MtnMech, |ob| {
+            //     ob.operation_info(|oi| oi.number(1).work_remaining(20.0).operating_time(6.0))
+            // })
+            // .operations_builder(20, Resources::MtnMech, |ob| {
+            //     ob.operation_info(|oi| oi.number(1).work_remaining(30.0).operating_time(6.0))
+            // })
+            // .operations_builder(40, Resources::Prodtech, |ob| {
+            //     ob.operation_info(|oi| oi.number(1).work_remaining(40.0).operating_time(6.0))
+            // })
+            // .work_order_analytic_builder(|woab| {
+            //     woab.system_status_codes(|sta| sta.rel(true));
+            //     woab.user_status_codes(|sta| sta.smat(true))
+            // })
+            // .work_order_info(|woib| {
+            //     // FIX [ ]
+            //     // This is wrong and it should be fixed. You should make the
+            //     // code work correctly no matter what.
+            //     woib.priority(Priority::Int(1));
+            //     woib.work_order_type(WorkOrderType::Wdf(Priority::Int(1)))
+            // })
+            // .work_order_dates(|e| e.)
             .build();
-
-        let work_order_analytic = WorkOrderAnalytic::builder()
-            .system_status_codes(|e| e.rel(true))
-            .user_status_codes(|e| e.smat(true))
-            .build();
-
-        let work_order_info_builder = WorkOrderInfo::builder()
-            .priority(Priority::Int(1))
-            .work_order_type(WorkOrderType::Wdf(Priority::Int(1)));
+        work_order
     }
 }
 #[cfg(test)]
@@ -540,12 +556,13 @@ mod tests {
         work_order_info::system_condition::SystemCondition,
         work_order_info::work_order_text::WorkOrderText,
         work_order_info::work_order_type::WorkOrderType,
-        WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderInfoDetail, WorkOrderNumber,
+        work_order_info::WorkOrderInfoDetail,
+        WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderNumber,
     };
 
     #[test]
     fn test_initialize_work_load() {
-        let work_order = WorkOrder::new_test();
+        let work_order = WorkOrder::work_order_test();
 
         assert_eq!(
             *work_order
@@ -561,76 +578,5 @@ mod tests {
                 .unwrap(),
             Work::from(50.0)
         );
-    }
-
-    impl WorkOrder {
-        pub fn new_test() -> Self {
-            let mut operations = HashMap::new();
-
-            let unloading_point = UnloadingPoint::default();
-            let operation_0010 = OperationBuilder::new(
-                ActivityNumber(10),
-                unloading_point.clone(),
-                Resources::Prodtech,
-                Some(Work::from(10.0)),
-            )
-            .build();
-            let operation_0020 = OperationBuilder::new(
-                ActivityNumber(20),
-                unloading_point.clone(),
-                Resources::MtnMech,
-                Some(Work::from(20.0)),
-            )
-            .build();
-            let operation_0030 = OperationBuilder::new(
-                ActivityNumber(30),
-                unloading_point.clone(),
-                Resources::MtnMech,
-                Some(Work::from(30.0)),
-            )
-            .build();
-            let operation_0040 = OperationBuilder::new(
-                ActivityNumber(40),
-                unloading_point.clone(),
-                Resources::Prodtech,
-                Some(Work::from(40.0)),
-            )
-            .build();
-
-            operations.insert(ActivityNumber(10), operation_0010);
-            operations.insert(ActivityNumber(20), operation_0020);
-            operations.insert(ActivityNumber(30), operation_0030);
-            operations.insert(ActivityNumber(40), operation_0040);
-
-            let work_order_analytic = WorkOrderAnalytic::new(
-                1000,
-                Work::from(100.0),
-                HashMap::new(),
-                false,
-                false,
-                SystemStatusCodes::default(),
-                UserStatusCodes::default(),
-            );
-
-            let work_order_info = WorkOrderInfo::new(
-                Priority::new_int(1),
-                WorkOrderType::Wdf(Priority::dyn_new(Box::new(1_u64))),
-                FunctionalLocation::default(),
-                WorkOrderText::default(),
-                Revision::default(),
-                SystemCondition::Unknown,
-                WorkOrderInfoDetail::default(),
-            );
-
-            WorkOrder::new(
-                WorkOrderNumber(2100023841),
-                Resources::MtnMech,
-                operations,
-                Vec::new(),
-                work_order_analytic,
-                WorkOrderDates::new_test(),
-                work_order_info,
-            )
-        }
     }
 }

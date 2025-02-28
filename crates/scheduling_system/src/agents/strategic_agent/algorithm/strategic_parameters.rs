@@ -50,6 +50,10 @@ impl Parameters for StrategicParameters {
                     // what to do about it. I think that the best course of action is to make the
                     // whole system work with dependency injection. The primary goal is to
                     // centralize the configurations.
+                    // TODO
+                    // This name confuses you, the type is really important but you should not be immediately
+                    // worried about the name.
+                    // You could fix this now, but the configuration policy is much more important.
                     WorkOrderParameter::builder()
                         .with_scheduling_environment(wo, periods)
                         .build(),

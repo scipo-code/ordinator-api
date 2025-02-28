@@ -26,43 +26,44 @@ pub struct WorkOrderAnalyticBuilder {
 impl WorkOrderAnalyticBuilder {
     pub fn build(self) -> WorkOrderAnalytic {
         WorkOrderAnalytic {
-            // QUESTION
+            // FIX [ ]
+            // This is wrong, you should design it so that the code
             // How should the fixed be calculated? I am not sure that it ever should.
             // Things that are fixed for one model may not be for all the other ones.
             // You should design the system so that these things are calculated and
             // should be part of the parameters of the applications.
-            system_status_codes: SystemStatusCodes::default(),
-            user_status_codes: UserStatusCodes::default(),
+            //
+            system_status_codes: self
+                .system_status_codes
+                .expect("Check that all builder steps are followed"),
+            user_status_codes: self
+                .user_status_codes
+                .expect("Check that the code is actually created correctly"),
         }
     }
 
-    pub fn system_status_codes<F>(&mut self, f: F) -> &mut Self
+    pub fn system_status_codes<F>(mut self, f: F) -> Self
     where
-        F: FnOnce(&mut SystemStatusCodesBuilder) -> &mut SystemStatusCodesBuilder,
+        F: FnOnce(SystemStatusCodesBuilder) -> SystemStatusCodesBuilder,
     {
-        let mut system_status_codes_builder = SystemStatusCodes::builder();
+        let system_status_codes_builder = SystemStatusCodes::builder();
 
-        f(&mut system_status_codes_builder);
+        let configured_systes_codes_builder = f(system_status_codes_builder);
 
-        self.system_status_codes = Some(system_status_codes_builder.build());
+        self.system_status_codes = Some(configured_systes_codes_builder.build());
         self
     }
 
-    pub fn user_status_codes<F>(&mut self, f: F) -> &mut Self
+    pub fn user_status_codes<F>(mut self, configure: F) -> Self
     where
-        F: FnOnce(&mut UserStatusCodesBuilder) -> &mut UserStatusCodesBuilder,
+        F: FnOnce(UserStatusCodesBuilder) -> UserStatusCodesBuilder,
     {
-        let mut user_status_codes_builder = UserStatusCodes::builder();
+        let user_status_codes_builder = UserStatusCodes::builder();
 
-        f(&mut user_status_codes_builder);
-        self.user_status_codes = Some(user_status_codes_builder.build());
+        let configured_user_status_codes_builder = configure(user_status_codes_builder);
+
+        self.user_status_codes = Some(configured_user_status_codes_builder.build());
         self
-    }
-
-    // TODO [ ]
-    // Insert the code from the `data_processing` crate here.
-    pub fn from_data(regex_matches: &[String]) -> UserStatusCodes {
-        todo!();
     }
 }
 

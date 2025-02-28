@@ -1,27 +1,31 @@
 use crate::sap_mapper_and_types::DATS;
-use anyhow::{Context, Result};
-use rust_xlsxwriter::Worksheet;
-use std::{collections::HashMap, path::PathBuf};
 
-use shared_types::{
-    scheduling_environment::{
-        time_environment::day::{Day, OptionDay},
-        work_order::{
-            functional_location::FunctionalLocation,
-            operation::{ActivityNumber, Work},
-            priority::Priority,
-            revision::Revision,
-            status_codes::{MaterialStatus, SystemStatusCodes, UserStatusCodes},
-            system_condition::SystemCondition,
-            unloading_point::UnloadingPoint,
-            work_order_type::WorkOrderType,
-            WorkOrder, WorkOrderNumber,
-        },
-        worker_environment::resources::Resources,
-        WorkOrders,
-    },
-    AgentExports, Asset, ReasonForNotScheduling,
-};
+use anyhow::Context;
+use anyhow::Result;
+use rust_xlsxwriter::Worksheet;
+use std::collections::HashMap;
+use std::path::PathBuf;
+
+use shared_types::scheduling_environment::time_environment::day::Day;
+use shared_types::scheduling_environment::time_environment::day::OptionDay;
+use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
+use shared_types::scheduling_environment::work_order::operation::Work;
+use shared_types::scheduling_environment::work_order::work_order_analytic::status_codes::MaterialStatus;
+use shared_types::scheduling_environment::work_order::work_order_analytic::status_codes::SystemStatusCodes;
+use shared_types::scheduling_environment::work_order::work_order_analytic::status_codes::UserStatusCodes;
+use shared_types::scheduling_environment::work_order::work_order_dates::unloading_point::UnloadingPoint;
+use shared_types::scheduling_environment::work_order::work_order_info::functional_location::FunctionalLocation;
+use shared_types::scheduling_environment::work_order::work_order_info::priority::Priority;
+use shared_types::scheduling_environment::work_order::work_order_info::revision::Revision;
+use shared_types::scheduling_environment::work_order::work_order_info::system_condition::SystemCondition;
+use shared_types::scheduling_environment::work_order::work_order_info::work_order_type::WorkOrderType;
+use shared_types::scheduling_environment::work_order::WorkOrder;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::work_order::WorkOrders;
+use shared_types::scheduling_environment::worker_environment::resources::Resources;
+use shared_types::AgentExports;
+use shared_types::Asset;
+use shared_types::ReasonForNotScheduling;
 
 #[derive(Debug)]
 struct AllRows(Vec<RowNames>);
@@ -111,7 +115,7 @@ impl AllRows {
                 )
                 .unwrap();
             worksheet
-                .write(row_number, 21, row_values.activity.0)
+                .write(row_number, 21, row_values.activity)
                 .unwrap();
             // worksheet
             //     .write(row_number, 22, row_values.opperation_system_status.clone())
@@ -220,7 +224,7 @@ pub fn create_excel_dump(
         .collect();
 
     for work_order in work_orders_by_asset {
-        let mut sorted_operations = work_order.operations.iter().collect::<Vec<_>>();
+        let mut sorted_operations = work_order.operations.0.iter().collect::<Vec<_>>();
 
         sorted_operations
             .sort_unstable_by(|value1, value2| value1.0.partial_cmp(value2.0).unwrap());
@@ -228,7 +232,7 @@ pub fn create_excel_dump(
         let strategic_period = match strategic_solution.clone() {
             AgentExports::Strategic(solution) => {
                 let reason_for_scheduling = solution
-                    .get(work_order.work_order_number())
+                    .get(&work_order.work_order_number)
                     .with_context(|| format!("{:#?}", work_order))?
                     .clone();
 
@@ -242,7 +246,7 @@ pub fn create_excel_dump(
             AgentExports::Tactical(_) => panic!(),
         };
         for activity in sorted_operations {
-            let option_day = match tactical_solution.get(work_order.work_order_number()) {
+            let option_day = match tactical_solution.get(&work_order.work_order_number) {
                 Some(tactical_day) => {
                     let mut days = tactical_day.iter().collect::<Vec<_>>();
                     days.sort();
@@ -254,9 +258,9 @@ pub fn create_excel_dump(
             let one_row = RowNames {
                 strategic_schedule: strategic_period.clone(),
                 tactical_schedule: option_day,
-                priority: work_order.priority().clone(),
-                revision: work_order.revision().clone(),
-                work_order_type: work_order.work_order_type().clone(),
+                priority: work_order.work_order_info.priority.clone(),
+                revision: work_order.work_order_info.revision.clone(),
+                work_order_type: work_order.work_order_info.work_order_type.clone(),
                 main_work_ctr: work_order.main_work_center,
                 operation_work_center: activity.1.resource,
                 work_order_number: work_order.work_order_number,
@@ -278,8 +282,8 @@ pub fn create_excel_dump(
                     .into(),
                 system_status: work_order.work_order_analytic.system_status_codes.clone(),
                 user_status: work_order.work_order_analytic.user_status_codes.clone(),
-                work: activity.1.work_remaining().unwrap(),
-                actual_work: activity.1.operation_info.work_actual.unwrap(),
+                work: activity.1.operation_info.work_remaining,
+                actual_work: activity.1.operation_info.work_actual,
                 unloading_point: activity.1.unloading_point.clone(),
                 basic_start_date: work_order.work_order_dates.basic_start_date.into(),
                 basic_finish_date: work_order.work_order_dates.basic_finish_date.into(),

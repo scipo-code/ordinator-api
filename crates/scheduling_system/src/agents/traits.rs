@@ -5,7 +5,7 @@ use shared_types::{
 };
 use std::sync::MutexGuard;
 
-use super::AlgorithmUtils;
+use super::{AlgorithmBuilder, AlgorithmUtils};
 
 /// This trait will be crucial for making this whole thing work correctly.
 /// I think that the best approach will be to make only a single message
@@ -79,12 +79,7 @@ pub trait AlgorithmUtils {
     type ObjectiveValue;
     type Sol: Solution<ObjectiveValue = Self::ObjectiveValue> + Debug + Clone;
 
-    fn new(
-        id: &Id,
-        solution: Self::Sol,
-        parameters: Self::Parameters,
-        arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
-    ) -> Self;
+    fn builder() -> AlgorithmBuilder;
 
     fn load_shared_solution(&mut self);
 
@@ -111,6 +106,9 @@ trait ObjectiveValue {}
 // of implementation and then continue to make the most of it. I think
 // that it is a better choice to quickly make this interface and then
 // change afterwards.
+//
+// This means that this should not have a `new` function, but instead
+//
 pub trait Parameters
 where
     Self: Sized,

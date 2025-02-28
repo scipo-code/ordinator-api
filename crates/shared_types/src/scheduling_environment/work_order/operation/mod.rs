@@ -57,9 +57,15 @@ impl OperationBuilder {
             activity: self.activity,
             resource: self.resource,
             unloading_point: self.unloading_point.unwrap_or_default(),
-            operation_info: self.operation_info.unwrap_or_default(),
-            operation_analytic: self.operation_analytic.unwrap_or_default(),
-            operation_dates: self.operation_dates.unwrap_or_default(),
+            operation_info: self
+                .operation_info
+                .expect("This value should always be part of the operation"),
+            operation_analytic: self
+                .operation_analytic
+                .expect("This value should always be part of the operation"),
+            operation_dates: self
+                .operation_dates
+                .expect("This value should always be part of the operation"),
         }
     }
 }
