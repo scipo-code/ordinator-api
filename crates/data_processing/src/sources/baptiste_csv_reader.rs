@@ -1,20 +1,24 @@
-use shared_types::scheduling_environment::{
-    work_order::{
-        operation::{operation_info::NumberOfPeople, ActivityNumber},
-        work_order_type::WorkOrderType,
-        WorkOrderNumber,
-    },
-    worker_environment::WorkerEnvironment,
-    SchedulingEnvironment,
-};
-use std::{collections::HashMap, error::Error, fs::File, hash::Hash, path::PathBuf};
+use serde::Deserialize;
+use shared_types::scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
+use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
+use shared_types::scheduling_environment::work_order::work_order_info::work_order_type::WorkOrderType;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::worker_environment::WorkerEnvironment;
+use shared_types::scheduling_environment::SchedulingEnvironment;
 
-use serde::{de::DeserializeOwned, Deserialize};
+use std::collections::HashMap;
+use std::error::Error;
+use std::fs::File;
+use std::hash::Hash;
+use std::path::PathBuf;
 
-use super::{
-    baptiste_csv_reader_merges::load_csv_data, create_time_environment,
-    SchedulingEnvironmentFactory, SchedulingEnvironmentFactoryError, TimeInput,
-};
+use serde::de::DeserializeOwned;
+
+use super::baptiste_csv_reader_merges::load_csv_data;
+use super::create_time_environment;
+use super::SchedulingEnvironmentFactory;
+use super::SchedulingEnvironmentFactoryError;
+use super::TimeInput;
 
 pub struct TotalSap {
     file_path: PathBuf,

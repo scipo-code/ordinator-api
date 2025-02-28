@@ -82,7 +82,7 @@ impl SystemStatusCodes {
         // way of doing it.
         //
         //
-        SystemStatusCodesBuilder(SystemStatusCodes:)
+        SystemStatusCodesBuilder(SystemStatusCodes::default())
     }
 }
 
@@ -178,7 +178,6 @@ pub struct UserStatusCodes {
 impl UserStatusCodes {
     pub(crate) fn builder() -> UserStatusCodesBuilder {
         UserStatusCodesBuilder(UserStatusCodes::default())
-        
     }
 }
 
@@ -234,9 +233,101 @@ impl UserStatusCodesBuilder {
     }
 
     // These functions will be crucial for testing! I do not
-    pub fn smat(&mut self, smat: bool) -> &mut Self {
+    pub fn smat(mut self, smat: bool) -> Self {
         self.0.smat = smat;
         self
+    }
+
+    pub fn from_str(self, user_status_string: &str) -> Self {
+        let appr_pattern = regex::Regex::new(r"APPR").unwrap();
+        let smat_pattern = regex::Regex::new(r"SMAT").unwrap();
+        let init_pattern = regex::Regex::new(r"INIT").unwrap();
+        let rdbl_pattern = regex::Regex::new(r"RDBL").unwrap();
+        let qcap_pattern = regex::Regex::new(r"QCAP").unwrap();
+        let rfrz_pattern = regex::Regex::new(r"RFRZ").unwrap();
+        let wmat_pattern = regex::Regex::new(r"WMAT").unwrap();
+        let cmat_pattern = regex::Regex::new(r"CMAT").unwrap();
+        let pmat_pattern = regex::Regex::new(r"PMAT").unwrap();
+        let apog_pattern = regex::Regex::new(r"APOG").unwrap();
+        let prok_pattern = regex::Regex::new(r"PROK").unwrap();
+        let wrea_pattern = regex::Regex::new(r"WREA").unwrap();
+        let exdo_pattern = regex::Regex::new(r"EXDO").unwrap();
+        let swe_pattern = regex::Regex::new(r"SWE").unwrap();
+        let awdo_pattern = regex::Regex::new(r"AWDO").unwrap();
+        let rout_pattern = regex::Regex::new(r"ROUT").unwrap();
+        let wta_pattern = regex::Regex::new(r"WTA").unwrap();
+        let sch_pattern = regex::Regex::new(r"SCH").unwrap();
+        let sece_pattern = regex::Regex::new(r"SECE").unwrap();
+        let rel_pattern = regex::Regex::new(r"REL").unwrap();
+        let rees_pattern = regex::Regex::new(r"REES").unwrap();
+        let reap_pattern = regex::Regex::new(r"REAP").unwrap();
+        let wrel_pattern = regex::Regex::new(r"WREL").unwrap();
+        let awsd_pattern = regex::Regex::new(r"AWSD").unwrap();
+        let sraa_pattern = regex::Regex::new(r"SRAA").unwrap();
+        let qcrj_pattern = regex::Regex::new(r"QCRJ").unwrap();
+        let awsc_pattern = regex::Regex::new(r"AWSC").unwrap();
+        let lprq_pattern = regex::Regex::new(r"LPRQ").unwrap();
+        let rrev_pattern = regex::Regex::new(r"RREV").unwrap();
+        let awca_pattern = regex::Regex::new(r"AWCA").unwrap();
+        let rreq_pattern = regex::Regex::new(r"RREQ").unwrap();
+        let vfal_pattern = regex::Regex::new(r"VFAL").unwrap();
+        let sreq_pattern = regex::Regex::new(r"SREQ").unwrap();
+        let amcr_pattern = regex::Regex::new(r"AMCR").unwrap();
+        let dfrj_pattern = regex::Regex::new(r"DFRJ").unwrap();
+        let vpas_pattern = regex::Regex::new(r"VPAS").unwrap();
+        let dfcr_pattern = regex::Regex::new(r"DFCR").unwrap();
+        let ireq_pattern = regex::Regex::new(r"IREQ").unwrap();
+        let atvd_pattern = regex::Regex::new(r"ATVD").unwrap();
+        let awmd_pattern = regex::Regex::new(r"AWMD").unwrap();
+        let dfex_pattern = regex::Regex::new(r"DFEX").unwrap();
+        let dfap_pattern = regex::Regex::new(r"DFAP").unwrap();
+        let awpr_pattern = regex::Regex::new(r"AWPR").unwrap();
+
+        Self(UserStatusCodes {
+            appr: appr_pattern.is_match(user_status_string),
+            smat: smat_pattern.is_match(user_status_string),
+            init: init_pattern.is_match(user_status_string),
+            rdbl: rdbl_pattern.is_match(user_status_string),
+            qcap: qcap_pattern.is_match(user_status_string),
+            rfrz: rfrz_pattern.is_match(user_status_string),
+            wmat: wmat_pattern.is_match(user_status_string),
+            cmat: cmat_pattern.is_match(user_status_string),
+            pmat: pmat_pattern.is_match(user_status_string),
+            apog: apog_pattern.is_match(user_status_string),
+            prok: prok_pattern.is_match(user_status_string),
+            wrea: wrea_pattern.is_match(user_status_string),
+            exdo: exdo_pattern.is_match(user_status_string),
+            swe: swe_pattern.is_match(user_status_string),
+            awdo: awdo_pattern.is_match(user_status_string),
+            rout: rout_pattern.is_match(user_status_string),
+            wta: wta_pattern.is_match(user_status_string),
+            sch: sch_pattern.is_match(user_status_string),
+            sece: sece_pattern.is_match(user_status_string),
+            rel: rel_pattern.is_match(user_status_string),
+            rees: rees_pattern.is_match(user_status_string),
+            reap: reap_pattern.is_match(user_status_string),
+            wrel: wrel_pattern.is_match(user_status_string),
+            awsd: awsd_pattern.is_match(user_status_string),
+            sraa: sraa_pattern.is_match(user_status_string),
+            qcrj: qcrj_pattern.is_match(user_status_string),
+            awsc: awsc_pattern.is_match(user_status_string),
+            lprq: lprq_pattern.is_match(user_status_string),
+            rrev: rrev_pattern.is_match(user_status_string),
+            awca: awca_pattern.is_match(user_status_string),
+            rreq: rreq_pattern.is_match(user_status_string),
+            vfal: vfal_pattern.is_match(user_status_string),
+            sreq: sreq_pattern.is_match(user_status_string),
+            amcr: amcr_pattern.is_match(user_status_string),
+            dfrj: dfrj_pattern.is_match(user_status_string),
+            vpas: vpas_pattern.is_match(user_status_string),
+            dfcr: dfcr_pattern.is_match(user_status_string),
+            ireq: ireq_pattern.is_match(user_status_string),
+            atvd: atvd_pattern.is_match(user_status_string),
+            awmd: awmd_pattern.is_match(user_status_string),
+            dfex: dfex_pattern.is_match(user_status_string),
+            dfap: dfap_pattern.is_match(user_status_string),
+            awpr: awpr_pattern.is_match(user_status_string),
+        })
     }
 }
 
@@ -280,6 +371,58 @@ impl SystemStatusCodesBuilder {
     pub fn rel(&mut self, rel: bool) -> &mut Self {
         self.0.rel = rel;
         self
+    }
+
+    pub fn from_str(mut self, system_status_string: &str) -> Self {
+        // Patterns
+        //
+        let rel_pattern = regex::Regex::new(r"REL").unwrap();
+        let prc_pattern = regex::Regex::new(r"PRC").unwrap();
+        let setc_pattern = regex::Regex::new(r"SETC").unwrap();
+        let ssap_pattern = regex::Regex::new(r"SSAP").unwrap();
+        let gmps_pattern = regex::Regex::new(r"GMPS").unwrap();
+        let manc_pattern = regex::Regex::new(r"MANC").unwrap();
+        let crtd_pattern = regex::Regex::new(r"CRTD").unwrap();
+        let nmat_pattern = regex::Regex::new(r"NMAT").unwrap();
+        let teco_pattern = regex::Regex::new(r"TECO").unwrap();
+        let macm_pattern = regex::Regex::new(r"MACM").unwrap();
+        let mspt_pattern = regex::Regex::new(r"MSPT").unwrap();
+        let pprt_pattern = regex::Regex::new(r"PPRT").unwrap();
+        let ncmp_pattern = regex::Regex::new(r"NCMP").unwrap();
+        let clsd_pattern = regex::Regex::new(r"CLSD").unwrap();
+        let pcnf_pattern = regex::Regex::new(r"PCNF").unwrap();
+        let cser_pattern = regex::Regex::new(r"CSER").unwrap();
+        let prt_pattern = regex::Regex::new(r"PRT").unwrap();
+        let cnf_pattern = regex::Regex::new(r"CNF").unwrap();
+        let ntup_pattern = regex::Regex::new(r"NTUP").unwrap();
+        let estc_pattern = regex::Regex::new(r"ESTC").unwrap();
+        let relr_pattern = regex::Regex::new(r"RELR").unwrap();
+        let gmco_pattern = regex::Regex::new(r"GMCO").unwrap();
+
+        Self(SystemStatusCodes {
+            rel: rel_pattern.is_match(system_status_string),
+            prc: prc_pattern.is_match(system_status_string),
+            setc: setc_pattern.is_match(system_status_string),
+            ssap: ssap_pattern.is_match(system_status_string),
+            gmps: gmps_pattern.is_match(system_status_string),
+            manc: manc_pattern.is_match(system_status_string),
+            crtd: crtd_pattern.is_match(system_status_string),
+            nmat: nmat_pattern.is_match(system_status_string),
+            teco: teco_pattern.is_match(system_status_string),
+            macm: macm_pattern.is_match(system_status_string),
+            mspt: mspt_pattern.is_match(system_status_string),
+            pprt: pprt_pattern.is_match(system_status_string),
+            ncmp: ncmp_pattern.is_match(system_status_string),
+            clsd: clsd_pattern.is_match(system_status_string),
+            pcnf: pcnf_pattern.is_match(system_status_string),
+            cser: cser_pattern.is_match(system_status_string),
+            prt: prt_pattern.is_match(system_status_string),
+            cnf: cnf_pattern.is_match(system_status_string),
+            ntup: ntup_pattern.is_match(system_status_string),
+            estc: estc_pattern.is_match(system_status_string),
+            relr: relr_pattern.is_match(system_status_string),
+            gmco: gmco_pattern.is_match(system_status_string),
+        })
     }
 }
 

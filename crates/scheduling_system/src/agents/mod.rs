@@ -14,7 +14,7 @@ use arc_swap::{ArcSwap, Guard};
 use colored::Colorize;
 use itertools::Itertools;
 
-use traits::ActorBasedLargeNeighborhoodSearch;
+use traits::{ActorBasedLargeNeighborhoodSearch, Parameters, Solution};
 
 use operational_agent::algorithm::operational_parameter::OperationalParameters;
 use operational_agent::algorithm::operational_solution::Assignment;
@@ -39,20 +39,22 @@ use supervisor_agent::algorithm::supervisor_parameters::SupervisorParameters;
 use tactical_agent::algorithm::tactical_parameters::TacticalParameters;
 use tactical_agent::algorithm::tactical_solution::OperationSolution;
 
-pub struct Agent<Algorithm, AgentRequest, AgentResponse>
+use crate::orchestrator::agent_registry::Communication;
+
+pub struct Agent<AgentRequest, AgentResponse, S, P, I>
 where
     Algorithm: ActorBasedLargeNeighborhoodSearch,
 {
     agent_id: Id,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-    pub algorithm: Algorithm,
+    pub algorithm: Algorithm<S, P, I>,
     pub receiver_from_orchestrator: Receiver<AgentMessage<AgentRequest>>,
     pub sender_to_orchestrator: Sender<Result<AgentResponse>>,
     pub configurations: Arc<RwLock<SystemConfigurations>>,
     pub notify_orchestrator: NotifyOrchestrator,
 }
 
-impl<Algorithm, AgentRequest, AgentResponse> Agent<Algorithm, AgentRequest, AgentResponse>
+impl<AgentRequest, AgentResponse, S, P, I> Agent<AgentRequest, AgentResponse, S, P, I>
 where
     Self: MessageHandler<Req = AgentRequest, Res = AgentResponse>,
     Algorithm: ActorBasedLargeNeighborhoodSearch,
@@ -89,7 +91,7 @@ where
         }
     }
 
-    pub fn builder() -> AgentBuilder<Algorithm, AgentRequest, AgentResponse> {
+    pub fn builder() -> AgentBuilder<AgentRequest, AgentResponse, S, P, I> {
         AgentBuilder {
             agent_id: None,
             scheduling_environment: None,
@@ -98,23 +100,27 @@ where
             sender_to_orchestrator: None,
             configurations: None,
             notify_orchestrator: None,
+            communication_for_orchestrator: None,
         }
     }
 }
 
-pub struct AgentBuilder<Algorithm, AgentRequest, AgentResponse> {
+pub struct AgentBuilder<AgentRequest, AgentResponse, S, P, I> {
     agent_id: Option<Id>,
     scheduling_environment: Option<Arc<Mutex<SchedulingEnvironment>>>,
-    algorithm: Option<Algorithm>,
+    algorithm: Option<Algorithm<S, P, I>>,
     receiver_from_orchestrator: Option<Receiver<AgentMessage<AgentRequest>>>,
     sender_to_orchestrator: Option<Sender<Result<AgentResponse>>>,
     configurations: Option<Arc<RwLock<SystemConfigurations>>>,
     notify_orchestrator: Option<NotifyOrchestrator>,
+    //
+    communication_for_orchestrator:
+        Option<Communication<ActorMessage<AgentRequest>, AgentResponse>>,
 }
 
-impl<Algorithm, AgentRequest, AgentResponse> AgentBuilder {
-    pub fn build(self) -> Agent<Algorithm, AgentRequest, AgentResponse> {
-        Agent {
+impl<AgentRequest, AgentResponse, S, P, I> AgentBuilder<AgentRequest, AgentResponse, S, P, I> {
+    pub fn build(self) -> Communication<ActorMessage<AgentRequest>, AgentResponse> {
+        let agent = Agent {
             agent_id: self.agent_id.unwrap_or_default(),
             scheduling_environment: self.scheduling_environment.unwrap_or_default(),
             algorithm: self.algorithm.unwrap_or_default(),
@@ -122,7 +128,15 @@ impl<Algorithm, AgentRequest, AgentResponse> AgentBuilder {
             sender_to_orchestrator: self.sender_to_orchestrator.unwrap_or_default(),
             configurations: self.configurations.unwrap_or_default(),
             notify_orchestrator: self.notify_orchestrator.unwrap_or_default(),
-        }
+        };
+        let thread_name = format!(
+            "{} for Asset: {}",
+            std::any::type_name_of_val(&agent),
+            asset,
+        );
+        std::thread::Builder::new()
+            .name(thread_name)
+            .spawn(move || agent.run())?;
     }
 
     pub fn agent_id(&mut self, agent_id: Id) -> &mut Self {
@@ -136,8 +150,37 @@ impl<Algorithm, AgentRequest, AgentResponse> AgentBuilder {
         self.scheduling_environment = Some(scheduling_environment);
         self
     }
-    pub fn algorithm(&mut self, algorithm: Algorithm) -> &mut Self {
-        self.algorithm = Some(algorithm);
+
+    pub fn algorithm(&mut self, configure: F) -> &mut Self
+    where
+        F: FnOnce(&mut AlgorithmBuilder) -> &mut AlgorithmBuilder,
+    {
+        let mut algorithm_builder = Algorithm::builder();
+
+        configure(&mut algorithm_builder);
+
+        self.algorithm = Some(algorithm_builder.build());
+        self
+    }
+
+    pub fn communication(&mut self) -> &mut Self {
+        let (sender_to_agent, receiver_from_orchestrator): (
+            std::sync::mpsc::Sender<ActorMessage<StrategicRequestMessage>>,
+            std::sync::mpsc::Receiver<ActorMessage<StrategicRequestMessage>>,
+        ) = sync::mpsc::channel();
+
+        let (sender_to_orchestrator, receiver_from_agent): (
+            std::sync::mpsc::Sender<std::result::Result<StrategicResponseMessage, anyhow::Error>>,
+            std::sync::mpsc::Receiver<std::result::Result<StrategicResponseMessage, anyhow::Error>>,
+        ) = std::sync::mpsc::channel();
+
+        self.communication_for_orchestrator = Some(Communication {
+            sender: sender_to_agent,
+            receiver: receiver_from_agent,
+        });
+
+        self.receiver_from_orchestrator = Some(receiver_from_orchestrator);
+        self.sender_to_orchestrator = Some(sender_to_orchestrator);
         self
     }
     pub fn receiver_from_orchestrator(
@@ -167,7 +210,11 @@ impl<Algorithm, AgentRequest, AgentResponse> AgentBuilder {
     }
 }
 
-pub struct Algorithm<S, P, I> {
+pub struct Algorithm<S, P, I>
+where
+    S: Solution,
+    P: Parameters,
+{
     id: Id,
     solution_intermediate: I,
     solution: S,
@@ -176,6 +223,65 @@ pub struct Algorithm<S, P, I> {
     loaded_shared_solution: Guard<Arc<SharedSolution>>,
 }
 
+pub struct AlgorithmBuilder<S, P, I>
+where
+    S: Solution,
+    P: Parameters,
+{
+    id: Option<Id>,
+    solution_intermediate: Option<I>,
+    solution: Option<S>,
+    parameters: Option<P>,
+    arc_swap_shared_solution: Option<Arc<ArcSwapSharedSolution>>,
+    loaded_shared_solution: Option<Guard<Arc<SharedSolution>>>,
+}
+
+impl<S, P, I> AlgorithmBuilder<S, P, I>
+where
+    S: Solution,
+    P: Parameters,
+    I: Default,
+{
+    pub fn id(&mut self, id: Option<Id>) -> &mut Self {
+        self.id = Some(id);
+        self
+    }
+    pub fn solution_intermediate(&mut self, solution_intermediate: Option<I>) -> &mut Self {
+        self.solution_intermediate = Some(solution_intermediate);
+        self
+    }
+    // This should call the relevant method instead of the
+    pub fn solution(&mut self, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut S::Builder) -> &mut S::Builder,
+    {
+        let mut solution_builder = S::builder();
+        f(&mut solution_builder);
+        self.solution = Some(solution_builder.build());
+        self
+    }
+
+    pub fn parameters(&mut self, parameters: Option<P>) -> &mut Self {
+        self.parameters = Some(parameters);
+        self
+    }
+    pub fn arc_swap_shared_solution(
+        &mut self,
+        arc_swap_shared_solution: Option<Arc<ArcSwapSharedSolution>>,
+    ) -> &mut Self {
+        self.arc_swap_shared_solution = Some(arc_swap_shared_solution);
+        self
+    }
+    pub fn loaded_shared_solution(
+        &mut self,
+        loaded_shared_solution: Option<Guard<Arc<SharedSolution>>>,
+    ) -> &mut Self {
+        self.loaded_shared_solution = Some(loaded_shared_solution);
+        self
+    }
+}
+
+// `new` should be replaced by a builder.
 impl<S, P, I> AlgorithmUtils for Algorithm<S, P, I>
 where
     I: Default,
@@ -185,21 +291,14 @@ where
     type ObjectiveValue = S::ObjectiveValue;
     type Parameters = P;
 
-    fn new(
-        id: &Id,
-        solution: S,
-        parameters: P,
-        arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
-    ) -> Self {
-        let loaded_shared_solution = arc_swap_shared_solution.0.load();
-
-        Self {
-            id: id.clone(),
-            solution_intermediate: I::default(),
-            solution,
-            parameters,
-            arc_swap_shared_solution,
-            loaded_shared_solution,
+    fn builder() -> AlgorithmBuilder {
+        AlgorithmBuilder {
+            id: None,
+            solution_intermediate: None,
+            solution: None,
+            parameters: None,
+            arc_swap_shared_solution: None,
+            loaded_shared_solution: None,
         }
     }
 
