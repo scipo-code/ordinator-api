@@ -5,7 +5,8 @@ export type ResourcePeriod = { period: string; workCenters: WorkCenter[] };
 
 export type ResourceTableRow = {
   id: string;
-  period: string;
+  periodId: string;
+  periodLabel: string;
   [workCenter: string]: number | string;
 };
 
