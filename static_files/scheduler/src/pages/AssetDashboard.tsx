@@ -13,20 +13,20 @@ export default function AssetDashboard() {
 
   return (
     <Container maxWidth="full" padding="sm" className="bg-white min-h-screen">
-      <h1 className="text-4xl font-bold">Dashboard</h1>
+      <h1 className="text-4xl font-bold">Dashboard: {asset.toUpperCase()}</h1>
       <br/>
-      <Tabs defaultValue="loading-graph" className="w-full">
+      <Tabs defaultValue="resource-loading-graph" className="w-full">
         <div className="flex items-center justify-between">
           <TabsList>
-            <TabsTrigger value="loading-graph">Graph</TabsTrigger>
-            <TabsTrigger value="loading-page">Loadings</TabsTrigger>
+            <TabsTrigger value="resource-loading-graph">Graph</TabsTrigger>
+            <TabsTrigger value="resource-overview">Resources</TabsTrigger>
           </TabsList>
           <ExportDialog asset={asset}/>
         </div>
-          <TabsContent value="loading-graph">
+          <TabsContent value="resource-loading-graph">
             <p>Graph</p>
           </TabsContent>
-          <TabsContent value="loading-page">
+          <TabsContent value="resource-overview">
             <ResourceOverview />
           </TabsContent>
         </Tabs>
