@@ -1,7 +1,7 @@
 import axios from "axios";
 import { useState, useEffect } from "react";
 import { Container } from "@/components/Container";
-import { useParams } from "react-router-dom";
+import { useParams, Navigate } from "react-router-dom";
 import { AssetResourceApiResponse,  ResourceTableRow } from "@/types";
 import { DataTable } from "./data-table";
 import { ColumnDef } from "@tanstack/react-table";
@@ -9,6 +9,10 @@ import { ColumnDef } from "@tanstack/react-table";
 
 export default function ResourceOverview() {
   const { asset } = useParams<{ asset: string}>();
+
+  if (!asset) {
+    return <Navigate to="/404" replace />
+  }
 
   const [ tableData, setTableData ] = useState<ResourceTableRow[]>([]);
   const [ columns, setColumns ] = useState<ColumnDef<ResourceTableRow>[]>([]);
@@ -25,7 +29,7 @@ export default function ResourceOverview() {
         setColumns(cols);
         
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching resources: ", err);
       }
     }
 
@@ -35,7 +39,7 @@ export default function ResourceOverview() {
   // TODO: Better error handling for when data is not available.
   return (
     <Container maxWidth="full" padding="sm" className="bg-white border border-gray-300 shadow rounded-lg">
-      <DataTable columns={columns} data={tableData} />
+      <DataTable asset={asset} columns={columns} data={tableData} />
     </Container>
   );
 }
@@ -43,11 +47,13 @@ export default function ResourceOverview() {
 function makeTableRows(apiData: AssetResourceApiResponse): ResourceTableRow[] {
   return apiData.data.map((entry, index) => {
     const periodObj = apiData.metadata.periods.find((p) => p.id === entry.periodId)
+    const periodId = periodObj ? periodObj.id : entry.periodId
     const periodLabel = periodObj ? periodObj.label : entry.periodId
 
     return {
       id: `row-${index}`,
-      period: periodLabel,
+      periodId: periodId,
+      periodLabel: periodLabel,
       ...entry.values,
     }
   })
@@ -55,7 +61,7 @@ function makeTableRows(apiData: AssetResourceApiResponse): ResourceTableRow[] {
 
 function makeColumns(apiData: AssetResourceApiResponse): ColumnDef<ResourceTableRow>[] {
   const periodColumn: ColumnDef<ResourceTableRow> = {
-    accessorKey: "period",
+    accessorKey: "periodLabel",
     header: "Period"
   }
 
