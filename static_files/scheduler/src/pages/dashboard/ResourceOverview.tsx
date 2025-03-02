@@ -4,10 +4,7 @@ import { Container } from "@/components/Container";
 import { useParams } from "react-router-dom";
 import { AssetResourceApiResponse,  ResourceTableRow } from "@/types";
 import { DataTable } from "./data-table";
-// import { transformResourcePeriodToResourceRow } from "./utils";
-// import { createColumnsFromResourceData } from "./columns";
 import { ColumnDef } from "@tanstack/react-table";
-// import { columns } from "./columns"; 
 
 
 export default function ResourceOverview() {
