@@ -17,29 +17,29 @@ export default function ResourceOverview() {
   const [ tableData, setTableData ] = useState<ResourceTableRow[]>([]);
   const [ columns, setColumns ] = useState<ColumnDef<ResourceTableRow>[]>([]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const { data } = await axios.get<AssetResourceApiResponse>(`/api/scheduler/${asset}/resources`);
-        const rows = makeTableRows(data);
+  const fetchData = async () => {
+    try {
+      const { data } = await axios.get<AssetResourceApiResponse>(`/api/scheduler/${asset}/resources`);
+      const rows = makeTableRows(data);
 
-        const cols = makeColumns(data);
+      const cols = makeColumns(data);
 
-        setTableData(rows);
-        setColumns(cols);
-        
-      } catch (err) {
-        console.error("Error fetching resources: ", err);
-      }
+      setTableData(rows);
+      setColumns(cols);
+    
+    } catch (err) {
+      console.error("Error fetching resources: ", err);
     }
+  };
 
+  useEffect(() => {
     fetchData()
   }, [asset])
 
   // TODO: Better error handling for when data is not available.
   return (
     <Container maxWidth="full" padding="sm" className="bg-white border border-gray-300 shadow rounded-lg">
-      <DataTable asset={asset} columns={columns} data={tableData} />
+      <DataTable asset={asset} columns={columns} data={tableData} onUpdate={fetchData}/>
     </Container>
   );
 }

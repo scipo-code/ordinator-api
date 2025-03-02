@@ -20,13 +20,14 @@ interface EditPeriodDialogProps {
   asset: string,
   periodId: string,
   onClose: () => void,
+  onUpdate: () => void,
 };
 
 
 
 
 
-const EditPeriodDialog: React.FC<EditPeriodDialogProps> = ({ asset, periodId, onClose }) => {
+const EditPeriodDialog: React.FC<EditPeriodDialogProps> = ({ asset, periodId, onClose, onUpdate }) => {
   const [downloading, setDownloading] = useState(true);
   const [formValues, setFormValues] = useState<Record<string, number | string>>({})
   const [error, setError] = useState<null | string>(null);
@@ -60,9 +61,44 @@ const EditPeriodDialog: React.FC<EditPeriodDialogProps> = ({ asset, periodId, on
     setFormValues((prev) => ({...prev, [resourceId]: value }))
   }
 
-  const uploadResources =  async () => {
-    console.log("uploading")
-  }
+  const uploadResoucesForPeriod = async () => {
+    const payload: AssetResourceApiResponse = {
+      asset,
+      metadata: {
+        periods: [{id: periodId, label: periodId}],
+        resources: Object.keys(formValues).map((resourceId) => ({
+          id: resourceId,
+          label: resourceId
+        })),
+      },
+      data: [
+        {
+          periodId,
+          values: Object.keys(formValues).reduce((acc, resourceId) => {
+            acc[resourceId] = Number(formValues[resourceId]);
+            return acc;
+          }, {} as Record<string, number>),
+        },
+      ],
+    };
+
+    console.log("From Client: ", payload);
+
+    try {
+      const response = await axios.put(
+        `api/scheduler/${asset}/resources/${periodId}`,
+        payload,
+      );
+      console.log("Client got response: ", response.data)
+      // This rerenders the table
+      onUpdate();
+
+      // This closes the modal
+      onClose();
+    } catch (error) {
+      console.error("Error updating resources: ", error);
+    }
+  };
 
   return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -94,7 +130,7 @@ const EditPeriodDialog: React.FC<EditPeriodDialogProps> = ({ asset, periodId, on
               <p className="text-red-600">{error}</p>
             ) : null}
           <DialogFooter>
-            <Button onClick={uploadResources} disabled={downloading} type="submit">
+            <Button onClick={uploadResoucesForPeriod} disabled={downloading} type="submit">
             {downloading ? (
               <>
                 <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />

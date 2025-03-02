@@ -22,12 +22,15 @@ interface DataTableProps<TData extends ResourceTableRow, TValue> {
   asset: string;
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  // WARNING: This creates a strong coupling to the modal.
+  onUpdate: () => void;
 }
 
 export function DataTable<TData extends ResourceTableRow, TValue>({
   asset,
   columns,
   data,
+  onUpdate,
 }: DataTableProps<TData, TValue>) {
   const table = useReactTable({
     data,
@@ -89,6 +92,7 @@ export function DataTable<TData extends ResourceTableRow, TValue>({
           asset={asset}
           periodId={selectedRow.periodId}
           onClose={() => setSelectedRow(null)}
+          onUpdate={onUpdate}
         />
       )}
     </>
