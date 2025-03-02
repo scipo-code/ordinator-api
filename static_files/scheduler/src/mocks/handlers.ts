@@ -168,4 +168,20 @@ export const handlers = [
       return Response.json(periodResponse, { status: 200 });
     },
   ),
+
+  http.put(
+    "/api/scheduler/:asset/resources/:periodId",
+    async ({ request, params }) => {
+      const { asset, periodId } = params;
+      const updatedPeriod = await request.json();
+      console.log(
+        'Updating asset "%s" for period "%s" with:',
+        asset,
+        periodId,
+        updatedPeriod,
+      );
+
+      return Response.json({ status: 200 });
+    },
+  ),
 ];
