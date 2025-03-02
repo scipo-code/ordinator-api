@@ -118,6 +118,54 @@ export const handlers = [
       a.asset.toLowerCase() === asset
     );
 
+    if (!assetResources) {
+      return new Response("Asset not found", { status: 404 });
+    }
+
     return Response.json(assetResources, { status: 200 });
   }),
+
+  http.get(
+    "/api/scheduler/:asset/resources/:periodId",
+    ({ params }: { params: { asset: string; periodId: string } }) => {
+      const { asset, periodId } = params;
+      console.log(asset, periodId);
+      // Filter json based on asset
+      const assetResources = resourceData.assets.find((a) =>
+        a.asset.toLowerCase() === asset
+      );
+
+      if (!assetResources) {
+        return Response.json({ error: "Asset not found" }, { status: 404 });
+      }
+
+      const periodResources = assetResources.data.find(
+        (d) => d.periodId.toLowerCase() === periodId.toLowerCase(),
+      );
+
+      if (!periodResources) {
+        return Response.json({ error: "Period not found" }, {
+          status: 404,
+        });
+      }
+
+      const filteredMetadataPeriods = assetResources.metadata.periods.filter(
+        (p) => p.id.toLowerCase() === periodId.toLowerCase(),
+      );
+      const filteredMetadataResources = assetResources.metadata.resources
+        .filter(
+          (r) => r.id.toLowerCase() === periodId.toLowerCase(),
+        );
+
+      const periodResponse = {
+        asset: assetResources.asset,
+        metadata: {
+          periods: filteredMetadataPeriods,
+          resources: filteredMetadataResources,
+        },
+        data: [periodResources],
+      };
+      return Response.json(periodResponse, { status: 200 });
+    },
+  ),
 ];
