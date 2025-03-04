@@ -1,17 +1,21 @@
-use anyhow::{bail, Context, Result};
+use anyhow::bail;
+use anyhow::Result;
 use serde::Serialize;
+use shared_types::scheduling_environment::work_order::WorkOrders;
+
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::sync::MutexGuard;
+
 use shared_types::agents::strategic::StrategicResources;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::Work;
-use shared_types::scheduling_environment::work_order::{
-    WorkOrder, WorkOrderConfigurations, WorkOrderNumber,
-};
+use shared_types::scheduling_environment::work_order::WorkOrder;
+use shared_types::scheduling_environment::work_order::WorkOrderConfigurations;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::{Id, Resources};
-use shared_types::scheduling_environment::{SchedulingEnvironment, WorkOrders};
+use shared_types::scheduling_environment::SchedulingEnvironment;
 use shared_types::Asset;
-use std::str::FromStr;
-use std::sync::MutexGuard;
-use std::{collections::HashMap, collections::HashSet};
 
 use crate::agents::strategic_agent::StrategicOptions;
 use crate::agents::traits::Parameters;
@@ -26,6 +30,9 @@ pub struct StrategicParameters {
     pub strategic_options: StrategicOptions,
 }
 
+// QUESTION
+// Should you make a builder for the `Parameters`?
+// I believe that this is a good idea, but I am not really sure
 impl Parameters for StrategicParameters {
     type Key = WorkOrderNumber;
     type Options = StrategicOptions;
@@ -37,6 +44,10 @@ impl Parameters for StrategicParameters {
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self> {
         let asset = id.2.first().expect("This should never happen");
+
+        let work_orders = &scheduling_environment.work_orders;
+
+        let strategic_periods = &scheduling_environment.time_environment.strategic_periods;
 
         let strategic_work_order_parameters = work_orders
             .inner
@@ -55,15 +66,11 @@ impl Parameters for StrategicParameters {
                     // worried about the name.
                     // You could fix this now, but the configuration policy is much more important.
                     WorkOrderParameter::builder()
-                        .with_scheduling_environment(wo, periods)
+                        .with_scheduling_environment(wo, strategic_periods)
                         .build(),
                 )
             })
             .collect();
-
-        let work_orders = &scheduling_environment.work_orders;
-
-        let strategic_periods = &scheduling_environment.time_environment.strategic_periods;
 
         let strategic_clustering =
             StrategicClustering::calculate_clustering_values(asset, work_orders, options)?;
@@ -310,17 +317,8 @@ impl StrategicClustering {
     pub fn calculate_clustering_values(
         asset: &Asset,
         work_orders: &WorkOrders,
-        clustering_weights: ClusteringWrights,
+        clustering_weights: ClusteringWeights,
     ) -> Result<HashMap<(WorkOrderNumber, WorkOrderNumber), ClusteringValue>> {
-        #[derive(serde::Deserialize, Debug)]
-        pub struct ClusteringWeights {
-            asset: u64,
-            sector: u64,
-            system: u64,
-            subsystem: u64,
-            equipment_tag: u64,
-        }
-
         let work_orders_data: Vec<_> = work_orders
             .inner
             .iter()

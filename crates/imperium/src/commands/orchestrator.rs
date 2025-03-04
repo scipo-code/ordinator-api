@@ -6,15 +6,15 @@ use reqwest::blocking::Client;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::period::Period;
 
-use shared_types::scheduling_environment::work_order::status_codes::UserStatusCodes;
-use shared_types::scheduling_environment::work_order::unloading_point::UnloadingPoint;
+use shared_types::scheduling_environment::work_order::work_order_analytic::status_codes::UserStatusCodes;
+use shared_types::scheduling_environment::work_order::work_order_dates::unloading_point::UnloadingPoint;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::{Resources, Shift};
 use shared_types::{
     orchestrator::OrchestratorRequest, scheduling_environment::worker_environment::resources::Id,
     SystemMessages,
 };
-use shared_types::{Asset, ActorSpecifications};
+use shared_types::{ActorSpecifications, Asset};
 
 #[derive(Subcommand, Debug)]
 pub enum OrchestratorCommands {

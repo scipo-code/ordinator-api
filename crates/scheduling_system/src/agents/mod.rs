@@ -7,22 +7,27 @@ pub mod traits;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Debug, Display};
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 use anyhow::{bail, Context, Result};
 use arc_swap::{ArcSwap, Guard};
 use colored::Colorize;
 use itertools::Itertools;
 
-use traits::{ActorBasedLargeNeighborhoodSearch, Parameters, Solution};
+use traits::{
+    ActorBasedLargeNeighborhoodSearch, AlgorithmUtils, GetMarginalFitness, MessageHandler,
+    Parameters, Solution,
+};
 
+use super::orchestrator::NotifyOrchestrator;
 use operational_agent::algorithm::operational_parameter::OperationalParameters;
 use operational_agent::algorithm::operational_solution::Assignment;
 use operational_agent::algorithm::operational_solution::MarginalFitness;
 use operational_agent::algorithm::operational_solution::OperationalAssignment;
 use operational_agent::algorithm::{OperationalObjectiveValue, Unavailability};
-use orchestrator::NotifyOrchestrator;
-use shared_types::agents::strategic::{OperationalResource, StrategicResources};
+use shared_types::agents::strategic::{
+    OperationalResource, StrategicRequestMessage, StrategicResources, StrategicResponseMessage,
+};
 use shared_types::agents::supervisor::SupervisorObjectiveValue;
 use shared_types::agents::tactical::{Days, TacticalObjectiveValue, TacticalResources};
 use shared_types::orchestrator::ApiSolution;
@@ -40,15 +45,20 @@ use tactical_agent::algorithm::tactical_parameters::TacticalParameters;
 use tactical_agent::algorithm::tactical_solution::OperationSolution;
 
 use crate::orchestrator::agent_registry::Communication;
+use crate::orchestrator::configuration::SystemConfigurations;
 
+// TODO [ ] FIX [ ]
+// You should reuse the trait bounds on the Agent and the Algorithm.
 pub struct Agent<AgentRequest, AgentResponse, S, P, I>
 where
-    Algorithm: ActorBasedLargeNeighborhoodSearch,
+    Algorithm<S, P, I>: ActorBasedLargeNeighborhoodSearch,
+    S: Solution,
+    P: Parameters,
 {
     agent_id: Id,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub algorithm: Algorithm<S, P, I>,
-    pub receiver_from_orchestrator: Receiver<AgentMessage<AgentRequest>>,
+    pub receiver_from_orchestrator: Receiver<ActorMessage<AgentRequest>>,
     pub sender_to_orchestrator: Sender<Result<AgentResponse>>,
     pub configurations: Arc<RwLock<SystemConfigurations>>,
     pub notify_orchestrator: NotifyOrchestrator,
@@ -57,9 +67,11 @@ where
 impl<AgentRequest, AgentResponse, S, P, I> Agent<AgentRequest, AgentResponse, S, P, I>
 where
     Self: MessageHandler<Req = AgentRequest, Res = AgentResponse>,
-    Algorithm: ActorBasedLargeNeighborhoodSearch,
+    Algorithm<S, P, I>: ActorBasedLargeNeighborhoodSearch,
     AgentRequest: Send + Sync + 'static,
     AgentResponse: Send + Sync + 'static,
+    S: Solution,
+    P: Parameters,
 {
     pub fn run(&mut self) -> Result<()> {
         let mut schedule_iteration = ScheduleIteration::default();
@@ -105,11 +117,15 @@ where
     }
 }
 
-pub struct AgentBuilder<AgentRequest, AgentResponse, S, P, I> {
+pub struct AgentBuilder<AgentRequest, AgentResponse, S, P, I>
+where
+    S: Solution,
+    P: Parameters,
+{
     agent_id: Option<Id>,
     scheduling_environment: Option<Arc<Mutex<SchedulingEnvironment>>>,
     algorithm: Option<Algorithm<S, P, I>>,
-    receiver_from_orchestrator: Option<Receiver<AgentMessage<AgentRequest>>>,
+    receiver_from_orchestrator: Option<Receiver<ActorMessage<AgentRequest>>>,
     sender_to_orchestrator: Option<Sender<Result<AgentResponse>>>,
     configurations: Option<Arc<RwLock<SystemConfigurations>>>,
     notify_orchestrator: Option<NotifyOrchestrator>,
@@ -118,7 +134,11 @@ pub struct AgentBuilder<AgentRequest, AgentResponse, S, P, I> {
         Option<Communication<ActorMessage<AgentRequest>, AgentResponse>>,
 }
 
-impl<AgentRequest, AgentResponse, S, P, I> AgentBuilder<AgentRequest, AgentResponse, S, P, I> {
+impl<AgentRequest, AgentResponse, S, P, I> AgentBuilder<AgentRequest, AgentResponse, S, P, I>
+where
+    S: Solution,
+    P: Parameters,
+{
     pub fn build(self) -> Communication<ActorMessage<AgentRequest>, AgentResponse> {
         let agent = Agent {
             agent_id: self.agent_id.unwrap_or_default(),
@@ -132,42 +152,46 @@ impl<AgentRequest, AgentResponse, S, P, I> AgentBuilder<AgentRequest, AgentRespo
         let thread_name = format!(
             "{} for Asset: {}",
             std::any::type_name_of_val(&agent),
-            asset,
+            agent
+                .agent_id
+                .2
+                .first()
+                .expect("Every agent needs to be associated with an Asset"),
         );
         std::thread::Builder::new()
             .name(thread_name)
             .spawn(move || agent.run())?;
     }
 
-    pub fn agent_id(&mut self, agent_id: Id) -> &mut Self {
+    pub fn agent_id(mut self, agent_id: Id) -> Self {
         self.agent_id = Some(agent_id);
         self
     }
     pub fn scheduling_environment(
-        &mut self,
+        mut self,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-    ) -> &mut Self {
+    ) -> Self {
         self.scheduling_environment = Some(scheduling_environment);
         self
     }
 
-    pub fn algorithm(&mut self, configure: F) -> &mut Self
+    pub fn algorithm<F>(mut self, configure: F) -> Self
     where
-        F: FnOnce(&mut AlgorithmBuilder) -> &mut AlgorithmBuilder,
+        F: FnOnce(AlgorithmBuilder) -> AlgorithmBuilder,
     {
-        let mut algorithm_builder = Algorithm::builder();
+        let algorithm_builder = Algorithm::builder();
 
-        configure(&mut algorithm_builder);
+        let algorithm_builder = configure(algorithm_builder);
 
         self.algorithm = Some(algorithm_builder.build());
         self
     }
 
-    pub fn communication(&mut self) -> &mut Self {
+    pub fn communication(mut self) -> Self {
         let (sender_to_agent, receiver_from_orchestrator): (
             std::sync::mpsc::Sender<ActorMessage<StrategicRequestMessage>>,
             std::sync::mpsc::Receiver<ActorMessage<StrategicRequestMessage>>,
-        ) = sync::mpsc::channel();
+        ) = std::sync::mpsc::channel();
 
         let (sender_to_orchestrator, receiver_from_agent): (
             std::sync::mpsc::Sender<std::result::Result<StrategicResponseMessage, anyhow::Error>>,
@@ -184,27 +208,24 @@ impl<AgentRequest, AgentResponse, S, P, I> AgentBuilder<AgentRequest, AgentRespo
         self
     }
     pub fn receiver_from_orchestrator(
-        &mut self,
-        receiver_from_orchestrator: Receiver<AgentMessage<AgentRequest>>,
-    ) -> &mut Self {
+        mut self,
+        receiver_from_orchestrator: Receiver<ActorMessage<AgentRequest>>,
+    ) -> Self {
         self.receiver_from_orchestrator = Some(receiver_from_orchestrator);
         self
     }
     pub fn sender_to_orchestrator(
-        &mut self,
+        mut self,
         sender_to_orchestrator: Sender<Result<AgentResponse>>,
-    ) -> &mut Self {
+    ) -> Self {
         self.sender_to_orchestrator = Some(sender_to_orchestrator);
         self
     }
-    pub fn configurations(
-        &mut self,
-        configurations: Arc<RwLock<SystemConfigurations>>,
-    ) -> &mut Self {
+    pub fn configurations(mut self, configurations: Arc<RwLock<SystemConfigurations>>) -> Self {
         self.configurations = Some(configurations);
         self
     }
-    pub fn notify_orchestrator(&mut self, notify_orchestrator: NotifyOrchestrator) -> &mut Self {
+    pub fn notify_orchestrator(mut self, notify_orchestrator: NotifyOrchestrator) -> Self {
         self.notify_orchestrator = Some(notify_orchestrator);
         self
     }
@@ -251,12 +272,12 @@ where
         self
     }
     // This should call the relevant method instead of the
-    pub fn solution(&mut self, f: F) -> &mut Self
+    pub fn solution<F>(mut self, f: F) -> Self
     where
-        F: FnOnce(&mut S::Builder) -> &mut S::Builder,
+        F: FnOnce(S::Builder) -> S::Builder,
     {
-        let mut solution_builder = S::builder();
-        f(&mut solution_builder);
+        let solution_builder = S::builder();
+        let solution_builder = f(solution_builder);
         self.solution = Some(solution_builder.build());
         self
     }
@@ -286,12 +307,13 @@ impl<S, P, I> AlgorithmUtils for Algorithm<S, P, I>
 where
     I: Default,
     S: Solution + Debug + Clone,
+    P: Parameters,
 {
     type Sol = S;
     type ObjectiveValue = S::ObjectiveValue;
     type Parameters = P;
 
-    fn builder() -> AlgorithmBuilder {
+    fn builder() -> AlgorithmBuilder<S, P, I> {
         AlgorithmBuilder {
             id: None,
             solution_intermediate: None,
@@ -627,15 +649,9 @@ impl Solution for OperationalSolution {
 
         let unavailability_end_event = OperationalAssignment::new(vec![end_event]);
 
-        scheduled_work_order_activities.push((
-            (WorkOrderNumber(0), ActivityNumber(0)),
-            unavailability_start_event,
-        ));
+        scheduled_work_order_activities.push(((WorkOrderNumber(0), 0), unavailability_start_event));
 
-        scheduled_work_order_activities.push((
-            (WorkOrderNumber(0), ActivityNumber(0)),
-            unavailability_end_event,
-        ));
+        scheduled_work_order_activities.push(((WorkOrderNumber(0), 0), unavailability_end_event));
 
         Self {
             objective_value: 0,
@@ -781,16 +797,18 @@ impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
 }
 // FIX
 // This could be generic! I think that it should.
-impl<Algorithm, AgentRequest, ResponseMessage> Agent<Algorithm, AgentRequest, ResponseMessage>
+impl<ActorRequest, ResponseMessage, S, P, I> Agent<ActorRequest, ResponseMessage, S, P, I>
 where
-    Self: MessageHandler<Req = AgentRequest, Res = ResponseMessage>,
-    Algorithm: ActorBasedLargeNeighborhoodSearch,
+    Self: MessageHandler<Req = ActorRequest, Res = ResponseMessage>,
+    Algorithm<S, P, I>: ActorBasedLargeNeighborhoodSearch,
     ResponseMessage: Sync + Send + 'static,
+    S: Solution,
+    P: Parameters,
 {
-    pub fn handle(&mut self, agent_message: AgentMessage<AgentRequest>) -> Result<()> {
+    pub fn handle(&mut self, agent_message: ActorMessage<ActorRequest>) -> Result<()> {
         match agent_message {
-            AgentMessage::State(state_link) => self.handle_state_link(state_link)?,
-            AgentMessage::Actor(strategic_request_message) => {
+            ActorMessage::State(state_link) => self.handle_state_link(state_link)?,
+            ActorMessage::Actor(strategic_request_message) => {
                 let message = self.handle_request_message(strategic_request_message);
 
                 self.sender_to_orchestrator.send(message)?;
@@ -804,7 +822,7 @@ where
 /// All agents should have the `StateLink` and each agent then have its own
 /// ActorRequest which is specifically created for each agent.
 #[derive(Clone)]
-pub enum AgentMessage<ActorRequest> {
+pub enum ActorMessage<ActorRequest> {
     State(StateLink),
     Actor(ActorRequest),
     // FIX
@@ -826,12 +844,12 @@ pub enum AgentMessage<ActorRequest> {
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum StateLink {
-    WorkOrders(AgentSpecific),
+    WorkOrders(ActorSpecific),
     WorkerEnvironment,
     TimeEnvironment,
 }
 
 #[derive(Debug, Clone)]
-pub enum AgentSpecific {
+pub enum ActorSpecific {
     Strategic(Vec<WorkOrderNumber>),
 }

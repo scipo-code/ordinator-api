@@ -6,7 +6,7 @@ use tracing::info;
 use data_processing::sources::{baptiste_csv_reader::TotalSap, SchedulingEnvironmentFactory};
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
-pub fn initialize_scheduling_environment(time_input: TimeInput) -> SchedulingEnvironment {
+pub fn initialize_scheduling_environment(time_input: TimeInput, input_config: ) -> SchedulingEnvironment {
     let file_string = dotenvy::var("ORDINATOR_INPUT")
         .expect("The ORDINATOR_INPUT environment variable have to be set");
 

@@ -70,10 +70,7 @@ impl SupervisorCommands {
                     let id_operational = get_id_operational(client, assign.id_operational.clone());
 
                     let supervisor_scheduling_message = SupervisorSchedulingMessage::new(
-                        (
-                            assign.work_order_number.into(),
-                            assign.activity_number.into(),
-                        ),
+                        (assign.work_order_number.into(), assign.activity_number),
                         id_operational,
                     );
 

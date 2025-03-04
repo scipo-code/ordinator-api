@@ -1,17 +1,21 @@
-use functional_location::FunctionalLocation;
-use priority::Priority;
-use revision::Revision;
-use serde::{Deserialize, Serialize};
-use system_condition::SystemCondition;
-use work_order_text::WorkOrderText;
-use work_order_type::WorkOrderType;
-
 pub mod functional_location;
 pub mod priority;
 pub mod revision;
 pub mod system_condition;
 pub mod work_order_text;
 pub mod work_order_type;
+
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
+
+use std::str::FromStr;
+
+use self::functional_location::FunctionalLocation;
+use self::priority::Priority;
+use self::revision::Revision;
+use self::system_condition::SystemCondition;
+use self::work_order_text::WorkOrderText;
+use self::work_order_type::WorkOrderType;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrderInfo {
@@ -26,13 +30,13 @@ pub struct WorkOrderInfo {
 
 #[derive(Default)]
 pub struct WorkOrderInfoBuilder {
-    pub priority: Option<Priority>,
-    pub work_order_type: Option<WorkOrderType>,
-    pub functional_location: Option<FunctionalLocation>,
-    pub work_order_text: Option<WorkOrderText>,
-    pub revision: Option<Revision>,
-    pub system_condition: Option<SystemCondition>,
-    pub work_order_info_detail: Option<WorkOrderInfoDetail>,
+    priority: Option<Priority>,
+    work_order_type: Option<WorkOrderType>,
+    functional_location: Option<FunctionalLocation>,
+    work_order_text: Option<WorkOrderText>,
+    revision: Option<Revision>,
+    system_condition: Option<SystemCondition>,
+    work_order_info_detail: Option<WorkOrderInfoDetail>,
 }
 
 impl WorkOrderInfo {
@@ -74,36 +78,47 @@ impl WorkOrderInfoBuilder {
         }
     }
 
-    pub fn priority(&mut self, priority: Priority) -> &mut Self {
+    pub fn priority(mut self, priority: Priority) -> Self {
         self.priority = Some(priority);
         self
     }
-    pub fn work_order_type(&mut self, work_order_type: WorkOrderType) -> &mut Self {
+    pub fn work_order_type(mut self, work_order_type: WorkOrderType) -> Self {
         self.work_order_type = Some(work_order_type);
         self
     }
-    pub fn functional_location(&mut self, functional_location: FunctionalLocation) -> &mut Self {
+    pub fn functional_location(mut self, functional_location: FunctionalLocation) -> Self {
         self.functional_location = Some(functional_location);
         self
     }
-    pub fn work_order_text(&mut self, work_order_text: WorkOrderText) -> &mut Self {
+    pub fn work_order_text(mut self, work_order_text: WorkOrderText) -> Self {
         self.work_order_text = Some(work_order_text);
         self
     }
-    pub fn revision(&mut self, revision: Revision) -> &mut Self {
+    pub fn revision(mut self, revision: Revision) -> Self {
         self.revision = Some(revision);
         self
     }
-    pub fn system_condition(&mut self, system_condition: SystemCondition) -> &mut Self {
+    pub fn system_condition(mut self, system_condition: SystemCondition) -> Self {
         self.system_condition = Some(system_condition);
         self
     }
-    pub fn work_order_info_detail(
-        &mut self,
-        work_order_info_detail: WorkOrderInfoDetail,
-    ) -> &mut Self {
+    pub fn work_order_info_detail(mut self, work_order_info_detail: WorkOrderInfoDetail) -> Self {
         self.work_order_info_detail = Some(work_order_info_detail);
         self
+    }
+
+    pub fn functional_location_from_str(mut self, functional_location: &str) -> Self {
+        self.functional_location = Some(FunctionalLocation::new(functional_location));
+        self
+    }
+
+    pub fn revision_from_str(mut self, revision: &str) -> Self {
+        self.revision = Some(Revision::new(revision));
+        self
+    }
+    pub fn system_condition_from_str(mut self, system_condition: &str) -> Result<Self> {
+        self.system_condition = Some(SystemCondition::from_str(system_condition)?);
+        Ok(self)
     }
 }
 

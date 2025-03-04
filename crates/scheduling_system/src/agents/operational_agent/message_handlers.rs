@@ -10,7 +10,7 @@ use shared_types::agents::operational::{
 use tracing::{event, Level};
 
 use crate::agents::{
-    Agent, ActorSpecific, Algorithm, MessageHandler, OperationalSolution, StateLink,
+    ActorSpecific, Agent, Algorithm, MessageHandler, OperationalSolution, StateLink,
 };
 
 use super::algorithm::{operational_parameter::OperationalParameters, OperationalNonProductive};
@@ -18,7 +18,13 @@ use super::algorithm::{operational_parameter::OperationalParameters, Operational
 type OperationalAlgorithm =
     Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive>;
 impl MessageHandler
-    for Agent<OperationalAlgorithm, OperationalRequestMessage, OperationalResponseMessage>
+    for Agent<
+        OperationalRequestMessage,
+        OperationalResponseMessage,
+        OperationalSolution,
+        OperationalParameters,
+        OperationalNonProductive,
+    >
 {
     type Req = OperationalRequestMessage;
     type Res = OperationalResponseMessage;

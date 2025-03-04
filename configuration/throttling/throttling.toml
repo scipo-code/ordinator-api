@@ -1,0 +1,6 @@
+# Throttling in milliseconds (ms)
+[[throttling]]
+strategic_throttling   = 20
+tactical_throttling    = 0
+supervisor_throttling  = 100
+operational_throttling = 150

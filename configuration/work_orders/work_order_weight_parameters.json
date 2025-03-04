@@ -40,5 +40,13 @@
     "SECE": 7500,
     "PCNF_NMAT_SMAT": 1500,
     "AWSC": 10000
-  }
+  },
+  "clustering_weights": {
+    "asset": 10,
+    "sector": 5,
+    "system": 2,
+    "subsystem": 2,
+    "equipment_tag": 1
+  },
+  "operating_time": 6
 }

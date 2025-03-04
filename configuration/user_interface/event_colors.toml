@@ -1,6 +1,6 @@
 [event-type-colors]
 WrenchTime = "#101010"
-Break = "#101010"
+work_Break = "#101010"
 Toolbox = "#101010"
 OffShift = "#101010"
 NonProductiveTime = "#101010"

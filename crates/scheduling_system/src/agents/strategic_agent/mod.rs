@@ -6,6 +6,8 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
 
+use crate::orchestrator::configuration::ClusteringWeights;
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct StrategicOptions {
     number_of_removed_work_order: usize,
@@ -13,7 +15,6 @@ pub struct StrategicOptions {
     urgency_weight: u64,
     resource_penalty_weight: u64,
     clustering_weight: u64,
-    clustering_configs: ClusteringWeights,
 }
 
 impl Default for StrategicOptions {
@@ -24,7 +25,6 @@ impl Default for StrategicOptions {
             urgency_weight: todo!(),
             resource_penalty_weight: todo!(),
             clustering_weight: todo!(),
-            clustering_configs: todo!(),
         }
     }
 }
@@ -71,7 +71,7 @@ mod tests {
     use shared_types::scheduling_environment::SchedulingEnvironment;
     use tests::algorithm::strategic_parameters::StrategicParameters;
     use tests::algorithm::strategic_parameters::WorkOrderParameter;
-    use unloading_point::UnloadingPoint;
+    use work_order_dates::unloading_point::UnloadingPoint;
 
     use std::collections::HashMap;
     use std::collections::HashSet;
@@ -83,7 +83,6 @@ mod tests {
     use crate::agents::traits::ObjectiveValueType;
     use crate::agents::traits::Parameters;
     use crate::agents::Algorithm;
-    use crate::agents::AlgorithmUtils;
     use crate::agents::ArcSwapSharedSolution;
     use crate::agents::Solution;
     use crate::agents::StrategicSolution;
@@ -93,7 +92,6 @@ mod tests {
 
     use shared_types::scheduling_environment::work_order::operation::Operation;
     use shared_types::scheduling_environment::work_order::*;
-    use shared_types::scheduling_environment::WorkOrders;
 
     use shared_types::scheduling_environment::time_environment::period::Period;
 
@@ -103,7 +101,7 @@ mod tests {
 
         let unloading_point = UnloadingPoint::default();
         let operation_1 = OperationBuilder::new(
-            ActivityNumber(10),
+            10,
             unloading_point.clone(),
             Resources::MtnMech,
             Some(Work::from(1.0)),
@@ -111,7 +109,7 @@ mod tests {
         .build();
 
         let operation_2 = OperationBuilder::new(
-            ActivityNumber(20),
+            20,
             unloading_point.clone(),
             Resources::MtnMech,
             Some(Work::from(1.0)),
@@ -119,7 +117,7 @@ mod tests {
         .build();
 
         let operation_3 = OperationBuilder::new(
-            ActivityNumber(30),
+            30,
             unloading_point.clone(),
             Resources::MtnMech,
             Some(Work::from(1.0)),

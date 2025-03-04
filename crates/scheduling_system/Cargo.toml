@@ -29,6 +29,7 @@ calamine = "*"
 chrono = { version = "*", features = ["serde"] }
 chrono-tz = "*"
 colored = "*"
+config = "*"
 csv = "*"
 data_processing = { path = "../data_processing" }
 dotenvy = "*"

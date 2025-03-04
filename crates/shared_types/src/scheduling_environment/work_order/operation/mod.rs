@@ -4,6 +4,7 @@ pub mod operation_info;
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use colored::Colorize;
+use operation_analytic::OperationAnalyticBuilder;
 use operation_info::OperationInfoBuilder;
 use rust_decimal::prelude::*;
 use rust_xlsxwriter::IntoExcelData;
@@ -40,6 +41,12 @@ impl Operations {
     }
 }
 
+impl From<HashMap<u64, Operation>> for Operations {
+    fn from(value: HashMap<u64, Operation>) -> Self {
+        Self(value)
+    }
+}
+
 // QUESTION [ ]
 // Should it be possible for there to be one `Operations`?
 // No it should not be possible
@@ -47,14 +54,27 @@ pub struct OperationsBuilder(Operations);
 
 impl Operation {
     pub fn builder(operations_number: ActivityNumber, resource: Resources) -> OperationBuilder {
-        todo!()
+        OperationBuilder {
+            operations_number,
+            resource,
+            unloading_point: None,
+            operation_info: None,
+            operation_analytic: None,
+            operation_dates: None,
+        }
+    }
+    pub fn possible_start(&self) -> Day {
+        todo!("Derive these based on self")
+    }
+    pub fn target_finish(&self) -> Day {
+        todo!("Derive these based on self")
     }
 }
 
 impl OperationBuilder {
     pub fn build(self) -> Operation {
         Operation {
-            activity: self.activity,
+            activity: self.operations_number,
             resource: self.resource,
             unloading_point: self.unloading_point.unwrap_or_default(),
             operation_info: self
@@ -89,9 +109,10 @@ impl OperationsBuilder {
 
         f(&mut operations_builder);
 
-        self.0
-             .0
-            .insert(operations_builder.activity, operations_builder.build());
+        self.0 .0.insert(
+            operations_builder.operations_number,
+            operations_builder.build(),
+        );
 
         self
     }
@@ -108,7 +129,7 @@ pub struct Operation {
 }
 
 pub struct OperationBuilder {
-    activity: ActivityNumber,
+    operations_number: ActivityNumber,
     resource: Resources,
     unloading_point: Option<UnloadingPoint>,
     operation_info: Option<OperationInfo>,
@@ -117,35 +138,39 @@ pub struct OperationBuilder {
 }
 
 impl OperationBuilder {
-    pub fn activity(&mut self, activity: u64) -> &mut Self {
-        self.activity = activity;
-        self
-    }
-    pub fn resource(&mut self, resource: Resources) -> &mut Self {
-        self.resource = resource;
-        self
-    }
-    pub fn unloading_point(&mut self, unloading_point: UnloadingPoint) -> &mut Self {
+    pub fn unloading_point(mut self, unloading_point: UnloadingPoint) -> Self {
         self.unloading_point = Some(unloading_point);
         self
     }
-    pub fn operation_info<F>(&mut self, f: F) -> &mut Self
+    pub fn operation_info<F>(mut self, f: F) -> Self
     where
-        F: FnOnce(&mut OperationInfoBuilder) -> &mut OperationInfoBuilder,
+        F: FnOnce(OperationInfoBuilder) -> OperationInfoBuilder,
     {
-        let mut operation_info_builder = OperationInfo::builder();
+        let operation_info_builder = OperationInfo::builder();
 
-        f(&mut operation_info_builder);
+        let operation_info_builder = f(operation_info_builder);
 
         self.operation_info = Some(operation_info_builder.build());
         self
     }
-    pub fn operation_analytic(&mut self, operation_analytic: OperationAnalytic) -> &mut Self {
-        self.operation_analytic = Some(operation_analytic);
+    pub fn operation_analytic<F>(mut self, f: F) -> Self
+    where
+        F: FnOnce(OperationAnalyticBuilder) -> OperationAnalyticBuilder,
+    {
+        let operation_analytic_builder = OperationAnalytic::builder();
+
+        let operation_analytic_builder = f(operation_analytic_builder);
+        self.operation_analytic = Some(operation_analytic_builder.build());
         self
     }
-    pub fn operation_dates(&mut self, operation_dates: OperationDates) -> &mut Self {
-        self.operation_dates = Some(operation_dates);
+    pub fn operation_dates<F>(mut self, f: F) -> Self
+    where
+        F: FnOnce(OperationDatesBuilder) -> OperationDatesBuilder,
+    {
+        let operation_dates_builder = OperationDates::builder();
+
+        let operation_dates_builder = f(operation_dates_builder);
+        self.operation_dates = Some(operation_dates_builder.build());
         self
     }
 }
@@ -370,28 +395,44 @@ impl Display for Work {
     }
 }
 
+// FIX [ ]
+// It is a serious error that the `possible_start` and `target_finish`
+// are found here. The best approach here is to always keep state as
+// lean as possible.
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct OperationDates {
-    pub possible_start: Day,
-    pub target_finish: Day,
     pub earliest_start_datetime: DateTime<Utc>,
     pub earliest_finish_datetime: DateTime<Utc>,
 }
 
+pub struct OperationDatesBuilder {
+    earliest_start_datetime: Option<DateTime<Utc>>,
+    earliest_finish_datetime: Option<DateTime<Utc>>,
+}
+
 impl OperationDates {
-    pub fn new(
-        possible_start: Day,
-        target_finish: Day,
-        earliest_start_datetime: DateTime<Utc>,
-        earliest_finish_datetime: DateTime<Utc>,
-    ) -> Self {
-        assert!(possible_start <= target_finish);
-        OperationDates {
-            possible_start,
-            target_finish,
-            earliest_start_datetime,
-            earliest_finish_datetime,
+    pub fn builder() -> OperationDatesBuilder {
+        OperationDatesBuilder {
+            earliest_start_datetime: None,
+            earliest_finish_datetime: None,
         }
+    }
+}
+
+impl OperationDatesBuilder {
+    pub fn build(self) -> OperationDates {
+        OperationDates {
+            earliest_start_datetime: self.earliest_start_datetime.unwrap(),
+            earliest_finish_datetime: self.earliest_finish_datetime.unwrap(),
+        }
+    }
+    pub fn earliest_start_datetime(mut self, earliest_start_datetime: DateTime<Utc>) -> Self {
+        self.earliest_start_datetime = Some(earliest_start_datetime);
+        self
+    }
+    pub fn earliest_finish_datetime(mut self, earliest_finish_datetime: DateTime<Utc>) -> Self {
+        self.earliest_finish_datetime = Some(earliest_finish_datetime);
+        self
     }
 }
 
@@ -403,7 +444,7 @@ impl Display for Operation {
             self.activity,
             self.resource.to_string(),
             self.operation_info.work_remaining,
-            self.operation_analytic.duration.as_ref().unwrap().work(),
+            self.operation_analytic.duration,
             self.operation_info.number,
         )
     }

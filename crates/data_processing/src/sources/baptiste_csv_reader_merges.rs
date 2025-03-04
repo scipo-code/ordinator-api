@@ -1,71 +1,70 @@
-use chrono::{Duration, NaiveDate, NaiveTime, Utc};
+use anyhow::anyhow;
+use anyhow::Result;
+use anyhow::Context;
+use chrono::NaiveDate;
+use chrono::NaiveTime;
 use rayon::prelude::*;
-use serde::Deserialize;
-use shared_types::scheduling_environment::work_order::work_order_analytic::WorkOrderAnalytic;
-use shared_types::scheduling_environment::work_order::work_order_info::WorkOrderInfo;
-use shared_types::scheduling_environment::work_order::WorkOrders;
+use shared_types::configuration::toml_baptiste::BaptisteToml;
+use shared_types::scheduling_environment::work_order::operation::Operations;
+use shared_types::scheduling_environment::work_order::work_order_info::WorkOrderInfoBuilder;
 
 use std::collections::HashMap;
-use std::fs;
-use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
-use shared_types::scheduling_environment::{
-    time_environment::{day::Day, period::Period},
-    work_order::{
-        self,
-        operation::{
-            operation_analytic::OperationAnalytic, operation_info::OperationInfo, Operation,
-            OperationDates, Work,
-        },
-        work_order_analytic::status_codes::{SystemStatusCodes, UserStatusCodes},
-        work_order_dates::unloading_point::UnloadingPoint,
-        work_order_dates::WorkOrderDates,
-        work_order_info::functional_location::FunctionalLocation,
-        work_order_info::priority::Priority,
-        work_order_info::revision::Revision,
-        work_order_info::system_condition::SystemCondition,
-        work_order_info::work_order_text::WorkOrderText,
-        work_order_info::work_order_type::WorkOrderType,
-        WorkOrder, WorkOrderNumber,
-    },
-    worker_environment::resources::Resources,
-};
+use shared_types::scheduling_environment::time_environment::period::Period;
+use shared_types::scheduling_environment::work_order;
+use shared_types::scheduling_environment::work_order::operation::Operation;
+use shared_types::scheduling_environment::work_order::work_order_dates::unloading_point::UnloadingPoint;
+use shared_types::scheduling_environment::work_order::work_order_info::priority::Priority;
+use shared_types::scheduling_environment::work_order::work_order_info::work_order_text::WorkOrderText;
+use shared_types::scheduling_environment::work_order::work_order_info::work_order_type::WorkOrderType;
+use shared_types::scheduling_environment::work_order::WorkOrder;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::work_order::WorkOrders;
+use shared_types::scheduling_environment::worker_environment::resources::Resources;
 
-use crate::sap_mapper_and_types::{DATS, TIMS};
+use crate::sap_mapper_and_types::DATS;
+use crate::sap_mapper_and_types::TIMS;
 
-use super::baptiste_csv_reader::{
-    populate_csv_structures, FLOCTechnicaID, FunctionalLocationsCsv, OperationsStatusCsv,
-    OperationsStatusCsvAggregated, WorkCenterCsv, WorkOperations, WorkOperationsCsv, WorkOrdersCsv,
-    WorkOrdersStatusCsv, WorkOrdersStatusCsvAggregated, WBSID,
-};
+use super::baptiste_csv_reader::populate_csv_structures;
+use super::baptiste_csv_reader::FLOCTechnicaID;
+use super::baptiste_csv_reader::FunctionalLocationsCsv;
+use super::baptiste_csv_reader::OperationsStatusCsv;
+use super::baptiste_csv_reader::OperationsStatusCsvAggregated;
+use super::baptiste_csv_reader::WorkCenterCsv;
+use super::baptiste_csv_reader::WorkOperations;
+use super::baptiste_csv_reader::WorkOperationsCsv;
+use super::baptiste_csv_reader::WorkOrdersCsv;
+use super::baptiste_csv_reader::WorkOrdersStatusCsv;
+use super::baptiste_csv_reader::WorkOrdersStatusCsvAggregated;
+use super::baptiste_csv_reader::WBSID;
 
-pub fn load_csv_data(file_path: PathBuf, periods: &[Period]) -> WorkOrders {
-    let contents = fs::read_to_string(file_path).unwrap();
-
-    let file_paths: BaptisteToml = toml::from_str(&contents).unwrap();
+// TODO
+// Insert main configuration here, 
+// `operating time` is crucial
+pub fn load_csv_data(file_path: &BaptisteToml, periods: &[Period]) -> Result<WorkOrders> {
 
     let functional_locations_csv =
-        populate_csv_structures::<FunctionalLocationsCsv>(file_paths.mid_functional_locations)
+        populate_csv_structures::<FunctionalLocationsCsv>(&file_path.mid_functional_locations)
             .expect("Could not read the csv file");
 
     let operations_status_csv =
-        populate_csv_structures::<OperationsStatusCsv>(file_paths.mid_operations_status)
+        populate_csv_structures::<OperationsStatusCsv>(&file_path.mid_operations_status)
             .expect("Could not load the csv file");
 
-    let work_center_csv = populate_csv_structures::<WorkCenterCsv>(file_paths.mid_work_center)
+    let work_center_csv = populate_csv_structures::<WorkCenterCsv>(&file_path.mid_work_center)
         .expect("Could not read the csv file");
 
     let work_operations_csv =
-        populate_csv_structures::<WorkOperationsCsv>(file_paths.mid_work_operations)
+        populate_csv_structures::<WorkOperationsCsv>(&file_path.mid_work_operations)
             .expect("Could not read the csv file");
 
-    let work_orders_csv = populate_csv_structures::<WorkOrdersCsv>(file_paths.mid_work_orders)
+    let work_orders_csv = populate_csv_structures::<WorkOrdersCsv>(&file_path.mid_work_orders)
         .expect("Could not read the csv file");
 
     let work_orders_status_csv =
-        populate_csv_structures::<WorkOrdersStatusCsv>(file_paths.mid_work_orders_status)
+        populate_csv_structures::<WorkOrdersStatusCsv>(&file_path.mid_work_orders_status)
             .expect("Could not read the csv file");
 
     let work_orders_status_agg = WorkOrdersStatusCsvAggregated::new(work_orders_status_csv.clone());
@@ -82,29 +81,19 @@ pub fn load_csv_data(file_path: PathBuf, periods: &[Period]) -> WorkOrders {
         work_operations,
         work_orders_csv.clone(),
         work_orders_status_agg,
-    );
+    )
+    .with_context(|| {
+        format!(
+            "File {:#?} could not be found while loading data",
+            file_path
+        )
+    })?;
 
-    WorkOrders {
+    Ok(WorkOrders {
         inner: work_orders_inner,
-    }
+    })
 }
 
-#[allow(dead_code)]
-#[derive(Deserialize)]
-struct BaptisteToml {
-    mid_functional_locations: PathBuf,
-    mid_operations_status: PathBuf,
-    mid_secondary_locations: PathBuf,
-    mid_work_center: PathBuf,
-    mid_work_operations: PathBuf,
-    mid_work_orders: PathBuf,
-    mid_work_orders_status: PathBuf,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct TomlOperatingTime {
-    operating_time: f64,
-}
 
 #[allow(dead_code)]
 #[allow(non_snake_case)]
@@ -116,66 +105,18 @@ fn create_work_orders(
     work_operations_csv: WorkOperations,
     work_orders: HashMap<WorkOrderNumber, WorkOrdersCsv>,
     work_orders_status: WorkOrdersStatusCsvAggregated,
-) -> HashMap<WorkOrderNumber, WorkOrder> {
+) -> Result<HashMap<WorkOrderNumber, WorkOrder>> {
     assert!(!work_operations_csv.inner.is_empty());
-    let arc_mutex_inner_work_orders = Arc::new(Mutex::new(HashMap::new()));
-    let toml_operating_time_string =
-        fs::read_to_string("./configuration/operating_time.toml").unwrap();
-    let operating_time: TomlOperatingTime = toml::from_str(&toml_operating_time_string).unwrap();
 
-    work_orders.par_iter().for_each(|(work_order_number, work_order_csv)| {
+    let arc_mutex_inner_work_orders = Arc::new(Mutex::new(HashMap::new()));
+
+    work_orders.par_iter().for_each(|(work_order_number, work_order_csv): (&WorkOrderNumber, &WorkOrdersCsv)|  {
         let main_work_center: Resources = Resources::from_str(
             work_center
                 .get(&work_order_csv.WO_WBS_ID)
                 .unwrap()
                 .WBS_Name.as_str()
         ).unwrap();
-
-        let status_codes_string = work_orders_status.inner
-            .get(&work_order_csv.WO_Status_ID)
-            .expect("Should always be present");
-
-        if status_codes_string.contains("REL") {
-            return;
-        }
-
-        // BEFORE: This whole thing is a horrible way of doing things. 
-        // AFTER: Using the builder centralizes creation logic as it should be
-        let work_order_analytic = WorkOrderAnalytic::builder()
-            .user_status_codes(|uscb| uscb.from_str(&status_codes_string))
-            .system_status_codes(|uscb| uscb.from_str(&status_codes_string))
-            .build();
-
-        let earliest_allowed_start_date: NaiveDate =
-
-            DATS(work_order_csv.WO_Earliest_Allowed_Start_Date.clone())
-                .try_into()
-                .expect("The WorkOrders that have invalid EASD are filtered out");
-
-        let latest_allowed_finish_date: NaiveDate =
-            DATS(work_order_csv.WO_Latest_Allowed_Finish_Date.clone())
-                .try_into()
-                .expect("The WorkOrders that have invalid EASD are filtered out");
-
-        let basic_start_date: NaiveDate = DATS(work_order_csv.WO_Basic_Start_Date.clone())
-            .try_into()
-            .expect("The WorkOrders that have invalid EASD are filtered out");
-
-        let basic_finish_date: NaiveDate = DATS(work_order_csv.WO_Basic_End_Date.clone())
-            .try_into()
-            .expect("The WorkOrders that have invalid EASD are filtered out");
-
-        let duration = basic_finish_date - basic_start_date;
-
-        // FIX
-        // This is also not a good way of doing things.
-        let work_order_dates: WorkOrderDates = WorkOrderDates::builder()
-            .earliest_allowed_start_date(earliest_allowed_start_date)
-            .latest_allowed_finish_date(latest_allowed_finish_date)
-            .basic_start_date(basic_start_date)
-            .basic_finish_date(basic_finish_date)
-            .duration(duration)
-            .build();
 
         let functional_location =
             &functional_locations.get(&work_order_csv.WO_Functional_Location_Number);
@@ -209,168 +150,121 @@ fn create_work_orders(
         let work_order_type = WorkOrderType::new(&work_order_csv.WO_Order_Type, priority.clone())
             .expect("Invalid WorkOrderType's should have been filtered out");
 
-        let work_order_info: WorkOrderInfo = WorkOrderInfo::new(
-            priority,
-            work_order_type,
-            FunctionalLocation::new(functional_location.to_string()),
-            work_order_text,
-            Revision::new(&work_order_csv.WO_Revision),
-            SystemCondition::from_str(&work_order_csv.WO_System_Condition).unwrap(),
-            work_order_info_detail,
-        );
-
-        let mut operations = HashMap::new();
-        for (work_order_activity, operation_csv) in work_operations_csv
+        let operations: Operations = work_operations_csv
             .inner
             .get(work_order_number)
-            .cloned()
-            .unwrap_or_default()
-        {
-            let resources =
-                Resources::from_str(&work_center.get(&operation_csv.OPR_WBS_ID).unwrap().WBS_Name);
+            .expect("What should be done to fix this? Does it make sense if there are no available `Operations`?")
+            .iter()
+            .map(|(operations_number, operation_csv)| -> Result<(u64, Operation)> {
+                let resource =
+                    Resources::from_str(&work_center.get(&operation_csv.OPR_WBS_ID).unwrap().WBS_Name).map_err(|e| anyhow!(e))?;
 
-            let unloading_point: UnloadingPoint =
-                UnloadingPoint::new(operation_csv.OPR_Scheduled_Work.clone(), periods);
+                let unloading_point: UnloadingPoint =
+                    UnloadingPoint::new(operation_csv.OPR_Scheduled_Work.clone(), periods);
 
-            let planned_work: Option<Work> = {
-                let parse_option = operation_csv.OPR_Planned_Work.clone().parse::<f64>();
-                match parse_option {
-                    Ok(work) => Some(Work::from(work)),
-                    Err(_) => None,
-                }
-            };
+                let planned_work
+                    = operation_csv.OPR_Planned_Work.clone().parse::<f64>().expect("Planned work should be present. There is not implemented correct error handling here due to `rayon::par_iter`");
 
-            let actual_work: Option<Work> = {
-                let parse_option = operation_csv.OPR_Actual_Work.clone().parse::<f64>();
-                match parse_option {
-                    Ok(work) => Some(Work::from(work)),
-                    Err(_) => None,
-                }
-            };
-            let remaining_work: Option<Work> = {
-                let parse_option = operation_csv.OPR_Planned_Work.clone().parse::<f64>().unwrap_or_default() - operation_csv.OPR_Actual_Work.clone().parse::<f64>().unwrap_or_default();
-                Some(Work::from(parse_option))
-            };
+                let actual_work = operation_csv.OPR_Actual_Work.clone().parse::<f64>().unwrap_or_default();
 
-            let operation_info = OperationInfo::new(
-                operation_csv.OPR_Workers_Numbers,
-                planned_work,
-                actual_work,
-                remaining_work,
-                Some(Work::from(operating_time.operating_time)),
-            );
+                let remaining_work = operation_csv.OPR_Planned_Work.clone().parse::<f64>().unwrap_or_default() - operation_csv.OPR_Actual_Work.clone().parse::<f64>().unwrap_or_default();
 
-            let operation_analytic = OperationAnalytic::new(Work::from(1.0), planned_work);
+                // We need to use the DATS here! I think that is the only way forward! I think that to scale this
+                // we also need to be very clear on the remaining types of the system.
+                let naive_start_DATS: NaiveDate = DATS(operation_csv.OPR_Start_Date.clone()).try_into().expect("The OPR_Start_Date should have been filtered out, we should not experience this error.");
+                let naive_start_TIMS: NaiveTime = TIMS(operation_csv.OPR_Start_Time.clone()).into();
 
-            // We need to use the DATS here! I think that is the only way forward! I think that to scale this
-            // we also need to be very clear on the remaining types of the system.
-            let naive_start_DATS: NaiveDate = DATS(operation_csv.OPR_Start_Date.clone()).try_into().expect("The OPR_Start_Date should have been filtered out, we should not experience this error.");
-            let naive_start_TIMS: NaiveTime = TIMS(operation_csv.OPR_Start_Time.clone()).into();
+                let naive_end_DATS: NaiveDate = DATS(operation_csv.OPR_End_Date.clone()).try_into().expect("The OPR_End_Date should have been filtered out, we should not experience this error.");
+                let naive_end_TIMS: NaiveTime = TIMS(operation_csv.OPR_End_Time.clone()).into();
 
-            let naive_end_DATS: NaiveDate = DATS(operation_csv.OPR_End_Date.clone()).try_into().expect("The OPR_End_Date should have been filtered out, we should not experience this error.");
-            let naive_end_TIMS: NaiveTime = TIMS(operation_csv.OPR_End_Time.clone()).into();
+                let naive_start_datetime = naive_start_DATS.and_time(naive_start_TIMS);
+                let naive_end_datetime = naive_end_DATS.and_time(naive_end_TIMS);
 
-            let naive_start_datetime = naive_start_DATS.and_time(naive_start_TIMS);
-            let naive_end_datetime = naive_end_DATS.and_time(naive_end_TIMS);
+                let utc_start_datetime = naive_start_datetime.and_utc();
+                let utc_end_datetime = naive_end_datetime.and_utc();
 
-            let utc_start_datetime = naive_start_datetime.and_utc();
-            let utc_end_datetime = naive_end_datetime.and_utc();
 
-            let operation_dates = OperationDates::new(
-                Day::new(0, Utc::now()),
-                Day::new(0, Utc::now()),
-                utc_start_datetime,
-                utc_end_datetime,
-            );
+                let operation = Operation::builder(*operations_number, resource)
+                    .unloading_point(unloading_point)
+                    .operation_info(|oib| {
+                        oib
+                            .number(operation_csv.OPR_Workers_Numbers)
+                            .work_remaining(remaining_work)
+                            .work_actual(actual_work)
+                            .work(planned_work)
+                    })
+                    .operation_analytic(|oab| {
+                        // TODO [ ]
+                        // Add `.duration(f64)` here if needed.
+                        oab.preparation_time(1.0)
+                    })
+                    .operation_dates(|odb| {
+                        odb.earliest_start_datetime(utc_start_datetime)
+                            .earliest_finish_datetime(utc_end_datetime)
+                    }).build();
 
-            let operation = Operation::new(
-                work_order_activity,
-                resources.unwrap(),
-                unloading_point,
-                operation_info,
-                operation_analytic,
-                operation_dates,
-            );
-            operations.insert(work_order_activity, operation);
-        }
+                Ok((*operations_number, operation))
+                
+            }).collect::<Result<HashMap<u64, Operation>>>().map_err(|e| anyhow!(e)).expect("This is not the best way of making error handling")
+            .into();
 
-        let work_order = WorkOrder::new(
-            *work_order_number,
-            main_work_center,
-            operations,
-            Vec::new(),
-            work_order_analytic,
-            work_order_dates,
-            work_order_info,
-        );
+        let status_codes_string = work_orders_status.inner
+            .get(&work_order_csv.WO_Status_ID)
+            .expect("Should always be present");
 
-        assert!(work_order.work_order_dates.earliest_allowed_start_period.contains_date(work_order.work_order_dates.earliest_allowed_start_date));
+        if status_codes_string.contains("REL") {
+            return;
+        }; 
+
+        let earliest_allowed_start_date: NaiveDate =
+            DATS(work_order_csv.WO_Earliest_Allowed_Start_Date.clone())
+                .try_into()
+                .expect("The WorkOrders that have invalid EASD are filtered out");
+
+        let latest_allowed_finish_date: NaiveDate =
+            DATS(work_order_csv.WO_Latest_Allowed_Finish_Date.clone())
+                .try_into()
+                .expect("The WorkOrders that have invalid EASD are filtered out");
+
+        let basic_start_date: NaiveDate = DATS(work_order_csv.WO_Basic_Start_Date.clone())
+            .try_into()
+            .expect("The WorkOrders that have invalid EASD are filtered out");
+
+        let basic_finish_date: NaiveDate = DATS(work_order_csv.WO_Basic_End_Date.clone())
+            .try_into()
+            .expect("The WorkOrders that have invalid EASD are filtered out");
+
+        let duration = basic_finish_date - basic_start_date;
+
+        let work_order = WorkOrder::builder(*work_order_number)
+            .main_work_center(main_work_center)
+            .operations(operations)
+            .work_order_info_builder(|woi: WorkOrderInfoBuilder| -> WorkOrderInfoBuilder {
+                woi.priority(priority)
+                    .work_order_type(work_order_type)
+                    .functional_location_from_str(functional_location)
+                    .work_order_text(work_order_text)
+                    .revision_from_str(&work_order_csv.WO_Revision)
+                    .system_condition_from_str(&work_order_csv.WO_System_Condition).expect("If this fails consider making stronger error handling")
+                    .work_order_info_detail(work_order_info_detail)
+            })
+            .work_order_analytic_builder(|woab| {
+                woab.system_status_codes(|con| con.from_str(status_codes_string))
+                    .user_status_codes(|con| con.from_str(status_codes_string))
+            })
+            .work_order_dates_builder(|wodb| {
+                wodb.earliest_allowed_start_date(earliest_allowed_start_date)
+                    .latest_allowed_finish_date(latest_allowed_finish_date)
+                    .basic_start_date(basic_start_date)
+                    .basic_finish_date(basic_finish_date)
+                    .duration(duration)
+            })
+            .build();
+
+        assert!(work_order.earliest_allowed_start_period(periods).contains_date(work_order.work_order_dates.earliest_allowed_start_date));
         arc_mutex_inner_work_orders.lock().unwrap().insert(*work_order_number, work_order);
     });
-    let inner_work_orders = arc_mutex_inner_work_orders.lock().unwrap().clone();
-    inner_work_orders
+    let work_orders = arc_mutex_inner_work_orders.lock().unwrap().clone();
+    Ok(work_orders)
 }
 
-// fn date_to_period(periods: &[Period], date_time: &NaiveDate) -> Period {
-//     let period: Option<Period> = periods
-//         .iter()
-//         .find(|period| {
-//             period.start_date().date_naive() <= *date_time
-//                 && period.end_date().date_naive() >= *date_time
-//         })
-//         .cloned();
-
-//     match period {
-//         Some(period) => period,
-//         None => {
-//             let mut first_period = periods.first().unwrap().clone();
-//             let mut counter = 0;
-//             loop {
-//                 counter += 1;
-//                 first_period = first_period - Duration::weeks(2);
-//                 if first_period.start_date().date_naive() <= *date_time
-//                     && first_period.end_date().date_naive() >= *date_time
-//                 {
-//                     break;
-//                 }
-//                 if counter >= 1000 {
-//                     break;
-//                 };
-//             }
-//             first_period.clone()
-//         }
-//     }
-// }
-
-#[cfg(test)]
-mod tests {
-
-    use super::*;
-
-    #[test]
-    fn test_date_to_period() {
-        let periods: Vec<Period> = vec![
-            Period::from_str("2024-W47-48").unwrap(),
-            Period::from_str("2024-W49-50").unwrap(),
-            Period::from_str("2024-W51-52").unwrap(),
-            Period::from_str("2025-W1-2").unwrap(),
-        ];
-
-        let period_1 = date_to_period(
-            periods.as_slice(),
-            &NaiveDate::from_ymd_opt(2024, 12, 5).unwrap(),
-        );
-        let period_2 = date_to_period(
-            periods.as_slice(),
-            &NaiveDate::from_ymd_opt(2024, 12, 27).unwrap(),
-        );
-        let period_3 = date_to_period(
-            periods.as_slice(),
-            &NaiveDate::from_ymd_opt(2025, 1, 3).unwrap(),
-        );
-
-        assert_eq!(period_1, periods.get(1).unwrap().clone());
-        assert_eq!(period_2, periods.get(2).unwrap().clone());
-        assert_eq!(period_3, periods.get(3).unwrap().clone());
-    }
-}

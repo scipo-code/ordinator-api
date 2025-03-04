@@ -742,7 +742,7 @@ pub mod tests {
         let operation_parameter = OperationParameter::new(work_order_number, operation);
 
         let mut tactical_operation_parameters = HashMap::new();
-        tactical_operation_parameters.insert(ActivityNumber(1), operation_parameter);
+        tactical_operation_parameters.insert(1, operation_parameter);
 
         let tactical_work_order_parameter =
             TacticalParameter::new(work_order, tactical_operation_parameters);
@@ -751,7 +751,7 @@ pub mod tests {
             .parameters_mut()
             .insert(work_order_number, tactical_work_order_parameter);
 
-        let activity_number = ActivityNumber(0);
+        let activity_number = 0;
 
         let mut tactical_activities = TacticalScheduledOperations::default();
 
@@ -780,7 +780,7 @@ pub mod tests {
 
         let scheduled_date = tactical_algorithm
             .solution
-            .tactical_scheduled_days(&work_order_number, &ActivityNumber(0));
+            .tactical_scheduled_days(&work_order_number, 0);
 
         assert!(scheduled_date.is_ok());
     }
@@ -788,7 +788,7 @@ pub mod tests {
     #[test]
     fn test_schedule_2() {
         let work_order_number = WorkOrderNumber(2100000010);
-        let activity_number = ActivityNumber(1);
+        let activity_number = 1;
         let first_period = Period::from_str("2024-W13-14").unwrap();
 
         let tactical_days = |number_of_days: u32| -> Vec<Day> {
@@ -808,7 +808,7 @@ pub mod tests {
         // SchedulingEnvironment
 
         let tactical_parameters = TacticalParameters::new(&id, options, &scheduling_environment)?;
-        let tactical_solution = TacticalSolution::new(&tactical_solution);
+        let tactical_solution = TacticalSolution::new(&tactical_parameters);
 
         let mut tactical_algorithm = Algorithm::new(
             tactical_days(56),
@@ -817,7 +817,7 @@ pub mod tests {
                 tactical_days(56),
                 Work::from(100.0),
             ),
-            super::TacticalResources::new_from_data(
+            TacticalResources::new_from_data(
                 Resources::iter().collect(),
                 tactical_days(56),
                 Work::from(0.0),
