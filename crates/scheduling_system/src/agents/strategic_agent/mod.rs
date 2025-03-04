@@ -3,31 +3,39 @@ pub mod display;
 pub mod message_handlers;
 
 use rand::rngs::StdRng;
-use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
+use shared_types::{
+    configuration::material::MaterialToPeriod,
+    scheduling_environment::work_order::WorkOrderConfigurations,
+};
 
-use crate::orchestrator::configuration::ClusteringWeights;
-
+/// *question*
 #[derive(Debug, PartialEq, Clone)]
 pub struct StrategicOptions {
-    number_of_removed_work_order: usize,
-    rng: StdRng,
-    urgency_weight: u64,
-    resource_penalty_weight: u64,
-    clustering_weight: u64,
+    pub number_of_removed_work_order: usize,
+    pub rng: StdRng,
+    pub urgency_weight: u64,
+    pub resource_penalty_weight: u64,
+    pub clustering_weight: u64,
+    pub work_order_configurations: WorkOrderConfigurations,
+    pub material_to_period: MaterialToPeriod,
 }
 
-impl Default for StrategicOptions {
-    fn default() -> Self {
-        StrategicOptions {
-            number_of_removed_work_order: 50,
-            rng: StdRng::from_os_rng(),
-            urgency_weight: todo!(),
-            resource_penalty_weight: todo!(),
-            clustering_weight: todo!(),
-        }
-    }
-}
+// FIX [ ]
+// This is wrong! You should never implement a `Default` trait
+// if a default value does not make any sense.
+// impl Default for StrategicOptions {
+//     fn default() -> Self {
+//         StrategicOptions {
+//             number_of_removed_work_order: 50,
+//             rng: StdRng::from_os_rng(),
+//             urgency_weight: todo!(),
+//             resource_penalty_weight: todo!(),
+//             clustering_weight: todo!(),
+//             work_order_configurations: WorkOrderConfigurations,
+//         }
+//     }
+// }
 
 // This will al
 // Default does not make sense here you should remove it.
@@ -65,7 +73,6 @@ mod tests {
     use shared_types::agents::strategic::requests::strategic_request_scheduling_message::StrategicRequestScheduling;
     use shared_types::agents::strategic::OperationalResource;
     use shared_types::agents::strategic::StrategicResources;
-    use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
     use shared_types::scheduling_environment::work_order::operation::Work;
     use shared_types::scheduling_environment::worker_environment::resources::Id;
     use shared_types::scheduling_environment::SchedulingEnvironment;

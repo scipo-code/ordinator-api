@@ -1,15 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
-use anyhow::Result;
-use shared_types::scheduling_environment::{
-    work_order::{WorkOrderActivity, WorkOrderNumber},
-    worker_environment::resources::Id,
-};
+use shared_types::scheduling_environment::work_order::WorkOrderActivity;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::worker_environment::resources::Id;
 
-use crate::agents::{
-    operational_agent::algorithm::operational_solution::MarginalFitness, OperationalSolution,
-    SupervisorSolution,
-};
+use crate::agents::operational_agent::algorithm::operational_solution::MarginalFitness;
+use crate::agents::OperationalSolution;
+use crate::agents::SupervisorSolution;
 
 use super::delegate::Delegate;
 

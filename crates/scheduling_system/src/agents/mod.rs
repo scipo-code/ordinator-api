@@ -134,20 +134,20 @@ where
         Option<Communication<ActorMessage<AgentRequest>, AgentResponse>>,
 }
 
-impl<AgentRequest, AgentResponse, S, P, I> AgentBuilder<AgentRequest, AgentResponse, S, P, I>
+impl<ActorRequest, ActorResponse, S, P, I> AgentBuilder<ActorRequest, ActorResponse, S, P, I>
 where
     S: Solution,
     P: Parameters,
 {
-    pub fn build(self) -> Communication<ActorMessage<AgentRequest>, AgentResponse> {
+    pub fn build(self) -> Communication<ActorMessage<ActorRequest>, ActorResponse> {
         let agent = Agent {
-            agent_id: self.agent_id.unwrap_or_default(),
-            scheduling_environment: self.scheduling_environment.unwrap_or_default(),
-            algorithm: self.algorithm.unwrap_or_default(),
-            receiver_from_orchestrator: self.receiver_from_orchestrator.unwrap_or_default(),
-            sender_to_orchestrator: self.sender_to_orchestrator.unwrap_or_default(),
-            configurations: self.configurations.unwrap_or_default(),
-            notify_orchestrator: self.notify_orchestrator.unwrap_or_default(),
+            agent_id: self.agent_id.unwrap(),
+            scheduling_environment: self.scheduling_environment.unwrap(),
+            algorithm: self.algorithm.unwrap(),
+            receiver_from_orchestrator: self.receiver_from_orchestrator.unwrap(),
+            sender_to_orchestrator: self.sender_to_orchestrator.unwrap(),
+            configurations: self.configurations.unwrap(),
+            notify_orchestrator: self.notify_orchestrator.unwrap(),
         };
         let thread_name = format!(
             "{} for Asset: {}",
@@ -209,14 +209,14 @@ where
     }
     pub fn receiver_from_orchestrator(
         mut self,
-        receiver_from_orchestrator: Receiver<ActorMessage<AgentRequest>>,
+        receiver_from_orchestrator: Receiver<ActorMessage<ActorRequest>>,
     ) -> Self {
         self.receiver_from_orchestrator = Some(receiver_from_orchestrator);
         self
     }
     pub fn sender_to_orchestrator(
         mut self,
-        sender_to_orchestrator: Sender<Result<AgentResponse>>,
+        sender_to_orchestrator: Sender<Result<ActorResponse>>,
     ) -> Self {
         self.sender_to_orchestrator = Some(sender_to_orchestrator);
         self

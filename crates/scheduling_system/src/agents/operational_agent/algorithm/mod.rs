@@ -430,7 +430,7 @@ impl ActorBasedLargeNeighborhoodSearch
             self.solution.scheduled_work_order_activities[1..operational_solutions_len - 1]
                 .choose_multiple(
                     &mut self.parameters.options.rng,
-                    self.parameters.options.number_of_activities,
+                    self.parameters.options.number_of_removed_activities,
                 )
                 .map(|operational_solution| operational_solution.0)
                 .collect();
@@ -782,10 +782,7 @@ mod tests {
         agents::operational::{OperationalConfiguration, TimeInterval},
         scheduling_environment::{
             time_environment::period::Period,
-            work_order::{
-                operation::{ActivityNumber, Work},
-                WorkOrderNumber,
-            },
+            work_order::{operation::Work, WorkOrderNumber},
             worker_environment::{availability::Availability, resources::Id},
             SchedulingEnvironment,
         },

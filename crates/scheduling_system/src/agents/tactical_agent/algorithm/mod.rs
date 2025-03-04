@@ -2,38 +2,38 @@ pub mod assert_functions;
 pub mod tactical_parameters;
 pub mod tactical_solution;
 
-use anyhow::{bail, Context, Result};
-use assert_functions::TacticalAssertions;
+use anyhow::bail;
+use anyhow::Context;
+use anyhow::Result;
 use chrono::TimeDelta;
 use priority_queue::PriorityQueue;
 use rand::seq::IndexedRandom;
-use shared_types::{
-    agents::tactical::TacticalObjectiveValue,
-    scheduling_environment::{
-        time_environment::day::Day,
-        work_order::{
-            operation::{ActivityNumber, Work},
-            WorkOrderNumber,
-        },
-        worker_environment::resources::Resources,
-        SchedulingEnvironment,
-    },
-    LoadOperation,
-};
-use std::{
-    cmp::Ordering,
-    sync::{Arc, MutexGuard},
-};
-use tactical_parameters::TacticalParameters;
-use tactical_solution::OperationSolution;
-use tracing::{event, Level};
+use tracing::event;
+use tracing::Level;
 
-use crate::agents::{
-    traits::{ActorBasedLargeNeighborhoodSearch, ObjectiveValueType},
-    Algorithm, TacticalScheduledOperations, TacticalSolution, WhereIsWorkOrder,
-};
+use std::cmp::Ordering;
+use std::sync::Arc;
+
+use shared_types::agents::tactical::TacticalObjectiveValue;
+use shared_types::scheduling_environment::time_environment::day::Day;
+use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
+use shared_types::scheduling_environment::work_order::operation::Work;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::worker_environment::resources::Resources;
+use shared_types::LoadOperation;
+
+use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
+use crate::agents::traits::ObjectiveValueType;
+use crate::agents::Algorithm;
+use crate::agents::TacticalScheduledOperations;
+use crate::agents::TacticalSolution;
+use crate::agents::WhereIsWorkOrder;
 
 use super::TacticalOptions;
+
+use self::assert_functions::TacticalAssertions;
+use self::tactical_parameters::TacticalParameters;
+use self::tactical_solution::OperationSolution;
 
 // FIX
 // Move the `tactical_days` into the parameters.
@@ -184,6 +184,7 @@ impl ActorBasedLargeNeighborhoodSearch
     }
 
     fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType<Self::ObjectiveValue>> {
+        // TODO
         let mut tactical_objective_value =
             TacticalObjectiveValue::new(0, (1, u64::MAX), (1000000000, u64::MAX));
 
@@ -534,32 +535,34 @@ enum OperationDifference {
 pub mod tests {
     use std::{collections::HashMap, str::FromStr};
 
-    use chrono::{DateTime, Datelike, Days};
+    use chrono::Days;
     use shared_types::{
         agents::tactical::TacticalResources,
         scheduling_environment::{
-            self,
-            work_order::{
-                operation::{ActivityNumber, Work},
-                WorkOrderNumber,
-            },
+            work_order::{operation::Work, WorkOrderNumber},
             worker_environment::resources::{Id, Resources},
             SchedulingEnvironment, SchedulingEnvironmentBuilder,
         },
     };
     use strum::IntoEnumIterator;
 
-    use crate::agents::{
-        tactical_agent::{
-            algorithm::{tactical_parameters::TacticalParameters, OperationSolution},
-            TacticalOptions,
+    use crate::{
+        agents::{
+            tactical_agent::{
+                algorithm::{tactical_parameters::TacticalParameters, OperationSolution},
+                TacticalOptions,
+            },
+            traits::{ActorBasedLargeNeighborhoodSearch, Parameters},
+            Algorithm, AlgorithmUtils, ArcSwapSharedSolution, Solution,
+            TacticalScheduledOperations, TacticalSolution, WhereIsWorkOrder,
         },
-        traits::{ActorBasedLargeNeighborhoodSearch, Parameters},
-        Algorithm, AlgorithmUtils, ArcSwapSharedSolution, Solution, TacticalScheduledOperations,
-        TacticalSolution, WhereIsWorkOrder,
+        orchestrator::configuration::SystemConfigurations,
     };
 
-    use super::Day;
+    use super::{
+        tactical_parameters::{OperationParameter, TacticalParameter},
+        Day,
+    };
 
     use shared_types::scheduling_environment::time_environment::period::Period;
 
@@ -620,7 +623,7 @@ pub mod tests {
     #[test]
     fn test_calculate_objective_value() {
         let work_order_number = WorkOrderNumber(2100000001);
-        let activity_number = ActivityNumber(1);
+        let activity_number = 1;
         let first_period = Period::from_str("2024-W13-14").unwrap();
 
         let tactical_days = |number_of_days: u32| -> Vec<Day> {
@@ -654,7 +657,19 @@ pub mod tests {
 
         let id = Id::default();
 
-        let parameters = TacticalParameters::new(&scheduling_environment);
+        let system_configuration = SystemConfigurations::read_all_configs().unwrap();
+        let tactical_options = system_configuration.tactical_options(id.2.first().unwrap());
+
+        // TODO [ ]
+        // Which Options should be inserted into this? I think that the best
+        // You should make a method on the SystemConfigurations::strategic_options(...) -> StrategicOptions
+        // TODO [ ]
+        // Put the system configuration into the Orchestrator
+        // TODO [ ]
+        // Put the system configuration into the Agents
+        // TODO [ ]
+        // Make methods on the `SystemConfiguration` to extract the required configurations.
+        let parameters = TacticalParameters::new(&id, tactical_options, &scheduling_environment);
         let solution = TacticalSolution::new(&parameters);
 
         let mut tactical_algorithm = Algorithm::new(
@@ -664,6 +679,12 @@ pub mod tests {
             ArcSwapSharedSolution::default().into(),
         );
 
+        // This whole thing is ugly. Remember, you should work on getting the configs into the
+        // program, not the other way around.
+
+        // FIX
+        // This does not confine to the correct interface setup of the program. You should think about this
+        // in the code. What other thing could you do here?
         let operation_parameter = OperationParameter::new(work_order_number, operation);
 
         let operation_solution = OperationSolution::new(
@@ -682,7 +703,7 @@ pub mod tests {
         operation_parameters.insert(activity_number, operation_parameter);
 
         let mut operation_solutions = HashMap::new();
-        operation_solutions.insert(ActivityNumber(1), operation_solution);
+        operation_solutions.insert(1, operation_solution);
 
         // We simply have to make
         let optimized_tactical_work_order =
@@ -697,6 +718,7 @@ pub mod tests {
         // assert_eq!(tactical_algorithm.objective_value().0, 270);
     }
 
+    // This is ugly... I think that the best think to do here
     #[test]
     fn test_schedule_1() {
         let work_order_number = WorkOrderNumber(2100000001);
@@ -712,7 +734,7 @@ pub mod tests {
             days
         };
 
-        let mut tactical_algorithm = super::TacticalAlgorithm::new(
+        let mut tactical_algorithm = Algorithm::builder().solution(f).new(
             tactical_days(56),
             TacticalResources::new_from_data(
                 Resources::iter().collect(),
@@ -857,7 +879,7 @@ pub mod tests {
         let operation_parameter = OperationParameter::new(work_order_number, operation);
 
         let mut operation_parameters = HashMap::new();
-        operation_parameters.insert(ActivityNumber(1), operation_parameter);
+        operation_parameters.insert(1, operation_parameter);
 
         // Work Order
         // Resources::MtnMech,
@@ -875,7 +897,7 @@ pub mod tests {
 
         let scheduled_date = tactical_algorithm
             .solution
-            .tactical_scheduled_days(&work_order_number, &ActivityNumber(1));
+            .tactical_scheduled_days(&work_order_number, 1);
 
         assert!(scheduled_date.is_ok());
     }

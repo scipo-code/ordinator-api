@@ -5,6 +5,7 @@ pub mod database;
 pub mod logging;
 pub mod model_initializers;
 
+use agent_registry::Communication;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -60,7 +61,7 @@ pub struct Orchestrator {
     pub agent_factory: AgentFactory,
     pub agent_registries: HashMap<Asset, ActorRegistry>,
     pub configurations: HashMap<Asset, SystemConfigurations>,
-    pub databases_connections: DataBaseConnection,
+    pub database_connections: DataBaseConnection,
     pub agent_notify: Option<Weak<Mutex<Orchestrator>>>,
     pub log_handles: LogHandles,
 }
@@ -291,11 +292,12 @@ impl Orchestrator {
                     None => bail!("Asset: {:?} is not initialzed", &asset),
                 };
 
-                let work_order_response = WorkOrderResponse::new(
-                    work_order,
-                    (**api_solution).clone().into(),
-                    work_order_configurations,
-                );
+                // let work_order_response = WorkOrderResponse::new(
+                //     work_order,
+                //     (**api_solution).clone().into(),
+                //     work_order_configurations,
+                // );
+                todo!();
 
                 let work_orders_status = WorkOrdersStatus::Single(work_order_response);
 
@@ -320,18 +322,18 @@ impl Orchestrator {
                 };
 
                 let work_order_configurations = &work_orders.work_order_configurations;
-                let work_order_responses: HashMap<WorkOrderNumber, WorkOrderResponse> = work_orders
-                    .inner
-                    .iter()
-                    .map(|(work_order_number, work_order)| {
-                        let work_order_response = WorkOrderResponse::new(
-                            work_order,
-                            (**loaded_shared_solution).clone().into(),
-                            work_order_configurations,
-                        );
-                        (*work_order_number, work_order_response)
-                    })
-                    .collect();
+                // let work_order_responses: HashMap<WorkOrderNumber, WorkOrderResponse> = work_orders
+                //     .inner
+                //     .iter()
+                //     .map(|(work_order_number, work_order)| {
+                //         let work_order_response = WorkOrderResponse::new(
+                //             work_order,
+                //             (**loaded_shared_solution).clone().into(),
+                //             work_order_configurations,
+                //         );
+                //         (*work_order_number, work_order_response)
+                //     })
+                //     .collect();
 
                 let work_orders_status = WorkOrdersStatus::Multiple(work_order_responses);
 
@@ -578,22 +580,22 @@ impl Orchestrator {
     }
 }
 
-impl AgentRegistry {
+impl ActorRegistry {
     fn new(
         strategic_agent_addr: Communication<
-            AgentMessage<StrategicRequestMessage>,
+            ActorMessage<StrategicRequestMessage>,
             StrategicResponseMessage,
         >,
         tactical_agent_addr: Communication<
-            AgentMessage<TacticalRequestMessage>,
+            ActorMessage<TacticalRequestMessage>,
             TacticalResponseMessage,
         >,
         supervisor_agent_addrs: HashMap<
             Id,
-            Communication<AgentMessage<SupervisorRequestMessage>, SupervisorResponseMessage>,
+            Communication<ActorMessage<SupervisorRequestMessage>, SupervisorResponseMessage>,
         >,
     ) -> Self {
-        AgentRegistry {
+        ActorRegistry {
             strategic_agent_sender: strategic_agent_addr,
             tactical_agent_sender: tactical_agent_addr,
             supervisor_agent_senders: supervisor_agent_addrs,
@@ -605,7 +607,7 @@ impl AgentRegistry {
         &mut self,
         id: Id,
         communication: Communication<
-            AgentMessage<SupervisorRequestMessage>,
+            ActorMessage<SupervisorRequestMessage>,
             SupervisorResponseMessage,
         >,
     ) {
@@ -616,7 +618,7 @@ impl AgentRegistry {
         &mut self,
         id: Id,
         communication: Communication<
-            AgentMessage<OperationalRequestMessage>,
+            ActorMessage<OperationalRequestMessage>,
             OperationalResponseMessage,
         >,
     ) {
@@ -633,11 +635,21 @@ impl AgentRegistry {
 }
 
 impl Orchestrator {
-    pub async fn new_with_arc(
-        scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-        log_handles: LogHandles,
-    ) -> Arc<Mutex<Self>> {
+    pub async fn new() -> Arc<Mutex<Self>> {
+        let configurations = SystemConfigurations::read_all_configs().unwrap();
+
+        let (log_handles, _logging_guard) = logging::setup_logging();
+
+        let scheduling_environment = DataBaseConnection::scheduling_environment(configurations);
+
         let agent_factory = agent_factory::AgentFactory::new(scheduling_environment.clone());
+
+        let database_connections = DataBaseConnection::new();
+
+        // The configurations are already in place, you should strive to make the system as
+        // self contained as possible.
+        // This simply initializes the WorkerEnvironment, this should be done in the building of
+        // the `SchedulingEnvironment` not in here.
 
         let orchestrator = Orchestrator {
             scheduling_environment,
@@ -646,8 +658,8 @@ impl Orchestrator {
             agent_registries: HashMap::new(),
             log_handles,
             agent_notify: None,
-            configurations: todo!(),
-            databases_connections: todo!(),
+            configurations,
+            database_connections,
         };
 
         let arc_orchestrator = Arc::new(Mutex::new(orchestrator));
@@ -668,15 +680,6 @@ impl Orchestrator {
 
         // Initialization should not occur in here. Also the configurations should come in
         // from the
-        scheduling_environment_guard
-            .worker_environment
-            .initialize_from_resource_configuration_file(system_agents_bytes)
-            .with_context(|| {
-                format!(
-                    "{} not correctly parsed",
-                    std::any::type_name::<WorkerEnvironment>().bright_red()
-                )
-            })?;
 
         let shared_solutions_arc_swap = AgentFactory::create_shared_solution_arc_swap();
 
@@ -695,6 +698,7 @@ impl Orchestrator {
                 &scheduling_environment_guard,
                 shared_solutions_arc_swap.clone(),
                 notify_orchestrator.clone(),
+                self.configurations.get(&asset).unwrap().strategic_options(),
             )
             .context("Could not build the StrategicAgent")?;
 
@@ -716,7 +720,7 @@ impl Orchestrator {
 
         let mut supervisor_communication = HashMap::<
             Id,
-            Communication<AgentMessage<SupervisorRequestMessage>, SupervisorResponseMessage>,
+            Communication<ActorMessage<SupervisorRequestMessage>, SupervisorResponseMessage>,
         >::new();
 
         // This is a good sign. It means that the system is performing correctly. What should be
@@ -737,7 +741,7 @@ impl Orchestrator {
             supervisor_communication.insert(id, supervisor_addr);
         }
 
-        let agent_registry = AgentRegistry::new(
+        let agent_registry = ActorRegistry::new(
             strategic_agent_addr,
             tactical_agent_addr,
             supervisor_communication,

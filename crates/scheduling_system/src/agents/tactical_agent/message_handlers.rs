@@ -15,13 +15,18 @@ use crate::agents::{
     tactical_agent::algorithm::tactical_parameters::{
         create_tactical_parameter, TacticalParameters,
     },
-    Agent, ActorSpecific, Algorithm, MessageHandler, StateLink, TacticalSolution, WhereIsWorkOrder,
+    ActorSpecific, Agent, MessageHandler, StateLink, TacticalSolution, WhereIsWorkOrder,
 };
 
-type TacticalAlgorithm =
-    Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>>;
-
-impl MessageHandler for Agent<TacticalAlgorithm, TacticalRequestMessage, TacticalResponseMessage> {
+impl MessageHandler
+    for Agent<
+        TacticalRequestMessage,
+        TacticalResponseMessage,
+        TacticalSolution,
+        TacticalParameters,
+        PriorityQueue<WorkOrderNumber, u64>,
+    >
+{
     type Req = TacticalRequestMessage;
     type Res = TacticalResponseMessage;
 
@@ -124,7 +129,15 @@ impl MessageHandler for Agent<TacticalAlgorithm, TacticalRequestMessage, Tactica
     }
 }
 
-impl Agent<TacticalAlgorithm, TacticalRequestMessage, TacticalResponseMessage> {
+impl
+    Agent<
+        TacticalRequestMessage,
+        TacticalResponseMessage,
+        TacticalSolution,
+        TacticalParameters,
+        PriorityQueue<WorkOrderNumber, u64>,
+    >
+{
     fn update_resources_state(
         &mut self,
         resource_message: TacticalResourceRequest,

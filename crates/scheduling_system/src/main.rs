@@ -2,55 +2,40 @@ mod agents;
 mod api;
 mod orchestrator;
 
-use actix_web::{guard, web, App, HttpServer};
+use actix_web::guard;
+use actix_web::web;
+use actix_web::App;
+use actix_web::HttpServer;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
-use api::orchestrator_api::scheduler_asset_names;
-use api::orchestrator_api::scheduler_excel_export;
-use data_processing::sources::TimeInput;
 
 use std::fs::File;
 use std::io::Read;
-use std::io::Write;
-use std::path::Path;
-use std::sync::Arc;
-use std::sync::Mutex;
 
-use shared_types::{scheduling_environment::SchedulingEnvironment, Asset};
+use shared_types::Asset;
 
+use self::api::orchestrator_api::scheduler_asset_names;
+use self::api::orchestrator_api::scheduler_excel_export;
 use self::orchestrator::Orchestrator;
 
 #[actix_web::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv()
-        .expect("You need to provide an .env file. Look at the .env.example if for guidance");
+        .context("You need to provide an .env file. Look at the .env.example for guidance")?;
 
-    let (log_handles, _logging_guard) = logging::setup_logging();
-
-    let database_path_string =
-        &dotenvy::var("DATABASE_PATH").expect("Could not read database path");
-
-    let database_path = std::path::Path::new(database_path_string);
-
-    let scheduling_environment = if database_path.exists() {
-        initialize_from_database(database_path)
-    } else {
-        write_to_database(database_path)
-            .expect("Could not write SchedulingEnvironment to database.")
-    };
-
-    let mutex_scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
-
-    let orchestrator =
-        Orchestrator::new_with_arc(mutex_scheduling_environment.clone(), log_handles).await;
+    let orchestrator = Orchestrator::new().await;
 
     let asset_string = dotenvy::var("ASSET").expect("The ASSET environment variable should be set");
 
     let asset = Asset::new_from_string(asset_string.as_str())
         .expect("Please set a valid ASSET environment variable");
 
+    // This is so ugly, REMEMBER that when you code shit you have to redo it and that costs a lot of time to
+    // fix.
     // WARN START: USED FOR CONVENIENCE
+    // TODO [ ]
+    // You should not read in files here. That is a horrible place to do it.
     let system_agents_configuration_toml = dotenvy::var("RESOURCE_CONFIG_INITIALIZATION").expect("A resources configuration file was not read, this is not technically an error but it will be treated as such.");
 
     let mut system_agents = File::open(system_agents_configuration_toml)?;
@@ -116,6 +101,7 @@ async fn main() -> Result<()> {
     .map_err(|err| anyhow!(err))
 }
 
+// Make API scope for everything. Dall needs to understand all this
 fn api_scope() -> actix_web::Scope {
     web::scope("/api")
         .route(
@@ -123,35 +109,6 @@ fn api_scope() -> actix_web::Scope {
             web::get().to(scheduler_excel_export),
         )
         .route("/scheduler/assets", web::get().to(scheduler_asset_names))
-}
-fn initialize_from_database(path: &Path) -> SchedulingEnvironment {
-    let mut file = File::open(path).unwrap();
-    let mut data = String::new();
-
-    file.read_to_string(&mut data).unwrap();
-
-    serde_json::from_str::<SchedulingEnvironment>(&data).unwrap()
-}
-
-fn write_to_database(path: &Path) -> Result<SchedulingEnvironment, std::io::Error> {
-    let time_input = TimeInput {
-        number_of_strategic_periods: 52,
-        number_of_tactical_periods: 4,
-        number_of_days: 100,
-        number_of_supervisor_periods: 3,
-    };
-
-    // FIX [ ]
-    //
-    let scheduling_environment =
-        init::model_initializers::initialize_scheduling_environment(time_input);
-
-    let json_scheduling_environment = serde_json::to_string(&scheduling_environment).unwrap();
-    let mut file = File::create(path).unwrap();
-
-    file.write_all(json_scheduling_environment.as_bytes())
-        .unwrap();
-    Ok(scheduling_environment)
 }
 
 // fn start_steel_repl(arc_orchestrator: ArcOrchestrator) {

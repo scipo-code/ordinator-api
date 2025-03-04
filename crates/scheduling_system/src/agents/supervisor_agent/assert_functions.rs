@@ -18,10 +18,8 @@ pub trait SupervisorAssertions {
     ) -> Result<()>;
 }
 
-type SupervisorAlgorithm = Algorithm<SupervisorSolution, SupervisorParameters, ()>;
-
 impl<MessageRequest, MessageResponse> SupervisorAssertions
-    for Agent<SupervisorAlgorithm, MessageRequest, MessageResponse>
+    for Agent<MessageRequest, MessageResponse, SupervisorSolution, SupervisorParameters, ()>
 {
     fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(
         &self,

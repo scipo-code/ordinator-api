@@ -261,7 +261,10 @@ fn create_work_orders(
             })
             .build();
 
-        assert!(work_order.earliest_allowed_start_period(periods).contains_date(work_order.work_order_dates.earliest_allowed_start_date));
+        // FIX [ ]
+        //
+        // You should load the correct `MaterialToPeriod` for for the system to work correctly.
+        // assert!(work_order.earliest_allowed_start_period(periods, self.).contains_date(work_order.work_order_dates.earliest_allowed_start_date));
         arc_mutex_inner_work_orders.lock().unwrap().insert(*work_order_number, work_order);
     });
     let work_orders = arc_mutex_inner_work_orders.lock().unwrap().clone();

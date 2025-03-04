@@ -3,8 +3,6 @@ pub mod crew;
 pub mod resources;
 pub mod worker;
 
-use anyhow::{Context, Result};
-use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use strum::IntoEnumIterator;
@@ -12,7 +10,7 @@ use strum::IntoEnumIterator;
 use crate::agents::strategic::{OperationalResource, StrategicResources};
 use crate::agents::tactical::{Days, TacticalResources};
 use crate::scheduling_environment::worker_environment::resources::Resources;
-use crate::{ActorSpecifications, AgentEnvironment, OperationalId};
+use crate::{AgentEnvironment, OperationalId};
 
 use super::time_environment::day::Day;
 use super::time_environment::period::Period;
