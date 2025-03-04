@@ -5,19 +5,19 @@ pub mod work_order_dates;
 pub mod work_order_info;
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
-use chrono::{Duration, NaiveDate};
+use chrono::DateTime;
+use chrono::NaiveDate;
+use chrono::Utc;
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use work_order_dates::WorkOrderDatesBuilder;
 
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::env;
-use std::fs;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
+use crate::configuration::material::MaterialToPeriod;
 use crate::Asset;
 
 use super::time_environment::period::Period;
@@ -261,13 +261,12 @@ pub struct WorkOrderConfigurations {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ClusteringWeights {
-    asset: u64,
-    sector: u64,
-    system: u64,
-    subsystem: u64,
-    equipment_tag: u64,
+    pub asset: u64,
+    pub sector: u64,
+    pub system: u64,
+    pub subsystem: u64,
+    pub equipment_tag: u64,
 }
-
 
 // You can remove all the initialization logic! So cool! I am not sure about the
 //
@@ -382,23 +381,21 @@ impl WorkOrder {
     // Extract these parameters into a config file.
     // TODO [ ]
     // Move this code into the Builder
-    pub fn find_excluded_periods(&self, periods: &[Period]) -> HashSet<Period> {
-        let mut excluded_periods: HashSet<Period> = HashSet::new();
-        for (i, period) in periods.iter().enumerate() {
-            if period < self.earliest_allowed_start_period(periods)
-                || (self.vendor() && i <= 3)
-                || (self.work_order_info.revision.shutdown() && i <= 3)
-            {
-                assert!(
-                    self.earliest_allowed_start_period(&periods)
-                        .end_date()
-                        .date_naive()
-                        >= self.work_order_dates.earliest_allowed_start_date
-                );
-                excluded_periods.insert(period.clone());
-            }
-        }
-        excluded_periods
+    pub fn find_excluded_periods(
+        &self,
+        periods: &[Period],
+        material_to_periods: &MaterialToPeriod,
+    ) -> HashSet<Period> {
+        periods
+            .iter()
+            .enumerate()
+            .filter(|(i, per)| {
+                *per < self.earliest_allowed_start_period(periods, material_to_periods)
+                    || (self.vendor() && *i <= 3)
+                    || (self.work_order_info.revision.shutdown() && *i <= 3)
+            })
+            .map(|(i, per)| per.clone())
+            .collect()
     }
 
     pub fn functional_location(&self) -> &FunctionalLocation {
@@ -433,19 +430,31 @@ impl WorkOrder {
     // FIX
     // This should be based on a different formulation. This whole thing should be
     // formulated differently
-    pub fn earliest_allowed_start_period<'a>(&'a self, periods: &'a [Period]) -> &'a Period {
+    pub fn earliest_allowed_start_period<'a>(
+        &'a self,
+        periods: &'a [Period],
+        material_to_periods: &MaterialToPeriod,
+    ) -> &'a Period {
         // This whole thing is bull shit.
         // TODO [ ]
         //
 
+        // This is also not this straihtforward. There is an interplay between
+        // this and the
+        // assert!(
+        //     self.earliest_allowed_start_period(&periods)
+        //         .end_date()
+        //         .date_naive()
+        //         >= self.work_order_dates.earliest_allowed_start_date
+        // );
         let period =
             Self::date_to_period(periods, &self.work_order_dates.earliest_allowed_start_date);
         match &self.work_order_analytic.user_status_codes.clone().into() {
-            MaterialStatus::Nmat => (&periods[0]).max(&period),
-            MaterialStatus::Smat => (&periods[0]).max(&period),
-            MaterialStatus::Cmat => (&periods[2]).max(&period),
-            MaterialStatus::Pmat => (&periods[3]).max(&period),
-            MaterialStatus::Wmat => (&periods[3]).max(&period),
+            MaterialStatus::Nmat => (&periods[material_to_periods.nmat]).max(period),
+            MaterialStatus::Smat => (&periods[material_to_periods.smat]).max(period),
+            MaterialStatus::Cmat => (&periods[material_to_periods.cmat]).max(period),
+            MaterialStatus::Pmat => (&periods[material_to_periods.pmat]).max(period),
+            MaterialStatus::Wmat => (&periods[material_to_periods.wmat]).max(period),
             MaterialStatus::Unknown => panic!("WorkOrder does not have a material status"),
         }
     }
@@ -588,21 +597,21 @@ mod tests {
             Period::from_str("2025-W1-2").unwrap(),
         ];
 
-        let period_1 = date_to_period(
+        let period_1 = WorkOrder::date_to_period(
             periods.as_slice(),
             &NaiveDate::from_ymd_opt(2024, 12, 5).unwrap(),
         );
-        let period_2 = date_to_period(
+        let period_2 = WorkOrder::date_to_period(
             periods.as_slice(),
             &NaiveDate::from_ymd_opt(2024, 12, 27).unwrap(),
         );
-        let period_3 = date_to_period(
+        let period_3 = WorkOrder::date_to_period(
             periods.as_slice(),
             &NaiveDate::from_ymd_opt(2025, 1, 3).unwrap(),
         );
 
-        assert_eq!(period_1, periods.get(1).unwrap().clone());
-        assert_eq!(period_2, periods.get(2).unwrap().clone());
-        assert_eq!(period_3, periods.get(3).unwrap().clone());
+        assert_eq!(period_1, periods.get(1).unwrap());
+        assert_eq!(period_2, periods.get(2).unwrap());
+        assert_eq!(period_3, periods.get(3).unwrap());
     }
 }

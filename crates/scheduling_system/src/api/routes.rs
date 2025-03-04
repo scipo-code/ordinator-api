@@ -12,7 +12,7 @@ use tracing::Level;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use crate::agents::orchestrator::Orchestrator;
+use crate::orchestrator::Orchestrator;
 
 #[allow(clippy::await_holding_lock)]
 pub async fn http_to_scheduling_system(

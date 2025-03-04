@@ -1,13 +1,13 @@
-use std::collections::HashMap;
-
-use serde::{Deserialize, Serialize};
-use status_codes::{
-    SystemStatusCodes, SystemStatusCodesBuilder, UserStatusCodes, UserStatusCodesBuilder,
-};
-
-use super::operation::{ActivityNumber, Operation};
-
 pub mod status_codes;
+
+use serde::Deserialize;
+use serde::Serialize;
+
+use status_codes::SystemStatusCodes;
+use status_codes::SystemStatusCodesBuilder;
+use status_codes::UserStatusCodes;
+use status_codes::UserStatusCodesBuilder;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrderAnalytic {
     pub system_status_codes: SystemStatusCodes,

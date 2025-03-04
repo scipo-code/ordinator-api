@@ -1080,7 +1080,7 @@ mod tests {
     use strategic_parameters::WorkOrderParameter;
     use rand::{rngs::StdRng, SeedableRng};
 
-    use shared_types::{scheduling_environment::{work_order::ClusteringWeights, worker_environment::resources::{Id, Resources}, SchedulingEnvironment}, Asset};
+    use shared_types::{scheduling_environment::{ worker_environment::resources::{Id, Resources}, SchedulingEnvironment}, Asset};
 
     use crate::agents::{strategic_agent::algorithm::
               StrategicParameters
@@ -1570,6 +1570,8 @@ mod tests {
             urgency_weight: 1,
             resource_penalty_weight: 1,
             clustering_weight: 1,
+            work_order_configurations: todo!(),
+            material_to_period: todo!(),
         };
 
         strategic_algorithm.parameters.strategic_options = strategic_options;

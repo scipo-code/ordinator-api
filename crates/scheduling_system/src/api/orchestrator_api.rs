@@ -202,6 +202,7 @@ impl Orchestrator {
                 .expect("This will error at somepoint you will need to handle if you have added additional supervisors")
                 .1;
 
+        // This was the reason that we wanted the tokio runtime.
         supervisor_agent_addr
             .sender
             .send(crate::agents::ActorMessage::Actor(

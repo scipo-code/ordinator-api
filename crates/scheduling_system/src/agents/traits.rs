@@ -1,11 +1,16 @@
-use anyhow::{Context, Result};
-use shared_types::{
-    scheduling_environment::{worker_environment::resources::Id, SchedulingEnvironment},
-    Asset,
-};
+use anyhow::Context;
+use anyhow::Result;
+
+use std::fmt::Debug;
 use std::sync::MutexGuard;
 
-use super::{AlgorithmBuilder, AlgorithmUtils};
+use shared_types::scheduling_environment::work_order::WorkOrderActivity;
+use shared_types::scheduling_environment::worker_environment::resources::Id;
+use shared_types::scheduling_environment::SchedulingEnvironment;
+
+use super::operational_agent::algorithm::operational_solution::MarginalFitness;
+use super::AlgorithmBuilder;
+use super::StateLink;
 
 /// This trait will be crucial for making this whole thing work correctly.
 /// I think that the best approach will be to make only a single message
@@ -75,11 +80,12 @@ where
 }
 
 pub trait AlgorithmUtils {
-    type Parameters;
+    type Parameters: Parameters;
     type ObjectiveValue;
     type Sol: Solution<ObjectiveValue = Self::ObjectiveValue> + Debug + Clone;
+    type I: Default;
 
-    fn builder() -> AlgorithmBuilder;
+    fn builder() -> AlgorithmBuilder<Self::Sol, Self::Parameters, Self::I>;
 
     fn load_shared_solution(&mut self);
 

@@ -33,12 +33,14 @@ use super::algorithm::strategic_parameters::WorkOrderParameter;
 use super::algorithm::strategic_parameters::WorkOrderParameterBuilder;
 use super::algorithm::ScheduleWorkOrder;
 
-type StrategicAlgorithm =
-    Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>>;
-
-impl MessageHandler
-    for Agent<StrategicAlgorithm, StrategicRequestMessage, StrategicResponseMessage>
-{
+type StrategicAgent = Agent<
+    StrategicRequestMessage,
+    StrategicResponseMessage,
+    StrategicSolution,
+    StrategicParameters,
+    PriorityQueue<WorkOrderNumber, u64>,
+>;
+impl MessageHandler for StrategicAgent {
     type Req = StrategicRequestMessage;
     type Res = StrategicResponseMessage;
 
@@ -87,43 +89,44 @@ impl MessageHandler
                             bail!("Period not found in the the scheduling environment".to_string());
                         }
 
-                        let work_orders_by_period: HashMap<WorkOrderNumber, WorkOrderResponse> =
-                            self.algorithm
-                                .solution
-                                .strategic_scheduled_work_orders
-                                .iter()
-                                .filter(|(_, sch_per)| match sch_per {
-                                    Some(scheduled_period) => {
-                                        scheduled_period.period_string() == period
-                                    }
-                                    None => false,
-                                })
-                                .map(|(work_order_number, _)| {
-                                    let work_orders =
-                                        self.scheduling_environment.lock().unwrap().work_orders;
+                        // let work_orders_by_period: HashMap<WorkOrderNumber, WorkOrderResponse> =
+                        //     self.algorithm
+                        //         .solution
+                        //         .strategic_scheduled_work_orders
+                        //         .iter()
+                        //         .filter(|(_, sch_per)| match sch_per {
+                        //             Some(scheduled_period) => {
+                        //                 scheduled_period.period_string() == period
+                        //             }
+                        //             None => false,
+                        //         })
+                        //         .map(|(work_order_number, _)| {
+                        //             let work_orders =
+                        //                 self.scheduling_environment.lock().unwrap().work_orders;
 
-                                    let work_order_configurations =
-                                        &work_orders.work_order_configurations;
+                        //             let work_order_configurations =
+                        //                 &work_orders.work_order_configurations;
 
-                                    let work_order =
-                                        &work_orders.inner.get(work_order_number).unwrap().clone();
+                        //             let work_order =
+                        //                 &work_orders.inner.get(work_order_number).unwrap().clone();
 
-                                    let work_order_response = WorkOrderResponse::new(
-                                        work_order,
-                                        (**self.algorithm.loaded_shared_solution).clone().into(),
-                                        work_order_configurations,
-                                    );
-                                    (*work_order_number, work_order_response)
-                                })
-                                .collect();
+                        //             let work_order_response = WorkOrderResponse::new(
+                        //                 work_order,
+                        //                 (**self.algorithm.loaded_shared_solution).clone().into(),
+                        //                 &self
+                        //                     .scheduling_environment
+                        //                     .lock()
+                        //                     .unwrap()
+                        //                     .time_environment
+                        //                     .strategic_periods
+                        //                     .clone(),
+                        //                 work_order_configurations,
+                        //             );
+                        //             (*work_order_number, work_order_response)
+                        //         })
+                        //         .collect();
 
-                        let work_orders_in_period =
-                            WorkOrdersStatus::Multiple(work_orders_by_period);
-
-                        let strategic_response_message =
-                            StrategicResponseMessage::WorkOrder(work_orders_in_period);
-
-                        Ok(strategic_response_message)
+                        bail!("The endpoints are being refactored")
                     }
                     StrategicStatusMessage::WorkOrder(work_order_number) => {
                         let strategic_solution_for_specific_work_order = self
@@ -135,7 +138,7 @@ impl MessageHandler
                                 format!(
                                     "{:?} not found in {}",
                                     work_order_number,
-                                    std::any::type_name::<StrategicAlgorithm>()
+                                    std::any::type_name::<StrategicAgent>()
                                 )
                             })?;
 
@@ -149,7 +152,7 @@ impl MessageHandler
                                     "{:?} does not have a {} in {}",
                                     work_order_number,
                                     std::any::type_name::<WorkOrderParameter>(),
-                                    std::any::type_name::<StrategicAlgorithm>()
+                                    std::any::type_name::<StrategicAgent>()
                                 )
                             })?;
 

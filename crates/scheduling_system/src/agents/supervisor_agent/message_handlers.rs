@@ -12,13 +12,18 @@ use shared_types::{
 use tracing::{event, Level};
 
 use crate::agents::{
-    supervisor_agent::algorithm::supervisor_parameters::SupervisorParameters, Agent, ActorSpecific,
-    Algorithm, MessageHandler, StateLink, SupervisorSolution,
+    supervisor_agent::algorithm::supervisor_parameters::SupervisorParameters, ActorSpecific, Agent,
+    MessageHandler, StateLink, SupervisorSolution,
 };
 
-type SupervisorAlgorithm = Algorithm<SupervisorSolution, SupervisorParameters, ()>;
 impl MessageHandler
-    for Agent<SupervisorAlgorithm, SupervisorRequestMessage, SupervisorResponseMessage>
+    for Agent<
+        SupervisorRequestMessage,
+        SupervisorResponseMessage,
+        SupervisorSolution,
+        SupervisorParameters,
+        (),
+    >
 {
     type Req = SupervisorRequestMessage;
     type Res = SupervisorResponseMessage;

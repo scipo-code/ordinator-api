@@ -1,6 +1,7 @@
 use anyhow::bail;
 use anyhow::Result;
 use serde::Serialize;
+use shared_types::scheduling_environment::work_order::ClusteringWeights;
 use shared_types::scheduling_environment::work_order::WorkOrders;
 
 use std::collections::HashMap;
@@ -11,7 +12,6 @@ use shared_types::agents::strategic::StrategicResources;
 use shared_types::scheduling_environment::time_environment::period::Period;
 use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::work_order::WorkOrder;
-use shared_types::scheduling_environment::work_order::WorkOrderConfigurations;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::{Id, Resources};
 use shared_types::scheduling_environment::SchedulingEnvironment;
@@ -66,7 +66,7 @@ impl Parameters for StrategicParameters {
                     // worried about the name.
                     // You could fix this now, but the configuration policy is much more important.
                     WorkOrderParameter::builder()
-                        .with_scheduling_environment(wo, strategic_periods)
+                        .with_scheduling_environment(wo, strategic_periods, &options)
                         .build(),
                 )
             })
@@ -187,13 +187,14 @@ impl WorkOrderParameterBuilder {
         &mut self,
         work_order: &WorkOrder,
         periods: &[Period],
-        work_order_configurations: &WorkOrderConfigurations,
+        strategic_options: &StrategicOptions,
     ) -> &mut Self {
         // FIX [ ]
         // This is horribly written and very error prone
-        self.0.excluded_periods = work_order.find_excluded_periods(periods);
+        self.0.excluded_periods =
+            work_order.find_excluded_periods(periods, &strategic_options.material_to_period);
 
-        self.0.weight = work_order.work_order_value(work_order_configurations);
+        self.0.weight = work_order.work_order_value(&strategic_options.work_order_configurations);
 
         self.0.work_load = work_order.work_load();
 
@@ -319,6 +320,7 @@ impl StrategicClustering {
         work_orders: &WorkOrders,
         clustering_weights: ClusteringWeights,
     ) -> Result<HashMap<(WorkOrderNumber, WorkOrderNumber), ClusteringValue>> {
+        let mut clustering_similarity = HashMap::new();
         let work_orders_data: Vec<_> = work_orders
             .inner
             .iter()

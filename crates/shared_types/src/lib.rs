@@ -30,6 +30,8 @@ use agents::supervisor::{SupervisorRequest, SupervisorResponse};
 use agents::tactical::{TacticalRequest, TacticalResponse};
 use serde::{Deserialize, Serialize};
 
+pub type OperationalId = String;
+
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "message_type")]
 pub enum SystemMessages {
@@ -173,6 +175,7 @@ impl Display for Asset {
             Asset::TS => write!(f, "TS"),
             Asset::VA => write!(f, "VA"),
             Asset::VB => write!(f, "VB"),
+            Asset::Test => write!(f, "TEST"),
             Asset::Unknown => write!(f, "Unknown"),
         }
     }
@@ -260,8 +263,10 @@ pub struct TomlResources {
 // Good, so this type is an `API` types. And all API types
 // should be located together. I think that is the best approach
 // here.
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ActorSpecifications {
+    pub strategic: InputStrategic,
+    pub tactical: InputTactical,
     pub supervisors: Vec<InputSupervisor>,
     // QUESTION
     // Why not just store the OperationalParameters here?
@@ -348,29 +353,64 @@ pub struct SupervisorConfigurationAll {
     number_of_supervisor_periods: u64,
 }
 
-#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug)]
+#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
+pub struct InputStrategic {
+    pub id: String,
+    pub asset: String,
+    pub strategic_options_config: StrategicOptionsConfig,
+}
+
+#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
+pub struct InputTactical {
+    pub id: String,
+    pub asset: String,
+    pub tactical_options_config: TacticalOptionsConfig,
+}
+
+#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
 pub struct InputSupervisor {
     pub id: String,
     pub resource: Option<Resources>,
     pub number_of_supervisor_periods: u64,
     pub assets: Vec<Asset>,
+    pub supervisor_options: SupervisorOptionsConfig,
 }
 
-pub type OperationalId = String;
-
-// I think that this should be refactored. You do not really understand
-// why it is that way.
-//
-// You should make a new type here. One that does the best it
-// can to be what we need this. `From<InputOperational> for OperationalConfiguration`
-// is needed!
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct InputOperational {
     pub id: OperationalId,
     pub resources: Vec<Resources>,
     pub hours_per_day: f64,
     pub operational_configuration: OperationalConfiguration,
     pub assets: Vec<Asset>,
+    pub operational_options: OperationalOptionsConfig,
+}
+/// This type is for loading in the `Strategic` configurations
+/// so that the `StrategicOptions` can be loaded in to the `Agent`
+/// in the correct format.
+#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
+pub struct StrategicOptionsConfig {
+    number_of_removed_work_orders: usize,
+    urgency_weight: usize,
+    resource_penalty_weight: usize,
+    clustering_weight: usize,
+}
+
+#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
+pub struct TacticalOptionsConfig {
+    number_of_removed_work_orders: u64,
+    urgency: u64,
+    resource_penalty: u64,
+}
+
+#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
+pub struct SupervisorOptionsConfig {
+    number_of_removed_work_orders: u64,
+}
+
+#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
+pub struct OperationalOptionsConfig {
+    number_of_removed_work_orders: u64,
 }
 
 #[derive(Debug, Serialize)]

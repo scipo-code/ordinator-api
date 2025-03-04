@@ -1,7 +1,23 @@
+[strategic]
+id = "strategic"
+asset = "Df"
+strategic_options.number_of_removed_work_orders = 25
+strategic_options.urgency_weight = 1
+strategic_options.resource_penalty_weight = 1000000
+strategic_options.clustering_weight = 1000
+
+[tactical]
+id = "tactical"
+asset = "Df"
+tactical_options.number_of_removed_work_orders = 25
+tactical_options.urgency = 1
+tactical_options.resource_penalty = 10000000
+
 [[supervisors]]
 id = "main"
 number_of_supervisor_periods = 3
 assets = [ "Df" ]
+supervisor_options.number_of_removed_work_orders = 15
 
 # [[supervisors]]
 # id = "supervisor-second"
@@ -12,6 +28,7 @@ assets = [ "Df" ]
 id = "OP-01-001"
 resources = ["MTN-ELEC" ]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -23,6 +40,7 @@ assets = [ "Df" ]
 id = "OP-01-002"
 resources = [ "MTN-ELEC" ]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -34,6 +52,7 @@ assets = [ "Df" ]
 id = "OP-01-003"
 resources = [ "MTN-ELEC" ]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -45,6 +64,7 @@ assets = [ "Df" ]
 id = "OP-01-004"
 resources = [ "MTN-ELEC" ]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -55,6 +75,7 @@ assets = [ "Df" ]
 id = "OP-01-005"
 resources = [ "MTN-ELEC" ]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -65,6 +86,7 @@ assets = [ "Df" ]
 id = "OP-01-006"
 resources = [ "MTN-ELEC" ]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -79,6 +101,7 @@ assets = [ "Df" ]
 id = "OP-02-001"
 resources = [ "MTN-INST" ]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -90,6 +113,7 @@ assets = [ "Df" ]
 id = "OP-02-002"
 resources = [ "MTN-INST" ]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -101,6 +125,7 @@ assets = [ "Df" ]
 id = "OP-02-003"
 resources = [ "MTN-INST" ]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -112,6 +137,7 @@ assets = [ "Df" ]
 id = "OP-02-004"
 resources = [ "MTN-INST" ]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -126,6 +152,7 @@ assets = [ "Df" ]
 id = "OP-02-001"
 resources = [ "MTN-MECH" ]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -137,6 +164,7 @@ assets = [ "Df" ]
 id = "OP-02-002"
 resources = [ "MTN-MECH" ]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -148,6 +176,7 @@ assets = [ "Df" ]
 id = "OP-02-003"
 resources = [ "MTN-MECH" ]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -159,6 +188,7 @@ assets = [ "Df" ]
 id = "OP-02-004"
 resources = [ "MTN-MECH"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -169,6 +199,7 @@ assets = [ "Df" ]
 id = "OP-02-005"
 resources = [ "MTN-MECH"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -179,6 +210,7 @@ assets = [ "Df" ]
 id = "OP-02-006"
 resources = [ "MTN-MECH"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -193,6 +225,7 @@ assets = [ "Df" ]
 id = "OP-03-001"
 resources = [ "MTN-TURB"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -204,6 +237,7 @@ assets = [ "Df" ]
 id = "OP-03-002"
 resources = [ "MTN-TURB"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -215,6 +249,7 @@ assets = [ "Df" ]
 id = "OP-03-003"
 resources = [ "MTN-TURB"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -225,6 +260,7 @@ assets = [ "Df" ]
 id = "OP-03-004"
 resources = [ "MTN-TURB"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -235,6 +271,7 @@ assets = [ "Df" ]
 id = "OP-03-005"
 resources = [ "MTN-TURB"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -249,6 +286,7 @@ assets = [ "Df" ]
 id = "OP-03-001"
 resources = [ "MTN-TELE"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -260,6 +298,7 @@ assets = [ "Df" ]
 id = "OP-03-002"
 resources = [ "MTN-TELE"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -271,6 +310,7 @@ assets = [ "Df" ]
 id = "OP-03-003"
 resources = [ "MTN-TELE"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -281,6 +321,7 @@ assets = [ "Df" ]
 id = "OP-03-004"
 resources = [ "MTN-TELE"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -291,6 +332,7 @@ assets = [ "Df" ]
 id = "OP-03-005"
 resources = [ "MTN-TELE"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -305,6 +347,7 @@ assets = [ "Df" ]
 id = "OP-04-001"
 resources = [ "MTN-ROUS"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -316,6 +359,7 @@ assets = [ "Df" ]
 id = "OP-04-002"
 resources = [ "MTN-ROUS"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -327,6 +371,7 @@ assets = [ "Df" ]
 id = "OP-04-003"
 resources = [ "MTN-ROUS"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -338,6 +383,7 @@ assets = [ "Df" ]
 id = "OP-04-004"
 resources = [ "MTN-ROUS"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -349,6 +395,7 @@ assets = [ "Df" ]
 id = "OP-04-005"
 resources = [ "MTN-ROUS"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -363,6 +410,7 @@ assets = [ "Df" ]
 id = "OP-05-001"
 resources = [ "MEDIC" ]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -377,6 +425,7 @@ assets = [ "Df" ]
 id = "OP-05-001"
 resources = [ "MTN-LAGG"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -388,6 +437,7 @@ assets = [ "Df" ]
 id = "OP-05-002"
 resources = [ "MTN-LAGG"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -398,6 +448,7 @@ assets = [ "Df" ]
 id = "OP-05-003"
 resources = [ "MTN-LAGG"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -408,6 +459,7 @@ assets = [ "Df" ]
 id = "OP-05-004"
 resources = [ "MTN-LAGG"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -422,6 +474,7 @@ assets = [ "Df" ]
 id = "OP-06-001"
 resources = [ "MTN-PAIN"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -432,6 +485,7 @@ assets = [ "Df" ]
 id = "OP-06-002"
 resources = [ "MTN-PAIN"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -442,6 +496,7 @@ assets = [ "Df" ]
 id = "OP-06-003"
 resources = [ "MTN-PAIN"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -452,6 +507,7 @@ assets = [ "Df" ]
 id = "OP-06-004"
 resources = [ "MTN-PAIN"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -466,6 +522,7 @@ assets = [ "Df" ]
 id = "OP-07-001"
 resources = [ "MTN-PIPF"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -476,6 +533,7 @@ assets = [ "Df" ]
 id = "OP-07-002"
 resources = [ "MTN-PIPF"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -486,6 +544,7 @@ assets = [ "Df" ]
 id = "OP-07-003"
 resources = [ "MTN-PIPF"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -496,6 +555,7 @@ assets = [ "Df" ]
 id = "OP-07-004"
 resources = [ "MTN-PIPF"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -506,6 +566,7 @@ assets = [ "Df" ]
 id = "OP-07-005"
 resources = [ "MTN-PIPF"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -516,6 +577,7 @@ assets = [ "Df" ]
 id = "OP-07-006"
 resources = [ "MTN-PIPF"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -530,6 +592,7 @@ assets = [ "Df" ]
 id = "OP-08-001"
 resources = [ "MTN-ROPE"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -540,6 +603,7 @@ assets = [ "Df" ]
 id = "OP-08-002"
 resources = [ "MTN-ROPE"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -550,6 +614,7 @@ assets = [ "Df" ]
 id = "OP-08-003"
 resources = [ "MTN-ROPE"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -560,6 +625,7 @@ assets = [ "Df" ]
 id = "OP-08-004"
 resources = [ "MTN-ROPE"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -570,6 +636,7 @@ assets = [ "Df" ]
 id = "OP-08-005"
 resources = [ "MTN-ROPE"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -580,6 +647,7 @@ assets = [ "Df" ]
 id = "OP-08-006"
 resources = [ "MTN-ROPE"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -594,6 +662,7 @@ assets = [ "Df" ]
 id = "OP-09-001"
 resources = [ "MTN-SCAF"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -604,6 +673,7 @@ assets = [ "Df" ]
 id = "OP-09-002"
 resources = [ "MTN-SCAF"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -614,6 +684,7 @@ assets = [ "Df" ]
 id = "OP-09-003"
 resources = [ "MTN-SCAF"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -624,6 +695,7 @@ assets = [ "Df" ]
 id = "OP-09-004"
 resources = [ "MTN-SCAF"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -635,6 +707,7 @@ assets = [ "Df" ]
 id = "OP-09-005"
 resources = [ "MTN-SCAF"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -646,6 +719,7 @@ assets = [ "Df" ]
 id = "OP-09-006"
 resources = [ "MTN-SCAF"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -660,6 +734,7 @@ assets = [ "Df" ]
 id = "OP-10-001"
 resources = [ "INP-SITE"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -670,6 +745,7 @@ assets = [ "Df" ]
 id = "OP-10-002"
 resources = [ "INP-SITE"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -680,6 +756,7 @@ assets = [ "Df" ]
 id = "OP-10-003"
 resources = [ "INP-SITE"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -690,6 +767,7 @@ assets = [ "Df" ]
 id = "OP-10-004"
 resources = [ "INP-SITE"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -700,6 +778,7 @@ assets = [ "Df" ]
 id = "OP-10-005"
 resources = [ "INP-SITE"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -714,6 +793,7 @@ assets = [ "Df" ]
 id = "OP-11-001"
 resources = [ "PRODTECH"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -724,6 +804,7 @@ assets = [ "Df" ]
 id = "OP-11-002"
 resources = [ "PRODTECH"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -734,6 +815,7 @@ assets = [ "Df" ]
 id = "OP-11-003"
 resources = [ "PRODTECH"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -744,6 +826,7 @@ assets = [ "Df" ]
 id = "OP-11-004"
 resources = [ "PRODTECH"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -754,6 +837,7 @@ assets = [ "Df" ]
 id = "OP-11-005"
 resources = [ "PRODTECH"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -764,6 +848,7 @@ assets = [ "Df" ]
 id = "OP-11-006"
 resources = [ "PRODTECH"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
@@ -774,6 +859,7 @@ assets = [ "Df" ]
 id = "OP-11-007"
 resources = [ "PRODTECH"]
 hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
 operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
 operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
 operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }

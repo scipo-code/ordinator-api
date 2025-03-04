@@ -7,6 +7,7 @@ use crate::agents::operational::OperationalConfiguration;
 use crate::agents::strategic::responses::strategic_response_status::StrategicResponseStatus;
 use crate::agents::supervisor::responses::supervisor_response_status::SupervisorResponseStatus;
 use crate::agents::tactical::responses::tactical_response_status::TacticalResponseStatus;
+use crate::configuration::material::MaterialToPeriod;
 use crate::scheduling_environment::time_environment::day::Day;
 use crate::scheduling_environment::time_environment::period::Period;
 use crate::scheduling_environment::work_order::operation::Work;
@@ -150,6 +151,7 @@ impl WorkOrderResponse {
         api_solution: ApiSolution,
         periods: &[Period],
         work_order_configurations: &WorkOrderConfigurations,
+        material_to_period: &MaterialToPeriod,
     ) -> Self {
         // WARN
         // Crucial lesson here. Derived needed information with functions allows you to
@@ -158,7 +160,9 @@ impl WorkOrderResponse {
         // QUESTION
         // Do you even need `Periods` can they not always be derived instead? I think that
         // they can.
-        let earliest_period = work_order.earliest_allowed_start_period(periods).clone();
+        let earliest_period = work_order
+            .earliest_allowed_start_period(periods, material_to_period)
+            .clone();
 
         let work_order_info = work_order.work_order_info.clone();
         let work_order_work_load = work_order.work_order_load();

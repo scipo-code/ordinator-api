@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use rust_xlsxwriter::IntoExcelData;
 use serde::{Deserialize, Serialize};
 #[derive(Default, Clone, Debug, Deserialize, Serialize)]
@@ -6,7 +8,7 @@ pub struct Revision {
 }
 
 #[derive(Default, Clone, Debug, Deserialize, Serialize)]
-enum RevisionCode {
+pub enum RevisionCode {
     #[default]
     Ne,
     Nosd,
@@ -33,12 +35,12 @@ impl Revision {
     }
 }
 
-impl ToString for Revision {
-    fn to_string(&self) -> String {
+impl Display for Revision {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.revision_code {
-            RevisionCode::Ne => "NE".to_string(),
-            RevisionCode::Nosd => "NOSD".to_string(),
-            RevisionCode::Code(string) => string.to_string(),
+            RevisionCode::Ne => write!(f, "NE"),
+            RevisionCode::Nosd => write!(f, "NOSD"),
+            RevisionCode::Code(string) => write!(f, "{}", string),
         }
     }
 }

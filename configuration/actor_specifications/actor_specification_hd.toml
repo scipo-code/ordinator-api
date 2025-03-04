@@ -1,3 +1,18 @@
+[strategic]
+id = "strategic"
+asset = "Df"
+strategic_options.number_of_removed_work_orders = 25
+strategic_options.urgency_weight = 1
+strategic_options.resource_penalty_weight = 1000000
+strategic_options.clustering_weight = 1000
+
+[tactical]
+id = "tactical"
+asset = "Df"
+tactical_options.number_of_removed_work_orders = 25
+tactical_options.urgency = 1
+tactical_options.resource_penalty = 10000000
+
 # Resources are here given in people
 mtnelec = 0.5
 mtninst = 0.5

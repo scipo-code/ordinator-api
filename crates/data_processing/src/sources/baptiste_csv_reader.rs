@@ -24,12 +24,12 @@ use super::TimeInput;
 use shared_types::configuration::toml_baptiste::BaptisteToml;
 
 pub struct TotalSap {
-    file_path: BaptisteToml,
+    data_locations: BaptisteToml,
 }
 
 impl TotalSap {
-    pub fn new(file_path: BaptisteToml) -> Self {
-        Self { file_path }
+    pub fn new(data_locations: BaptisteToml) -> Self {
+        Self { data_locations }
     }
 }
 
@@ -42,14 +42,16 @@ impl SchedulingEnvironmentFactory<TotalSap> for SchedulingEnvironment {
 
         let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
 
-        let work_orders =
-            load_csv_data(&data_source.file_path, &time_environment.strategic_periods)
-                .with_context(|| {
-                    format!(
-                        "SchedulingEnvironment could not be built from {}",
-                        std::any::type_name_of_val(&data_source)
-                    )
-                })?;
+        let work_orders = load_csv_data(
+            &data_source.data_locations,
+            &time_environment.strategic_periods,
+        )
+        .with_context(|| {
+            format!(
+                "SchedulingEnvironment could not be built from {}",
+                std::any::type_name_of_val(&data_source)
+            )
+        })?;
 
         let scheduling_environment =
             SchedulingEnvironment::new(work_orders, worker_environment, time_environment);
