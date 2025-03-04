@@ -1,0 +1,6 @@
+[[strategic]]
+number_of_removed_work_orders = 25
+urgency_weight = 1
+resource_penalty_weight = 1000
+clustering_weight = 1000000
+

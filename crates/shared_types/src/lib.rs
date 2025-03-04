@@ -1,6 +1,12 @@
+// WARN
+// There is a lot of duplication in all these shared types. I think that the
+// best approach is to create something that will allow us to work with the
+// API types with as little friction as possible.
 pub mod agents;
+pub mod configuration;
 pub mod orchestrator;
 pub mod scheduling_environment;
+
 use std::{
     collections::HashMap,
     fmt::{self, Display},
@@ -138,6 +144,7 @@ pub enum Asset {
     VA,
     VB,
     Unknown,
+    Test,
 }
 
 #[derive(Serialize)]
@@ -410,7 +417,9 @@ mod tests {
 
     use chrono::NaiveTime;
 
-    use crate::{scheduling_environment::worker_environment::resources::Resources, ActorSpecifications};
+    use crate::{
+        scheduling_environment::worker_environment::resources::Resources, ActorSpecifications,
+    };
 
     #[test]
     fn test_toml_operational_parsing() {

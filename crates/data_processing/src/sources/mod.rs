@@ -1,12 +1,18 @@
 pub mod baptiste_csv_reader;
 pub mod baptiste_csv_reader_merges;
 
-use chrono::{Datelike, Days, Duration, Timelike, Utc};
-use shared_types::scheduling_environment::{
-    time_environment::{day::Day, period::Period, TimeEnvironment},
-    SchedulingEnvironment,
-};
+use anyhow::Result;
+use chrono::Datelike;
+use chrono::Days;
+use chrono::Duration;
+use chrono::Timelike;
+use chrono::Utc;
 use thiserror::Error;
+
+use shared_types::scheduling_environment::time_environment::day::Day;
+use shared_types::scheduling_environment::time_environment::period::Period;
+use shared_types::scheduling_environment::time_environment::TimeEnvironment;
+use shared_types::scheduling_environment::SchedulingEnvironment;
 
 #[derive(Error, Debug)]
 pub enum SchedulingEnvironmentFactoryError {
@@ -18,7 +24,7 @@ pub trait SchedulingEnvironmentFactory<DataSource> {
     fn create_scheduling_environment(
         file_path: DataSource,
         time_input: TimeInput,
-    ) -> Result<SchedulingEnvironment, SchedulingEnvironmentFactoryError>;
+    ) -> Result<SchedulingEnvironment>;
 }
 
 pub struct TimeInput {

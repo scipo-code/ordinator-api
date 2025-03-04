@@ -2,22 +2,24 @@ mod agents;
 mod api;
 mod orchestrator;
 
-use anyhow::{anyhow, Result};
-use api::orchestrator_api::{scheduler_asset_names, scheduler_excel_export};
-use data_processing::sources::TimeInput;
-use std::{
-    fs::File,
-    io::{Read, Write},
-    path::Path,
-    sync::{Arc, Mutex},
-};
-
 use actix_web::{guard, web, App, HttpServer};
+use anyhow::anyhow;
 use anyhow::Context;
-use orchestrator::Orchestrator;
+use anyhow::Result;
+use api::orchestrator_api::scheduler_asset_names;
+use api::orchestrator_api::scheduler_excel_export;
+use data_processing::sources::TimeInput;
 
-use crate::orchestrator::logging;
+use std::fs::File;
+use std::io::Read;
+use std::io::Write;
+use std::path::Path;
+use std::sync::Arc;
+use std::sync::Mutex;
+
 use shared_types::{scheduling_environment::SchedulingEnvironment, Asset};
+
+use self::orchestrator::Orchestrator;
 
 #[actix_web::main]
 async fn main() -> Result<()> {

@@ -9,6 +9,7 @@ use chrono::{DateTime, Utc};
 use chrono::{Duration, NaiveDate};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use work_order_dates::WorkOrderDatesBuilder;
 
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -182,18 +183,13 @@ impl WorkOrderBuilder {
     // How do we do this?
     // This is crucial! There is something that you do not understand here
     // How do we extract this so that it works?
-    pub fn operations_builder<F>(
-        &mut self,
-        operation_number: u64,
-        resource: Resources,
-        f: F,
-    ) -> &mut Self
+    pub fn operations_builder<F>(mut self, operation_number: u64, resource: Resources, f: F) -> Self
     where
-        F: FnOnce(&mut OperationBuilder) -> &mut OperationBuilder,
+        F: FnOnce(OperationBuilder) -> OperationBuilder,
     {
-        let mut operations_builder = Operation::builder(operation_number, resource);
+        let operations_builder = Operation::builder(operation_number, resource);
 
-        f(&mut operations_builder);
+        let operations_builder = f(operations_builder);
 
         self.operations
             .0
@@ -202,27 +198,43 @@ impl WorkOrderBuilder {
         self
     }
 
-    pub fn work_order_analytic_builder<F>(&mut self, f: F) -> &mut Self
-    where
-        F: FnOnce(&mut WorkOrderAnalyticBuilder) -> &mut WorkOrderAnalyticBuilder,
-    {
-        let mut work_order_analytic_builder = WorkOrderAnalytic::builder();
+    pub fn operations(mut self, operations: Operations) -> Self {
+        self.operations = operations;
+        self
+    }
 
-        f(&mut work_order_analytic_builder);
+    pub fn work_order_analytic_builder<F>(mut self, configure: F) -> Self
+    where
+        F: FnOnce(WorkOrderAnalyticBuilder) -> WorkOrderAnalyticBuilder,
+    {
+        let work_order_analytic_builder = WorkOrderAnalytic::builder();
+
+        let work_order_analytic_builder = configure(work_order_analytic_builder);
 
         self.work_order_analytic = work_order_analytic_builder.build();
         self
     }
 
-    pub fn work_order_info<F>(&mut self, f: F) -> &mut Self
+    pub fn work_order_info_builder<F>(mut self, configure: F) -> Self
     where
-        F: FnOnce(&mut WorkOrderInfoBuilder) -> &mut WorkOrderInfoBuilder,
+        F: FnOnce(WorkOrderInfoBuilder) -> WorkOrderInfoBuilder,
     {
-        let mut work_order_info_builder = WorkOrderInfo::builder();
+        let work_order_info_builder = WorkOrderInfo::builder();
 
-        f(&mut work_order_info_builder);
+        let work_order_info_builder = configure(work_order_info_builder);
 
         self.work_order_info = work_order_info_builder.build();
+        self
+    }
+    pub fn work_order_dates_builder<F>(mut self, configure: F) -> Self
+    where
+        F: FnOnce(WorkOrderDatesBuilder) -> WorkOrderDatesBuilder,
+    {
+        let work_order_dates_builder = WorkOrderDates::builder();
+
+        let work_order_dates_builder = configure(work_order_dates_builder);
+
+        self.work_order_dates = work_order_dates_builder.build();
         self
     }
 }
@@ -243,18 +255,19 @@ pub struct WorkOrderConfigurations {
     wdf_priority_map: HashMap<u64, u64>,
     wgn_priority_map: HashMap<u64, u64>,
     wpm_priority_map: HashMap<char, u64>,
+    clustering_weights: ClusteringWeights,
+    operating_time: f64,
 }
 
-impl WorkOrderConfigurations {
-    pub fn read_config() -> Result<Self> {
-        let config_path = env::var("WORK_ORDER_WEIGHTINGS").expect("Work Order configuration parameters should always be provided through configuraion files specified in the .env file");
-        let config_contents = fs::read_to_string(config_path).expect("Could not read config file");
-
-        let config: WorkOrderConfigurations = serde_json::from_str(&config_contents)?;
-
-        Ok(config)
-    }
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ClusteringWeights {
+    asset: u64,
+    sector: u64,
+    system: u64,
+    subsystem: u64,
+    equipment_tag: u64,
 }
+
 
 // You can remove all the initialization logic! So cool! I am not sure about the
 //
@@ -504,61 +517,45 @@ impl<'de> Deserialize<'de> for WorkOrderNumber {
 // This is a horrible practice! You should refactor it.
 impl WorkOrder {
     pub fn work_order_test() -> Self {
-        // The most important thing here is to make the construction as clean as possible.
-        // QUESTION [ ]
-        // How to best handle the `operation_analytic`?
-        // I think we should make it seamless we that you cannot do it in the wrong way here.
-
-        let work_order = WorkOrder::builder(WorkOrderNumber(2100000001))
+        WorkOrder::builder(WorkOrderNumber(2100000001))
             .main_work_center(Resources::MtnMech)
-            // .operations_builder(10, Resources::Prodtech, |e| {
-            //     e.operation_info(|oi| oi.number(1).work_remaining(10.0).operating_time(6.0))
-            // })
-            // .operations_builder(20, Resources::MtnMech, |ob| {
-            //     ob.operation_info(|oi| oi.number(1).work_remaining(20.0).operating_time(6.0))
-            // })
-            // .operations_builder(20, Resources::MtnMech, |ob| {
-            //     ob.operation_info(|oi| oi.number(1).work_remaining(30.0).operating_time(6.0))
-            // })
-            // .operations_builder(40, Resources::Prodtech, |ob| {
-            //     ob.operation_info(|oi| oi.number(1).work_remaining(40.0).operating_time(6.0))
-            // })
-            // .work_order_analytic_builder(|woab| {
-            //     woab.system_status_codes(|sta| sta.rel(true));
-            //     woab.user_status_codes(|sta| sta.smat(true))
-            // })
-            // .work_order_info(|woib| {
-            //     // FIX [ ]
-            //     // This is wrong and it should be fixed. You should make the
-            //     // code work correctly no matter what.
-            //     woib.priority(Priority::Int(1));
-            //     woib.work_order_type(WorkOrderType::Wdf(Priority::Int(1)))
-            // })
-            // .work_order_dates(|e| e.)
-            .build();
-        work_order
+            .operations_builder(10, Resources::Prodtech, |e| {
+                e.operation_info(|oi| oi.number(1).work_remaining(10.0).operating_time(6.0))
+            })
+            .operations_builder(20, Resources::MtnMech, |ob| {
+                ob.operation_info(|oi| oi.number(1).work_remaining(20.0).operating_time(6.0))
+            })
+            .operations_builder(20, Resources::MtnMech, |ob| {
+                ob.operation_info(|oi| oi.number(1).work_remaining(30.0).operating_time(6.0))
+            })
+            .operations_builder(40, Resources::Prodtech, |ob| {
+                ob.operation_info(|oi| oi.number(1).work_remaining(40.0).operating_time(6.0))
+            })
+            .work_order_analytic_builder(|woab| {
+                woab.system_status_codes(|sta| sta.rel(true))
+                    .user_status_codes(|sta| sta.smat(true))
+            })
+            .work_order_info_builder(|woib| {
+                // FIX [ ]
+                // This is wrong and it should be fixed. You should make the
+                // code work correctly no matter what.
+                woib.priority(Priority::Int(1))
+                    .work_order_type(WorkOrderType::Wdf(Priority::Int(1)))
+            })
+            .work_order_dates_builder(|wodb| {
+                wodb.earliest_allowed_start_date(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap())
+            })
+            .build()
     }
 }
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, str::FromStr};
+    use std::str::FromStr;
 
     use crate::scheduling_environment::worker_environment::resources::Resources;
 
-    use super::{
-        operation::{ActivityNumber, OperationBuilder, Work},
-        work_order_analytic::status_codes::{SystemStatusCodes, UserStatusCodes},
-        work_order_dates::unloading_point::UnloadingPoint,
-        work_order_dates::WorkOrderDates,
-        work_order_info::functional_location::FunctionalLocation,
-        work_order_info::priority::Priority,
-        work_order_info::revision::Revision,
-        work_order_info::system_condition::SystemCondition,
-        work_order_info::work_order_text::WorkOrderText,
-        work_order_info::work_order_type::WorkOrderType,
-        work_order_info::WorkOrderInfoDetail,
-        WorkOrder, WorkOrderAnalytic, WorkOrderInfo, WorkOrderNumber,
-    };
+    use super::operation::Work;
+    use super::WorkOrder;
 
     #[test]
     fn test_initialize_work_load() {
@@ -578,5 +575,34 @@ mod tests {
                 .unwrap(),
             Work::from(50.0)
         );
+    }
+
+    use super::*;
+
+    #[test]
+    fn test_date_to_period() {
+        let periods: Vec<Period> = vec![
+            Period::from_str("2024-W47-48").unwrap(),
+            Period::from_str("2024-W49-50").unwrap(),
+            Period::from_str("2024-W51-52").unwrap(),
+            Period::from_str("2025-W1-2").unwrap(),
+        ];
+
+        let period_1 = date_to_period(
+            periods.as_slice(),
+            &NaiveDate::from_ymd_opt(2024, 12, 5).unwrap(),
+        );
+        let period_2 = date_to_period(
+            periods.as_slice(),
+            &NaiveDate::from_ymd_opt(2024, 12, 27).unwrap(),
+        );
+        let period_3 = date_to_period(
+            periods.as_slice(),
+            &NaiveDate::from_ymd_opt(2025, 1, 3).unwrap(),
+        );
+
+        assert_eq!(period_1, periods.get(1).unwrap().clone());
+        assert_eq!(period_2, periods.get(2).unwrap().clone());
+        assert_eq!(period_3, periods.get(3).unwrap().clone());
     }
 }

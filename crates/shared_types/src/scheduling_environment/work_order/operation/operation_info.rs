@@ -48,23 +48,23 @@ impl OperationInfoBuilder {
         }
     }
 
-    pub fn number(&mut self, number: NumberOfPeople) -> &mut Self {
+    pub fn number(mut self, number: NumberOfPeople) -> Self {
         self.number = Some(number);
         self
     }
-    pub fn work_remaining(&mut self, work_remaining: f64) -> &mut Self {
+    pub fn work_remaining(mut self, work_remaining: f64) -> Self {
         self.work_remaining = Some(Work::from(work_remaining));
         self
     }
-    pub fn work_actual(&mut self, work_actual: f64) -> &mut Self {
+    pub fn work_actual(mut self, work_actual: f64) -> Self {
         self.work_actual = Some(Work::from(work_actual));
         self
     }
-    pub fn work(&mut self, work: f64) -> &mut Self {
+    pub fn work(mut self, work: f64) -> Self {
         self.work = Some(Work::from(work));
         self
     }
-    pub fn operating_time(&mut self, operating_time: f64) -> &mut Self {
+    pub fn operating_time(mut self, operating_time: f64) -> Self {
         self.operating_time = Some(Work::from(operating_time));
         self
     }

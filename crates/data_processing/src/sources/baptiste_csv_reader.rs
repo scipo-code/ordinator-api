@@ -1,10 +1,7 @@
+use anyhow::Context;
+use anyhow::Result;
+use serde::de::DeserializeOwned;
 use serde::Deserialize;
-use shared_types::scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
-use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
-use shared_types::scheduling_environment::work_order::work_order_info::work_order_type::WorkOrderType;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::scheduling_environment::worker_environment::WorkerEnvironment;
-use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use std::collections::HashMap;
 use std::error::Error;
@@ -12,20 +9,26 @@ use std::fs::File;
 use std::hash::Hash;
 use std::path::PathBuf;
 
-use serde::de::DeserializeOwned;
+use shared_types::scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
+use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
+use shared_types::scheduling_environment::work_order::work_order_info::work_order_type::WorkOrderType;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::worker_environment::WorkerEnvironment;
+use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use super::baptiste_csv_reader_merges::load_csv_data;
 use super::create_time_environment;
 use super::SchedulingEnvironmentFactory;
-use super::SchedulingEnvironmentFactoryError;
 use super::TimeInput;
 
+use shared_types::configuration::toml_baptiste::BaptisteToml;
+
 pub struct TotalSap {
-    file_path: PathBuf,
+    file_path: BaptisteToml,
 }
 
 impl TotalSap {
-    pub fn new(file_path: PathBuf) -> Self {
+    pub fn new(file_path: BaptisteToml) -> Self {
         Self { file_path }
     }
 }
@@ -34,31 +37,28 @@ impl SchedulingEnvironmentFactory<TotalSap> for SchedulingEnvironment {
     fn create_scheduling_environment(
         data_source: TotalSap,
         time_input: TimeInput,
-    ) -> Result<SchedulingEnvironment, SchedulingEnvironmentFactoryError> {
+    ) -> Result<SchedulingEnvironment> {
         let time_environment = create_time_environment(&time_input);
 
         let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
 
-        let work_orders = load_csv_data(data_source.file_path, &time_environment.strategic_periods);
+        let work_orders =
+            load_csv_data(&data_source.file_path, &time_environment.strategic_periods)
+                .with_context(|| {
+                    format!(
+                        "SchedulingEnvironment could not be built from {}",
+                        std::any::type_name_of_val(&data_source)
+                    )
+                })?;
 
         let scheduling_environment =
             SchedulingEnvironment::new(work_orders, worker_environment, time_environment);
 
-        // scheduling_environment
-        //     .work_orders()
-        //     .inner
-        //     .iter()
-        //     .for_each(|(_, wo)| {
-        //         assert!(wo
-        //             .work_order_dates
-        //             .earliest_allowed_start_period
-        //             .contains_date(wo.work_order_dates.earliest_allowed_start_date))
-        //     });
         Ok(scheduling_environment)
     }
 }
 
-pub fn populate_csv_structures<C>(file_path: PathBuf) -> Result<C::Container, Box<dyn Error>>
+pub fn populate_csv_structures<C>(file_path: &PathBuf) -> Result<C::Container, Box<dyn Error>>
 where
     C: DeserializeOwned + CsvType + std::fmt::Debug,
     C::Container: Default,
@@ -420,6 +420,6 @@ mod tests {
         let mut path = PathBuf::new();
 
         path.push("../temp_scheduling_environment_database/mid_work_operations.csv");
-        populate_csv_structures::<WorkOperationsCsv>(path).unwrap();
+        populate_csv_structures::<WorkOperationsCsv>(&path).unwrap();
     }
 }

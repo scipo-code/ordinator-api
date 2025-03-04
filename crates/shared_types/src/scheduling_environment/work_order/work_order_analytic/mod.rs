@@ -42,13 +42,13 @@ impl WorkOrderAnalyticBuilder {
         }
     }
 
-    pub fn system_status_codes<F>(mut self, f: F) -> Self
+    pub fn system_status_codes<F>(mut self, configure: F) -> Self
     where
         F: FnOnce(SystemStatusCodesBuilder) -> SystemStatusCodesBuilder,
     {
         let system_status_codes_builder = SystemStatusCodes::builder();
 
-        let configured_systes_codes_builder = f(system_status_codes_builder);
+        let configured_systes_codes_builder = configure(system_status_codes_builder);
 
         self.system_status_codes = Some(configured_systes_codes_builder.build());
         self

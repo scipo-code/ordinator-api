@@ -180,7 +180,7 @@ impl ActorBasedLargeNeighborhoodSearch
                 !operational_shared_solution
                     .get(woa)
                     .unwrap_or_else(|| {
-                        assert!(*woa == (WorkOrderNumber(0), ActivityNumber(0)));
+                        assert!(*woa == (WorkOrderNumber(0), 0));
                         &Delegate::Assign
                     })
                     .is_drop()
@@ -1123,10 +1123,7 @@ mod tests {
             .expect("Work has to be non-zero to create an OperationalParameter");
 
         let start_time = operational_algorithm
-            .determine_first_available_start_time(
-                &(WorkOrderNumber(0), ActivityNumber(0)),
-                &operational_parameter,
-            )
+            .determine_first_available_start_time(&(WorkOrderNumber(0), 0), &operational_parameter)
             .unwrap();
 
         assert_eq!(

@@ -368,12 +368,12 @@ impl SystemStatusCodesBuilder {
             gmco: self.0.gmco,
         }
     }
-    pub fn rel(&mut self, rel: bool) -> &mut Self {
+    pub fn rel(mut self, rel: bool) -> Self {
         self.0.rel = rel;
         self
     }
 
-    pub fn from_str(mut self, system_status_string: &str) -> Self {
+    pub fn from_str(self, system_status_string: &str) -> Self {
         // Patterns
         //
         let rel_pattern = regex::Regex::new(r"REL").unwrap();

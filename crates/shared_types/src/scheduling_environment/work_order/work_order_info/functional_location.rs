@@ -9,13 +9,16 @@ pub struct FunctionalLocation {
 }
 
 impl FunctionalLocation {
-    pub fn new(string: String) -> Self {
-        let asset_string = string
+    pub fn new(functional_location: &str) -> Self {
+        let asset_string = functional_location
             .split(' ')
             .next()
             .expect("All work orders need to have an Asset");
         let asset = Asset::new_from_string(asset_string).unwrap_or(Asset::Unknown);
-        Self { string, asset }
+        Self {
+            string: functional_location.to_string(),
+            asset,
+        }
     }
 
     pub fn sector(&self) -> Option<&str> {

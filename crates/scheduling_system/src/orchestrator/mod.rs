@@ -9,60 +9,57 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use colored::Colorize;
-use database::DataBaseConnection;
+use tracing::instrument;
+use tracing_subscriber::EnvFilter;
+
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::Weak;
+
 use shared_types::agents::operational::requests::operational_request_status::OperationalStatusRequest;
-use shared_types::agents::operational::responses::operational_response_status::OperationalResponseStatus;
 use shared_types::agents::operational::OperationalRequestMessage;
 use shared_types::agents::operational::OperationalResponseMessage;
 use shared_types::agents::strategic::requests::strategic_request_status_message::StrategicStatusMessage;
 use shared_types::agents::strategic::StrategicRequestMessage;
 use shared_types::agents::strategic::StrategicResponseMessage;
 use shared_types::agents::supervisor::requests::supervisor_status_message::SupervisorStatusMessage;
-use shared_types::agents::supervisor::responses::supervisor_response_status::SupervisorResponseStatus;
 use shared_types::agents::supervisor::SupervisorRequestMessage;
 use shared_types::agents::supervisor::SupervisorResponseMessage;
+use shared_types::agents::tactical::requests::tactical_status_message::TacticalStatusMessage;
+use shared_types::agents::tactical::TacticalRequestMessage;
+use shared_types::agents::tactical::TacticalResponseMessage;
+use shared_types::orchestrator::AgentStatus;
+use shared_types::orchestrator::AgentStatusResponse;
 use shared_types::orchestrator::OrchestratorRequest;
-
+use shared_types::orchestrator::OrchestratorResponse;
 use shared_types::orchestrator::WorkOrderResponse;
 use shared_types::orchestrator::WorkOrdersStatus;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::work_order::WorkOrders;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
-
 use shared_types::scheduling_environment::worker_environment::WorkerEnvironment;
+use shared_types::scheduling_environment::SchedulingEnvironment;
 use shared_types::Asset;
 use shared_types::OperationalConfigurationAll;
-use std::collections::HashMap;
-use std::sync::mpsc::Receiver;
-use std::sync::mpsc::Sender;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::Weak;
-use tracing::instrument;
 
-use crate::init::agent_factory;
-use crate::init::agent_factory::AgentFactory;
-use crate::init::logging::LogHandles;
-use shared_types::scheduling_environment::SchedulingEnvironment;
+use self::agent_factory::AgentFactory;
+use self::agent_registry::ActorRegistry;
+use self::configuration::SystemConfigurations;
+use self::database::DataBaseConnection;
+use self::logging::LogHandles;
 
-use shared_types::orchestrator::{AgentStatus, AgentStatusResponse, OrchestratorResponse};
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-
-use shared_types::agents::tactical::requests::tactical_status_message::TacticalStatusMessage;
-use shared_types::agents::tactical::{TacticalRequestMessage, TacticalResponseMessage};
-use tracing_subscriber::EnvFilter;
-
-use shared_types::scheduling_environment::WorkOrders;
-
-use super::AgentMessage;
-use super::AgentSpecific;
-use super::ArcSwapSharedSolution;
-use super::StateLink;
+use super::agents::ActorMessage;
+use super::agents::ActorSpecific;
+use super::agents::ArcSwapSharedSolution;
+use super::agents::StateLink;
 
 pub struct Orchestrator {
     pub scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub arc_swap_shared_solutions: HashMap<Asset, Arc<ArcSwapSharedSolution>>,
     pub agent_factory: AgentFactory,
-    pub agent_registries: HashMap<Asset, AgentRegistry>,
-    pub configurations: HashMap<Asset, Configurations>,
+    pub agent_registries: HashMap<Asset, ActorRegistry>,
+    pub configurations: HashMap<Asset, SystemConfigurations>,
     pub databases_connections: DataBaseConnection,
     pub agent_notify: Option<Weak<Mutex<Orchestrator>>>,
     pub log_handles: LogHandles,
@@ -86,7 +83,7 @@ impl NotifyOrchestrator {
             .get(asset)
             .context("Asset should always be there")?;
 
-        let state_link = AgentMessage::State(StateLink::WorkOrders(AgentSpecific::Strategic(
+        let state_link = ActorMessage::State(StateLink::WorkOrders(ActorSpecific::Strategic(
             work_orders.clone(),
         )));
 
@@ -95,7 +92,7 @@ impl NotifyOrchestrator {
             .sender
             .send(state_link)?;
 
-        let state_link = AgentMessage::State(StateLink::WorkOrders(AgentSpecific::Strategic(
+        let state_link = ActorMessage::State(StateLink::WorkOrders(ActorSpecific::Strategic(
             work_orders.clone(),
         )));
 
@@ -105,14 +102,14 @@ impl NotifyOrchestrator {
             .send(state_link)?;
 
         for comm in agent_registry.supervisor_agent_senders.values() {
-            let state_link = AgentMessage::State(StateLink::WorkOrders(AgentSpecific::Strategic(
+            let state_link = ActorMessage::State(StateLink::WorkOrders(ActorSpecific::Strategic(
                 work_orders.clone(),
             )));
             comm.sender.send(state_link)?;
         }
 
         for addr in agent_registry.operational_agent_senders.values() {
-            let state_link = AgentMessage::State(StateLink::WorkOrders(AgentSpecific::Strategic(
+            let state_link = ActorMessage::State(StateLink::WorkOrders(ActorSpecific::Strategic(
                 work_orders.clone(),
             )));
             addr.sender.send(state_link)?;
