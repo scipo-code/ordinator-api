@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ResourceOverview from "./dashboard/ResourceOverview";
 import ExportDialog from "@/components/assetpage/ExportDialog";
+import { ResourceChart } from "./dashboard/ResouceChart";
 
 export default function AssetDashboard() {
   const { asset } = useParams<{ asset: string}>();
@@ -24,10 +25,10 @@ export default function AssetDashboard() {
           <ExportDialog asset={asset}/>
         </div>
           <TabsContent value="resource-loading-graph">
-            <p>Graph</p>
+            <ResourceChart asset={asset}/>
           </TabsContent>
           <TabsContent value="resource-overview">
-            <ResourceOverview />
+            <ResourceOverview asset={asset}/>
           </TabsContent>
         </Tabs>
     </Container>
