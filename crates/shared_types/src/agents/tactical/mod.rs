@@ -30,6 +30,7 @@ pub struct TacticalObjectiveValue {
     pub urgency: (u64, u64),
     pub resource_penalty: (u64, u64),
 }
+
 impl Default for TacticalObjectiveValue {
     fn default() -> Self {
         Self {

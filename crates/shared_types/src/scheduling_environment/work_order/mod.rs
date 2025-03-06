@@ -394,7 +394,7 @@ impl WorkOrder {
                     || (self.vendor() && *i <= 3)
                     || (self.work_order_info.revision.shutdown() && *i <= 3)
             })
-            .map(|(i, per)| per.clone())
+            .map(|(_, per)| per.clone())
             .collect()
     }
 
@@ -459,7 +459,7 @@ impl WorkOrder {
         }
     }
 
-    pub fn latest_allowed_finish_period<'a>(&'a self, periods: &'a [Period]) -> &'a Period {
+    pub fn latest_allowed_finish_period<'a>(&'a self, _periods: &'a [Period]) -> &'a Period {
         todo!("Make the code for extracting this information")
     }
 

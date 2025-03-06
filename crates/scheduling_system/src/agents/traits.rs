@@ -20,15 +20,20 @@ use super::StateLink;
 ///
 /// QUESTION:
 /// Should you make this function on the correct kind of
-pub trait ActorBasedLargeNeighborhoodSearch
-where
-    Self: AlgorithmUtils,
-{
+// QUESTION
+// Do you even need this trait? No you do not... This can simply be
+// created using the generic structure? No you need the generic
+// structure. There is no way around it. I think that the best
+// thing to do here is making the
+pub trait ActorBasedLargeNeighborhoodSearch {
     type Options;
+    type ObjectiveValue;
+    type Solution: Debug;
 
     fn run_lns_iteration(&mut self) -> Result<()> {
         self.update_based_on_shared_solution()?;
 
+        // But that means that we cannot code this
         let current_solution = self.clone_algorithm_solution();
 
         self.unschedule()
@@ -76,26 +81,15 @@ where
         Ok(())
     }
 
+    fn clone_algorithm_solution(&self) -> Self::Solution;
+
+    fn load_shared_solution(&self);
+
+    fn update_objective_value(&self, objective_value: Self::ObjectiveValue);
+
+    fn swap_solution(&mut self, solution: Self::Solution);
+
     fn incorporate_shared_state(&mut self) -> Result<bool>;
-}
-
-pub trait AlgorithmUtils {
-    type Parameters: Parameters;
-    type ObjectiveValue;
-    type Sol: Solution<ObjectiveValue = Self::ObjectiveValue> + Debug + Clone;
-    type I: Default;
-
-    fn builder() -> AlgorithmBuilder<Self::Sol, Self::Parameters, Self::I>;
-
-    fn load_shared_solution(&mut self);
-
-    fn clone_algorithm_solution(&self) -> Self::Sol;
-
-    fn swap_solution(&mut self, solution: Self::Sol);
-
-    // WARN
-    // You may have to reintroduce this.
-    // fn update_objective_value(&mut self, objective_value: Self::ObjectiveValue);
 }
 
 #[allow(dead_code)]
@@ -144,11 +138,14 @@ where
 pub trait Solution {
     type ObjectiveValue;
     type Parameters;
+    type Builder;
 
     // QUESTION
     // Is this a good idea to create the Solution? I actually believe that it
     // is!
     fn new(parameters: &Self::Parameters) -> Self;
+
+    fn builder(parameters: &Self::Parameters) -> Self::Builder;
 
     fn update_objective_value(&mut self, other_objective: Self::ObjectiveValue);
 }

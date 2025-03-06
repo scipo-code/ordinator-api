@@ -4,7 +4,7 @@ pub mod worker_environment;
 
 use serde::{Deserialize, Serialize};
 use time_environment::TimeEnvironmentBuilder;
-use work_order::{WorkOrderConfigurations, WorkOrders, WorkOrdersBuilder};
+use work_order::{WorkOrders, WorkOrdersBuilder};
 
 use std::fmt;
 
@@ -41,9 +41,9 @@ impl SchedulingEnvironment {
 }
 
 pub struct SchedulingEnvironmentBuilder {
-    pub work_orders: Option<WorkOrders>,
-    pub worker_environment: Option<WorkerEnvironment>,
-    pub time_environment: Option<TimeEnvironment>,
+    work_orders: Option<WorkOrders>,
+    worker_environment: Option<WorkerEnvironment>,
+    time_environment: Option<TimeEnvironment>,
 }
 
 impl SchedulingEnvironmentBuilder {

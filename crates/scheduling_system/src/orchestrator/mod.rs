@@ -201,21 +201,21 @@ impl Orchestrator {
                         .agent_environment = system_agents.into();
                 }
 
-                let state_link = AgentMessage::State(StateLink::WorkerEnvironment);
+                let state_link = ActorMessage::State(StateLink::WorkerEnvironment);
                 let agent_registry = self.agent_registries.get(&asset).unwrap();
                 agent_registry
                     .strategic_agent_sender
                     .sender
                     .send(state_link)?;
 
-                let state_link = AgentMessage::State(StateLink::WorkerEnvironment);
+                let state_link = ActorMessage::State(StateLink::WorkerEnvironment);
                 agent_registry
                     .tactical_agent_sender
                     .sender
                     .send(state_link)?;
 
                 for supervisor in agent_registry.supervisor_agent_senders.iter() {
-                    let state_link = AgentMessage::State(StateLink::WorkerEnvironment);
+                    let state_link = ActorMessage::State(StateLink::WorkerEnvironment);
                     supervisor.1.sender.send(state_link)?;
                 }
 
@@ -270,12 +270,9 @@ impl Orchestrator {
             OrchestratorRequest::GetWorkOrderStatus(work_order_number, _level_of_detail) => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
-                let cloned_work_orders: WorkOrders =
-                    scheduling_environment_guard.work_orders.clone();
+                let cloned_work_orders: &WorkOrders = &scheduling_environment_guard.work_orders;
 
-                let work_order_configurations = &cloned_work_orders.work_order_configurations;
-
-                let (_, work_order) = cloned_work_orders
+                let work_order = cloned_work_orders
                     .inner
                     .get(&work_order_number)
                     .with_context(|| {
@@ -287,6 +284,8 @@ impl Orchestrator {
 
                 let asset = &work_order.work_order_info.functional_location.asset;
 
+                let work_order_configuration = self.configurations.get(&asset).unwrap();
+
                 let api_solution = match self.arc_swap_shared_solutions.get(asset) {
                     Some(arc_swap_shared_solution) => (arc_swap_shared_solution).0.load(),
                     None => bail!("Asset: {:?} is not initialzed", &asset),
@@ -297,22 +296,16 @@ impl Orchestrator {
                 //     (**api_solution).clone().into(),
                 //     work_order_configurations,
                 // );
-                todo!();
-
-                let work_orders_status = WorkOrdersStatus::Single(work_order_response);
-
-                let orchestrator_response =
-                    OrchestratorResponse::WorkOrderStatus(work_orders_status);
-                Ok(orchestrator_response)
+                bail!("Implement this")
             }
             OrchestratorRequest::GetWorkOrdersState(asset, _level_of_detail) => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
-                let cloned_work_orders: WorkOrders =
-                    scheduling_environment_guard.work_orders.clone();
-                let work_orders: WorkOrders = cloned_work_orders
+                let cloned_work_orders: &WorkOrders = &scheduling_environment_guard.work_orders;
+                // This is not the correct implementation.
+                let work_orders = cloned_work_orders
                     .inner
-                    .into_iter()
+                    .iter()
                     .filter(|wo| wo.1.work_order_info.functional_location.asset == asset)
                     .collect();
 
@@ -335,11 +328,7 @@ impl Orchestrator {
                 //     })
                 //     .collect();
 
-                let work_orders_status = WorkOrdersStatus::Multiple(work_order_responses);
-
-                let orchestrator_response =
-                    OrchestratorResponse::WorkOrderStatus(work_orders_status);
-                Ok(orchestrator_response)
+                bail!("Implement this");
             }
             OrchestratorRequest::GetPeriods => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
