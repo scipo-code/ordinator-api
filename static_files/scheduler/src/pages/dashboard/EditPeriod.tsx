@@ -5,7 +5,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -14,6 +13,7 @@ import axios from "axios";
 import { ReloadIcon } from "@radix-ui/react-icons";
 import { useEffect, useState } from "react";
 import { AssetResourceApiResponse } from "@/types";
+import { useQuery } from "@tanstack/react-query";
 
 
 interface EditPeriodDialogProps {
@@ -25,43 +25,43 @@ interface EditPeriodDialogProps {
 
 
 
-
-
 const EditPeriodDialog: React.FC<EditPeriodDialogProps> = ({ asset, periodId, onClose, onUpdate }) => {
-  const [downloading, setDownloading] = useState(true);
   const [formValues, setFormValues] = useState<Record<string, number | string>>({})
-  const [error, setError] = useState<null | string>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const {
+    data,
+    error,
+    isLoading,
+  } = useQuery<AssetResourceApiResponse>({
+    queryKey: ["resources", asset, periodId],
+    queryFn: async () => {
+      const res = await axios.get<AssetResourceApiResponse>(`/api/scheduler/${asset}/resources/${periodId}`);
+
+      if (res.status !== 200) {
+        throw new Error(`Request failed with status: ${res.status}`)
+      }
+
+      return res.data
+    }
+  });
 
   useEffect(() => {
-    const fetchPeriod = async () => {
-      setError(null);
-
-      try {
-        const { data } = await axios.get<AssetResourceApiResponse>(`/api/scheduler/${asset}/resources/${periodId}`);
-
-        if (data.data[0].periodId.toLowerCase() !== periodId.toLowerCase()) {
-          throw new Error("Endpoint returned wrong periods")
-        } else {
-          setFormValues(data.data[0].values);
-        }
-        
-      } catch (error) {
-        setError(`Error fetching period: ${periodId}`);
-        console.error(`Error fetching period: ${periodId}`, error);
-      } finally {
-        setDownloading(false);
+    if (!isLoading && !error && data) {
+      if (data.data.length === 1) {
+        setFormValues(data.data[0].values)
+        console.log(formValues);
       }
-    };
+    }
+  }, [isLoading, error, data]);
 
-    fetchPeriod()
-    
-  }, [asset, periodId])
-
+  
   const handleInputChange = (resourceId: string, value: string) => {
     setFormValues((prev) => ({...prev, [resourceId]: value }))
   }
 
   const uploadResoucesForPeriod = async () => {
+    setUploading(true);
     const payload: AssetResourceApiResponse = {
       asset,
       metadata: {
@@ -96,6 +96,7 @@ const EditPeriodDialog: React.FC<EditPeriodDialogProps> = ({ asset, periodId, on
       // This closes the modal
       onClose();
     } catch (error) {
+      setUploading(false);
       console.error("Error updating resources: ", error);
     }
   };
@@ -109,29 +110,39 @@ const EditPeriodDialog: React.FC<EditPeriodDialogProps> = ({ asset, periodId, on
                 {periodId}
               </DialogDescription>
             </DialogHeader>
-          <div className="grid gap-4 py-4">
-            {Object.keys(formValues).map((resourceId) => (
-              <div key={resourceId} className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor={resourceId} className="text-right">
-                  {resourceId}
-                </Label>
-                <Input
-                  id={resourceId}
-                  type="number"
-                  min={0}
-                  value={formValues[resourceId]}
-                  onChange={(e) => handleInputChange(resourceId, e.target.value)}
-                  className="col-span-3"
-                />
-              </div>
-            ))}
-          </div>
-            { error ? (
-              <p className="text-red-600">{error}</p>
-            ) : null}
+          { isLoading && (
+            <div className="p-4">Loading period data...</div>
+          )}
+
+          { error && (
+            <p className="p-4 text-red-600">
+              {(error as Error).message || "Error fetching period"}
+            </p>
+          )}
+
+          {!isLoading && !error && (
+            <div className="grid gap-4 py-4">
+              {Object.keys(formValues).map((resourceId) => (
+                <div key={resourceId} className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor={resourceId} className="text-right">
+                    {resourceId}
+                  </Label>
+                  <Input
+                    id={resourceId}
+                    type="number"
+                    min={0}
+                    value={formValues[resourceId]}
+                    onChange={(e) => handleInputChange(resourceId, e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+              ))}
+            </div>
+            
+          )}
           <DialogFooter>
-            <Button onClick={uploadResoucesForPeriod} disabled={downloading} type="submit">
-            {downloading ? (
+            <Button onClick={uploadResoucesForPeriod} disabled={uploading || isLoading} type="submit">
+            {uploading ? (
               <>
                 <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
                 Please wait
