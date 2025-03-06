@@ -836,7 +836,7 @@ mod tests {
             toolbox_interval,
         );
 
-        let mut scheduling_environment = SchedulingEnvironment::default();
+        let mut scheduling_environment = SchedulingEnvironment::builder().try_into();
 
         let id = &Id::new("TEST_OPERATIONAL", vec![], vec![]);
 

@@ -1,19 +1,19 @@
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use anyhow::Result;
+use std::{collections::HashMap, path::PathBuf};
 
-use config::Config;
 use data_processing::sources::TimeInput;
 use rand::{rngs::StdRng, SeedableRng};
-use shared_types::{
-    configuration::{
-        material::MaterialToPeriod, throttling::Throttling, toml_baptiste::BaptisteToml,
-        user_interface::EventColors,
-    },
-    scheduling_environment::work_order::WorkOrderConfigurations,
-    ActorSpecifications, Asset,
+use shared_types::configuration::{
+    material::MaterialToPeriod, throttling::Throttling, toml_baptiste::BaptisteToml,
+    user_interface::EventColors,
 };
+use shared_types::scheduling_environment::work_order::WorkOrderConfigurations;
+use shared_types::ActorSpecifications;
+use shared_types::Asset;
+use shared_types::OperationalOptionsConfig;
+use shared_types::StrategicOptionsConfig;
+use shared_types::SupervisorOptionsConfig;
+use shared_types::TacticalOptionsConfig;
 
 use crate::agents::{
     operational_agent::OperationalOptions, strategic_agent::StrategicOptions,
@@ -71,15 +71,15 @@ impl SystemConfigurations {
 
         let list_of_actor_specification = vec![
             (
-                Asset::Df,
+                Asset::DF,
                 "./configuration/actor_specification/actor_specification_df.toml",
             ),
             (
-                Asset::Hb,
+                Asset::HB,
                 "./configuration/actor_specification/actor_specification_hb.toml",
             ),
             (
-                Asset::Hd,
+                Asset::HD,
                 "./configuration/actor_specification/actor_specification_hd.toml",
             ),
             (
@@ -87,7 +87,7 @@ impl SystemConfigurations {
                 "./configuration/actor_specification/actor_specification_test.toml",
             ),
             (
-                Asset::Te,
+                Asset::TE,
                 "./configuration/actor_specification/actor_specification_te.toml",
             ),
         ];

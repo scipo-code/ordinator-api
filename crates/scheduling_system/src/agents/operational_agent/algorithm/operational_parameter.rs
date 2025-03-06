@@ -12,7 +12,6 @@ use shared_types::scheduling_environment::{
 
 use crate::agents::{operational_agent::OperationalOptions, traits::Parameters};
 
-#[derive(Default)]
 pub struct OperationalParameters {
     pub work_order_parameters: HashMap<WorkOrderActivity, OperationalParameter>,
     pub availability: Availability,
@@ -34,11 +33,11 @@ impl Parameters for OperationalParameters {
         let mut work_order_parameters = HashMap::default();
 
         for (work_order_number, work_order) in &scheduling_environment.work_orders.inner {
-            for (activity_number, operation) in &work_order.operations {
+            for (activity_number, operation) in &work_order.operations.0 {
                 let work_order_activity = (*work_order_number, *activity_number);
 
                 let operational_parameter_option = OperationalParameter::new(
-                    operation.work_remaining().unwrap(),
+                    operation.operation_info.work_remaining,
                     operation.operation_analytic.preparation_time,
                 );
 

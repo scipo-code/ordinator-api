@@ -15,8 +15,7 @@ use colored::Colorize;
 use itertools::Itertools;
 
 use traits::{
-    ActorBasedLargeNeighborhoodSearch, AlgorithmUtils, GetMarginalFitness, MessageHandler,
-    Parameters, Solution,
+    ActorBasedLargeNeighborhoodSearch, GetMarginalFitness, MessageHandler, Parameters, Solution,
 };
 
 use super::orchestrator::NotifyOrchestrator;
@@ -64,14 +63,15 @@ where
     pub notify_orchestrator: NotifyOrchestrator,
 }
 
-impl<AgentRequest, AgentResponse, S, P, I> Agent<AgentRequest, AgentResponse, S, P, I>
+impl<ActorRequest, ActorResponse, S, P, I> Agent<ActorRequest, ActorResponse, S, P, I>
 where
-    Self: MessageHandler<Req = AgentRequest, Res = AgentResponse>,
+    Self: MessageHandler<Req = ActorRequest, Res = ActorResponse>,
     Algorithm<S, P, I>: ActorBasedLargeNeighborhoodSearch,
-    AgentRequest: Send + Sync + 'static,
-    AgentResponse: Send + Sync + 'static,
-    S: Solution,
+    ActorRequest: Send + Sync + 'static,
+    ActorResponse: Send + Sync + 'static,
+    S: Solution + Debug + Clone,
     P: Parameters,
+    I: Default,
 {
     pub fn run(&mut self) -> Result<()> {
         let mut schedule_iteration = ScheduleIteration::default();
@@ -103,7 +103,7 @@ where
         }
     }
 
-    pub fn builder() -> AgentBuilder<AgentRequest, AgentResponse, S, P, I> {
+    pub fn builder() -> AgentBuilder<ActorRequest, ActorResponse, S, P, I> {
         AgentBuilder {
             agent_id: None,
             scheduling_environment: None,
@@ -117,27 +117,37 @@ where
     }
 }
 
-pub struct AgentBuilder<AgentRequest, AgentResponse, S, P, I>
+pub struct AgentBuilder<ActorRequest, ActorResponse, S, P, I>
 where
-    S: Solution,
+    Self: MessageHandler<Req = ActorRequest, Res = ActorResponse>,
+    Algorithm<S, P, I>: ActorBasedLargeNeighborhoodSearch,
+    ActorRequest: Send + Sync + 'static,
+    ActorResponse: Send + Sync + 'static,
+    S: Solution + Debug + Clone,
     P: Parameters,
+    I: Default,
 {
     agent_id: Option<Id>,
     scheduling_environment: Option<Arc<Mutex<SchedulingEnvironment>>>,
     algorithm: Option<Algorithm<S, P, I>>,
-    receiver_from_orchestrator: Option<Receiver<ActorMessage<AgentRequest>>>,
-    sender_to_orchestrator: Option<Sender<Result<AgentResponse>>>,
+    receiver_from_orchestrator: Option<Receiver<ActorMessage<ActorRequest>>>,
+    sender_to_orchestrator: Option<Sender<Result<ActorResponse>>>,
     configurations: Option<Arc<RwLock<SystemConfigurations>>>,
     notify_orchestrator: Option<NotifyOrchestrator>,
     //
     communication_for_orchestrator:
-        Option<Communication<ActorMessage<AgentRequest>, AgentResponse>>,
+        Option<Communication<ActorMessage<ActorRequest>, ActorResponse>>,
 }
 
 impl<ActorRequest, ActorResponse, S, P, I> AgentBuilder<ActorRequest, ActorResponse, S, P, I>
 where
-    S: Solution,
+    Self: MessageHandler<Req = ActorRequest, Res = ActorResponse>,
+    Algorithm<S, P, I>: ActorBasedLargeNeighborhoodSearch,
+    ActorRequest: Send + Sync + 'static,
+    ActorResponse: Send + Sync + 'static,
+    S: Solution + Debug + Clone,
     P: Parameters,
+    I: Default,
 {
     pub fn build(self) -> Communication<ActorMessage<ActorRequest>, ActorResponse> {
         let agent = Agent {
@@ -161,6 +171,8 @@ where
         std::thread::Builder::new()
             .name(thread_name)
             .spawn(move || agent.run())?;
+
+        self.communication_for_orchestrator.unwrap()
     }
 
     pub fn agent_id(mut self, agent_id: Id) -> Self {
@@ -177,7 +189,7 @@ where
 
     pub fn algorithm<F>(mut self, configure: F) -> Self
     where
-        F: FnOnce(AlgorithmBuilder) -> AlgorithmBuilder,
+        F: FnOnce(AlgorithmBuilder<S, P, I>) -> AlgorithmBuilder<S, P, I>,
     {
         let algorithm_builder = Algorithm::builder();
 
@@ -189,13 +201,13 @@ where
 
     pub fn communication(mut self) -> Self {
         let (sender_to_agent, receiver_from_orchestrator): (
-            std::sync::mpsc::Sender<ActorMessage<StrategicRequestMessage>>,
-            std::sync::mpsc::Receiver<ActorMessage<StrategicRequestMessage>>,
+            std::sync::mpsc::Sender<ActorMessage<ActorRequest>>,
+            std::sync::mpsc::Receiver<ActorMessage<ActorRequest>>,
         ) = std::sync::mpsc::channel();
 
         let (sender_to_orchestrator, receiver_from_agent): (
-            std::sync::mpsc::Sender<std::result::Result<StrategicResponseMessage, anyhow::Error>>,
-            std::sync::mpsc::Receiver<std::result::Result<StrategicResponseMessage, anyhow::Error>>,
+            std::sync::mpsc::Sender<std::result::Result<ActorResponse, anyhow::Error>>,
+            std::sync::mpsc::Receiver<std::result::Result<ActorResponse, anyhow::Error>>,
         ) = std::sync::mpsc::channel();
 
         self.communication_for_orchestrator = Some(Communication {
@@ -257,62 +269,12 @@ where
     loaded_shared_solution: Option<Guard<Arc<SharedSolution>>>,
 }
 
-impl<S, P, I> AlgorithmBuilder<S, P, I>
-where
-    S: Solution,
-    P: Parameters,
-    I: Default,
-{
-    pub fn id(&mut self, id: Option<Id>) -> &mut Self {
-        self.id = Some(id);
-        self
-    }
-    pub fn solution_intermediate(&mut self, solution_intermediate: Option<I>) -> &mut Self {
-        self.solution_intermediate = Some(solution_intermediate);
-        self
-    }
-    // This should call the relevant method instead of the
-    pub fn solution<F>(mut self, f: F) -> Self
-    where
-        F: FnOnce(S::Builder) -> S::Builder,
-    {
-        let solution_builder = S::builder();
-        let solution_builder = f(solution_builder);
-        self.solution = Some(solution_builder.build());
-        self
-    }
-
-    pub fn parameters(&mut self, parameters: Option<P>) -> &mut Self {
-        self.parameters = Some(parameters);
-        self
-    }
-    pub fn arc_swap_shared_solution(
-        &mut self,
-        arc_swap_shared_solution: Option<Arc<ArcSwapSharedSolution>>,
-    ) -> &mut Self {
-        self.arc_swap_shared_solution = Some(arc_swap_shared_solution);
-        self
-    }
-    pub fn loaded_shared_solution(
-        &mut self,
-        loaded_shared_solution: Option<Guard<Arc<SharedSolution>>>,
-    ) -> &mut Self {
-        self.loaded_shared_solution = Some(loaded_shared_solution);
-        self
-    }
-}
-
-// `new` should be replaced by a builder.
-impl<S, P, I> AlgorithmUtils for Algorithm<S, P, I>
+impl<S, P, I> Algorithm<S, P, I>
 where
     I: Default,
     S: Solution + Debug + Clone,
     P: Parameters,
 {
-    type Sol = S;
-    type ObjectiveValue = S::ObjectiveValue;
-    type Parameters = P;
-
     fn builder() -> AlgorithmBuilder<S, P, I> {
         AlgorithmBuilder {
             id: None,
@@ -335,6 +297,81 @@ where
     fn swap_solution(&mut self, solution: S) {
         self.solution = solution;
     }
+}
+
+impl<S, P, I> AlgorithmBuilder<S, P, I>
+where
+    S: Solution,
+    P: Parameters,
+    I: Default,
+{
+    pub fn build(self) -> Algorithm<S, P, I> {
+        Algorithm {
+            id: self.id.unwrap(),
+            solution_intermediate: self.solution_intermediate.unwrap(),
+            solution: self.solution.unwrap(),
+            parameters: self.parameters.unwrap(),
+            arc_swap_shared_solution: self.arc_swap_shared_solution.unwrap(),
+            loaded_shared_solution: self.loaded_shared_solution.unwrap(),
+        }
+    }
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
+    }
+    pub fn solution_intermediate(&mut self, solution_intermediate: I) -> &mut Self {
+        self.solution_intermediate = Some(solution_intermediate);
+        self
+    }
+    // This should call the relevant method instead of the
+    pub fn solution<F>(mut self, f: F) -> Self
+    where
+        F: FnOnce(S::Builder) -> S::Builder,
+    {
+        let solution_builder = S::builder();
+        let solution_builder = f(solution_builder);
+        self.solution = Some(solution_builder.build());
+        self
+    }
+
+    pub fn parameters(mut self, parameters: P) -> Self {
+        self.parameters = Some(parameters);
+        self
+    }
+    pub fn arc_swap_shared_solution(
+        &mut self,
+        arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
+    ) -> &mut Self {
+        self.arc_swap_shared_solution = Some(arc_swap_shared_solution);
+        self
+    }
+    pub fn loaded_shared_solution(
+        &mut self,
+        loaded_shared_solution: Guard<Arc<SharedSolution>>,
+    ) -> &mut Self {
+        self.loaded_shared_solution = Some(loaded_shared_solution);
+        self
+    }
+}
+
+// `new` should be replaced by a builder.
+pub trait AlgorithmUtils {
+    type Parameters: Parameters;
+    type ObjectiveValue;
+    type Sol: Solution<ObjectiveValue = Self::ObjectiveValue> + Debug + Clone;
+    type I: Default;
+
+    fn builder() -> AlgorithmBuilder<Self::Sol, Self::Parameters, Self::I>;
+
+    fn load_shared_solution(&mut self);
+
+    fn clone_algorithm_solution(&self) -> Self::Sol;
+
+    fn swap_solution(&mut self, solution: Self::Sol);
+
+    // WARN
+    // You may have to reintroduce this.
+    // fn update_objective_value(&mut self, objective_value: Self::ObjectiveValue);
 }
 
 #[derive(Default)]
@@ -392,7 +429,7 @@ impl From<SharedSolution> for ApiSolution {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Default)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct StrategicSolution {
     pub objective_value: StrategicObjectiveValue,
     pub strategic_scheduled_work_orders: HashMap<WorkOrderNumber, Option<Period>>,
