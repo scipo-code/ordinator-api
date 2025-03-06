@@ -1,45 +1,34 @@
-import axios from "axios";
-import { useState, useEffect } from "react";
-import { Container } from "@/components/Container";
-import { useParams, Navigate } from "react-router-dom";
-import { AssetResourceApiResponse,  ResourceTableRow } from "@/types";
-import { DataTable } from "./data-table";
+import { AssetResourceApiResponse,  ResourceProps,  ResourceTableRow } from "@/types";
 import { ColumnDef } from "@tanstack/react-table";
+import { Container } from "@/components/Container";
+import { DataTable } from "./data-table";
+
+import { getResources } from "@/hooks/GetResources"; 
 
 
-export default function ResourceOverview() {
-  const { asset } = useParams<{ asset: string}>();
 
-  if (!asset) {
-    return <Navigate to="/404" replace />
+export default function ResourceOverview({asset}: ResourceProps) {
+
+  const {
+    data,
+    error,
+    isLoading,
+    refetch,
+  } = getResources(asset);
+  
+  if (isLoading) {
+    return <p>Loading...</p>
+  }
+  if (error) {
+    return <p>Error: {error.message}</p>
   }
 
-  const [ tableData, setTableData ] = useState<ResourceTableRow[]>([]);
-  const [ columns, setColumns ] = useState<ColumnDef<ResourceTableRow>[]>([]);
+  const columns = makeColumns(data!);
+  const tableData = makeTableRows(data!);
 
-  const fetchData = async () => {
-    try {
-      const { data } = await axios.get<AssetResourceApiResponse>(`/api/scheduler/${asset}/resources`);
-      const rows = makeTableRows(data);
-
-      const cols = makeColumns(data);
-
-      setTableData(rows);
-      setColumns(cols);
-    
-    } catch (err) {
-      console.error("Error fetching resources: ", err);
-    }
-  };
-
-  useEffect(() => {
-    fetchData()
-  }, [asset])
-
-  // TODO: Better error handling for when data is not available.
   return (
     <Container maxWidth="full" padding="sm" className="bg-white border border-gray-300 shadow rounded-lg">
-      <DataTable asset={asset} columns={columns} data={tableData} onUpdate={fetchData}/>
+      <DataTable asset={asset} columns={columns} data={tableData} onUpdate={refetch}/>
     </Container>
   );
 }
