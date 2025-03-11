@@ -8,6 +8,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu"
 import { useNavigate, useParams } from "react-router-dom"
@@ -41,7 +42,8 @@ const items = [
     icon: Settings,
   },
 ]
-
+// TODO: The assets should be fetched not hardcoded.
+// TODO: The assets available should reflect only what the user has access to.
 export function AppSidebar() {
   const navigate = useNavigate();
   const [workspace, setWorkspace] = useState<string | null>(null);
@@ -61,14 +63,14 @@ export function AppSidebar() {
     setWorkspace(ws);
   }
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon">
       <SidebarContent>
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton>
-                  {workspace}
+                  <span className="font-bold px-2">{workspace}</span>
                   <ChevronDown className="ml-auto" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
