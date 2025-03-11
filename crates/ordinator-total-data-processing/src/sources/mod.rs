@@ -7,6 +7,7 @@ use chrono::Days;
 use chrono::Duration;
 use chrono::Timelike;
 use chrono::Utc;
+use serde::Deserialize;
 use thiserror::Error;
 
 use shared_types::scheduling_environment::time_environment::day::Day;
@@ -27,6 +28,7 @@ pub trait SchedulingEnvironmentFactory<DataSource> {
     ) -> Result<SchedulingEnvironment>;
 }
 
+#[derive(Deserialize)]
 pub struct TimeInput {
     pub number_of_strategic_periods: u64,
     pub number_of_tactical_periods: u64,

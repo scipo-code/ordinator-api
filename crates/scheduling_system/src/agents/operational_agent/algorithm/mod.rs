@@ -166,6 +166,9 @@ impl ActorBasedLargeNeighborhoodSearch
 {
     type Options = OperationalOptions;
 
+    // QUESTION
+    // Could this be made generic? I think that it can!
+    // It would be difficult.
     fn incorporate_shared_state(&mut self) -> Result<bool> {
         let operational_shared_solution = self
             .loaded_shared_solution
@@ -789,14 +792,16 @@ mod tests {
         OperationalConfigurationAll,
     };
 
-    use crate::agents::{
-        operational_agent::{
-            algorithm::{operational_parameter::OperationalParameters, OperationalEvents},
-            OperationalOptions,
+    use crate::{
+        agents::{
+            operational_agent::{
+                algorithm::{operational_parameter::OperationalParameters, OperationalEvents},
+                OperationalOptions,
+            },
+            traits::Parameters,
+            Algorithm, ArcSwapSharedSolution, OperationalSolution, Solution, WhereIsWorkOrder,
         },
-        traits::Parameters,
-        Algorithm, AlgorithmUtils, ArcSwapSharedSolution, OperationalSolution, Solution,
-        WhereIsWorkOrder,
+        orchestrator::configuration::SystemConfigurations,
     };
     use anyhow::Result;
 
@@ -836,10 +841,14 @@ mod tests {
             toolbox_interval,
         );
 
-        let mut scheduling_environment = SchedulingEnvironment::builder().try_into();
+        let system_configurations = SystemConfigurations::read_all_configs()?;
+
+        let mut scheduling_environment = SchedulingEnvironment::builder().build();
 
         let id = &Id::new("TEST_OPERATIONAL", vec![], vec![]);
 
+        // TODO [ ]
+        // Remove this
         let operational_configuration_all =
             OperationalConfigurationAll::new(id.clone(), 6.0, operational_configuration);
 
@@ -851,20 +860,12 @@ mod tests {
 
         let scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
 
-        let operational_parameters = OperationalParameters::new(
-            id,
-            OperationalOptions::default(),
-            &scheduling_environment.lock().unwrap(),
-        )?;
-
-        let operational_solution = OperationalSolution::new(&operational_parameters);
-
-        let operational_algorithm = Algorithm::new(
-            id,
-            operational_solution,
-            operational_parameters,
-            Arc::new(ArcSwapSharedSolution::default()),
-        );
+        let operational_algorithm = Algorithm::builder()
+            .id(id)
+            .parameters(options, scheduling_environment)?
+            .solution()
+            .arc_swap_shared_solution(arc_swap_shared_solution)
+            .build();
 
         let current_time = DateTime::parse_from_rfc3339("2024-05-20T12:00:00Z")
             .unwrap()

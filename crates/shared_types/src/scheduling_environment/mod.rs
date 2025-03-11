@@ -18,6 +18,12 @@ pub struct SchedulingEnvironment {
     pub time_environment: TimeEnvironment,
     // material
 }
+pub struct SchedulingEnvironmentBuilder {
+    work_orders: Option<WorkOrders>,
+    worker_environment: Option<WorkerEnvironment>,
+    time_environment: Option<TimeEnvironment>,
+}
+
 impl SchedulingEnvironment {
     pub fn new(
         work_orders: WorkOrders,
@@ -31,19 +37,25 @@ impl SchedulingEnvironment {
         }
     }
 
-    pub fn builder() -> SchedulingEnvironmentBuilder {
+    // The `SystemConfigurations` needs to be in the `shared_types`.
+    // No that is wrong, I think that the `orchestrator` should be in its
+    // own module. I think that the whole idea of the `shared_types` is
+    // wrong. You should split them out correctly.
+    // TODO [ ]
+    // git clone a rust project, nushell and see how they structure code.
+    // WARN [ ]
+    // Good! You took the time to thing through this in a correct way
+    // this was a massive payoff. Remember this
+    pub fn builder(
+        system_configurations: &SystemConfigurations,
+        database_connection: D,
+    ) -> SchedulingEnvironmentBuilder {
         SchedulingEnvironmentBuilder {
-            work_orders: todo!(),
-            worker_environment: todo!(),
-            time_environment: todo!(),
+            work_orders: None,
+            worker_environment: None,
+            time_environment: None,
         }
     }
-}
-
-pub struct SchedulingEnvironmentBuilder {
-    work_orders: Option<WorkOrders>,
-    worker_environment: Option<WorkerEnvironment>,
-    time_environment: Option<TimeEnvironment>,
 }
 
 impl SchedulingEnvironmentBuilder {

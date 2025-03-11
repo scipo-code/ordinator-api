@@ -145,11 +145,11 @@ impl Orchestrator {
                         .tactical_agent_sender;
 
                     // What should we do here? I think that the best approach will be to make the code function
-                    strategic_agent_addr.sender.send(AgentMessage::Actor(
+                    strategic_agent_addr.sender.send(ActorMessage::Actor(
                         StrategicRequestMessage::Status(StrategicStatusMessage::General),
                     ))?;
 
-                    tactical_agent_addr.sender.send(AgentMessage::Actor(
+                    tactical_agent_addr.sender.send(ActorMessage::Actor(
                         TacticalRequestMessage::Status(TacticalStatusMessage::General),
                     ))?;
 
@@ -161,7 +161,7 @@ impl Orchestrator {
                         .iter()
                     {
                         addr.sender
-                            .send(AgentMessage::Actor(SupervisorRequestMessage::Status(
+                            .send(ActorMessage::Actor(SupervisorRequestMessage::Status(
                                 SupervisorStatusMessage::General,
                             )))?
                     }
@@ -173,7 +173,7 @@ impl Orchestrator {
                         .operational_agent_senders
                         .iter()
                     {
-                        addr.sender.send(AgentMessage::Actor(
+                        addr.sender.send(ActorMessage::Actor(
                             OperationalRequestMessage::Status(OperationalStatusRequest::General),
                         ))?;
                     }

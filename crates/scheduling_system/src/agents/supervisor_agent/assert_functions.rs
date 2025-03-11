@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use tracing::{event, Level};
 
-use crate::agents::{Agent, Algorithm, SupervisorSolution};
+use crate::agents::{Actor, Algorithm, SupervisorSolution};
 
 use super::algorithm::supervisor_parameters::SupervisorParameters;
 
@@ -19,7 +19,7 @@ pub trait SupervisorAssertions {
 }
 
 impl<MessageRequest, MessageResponse> SupervisorAssertions
-    for Agent<MessageRequest, MessageResponse, SupervisorSolution, SupervisorParameters, ()>
+    for Actor<MessageRequest, MessageResponse, SupervisorSolution, SupervisorParameters, ()>
 {
     fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(
         &self,

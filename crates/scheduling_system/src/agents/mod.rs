@@ -1,32 +1,23 @@
+pub mod algorithm;
 pub mod operational_agent;
 pub mod strategic_agent;
 pub mod supervisor_agent;
 pub mod tactical_agent;
 pub mod traits;
 
+use algorithm::{Algorithm, AlgorithmBuilder};
+use anyhow::{bail, Context, Result};
+use arc_swap::ArcSwap;
+use colored::Colorize;
+use itertools::Itertools;
+
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Debug, Display};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex, RwLock};
 
-use anyhow::{bail, Context, Result};
-use arc_swap::{ArcSwap, Guard};
-use colored::Colorize;
-use itertools::Itertools;
-
-use traits::{
-    ActorBasedLargeNeighborhoodSearch, GetMarginalFitness, MessageHandler, Parameters, Solution,
-};
-
-use super::orchestrator::NotifyOrchestrator;
-use operational_agent::algorithm::operational_parameter::OperationalParameters;
-use operational_agent::algorithm::operational_solution::Assignment;
-use operational_agent::algorithm::operational_solution::MarginalFitness;
-use operational_agent::algorithm::operational_solution::OperationalAssignment;
-use operational_agent::algorithm::{OperationalObjectiveValue, Unavailability};
-use shared_types::agents::strategic::{
-    OperationalResource, StrategicRequestMessage, StrategicResources, StrategicResponseMessage,
-};
+use shared_types::agents::strategic::OperationalResource;
+use shared_types::agents::strategic::StrategicResources;
 use shared_types::agents::supervisor::SupervisorObjectiveValue;
 use shared_types::agents::tactical::{Days, TacticalObjectiveValue, TacticalResources};
 use shared_types::orchestrator::ApiSolution;
@@ -36,20 +27,35 @@ use shared_types::scheduling_environment::work_order::operation::{ActivityNumber
 use shared_types::scheduling_environment::work_order::{WorkOrderActivity, WorkOrderNumber};
 use shared_types::scheduling_environment::worker_environment::resources::{Id, Resources};
 use shared_types::scheduling_environment::SchedulingEnvironment;
-use strategic_agent::algorithm::strategic_parameters::StrategicParameters;
-use strategic_agent::StrategicObjectiveValue;
-use supervisor_agent::algorithm::delegate::Delegate;
-use supervisor_agent::algorithm::supervisor_parameters::SupervisorParameters;
-use tactical_agent::algorithm::tactical_parameters::TacticalParameters;
-use tactical_agent::algorithm::tactical_solution::OperationSolution;
 
-use crate::orchestrator::agent_registry::Communication;
-use crate::orchestrator::configuration::SystemConfigurations;
+use super::orchestrator::agent_registry::Communication;
+use super::orchestrator::configuration::SystemConfigurations;
+use super::orchestrator::NotifyOrchestrator;
+
+use self::traits::ActorBasedLargeNeighborhoodSearch;
+use self::traits::GetMarginalFitness;
+use self::traits::MessageHandler;
+use self::traits::Parameters;
+use self::traits::Solution;
+
+use self::operational_agent::algorithm::operational_parameter::OperationalParameters;
+use self::operational_agent::algorithm::operational_solution::Assignment;
+use self::operational_agent::algorithm::operational_solution::MarginalFitness;
+use self::operational_agent::algorithm::operational_solution::OperationalAssignment;
+use self::operational_agent::algorithm::OperationalObjectiveValue;
+use self::operational_agent::algorithm::Unavailability;
+use self::strategic_agent::algorithm::strategic_parameters::StrategicParameters;
+use self::strategic_agent::StrategicObjectiveValue;
+use self::supervisor_agent::algorithm::delegate::Delegate;
+use self::supervisor_agent::algorithm::supervisor_parameters::SupervisorParameters;
+use self::tactical_agent::algorithm::tactical_parameters::TacticalParameters;
+use self::tactical_agent::algorithm::tactical_solution::OperationSolution;
 
 // TODO [ ] FIX [ ]
 // You should reuse the trait bounds on the Agent and the Algorithm.
-pub struct Agent<AgentRequest, AgentResponse, S, P, I>
+pub struct Actor<ActorRequest, ActorResponse, S, P, I>
 where
+    Self: MessageHandler<Req = ActorRequest, Res = ActorResponse>,
     Algorithm<S, P, I>: ActorBasedLargeNeighborhoodSearch,
     S: Solution,
     P: Parameters,
@@ -57,13 +63,13 @@ where
     agent_id: Id,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub algorithm: Algorithm<S, P, I>,
-    pub receiver_from_orchestrator: Receiver<ActorMessage<AgentRequest>>,
-    pub sender_to_orchestrator: Sender<Result<AgentResponse>>,
+    pub receiver_from_orchestrator: Receiver<ActorMessage<ActorRequest>>,
+    pub sender_to_orchestrator: Sender<Result<ActorResponse>>,
     pub configurations: Arc<RwLock<SystemConfigurations>>,
     pub notify_orchestrator: NotifyOrchestrator,
 }
 
-impl<ActorRequest, ActorResponse, S, P, I> Agent<ActorRequest, ActorResponse, S, P, I>
+impl<ActorRequest, ActorResponse, S, P, I> Actor<ActorRequest, ActorResponse, S, P, I>
 where
     Self: MessageHandler<Req = ActorRequest, Res = ActorResponse>,
     Algorithm<S, P, I>: ActorBasedLargeNeighborhoodSearch,
@@ -103,8 +109,8 @@ where
         }
     }
 
-    pub fn builder() -> AgentBuilder<ActorRequest, ActorResponse, S, P, I> {
-        AgentBuilder {
+    pub fn builder() -> ActorBuilder<ActorRequest, ActorResponse, S, P, I> {
+        ActorBuilder {
             agent_id: None,
             scheduling_environment: None,
             algorithm: None,
@@ -117,9 +123,8 @@ where
     }
 }
 
-pub struct AgentBuilder<ActorRequest, ActorResponse, S, P, I>
+pub struct ActorBuilder<ActorRequest, ActorResponse, S, P, I>
 where
-    Self: MessageHandler<Req = ActorRequest, Res = ActorResponse>,
     Algorithm<S, P, I>: ActorBasedLargeNeighborhoodSearch,
     ActorRequest: Send + Sync + 'static,
     ActorResponse: Send + Sync + 'static,
@@ -139,9 +144,10 @@ where
         Option<Communication<ActorMessage<ActorRequest>, ActorResponse>>,
 }
 
-impl<ActorRequest, ActorResponse, S, P, I> AgentBuilder<ActorRequest, ActorResponse, S, P, I>
+impl<ActorRequest, ActorResponse, S, P, I> ActorBuilder<ActorRequest, ActorResponse, S, P, I>
 where
-    Self: MessageHandler<Req = ActorRequest, Res = ActorResponse>,
+    Actor<ActorRequest, ActorResponse, S, P, I>:
+        MessageHandler<Req = ActorRequest, Res = ActorResponse>,
     Algorithm<S, P, I>: ActorBasedLargeNeighborhoodSearch,
     ActorRequest: Send + Sync + 'static,
     ActorResponse: Send + Sync + 'static,
@@ -149,8 +155,8 @@ where
     P: Parameters,
     I: Default,
 {
-    pub fn build(self) -> Communication<ActorMessage<ActorRequest>, ActorResponse> {
-        let agent = Agent {
+    pub fn build(self) -> Result<Communication<ActorMessage<ActorRequest>, ActorResponse>> {
+        let agent = Actor {
             agent_id: self.agent_id.unwrap(),
             scheduling_environment: self.scheduling_environment.unwrap(),
             algorithm: self.algorithm.unwrap(),
@@ -172,7 +178,7 @@ where
             .name(thread_name)
             .spawn(move || agent.run())?;
 
-        self.communication_for_orchestrator.unwrap()
+        Ok(self.communication_for_orchestrator.unwrap())
     }
 
     pub fn agent_id(mut self, agent_id: Id) -> Self {
@@ -189,6 +195,9 @@ where
 
     pub fn algorithm<F>(mut self, configure: F) -> Self
     where
+        S: Solution<Parameters = P> + Debug + Clone,
+        P: Parameters,
+        I: Default,
         F: FnOnce(AlgorithmBuilder<S, P, I>) -> AlgorithmBuilder<S, P, I>,
     {
         let algorithm_builder = Algorithm::builder();
@@ -243,137 +252,6 @@ where
     }
 }
 
-pub struct Algorithm<S, P, I>
-where
-    S: Solution,
-    P: Parameters,
-{
-    id: Id,
-    solution_intermediate: I,
-    solution: S,
-    parameters: P,
-    arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
-    loaded_shared_solution: Guard<Arc<SharedSolution>>,
-}
-
-pub struct AlgorithmBuilder<S, P, I>
-where
-    S: Solution,
-    P: Parameters,
-{
-    id: Option<Id>,
-    solution_intermediate: Option<I>,
-    solution: Option<S>,
-    parameters: Option<P>,
-    arc_swap_shared_solution: Option<Arc<ArcSwapSharedSolution>>,
-    loaded_shared_solution: Option<Guard<Arc<SharedSolution>>>,
-}
-
-impl<S, P, I> Algorithm<S, P, I>
-where
-    I: Default,
-    S: Solution + Debug + Clone,
-    P: Parameters,
-{
-    fn builder() -> AlgorithmBuilder<S, P, I> {
-        AlgorithmBuilder {
-            id: None,
-            solution_intermediate: None,
-            solution: None,
-            parameters: None,
-            arc_swap_shared_solution: None,
-            loaded_shared_solution: None,
-        }
-    }
-
-    fn load_shared_solution(&mut self) {
-        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
-    }
-
-    fn clone_algorithm_solution(&self) -> S {
-        self.solution.clone()
-    }
-
-    fn swap_solution(&mut self, solution: S) {
-        self.solution = solution;
-    }
-}
-
-impl<S, P, I> AlgorithmBuilder<S, P, I>
-where
-    S: Solution,
-    P: Parameters,
-    I: Default,
-{
-    pub fn build(self) -> Algorithm<S, P, I> {
-        Algorithm {
-            id: self.id.unwrap(),
-            solution_intermediate: self.solution_intermediate.unwrap(),
-            solution: self.solution.unwrap(),
-            parameters: self.parameters.unwrap(),
-            arc_swap_shared_solution: self.arc_swap_shared_solution.unwrap(),
-            loaded_shared_solution: self.loaded_shared_solution.unwrap(),
-        }
-    }
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
-        self
-    }
-    pub fn solution_intermediate(&mut self, solution_intermediate: I) -> &mut Self {
-        self.solution_intermediate = Some(solution_intermediate);
-        self
-    }
-    // This should call the relevant method instead of the
-    pub fn solution<F>(mut self, f: F) -> Self
-    where
-        F: FnOnce(S::Builder) -> S::Builder,
-    {
-        let solution_builder = S::builder();
-        let solution_builder = f(solution_builder);
-        self.solution = Some(solution_builder.build());
-        self
-    }
-
-    pub fn parameters(mut self, parameters: P) -> Self {
-        self.parameters = Some(parameters);
-        self
-    }
-    pub fn arc_swap_shared_solution(
-        &mut self,
-        arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
-    ) -> &mut Self {
-        self.arc_swap_shared_solution = Some(arc_swap_shared_solution);
-        self
-    }
-    pub fn loaded_shared_solution(
-        &mut self,
-        loaded_shared_solution: Guard<Arc<SharedSolution>>,
-    ) -> &mut Self {
-        self.loaded_shared_solution = Some(loaded_shared_solution);
-        self
-    }
-}
-
-// `new` should be replaced by a builder.
-pub trait AlgorithmUtils {
-    type Parameters: Parameters;
-    type ObjectiveValue;
-    type Sol: Solution<ObjectiveValue = Self::ObjectiveValue> + Debug + Clone;
-    type I: Default;
-
-    fn builder() -> AlgorithmBuilder<Self::Sol, Self::Parameters, Self::I>;
-
-    fn load_shared_solution(&mut self);
-
-    fn clone_algorithm_solution(&self) -> Self::Sol;
-
-    fn swap_solution(&mut self, solution: Self::Sol);
-
-    // WARN
-    // You may have to reintroduce this.
-    // fn update_objective_value(&mut self, objective_value: Self::ObjectiveValue);
-}
-
 #[derive(Default)]
 pub struct ScheduleIteration {
     loop_iteration: u64,
@@ -407,10 +285,9 @@ impl fmt::Debug for ScheduleIteration {
     }
 }
 
-#[derive(Default)]
 pub struct ArcSwapSharedSolution(pub ArcSwap<SharedSolution>);
 
-#[derive(PartialEq, Eq, Debug, Clone, Default)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SharedSolution {
     pub strategic: StrategicSolution,
     pub tactical: TacticalSolution,
@@ -834,7 +711,7 @@ impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
 }
 // FIX
 // This could be generic! I think that it should.
-impl<ActorRequest, ResponseMessage, S, P, I> Agent<ActorRequest, ResponseMessage, S, P, I>
+impl<ActorRequest, ResponseMessage, S, P, I> Actor<ActorRequest, ResponseMessage, S, P, I>
 where
     Self: MessageHandler<Req = ActorRequest, Res = ResponseMessage>,
     Algorithm<S, P, I>: ActorBasedLargeNeighborhoodSearch,

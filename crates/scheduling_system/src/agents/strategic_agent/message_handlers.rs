@@ -22,7 +22,7 @@ use tracing::Level;
 
 use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
 use crate::agents::ActorSpecific;
-use crate::agents::Agent;
+use crate::agents::Actor;
 use crate::agents::Algorithm;
 use crate::agents::MessageHandler;
 use crate::agents::StateLink;
@@ -33,7 +33,7 @@ use super::algorithm::strategic_parameters::WorkOrderParameter;
 use super::algorithm::strategic_parameters::WorkOrderParameterBuilder;
 use super::algorithm::ScheduleWorkOrder;
 
-type StrategicAgent = Agent<
+type StrategicAgent = Actor<
     StrategicRequestMessage,
     StrategicResponseMessage,
     StrategicSolution,

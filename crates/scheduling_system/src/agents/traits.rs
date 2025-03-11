@@ -9,6 +9,8 @@ use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
 use super::operational_agent::algorithm::operational_solution::MarginalFitness;
+use super::ActorMessage;
+use super::Algorithm;
 use super::AlgorithmBuilder;
 use super::StateLink;
 
@@ -25,10 +27,8 @@ use super::StateLink;
 // created using the generic structure? No you need the generic
 // structure. There is no way around it. I think that the best
 // thing to do here is making the
-pub trait ActorBasedLargeNeighborhoodSearch {
+pub trait ActorBasedLargeNeighborhoodSearch: AbLNSUtils {
     type Options;
-    type ObjectiveValue;
-    type Solution: Debug;
 
     fn run_lns_iteration(&mut self) -> Result<()> {
         self.update_based_on_shared_solution()?;
@@ -58,7 +58,9 @@ pub trait ActorBasedLargeNeighborhoodSearch {
 
     fn make_atomic_pointer_swap(&self);
 
-    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType<Self::ObjectiveValue>>;
+    fn calculate_objective_value(
+        &mut self,
+    ) -> Result<ObjectiveValueType<<Self as AbLNSUtils>::SolutionType>>;
 
     fn schedule(&mut self) -> Result<()>;
 
@@ -80,16 +82,21 @@ pub trait ActorBasedLargeNeighborhoodSearch {
 
         Ok(())
     }
+}
 
-    fn clone_algorithm_solution(&self) -> Self::Solution;
+pub trait AbLNSUtils {
+    type SolutionType: Solution + Debug + Clone;
 
-    fn load_shared_solution(&self);
+    fn clone_algorithm_solution(&self) -> Self::SolutionType;
 
-    fn update_objective_value(&self, objective_value: Self::ObjectiveValue);
+    fn load_shared_solution(&mut self);
 
-    fn swap_solution(&mut self, solution: Self::Solution);
+    fn update_objective_value(
+        &mut self,
+        objective_value: <Self::SolutionType as Solution>::ObjectiveValue,
+    );
 
-    fn incorporate_shared_state(&mut self) -> Result<bool>;
+    fn swap_solution(&mut self, solution: Self::SolutionType);
 }
 
 #[allow(dead_code)]
@@ -118,7 +125,7 @@ where
 
     fn new(
         id: &Id,
-        options: Self::Options,
+        options: &Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self>;
 
@@ -138,14 +145,11 @@ where
 pub trait Solution {
     type ObjectiveValue;
     type Parameters;
-    type Builder;
 
     // QUESTION
     // Is this a good idea to create the Solution? I actually believe that it
     // is!
     fn new(parameters: &Self::Parameters) -> Self;
-
-    fn builder(parameters: &Self::Parameters) -> Self::Builder;
 
     fn update_objective_value(&mut self, other_objective: Self::ObjectiveValue);
 }
