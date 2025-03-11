@@ -1,3 +1,6 @@
+use serde::Deserialize;
+
+#[derive(Deserialize)]
 pub struct MaterialToPeriod {
     pub nmat: usize,
     pub smat: usize,

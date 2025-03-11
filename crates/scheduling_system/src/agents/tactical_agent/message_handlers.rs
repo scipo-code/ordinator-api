@@ -15,11 +15,11 @@ use crate::agents::{
     tactical_agent::algorithm::tactical_parameters::{
         create_tactical_parameter, TacticalParameters,
     },
-    ActorSpecific, Agent, MessageHandler, StateLink, TacticalSolution, WhereIsWorkOrder,
+    ActorSpecific, Actor, MessageHandler, StateLink, TacticalSolution, WhereIsWorkOrder,
 };
 
 impl MessageHandler
-    for Agent<
+    for Actor<
         TacticalRequestMessage,
         TacticalResponseMessage,
         TacticalSolution,
@@ -130,7 +130,7 @@ impl MessageHandler
 }
 
 impl
-    Agent<
+    Actor<
         TacticalRequestMessage,
         TacticalResponseMessage,
         TacticalSolution,

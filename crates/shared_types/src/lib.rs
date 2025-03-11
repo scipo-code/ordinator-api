@@ -390,27 +390,27 @@ pub struct InputOperational {
 /// in the correct format.
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
 pub struct StrategicOptionsConfig {
-    number_of_removed_work_orders: usize,
-    urgency_weight: usize,
-    resource_penalty_weight: usize,
-    clustering_weight: usize,
+    pub number_of_removed_work_orders: usize,
+    pub urgency_weight: usize,
+    pub resource_penalty_weight: usize,
+    pub clustering_weight: usize,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
 pub struct TacticalOptionsConfig {
-    number_of_removed_work_orders: u64,
-    urgency: u64,
-    resource_penalty: u64,
+    pub number_of_removed_work_orders: u64,
+    pub urgency: u64,
+    pub resource_penalty: u64,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
 pub struct SupervisorOptionsConfig {
-    number_of_removed_work_orders: u64,
+    pub number_of_removed_work_orders: u64,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
 pub struct OperationalOptionsConfig {
-    number_of_removed_work_orders: u64,
+    pub number_of_removed_work_orders: u64,
 }
 
 #[derive(Debug, Serialize)]

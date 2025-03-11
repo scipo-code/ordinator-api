@@ -22,8 +22,8 @@ use crate::agents::supervisor_agent::SupervisorOptions;
 use crate::agents::tactical_agent::algorithm::tactical_parameters::TacticalParameters;
 use crate::agents::tactical_agent::TacticalOptions;
 use crate::agents::traits::{ActorBasedLargeNeighborhoodSearch, Parameters};
+use crate::agents::Actor;
 use crate::agents::ActorMessage;
-use crate::agents::Agent;
 use crate::agents::Algorithm;
 use crate::agents::AlgorithmUtils;
 use crate::agents::ArcSwapSharedSolution;
@@ -70,7 +70,7 @@ impl AgentFactory {
         strategic_options: StrategicOptions,
     ) -> Result<Communication<ActorMessage<StrategicRequestMessage>, StrategicResponseMessage>>
     {
-        let agent = Agent::builder()
+        let agent = Actor::builder()
             .agent_id(Id::new("StrategicAgent", vec![], vec![asset.clone()]))
             .scheduling_environment(Arc::clone(&self.scheduling_environment))
             // TODO
@@ -106,7 +106,7 @@ impl AgentFactory {
             shared_solution_arc_swap,
         );
 
-        let mut strategic_agent = Agent::new(
+        let mut strategic_agent = Actor::new(
             strategic_id,
             arc_scheduling_environment,
             strategic_algorithm,
@@ -155,7 +155,7 @@ impl AgentFactory {
 
         let arc_scheduling_environment = self.scheduling_environment.clone();
 
-        let mut tactical_agent = Agent::new(
+        let mut tactical_agent = Actor::new(
             tactical_id,
             arc_scheduling_environment,
             tactical_algorithm,
@@ -210,7 +210,7 @@ impl AgentFactory {
         let (sender_to_orchestrator, receiver_from_agent) = std::sync::mpsc::channel();
         // It is the `Algorithm` that should have the arc_swap_shared_solution, not the
         // `Agent`. The mutable requirements makes a lot of sense.
-        let mut supervisor_agent = Agent::new(
+        let mut supervisor_agent = Actor::new(
             id_supervisor.clone(),
             scheduling_environment,
             supervisor_algorithm,
@@ -273,7 +273,7 @@ impl AgentFactory {
             >,
         ) = std::sync::mpsc::channel();
 
-        let mut operational_agent = Agent::new(
+        let mut operational_agent = Actor::new(
             operational_id.clone(),
             self.scheduling_environment.clone(),
             operational_algorithm,
