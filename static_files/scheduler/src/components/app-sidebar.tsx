@@ -1,25 +1,27 @@
-import { Calendar, Home, Inbox, Search, Settings } from "lucide-react"
+import { Calendar, ChevronDown, Home, Inbox, Search, Settings } from "lucide-react"
 
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu"
+import { useNavigate, useParams } from "react-router-dom"
+import { useEffect, useState } from "react"
 
 // Menu items.
 const items = [
   {
-    title: "Home",
+    title: "Overview",
     url: "#",
     icon: Home,
   },
   {
-    title: "Inbox",
+    title: "Resources",
     url: "#",
     icon: Inbox,
   },
@@ -41,11 +43,48 @@ const items = [
 ]
 
 export function AppSidebar() {
+  const navigate = useNavigate();
+  const [workspace, setWorkspace] = useState<string | null>(null);
+  const { asset } = useParams<{ asset: string}>();
+
+  useEffect(() => {
+    if (asset) {
+      setWorkspace(asset);
+    } else {
+      setWorkspace("Select Workspace");
+    }
+    
+  }, [asset])
+
+  const handleSelectAsset = (ws: string) => {
+    navigate(`/dashboard/${ws}`)
+    setWorkspace(ws);
+  }
   return (
     <Sidebar>
       <SidebarContent>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton>
+                  {workspace}
+                  <ChevronDown className="ml-auto" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w[--radix-popper-anchor-width]">
+                <DropdownMenuItem onClick={() => handleSelectAsset("DF")}>
+                  <span>DF</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleSelectAsset("TL")}>
+                  <span>TL</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
+                
         <SidebarGroup>
-          <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (

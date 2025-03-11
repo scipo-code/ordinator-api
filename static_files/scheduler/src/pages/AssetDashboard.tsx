@@ -13,7 +13,7 @@ export default function AssetDashboard() {
   }
 
   return (
-    <Container maxWidth="full" padding="sm" className="bg-white min-h-screen">
+    <Container maxWidth="full" padding="sm" className="bg-white flex-1">
       <h1 className="text-4xl font-bold">Dashboard: {asset.toUpperCase()}</h1>
       <br/>
       <Tabs defaultValue="resource-loading-graph" className="w-full">

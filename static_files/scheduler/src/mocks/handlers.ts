@@ -113,9 +113,17 @@ const resourceData = {
 export const handlers = [
   http.get("/api/scheduler/:asset/resources", ({ params }) => {
     const { asset } = params;
+
+    if (!asset) {
+      return new Response("Expected asset", { status: 404 });
+    }
+
+    const assetValue = Array.isArray(asset) ? asset[0] : asset;
+    const assetLower = assetValue.toLowerCase();
+
     // Filter json based on asset
     const assetResources = resourceData.assets.find((a) =>
-      a.asset.toLowerCase() === asset
+      a.asset.toLowerCase() === assetLower
     );
 
     if (!assetResources) {
@@ -129,10 +137,20 @@ export const handlers = [
     "/api/scheduler/:asset/resources/:periodId",
     ({ params }: { params: { asset: string; periodId: string } }) => {
       const { asset, periodId } = params;
-      console.log(asset, periodId);
+
+      if (!asset) {
+        return new Response("Expected asset", { status: 404 });
+      }
+      if (!periodId) {
+        return new Response("Expected periodId", { status: 404 });
+      }
+
+      const assetValue = Array.isArray(asset) ? asset[0] : asset;
+      const assetLower = assetValue.toLowerCase();
+
       // Filter json based on asset
       const assetResources = resourceData.assets.find((a) =>
-        a.asset.toLowerCase() === asset
+        a.asset.toLowerCase() === assetLower
       );
 
       if (!assetResources) {
