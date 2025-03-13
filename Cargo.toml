@@ -5,6 +5,10 @@ members = [
     "crates/shared_types",
     "crates/imperium",
     "crates/data_processing",
+    "crates/ordinator-actors",
+    "crates/ordinator-scheduling-environment",
+    "crates/ordinator-api-server",
+    "crates/ordinator-contracts", "crates/ordinator-configuration", "crates/ordinator-test",
 ]
 
 [profile.dev]
