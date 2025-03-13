@@ -1,0 +1,10 @@
+.rw-r--r-- 0 cbrje 13 Mar 07:27 directory_structure.txt
+drwxr-xr-x - cbrje 11 Mar 13:54 ordinator-actors
+drwxr-xr-x - cbrje 11 Mar 14:02 ordinator-api-server
+drwxr-xr-x - cbrje 11 Mar 14:10 ordinator-configuration
+drwxr-xr-x - cbrje 11 Mar 14:08 ordinator-contracts
+drwxr-xr-x - cbrje 19 Feb 12:55 ordinator-imperium
+drwxr-xr-x - cbrje 11 Mar 14:01 ordinator-scheduling-environment
+drwxr-xr-x - cbrje 19 Feb 12:55 ordinator-total-data-processing
+drwxr-xr-x - cbrje  3 Mar 14:47 scheduling_system
+drwxr-xr-x - cbrje  3 Mar 16:30 shared_types
