@@ -767,3 +767,39 @@ pub enum StateLink {
 pub enum ActorSpecific {
     Strategic(Vec<WorkOrderNumber>),
 }
+
+// THIS should most likely be removed or refactored.
+#[derive(Debug, Serialize)]
+pub enum AlgorithmState<T> {
+    Feasible,
+    Infeasible(T),
+}
+
+impl<T> AlgorithmState<T> {
+    pub fn infeasible_cases_mut(&mut self) -> Option<&mut T> {
+        match self {
+            AlgorithmState::Feasible => None,
+            AlgorithmState::Infeasible(infeasible_cases) => Some(infeasible_cases),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub enum ConstraintState<Reason> {
+    Feasible,
+    Infeasible(Reason),
+    Undetermined,
+}
+
+impl<Reason> fmt::Display for ConstraintState<Reason>
+where
+    Reason: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConstraintState::Feasible => write!(f, "FEASIBLE"),
+            ConstraintState::Infeasible(reason) => write!(f, "{}", reason),
+            ConstraintState::Undetermined => write!(f, "Constraint is not determined yet"),
+        }
+    }
+}

@@ -146,3 +146,11 @@ where
         self
     }
 }
+
+// TODO [x]
+// Where should this be moved to? I am not really sure! I think that the best place is the `Algorithm`
+// no I think it is the `ordinator-actors` crate
+pub enum LoadOperation {
+    Add,
+    Sub,
+}

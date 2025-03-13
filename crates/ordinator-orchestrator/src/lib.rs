@@ -17,7 +17,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::Weak;
-
 use shared_types::agents::operational::requests::operational_request_status::OperationalStatusRequest;
 use shared_types::agents::operational::OperationalRequestMessage;
 use shared_types::agents::operational::OperationalResponseMessage;

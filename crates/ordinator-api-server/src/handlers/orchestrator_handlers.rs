@@ -138,7 +138,7 @@ impl Orchestrator {
         let xlsx_filename = create_excel_dump(
             asset.clone(),
             work_orders,
-            shared_types::AgentExports::Strategic(strategic_agent_solution),
+            strategic_agent_solution,
             tactical_agent_solution,
         )
         .unwrap();
