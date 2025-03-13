@@ -3,6 +3,51 @@ use serde::{Deserialize, Serialize};
 use crate::scheduling_environment::worker_environment::worker::Worker;
 use std::collections::HashMap;
 
+// TODO [ ]
+// This should go to the `SchedulingEnvironment::worker_environment`
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+pub struct AgentEnvironment {
+    // TODO [ ]
+    // Rename these they have a horrible name, they have nothing to do with
+    pub operational: HashMap<Id, OperationalConfigurationAll>,
+    pub supervisor: HashMap<Id, SupervisorConfigurationAll>,
+}
+
+// WARN
+// You should never be able to clone this.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OperationalConfigurationAll {
+    pub id: Id,
+    hours_per_day: f64,
+    pub operational_configuration: OperationalConfiguration,
+}
+
+impl OperationalConfigurationAll {
+    pub fn new(
+        id: Id,
+        hours_per_day: f64,
+        operational_configuration: OperationalConfiguration,
+    ) -> Self {
+        Self {
+            id,
+            hours_per_day,
+            operational_configuration,
+        }
+    }
+}
+
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
+pub struct SupervisorConfigurationAll {
+    id: Id,
+    // FIX
+    // This information is found in two different places. That is an
+    // error that has to be fixed.
+    number_of_supervisor_periods: u64,
+}
+
+// TODO [ ]
+// I do not think that this is relevant any more. It should be deleted and
+// not to be seen again.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Crew {
     workers: HashMap<WorkerNumber, Worker>,

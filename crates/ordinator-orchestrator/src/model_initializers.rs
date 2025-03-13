@@ -11,12 +11,14 @@ pub fn initialize_scheduling_environment(
 ) -> SchedulingEnvironment {
     let total_sap = TotalSap::new(system_configurations.data_locations);
 
-    let scheduling_environment = SchedulingEnvironment::create_scheduling_environment(
+    // FIX [ ]
+    // This is completely wrong! I think that we should create it in a completely different
+    // way to make this system work. You should not define the builder in the
+    // `SchedulingEnvironment` itself, but rely on the `ordinator-orchestrator` crate or the
+    // `ordinator-total-data-processing` crate
+    SchedulingEnvironment::create_scheduling_environment(
         total_sap,
         system_configurations.time_input,
     )
-    .expect("Could not load the data from the data file");
-
-    info!("{}", scheduling_environment);
-    scheduling_environment
+    .expect("Could not load the data from the data file")
 }

@@ -14,6 +14,20 @@ use std::sync::Mutex;
 
 use crate::orchestrator::Orchestrator;
 
+// FIX [ ]
+// TODO [ ] Include `flume`
+// FIX [ ] 
+// Where should this be implemented? I think that the best place is
+// to have them in the `api-server`. The `http_to_scheduling_system`
+// should be completely refactored so that each function calls a
+// method on the `Orchestrator` 
+// Where sh
+// TODO [ ]
+// Where should this go? This wraps the `Orchestrator` in an
+// async method, that means that is should be moved to the
+// `ordinator-api-server`. Are you sure YES!
+//
+// This is actually also a handler! Put is in the mod.rs! 
 #[allow(clippy::await_holding_lock)]
 pub async fn http_to_scheduling_system(
     orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,

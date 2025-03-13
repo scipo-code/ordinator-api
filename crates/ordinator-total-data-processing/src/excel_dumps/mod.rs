@@ -210,7 +210,7 @@ struct RowNames {
 pub fn create_excel_dump(
     asset: Asset,
     work_orders: WorkOrders,
-    strategic_solution: AgentExports,
+    strategic_solution: HashMap<WorkOrderNumber, Option<Period>>,
     tactical_solution: HashMap<WorkOrderNumber, HashMap<ActivityNumber, Day>>,
 ) -> Result<PathBuf> {
     let mut all_rows: Vec<RowNames> = Vec::new();
@@ -398,4 +398,39 @@ fn make_header_row(worksheet: &mut Worksheet) {
     worksheet.write(0, 30, "maintenance_plant").unwrap();
     worksheet.write(0, 31, "pm_collective").unwrap();
     worksheet.write(0, 32, "room").unwrap();
+}
+
+#[derive(Debug, Clone)]
+pub enum ReasonForNotScheduling {
+    Scheduled(Period),
+    Unknown(String),
+}
+
+impl IntoExcelData for ReasonForNotScheduling {
+    fn write(
+        self,
+        worksheet: &mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        let value = match self {
+            ReasonForNotScheduling::Scheduled(period) => period.period_string(),
+            ReasonForNotScheduling::Unknown(unknown) => unknown,
+        };
+        worksheet.write_string(row, col, value)
+    }
+
+    fn write_with_format<'a>(
+        self,
+        worksheet: &'a mut rust_xlsxwriter::Worksheet,
+        row: rust_xlsxwriter::RowNum,
+        col: rust_xlsxwriter::ColNum,
+        format: &rust_xlsxwriter::Format,
+    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+        let value = match self {
+            ReasonForNotScheduling::Scheduled(period) => period.period_string(),
+            ReasonForNotScheduling::Unknown(unknown) => unknown,
+        };
+        worksheet.write_string_with_format(row, col, value, format)
+    }
 }

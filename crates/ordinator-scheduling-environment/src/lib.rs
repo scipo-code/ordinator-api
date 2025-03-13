@@ -126,3 +126,94 @@ impl fmt::Display for SchedulingEnvironment {
         Ok(())
     }
 }
+#[derive(PartialEq, Eq, Hash, Serialize, Deserialize, Debug, Clone, ValueEnum, EnumIter)]
+pub enum Asset {
+    DF,
+    DM,
+    DE,
+    GO,
+    HB,
+    HC,
+    HD,
+    HW,
+    KR,
+    RO,
+    RF,
+    SK,
+    SV,
+    TE,
+    TS,
+    VA,
+    VB,
+    Unknown,
+    Test,
+}
+
+#[derive(Serialize)]
+pub struct AssetNames {
+    value: String,
+    label: String,
+}
+
+impl Display for Asset {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Asset::DF => write!(f, "DF"),
+            Asset::DM => write!(f, "DM"),
+            Asset::DE => write!(f, "DE"),
+            Asset::GO => write!(f, "GO"),
+            Asset::HB => write!(f, "HB"),
+            Asset::HC => write!(f, "HC"),
+            Asset::HD => write!(f, "HD"),
+            Asset::HW => write!(f, "HW"),
+            Asset::KR => write!(f, "KR"),
+            Asset::RO => write!(f, "RO"),
+            Asset::RF => write!(f, "RF"),
+            Asset::SK => write!(f, "SK"),
+            Asset::SV => write!(f, "SV"),
+            Asset::TE => write!(f, "TE"),
+            Asset::TS => write!(f, "TS"),
+            Asset::VA => write!(f, "VA"),
+            Asset::VB => write!(f, "VB"),
+            Asset::Test => write!(f, "TEST"),
+            Asset::Unknown => write!(f, "Unknown"),
+        }
+    }
+}
+
+impl Asset {
+    pub fn new_from_string(asset_string: &str) -> Option<Asset> {
+        match asset_string {
+            "DF" => Some(Asset::DF),
+            "DM" => Some(Asset::DM),
+            "DE" => Some(Asset::DE),
+            "GO" => Some(Asset::GO),
+            "HB" => Some(Asset::HB),
+            "HC" => Some(Asset::HC),
+            "HD" => Some(Asset::HD),
+            "HW" => Some(Asset::HW),
+            "KR" => Some(Asset::KR),
+            "RO" => Some(Asset::RO),
+            "RF" => Some(Asset::RF),
+            "SK" => Some(Asset::SK),
+            "SV" => Some(Asset::SV),
+            "TE" => Some(Asset::TE),
+            "TS" => Some(Asset::TS),
+            "VA" => Some(Asset::VA),
+            "VB" => Some(Asset::VB),
+            _ => None,
+        }
+    }
+
+    pub fn convert_to_asset_names() -> Vec<AssetNames> {
+        let mut vec = Vec::new();
+        for asset in Asset::iter() {
+            let asset_name = AssetNames {
+                value: asset.to_string(),
+                label: asset.to_string(),
+            };
+            vec.push(asset_name);
+        }
+        vec
+    }
+}
