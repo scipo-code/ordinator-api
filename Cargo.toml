@@ -26,6 +26,7 @@ chrono = { version = "*", features = ["serde"] }
 chrono-tz = "*"
 colored = "*"
 dotenvy = "*"
+flume = "*"
 itertools ="*"
 rand = "*"
 rgb = "*"

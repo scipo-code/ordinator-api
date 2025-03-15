@@ -3,34 +3,34 @@ mod routes;
 
 use actix_web::App;
 use actix_web::HttpServer;
-use actix_web::guard;
-use actix_web::web;
+// use actix_web::guard;
+// use actix_web::web;
 
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 
-use std::fs::File;
-use std::io::Read;
+// use std::fs::File;
+// use std::io::Read;
 
-use handlers::orchestrator_handlers::scheduler_asset_names;
-use handlers::orchestrator_handlers::scheduler_excel_export;
+// use handlers::orchestrator_handlers::scheduler_asset_names;
+// use handlers::orchestrator_handlers::scheduler_excel_export;
 use routes::api::v1::api_scope;
 
-use ordinator_orchestrator::Orchestrator;
+// use ordinator_orchestrator::Orchestrator;
 
 #[actix_web::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv()
         .context("You need to provide an .env file. Look at the .env.example for guidance")?;
 
-    let orchestrator = Orchestrator::new().await;
+    // let orchestrator = Orchestrator::new().await;
 
     HttpServer::new(move || {
         App::new()
             // WARN
             // Here the `Orchestrator` should be made available to the system
-            .app_data(web::Data::new(orchestrator.clone()))
+            // .app_data(web::Data::new(orchestrator.clone()))
             // WARN
             .service(api_scope())
             .service(
