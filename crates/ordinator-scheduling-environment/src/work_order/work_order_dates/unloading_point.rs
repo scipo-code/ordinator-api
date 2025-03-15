@@ -1,4 +1,4 @@
-use crate::scheduling_environment::time_environment::period::Period;
+use crate::time_environment::period::Period;
 use clap::Args;
 use rust_xlsxwriter::IntoExcelData;
 use serde::{Deserialize, Serialize};

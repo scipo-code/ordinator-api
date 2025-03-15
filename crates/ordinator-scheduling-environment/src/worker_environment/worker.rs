@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fmt::{self, Formatter};
 
-use crate::scheduling_environment::worker_environment::availability::Availability;
+use super::availability::Availability;
 
 #[derive(Serialize, Deserialize)]
 enum AssignedOrder {

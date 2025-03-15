@@ -1,3 +1,16 @@
+use ordinator_scheduling_environment::{
+    Asset,
+    worker_environment::{
+        OperationalId,
+        crew::{
+            AgentEnvironment, OperationalConfiguration, OperationalConfigurationAll,
+            SupervisorConfigurationAll,
+        },
+        resources::{Id, Resources},
+    },
+};
+use serde::{Deserialize, Serialize};
+
 // WARN
 // This type if for initializing data based on the configuration
 // .toml files. It should not be used as the structure for the
@@ -42,10 +55,8 @@ impl From<ActorSpecifications> for AgentEnvironment {
             .map(|is| {
                 // The umber of supervisor periods is misleading.
                 let id = Id::new(&is.id, vec![], is.assets);
-                let supervisor_config = SupervisorConfigurationAll {
-                    id: id.clone(),
-                    number_of_supervisor_periods: is.number_of_supervisor_periods,
-                };
+                let supervisor_config =
+                    SupervisorConfigurationAll::new(id.clone(), is.number_of_supervisor_periods);
                 (id.clone(), supervisor_config)
             })
             .collect();

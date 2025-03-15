@@ -1,19 +1,18 @@
-mod agents;
-mod api;
-mod orchestrator;
+mod routes;
 
-use actix_web::guard;
-use actix_web::web;
 use actix_web::App;
 use actix_web::HttpServer;
-use anyhow::anyhow;
+use actix_web::guard;
+use actix_web::web;
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
 
 use std::fs::File;
 use std::io::Read;
 
-use shared_types::Asset;
+use orchestrator;
+use schedu::Asset;
 
 use self::api::orchestrator_api::scheduler_asset_names;
 use self::api::orchestrator_api::scheduler_excel_export;
@@ -40,7 +39,7 @@ async fn main() -> Result<()> {
     // DEBUG
     // THIS IS THE MOST UGLY THING THAT YOU HAVE EVER CREATED. GOD WOULD BE
     // SO ASHAMED OF YOU! YOU HAVE BEEN PUT HERE FOR A REASON AND YOU WASTE
-    // IT LIKE THIS! 
+    // IT LIKE THIS!
     let system_agents_configuration_toml = dotenvy::var("RESOURCE_CONFIG_INITIALIZATION").expect("A resources configuration file was not read, this is not technically an error but it will be treated as such.");
 
     let mut system_agents = File::open(system_agents_configuration_toml)?;

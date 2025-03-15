@@ -4,11 +4,11 @@ pub mod responses;
 use std::collections::HashMap;
 
 use crate::{
+    Asset, ConstraintState,
     scheduling_environment::{
         time_environment::day::Day, work_order::operation::Work,
         worker_environment::resources::Resources,
     },
-    Asset, ConstraintState,
 };
 use anyhow::{Context, Result};
 use requests::{
@@ -23,38 +23,6 @@ use responses::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json_any_key::*;
-
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Clone)]
-pub struct TacticalObjectiveValue {
-    pub objective_value: u64,
-    pub urgency: (u64, u64),
-    pub resource_penalty: (u64, u64),
-}
-
-impl Default for TacticalObjectiveValue {
-    fn default() -> Self {
-        Self {
-            objective_value: u64::MAX,
-            urgency: (u64::MAX, u64::MAX),
-            resource_penalty: (u64::MAX, u64::MAX),
-        }
-    }
-}
-
-impl TacticalObjectiveValue {
-    pub fn new(objective_value: u64, urgency: (u64, u64), resource_penalty: (u64, u64)) -> Self {
-        Self {
-            objective_value,
-            urgency,
-            resource_penalty,
-        }
-    }
-
-    pub fn aggregate_objectives(&mut self) {
-        self.objective_value =
-            self.urgency.0 * self.urgency.1 + self.resource_penalty.0 * self.resource_penalty.1;
-    }
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TacticalRequest {
@@ -111,85 +79,5 @@ impl Default for TacticalInfeasibleCases {
             all_scheduled: ConstraintState::Infeasible("Infeasible".to_owned()),
             respect_period_id: ConstraintState::Infeasible("Infeasible".to_owned()),
         }
-    }
-}
-#[derive(Eq, PartialEq, Default, Serialize, Deserialize, Debug, Clone)]
-pub struct TacticalResources {
-    #[serde(with = "any_key_map")]
-    pub resources: HashMap<Resources, Days>,
-}
-
-#[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone)]
-pub struct Days {
-    #[serde(with = "any_key_map")]
-    pub days: HashMap<Day, Work>,
-}
-
-impl Days {
-    pub fn new(days: HashMap<Day, Work>) -> Self {
-        Self { days }
-    }
-
-    pub fn get(&self, day: &Day) -> &Work {
-        self.days.get(day).unwrap()
-    }
-
-    pub fn day_mut(&mut self, day: &Day) -> &mut Work {
-        self.days.get_mut(day).unwrap()
-    }
-}
-
-impl TacticalResources {
-    pub fn new(resources: HashMap<Resources, Days>) -> Self {
-        TacticalResources { resources }
-    }
-
-    pub fn get_resource(&self, resource: &Resources, day: &Day) -> &Work {
-        self.resources.get(resource).unwrap().get(day)
-    }
-
-    pub fn new_from_data(resources: Vec<Resources>, tactical_days: Vec<Day>, load: Work) -> Self {
-        let mut resource_capacity: HashMap<Resources, Days> = HashMap::new();
-        for resource in resources {
-            let mut days = HashMap::new();
-            for day in tactical_days.iter() {
-                days.insert(day.clone(), load);
-            }
-
-            resource_capacity.insert(resource, Days { days });
-        }
-        TacticalResources::new(resource_capacity)
-    }
-
-    pub fn update_resources(&mut self, resources: Self) {
-        for resource in resources.resources {
-            for day in resource.1.days {
-                *self
-                    .resources
-                    .get_mut(&resource.0)
-                    .unwrap()
-                    .days
-                    .get_mut(&day.0)
-                    .unwrap() = day.1;
-            }
-        }
-    }
-
-    pub fn determine_period_load(
-        &self,
-        resource: &Resources,
-        period: &crate::scheduling_environment::time_environment::period::Period,
-    ) -> Result<Work> {
-        let days = &self
-            .resources
-            .get(resource)
-            .with_context(|| "The resources between the strategic and the tactical should always correspond, unless that the tactical has not been initialized yet".to_string())?
-            .days;
-
-        Ok(days
-            .iter()
-            .filter(|(day, _)| period.contains_date(day.date().date_naive()))
-            .map(|(_, work)| work)
-            .fold(Work::from(0.0), |acc, work| &acc + work))
     }
 }

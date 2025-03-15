@@ -92,7 +92,7 @@ impl Period {
 
     pub(crate) fn count_overlapping_days(
         &self,
-        availability: &crate::scheduling_environment::worker_environment::availability::Availability,
+        availability: &crate::worker_environment::availability::Availability,
     ) -> i64 {
         let first = std::cmp::max(
             self.start_date.date_naive(),

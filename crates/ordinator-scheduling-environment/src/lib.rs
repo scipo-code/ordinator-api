@@ -2,11 +2,14 @@ pub mod time_environment;
 pub mod work_order;
 pub mod worker_environment;
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 use time_environment::TimeEnvironmentBuilder;
 use work_order::{WorkOrders, WorkOrdersBuilder};
 
-use std::fmt;
+use std::fmt::{self, Display};
 
 use self::time_environment::TimeEnvironment;
 use self::worker_environment::WorkerEnvironment;
@@ -25,31 +28,7 @@ pub struct SchedulingEnvironmentBuilder {
 }
 
 impl SchedulingEnvironment {
-    pub fn new(
-        work_orders: WorkOrders,
-        worker_environment: WorkerEnvironment,
-        time_environment: TimeEnvironment,
-    ) -> Self {
-        SchedulingEnvironment {
-            work_orders,
-            worker_environment,
-            time_environment,
-        }
-    }
-
-    // The `SystemConfigurations` needs to be in the `shared_types`.
-    // No that is wrong, I think that the `orchestrator` should be in its
-    // own module. I think that the whole idea of the `shared_types` is
-    // wrong. You should split them out correctly.
-    // TODO [ ]
-    // git clone a rust project, nushell and see how they structure code.
-    // WARN [ ]
-    // Good! You took the time to thing through this in a correct way
-    // this was a massive payoff. Remember this
-    pub fn builder(
-        system_configurations: &SystemConfigurations,
-        database_connection: D,
-    ) -> SchedulingEnvironmentBuilder {
+    pub fn builder() -> SchedulingEnvironmentBuilder {
         SchedulingEnvironmentBuilder {
             work_orders: None,
             worker_environment: None,
@@ -57,6 +36,19 @@ impl SchedulingEnvironment {
         }
     }
 }
+
+pub trait IntoSchedulingEnvironment {
+    type S: SystemConfigurationTrait;
+    type D: DatabaseConfigurationTrait;
+
+    fn into_scheduling_environment(
+        self,
+        system_configuration: &Self::S,
+        database_connection: &Self::D,
+    ) -> Result<SchedulingEnvironment>;
+}
+pub trait SystemConfigurationTrait {}
+pub trait DatabaseConfigurationTrait {}
 
 impl SchedulingEnvironmentBuilder {
     pub fn build(self) -> SchedulingEnvironment {
@@ -126,7 +118,7 @@ impl fmt::Display for SchedulingEnvironment {
         Ok(())
     }
 }
-#[derive(PartialEq, Eq, Hash, Serialize, Deserialize, Debug, Clone, ValueEnum, EnumIter)]
+#[derive(PartialEq, Eq, Hash, Serialize, Deserialize, Debug, Clone, EnumIter)]
 pub enum Asset {
     DF,
     DM,

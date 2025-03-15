@@ -1,4 +1,6 @@
-#[derive(Deserialize)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
 pub struct TomlResources {
     pub medic: f64,
     pub mtncran: f64,

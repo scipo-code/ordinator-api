@@ -20,25 +20,42 @@ pub struct StrategicOptions {
     pub work_order_configurations: WorkOrderConfigurations,
     pub material_to_period: MaterialToPeriod,
 }
+impl From<&RwLockReadGuard<SystemConfiguration>> for StrategicOptions {
+    fn from(value: &RwLockReadGuard<SystemConfiguration>) -> Self {
+        let number_of_removed_work_order = self
+            .actor_configurations
+            .strategic_options
+            .number_of_removed_work_orders;
+        let urgency_weight = self.actor_configurations.strategic_options.urgency_weight;
+        let resource_penalty_weight = self
+            .actor_configurations
+            .strategic_options
+            .resource_penalty_weight;
+        let clustering_weight = self
+            .actor_configurations
+            .strategic_options
+            .clustering_weight;
+        let work_order_configurations = self.work_order_configurations;
 
-// FIX [ ]
-// This is wrong! You should never implement a `Default` trait
-// if a default value does not make any sense.
-// impl Default for StrategicOptions {
-//     fn default() -> Self {
-//         StrategicOptions {
-//             number_of_removed_work_order: 50,
-//             rng: StdRng::from_os_rng(),
-//             urgency_weight: todo!(),
-//             resource_penalty_weight: todo!(),
-//             clustering_weight: todo!(),
-//             work_order_configurations: WorkOrderConfigurations,
-//         }
-//     }
-// }
+        let material_to_period = self.material_to_period;
 
-// This will al
-// Default does not make sense here you should remove it.
+        let rng = StdRng::from_os_rng();
+        // QUESTION [ ]
+        // _Should this field be private or public?_
+        //
+        // You should provide an ID here to solve this problem.
+        StrategicOptions {
+            number_of_removed_work_order,
+            rng,
+            urgency_weight,
+            resource_penalty_weight,
+            clustering_weight,
+            work_order_configurations,
+            material_to_period,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct StrategicObjectiveValue {
     pub objective_value: u64,
@@ -69,13 +86,13 @@ mod tests {
     use algorithm::ForcedWorkOrder;
     use anyhow::Result;
     use operation::OperationBuilder;
-    use shared_types::agents::strategic::requests::strategic_request_scheduling_message::ScheduleChange;
-    use shared_types::agents::strategic::requests::strategic_request_scheduling_message::StrategicRequestScheduling;
     use shared_types::agents::strategic::OperationalResource;
     use shared_types::agents::strategic::StrategicResources;
+    use shared_types::agents::strategic::requests::strategic_request_scheduling_message::ScheduleChange;
+    use shared_types::agents::strategic::requests::strategic_request_scheduling_message::StrategicRequestScheduling;
+    use shared_types::scheduling_environment::SchedulingEnvironment;
     use shared_types::scheduling_environment::work_order::operation::Work;
     use shared_types::scheduling_environment::worker_environment::resources::Id;
-    use shared_types::scheduling_environment::SchedulingEnvironment;
     use tests::algorithm::strategic_parameters::StrategicParameters;
     use tests::algorithm::strategic_parameters::WorkOrderParameter;
     use work_order_dates::unloading_point::UnloadingPoint;
@@ -86,13 +103,13 @@ mod tests {
     use std::sync::Arc;
     use std::sync::Mutex;
 
-    use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
-    use crate::agents::traits::ObjectiveValueType;
-    use crate::agents::traits::Parameters;
     use crate::agents::Algorithm;
     use crate::agents::ArcSwapSharedSolution;
     use crate::agents::Solution;
     use crate::agents::StrategicSolution;
+    use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
+    use crate::agents::traits::ObjectiveValueType;
+    use crate::agents::traits::Parameters;
 
     use super::*;
     use shared_types::scheduling_environment::worker_environment::resources::Resources;
@@ -219,16 +236,16 @@ mod tests {
 
         let period = Period::from_str("2023-W49-50").unwrap();
 
-        let operational_resource_1 = OperationalResource::new(
-            "OP_TEST_0",
-            Work::from(40.0),
-            vec![Resources::MtnMech, Resources::MtnElec, Resources::VenMech],
-        );
-        let operational_resource_2 = OperationalResource::new(
-            "OP_TEST_1",
-            Work::from(40.0),
-            vec![Resources::MtnScaf, Resources::MtnElec, Resources::VenMech],
-        );
+        let operational_resource_1 = OperationalResource::new("OP_TEST_0", Work::from(40.0), vec![
+            Resources::MtnMech,
+            Resources::MtnElec,
+            Resources::VenMech,
+        ]);
+        let operational_resource_2 = OperationalResource::new("OP_TEST_1", Work::from(40.0), vec![
+            Resources::MtnScaf,
+            Resources::MtnElec,
+            Resources::VenMech,
+        ]);
         let mut strategic_resources = StrategicResources::default();
 
         strategic_resources.insert_operational_resource(period.clone(), operational_resource_1);

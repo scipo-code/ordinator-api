@@ -1,14 +1,15 @@
 [package]
 name = "imperium"
 version = "0.2.2"
-edition = "2021"
+edition = "2024"
 description = "commandline tool for establishing client communications with the ordinator-api server"
 license-file = "../LICENSE"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow ="*"
+ordinator-contracts = { path = "../ordinator-contracts"}
+anyhow = {workspace = true}
 clap = { version = "*", features = ["derive"] }
 clap_complete = "*"
 clap_complete_nushell = "*"
@@ -16,7 +17,7 @@ dotenvy = "*"
 reqwest = { version = "*", features = ["blocking"] }
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
-shared_types = { path = "../shared_types" }
+ordinator-scheduling-environment = { path = "../ordinator-scheduling-environment" }
 strum = "*"
 tokio = { version = "*", features = ["full"] }
 toml = "*"

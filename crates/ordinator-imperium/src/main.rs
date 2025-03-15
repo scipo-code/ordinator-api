@@ -2,12 +2,12 @@ pub mod commands;
 
 use std::{fs::File, io::Write};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{Command, CommandFactory, Parser};
-use clap_complete::{generate, Generator, Shell};
+use clap_complete::{Generator, Shell, generate};
 use commands::Commands;
+use ordinator_contracts::SystemMessages;
 use reqwest::blocking::Client;
-use shared_types::SystemMessages;
 
 #[derive(Parser)]
 #[command(name = "imperium", author, version, about, long_about = None)]
@@ -117,6 +117,6 @@ fn send_http(client: &Client, system_message: SystemMessages) -> Result<String> 
     }
 }
 
-fn print_completions<G: Generator>(gen: G, cmd: &mut Command) {
-    generate(gen, cmd, cmd.get_name().to_string(), &mut std::io::stdout());
-}
+// fn print_completions<G: Generator>(gen: G, cmd: &mut Command) {
+//     generate(gen, cmd, cmd.get_name().to_string(), &mut std::io::stdout());
+// }

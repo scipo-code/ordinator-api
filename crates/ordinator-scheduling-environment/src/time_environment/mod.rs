@@ -18,6 +18,15 @@ pub struct TimeEnvironment {
     pub supervisor_periods: Vec<Period>,
 }
 
+#[derive(Deserialize)]
+pub struct MaterialToPeriod {
+    pub nmat: usize,
+    pub smat: usize,
+    pub cmat: usize,
+    pub pmat: usize,
+    pub wmat: usize,
+}
+
 impl TimeEnvironment {
     pub fn new(
         strategic_periods: Vec<Period>,

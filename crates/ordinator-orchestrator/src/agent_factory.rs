@@ -1,41 +1,41 @@
 use anyhow::{Context, Result};
 use arc_swap::ArcSwap;
-use shared_types::agents::operational::{OperationalRequestMessage, OperationalResponseMessage};
-use shared_types::agents::strategic::{StrategicRequestMessage, StrategicResponseMessage};
-use shared_types::agents::supervisor::{SupervisorRequestMessage, SupervisorResponseMessage};
-use shared_types::agents::tactical::{
+use ordinator_contracts::operational::{OperationalRequestMessage, OperationalResponseMessage};
+use ordinator_contracts::strategic::{StrategicRequestMessage, StrategicResponseMessage};
+use ordinator_contracts::supervisor::{SupervisorRequestMessage, SupervisorResponseMessage};
+use ordinator_contracts::tactical::{
     Days, TacticalRequestMessage, TacticalResources, TacticalResponseMessage,
 };
-use shared_types::scheduling_environment::work_order::operation::Work;
-use shared_types::Asset;
+use ordinator_scheduling_environment::Asset;
+use ordinator_scheduling_environment::work_order::operation::Work;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::sync::{Arc, MutexGuard};
 
-use crate::agents::operational_agent::algorithm::operational_parameter::OperationalParameters;
-use crate::agents::operational_agent::OperationalOptions;
-use crate::agents::orchestrator::{Communication, NotifyOrchestrator};
-use crate::agents::strategic_agent::algorithm::strategic_parameters::StrategicParameters;
-use crate::agents::strategic_agent::StrategicOptions;
-use crate::agents::supervisor_agent::algorithm::supervisor_parameters::SupervisorParameters;
-use crate::agents::supervisor_agent::SupervisorOptions;
-use crate::agents::tactical_agent::algorithm::tactical_parameters::TacticalParameters;
-use crate::agents::tactical_agent::TacticalOptions;
-use crate::agents::traits::{ActorBasedLargeNeighborhoodSearch, Parameters};
-use crate::agents::Actor;
-use crate::agents::ActorMessage;
-use crate::agents::Algorithm;
-use crate::agents::AlgorithmUtils;
-use crate::agents::ArcSwapSharedSolution;
-use crate::agents::OperationalSolution;
-use crate::agents::SharedSolution;
-use crate::agents::Solution;
-use crate::agents::StrategicSolution;
-use crate::agents::SupervisorSolution;
-use crate::agents::TacticalSolution;
+use ordinator_actors::Actor;
+use ordinator_actors::ActorMessage;
+use ordinator_actors::Algorithm;
+use ordinator_actors::AlgorithmUtils;
+use ordinator_actors::ArcSwapSharedSolution;
+use ordinator_actors::OperationalSolution;
+use ordinator_actors::SharedSolution;
+use ordinator_actors::Solution;
+use ordinator_actors::StrategicSolution;
+use ordinator_actors::SupervisorSolution;
+use ordinator_actors::TacticalSolution;
+use ordinator_actors::operational_agent::OperationalOptions;
+use ordinator_actors::operational_agent::algorithm::operational_parameter::OperationalParameters;
+use ordinator_actors::orchestrator::{Communication, NotifyOrchestrator};
+use ordinator_actors::strategic_agent::StrategicOptions;
+use ordinator_actors::strategic_agent::algorithm::strategic_parameters::StrategicParameters;
+use ordinator_actors::supervisor_agent::SupervisorOptions;
+use ordinator_actors::supervisor_agent::algorithm::supervisor_parameters::SupervisorParameters;
+use ordinator_actors::tactical_agent::TacticalOptions;
+use ordinator_actors::tactical_agent::algorithm::tactical_parameters::TacticalParameters;
+use ordinator_actors::traits::{ActorBasedLargeNeighborhoodSearch, Parameters};
 
-use shared_types::scheduling_environment::worker_environment::resources::Id;
-use shared_types::scheduling_environment::SchedulingEnvironment;
+use ordinator_scheduling_environment::SchedulingEnvironment;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 
 #[derive(Debug, Clone)]
 pub struct AgentFactory {

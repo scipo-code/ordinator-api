@@ -1,20 +1,35 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/scheduling_system",
-    "crates/shared_types",
-    "crates/imperium",
-    "crates/data_processing",
     "crates/ordinator-actors",
-    "crates/ordinator-scheduling-environment",
     "crates/ordinator-api-server",
-    "crates/ordinator-contracts", "crates/ordinator-configuration", "crates/ordinator-test",
+    "crates/ordinator-configuration",
+    "crates/ordinator-contracts",
+    "crates/ordinator-imperium",
+    "crates/ordinator-orchestrator",
+    "crates/ordinator-scheduling-environment",
+    "crates/ordinator-total-data-processing",
 ]
 
 [profile.dev]
 panic = 'abort'
-force-frame-pointers = "yes"
+force-frame-pointers = true
 debug = true
 
 [profile.release]
 panic = 'abort'
+
+[workspace.dependencies]
+anyhow = "*"
+arc-swap = "*" 
+chrono = { version = "*", features = ["serde"] }
+chrono-tz = "*"
+colored = "*"
+dotenvy = "*"
+itertools ="*"
+rand = "*"
+rgb = "*"
+serde = { version = "*", features = ["derive"] } 
+serde_json = "*"
+toml = "*"
+

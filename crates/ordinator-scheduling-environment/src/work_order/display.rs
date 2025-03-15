@@ -1,4 +1,4 @@
-use crate::scheduling_environment::work_order::WorkOrder;
+use super::WorkOrder;
 use std::fmt;
 
 impl fmt::Display for WorkOrder {
