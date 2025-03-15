@@ -1,17 +1,18 @@
 import { HashRouter, Route, Routes } from "react-router-dom";
-import PlanningView from "./pages/AssetDashboard"; 
-// import NotFound from "./pages/NotFound"; 
+import ResourceView from "./pages/ResourceView"; 
 import "./App.css";
 import Layout from "./Layout";
+import PlanningView from "./pages/PlanningView";
 
 function App() {
   return (
       <HashRouter basename="/">
-        <Layout>
           <Routes>
-            <Route path="/:asset" element={<PlanningView />} />
+            <Route path=":asset" element={<Layout />}>
+              <Route path="planning" element={<PlanningView />} />
+              <Route path="resources" element={<ResourceView />} />
+            </Route>
           </Routes>
-        </Layout>
       </HashRouter>
   );
 }
