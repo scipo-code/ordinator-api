@@ -1,5 +1,4 @@
-export type Asset = { value: string; label: string };
-export type ResourceProps = {
+export type Asset = {
   asset: string;
 };
 
