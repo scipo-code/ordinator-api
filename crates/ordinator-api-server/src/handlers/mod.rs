@@ -1,135 +1,14 @@
-pub mod orchestrator_handlers;
-use actix_web::{HttpRequest, HttpResponse, web};
+// mod orchestrator_handlers;
+// pub mod http_to_scheduling_system;
+use actix_web::HttpResponse;
 use anyhow::Result;
 
-// FIX
-// This is a wrong way to import dependencies. It should be refactored.
-use shared_types::SystemMessages;
-use shared_types::SystemResponses;
-use shared_types::agents::strategic::StrategicResponse;
-use tracing::Level;
-use tracing::event;
+// use crate::orchestrator::Orchestrator;
 
-use std::sync::Arc;
-use std::sync::Mutex;
-
-use crate::orchestrator::Orchestrator;
-
-// FIX [ ]
-// TODO [ ] Include `flume`
-// FIX [ ]
-// Where should this be implemented? I think that the best place is
-// to have them in the `api-server`. The `http_to_scheduling_system`
-// should be completely refactored so that each function calls a
-// method on the `Orchestrator`
-// Where sh
-// TODO [ ]
-// Where should this go? This wraps the `Orchestrator` in an
-// async method, that means that is should be moved to the
-// `ordinator-api-server`. Are you sure YES!
-//
-// This is actually also a handler! Put is in the mod.rs!
-#[allow(clippy::await_holding_lock)]
-pub async fn http_to_scheduling_system(
-    orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
-    _req: HttpRequest,
-    system_messages: web::Json<SystemMessages>,
+pub async fn scheduler_excel_export(// WARN link to application data
+    // orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
+    // WARN url query parameters
+    // asset: web::Path<Asset>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    event!(Level::INFO, orchestrator_request = ?system_messages);
-    match system_messages.into_inner() {
-        SystemMessages::Orchestrator(orchestrator_request) => {
-            let mut orchestrator = orchestrator.lock().unwrap();
-
-            Ok(orchestrator
-                .handle_orchestrator_request(orchestrator_request)
-                .await?)
-        }
-        SystemMessages::Strategic(strategic_request) => {
-            let asset = strategic_request.asset;
-            let orchestrator_guard = orchestrator.lock().unwrap();
-
-            let strategic = &orchestrator_guard
-                .agent_registries
-                .get(&asset)
-                .unwrap()
-                .strategic_agent_sender;
-
-            strategic
-                .sender
-                .send(crate::agents::ActorMessage::Actor(
-                    strategic_request.strategic_request_message,
-                ))
-                .map_err(actix_web::error::ErrorInternalServerError)?;
-
-            let response = strategic
-                .receiver
-                .recv()
-                .map_err(actix_web::error::ErrorInternalServerError)?;
-            drop(orchestrator_guard);
-
-            let strategic_response_message = match response {
-                Ok(message) => message,
-                Err(e) => {
-                    let error = format!("{:?}", e.context("http request could not be completed"));
-                    return Ok(HttpResponse::BadRequest().body(error));
-                }
-            };
-
-            let strategic_response = StrategicResponse::new(asset, strategic_response_message);
-
-            let system_message = SystemResponses::Strategic(strategic_response);
-
-            Ok(HttpResponse::Ok().json(system_message))
-        }
-        SystemMessages::Tactical(tactical_request) => {
-            let orchestrator = orchestrator.lock().unwrap();
-
-            Ok(orchestrator
-                .handle_tactical_request(tactical_request)
-                .await?)
-        }
-        SystemMessages::Supervisor(supervisor_request) => {
-            let orchestrator = orchestrator.lock().unwrap();
-
-            Ok(orchestrator
-                .handle_supervisor_request(supervisor_request)
-                .await?)
-        }
-        SystemMessages::Operational(operational_request) => {
-            let orchestrator = orchestrator.lock().unwrap();
-
-            Ok(orchestrator
-                .handle_operational_request(operational_request)
-                .await?)
-        }
-        SystemMessages::Sap => Ok(HttpResponse::Ok().json(SystemResponses::Sap)),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::collections::HashMap;
-
-    use chrono::Utc;
-    use shared_types::{
-        agents::tactical::{Days, TacticalResources},
-        scheduling_environment::{
-            time_environment::day::Day, work_order::operation::Work,
-            worker_environment::resources::Resources,
-        },
-    };
-
-    #[test]
-    fn test_day_serialize() {
-        let mut hash_map_nested = HashMap::<Day, Work>::new();
-
-        let mut hash_map = HashMap::<Resources, Days>::new();
-        let day = Day::new(0, Utc::now());
-        day.to_string();
-        hash_map_nested.insert(day, Work::from(123.0));
-
-        hash_map.insert(Resources::MtnMech, Days::new(hash_map_nested.clone()));
-        let tactical_resources = TacticalResources::new(hash_map.clone());
-        serde_json::to_string(&tactical_resources).unwrap();
-    }
+    Ok(HttpResponse::Ok().into())
 }
