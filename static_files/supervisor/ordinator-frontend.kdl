@@ -1,0 +1,37 @@
+pane_frames false
+layout {
+	tab name="control" focus=true {
+		pane split_direction="vertical" {
+			pane focus=true size="70%" {
+				command "hx"
+				args "."
+			}
+			pane split_direction="horizontal" size="30%" {
+				pane name="vite" {
+		  			command "npm"
+		      		args "run" "dev"
+	    	  		cwd "."
+				}
+				pane name="term" size="70%"
+				
+			}
+		}  
+	    pane size=1 borderless=true {
+	      // plugin location="status-bar"
+	      // plugin location="tab-bar"
+	      plugin location="compact-bar"
+	    }
+    }
+}
+
+plugins {
+    tab-bar location="zellij:tab-bar"
+    status-bar location="zellij:status-bar"
+    strider location="zellij:strider"
+    compact-bar location="zellij:compact-bar"
+    session-manager location="zellij:session-manager"
+    filepicker location="zellij:strider" {
+        cwd "/"
+    }
+}
+
