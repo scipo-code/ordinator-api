@@ -5,9 +5,7 @@ use regex::Regex;
 use rust_xlsxwriter::IntoExcelData;
 use serde::{Deserialize, Serialize};
 
-use crate::scheduling_environment::{
-    time_environment::period::Period, work_order::WorkOrderNumber,
-};
+use crate::{time_environment::period::Period, work_order::WorkOrderNumber};
 
 // pub material_status: MaterialStatus,
 // #[arg(long)]

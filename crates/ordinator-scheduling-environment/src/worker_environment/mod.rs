@@ -3,19 +3,15 @@ pub mod crew;
 pub mod resources;
 pub mod worker;
 
-use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use crew::AgentEnvironment;
+use serde::Deserialize;
+use serde::Serialize;
+use std::collections::HashSet;
 use strum::IntoEnumIterator;
 
-use crate::agents::strategic::{OperationalResource, StrategicResources};
-use crate::agents::tactical::{Days, TacticalResources};
-use crate::scheduling_environment::worker_environment::resources::Resources;
-use crate::{AgentEnvironment, OperationalId};
+use self::resources::Resources;
 
-use super::time_environment::day::Day;
-use super::time_environment::period::Period;
-use super::work_order::operation::Work;
-
+pub type OperationalId = String;
 // There is something rotten about all this! I think that the best
 // approach is to create something that will allow us to better
 // forcast how the system will behave.
@@ -31,6 +27,8 @@ pub struct WorkerEnvironmentBuilder {
 }
 
 impl WorkerEnvironment {
+    // TODO [ ]
+    // This should be refactored!
     pub fn new() -> Self {
         let mut work_centers = HashSet::new();
         for resource in Resources::iter() {
@@ -41,106 +39,8 @@ impl WorkerEnvironment {
             work_centers,
         }
     }
-
-    pub fn get_work_centers(&self) -> &HashSet<Resources> {
-        &self.work_centers
-    }
-
-    pub fn generate_strategic_resources(&self, periods: &[Period]) -> StrategicResources {
-        let gradual_reduction = |i: usize| -> f64 {
-            if i == 0 {
-                1.0
-            } else if i == 1 {
-                0.9
-            } else if i == 2 {
-                0.8
-            } else {
-                0.6
-            }
-        };
-
-        let mut strategic_resources_inner =
-            HashMap::<Period, HashMap<OperationalId, OperationalResource>>::new();
-
-        for (i, period) in periods.iter().enumerate() {
-            let mut operational_resource_map = HashMap::new();
-            for operational_agent in &self.agent_environment.operational {
-                // What is it that you are trying to do here? You want to instantiate an agent
-                // TODO: Could you reuse the OperationalResource. No could you inplement a
-                // into formulation here? I think that is a that ... THis is actually fun!
-                let mut skill_hours: HashMap<Resources, Work> = HashMap::new();
-
-                // let availability = &operational_agent.operational_configuration.availability;
-
-                // This does not make any sense for the longer term. I think that you should
-                // rely on the 13 days.
-                let days_in_period = 13.0; // WARN: period.count_overlapping_days(availability);
-
-                for resource in &operational_agent.1.id.1 {
-                    skill_hours.insert(
-                        *resource,
-                        Work::from(
-                            operational_agent.1.hours_per_day
-                                * days_in_period
-                                * gradual_reduction(i),
-                        ),
-                    );
-                }
-
-                let operational_resource = OperationalResource::new(
-                    &operational_agent.1.id.0,
-                    Work::from(
-                        operational_agent.1.hours_per_day * days_in_period * gradual_reduction(i),
-                    ),
-                    operational_agent.1.id.1.clone(),
-                );
-
-                operational_resource_map
-                    .insert(operational_agent.0 .0.clone(), operational_resource);
-            }
-            strategic_resources_inner.insert(period.clone(), operational_resource_map);
-        }
-
-        StrategicResources::new(strategic_resources_inner)
-    }
-
-    pub fn generate_tactical_resources(
-        &self,
-        days: &[Day],
-        _empty_full: EmptyFull,
-    ) -> TacticalResources {
-        let _hours_per_day = 6.0;
-
-        let gradual_reduction = |i: usize| -> f64 {
-            match i {
-                0..=13 => 1.0,
-                14..=27 => 1.0,
-                _ => 1.0,
-            }
-        };
-
-        // WARN
-        // Should this be multi skill?
-        let mut tactical_resources_inner = HashMap::<Resources, Days>::new();
-        for operational_configuration_all in self.agent_environment.operational.values() {
-            for (i, day) in days.iter().enumerate() {
-                let resource_periods = tactical_resources_inner
-                    // FIX
-                    // WARN
-                    // There is a logic error here. If we want to compare with the `StrategicAgent`.
-                    .entry(operational_configuration_all.id.1.first().cloned().unwrap())
-                    .or_insert(Days::new(HashMap::new()));
-
-                *resource_periods
-                    .days
-                    .entry(day.clone())
-                    .or_insert_with(|| Work::from(0.0)) +=
-                    Work::from(operational_configuration_all.hours_per_day * gradual_reduction(i));
-            }
-        }
-        TacticalResources::new(tactical_resources_inner)
-    }
 }
+
 pub enum EmptyFull {
     Empty,
     Full,

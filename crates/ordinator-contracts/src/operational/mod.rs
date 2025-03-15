@@ -9,17 +9,12 @@ use operational_response_resource::OperationalResourceResponse;
 use operational_response_scheduling::OperationalSchedulingResponse;
 use operational_response_status::OperationalResponseStatus;
 use operational_response_time::OperationalTimeResponse;
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de};
 
-use crate::{
-    scheduling_environment::worker_environment::{availability::Availability, resources::Id},
-    Asset, ConstraintState,
-};
 use anyhow::Result;
 
 use self::requests::*;
 use self::responses::*;
-type OperationalId = String;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub enum OperationalRequest {
@@ -80,55 +75,6 @@ pub enum OperationalResponse {
     OperationalIds(Vec<Id>),
     OperationalState(OperationalResponseMessage),
     NoOperationalAgentFound(String),
-}
-
-#[derive(Deserialize, Debug, Serialize, Clone)]
-pub struct OperationalConfiguration {
-    pub availability: Availability,
-    pub break_interval: TimeInterval,
-    pub off_shift_interval: TimeInterval,
-    pub toolbox_interval: TimeInterval,
-}
-
-impl OperationalConfiguration {
-    pub fn new(
-        availability: Availability,
-        break_interval: TimeInterval,
-        off_shift_interval: TimeInterval,
-        toolbox_interval: TimeInterval,
-    ) -> Self {
-        Self {
-            availability,
-            break_interval,
-            off_shift_interval,
-            toolbox_interval,
-        }
-    }
-}
-
-#[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone)]
-pub struct TimeInterval {
-    #[serde(deserialize_with = "deserialize_time_interval")]
-    pub start: NaiveTime,
-    #[serde(deserialize_with = "deserialize_time_interval")]
-    pub end: NaiveTime,
-}
-
-fn deserialize_time_interval<'de, D>(deserializer: D) -> Result<NaiveTime, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let time_str: String = Deserialize::deserialize(deserializer)?;
-    NaiveTime::parse_from_str(&time_str, "%H:%M:%S").map_err(de::Error::custom)
-}
-
-impl Default for TimeInterval {
-    fn default() -> Self {
-        Self {
-            start: NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
-            end: NaiveTime::from_hms_opt(8, 0, 0).unwrap(),
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

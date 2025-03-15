@@ -17,8 +17,8 @@ use std::collections::HashSet;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
-use crate::configuration::material::MaterialToPeriod;
 use crate::Asset;
+use crate::time_environment::MaterialToPeriod;
 
 use super::time_environment::period::Period;
 use super::worker_environment::resources::Resources;
@@ -28,15 +28,15 @@ use self::operation::Operation;
 use self::operation::OperationBuilder;
 use self::operation::Operations;
 use self::operation::Work;
-use self::work_order_analytic::status_codes::MaterialStatus;
 use self::work_order_analytic::WorkOrderAnalytic;
 use self::work_order_analytic::WorkOrderAnalyticBuilder;
+use self::work_order_analytic::status_codes::MaterialStatus;
 use self::work_order_dates::WorkOrderDates;
+use self::work_order_info::WorkOrderInfo;
+use self::work_order_info::WorkOrderInfoBuilder;
 use self::work_order_info::functional_location::FunctionalLocation;
 use self::work_order_info::priority::Priority;
 use self::work_order_info::work_order_type::WorkOrderType;
-use self::work_order_info::WorkOrderInfo;
-use self::work_order_info::WorkOrderInfoBuilder;
 
 pub type WorkOrderValue = u64;
 
@@ -561,10 +561,10 @@ impl WorkOrder {
 mod tests {
     use std::str::FromStr;
 
-    use crate::scheduling_environment::worker_environment::resources::Resources;
+    use crate::worker_environment::resources::Resources;
 
-    use super::operation::Work;
     use super::WorkOrder;
+    use super::operation::Work;
 
     #[test]
     fn test_initialize_work_load() {

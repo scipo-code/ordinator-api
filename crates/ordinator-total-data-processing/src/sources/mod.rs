@@ -7,35 +7,15 @@ use chrono::Days;
 use chrono::Duration;
 use chrono::Timelike;
 use chrono::Utc;
-use serde::Deserialize;
+use ordinator_configuration::time_input::TimeInput;
 use thiserror::Error;
 
-use shared_types::scheduling_environment::time_environment::day::Day;
-use shared_types::scheduling_environment::time_environment::period::Period;
-use shared_types::scheduling_environment::time_environment::TimeEnvironment;
-use shared_types::scheduling_environment::SchedulingEnvironment;
+use ordinator_scheduling_environment::SchedulingEnvironment;
+use ordinator_scheduling_environment::time_environment::TimeEnvironment;
+use ordinator_scheduling_environment::time_environment::day::Day;
+use ordinator_scheduling_environment::time_environment::period::Period;
 
-#[derive(Error, Debug)]
-pub enum SchedulingEnvironmentFactoryError {
-    #[error("error while creating SchedulingEnvironment from excel file")]
-    ExcelError(#[from] calamine::Error),
-}
-
-pub trait SchedulingEnvironmentFactory<DataSource> {
-    fn create_scheduling_environment(
-        file_path: DataSource,
-        time_input: TimeInput,
-    ) -> Result<SchedulingEnvironment>;
-}
-
-#[derive(Deserialize)]
-pub struct TimeInput {
-    pub number_of_strategic_periods: u64,
-    pub number_of_tactical_periods: u64,
-    pub number_of_days: u64,
-    pub number_of_supervisor_periods: u64,
-}
-
+// This should be abstracted out be the. All this should be moved to the builder. You are
 pub fn create_time_environment(time_input: &TimeInput) -> TimeEnvironment {
     let strategic_periods: Vec<Period> = create_periods(time_input.number_of_strategic_periods);
 
@@ -64,6 +44,7 @@ pub fn create_time_environment(time_input: &TimeInput) -> TimeEnvironment {
     )
 }
 
+// This should be moved to the `scheduling-environment`
 fn create_periods(number_of_periods: u64) -> Vec<Period> {
     let mut periods: Vec<Period> = Vec::<Period>::new();
     let mut start_date = Utc::now();

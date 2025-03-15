@@ -1,7 +1,10 @@
-use serde::{Deserialize, Serialize};
+use chrono::NaiveTime;
+use serde::{Deserialize, Deserializer, Serialize, de};
 
-use crate::scheduling_environment::worker_environment::worker::Worker;
+use crate::worker_environment::worker::Worker;
 use std::collections::HashMap;
+
+use super::{availability::Availability, resources::Id};
 
 // TODO [ ]
 // This should go to the `SchedulingEnvironment::worker_environment`
@@ -18,7 +21,7 @@ pub struct AgentEnvironment {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OperationalConfigurationAll {
     pub id: Id,
-    hours_per_day: f64,
+    pub hours_per_day: f64,
     pub operational_configuration: OperationalConfiguration,
 }
 
@@ -35,14 +38,63 @@ impl OperationalConfigurationAll {
         }
     }
 }
+#[derive(Deserialize, Debug, Serialize, Clone)]
+pub struct OperationalConfiguration {
+    pub availability: Availability,
+    pub break_interval: TimeInterval,
+    pub off_shift_interval: TimeInterval,
+    pub toolbox_interval: TimeInterval,
+}
 
+#[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone)]
+pub struct TimeInterval {
+    #[serde(deserialize_with = "deserialize_time_interval")]
+    pub start: NaiveTime,
+    #[serde(deserialize_with = "deserialize_time_interval")]
+    pub end: NaiveTime,
+}
+
+fn deserialize_time_interval<'de, D>(deserializer: D) -> Result<NaiveTime, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let time_str: String = Deserialize::deserialize(deserializer)?;
+    NaiveTime::parse_from_str(&time_str, "%H:%M:%S").map_err(de::Error::custom)
+}
+
+impl OperationalConfiguration {
+    pub fn new(
+        availability: Availability,
+        break_interval: TimeInterval,
+        off_shift_interval: TimeInterval,
+        toolbox_interval: TimeInterval,
+    ) -> Self {
+        Self {
+            availability,
+            break_interval,
+            off_shift_interval,
+            toolbox_interval,
+        }
+    }
+}
+
+// What should the fields be here?
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub struct SupervisorConfigurationAll {
-    id: Id,
+    pub id: Id,
     // FIX
     // This information is found in two different places. That is an
     // error that has to be fixed.
     number_of_supervisor_periods: u64,
+}
+
+impl SupervisorConfigurationAll {
+    pub fn new(id: Id, number_of_supervisor_periods: u64) -> Self {
+        Self {
+            id,
+            number_of_supervisor_periods,
+        }
+    }
 }
 
 // TODO [ ]

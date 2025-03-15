@@ -1,9 +1,10 @@
 use std::sync::{Arc, Mutex};
 use std::{collections::HashMap, fs::File, io::Read};
 
-use actix_web::{web, HttpResponse};
+use actix_web::{HttpResponse, web};
 use anyhow::Context;
 use data_processing::excel_dumps::create_excel_dump;
+use shared_types::Asset;
 use shared_types::agents::operational::requests::operational_request_status::OperationalStatusRequest;
 use shared_types::agents::operational::{
     OperationalRequest, OperationalRequestMessage, OperationalResponse, OperationalResponseMessage,
@@ -11,16 +12,15 @@ use shared_types::agents::operational::{
 use shared_types::agents::supervisor::{SupervisorRequest, SupervisorResponse};
 use shared_types::scheduling_environment::{
     time_environment::day::Day,
-    work_order::{operation::ActivityNumber, WorkOrderNumber},
+    work_order::{WorkOrderNumber, operation::ActivityNumber},
     worker_environment::resources::Id,
 };
-use shared_types::Asset;
 use shared_types::{
+    SystemResponses,
     agents::tactical::{TacticalRequest, TacticalResponse},
     orchestrator::OrchestratorRequest,
-    SystemResponses,
 };
-use tracing::{event, Level};
+use tracing::{Level, event};
 
 use crate::agents::orchestrator::Orchestrator;
 
@@ -41,8 +41,18 @@ pub async fn scheduler_excel_export(
     Ok(http_response)
 }
 
-pub async fn scheduler_asset_names() -> Result<HttpResponse, actix_web::Error> {
+pub async fn scheduler_asset_names<'a>(
+    orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
+) -> Result<HttpResponse, actix_web::Error> {
     let asset_names = Asset::convert_to_asset_names();
+
+    struct Data<'a> {
+        one: &'a str,
+    }
+
+    return Data {
+        one: "Hello".to_string(),
+    }
 
     let http_response = HttpResponse::Ok().json(asset_names);
 

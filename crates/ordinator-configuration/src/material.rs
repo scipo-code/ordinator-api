@@ -1,6 +1,8 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+// TODO [ ]
+// This should be moved, the question is whether we should make one or two types
 
-#[derive(Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MaterialToPeriod {
     pub nmat: usize,
     pub smat: usize,

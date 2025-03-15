@@ -4,3 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+ordinator-scheduling-environment = { path = "../ordinator-scheduling-environment"}
+anyhow={ workspace = true}
+chrono = { workspace = true}
+serde = {workspace=true}

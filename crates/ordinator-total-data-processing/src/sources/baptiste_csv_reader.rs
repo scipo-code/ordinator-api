@@ -1,7 +1,10 @@
 use anyhow::Context;
 use anyhow::Result;
-use serde::de::DeserializeOwned;
+use ordinator_scheduling_environment::IntoSchedulingEnvironment;
+use ordinator_scheduling_environment::SchedulingEnvironment;
+use ordinator_scheduling_environment::work_order::WorkOrders;
 use serde::Deserialize;
+use serde::de::DeserializeOwned;
 
 use std::collections::HashMap;
 use std::error::Error;
@@ -9,17 +12,17 @@ use std::fs::File;
 use std::hash::Hash;
 use std::path::PathBuf;
 
-use shared_types::scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
-use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
-use shared_types::scheduling_environment::work_order::work_order_info::work_order_type::WorkOrderType;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::scheduling_environment::worker_environment::WorkerEnvironment;
 use shared_types::scheduling_environment::SchedulingEnvironment;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
+use shared_types::scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
+use shared_types::scheduling_environment::work_order::work_order_info::work_order_type::WorkOrderType;
+use shared_types::scheduling_environment::worker_environment::WorkerEnvironment;
 
-use super::baptiste_csv_reader_merges::load_csv_data;
-use super::create_time_environment;
 use super::SchedulingEnvironmentFactory;
 use super::TimeInput;
+use super::baptiste_csv_reader_merges::load_csv_data;
+use super::create_time_environment;
 
 use shared_types::configuration::toml_baptiste::BaptisteToml;
 
@@ -33,30 +36,43 @@ impl TotalSap {
     }
 }
 
-impl SchedulingEnvironmentFactory<TotalSap> for SchedulingEnvironment {
-    fn create_scheduling_environment(
-        data_source: TotalSap,
-        time_input: TimeInput,
+// This is made in a completely idiotic way! You should have reuse the builder
+// structure in all of this, to centralize the creation. The idea is good but
+// you need to focus on having the builder integrated into the system. I cannot
+// determine how to do this in the best way! I think... You have two different
+// ways of doing this. This should
+// TODO LIST
+// [ ] Centralize `TimeEnvironment`
+// [ ] Centralize `WorkerEnvironment`
+// [ ]
+//
+impl IntoSchedulingEnvironment for SchedulingEnvironment {
+    type S = SystemConfiguration;
+    type D = Database;
+
+    fn into_scheduling_environment(
+        &self,
+        system_configuration: &Self::S,
+        database_connection: &Self::D,
     ) -> Result<SchedulingEnvironment> {
-        let time_environment = create_time_environment(&time_input);
-
-        let worker_environment: WorkerEnvironment = WorkerEnvironment::new();
-
-        let work_orders = load_csv_data(
-            &data_source.data_locations,
-            &time_environment.strategic_periods,
-        )
-        .with_context(|| {
-            format!(
-                "SchedulingEnvironment could not be built from {}",
-                std::any::type_name_of_val(&data_source)
+        // TODO [ ]
+        // You need to pass the configs
+        Ok(SchedulingEnvironment::builder()
+            .time_environment(create_time_environment(&time_input))
+            .worker_environment(WorkerEnvironment::new())
+            .work_orders(
+                load_csv_data(
+                    &data_source.data_locations,
+                    &time_environment.strategic_periods,
+                )
+                .with_context(|| {
+                    format!(
+                        "SchedulingEnvironment could not be built from {}",
+                        std::any::type_name_of_val(&data_source)
+                    )
+                })?,
             )
-        })?;
-
-        let scheduling_environment =
-            SchedulingEnvironment::new(work_orders, worker_environment, time_environment);
-
-        Ok(scheduling_environment)
+            .build())
     }
 }
 

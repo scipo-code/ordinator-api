@@ -17,14 +17,14 @@ use std::fmt::Display;
 use std::num::ParseFloatError;
 use std::str::FromStr;
 
-use crate::scheduling_environment::time_environment::day::Day;
-use crate::scheduling_environment::worker_environment::resources::Resources;
+use crate::time_environment::day::Day;
+use crate::worker_environment::resources::Resources;
 
 use self::operation_analytic::OperationAnalytic;
 use self::operation_info::OperationInfo;
 
-use super::work_order_dates::unloading_point::UnloadingPoint;
 use super::ActivityRelation;
+use super::work_order_dates::unloading_point::UnloadingPoint;
 
 pub type ActivityNumber = u64;
 
@@ -92,7 +92,7 @@ impl OperationBuilder {
 
 impl OperationsBuilder {
     pub fn build(self) -> Operations {
-        Operations(self.0 .0)
+        Operations(self.0.0)
     }
 
     // This should insert values into the `Operations` if there are no one there.
@@ -109,7 +109,7 @@ impl OperationsBuilder {
 
         f(&mut operations_builder);
 
-        self.0 .0.insert(
+        self.0.0.insert(
             operations_builder.operations_number,
             operations_builder.build(),
         );
@@ -372,10 +372,10 @@ impl<'de> Deserialize<'de> for Work {
                             assert_eq!(value_str, "Decimal".to_string());
                         }
                         _ => {
-                            return Err(de::Error::unknown_field(
-                                &key,
-                                &["work_type", "work_value"],
-                            ))
+                            return Err(de::Error::unknown_field(&key, &[
+                                "work_type",
+                                "work_value",
+                            ]));
                         }
                     }
                 }

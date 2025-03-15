@@ -1,0 +1,32 @@
+[package]
+name = "shared_types"
+version = "0.2.2"
+edition = "2021"
+description = "Shared types between imperium and scheduling_system"
+license-file = "../LICENSE"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+actix-web = "*"
+anyhow ="*"
+atoi = "=1.0.0"
+chrono = { version = "*", features = ["serde", "arbitrary"] }
+chrono-tz = "*"
+clap = { version = "*", features = ["derive"] }
+colored ="*"
+proptest = "*"
+rand = "*"
+regex = "*"
+rgb = "*"
+rust_decimal = "*"
+rust_decimal_macros = "*"
+rust_xlsxwriter = "*"
+serde = { version = "*", features = ["derive"] }
+serde_json = "*"
+serde_json_any_key = "*"
+strum = "*"
+strum_macros = "*"
+thiserror = "*"
+toml = "*"
+tracing = "*"

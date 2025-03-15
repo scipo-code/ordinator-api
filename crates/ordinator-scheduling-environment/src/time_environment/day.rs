@@ -1,8 +1,19 @@
-use std::fmt::{self, Display};
+use std::{
+    collections::HashMap,
+    fmt::{self, Display},
+};
 
 use chrono::{DateTime, Utc};
 use rust_xlsxwriter::IntoExcelData;
 use serde::{Deserialize, Serialize};
+
+use crate::work_order::operation::Work;
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone)]
+pub struct Days {
+    // #[serde(with = "any_key_map")]
+    pub days: HashMap<Day, Work>,
+}
 
 #[derive(Eq, PartialEq, Hash, Clone, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct Day {

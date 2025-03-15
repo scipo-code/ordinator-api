@@ -4,14 +4,14 @@ use arc_swap::Guard;
 use std::sync::Arc;
 use std::{fmt::Debug, sync::MutexGuard};
 
-use shared_types::scheduling_environment::worker_environment::resources::Id;
-use shared_types::scheduling_environment::SchedulingEnvironment;
+use ordinator_scheduling_environment::SchedulingEnvironment;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 
+use super::ArcSwapSharedSolution;
+use super::SharedSolution;
 use super::traits::AbLNSUtils;
 use super::traits::Parameters;
 use super::traits::Solution;
-use super::ArcSwapSharedSolution;
-use super::SharedSolution;
 
 // QUESTION
 // You are making a lot of fields public here. I do not think that

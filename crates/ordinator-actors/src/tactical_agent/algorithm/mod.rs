@@ -1,33 +1,36 @@
-pub mod assert_functions;
+mod assert_functions;
 pub mod tactical_parameters;
+pub mod tactical_resources;
 pub mod tactical_solution;
 
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::bail;
+// QUESTION [ ]
+// Should `chrono` be in here? I am not really sure about it!
 use chrono::TimeDelta;
 use priority_queue::PriorityQueue;
 use rand::seq::IndexedRandom;
-use tracing::event;
 use tracing::Level;
+use tracing::event;
 
 use std::cmp::Ordering;
 use std::sync::Arc;
 
-use shared_types::agents::tactical::TacticalObjectiveValue;
-use shared_types::scheduling_environment::time_environment::day::Day;
-use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
-use shared_types::scheduling_environment::work_order::operation::Work;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::scheduling_environment::worker_environment::resources::Resources;
-use shared_types::LoadOperation;
+use self::TacticalObjectiveValue;
+use crate::algorithm::LoadOperation;
+use ordinator_scheduling_environment::time_environment::day::Day;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
+use ordinator_scheduling_environment::work_order::operation::Work;
+use ordinator_scheduling_environment::worker_environment::resources::Resources;
 
-use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
-use crate::agents::traits::ObjectiveValueType;
-use crate::agents::Algorithm;
 use crate::agents::TacticalScheduledOperations;
 use crate::agents::TacticalSolution;
 use crate::agents::WhereIsWorkOrder;
+use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
+use crate::agents::traits::ObjectiveValueType;
+use crate::algorithm::Algorithm;
 
 use super::TacticalOptions;
 
@@ -475,10 +478,7 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
             .context("This means that the TacticalAlgorithm has been initialized wrong")?;
 
         match solution {
-            WhereIsWorkOrder::Strategic => {
-                Ok(())
-
-            }
+            WhereIsWorkOrder::Strategic => Ok(()),
             WhereIsWorkOrder::Tactical(operation_solutions) => {
                 self.update_loadings(&operation_solutions.clone(), LoadOperation::Sub)
             }
@@ -539,29 +539,29 @@ pub mod tests {
     use shared_types::{
         agents::tactical::TacticalResources,
         scheduling_environment::{
-            work_order::{operation::Work, WorkOrderNumber},
-            worker_environment::resources::{Id, Resources},
             SchedulingEnvironment, SchedulingEnvironmentBuilder,
+            work_order::{WorkOrderNumber, operation::Work},
+            worker_environment::resources::{Id, Resources},
         },
     };
     use strum::IntoEnumIterator;
 
     use crate::{
         agents::{
-            tactical_agent::{
-                algorithm::{tactical_parameters::TacticalParameters, OperationSolution},
-                TacticalOptions,
-            },
-            traits::{ActorBasedLargeNeighborhoodSearch, Parameters},
             Algorithm, AlgorithmUtils, ArcSwapSharedSolution, Solution,
             TacticalScheduledOperations, TacticalSolution, WhereIsWorkOrder,
+            tactical_agent::{
+                TacticalOptions,
+                algorithm::{OperationSolution, tactical_parameters::TacticalParameters},
+            },
+            traits::{ActorBasedLargeNeighborhoodSearch, Parameters},
         },
         orchestrator::configuration::SystemConfigurations,
     };
 
     use super::{
-        tactical_parameters::{OperationParameter, TacticalParameter},
         Day,
+        tactical_parameters::{OperationParameter, TacticalParameter},
     };
 
     use shared_types::scheduling_environment::time_environment::period::Period;
@@ -575,10 +575,11 @@ pub mod tests {
         let loadings =
             Algorithm::determine_load(remaining_capacity, &operating_time, work_remaining);
 
-        assert_eq!(
-            loadings,
-            vec![Work::from(3.0), Work::from(5.0), Work::from(2.0)]
-        );
+        assert_eq!(loadings, vec![
+            Work::from(3.0),
+            Work::from(5.0),
+            Work::from(2.0)
+        ]);
     }
 
     #[test]
@@ -592,15 +593,12 @@ pub mod tests {
         let loadings =
             Algorithm::determine_load(remaining_capacity, &operating_time, work_remaining);
 
-        assert_eq!(
-            loadings,
-            vec![
-                Work::from(3.0),
-                Work::from(3.0),
-                Work::from(3.0),
-                Work::from(1.0)
-            ]
-        );
+        assert_eq!(loadings, vec![
+            Work::from(3.0),
+            Work::from(3.0),
+            Work::from(3.0),
+            Work::from(1.0)
+        ]);
     }
 
     #[test]

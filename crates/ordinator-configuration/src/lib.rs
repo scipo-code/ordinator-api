@@ -1,31 +1,34 @@
-pub mod actor_specifications;
-pub mod material;
-pub mod resources;
-pub mod throttling;
-pub mod toml_baptiste;
-pub mod user_interface;
+mod actor_specifications;
+mod material;
+mod resources;
+mod throttling;
+pub mod time_input;
+mod toml_baptiste;
+mod user_interface;
 
 use anyhow::Result;
 use std::{collections::HashMap, path::PathBuf};
 
-use data_processing::sources::TimeInput;
-use rand::{rngs::StdRng, SeedableRng};
-use shared_types::configuration::{
-    material::MaterialToPeriod, throttling::Throttling, toml_baptiste::BaptisteToml,
-    user_interface::EventColors,
-};
-use shared_types::scheduling_environment::work_order::WorkOrderConfigurations;
-use shared_types::ActorSpecifications;
-use shared_types::Asset;
-use shared_types::OperationalOptionsConfig;
-use shared_types::StrategicOptionsConfig;
-use shared_types::SupervisorOptionsConfig;
-use shared_types::TacticalOptionsConfig;
+use actor_specifications::ActorSpecifications;
+use actor_specifications::OperationalOptionsConfig;
+use actor_specifications::StrategicOptionsConfig;
+use actor_specifications::SupervisorOptionsConfig;
+use actor_specifications::TacticalOptionsConfig;
+use ordinator_scheduling_environment::Asset;
+use rand::rngs::StdRng;
 
-use crate::agents::{
-    operational_agent::OperationalOptions, strategic_agent::StrategicOptions,
-    supervisor_agent::SupervisorOptions, tactical_agent::TacticalOptions,
-};
+use material::MaterialToPeriod;
+use throttling::Throttling;
+use toml_baptiste::BaptisteToml;
+
+use ordinator_scheduling_environment::work_order::WorkOrderConfigurations;
+use time_input::TimeInput;
+use user_interface::EventColors;
+
+// QUESTION
+// How should this be handled?
+// They should be handled by created by handling a `From<<Actor>OptionConfig> for <Actor>Config`
+// in the `ordinator-actors` crate!
 
 /// This struct is used to load in all configuraions centrally into the Orchestrator.
 /// The `Orchestrator` then uses dependency injection to provide the actors with the
@@ -36,6 +39,7 @@ use crate::agents::{
 // WARN
 // Remember! You have a single source of all configurations here,
 // so there is no reason to question that in the system.
+#[derive(Debug)]
 pub struct SystemConfigurations {
     work_order_configurations: WorkOrderConfigurations,
     actor_configurations: ActorConfigurations,
@@ -62,6 +66,8 @@ pub struct SystemConfigurations {
 // TODO [ ]
 // We should remove the `Default` on all `Option`s
 // and then move a file for each of them
+// TODO [ ] This should be removed to make the code run correctly
+#[derive(Debug)]
 struct ActorConfigurations {
     strategic_options: StrategicOptionsConfig,
     tactical_options: TacticalOptionsConfig,
@@ -100,7 +106,7 @@ impl SystemConfigurations {
         ];
 
         let actor_specification: HashMap<Asset, ActorSpecifications> = list_of_actor_specification
-            .iter()
+            .into_iter()
             .map(|(asset, path)| {
                 let contents = std::fs::read_to_string(path).unwrap();
                 let config: ActorSpecifications = toml::from_str(&contents).unwrap();
@@ -119,10 +125,10 @@ impl SystemConfigurations {
                 .unwrap();
         let tactical_options_content =
             std::fs::read_to_string("./configuration/actor_options/tactical_options.toml").unwrap();
-        let operational_options = toml::from_str(&operational_options_content).unwarp();
-        let strategic_options = toml::from_str(&strategic_options_content).unwarp();
-        let supervisor_options = toml::from_str(&supervisor_options_content).unwarp();
-        let tactical_options = toml::from_str(&tactical_options_content).unwarp();
+        let operational_options = toml::from_str(&operational_options_content).unwrap();
+        let strategic_options = toml::from_str(&strategic_options_content).unwrap();
+        let supervisor_options = toml::from_str(&supervisor_options_content).unwrap();
+        let tactical_options = toml::from_str(&tactical_options_content).unwrap();
 
         let actor_configurations: ActorConfigurations = ActorConfigurations {
             operational_options,
@@ -138,11 +144,11 @@ impl SystemConfigurations {
 
         let throttling_contents =
             std::fs::read_to_string("./configuration/throttling/throttling.toml").unwrap();
-        let throttling = toml::from_str(&throttling_contents).unwrap();
+        let throttling: Throttling = toml::from_str(&throttling_contents).unwrap();
 
         let event_colors_contents =
             std::fs::read_to_string("./configuration/user_interface/event_colors.toml").unwrap();
-        let event_colors = toml::from_str(&event_colors_contents).unwrap();
+        let event_colors: EventColors = toml::from_str(&event_colors_contents).unwrap();
 
         let database_path_string =
             &dotenvy::var("DATABASE_PATH").expect("Could not read database path");
@@ -151,7 +157,7 @@ impl SystemConfigurations {
 
         let time_input_contents =
             std::fs::read_to_string("./configuration/time_environment/time_inputs.toml").unwrap();
-        let time_input = toml::from_str(&time_input_contents).unwrap();
+        let time_input: TimeInput = toml::from_str(&time_input_contents).unwrap();
 
         let material_to_period_contents =
             std::fs::read_to_string("./configuration/materials/status_to_period.toml").unwrap();
@@ -179,70 +185,7 @@ impl SystemConfigurations {
         // file_path.push(&file_string);
     }
 
-    pub fn strategic_options(&self) -> StrategicOptions {
-        let number_of_removed_work_order = self
-            .actor_configurations
-            .strategic_options
-            .number_of_removed_work_orders;
-        let urgency_weight = self.actor_configurations.strategic_options.urgency_weight;
-        let resource_penalty_weight = self
-            .actor_configurations
-            .strategic_options
-            .resource_penalty_weight;
-        let clustering_weight = self
-            .actor_configurations
-            .strategic_options
-            .clustering_weight;
-        let work_order_configurations = self.work_order_configurations;
-
-        let material_to_period = self.material_to_period;
-
-        let rng = StdRng::from_os_rng();
-        // QUESTION [ ]
-        // _Should this field be private or public?_
-        //
-        // You should provide an ID here to solve this problem.
-        StrategicOptions {
-            number_of_removed_work_order,
-            rng,
-            urgency_weight,
-            resource_penalty_weight,
-            clustering_weight,
-            work_order_configurations,
-            material_to_period,
-        }
-    }
-    pub fn tactical_options(&self) -> TacticalOptions {
-        TacticalOptions {
-            number_of_removed_work_orders: self
-                .actor_configurations
-                .tactical_options
-                .number_of_removed_work_orders,
-            rng: StdRng::from_os_rng(),
-        }
-    }
-
-    pub fn supervisor_options(&self) -> SupervisorOptions {
-        let number_of_unassigned_work_orders = self
-            .actor_configurations
-            .supervisor_options
-            .number_of_removed_work_orders;
-        SupervisorOptions {
-            rng: StdRng::from_os_rng(),
-            number_of_unassigned_work_orders,
-        }
-    }
-
-    pub fn operational_options(&self) -> OperationalOptions {
-        let number_of_removed_activities = self
-            .actor_configurations
-            .operational_options
-            .number_of_removed_work_orders;
-        OperationalOptions {
-            rng: StdRng::from_os_rng(),
-            number_of_removed_activities,
-        }
-    }
+    // This is actually a `From <SystemConfiguration> for StrateticOptions`
 }
 
 #[cfg(test)]
@@ -250,9 +193,8 @@ mod tests {
     use super::SystemConfigurations;
     use chrono::NaiveTime;
 
-    use crate::{
-        scheduling_environment::worker_environment::resources::Resources, ActorSpecifications,
-    };
+    use crate::ActorSpecifications;
+    use ordinator_scheduling_environment::worker_environment::resources::Resources;
 
     #[test]
     fn test_read_config() {
