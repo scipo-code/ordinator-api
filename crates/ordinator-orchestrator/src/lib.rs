@@ -6,42 +6,42 @@ pub mod logging;
 pub mod model_initializers;
 
 use agent_registry::Communication;
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::bail;
 use colored::Colorize;
 use tracing::instrument;
 use tracing_subscriber::EnvFilter;
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::Weak;
-use shared_types::agents::operational::requests::operational_request_status::OperationalStatusRequest;
+use shared_types::Asset;
+use shared_types::OperationalConfigurationAll;
 use shared_types::agents::operational::OperationalRequestMessage;
 use shared_types::agents::operational::OperationalResponseMessage;
-use shared_types::agents::strategic::requests::strategic_request_status_message::StrategicStatusMessage;
+use shared_types::agents::operational::requests::operational_request_status::OperationalStatusRequest;
 use shared_types::agents::strategic::StrategicRequestMessage;
 use shared_types::agents::strategic::StrategicResponseMessage;
-use shared_types::agents::supervisor::requests::supervisor_status_message::SupervisorStatusMessage;
+use shared_types::agents::strategic::requests::strategic_request_status_message::StrategicStatusMessage;
 use shared_types::agents::supervisor::SupervisorRequestMessage;
 use shared_types::agents::supervisor::SupervisorResponseMessage;
-use shared_types::agents::tactical::requests::tactical_status_message::TacticalStatusMessage;
+use shared_types::agents::supervisor::requests::supervisor_status_message::SupervisorStatusMessage;
 use shared_types::agents::tactical::TacticalRequestMessage;
 use shared_types::agents::tactical::TacticalResponseMessage;
+use shared_types::agents::tactical::requests::tactical_status_message::TacticalStatusMessage;
 use shared_types::orchestrator::AgentStatus;
 use shared_types::orchestrator::AgentStatusResponse;
 use shared_types::orchestrator::OrchestratorRequest;
 use shared_types::orchestrator::OrchestratorResponse;
 use shared_types::orchestrator::WorkOrderResponse;
 use shared_types::orchestrator::WorkOrdersStatus;
+use shared_types::scheduling_environment::SchedulingEnvironment;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::work_order::WorkOrders;
-use shared_types::scheduling_environment::worker_environment::resources::Id;
 use shared_types::scheduling_environment::worker_environment::WorkerEnvironment;
-use shared_types::scheduling_environment::SchedulingEnvironment;
-use shared_types::Asset;
-use shared_types::OperationalConfigurationAll;
+use shared_types::scheduling_environment::worker_environment::resources::Id;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::Weak;
 
 use self::agent_factory::AgentFactory;
 use self::agent_registry::ActorRegistry;
@@ -650,6 +650,35 @@ impl Orchestrator {
             database_connections,
         };
 
+        orchestrator
+            .lock()
+            .unwrap()
+            .asset_factory(asset.clone(), system_agent_bytes)
+            .with_context(|| {
+                format!(
+                    "{}: {} could not be added",
+                    std::any::type_name::<Asset>(),
+                    asset
+                )
+            })
+            .expect("Could not add asset");
+
+        // FIX [ ]
+        // FIX THIS QUICK. We need to provide this in a centralized way that is connected to the
+        // `Throttling` logic of the application.
+        let asset_string =
+            dotenvy::var("ASSET").expect("The ASSET environment variable should be set");
+
+        let asset = Asset::new_from_string(asset_string.as_str())
+            .expect("Please set a valid ASSET environment variable");
+        // This is much more understandable. You initialize all the agents in theb
+        // `SchedulingEnvironment` and then you simply create them. This is the
+        // way that it should be done.
+        orchestrator
+            .lock()
+            .unwrap()
+            .initialize_operational_agents()
+            .map_err(|err| anyhow!(err))?;
         let arc_orchestrator = Arc::new(Mutex::new(orchestrator));
 
         arc_orchestrator.lock().unwrap().agent_notify = Some(Arc::downgrade(&arc_orchestrator));
@@ -742,3 +771,20 @@ impl Orchestrator {
         Ok(())
     }
 }
+
+// fn start_steel_repl(arc_orchestrator: ArcOrchestrator) {
+//     thread::spawn(move || {
+// let mut steel_engine = steel::steel_vm::engine::Engine::new();
+// steel_engine.register_type::<ArcOrchestrator>("Orchestrator?");
+// steel_engine.register_fn("actor_registry", ArcOrchestrator::print_actor_registry);
+// steel_engine.register_type::<Asset>("Asset?");
+// steel_engine.register_fn("Asset", Asset::new_from_string);
+
+// steel_engine.register_external_value("asset::df", Asset::DF);
+// steel_engine
+//     .register_external_value("orchestrator", arc_orchestrator)
+//     .unwrap();
+
+// steel_repl::run_repl(steel_engine).unwrap();
+//     });
+// }
