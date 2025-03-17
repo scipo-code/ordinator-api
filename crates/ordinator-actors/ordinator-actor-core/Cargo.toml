@@ -1,0 +1,19 @@
+[package]
+name = "ordinator-actors"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ordinator-configuration ={ path = "../ordinator-configuration" }
+ordinator-orchestrator-notify = {path = "../ordinator-orchestrator-notify"}
+ordinator-scheduling-environment ={ path = "../ordinator-scheduling-environment"}
+
+anyhow = { workspace = true}
+arc-swap = {workspace = true}
+colored = {workspace = true}
+chrono = {workspace = true}
+itertools = {workspace = true}
+proptest = {workspace = true}
+rand = {workspace = true}
+serde = {workspace = true}
+tracing = {workspace = true}

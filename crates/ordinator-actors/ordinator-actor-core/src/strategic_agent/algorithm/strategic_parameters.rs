@@ -1,5 +1,5 @@
-use anyhow::bail;
 use anyhow::Result;
+use anyhow::bail;
 use serde::Serialize;
 use shared_types::scheduling_environment::work_order::ClusteringWeights;
 use shared_types::scheduling_environment::work_order::WorkOrders;
@@ -8,14 +8,14 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::MutexGuard;
 
-use shared_types::agents::strategic::StrategicResources;
-use shared_types::scheduling_environment::time_environment::period::Period;
-use shared_types::scheduling_environment::work_order::operation::Work;
-use shared_types::scheduling_environment::work_order::WorkOrder;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::scheduling_environment::worker_environment::resources::{Id, Resources};
-use shared_types::scheduling_environment::SchedulingEnvironment;
-use shared_types::Asset;
+use super::StrategicResources;
+use ordinator_scheduling_environment::Asset;
+use ordinator_scheduling_environment::SchedulingEnvironment;
+use ordinator_scheduling_environment::time_environment::period::Period;
+use ordinator_scheduling_environment::work_order::WorkOrder;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::work_order::operation::Work;
+use ordinator_scheduling_environment::worker_environment::resources::{Id, Resources};
 
 use crate::agents::strategic_agent::StrategicOptions;
 use crate::agents::traits::Parameters;
@@ -148,7 +148,10 @@ impl StrategicParameters {
         };
         match option_period {
             Some(period) => period,
-            None => panic!("Work order number {:?} does not have a locked in period, but it is being called by the optimized_work_orders.schedule_forced_work_order", work_order_number)
+            None => panic!(
+                "Work order number {:?} does not have a locked in period, but it is being called by the optimized_work_orders.schedule_forced_work_order",
+                work_order_number
+            ),
         }
     }
 

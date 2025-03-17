@@ -1,8 +1,9 @@
-use anyhow::{ensure, Result};
+use anyhow::{Result, ensure};
 
-use crate::agents::{Algorithm, OperationalSolution};
+use super::operational_solution::OperationalSolution;
+use crate::algorithm::Algorithm;
 
-use super::{operational_parameter::OperationalParameters, OperationalNonProductive};
+use super::{OperationalNonProductive, operational_parameter::OperationalParameters};
 
 pub trait OperationalAlgorithmAsserts {
     fn assert_no_operation_overlap(&self) -> Result<()>;

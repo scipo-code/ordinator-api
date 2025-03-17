@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use shared_types::{
     agents::operational::{
-        responses::operational_response_scheduling::ApiAssignmentEvents, TimeInterval,
+        TimeInterval, responses::operational_response_scheduling::ApiAssignmentEvents,
     },
     scheduling_environment::{
         work_order::WorkOrderActivity, worker_environment::availability::Availability,
@@ -9,12 +9,83 @@ use shared_types::{
 };
 use strum_macros::AsRefStr;
 
-use crate::agents::{operational_agent::algorithm::no_overlap_by_ref, OperationalSolution};
+use super::no_overlap_by_ref;
+use crate::traits::{GetMarginalFitness, Solution};
 
-use super::{operational_events::OperationalEvents, ContainOrNextOrNone, Unavailability};
+use super::{
+    ContainOrNextOrNone, Unavailability, operational_events::OperationalEvents,
+    operational_parameter::OperationalParameters,
+};
+
+pub type OperationalObjectiveValue = u64;
+
+#[derive(PartialEq, Eq, Debug, Default, Clone)]
+pub struct OperationalSolution {
+    pub objective_value: OperationalObjectiveValue,
+    pub scheduled_work_order_activities: Vec<(WorkOrderActivity, OperationalAssignment)>,
+}
+
+impl Solution for OperationalSolution {
+    type ObjectiveValue = OperationalObjectiveValue;
+    type Parameters = OperationalParameters;
+
+    fn new(parameters: &Self::Parameters) -> Self {
+        let mut scheduled_work_order_activities = Vec::new();
+
+        let start_event =
+            Assignment::make_unavailable_event(Unavailability::Beginning, &parameters.availability);
+
+        let end_event =
+            Assignment::make_unavailable_event(Unavailability::End, &parameters.availability);
+
+        let unavailability_start_event = OperationalAssignment::new(vec![start_event]);
+
+        let unavailability_end_event = OperationalAssignment::new(vec![end_event]);
+
+        scheduled_work_order_activities.push(((WorkOrderNumber(0), 0), unavailability_start_event));
+
+        scheduled_work_order_activities.push(((WorkOrderNumber(0), 0), unavailability_end_event));
+
+        Self {
+            objective_value: 0,
+            scheduled_work_order_activities,
+        }
+    }
+
+    fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue) {
+        self.objective_value = other_objective_value;
+    }
+}
+
+impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
+    fn marginal_fitness(
+        &self,
+        operational_agent: &Id,
+        work_order_activity: &WorkOrderActivity,
+    ) -> Result<&MarginalFitness> {
+        self.get(operational_agent)
+            .with_context(|| {
+                format!(
+                    "Could not find {} for operational agent: {:#?}",
+                    std::any::type_name::<MarginalFitness>(),
+                    operational_agent,
+                )
+            })?
+            .scheduled_work_order_activities
+            .iter()
+            .find(|woa_os| woa_os.0 == *work_order_activity)
+            .map(|os| &os.1.marginal_fitness)
+            .with_context(|| {
+                format!(
+                    "{} did not have\n{:#?}",
+                    operational_agent.to_string().bright_blue(),
+                    format!("{:#?}", work_order_activity).bright_yellow()
+                )
+            })
+    }
+}
 
 // I think that we should have a Generic solution struct.
-
 impl OperationalSolution {
     pub fn is_operational_solution_already_scheduled(
         &self,

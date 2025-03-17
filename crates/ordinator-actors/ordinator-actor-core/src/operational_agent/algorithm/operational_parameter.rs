@@ -1,16 +1,18 @@
 use anyhow::{Context, Result};
-use shared_types::scheduling_environment::worker_environment::resources::Id;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 use std::{collections::HashMap, sync::MutexGuard};
 
 use chrono::TimeDelta;
-use shared_types::agents::operational::TimeInterval;
-use shared_types::scheduling_environment::{
-    work_order::{operation::Work, WorkOrderActivity},
-    worker_environment::availability::Availability,
-    SchedulingEnvironment,
-};
 
-use crate::agents::{operational_agent::OperationalOptions, traits::Parameters};
+use ordinator_scheduling_environment::SchedulingEnvironment;
+use ordinator_scheduling_environment::time_environment::TimeInterval;
+use ordinator_scheduling_environment::work_order::WorkOrderActivity;
+use ordinator_scheduling_environment::work_order::operation::Work;
+use ordinator_scheduling_environment::worker_environment::availability::Availability;
+
+use crate::operational_agent::OperationalOptions;
+
+use crate::traits::Parameters;
 
 pub struct OperationalParameters {
     pub work_order_parameters: HashMap<WorkOrderActivity, OperationalParameter>,

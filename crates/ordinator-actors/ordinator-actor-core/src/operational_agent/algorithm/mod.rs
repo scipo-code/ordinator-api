@@ -5,37 +5,31 @@ pub mod operational_solution;
 
 use std::{collections::HashSet, sync::Arc};
 
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{Context, Result, bail, ensure};
 use assert_functions::OperationalAlgorithmAsserts;
 use chrono::{DateTime, TimeDelta, Utc};
 use itertools::Itertools;
 use operational_events::OperationalEvents;
 use operational_parameter::{OperationalParameter, OperationalParameters};
 use operational_solution::{
-    Assignment, MarginalFitness, OperationalAssignment, OperationalFunctions,
+    Assignment, MarginalFitness, OperationalAssignment, OperationalFunctions, OperationalSolution,
 };
-use rand::seq::IndexedRandom;
-use shared_types::{
-    agents::operational::TimeInterval,
-    scheduling_environment::{
-        work_order::{
-            operation::{ActivityNumber, Work},
-            WorkOrderActivity, WorkOrderNumber,
-        },
-        worker_environment::availability::Availability,
+use ordinator_scheduling_environment::time_environment::TimeInterval;
+use ordinator_scheduling_environment::{
+    work_order::{
+        WorkOrderActivity, WorkOrderNumber,
+        operation::{ActivityNumber, Work},
     },
+    worker_environment::availability::Availability,
 };
-use tracing::{event, Level};
+use tracing::{Level, event};
 
-use crate::agents::{
-    supervisor_agent::algorithm::delegate::Delegate,
-    traits::{ActorBasedLargeNeighborhoodSearch, ObjectiveValueType},
-    Algorithm, OperationalSolution, StrategicSolution, TacticalSolution, WhereIsWorkOrder,
-};
+use crate::WhereIsWorkOrder;
+use crate::algorithm::Algorithm;
+use crate::supervisor_agent::algorithm::delegate::Delegate;
+use crate::traits::{ActorBasedLargeNeighborhoodSearch, ObjectiveValueType};
 
 use super::OperationalOptions;
-
-pub type OperationalObjectiveValue = u64;
 
 #[derive(Clone, Default)]
 pub struct OperationalNonProductive(pub Vec<Assignment>);
@@ -512,11 +506,12 @@ impl Algorithm<OperationalSolution, OperationalParameters, OperationalNonProduct
         &mut self,
         work_order_and_activity_number: WorkOrderActivity,
     ) -> Result<()> {
-        ensure!(self
-            .solution
-            .scheduled_work_order_activities
-            .iter()
-            .any(|os| os.0 == work_order_and_activity_number));
+        ensure!(
+            self.solution
+                .scheduled_work_order_activities
+                .iter()
+                .any(|os| os.0 == work_order_and_activity_number)
+        );
         dbg!(&self.solution.scheduled_work_order_activities.len());
 
         self.solution
@@ -524,11 +519,13 @@ impl Algorithm<OperationalSolution, OperationalParameters, OperationalNonProduct
             .retain(|os| os.0 != work_order_and_activity_number);
         dbg!(&self.solution.scheduled_work_order_activities.len());
 
-        ensure!(!self
-            .solution
-            .scheduled_work_order_activities
-            .iter()
-            .any(|os| os.0 == work_order_and_activity_number));
+        ensure!(
+            !self
+                .solution
+                .scheduled_work_order_activities
+                .iter()
+                .any(|os| os.0 == work_order_and_activity_number)
+        );
         Ok(())
     }
 
@@ -603,11 +600,7 @@ impl Algorithm<OperationalSolution, OperationalParameters, OperationalNonProduct
             (Some(Some(period)), _) => (period.start_date(), period.end_date()),
 
             _ => bail!(
-                "{}: {:#?}\n{}: {:#?}\n",
-                std::any::type_name::<StrategicSolution>(),
-                strategic_period_option,
-                std::any::type_name::<TacticalSolution>(),
-                tactical_days_option
+                "This means that there is no state in either the Tactical or the Strategic agent"
             ),
         };
 
@@ -782,24 +775,24 @@ mod tests {
     use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
     use proptest::prelude::*;
     use shared_types::{
+        OperationalConfigurationAll,
         agents::operational::{OperationalConfiguration, TimeInterval},
         scheduling_environment::{
-            time_environment::period::Period,
-            work_order::{operation::Work, WorkOrderNumber},
-            worker_environment::{availability::Availability, resources::Id},
             SchedulingEnvironment,
+            time_environment::period::Period,
+            work_order::{WorkOrderNumber, operation::Work},
+            worker_environment::{availability::Availability, resources::Id},
         },
-        OperationalConfigurationAll,
     };
 
     use crate::{
         agents::{
+            Algorithm, ArcSwapSharedSolution, OperationalSolution, Solution, WhereIsWorkOrder,
             operational_agent::{
-                algorithm::{operational_parameter::OperationalParameters, OperationalEvents},
                 OperationalOptions,
+                algorithm::{OperationalEvents, operational_parameter::OperationalParameters},
             },
             traits::Parameters,
-            Algorithm, ArcSwapSharedSolution, OperationalSolution, Solution, WhereIsWorkOrder,
         },
         orchestrator::configuration::SystemConfigurations,
     };

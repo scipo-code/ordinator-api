@@ -1,4 +1,6 @@
+pub mod strategic_solution;
 pub mod strategic_parameters;
+pub mod strategic_resources;
 pub mod assert_functions;
 
 use std::any::type_name;
@@ -12,10 +14,10 @@ use anyhow::{ ensure, Context, Result};
 use strategic_parameters::{StrategicClustering, WorkOrderParameter, StrategicParameters};
 use priority_queue::PriorityQueue;
 use rand::prelude::SliceRandom;
-use shared_types::scheduling_environment::time_environment::period::Period;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::scheduling_environment::work_order::operation::Work;
-use shared_types::scheduling_environment::worker_environment::resources::Resources;
+use ordinator_scheduling_environment::time_environment::period::Period;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::work_order::operation::Work;
+use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use shared_types::agents::strategic::{OperationalResource,  StrategicResources};
 use shared_types::agents::strategic::requests::strategic_request_resources_message::StrategicRequestResource;
 use shared_types::agents::strategic::requests::strategic_request_scheduling_message::StrategicRequestScheduling;

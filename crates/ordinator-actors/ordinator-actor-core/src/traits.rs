@@ -4,15 +4,15 @@ use anyhow::Result;
 use std::fmt::Debug;
 use std::sync::MutexGuard;
 
+use shared_types::scheduling_environment::SchedulingEnvironment;
 use shared_types::scheduling_environment::work_order::WorkOrderActivity;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
-use shared_types::scheduling_environment::SchedulingEnvironment;
 
-use super::operational_agent::algorithm::operational_solution::MarginalFitness;
 use super::ActorMessage;
 use super::Algorithm;
 use super::AlgorithmBuilder;
 use super::StateLink;
+use super::operational_agent::algorithm::operational_solution::MarginalFitness;
 
 /// This trait will be crucial for making this whole thing work correctly.
 /// I think that the best approach will be to make only a single message
@@ -82,6 +82,8 @@ pub trait ActorBasedLargeNeighborhoodSearch: AbLNSUtils {
 
         Ok(())
     }
+
+    fn incorporate_shared_state(&mut self) -> Result<bool>;
 }
 
 pub trait AbLNSUtils {
