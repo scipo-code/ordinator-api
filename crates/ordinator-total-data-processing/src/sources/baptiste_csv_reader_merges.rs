@@ -159,6 +159,11 @@ fn create_work_orders(
                 let resource =
                     Resources::from_str(&work_center.get(&operation_csv.OPR_WBS_ID).unwrap().WBS_Name).map_err(|e| anyhow!(e))?;
 
+                // This is not a good way of doing it. This should be defined as a function and not loaded in like this. We will
+                // get into trouble if we do it this way. If a period is updated we will have to reinitialize all unloading point
+                // fields for all structures. This will not be a good way of proceding.
+                // FIX [ ]
+                // This is state duplication in the code! This is always morally wrong especially when in the `SchedulingEnvironment`
                 let unloading_point: UnloadingPoint =
                     UnloadingPoint::new(operation_csv.OPR_Scheduled_Work.clone(), periods);
 

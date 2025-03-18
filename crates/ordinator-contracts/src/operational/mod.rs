@@ -9,6 +9,8 @@ use operational_response_resource::OperationalResourceResponse;
 use operational_response_scheduling::OperationalSchedulingResponse;
 use operational_response_status::OperationalResponseStatus;
 use operational_response_time::OperationalTimeResponse;
+use ordinator_scheduling_environment::Asset;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 use serde::{Deserialize, Deserializer, Serialize, de};
 
 use anyhow::Result;
@@ -83,63 +85,6 @@ pub struct TomlTimeInterval {
     pub end: toml::value::Datetime,
 }
 
-impl From<TomlTimeInterval> for TimeInterval {
-    fn from(value: TomlTimeInterval) -> Self {
-        Self {
-            start: NaiveTime::parse_from_str(&value.start.to_string(), "%H:%M:%S").unwrap(),
-            end: NaiveTime::parse_from_str(&value.end.to_string(), "%H:%M:%S").unwrap(),
-        }
-    }
-}
-
-impl TimeInterval {
-    pub fn new(start: NaiveTime, end: NaiveTime) -> Self {
-        assert_ne!(start, end);
-        Self { start, end }
-    }
-
-    pub fn from_date_times(
-        start_date_time: DateTime<Utc>,
-        finish_date_time: DateTime<Utc>,
-    ) -> Self {
-        Self {
-            start: start_date_time.time(),
-            end: finish_date_time.time(),
-        }
-    }
-
-    pub fn contains(&self, date_time: &DateTime<Utc>) -> bool {
-        let time = date_time.time();
-
-        if self.start > self.end {
-            (self.start <= time && time <= NaiveTime::from_hms_opt(23, 59, 59).unwrap())
-                || (NaiveTime::from_hms_opt(0, 0, 0).unwrap() <= time && time < self.end)
-        } else {
-            self.start <= time && time < self.end
-        }
-    }
-
-    pub fn duration(&self) -> TimeDelta {
-        if self.end < self.start {
-            TimeDelta::new(86400, 0).unwrap() - (self.end - self.start).abs()
-        } else {
-            (self.end - self.start).abs()
-        }
-    }
-
-    pub fn invert(&self) -> TimeInterval {
-        let inverted_start = self.end;
-        let inverted_end = self.start;
-
-        let inverted_time_interval = TimeInterval {
-            start: inverted_start,
-            end: inverted_end,
-        };
-        assert_eq!(self.duration(), inverted_time_interval.duration());
-        inverted_time_interval
-    }
-}
-
 // #[derive(Clone, Deserialize, Serialize, Debug, clap::ValueEnum)]
 // pub enum OperationalTarget {
 //     #[clap(skip)]
@@ -147,30 +92,32 @@ impl TimeInterval {
 //     All,
 // }
 
-#[derive(Serialize)]
-pub struct OperationalInfeasibleCases {
-    pub operation_overlap: ConstraintState<String>,
-}
+// #[derive(Serialize)]
+// pub struct OperationalInfeasibleCases {
+//     pub operation_overlap: ConstraintState<String>,
+// }
 
-impl OperationalInfeasibleCases {
-    pub fn all_feasible(&self) -> bool {
-        if self.operation_overlap != ConstraintState::Feasible {
-            return false;
-        }
-        true
-    }
-}
+// impl OperationalInfeasibleCases {
+//     pub fn all_feasible(&self) -> bool {
+//         if self.operation_overlap != ConstraintState::Feasible {
+//             return false;
+//         }
+//         true
+//     }
+// }
 
-impl Default for OperationalInfeasibleCases {
-    fn default() -> Self {
-        Self {
-            operation_overlap: ConstraintState::Undetermined,
-        }
-    }
-}
+// impl Default for OperationalInfeasibleCases {
+//     fn default() -> Self {
+//         Self {
+//             operation_overlap: ConstraintState::Undetermined,
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
+
+    use ordinator_scheduling_environment::time_environment::TimeInterval;
 
     use super::*;
 

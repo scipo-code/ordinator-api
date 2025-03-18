@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
 
-use crate::agents::strategic::TimePeriod;
+use crate::strategic::TimePeriod;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum StrategicRequestResource {

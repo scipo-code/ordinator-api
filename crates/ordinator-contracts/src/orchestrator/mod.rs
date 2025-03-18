@@ -1,18 +1,42 @@
+use std::collections::{HashMap, HashSet};
+
+use ordinator_scheduling_environment::{
+    Asset,
+    time_environment::{day::Day, period::Period},
+    work_order::{
+        WorkOrderNumber,
+        operation::Work,
+        work_order_analytic::status_codes::{SystemStatusCodes, UserStatusCodes},
+        work_order_info::WorkOrderInfo,
+    },
+    worker_environment::resources::{Id, Resources},
+};
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    operational::responses::operational_response_status::OperationalResponseStatus,
+    strategic::responses::strategic_response_status::StrategicResponseStatus,
+    supervisor::responses::supervisor_response_status::SupervisorResponseStatus,
+    tactical::responses::tactical_response_status::TacticalResponseStatus,
+};
+
+// best to simply comment all of this out
 // Where should these be found? I think that the
+// FIX [ ]
+// This should be created with routes and handlers it should all go away
+// at somepoint.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum OrchestratorRequest {
-    GetWorkOrderStatus(WorkOrderNumber, LevelOfDetail),
-    GetWorkOrdersState(Asset, LevelOfDetail),
+    GetWorkOrderStatus(WorkOrderNumber),
+    GetWorkOrdersState(Asset),
     GetPeriods,
     GetDays,
     AgentStatusRequest,
-    InitializeSystemAgentsFromFile(Asset, ActorSpecifications),
+    // InitializeSystemAgentsFromFile(Asset, ActorSpecifications),
     CreateSupervisorAgent(Asset, u64, Id),
     DeleteSupervisorAgent(Asset, String),
-    CreateOperationalAgent(Asset, Id, f64, OperationalConfiguration),
+    // CreateOperationalAgent(Asset, Id, f64, OperationalConfiguration),
     DeleteOperationalAgent(Asset, String),
-    SetLogLevel(LogLevel),
-    SetProfiling(LogLevel),
     Export(Asset),
 }
 
@@ -122,47 +146,11 @@ struct ApiOperational {
     solution_data: String,
 }
 
-/// Should you delete this thing?
-impl WorkOrderResponse {
-    pub fn new(
-        work_order: &WorkOrder,
-        api_solution: ApiSolution,
-        periods: &[Period],
-        work_order_configurations: &WorkOrderConfigurations,
-        material_to_period: &MaterialToPeriod,
-    ) -> Self {
-        // WARN
-        // Crucial lesson here. Derived needed information with functions allows you to
-        // expose weak structures in data flow. Below we see that introducing a function
-        // makes the code require an argument.
-        // QUESTION
-        // Do you even need `Periods` can they not always be derived instead? I think that
-        // they can.
-        let earliest_period = work_order
-            .earliest_allowed_start_period(periods, material_to_period)
-            .clone();
-
-        let work_order_info = work_order.work_order_info.clone();
-        let work_order_work_load = work_order.work_order_load();
-        let vendor = work_order.vendor();
-        // This is a good sign. You should be able to provide the work_order_configurations for this
-        // and the `MessageHandler` trait has to be updated.
-        let weight = work_order.work_order_value(work_order_configurations);
-        let system_status_codes = work_order.work_order_analytic.system_status_codes.clone();
-        let user_status_codes = work_order.work_order_analytic.user_status_codes.clone();
-
-        Self {
-            earliest_period,
-            work_order_info,
-            vendor,
-            weight,
-            work_order_work_load,
-            system_status_codes,
-            user_status_codes,
-            api_solution,
-        }
-    }
-}
+// TODO [ ]
+// Delete this type! These kind of things should always be found in the `conversions`
+// crate and not as a stray something in here.
+// Should you delete this thing?
+// Yes
 
 #[derive(Serialize)]
 pub struct OptimizedWorkOrderResponse {

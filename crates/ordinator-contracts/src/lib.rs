@@ -4,7 +4,12 @@ pub mod strategic;
 pub mod supervisor;
 pub mod tactical;
 
+use operational::{OperationalRequest, OperationalResponse};
+use orchestrator::{OrchestratorRequest, OrchestratorResponse};
 use serde::{Deserialize, Serialize};
+use strategic::{StrategicRequest, StrategicResponse};
+use supervisor::{SupervisorRequest, SupervisorResponse};
+use tactical::{TacticalRequest, TacticalResponse};
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "message_type")]
@@ -26,15 +31,4 @@ pub enum SystemResponses {
     Operational(OperationalResponse),
     Export,
     Sap,
-}
-
-impl From<SharedSolution> for ApiSolution {
-    fn from(_value: SharedSolution) -> Self {
-        ApiSolution {
-            strategic: "NEEDS TO BE IMPLEMENTED".to_string(),
-            tactical: "NEEDS TO BE IMPLEMENTED".to_string(),
-            supervisor: "NEEDS TO BE IMPLEMENTED".to_string(),
-            operational: "NEEDS TO BE IMPLEMENTED".to_string(),
-        }
-    }
 }

@@ -1,14 +1,9 @@
 pub mod requests;
 pub mod responses;
 
-use anyhow::{Context, Result, ensure};
+use anyhow::Result;
 use clap::Subcommand;
-use ordinator_scheduling_environment::SchedulingEnvironment;
-use std::{
-    collections::{HashMap, hash_map::Entry},
-    fmt::{self},
-    sync::MutexGuard,
-};
+use std::fmt::{self};
 use strategic_request_periods_message::StrategicTimeRequest;
 use strategic_request_resources_message::{ManualResource, StrategicRequestResource};
 use strategic_request_scheduling_message::StrategicRequestScheduling;
@@ -19,19 +14,11 @@ use strategic_response_scheduling::StrategicResponseScheduling;
 use strategic_response_status::StrategicResponseStatus;
 
 use serde::{Deserialize, Serialize};
-use serde_json_any_key::any_key_map;
 
-use crate::{
-    Asset, ConstraintState, LoadOperation, OperationalId,
-    orchestrator::WorkOrdersStatus,
-    scheduling_environment::{
-        time_environment::period::Period,
-        work_order::{
-            operation::Work, work_order_analytic::status_codes::StrategicUserStatusCodes,
-        },
-        worker_environment::resources::Resources,
-    },
-};
+use ordinator_scheduling_environment::Asset;
+use ordinator_scheduling_environment::work_order::work_order_analytic::status_codes::StrategicUserStatusCodes;
+
+use crate::orchestrator::WorkOrdersStatus;
 
 use self::requests::*;
 use self::responses::*;
@@ -48,6 +35,8 @@ impl StrategicRequest {
         &self.asset
     }
 }
+// You should determine a better way of making this in the
+// code I think that the best approach is to make something.
 #[derive(Subcommand, Serialize, Deserialize, Clone, Debug)]
 pub enum StrategicSchedulingEnvironmentCommands {
     UserStatus(StrategicUserStatusCodes),
@@ -141,21 +130,21 @@ impl TimePeriod {
     }
 }
 
-#[derive(Serialize)]
-pub struct StrategicInfeasibleCases {
-    pub respect_awsc: ConstraintState<String>,
-    pub respect_unloading: ConstraintState<String>,
-    pub respect_sch: ConstraintState<String>,
-    pub respect_aggregated_load: ConstraintState<String>,
-}
+// #[derive(Serialize)]
+// pub struct StrategicInfeasibleCases {
+//     pub respect_awsc: ConstraintState<String>,
+//     pub respect_unloading: ConstraintState<String>,
+//     pub respect_sch: ConstraintState<String>,
+//     pub respect_aggregated_load: ConstraintState<String>,
+// }
 
-impl Default for StrategicInfeasibleCases {
-    fn default() -> Self {
-        StrategicInfeasibleCases {
-            respect_awsc: ConstraintState::Infeasible("Infeasible".to_string()),
-            respect_unloading: ConstraintState::Infeasible("Infeasible".to_string()),
-            respect_sch: ConstraintState::Infeasible("Infeasible".to_string()),
-            respect_aggregated_load: ConstraintState::Infeasible("Infeasible".to_string()),
-        }
-    }
-}
+// impl Default for StrategicInfeasibleCases {
+//     fn default() -> Self {
+//         StrategicInfeasibleCases {
+//             respect_awsc: ConstraintState::Infeasible("Infeasible".to_string()),
+//             respect_unloading: ConstraintState::Infeasible("Infeasible".to_string()),
+//             respect_sch: ConstraintState::Infeasible("Infeasible".to_string()),
+//             respect_aggregated_load: ConstraintState::Infeasible("Infeasible".to_string()),
+//         }
+//     }
+// }

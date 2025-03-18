@@ -463,22 +463,6 @@ impl WorkOrder {
         todo!("Make the code for extracting this information")
     }
 
-    pub fn unloading_point_contains_period(&self, clone: Period) -> bool {
-        for operation in &self.operations.0 {
-            if operation.1.unloading_point.period == Some(clone.clone()) {
-                return true;
-            }
-        }
-        false
-    }
-
-    pub fn unloading_point(&self) -> Option<Period> {
-        self.operations
-            .0
-            .values()
-            .find_map(|opr| opr.unloading_point.period.clone())
-    }
-
     // fn random_latest_periods(&mut self, periods: &[Period]) {
     //     let mut rng = thread_rng();
     //     let random_period = periods.choose(&mut rng).unwrap();

@@ -17,7 +17,7 @@ use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::worker_environment::resources::{Id, Resources};
 
-use crate::agents::strategic_agent::StrategicOptions;
+use crate::strategic_agent::StrategicOptions;
 use crate::agents::traits::Parameters;
 
 #[derive(Debug, PartialEq, Clone)]

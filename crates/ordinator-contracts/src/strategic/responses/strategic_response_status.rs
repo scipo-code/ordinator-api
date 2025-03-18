@@ -1,18 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::Asset;
+use ordinator_scheduling_environment::Asset;
 
 use super::StrategicObjectiveValueResponse;
-
-use shared_types::agents::strategic::responses::StrategicObjectiveValueResponse;
-
-use crate::agents::strategic_agent::StrategicObjectiveValue;
-
-impl From<StrategicObjectiveValue> for StrategicObjectiveValueResponse {
-    fn from(value: StrategicObjectiveValue) -> Self {
-        todo!()
-    }
-}
 
 #[derive(Serialize, Deserialize)]
 pub struct StrategicResponseStatus {

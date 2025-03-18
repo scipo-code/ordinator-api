@@ -12,8 +12,7 @@ use responses::supervisor_response_status::SupervisorResponseStatus;
 use responses::supervisor_response_time::SupervisorResponseTime;
 use serde::{Deserialize, Serialize};
 
-use crate::Asset;
-use crate::{AlgorithmState, ConstraintState};
+use ordinator_scheduling_environment::Asset;
 
 pub type SupervisorObjectiveValue = u64;
 
@@ -67,7 +66,7 @@ pub enum SupervisorResponseMessage {
     Scheduling(SupervisorResponseScheduling),
     Resources(SupervisorResponseResources),
     Time(SupervisorResponseTime),
-    Test(AlgorithmState<SupervisorInfeasibleCases>),
+    // Test(AlgorithmState<SupervisorInfeasibleCases>),
 }
 
 impl SupervisorResponseMessage {
@@ -79,15 +78,15 @@ impl SupervisorResponseMessage {
     }
 }
 
-#[derive(Serialize)]
-pub struct SupervisorInfeasibleCases {
-    pub respect_main_work_center: ConstraintState<String>,
-}
+// #[derive(Serialize)]
+// pub struct SupervisorInfeasibleCases {
+//     pub respect_main_work_center: ConstraintState<String>,
+// }
 
-impl Default for SupervisorInfeasibleCases {
-    fn default() -> Self {
-        Self {
-            respect_main_work_center: ConstraintState::Infeasible("Infeasible".to_string()),
-        }
-    }
-}
+// impl Default for SupervisorInfeasibleCases {
+//     fn default() -> Self {
+//         Self {
+//             respect_main_work_center: ConstraintState::Infeasible("Infeasible".to_string()),
+//         }
+//     }
+// }

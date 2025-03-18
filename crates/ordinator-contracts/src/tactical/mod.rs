@@ -1,28 +1,18 @@
 pub mod requests;
 pub mod responses;
 
-use std::collections::HashMap;
-
-use crate::{
-    Asset, ConstraintState,
-    scheduling_environment::{
-        time_environment::day::Day, work_order::operation::Work,
-        worker_environment::resources::Resources,
-    },
-};
 use anyhow::{Context, Result};
+use ordinator_scheduling_environment::Asset;
 use requests::{
     tactical_resources_message::TacticalResourceRequest,
     tactical_scheduling_message::TacticalSchedulingRequest,
     tactical_status_message::TacticalStatusMessage, tactical_time_message::TacticalTimeRequest,
 };
 use responses::{
-    tactical_response_resources::TacticalResourceResponse,
     tactical_response_scheduling::TacticalResponseScheduling,
     tactical_response_status::TacticalResponseStatus, tactical_response_time::TacticalResponseTime,
 };
 use serde::{Deserialize, Serialize};
-use serde_json_any_key::*;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TacticalRequest {
@@ -58,26 +48,28 @@ impl TacticalResponse {
 pub enum TacticalResponseMessage {
     Status(TacticalResponseStatus),
     Scheduling(TacticalResponseScheduling),
-    Resources(TacticalResourceResponse),
+    // Resources(TacticalResourceResponse),
     Time(TacticalResponseTime),
     Update,
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct TacticalInfeasibleCases {
-    pub aggregated_load: ConstraintState<String>,
-    pub earliest_start_day: ConstraintState<String>,
-    pub all_scheduled: ConstraintState<String>,
-    pub respect_period_id: ConstraintState<String>,
-}
+// TODO [ ]
+// Consider reintroducing this into the code at a later stage the idea is good.
+// #[derive(Debug, Clone, Serialize)]
+// pub struct TacticalInfeasibleCases {
+//     pub aggregated_load: ConstraintState<String>,
+//     pub earliest_start_day: ConstraintState<String>,
+//     pub all_scheduled: ConstraintState<String>,
+//     pub respect_period_id: ConstraintState<String>,
+// }
 
-impl Default for TacticalInfeasibleCases {
-    fn default() -> Self {
-        TacticalInfeasibleCases {
-            aggregated_load: ConstraintState::Infeasible("Infeasible".to_owned()),
-            earliest_start_day: ConstraintState::Infeasible("Infeasible".to_owned()),
-            all_scheduled: ConstraintState::Infeasible("Infeasible".to_owned()),
-            respect_period_id: ConstraintState::Infeasible("Infeasible".to_owned()),
-        }
-    }
-}
+// impl Default for TacticalInfeasibleCases {
+//     fn default() -> Self {
+//         TacticalInfeasibleCases {
+//             aggregated_load: ConstraintState::Infeasible("Infeasible".to_owned()),
+//             earliest_start_day: ConstraintState::Infeasible("Infeasible".to_owned()),
+//             all_scheduled: ConstraintState::Infeasible("Infeasible".to_owned()),
+//             respect_period_id: ConstraintState::Infeasible("Infeasible".to_owned()),
+//         }
+//     }
+// }

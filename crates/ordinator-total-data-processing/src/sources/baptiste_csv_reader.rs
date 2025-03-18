@@ -2,7 +2,6 @@ use anyhow::Context;
 use anyhow::Result;
 use ordinator_scheduling_environment::IntoSchedulingEnvironment;
 use ordinator_scheduling_environment::SchedulingEnvironment;
-use ordinator_scheduling_environment::work_order::WorkOrders;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 
@@ -12,19 +11,16 @@ use std::fs::File;
 use std::hash::Hash;
 use std::path::PathBuf;
 
-use shared_types::scheduling_environment::SchedulingEnvironment;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
-use shared_types::scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
-use shared_types::scheduling_environment::work_order::work_order_info::work_order_type::WorkOrderType;
-use shared_types::scheduling_environment::worker_environment::WorkerEnvironment;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
+use ordinator_scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
+use ordinator_scheduling_environment::work_order::work_order_info::work_order_type::WorkOrderType;
+use ordinator_scheduling_environment::worker_environment::WorkerEnvironment;
 
-use super::SchedulingEnvironmentFactory;
-use super::TimeInput;
 use super::baptiste_csv_reader_merges::load_csv_data;
 use super::create_time_environment;
 
-use shared_types::configuration::toml_baptiste::BaptisteToml;
+use ordinator_configuration::toml_baptiste::BaptisteToml;
 
 pub struct TotalSap {
     data_locations: BaptisteToml,
@@ -45,8 +41,9 @@ impl TotalSap {
 // [ ] Centralize `TimeEnvironment`
 // [ ] Centralize `WorkerEnvironment`
 // [ ]
-//
-impl IntoSchedulingEnvironment for SchedulingEnvironment {
+// TODO [ ]
+// You should make a new type to hold the data here.
+impl IntoSchedulingEnvironment for TotalSap {
     type S = SystemConfiguration;
     type D = Database;
 
