@@ -1,12 +1,17 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/ordinator-actors",
+    "crates/ordinator-actors/ordinator-actor-core",
+    "crates/ordinator-actors/ordinator-operational-actor",
+    "crates/ordinator-actors/ordinator-strategic-actor",
+    "crates/ordinator-actors/ordinator-supervisor-actor",
+    "crates/ordinator-actors/ordinator-tactical-actor",
     "crates/ordinator-api-server",
     "crates/ordinator-configuration",
     "crates/ordinator-contracts",
     "crates/ordinator-imperium",
     "crates/ordinator-orchestrator",
+    "crates/ordinator-orchestrator-actor-traits",
     "crates/ordinator-scheduling-environment",
     "crates/ordinator-total-data-processing",
 ]
@@ -20,6 +25,9 @@ debug = true
 panic = 'abort'
 
 [workspace.dependencies]
+actix-files = "*"
+actix-rt = "*"
+actix-web = "*"
 anyhow = "*"
 arc-swap = "*" 
 chrono = { version = "*", features = ["serde"] }
@@ -28,9 +36,11 @@ colored = "*"
 dotenvy = "*"
 flume = "*"
 itertools ="*"
+proptest ="*"
 rand = "*"
 rgb = "*"
 serde = { version = "*", features = ["derive"] } 
 serde_json = "*"
+tokio = "*"
 toml = "*"
-
+tracing = "*"

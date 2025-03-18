@@ -58,6 +58,7 @@ impl AgentFactory {
     }
 
     // Okay very good! Every agent should look like this! That is important.
+    //
     pub fn build_strategic_agent(
         &self,
         asset: &Asset,
@@ -76,13 +77,16 @@ impl AgentFactory {
             // TODO
             // Make a builder here!
             .algorithm(|ab| ab.id())
-            // TODO [ ]
+            // TODO [x]
             // These should be created in a single step
             .communication()
             .configurations(configurations)
             .notify_orchestrator(notify_orchestrator)
             .build();
+        // Factory Traits Solve This Problem.
 
+        // The orchestrator only calls StrategicActorFactory::create_strategic_actor(&self, config: &Config),
+        // It never di
         let strategic_parameters = StrategicParameters::new(
             &strategic_id,
             strategic_options,

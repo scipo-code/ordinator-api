@@ -1,5 +1,5 @@
-// mod orchestrator_handlers;
-// pub mod http_to_scheduling_system;
+pub mod http_to_scheduling_system;
+pub mod orchestrator_handlers;
 use actix_web::HttpResponse;
 use anyhow::Result;
 

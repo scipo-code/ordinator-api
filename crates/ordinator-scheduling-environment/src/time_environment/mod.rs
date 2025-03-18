@@ -1,5 +1,5 @@
-use chrono::{DateTime, Days, Utc};
-use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Days, NaiveTime, Utc};
+use serde::{Deserialize, Deserializer, Serialize, de};
 
 use self::day::Day;
 use self::period::Period;
@@ -94,4 +94,20 @@ impl TimeEnvironmentBuilder {
         self.supervisor_periods = Some(supervisor_periods);
         self
     }
+}
+
+#[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone)]
+pub struct TimeInterval {
+    #[serde(deserialize_with = "deserialize_time_interval")]
+    pub start: NaiveTime,
+    #[serde(deserialize_with = "deserialize_time_interval")]
+    pub end: NaiveTime,
+}
+
+fn deserialize_time_interval<'de, D>(deserializer: D) -> Result<NaiveTime, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let time_str: String = Deserialize::deserialize(deserializer)?;
+    NaiveTime::parse_from_str(&time_str, "%H:%M:%S").map_err(de::Error::custom)
 }

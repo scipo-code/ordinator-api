@@ -1,7 +1,7 @@
 use chrono::NaiveTime;
 use serde::{Deserialize, Deserializer, Serialize, de};
 
-use crate::worker_environment::worker::Worker;
+use crate::{time_environment::TimeInterval, worker_environment::worker::Worker};
 use std::collections::HashMap;
 
 use super::{availability::Availability, resources::Id};
@@ -44,22 +44,6 @@ pub struct OperationalConfiguration {
     pub break_interval: TimeInterval,
     pub off_shift_interval: TimeInterval,
     pub toolbox_interval: TimeInterval,
-}
-
-#[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone)]
-pub struct TimeInterval {
-    #[serde(deserialize_with = "deserialize_time_interval")]
-    pub start: NaiveTime,
-    #[serde(deserialize_with = "deserialize_time_interval")]
-    pub end: NaiveTime,
-}
-
-fn deserialize_time_interval<'de, D>(deserializer: D) -> Result<NaiveTime, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let time_str: String = Deserialize::deserialize(deserializer)?;
-    NaiveTime::parse_from_str(&time_str, "%H:%M:%S").map_err(de::Error::custom)
 }
 
 impl OperationalConfiguration {

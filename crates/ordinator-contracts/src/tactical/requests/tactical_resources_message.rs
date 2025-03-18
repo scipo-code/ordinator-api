@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::scheduling_environment::worker_environment::resources::Resources;
+use ordinator_scheduling_environment::worker_environment::resources::Resources;
 
 use crate::agents::tactical::TacticalResources;
 

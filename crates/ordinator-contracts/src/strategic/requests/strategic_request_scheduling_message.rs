@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use clap::Args;
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 
 use crate::agents::strategic::TimePeriod;
 

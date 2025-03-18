@@ -2,7 +2,7 @@ use std::fmt::{self, Display};
 
 use serde::{Deserialize, Serialize};
 
-use crate::scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum StrategicStatusMessage {

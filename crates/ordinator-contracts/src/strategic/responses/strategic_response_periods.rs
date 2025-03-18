@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::scheduling_environment::time_environment::period::Period;
+use ordinator_scheduling_environment::time_environment::period::Period;
 
 #[derive(Serialize)]
 pub struct StrategicResponsePeriods {

@@ -140,12 +140,12 @@ impl TimeInterval {
     }
 }
 
-#[derive(Clone, Deserialize, Serialize, Debug, clap::ValueEnum)]
-pub enum OperationalTarget {
-    #[clap(skip)]
-    Single(OperationalId),
-    All,
-}
+// #[derive(Clone, Deserialize, Serialize, Debug, clap::ValueEnum)]
+// pub enum OperationalTarget {
+//     #[clap(skip)]
+//     Single(OperationalId),
+//     All,
+// }
 
 #[derive(Serialize)]
 pub struct OperationalInfeasibleCases {

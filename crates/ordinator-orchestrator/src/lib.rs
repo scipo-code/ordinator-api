@@ -1,6 +1,5 @@
 pub mod agent_factory;
 pub mod agent_registry;
-pub mod configuration;
 pub mod database;
 pub mod logging;
 pub mod model_initializers;
@@ -70,8 +69,8 @@ pub struct Orchestrator {
 pub struct NotifyOrchestrator(Arc<Mutex<Orchestrator>>);
 
 // WARNING: This should only take immutable references to self!
-impl NotifyOrchestrator {
-    pub fn notify_all_agents_of_work_order_change(
+impl OrchestratorNotifier for NotifyOrchestrator {
+    fn notify_all_agents_of_work_order_change(
         &self,
         work_orders: Vec<WorkOrderNumber>,
         asset: &Asset,

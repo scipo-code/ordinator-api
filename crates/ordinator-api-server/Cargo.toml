@@ -4,22 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-actix-files = "*"
-actix-rt = "*"
-actix-web = "*"
-anyhow = "*"
-# bincode = "*"
-# chrono = { version = "*", features = ["serde"] }
-# chrono-tz = "*"
-dotenvy = "*"
-# proptest = "*"
-serde = { version = "*", features = ["derive"] } 
-serde_json = "*"
-# ordinator-orchestrator = { path = "../ordinator-orchestrator" }
-tokio = "*"
-# toml = "*"
-tracing = "*"
-# tracing-appender = "*"
-# tracing-flame = "*"
-# tracing-serde = "0.2"
-# tracing-subscriber = { version = "*", features = ["json", "env-filter"] }
+ordinator-orchestrator = { path = "../ordinator-orchestrator" }
+
+actix-files = { workspace = true}
+actix-rt = { workspace = true }
+actix-web = { workspace = true }
+anyhow = { workspace = true }
+dotenvy = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }

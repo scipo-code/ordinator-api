@@ -4,3 +4,15 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+ordinator-orchestrator-actor-traits = {path = "../../ordinator-orchestrator-actor-traits"}
+ordinator-actor-core = {path = "../ordinator-actor-core"}
+
+anyhow = { workspace = true}
+arc-swap = {workspace = true}
+colored = {workspace = true}
+chrono = {workspace = true}
+itertools = {workspace = true}
+proptest = {workspace = true}
+rand = {workspace = true}
+serde = {workspace = true}
+tracing = {workspace = true}

@@ -1,12 +1,12 @@
 [package]
-name = "ordinator-actors"
+name = "ordinator-actor-core"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-ordinator-configuration ={ path = "../ordinator-configuration" }
-ordinator-orchestrator-notify = {path = "../ordinator-orchestrator-notify"}
-ordinator-scheduling-environment ={ path = "../ordinator-scheduling-environment"}
+ordinator-configuration ={ path = "../../ordinator-configuration" }
+ordinator-orchestrator-actor-traits = {path = "../../ordinator-orchestrator-actor-traits"}
+ordinator-scheduling-environment ={ path = "../../ordinator-scheduling-environment"}
 
 anyhow = { workspace = true}
 arc-swap = {workspace = true}

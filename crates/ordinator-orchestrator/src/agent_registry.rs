@@ -27,11 +27,6 @@ pub struct ActorRegistry {
     >,
 }
 
-pub struct Communication<Req, Res> {
-    pub sender: Sender<Req>,
-    pub receiver: Receiver<Result<Res>>,
-}
-
 impl ActorRegistry {
     pub fn get_operational_addr(
         &self,

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::scheduling_environment::{
+use ordinator_scheduling_environment::{
     work_order::WorkOrderActivity, worker_environment::resources::Id,
 };
 

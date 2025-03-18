@@ -1,8 +1,4 @@
 pub mod algorithm;
-pub mod operational_agent;
-pub mod strategic_agent;
-pub mod supervisor_agent;
-pub mod tactical_agent;
 pub mod traits;
 
 use algorithm::{Algorithm, AlgorithmBuilder};
@@ -20,9 +16,9 @@ use std::fmt::{self, Debug};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex, RwLock};
 
-use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
+use ordinator_scheduling_environment::SchedulingEnvironment;
 
 // FIX [ ]
 // This is not a valid way of coding the system here! We should strive for making this

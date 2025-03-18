@@ -42,7 +42,7 @@ impl TacticalResources {
     pub fn determine_period_load(
         &self,
         resource: &Resources,
-        period: &crate::scheduling_environment::time_environment::period::Period,
+        period: &ordinator_scheduling_environment::time_environment::period::Period,
     ) -> Result<Work> {
         let days = &self
             .resources

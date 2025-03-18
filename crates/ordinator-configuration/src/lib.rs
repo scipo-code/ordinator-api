@@ -3,7 +3,7 @@ mod material;
 mod resources;
 mod throttling;
 pub mod time_input;
-mod toml_baptiste;
+pub mod toml_baptiste;
 mod user_interface;
 
 use anyhow::Result;
@@ -15,7 +15,6 @@ use actor_specifications::StrategicOptionsConfig;
 use actor_specifications::SupervisorOptionsConfig;
 use actor_specifications::TacticalOptionsConfig;
 use ordinator_scheduling_environment::Asset;
-use rand::rngs::StdRng;
 
 use material::MaterialToPeriod;
 use throttling::Throttling;

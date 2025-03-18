@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::scheduling_environment::worker_environment::resources::Id;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 
 use crate::agents::supervisor::SupervisorObjectiveValue;
 

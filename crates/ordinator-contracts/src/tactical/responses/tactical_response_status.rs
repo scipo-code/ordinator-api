@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::scheduling_environment::time_environment::day::Day;
+use ordinator_scheduling_environment::time_environment::day::Day;
 
 use crate::agents::tactical::TacticalObjectiveValue;
 

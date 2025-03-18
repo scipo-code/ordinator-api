@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use crate::scheduling_environment::work_order::WorkOrderActivity;
+use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 
 #[derive(Serialize)]
 pub enum OperationalSchedulingResponse {
