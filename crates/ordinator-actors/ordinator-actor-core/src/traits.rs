@@ -2,17 +2,8 @@ use anyhow::Context;
 use anyhow::Result;
 
 use std::fmt::Debug;
-use std::sync::MutexGuard;
 
-use shared_types::scheduling_environment::SchedulingEnvironment;
-use shared_types::scheduling_environment::work_order::WorkOrderActivity;
-use shared_types::scheduling_environment::worker_environment::resources::Id;
-
-use super::ActorMessage;
-use super::Algorithm;
-use super::AlgorithmBuilder;
-use super::StateLink;
-use super::operational_agent::algorithm::operational_solution::MarginalFitness;
+use ordinator_orchestrator_actor_traits::Solution;
 
 /// This trait will be crucial for making this whole thing work correctly.
 /// I think that the best approach will be to make only a single message
@@ -60,7 +51,7 @@ pub trait ActorBasedLargeNeighborhoodSearch: AbLNSUtils {
 
     fn calculate_objective_value(
         &mut self,
-    ) -> Result<ObjectiveValueType<<Self as AbLNSUtils>::SolutionType>>;
+    ) -> Result<ObjectiveValueType<<<Self as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue>>;
 
     fn schedule(&mut self) -> Result<()>;
 
@@ -109,22 +100,3 @@ pub enum ObjectiveValueType<O> {
 }
 
 trait ObjectiveValue {}
-
-// WARN
-// More complex logic will be needed here for later. Start with this kind
-// of implementation and then continue to make the most of it. I think
-// that it is a better choice to quickly make this interface and then
-// change afterwards.
-//
-// This means that this should not have a `new` function, but instead
-//
-
-/// You should most likely remove this and insert something else instead. I think
-#[allow(dead_code)]
-pub trait GetMarginalFitness {
-    fn marginal_fitness(
-        &self,
-        operational_agent: &Id,
-        work_order_activity: &WorkOrderActivity,
-    ) -> Result<&MarginalFitness>;
-}

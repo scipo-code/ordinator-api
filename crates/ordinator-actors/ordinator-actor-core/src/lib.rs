@@ -3,55 +3,53 @@ pub mod traits;
 
 use algorithm::{Algorithm, AlgorithmBuilder};
 use anyhow::{Context, Result};
-use arc_swap::ArcSwap;
 use colored::Colorize;
-use operational_agent::algorithm::operational_solution::OperationalSolution;
 use serde::Serialize;
-use strategic_agent::algorithm::strategic_solution::StrategicSolution;
-use supervisor_agent::algorithm::supervisor_solution::SupervisorSolution;
-use tactical_agent::algorithm::tactical_solution::TacticalSolution;
 
-use std::collections::HashMap;
 use std::fmt::{self, Debug};
-use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex, RwLock};
 
-use ordinator_scheduling_environment::work_order::WorkOrderNumber;
-use ordinator_scheduling_environment::worker_environment::resources::Id;
-use ordinator_scheduling_environment::SchedulingEnvironment;
+use flume::{Receiver, Sender};
 
-// FIX [ ]
-// This is not a valid way of coding the system here! We should strive for making this
 use ordinator_configuration::SystemConfigurations;
-use ordinator_orchestrator_notify::{Communication, OrchestratorNotifier};
+use ordinator_orchestrator_actor_traits::{
+    ActorMessage, Communication, OrchestratorNotifier, SharedSolutionTrait,
+};
+use ordinator_scheduling_environment::SchedulingEnvironment;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 
 use self::traits::ActorBasedLargeNeighborhoodSearch;
-use self::traits::MessageHandler;
-use self::traits::Parameters;
-use self::traits::Solution;
+use ordinator_orchestrator_actor_traits::MessageHandler;
+use ordinator_orchestrator_actor_traits::Parameters;
+use ordinator_orchestrator_actor_traits::Solution;
 
 // TODO [ ] FIX [ ]
 // You should reuse the trait bounds on the Agent and the Algorithm.
-pub struct Actor<ActorRequest, ActorResponse, S, P, I>
+pub struct Actor<ActorRequest, ActorResponse, S, P, I, Ss>
 where
     Self: MessageHandler<Req = ActorRequest, Res = ActorResponse>,
-    Algorithm<S, P, I>: ActorBasedLargeNeighborhoodSearch,
+    Algorithm<S, P, I, Ss>: ActorBasedLargeNeighborhoodSearch,
+    Ss: SharedSolutionTrait,
     S: Solution,
     P: Parameters,
 {
     agent_id: Id,
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-    pub algorithm: Algorithm<S, P, I>,
+    pub algorithm: Algorithm<S, P, I, Ss>,
     pub receiver_from_orchestrator: Receiver<ActorMessage<ActorRequest>>,
     pub sender_to_orchestrator: Sender<Result<ActorResponse>>,
     pub configurations: Arc<RwLock<SystemConfigurations>>,
     pub notify_orchestrator: Box<dyn OrchestratorNotifier>,
 }
 
-impl<ActorRequest, ActorResponse, S, P, I> Actor<ActorRequest, ActorResponse, S, P, I>
+// TODO [ ]
+// You should consider making a trait here for the agent. That is the best way of coding this.
+// You are getting the hang of this and that is the most important thing here.
+impl<ActorRequest, ActorResponse, S, P, I, Ss> Actor<ActorRequest, ActorResponse, S, P, I, Ss>
 where
     Self: MessageHandler<Req = ActorRequest, Res = ActorResponse>,
-    Algorithm<S, P, I>: ActorBasedLargeNeighborhoodSearch,
+    Algorithm<S, P, I, Ss>: ActorBasedLargeNeighborhoodSearch,
+    Ss: SharedSolutionTrait,
     ActorRequest: Send + Sync + 'static,
     ActorResponse: Send + Sync + 'static,
     S: Solution + Debug + Clone,
@@ -88,7 +86,7 @@ where
         }
     }
 
-    pub fn builder() -> ActorBuilder<ActorRequest, ActorResponse, S, P, I> {
+    pub fn builder() -> ActorBuilder<ActorRequest, ActorResponse, S, P, I, Ss> {
         ActorBuilder {
             agent_id: None,
             scheduling_environment: None,
@@ -102,18 +100,19 @@ where
     }
 }
 
-pub struct ActorBuilder<ActorRequest, ActorResponse, S, P, I>
+pub struct ActorBuilder<ActorRequest, ActorResponse, S, P, I, Ss>
 where
-    Algorithm<S, P, I>: ActorBasedLargeNeighborhoodSearch,
+    Algorithm<S, P, I, Ss>: ActorBasedLargeNeighborhoodSearch,
     ActorRequest: Send + Sync + 'static,
     ActorResponse: Send + Sync + 'static,
     S: Solution + Debug + Clone,
     P: Parameters,
     I: Default,
+    Ss: SharedSolutionTrait,
 {
     agent_id: Option<Id>,
     scheduling_environment: Option<Arc<Mutex<SchedulingEnvironment>>>,
-    algorithm: Option<Algorithm<S, P, I>>,
+    algorithm: Option<Algorithm<S, P, I, Ss>>,
     receiver_from_orchestrator: Option<Receiver<ActorMessage<ActorRequest>>>,
     sender_to_orchestrator: Option<Sender<Result<ActorResponse>>>,
     configurations: Option<Arc<RwLock<SystemConfigurations>>>,
@@ -123,19 +122,21 @@ where
         Option<Communication<ActorMessage<ActorRequest>, ActorResponse>>,
 }
 
-impl<ActorRequest, ActorResponse, S, P, I> ActorBuilder<ActorRequest, ActorResponse, S, P, I>
+impl<ActorRequest, ActorResponse, S, P, I, Ss>
+    ActorBuilder<ActorRequest, ActorResponse, S, P, I, Ss>
 where
-    Actor<ActorRequest, ActorResponse, S, P, I>:
+    Actor<ActorRequest, ActorResponse, S, P, I, Ss>:
         MessageHandler<Req = ActorRequest, Res = ActorResponse>,
-    Algorithm<S, P, I>: ActorBasedLargeNeighborhoodSearch,
+    Algorithm<S, P, I, Ss>: ActorBasedLargeNeighborhoodSearch,
     ActorRequest: Send + Sync + 'static,
     ActorResponse: Send + Sync + 'static,
-    S: Solution + Debug + Clone,
-    P: Parameters,
-    I: Default,
+    S: Solution + Debug + Clone + Send + Sync + 'static,
+    P: Parameters + Send + Sync + 'static,
+    I: Default + Send + Sync + 'static,
+    Ss: SharedSolutionTrait + Send + Sync + 'static,
 {
     pub fn build(self) -> Result<Communication<ActorMessage<ActorRequest>, ActorResponse>> {
-        let agent = Actor {
+        let mut agent = Actor {
             agent_id: self.agent_id.unwrap(),
             scheduling_environment: self.scheduling_environment.unwrap(),
             algorithm: self.algorithm.unwrap(),
@@ -177,7 +178,7 @@ where
         S: Solution<Parameters = P> + Debug + Clone,
         P: Parameters,
         I: Default,
-        F: FnOnce(AlgorithmBuilder<S, P, I>) -> AlgorithmBuilder<S, P, I>,
+        F: FnOnce(AlgorithmBuilder<S, P, I, Ss>) -> AlgorithmBuilder<S, P, I, Ss>,
     {
         let algorithm_builder = Algorithm::builder();
 
@@ -189,14 +190,14 @@ where
 
     pub fn communication(mut self) -> Self {
         let (sender_to_agent, receiver_from_orchestrator): (
-            std::sync::mpsc::Sender<ActorMessage<ActorRequest>>,
-            std::sync::mpsc::Receiver<ActorMessage<ActorRequest>>,
-        ) = std::sync::mpsc::channel();
+            flume::Sender<ActorMessage<ActorRequest>>,
+            flume::Receiver<ActorMessage<ActorRequest>>,
+        ) = flume::unbounded();
 
         let (sender_to_orchestrator, receiver_from_agent): (
-            std::sync::mpsc::Sender<std::result::Result<ActorResponse, anyhow::Error>>,
-            std::sync::mpsc::Receiver<std::result::Result<ActorResponse, anyhow::Error>>,
-        ) = std::sync::mpsc::channel();
+            flume::Sender<std::result::Result<ActorResponse, anyhow::Error>>,
+            flume::Receiver<std::result::Result<ActorResponse, anyhow::Error>>,
+        ) = flume::unbounded();
 
         self.communication_for_orchestrator = Some(Communication {
             sender: sender_to_agent,
@@ -278,13 +279,14 @@ pub enum WhereIsWorkOrder<T> {
 // Should the new function take in the `parameters` as an function parameter?
 // FIX
 // This could be generic! I think that it should.
-impl<ActorRequest, ResponseMessage, S, P, I> Actor<ActorRequest, ResponseMessage, S, P, I>
+impl<ActorRequest, ResponseMessage, S, P, I, Ss> Actor<ActorRequest, ResponseMessage, S, P, I, Ss>
 where
     Self: MessageHandler<Req = ActorRequest, Res = ResponseMessage>,
-    Algorithm<S, P, I>: ActorBasedLargeNeighborhoodSearch,
+    Algorithm<S, P, I, Ss>: ActorBasedLargeNeighborhoodSearch,
     ResponseMessage: Sync + Send + 'static,
     S: Solution,
     P: Parameters,
+    Ss: SharedSolutionTrait,
 {
     pub fn handle(&mut self, agent_message: ActorMessage<ActorRequest>) -> Result<()> {
         match agent_message {
@@ -302,39 +304,6 @@ where
 /// This type is the primary message type that all agents should receive.
 /// All agents should have the `StateLink` and each agent then have its own
 /// ActorRequest which is specifically created for each agent.
-#[derive(Clone)]
-pub enum ActorMessage<ActorRequest> {
-    State(StateLink),
-    Actor(ActorRequest),
-    // FIX
-    // Add Options here so that every agent can have its options updated at run time.
-    // Options(),
-}
-
-/// The StateLink is a generic type that each type of Agent will implement.
-/// The generics mean:
-///     S: Strategic
-///     T: Tactical
-///     Su: Supervisor
-///     O: Operational
-/// This means that each Agent in the system will need to implement how to
-/// understand messages from the other Agents in their own unique way.
-/// This allows us to get custom implementations for each of the
-/// Agent types creating a mesh of communication pathways that are still
-/// statically typed.
-#[allow(dead_code)]
-#[derive(Debug, Clone)]
-pub enum StateLink {
-    WorkOrders(ActorSpecific),
-    WorkerEnvironment,
-    TimeEnvironment,
-}
-
-#[derive(Debug, Clone)]
-pub enum ActorSpecific {
-    Strategic(Vec<WorkOrderNumber>),
-}
-
 // THIS should most likely be removed or refactored.
 #[derive(Debug, Serialize)]
 pub enum AlgorithmState<T> {

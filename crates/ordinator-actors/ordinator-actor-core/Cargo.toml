@@ -12,6 +12,7 @@ anyhow = { workspace = true}
 arc-swap = {workspace = true}
 colored = {workspace = true}
 chrono = {workspace = true}
+flume = {workspace = true}
 itertools = {workspace = true}
 proptest = {workspace = true}
 rand = {workspace = true}

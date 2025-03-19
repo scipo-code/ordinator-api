@@ -282,6 +282,24 @@ pub enum MarginalFitness {
     #[default]
     None,
 }
+// WARN
+// More complex logic will be needed here for later. Start with this kind
+// of implementation and then continue to make the most of it. I think
+// that it is a better choice to quickly make this interface and then
+// change afterwards.
+//
+// This means that this should not have a `new` function, but instead
+//
+
+/// You should most likely remove this and insert something else instead. I think
+#[allow(dead_code)]
+pub trait GetMarginalFitness {
+    fn marginal_fitness(
+        &self,
+        operational_agent: &Id,
+        work_order_activity: &WorkOrderActivity,
+    ) -> Result<&MarginalFitness>;
+}
 
 impl std::fmt::Debug for MarginalFitness {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

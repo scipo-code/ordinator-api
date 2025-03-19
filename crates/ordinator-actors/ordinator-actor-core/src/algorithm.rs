@@ -1,5 +1,5 @@
 use anyhow::Result;
-use arc_swap::Guard;
+use arc_swap::{ArcSwap, Guard};
 
 use std::sync::Arc;
 use std::{fmt::Debug, sync::MutexGuard};
@@ -7,49 +7,54 @@ use std::{fmt::Debug, sync::MutexGuard};
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
-use super::ArcSwapSharedSolution;
-use super::SharedSolution;
-use super::traits::AbLNSUtils;
-use super::traits::Parameters;
-use super::traits::Solution;
+use ordinator_orchestrator_actor_traits::SharedSolution;
+use ordinator_orchestrator_actor_traits::Solution;
+use ordinator_orchestrator_actor_traits::{Parameters, SharedSolutionTrait};
+
+use crate::traits::AbLNSUtils;
+
+// pub type SharedSolution = SharedSolution<
 
 // QUESTION
 // You are making a lot of fields public here. I do not think that
 // is a good idea. Why you should use a method to retain and remove
 // solutions. And this is the only way of doing it.
-pub struct Algorithm<S, P, I>
+pub struct Algorithm<S, P, I, Ss>
 where
     S: Solution,
     P: Parameters,
+    Ss: SharedSolutionTrait,
 {
     pub(super) id: Id,
     pub(super) solution_intermediate: I,
     pub(super) solution: S,
     pub(super) parameters: P,
-    pub(super) arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
-    pub(super) loaded_shared_solution: Guard<Arc<SharedSolution>>,
+    pub(super) arc_swap_shared_solution: Arc<ArcSwap<Ss>>,
+    pub(super) loaded_shared_solution: Guard<Arc<Ss>>,
 }
 
-pub struct AlgorithmBuilder<S, P, I>
+pub struct AlgorithmBuilder<S, P, I, Ss>
 where
     S: Solution,
     P: Parameters,
+    Ss: SharedSolutionTrait,
 {
     id: Option<Id>,
     solution_intermediate: I,
     solution: Option<S>,
     parameters: Option<P>,
-    arc_swap_shared_solution: Option<Arc<ArcSwapSharedSolution>>,
-    loaded_shared_solution: Option<Guard<Arc<SharedSolution>>>,
+    arc_swap_shared_solution: Option<Arc<ArcSwap<Ss>>>,
+    loaded_shared_solution: Option<Guard<Arc<Ss>>>,
 }
 
-impl<S, P, I> Algorithm<S, P, I>
+impl<S, P, I, Ss> Algorithm<S, P, I, Ss>
 where
     I: Default,
     S: Solution + Debug + Clone,
     P: Parameters,
+    Ss: SharedSolutionTrait,
 {
-    pub fn builder() -> AlgorithmBuilder<S, P, I> {
+    pub fn builder() -> AlgorithmBuilder<S, P, I, Ss> {
         AlgorithmBuilder {
             id: None,
             solution_intermediate: I::default(),
@@ -60,11 +65,12 @@ where
         }
     }
 }
-impl<S, P, I> AbLNSUtils for Algorithm<S, P, I>
+impl<S, P, I, Ss> AbLNSUtils for Algorithm<S, P, I, Ss>
 where
     I: Default,
     S: Solution + Debug + Clone,
     P: Parameters,
+    Ss: SharedSolutionTrait,
 {
     type SolutionType = S;
     fn clone_algorithm_solution(&self) -> S {
@@ -72,7 +78,7 @@ where
     }
 
     fn load_shared_solution(&mut self) {
-        self.loaded_shared_solution = self.arc_swap_shared_solution.0.load();
+        self.loaded_shared_solution = self.arc_swap_shared_solution.load();
     }
 
     fn swap_solution(&mut self, solution: S) {
@@ -87,13 +93,14 @@ where
     }
 }
 
-impl<S, P, I> AlgorithmBuilder<S, P, I>
+impl<S, P, I, Ss> AlgorithmBuilder<S, P, I, Ss>
 where
     S: Solution<Parameters = P>,
     P: Parameters,
     I: Default,
+    Ss: SharedSolutionTrait,
 {
-    pub fn build(self) -> Algorithm<S, P, I> {
+    pub fn build(self) -> Algorithm<S, P, I, Ss> {
         Algorithm {
             id: self.id.unwrap(),
             solution_intermediate: self.solution_intermediate,
@@ -124,23 +131,22 @@ where
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self> {
         let parameters = Parameters::new(
-            &self.id.as_ref().expect("Call `id()` build method first"),
+            self.id.as_ref().expect("Call `id()` build method first"),
             options,
             scheduling_environment,
         )?;
         self.parameters = Some(parameters);
         Ok(self)
     }
-    pub fn arc_swap_shared_solution(
-        mut self,
-        arc_swap_shared_solution: Arc<ArcSwapSharedSolution>,
-    ) -> Self {
+    pub fn arc_swap_shared_solution(mut self, arc_swap_shared_solution: Arc<ArcSwap<Ss>>) -> Self
+    where
+        Ss: SharedSolutionTrait,
+    {
         self.arc_swap_shared_solution = Some(arc_swap_shared_solution);
         self.loaded_shared_solution = Some(
             self.arc_swap_shared_solution
                 .as_ref()
                 .expect("Set the `arc_swap` field first")
-                .0
                 .load(),
         );
         self
