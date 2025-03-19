@@ -1,4 +1,5 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrderText {

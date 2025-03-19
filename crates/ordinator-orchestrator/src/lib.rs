@@ -4,14 +4,16 @@ pub mod database;
 pub mod logging;
 pub mod model_initializers;
 
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::Weak;
+
 use agent_registry::Communication;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use colored::Colorize;
-use tracing::instrument;
-use tracing_subscriber::EnvFilter;
-
 use shared_types::Asset;
 use shared_types::OperationalConfigurationAll;
 use shared_types::agents::operational::OperationalRequestMessage;
@@ -37,17 +39,14 @@ use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::work_order::WorkOrders;
 use shared_types::scheduling_environment::worker_environment::WorkerEnvironment;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::Weak;
+use tracing::instrument;
+use tracing_subscriber::EnvFilter;
 
 use self::agent_factory::AgentFactory;
 use self::agent_registry::ActorRegistry;
 use self::configuration::SystemConfigurations;
 use self::database::DataBaseConnection;
 use self::logging::LogHandles;
-
 use super::agents::ActorMessage;
 use super::agents::ActorSpecific;
 use super::agents::ArcSwapSharedSolution;
@@ -142,7 +141,8 @@ impl Orchestrator {
                         .unwrap()
                         .tactical_agent_sender;
 
-                    // What should we do here? I think that the best approach will be to make the code function
+                    // What should we do here? I think that the best approach will be to make the
+                    // code function
                     strategic_agent_addr.sender.send(ActorMessage::Actor(
                         StrategicRequestMessage::Status(StrategicStatusMessage::General),
                     ))?;
@@ -313,8 +313,8 @@ impl Orchestrator {
                 };
 
                 let work_order_configurations = &work_orders.work_order_configurations;
-                // let work_order_responses: HashMap<WorkOrderNumber, WorkOrderResponse> = work_orders
-                //     .inner
+                // let work_order_responses: HashMap<WorkOrderNumber, WorkOrderResponse> =
+                // work_orders     .inner
                 //     .iter()
                 //     .map(|(work_order_number, work_order)| {
                 //         let work_order_response = WorkOrderResponse::new(
@@ -356,7 +356,8 @@ impl Orchestrator {
                 id_string,
             ) => {
                 // FIX
-                // Here you should create the system so that an entry in the `SchedulingEnvironment` is created.
+                // Here you should create the system so that an entry in the
+                // `SchedulingEnvironment` is created.
                 todo!();
                 // FIX
                 let notify_orchestrator = NotifyOrchestrator(
@@ -404,8 +405,8 @@ impl Orchestrator {
                 Ok(orchestrator_response)
             }
             // Do we even want this?
-            // Yes it is crucial that `OperationalAgent`s can be created on demand. There is no excuse for not having that
-            // function.
+            // Yes it is crucial that `OperationalAgent`s can be created on demand. There is no
+            // excuse for not having that function.
             OrchestratorRequest::CreateOperationalAgent(
                 asset,
                 id,
@@ -508,8 +509,8 @@ impl Orchestrator {
             .clone();
 
         // WARN
-        // You should always initialize the `SchedulingEnvironment` and make sure that is the
-        // single source of truth.
+        // You should always initialize the `SchedulingEnvironment` and make sure that
+        // is the single source of truth.
         for operational_agent in operational_agents.values() {
             // QUESTION
             // How should this be build? I think that the best approach will be to make
@@ -633,10 +634,10 @@ impl Orchestrator {
 
         let database_connections = DataBaseConnection::new();
 
-        // The configurations are already in place, you should strive to make the system as
-        // self contained as possible.
-        // This simply initializes the WorkerEnvironment, this should be done in the building of
-        // the `SchedulingEnvironment` not in here.
+        // The configurations are already in place, you should strive to make the system
+        // as self contained as possible.
+        // This simply initializes the WorkerEnvironment, this should be done in the
+        // building of the `SchedulingEnvironment` not in here.
 
         let orchestrator = Orchestrator {
             scheduling_environment,
@@ -663,8 +664,8 @@ impl Orchestrator {
             .expect("Could not add asset");
 
         // FIX [ ]
-        // FIX THIS QUICK. We need to provide this in a centralized way that is connected to the
-        // `Throttling` logic of the application.
+        // FIX THIS QUICK. We need to provide this in a centralized way that is
+        // connected to the `Throttling` logic of the application.
         let asset_string =
             dotenvy::var("ASSET").expect("The ASSET environment variable should be set");
 
@@ -684,18 +685,18 @@ impl Orchestrator {
         arc_orchestrator
     }
 
-    // How should this asset function be implemented. The real question is what should be done about the
-    // the files versus bitstream. One thing is for sure if the add_asset function should be reused
-    // there can be no file handling inside of it.
-    // FIX
-    // What the fuck is this? Loading in configurations as a `system_agents_bytes` You are a
-    // pathetic idiot! You knew better even when you wrote this. This is a horrible way to
-    // live your life, God must be ashamed of you!
+    // How should this asset function be implemented. The real question is what
+    // should be done about the the files versus bitstream. One thing is for
+    // sure if the add_asset function should be reused there can be no file
+    // handling inside of it. FIX
+    // What the fuck is this? Loading in configurations as a `system_agents_bytes`
+    // You are a pathetic idiot! You knew better even when you wrote this. This
+    // is a horrible way to live your life, God must be ashamed of you!
     pub fn asset_factory(&mut self, asset: Asset, system_agents_bytes: Vec<u8>) -> Result<()> {
         let mut scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
-        // Initialization should not occur in here. Also the configurations should come in
-        // from the
+        // Initialization should not occur in here. Also the configurations should come
+        // in from the
 
         let shared_solutions_arc_swap = AgentFactory::create_shared_solution_arc_swap();
 
@@ -739,8 +740,8 @@ impl Orchestrator {
             Communication<ActorMessage<SupervisorRequestMessage>, SupervisorResponseMessage>,
         >::new();
 
-        // This is a good sign. It means that the system is performing correctly. What should be
-        // done about the code in general?
+        // This is a good sign. It means that the system is performing correctly. What
+        // should be done about the code in general?
         // Why is the supervisor no used here?
         for (id, _supervisor_configuration_all) in supervisors {
             let supervisor_addr = self
@@ -775,9 +776,9 @@ impl Orchestrator {
 //     thread::spawn(move || {
 // let mut steel_engine = steel::steel_vm::engine::Engine::new();
 // steel_engine.register_type::<ArcOrchestrator>("Orchestrator?");
-// steel_engine.register_fn("actor_registry", ArcOrchestrator::print_actor_registry);
-// steel_engine.register_type::<Asset>("Asset?");
-// steel_engine.register_fn("Asset", Asset::new_from_string);
+// steel_engine.register_fn("actor_registry",
+// ArcOrchestrator::print_actor_registry); steel_engine.register_type::<Asset>("
+// Asset?"); steel_engine.register_fn("Asset", Asset::new_from_string);
 
 // steel_engine.register_external_value("asset::df", Asset::DF);
 // steel_engine

@@ -1,4 +1,11 @@
-use crate::sap_mapper_and_types::{CHAR, CLNT, DATS, FLTP, INT4, NUMC, TIMS, UNIT};
+use crate::sap_mapper_and_types::CHAR;
+use crate::sap_mapper_and_types::CLNT;
+use crate::sap_mapper_and_types::DATS;
+use crate::sap_mapper_and_types::FLTP;
+use crate::sap_mapper_and_types::INT4;
+use crate::sap_mapper_and_types::NUMC;
+use crate::sap_mapper_and_types::TIMS;
+use crate::sap_mapper_and_types::UNIT;
 
 #[allow(non_snake_case)]
 #[allow(dead_code)]

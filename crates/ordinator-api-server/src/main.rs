@@ -6,14 +6,11 @@ use actix_web::HttpServer;
 use actix_web::web;
 // use actix_web::guard;
 // use actix_web::web;
-
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
-
 // use std::fs::File;
 // use std::io::Read;
-
 use ordinator_orchestrator::Orchestrator;
 use routes::api::v1::api_scope;
 
@@ -44,8 +41,8 @@ async fn main() -> Result<()> {
                 .use_last_modified(true),
             )
         // TEMP
-        // `http_to_scheduling_system` is the old entrypoint for the `ordinator-imperium` cli tool
-        // .route(
+        // `http_to_scheduling_system` is the old entrypoint for the
+        // `ordinator-imperium` cli tool .route(
         //     &dotenvy::var("ORDINATOR_MAIN_ENDPOINT").unwrap(),
         //     web::post()
         //         .guard(guard::Header("content-type", "application/json"))

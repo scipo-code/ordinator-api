@@ -1,27 +1,32 @@
 pub mod algorithm;
 pub mod traits;
 
-use algorithm::{Algorithm, AlgorithmBuilder};
-use anyhow::{Context, Result};
+use std::fmt::Debug;
+use std::fmt::{self};
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::RwLock;
+
+use algorithm::Algorithm;
+use algorithm::AlgorithmBuilder;
+use anyhow::Context;
+use anyhow::Result;
 use colored::Colorize;
-use serde::Serialize;
-
-use std::fmt::{self, Debug};
-use std::sync::{Arc, Mutex, RwLock};
-
-use flume::{Receiver, Sender};
-
+use flume::Receiver;
+use flume::Sender;
 use ordinator_configuration::SystemConfigurations;
-use ordinator_orchestrator_actor_traits::{
-    ActorMessage, Communication, OrchestratorNotifier, SharedSolutionTrait,
-};
+use ordinator_orchestrator_actor_traits::ActorMessage;
+use ordinator_orchestrator_actor_traits::Communication;
+use ordinator_orchestrator_actor_traits::MessageHandler;
+use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
+use ordinator_orchestrator_actor_traits::Parameters;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
+use serde::Serialize;
 
 use self::traits::ActorBasedLargeNeighborhoodSearch;
-use ordinator_orchestrator_actor_traits::MessageHandler;
-use ordinator_orchestrator_actor_traits::Parameters;
-use ordinator_orchestrator_actor_traits::Solution;
 
 // TODO [ ] FIX [ ]
 // You should reuse the trait bounds on the Agent and the Algorithm.
@@ -43,8 +48,9 @@ where
 }
 
 // TODO [ ]
-// You should consider making a trait here for the agent. That is the best way of coding this.
-// You are getting the hang of this and that is the most important thing here.
+// You should consider making a trait here for the agent. That is the best way
+// of coding this. You are getting the hang of this and that is the most
+// important thing here.
 impl<ActorRequest, ActorResponse, S, P, I, Ss> Actor<ActorRequest, ActorResponse, S, P, I, Ss>
 where
     Self: MessageHandler<Req = ActorRequest, Res = ActorResponse>,
@@ -165,6 +171,7 @@ where
         self.agent_id = Some(agent_id);
         self
     }
+
     pub fn scheduling_environment(
         mut self,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
@@ -208,6 +215,7 @@ where
         self.sender_to_orchestrator = Some(sender_to_orchestrator);
         self
     }
+
     pub fn receiver_from_orchestrator(
         mut self,
         receiver_from_orchestrator: Receiver<ActorMessage<ActorRequest>>,
@@ -215,6 +223,7 @@ where
         self.receiver_from_orchestrator = Some(receiver_from_orchestrator);
         self
     }
+
     pub fn sender_to_orchestrator(
         mut self,
         sender_to_orchestrator: Sender<Result<ActorResponse>>,
@@ -222,10 +231,12 @@ where
         self.sender_to_orchestrator = Some(sender_to_orchestrator);
         self
     }
+
     pub fn configurations(mut self, configurations: Arc<RwLock<SystemConfigurations>>) -> Self {
         self.configurations = Some(configurations);
         self
     }
+
     pub fn notify_orchestrator(
         mut self,
         notify_orchestrator: Box<dyn OrchestratorNotifier>,

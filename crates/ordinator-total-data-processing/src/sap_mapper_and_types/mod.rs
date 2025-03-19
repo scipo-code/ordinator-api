@@ -15,7 +15,8 @@ pub mod tj20;
 pub mod tj30;
 pub mod tj30t;
 
-use chrono::{NaiveDate, NaiveTime};
+use chrono::NaiveDate;
+use chrono::NaiveTime;
 use rust_decimal::Decimal;
 use rust_xlsxwriter::IntoExcelData;
 
@@ -64,7 +65,9 @@ impl TryFrom<DATS> for NaiveDate {
             Ok(naive_date) => Ok(naive_date),
             Err(_) => {
                 dbg!(&string);
-                panic!("DATS can, according to SAP documentation only be of the form 'YYYYMMDD' or '0' for empty");
+                panic!(
+                    "DATS can, according to SAP documentation only be of the form 'YYYYMMDD' or '0' for empty"
+                );
             }
         }
     }
@@ -148,11 +151,11 @@ impl IntoExcelData for DATS {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{NaiveDate, NaiveTime};
-
-    use crate::sap_mapper_and_types::TIMS;
+    use chrono::NaiveDate;
+    use chrono::NaiveTime;
 
     use super::DATS;
+    use crate::sap_mapper_and_types::TIMS;
 
     #[test]
     #[allow(non_snake_case)]

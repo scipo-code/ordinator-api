@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-
 use ordinator_scheduling_environment::Asset;
+use serde::Deserialize;
+use serde::Serialize;
 
 use super::StrategicObjectiveValueResponse;
 

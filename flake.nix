@@ -38,7 +38,7 @@
             pkgs.nushell
             pkgs.openssl_3_3
             pkgs.pkg-config
-            pkgs.rust-bin.beta.latest.default
+            pkgs.rust-bin.nightly.latest.default
             pkgs.zellij
             pythonEnv
 

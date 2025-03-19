@@ -1,6 +1,5 @@
-use serde::Serialize;
-
 use ordinator_scheduling_environment::worker_environment::resources::Id;
+use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct SupervisorResponseStatus {

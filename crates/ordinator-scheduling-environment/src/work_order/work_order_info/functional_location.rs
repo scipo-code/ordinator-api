@@ -1,6 +1,8 @@
-use crate::Asset;
 use rust_xlsxwriter::IntoExcelData;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
+
+use crate::Asset;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FunctionalLocation {

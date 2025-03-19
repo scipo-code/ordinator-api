@@ -1,11 +1,10 @@
 use chrono::DateTime;
 use chrono::TimeDelta;
 use chrono::Utc;
-use serde::de;
 use serde::Deserialize;
-
 use serde::Deserializer;
 use serde::Serialize;
+use serde::de;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Availability {

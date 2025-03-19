@@ -1,13 +1,17 @@
-use crate::sap_mapper_and_types::DATS;
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 use anyhow::Context;
 use anyhow::Result;
 use rust_xlsxwriter::Worksheet;
-use std::collections::HashMap;
-use std::path::PathBuf;
-
+use shared_types::AgentExports;
+use shared_types::Asset;
+use shared_types::ReasonForNotScheduling;
 use shared_types::scheduling_environment::time_environment::day::Day;
 use shared_types::scheduling_environment::time_environment::day::OptionDay;
+use shared_types::scheduling_environment::work_order::WorkOrder;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::work_order::WorkOrders;
 use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
 use shared_types::scheduling_environment::work_order::operation::Work;
 use shared_types::scheduling_environment::work_order::work_order_analytic::status_codes::MaterialStatus;
@@ -19,13 +23,9 @@ use shared_types::scheduling_environment::work_order::work_order_info::priority:
 use shared_types::scheduling_environment::work_order::work_order_info::revision::Revision;
 use shared_types::scheduling_environment::work_order::work_order_info::system_condition::SystemCondition;
 use shared_types::scheduling_environment::work_order::work_order_info::work_order_type::WorkOrderType;
-use shared_types::scheduling_environment::work_order::WorkOrder;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::scheduling_environment::work_order::WorkOrders;
 use shared_types::scheduling_environment::worker_environment::resources::Resources;
-use shared_types::AgentExports;
-use shared_types::Asset;
-use shared_types::ReasonForNotScheduling;
+
+use crate::sap_mapper_and_types::DATS;
 
 #[derive(Debug)]
 struct AllRows(Vec<RowNames>);
@@ -205,8 +205,8 @@ struct RowNames {
 /// * StrategicAlgorithm
 /// * TacticalAlgorithm
 ///
-/// The function will dump the excel file in the folder specified by the EXCEL_DUMP_DIRECTORY
-/// environment variable.
+/// The function will dump the excel file in the folder specified by the
+/// EXCEL_DUMP_DIRECTORY environment variable.
 pub fn create_excel_dump(
     asset: Asset,
     work_orders: WorkOrders,

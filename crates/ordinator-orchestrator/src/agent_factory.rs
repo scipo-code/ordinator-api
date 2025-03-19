@@ -1,39 +1,35 @@
-use anyhow::{Context, Result};
-use arc_swap::ArcSwap;
-use ordinator_contracts::operational::{OperationalRequestMessage, OperationalResponseMessage};
-use ordinator_contracts::strategic::{StrategicRequestMessage, StrategicResponseMessage};
-use ordinator_contracts::supervisor::{SupervisorRequestMessage, SupervisorResponseMessage};
-use ordinator_contracts::tactical::{
-    Days, TacticalRequestMessage, TacticalResources, TacticalResponseMessage,
-};
-use ordinator_scheduling_environment::Asset;
-use ordinator_scheduling_environment::work_order::operation::Work;
-use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::{Arc, MutexGuard};
+use std::sync::MutexGuard;
 
+use anyhow::Context;
+use anyhow::Result;
+use arc_swap::ArcSwap;
+// These are mostly build dependencies and should therefore not be found inside of the
+// `orchestrator`. The question then becomes what we should do about the building of the
+// `actors`
 use ordinator_actors::Actor;
 use ordinator_actors::ActorMessage;
 use ordinator_actors::Algorithm;
-use ordinator_actors::AlgorithmUtils;
-use ordinator_actors::ArcSwapSharedSolution;
 use ordinator_actors::OperationalSolution;
 use ordinator_actors::SharedSolution;
-use ordinator_actors::Solution;
 use ordinator_actors::StrategicSolution;
 use ordinator_actors::SupervisorSolution;
 use ordinator_actors::TacticalSolution;
-use ordinator_actors::operational_agent::OperationalOptions;
-use ordinator_actors::operational_agent::algorithm::operational_parameter::OperationalParameters;
-use ordinator_actors::orchestrator::{Communication, NotifyOrchestrator};
-use ordinator_actors::strategic_agent::StrategicOptions;
-use ordinator_actors::strategic_agent::algorithm::strategic_parameters::StrategicParameters;
-use ordinator_actors::supervisor_agent::SupervisorOptions;
-use ordinator_actors::supervisor_agent::algorithm::supervisor_parameters::SupervisorParameters;
-use ordinator_actors::tactical_agent::TacticalOptions;
-use ordinator_actors::tactical_agent::algorithm::tactical_parameters::TacticalParameters;
-use ordinator_actors::traits::{ActorBasedLargeNeighborhoodSearch, Parameters};
-
+use ordinator_actors::traits::ActorBasedLargeNeighborhoodSearch;
+use ordinator_actors::traits::Parameters;
+use ordinator_contracts::operational::OperationalRequestMessage;
+use ordinator_contracts::operational::OperationalResponseMessage;
+use ordinator_contracts::strategic::StrategicRequestMessage;
+use ordinator_contracts::strategic::StrategicResponseMessage;
+use ordinator_contracts::supervisor::SupervisorRequestMessage;
+use ordinator_contracts::supervisor::SupervisorResponseMessage;
+use ordinator_contracts::tactical::TacticalRequestMessage;
+use ordinator_contracts::tactical::TacticalResponseMessage;
+use ordinator_orchestrator_actor_traits::Communication;
+use ordinator_orchestrator_actor_traits::NotifyOrchestrator;
+use ordinator_orchestrator_actor_traits::Solution;
+use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
@@ -49,12 +45,10 @@ impl AgentFactory {
         }
     }
 
-    pub fn create_shared_solution_arc_swap() -> Arc<ArcSwapSharedSolution> {
+    pub fn create_shared_solution_arc_swap() -> Arc<ArcSwap<SharedSolution>> {
         let shared_solution_arc_swap = SharedSolution::default();
 
-        Arc::new(ArcSwapSharedSolution(ArcSwap::from(Arc::new(
-            shared_solution_arc_swap,
-        ))))
+        Arc::new(ArcSwap::from(Arc::new(shared_solution_arc_swap)))
     }
 
     // Okay very good! Every agent should look like this! That is important.
@@ -63,7 +57,7 @@ impl AgentFactory {
         &self,
         asset: &Asset,
         scheduling_environment_guard: &MutexGuard<SchedulingEnvironment>,
-        shared_solution_arc_swap: Arc<ArcSwapSharedSolution>,
+        shared_solution_arc_swap: Arc<ArcSwap<SharedSolution>>,
         notify_orchestrator: NotifyOrchestrator,
         // Okay now the issue is that we have to decide what to do with the
         // general configurations. I think that this is the best approach for
@@ -85,7 +79,8 @@ impl AgentFactory {
             .build();
         // Factory Traits Solve This Problem.
 
-        // The orchestrator only calls StrategicActorFactory::create_strategic_actor(&self, config: &Config),
+        // The orchestrator only calls
+        // StrategicActorFactory::create_strategic_actor(&self, config: &Config),
         // It never di
         let strategic_parameters = StrategicParameters::new(
             &strategic_id,

@@ -1,7 +1,8 @@
 use std::fmt::Display;
 
 use rust_xlsxwriter::IntoExcelData;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 #[derive(Default, Clone, Debug, Deserialize, Serialize)]
 pub struct Revision {
     pub revision_code: RevisionCode,

@@ -1,6 +1,10 @@
+use std::fmt::Display;
+use std::str::FromStr;
+use std::string::ParseError;
+
 use rust_xlsxwriter::IntoExcelData;
-use serde::{Deserialize, Serialize};
-use std::{fmt::Display, str::FromStr, string::ParseError};
+use serde::Deserialize;
+use serde::Serialize;
 
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub enum SystemCondition {

@@ -1,15 +1,16 @@
-use anyhow::Result;
-use arc_swap::{ArcSwap, Guard};
-
+use std::fmt::Debug;
 use std::sync::Arc;
-use std::{fmt::Debug, sync::MutexGuard};
+use std::sync::MutexGuard;
 
+use anyhow::Result;
+use arc_swap::ArcSwap;
+use arc_swap::Guard;
+use ordinator_orchestrator_actor_traits::Parameters;
+use ordinator_orchestrator_actor_traits::SharedSolution;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
-
-use ordinator_orchestrator_actor_traits::SharedSolution;
-use ordinator_orchestrator_actor_traits::Solution;
-use ordinator_orchestrator_actor_traits::{Parameters, SharedSolutionTrait};
 
 use crate::traits::AbLNSUtils;
 
@@ -73,6 +74,7 @@ where
     Ss: SharedSolutionTrait,
 {
     type SolutionType = S;
+
     fn clone_algorithm_solution(&self) -> S {
         self.solution.clone()
     }
@@ -110,10 +112,12 @@ where
             loaded_shared_solution: self.loaded_shared_solution.unwrap(),
         }
     }
+
     pub fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
         self
     }
+
     // This should call the relevant method instead of the
     pub fn solution(mut self) -> Self {
         let parameters = self
@@ -138,6 +142,7 @@ where
         self.parameters = Some(parameters);
         Ok(self)
     }
+
     pub fn arc_swap_shared_solution(mut self, arc_swap_shared_solution: Arc<ArcSwap<Ss>>) -> Self
     where
         Ss: SharedSolutionTrait,
@@ -154,8 +159,8 @@ where
 }
 
 // TODO [x]
-// Where should this be moved to? I am not really sure! I think that the best place is the `Algorithm`
-// no I think it is the `ordinator-actors` crate
+// Where should this be moved to? I am not really sure! I think that the best
+// place is the `Algorithm` no I think it is the `ordinator-actors` crate
 pub enum LoadOperation {
     Add,
     Sub,

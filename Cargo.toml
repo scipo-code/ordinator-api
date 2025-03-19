@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/ordinator-actors/ordinator-actor-core",
+    "crates/ordinator-actors/ordinator-actor-core", "crates/ordinator-actors/ordinator-actor-factories",
     "crates/ordinator-actors/ordinator-operational-actor",
     "crates/ordinator-actors/ordinator-strategic-actor",
     "crates/ordinator-actors/ordinator-supervisor-actor",
@@ -9,7 +9,7 @@ members = [
     "crates/ordinator-api-server",
     "crates/ordinator-configuration",
     "crates/ordinator-contracts",
-    "crates/ordinator-imperium",
+    # "crates/ordinator-imperium",
     "crates/ordinator-orchestrator",
     "crates/ordinator-orchestrator-actor-traits",
     "crates/ordinator-scheduling-environment",
@@ -32,6 +32,7 @@ anyhow = "*"
 arc-swap = "*" 
 chrono = { version = "*", features = ["serde"] }
 chrono-tz = "*"
+clap = "*"
 colored = "*"
 dotenvy = "*"
 flume = "*"

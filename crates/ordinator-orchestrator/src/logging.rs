@@ -1,14 +1,24 @@
+use std::env;
+use std::fs;
 use std::fs::File;
 use std::io::BufWriter;
-use std::{env, fs};
-use tracing::{event, Level};
-use tracing_appender::non_blocking::{NonBlocking, WorkerGuard};
+
+use tracing::Level;
+use tracing::event;
+use tracing_appender::non_blocking::NonBlocking;
+use tracing_appender::non_blocking::WorkerGuard;
 use tracing_flame::FlameLayer;
-use tracing_subscriber::filter::{EnvFilter, Filtered};
-use tracing_subscriber::fmt::format::{Format, Json, JsonFields};
-use tracing_subscriber::fmt::{self, Layer};
+use tracing_subscriber::Registry;
+use tracing_subscriber::filter::EnvFilter;
+use tracing_subscriber::filter::Filtered;
+use tracing_subscriber::fmt::Layer;
+use tracing_subscriber::fmt::format::Format;
+use tracing_subscriber::fmt::format::Json;
+use tracing_subscriber::fmt::format::JsonFields;
+use tracing_subscriber::fmt::{self};
+use tracing_subscriber::prelude::*;
+use tracing_subscriber::reload;
 use tracing_subscriber::reload::Handle;
-use tracing_subscriber::{prelude::*, reload, Registry};
 
 type LogLayer =
     Filtered<Layer<Registry, JsonFields, Format<Json>, NonBlocking>, EnvFilter, Registry>;

@@ -2,14 +2,17 @@ pub mod time_environment;
 pub mod work_order;
 pub mod worker_environment;
 
+use std::fmt::Display;
+use std::fmt::{self};
+
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use time_environment::TimeEnvironmentBuilder;
-use work_order::{WorkOrders, WorkOrdersBuilder};
-
-use std::fmt::{self, Display};
+use work_order::WorkOrders;
+use work_order::WorkOrdersBuilder;
 
 use self::time_environment::TimeEnvironment;
 use self::worker_environment::WorkerEnvironment;
@@ -50,6 +53,8 @@ pub trait IntoSchedulingEnvironment {
 pub trait SystemConfigurationTrait {}
 pub trait DatabaseConfigurationTrait {}
 
+// dsafskdfsd;kfjsda;lkfjsdal;kfjs;adlkjfls;da kjf;lsdakjflsdkajfl
+// sda;kjflsadkjflsa;d kjfls;dakjfl;ksadjflk;sjk
 impl SchedulingEnvironmentBuilder {
     pub fn build(self) -> SchedulingEnvironment {
         SchedulingEnvironment {
@@ -82,6 +87,7 @@ impl SchedulingEnvironmentBuilder {
         self.worker_environment = Some(worker_environment);
         self
     }
+
     pub fn work_orders(&mut self, work_orders: WorkOrders) -> &mut Self {
         self.work_orders = Some(work_orders);
         self

@@ -1,12 +1,12 @@
-use std::{
-    fs::File,
-    path::Path,
-    sync::{Arc, Mutex},
-};
+use std::fs::File;
+use std::path::Path;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use shared_types::scheduling_environment::SchedulingEnvironment;
 
-use super::{configuration::SystemConfigurations, model_initializers};
+use super::configuration::SystemConfigurations;
+use super::model_initializers;
 
 pub struct DataBaseConnection {}
 
@@ -19,6 +19,7 @@ impl DataBaseConnection {
     pub fn new() -> Self {
         Self {}
     }
+
     pub fn scheduling_environment(
         system_configuration: SystemConfigurations,
     ) -> Arc<Mutex<SchedulingEnvironment>> {
@@ -47,8 +48,8 @@ fn initialize_from_source_data_and_initialize_database(
     system_configurations: SystemConfigurations,
 ) -> Result<SchedulingEnvironment, std::io::Error> {
     // FIX [ ]
-    // You should use the whole configuration when initializing the `SchedulingEnvironment`
-    // QUESTION
+    // You should use the whole configuration when initializing the
+    // `SchedulingEnvironment` QUESTION
     // What is the best way of keeping all this consistent?
     //
 

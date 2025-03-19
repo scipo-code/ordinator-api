@@ -1,7 +1,13 @@
 use std::any::Any;
 
-use rust_xlsxwriter::{ColNum, Format, IntoExcelData, RowNum, Worksheet, XlsxError};
-use serde::{Deserialize, Serialize};
+use rust_xlsxwriter::ColNum;
+use rust_xlsxwriter::Format;
+use rust_xlsxwriter::IntoExcelData;
+use rust_xlsxwriter::RowNum;
+use rust_xlsxwriter::Worksheet;
+use rust_xlsxwriter::XlsxError;
+use serde::Deserialize;
+use serde::Serialize;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum Priority {

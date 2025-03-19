@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
+use serde::Deserialize;
+use serde::Serialize;
 
 use crate::strategic::TimePeriod;
 

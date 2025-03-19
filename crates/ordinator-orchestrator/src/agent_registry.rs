@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
-use shared_types::{
-    agents::{
-        operational::{OperationalRequestMessage, OperationalResponseMessage},
-        strategic::{StrategicRequestMessage, StrategicResponseMessage},
-        supervisor::{SupervisorRequestMessage, SupervisorResponseMessage},
-        tactical::{TacticalRequestMessage, TacticalResponseMessage},
-    },
-    scheduling_environment::worker_environment::resources::Id,
-};
+use shared_types::agents::operational::OperationalRequestMessage;
+use shared_types::agents::operational::OperationalResponseMessage;
+use shared_types::agents::strategic::StrategicRequestMessage;
+use shared_types::agents::strategic::StrategicResponseMessage;
+use shared_types::agents::supervisor::SupervisorRequestMessage;
+use shared_types::agents::supervisor::SupervisorResponseMessage;
+use shared_types::agents::tactical::TacticalRequestMessage;
+use shared_types::agents::tactical::TacticalResponseMessage;
+use shared_types::scheduling_environment::worker_environment::resources::Id;
 
 use crate::agents::ActorMessage;
 

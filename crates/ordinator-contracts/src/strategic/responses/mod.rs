@@ -3,7 +3,8 @@ pub mod strategic_response_resources;
 pub mod strategic_response_scheduling;
 pub mod strategic_response_status;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
 #[derive(Serialize, Deserialize)]
 pub struct StrategicObjectiveValueResponse {

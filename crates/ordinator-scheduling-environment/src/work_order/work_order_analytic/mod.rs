@@ -2,7 +2,6 @@ pub mod status_codes;
 
 use serde::Deserialize;
 use serde::Serialize;
-
 use status_codes::SystemStatusCodes;
 use status_codes::SystemStatusCodesBuilder;
 use status_codes::UserStatusCodes;
@@ -32,7 +31,6 @@ impl WorkOrderAnalyticBuilder {
             // Things that are fixed for one model may not be for all the other ones.
             // You should design the system so that these things are calculated and
             // should be part of the parameters of the applications.
-            //
             system_status_codes: self
                 .system_status_codes
                 .expect("Check that all builder steps are followed"),
@@ -67,9 +65,9 @@ impl WorkOrderAnalyticBuilder {
     }
 }
 
-// You are doing something very shitty at the moment. Do you actually need any builders
-// anymore when you are simply reading data from the... Yes you are doing it to ease testing
-// that is the purpose.
+// You are doing something very shitty at the moment. Do you actually need any
+// builders anymore when you are simply reading data from the... Yes you are
+// doing it to ease testing that is the purpose.
 impl WorkOrderAnalytic {
     //
     pub fn builder() -> WorkOrderAnalyticBuilder {
@@ -86,6 +84,8 @@ impl WorkOrderAnalytic {
 
     // TODO [ ]
     pub fn fixed(&self) -> bool {
-        todo!("This could be a very important function to implement. Status codes should ideally express this together with material Statuses.")
+        todo!(
+            "This could be a very important function to implement. Status codes should ideally express this together with material Statuses."
+        )
     }
 }

@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-
 use ordinator_scheduling_environment::time_environment::period::Period;
+use serde::Deserialize;
+use serde::Serialize;
 
 #[derive(Serialize, Deserialize)]
 pub struct StrategicResponseScheduling {

@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
+use serde::Deserialize;
+use serde::Serialize;
 
 // This should be a set of HTTP GET and POST endpoints. That is crucial to
 // understand here. The goal here is to have an optimal backend data structure

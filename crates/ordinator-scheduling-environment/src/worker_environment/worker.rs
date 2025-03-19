@@ -1,6 +1,9 @@
-use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use std::fmt::{self, Formatter};
+use std::fmt::Formatter;
+use std::fmt::{self};
+
+use serde::Deserialize;
+use serde::Serialize;
 
 use super::availability::Availability;
 

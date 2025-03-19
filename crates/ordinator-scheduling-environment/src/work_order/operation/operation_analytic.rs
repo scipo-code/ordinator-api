@@ -30,6 +30,7 @@ impl OperationAnalyticBuilder {
         self.preparation_time = Some(Work::from(preparation_time));
         self
     }
+
     pub fn duration(mut self, duration: f64) -> Self {
         self.duration = Some(Work::from(duration));
         self

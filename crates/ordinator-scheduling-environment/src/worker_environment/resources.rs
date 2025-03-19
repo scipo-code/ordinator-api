@@ -1,12 +1,16 @@
+use std::fmt::Display;
+use std::str::FromStr;
+
 use chrono::NaiveTime;
 use rust_xlsxwriter::IntoExcelData;
-use serde::{Deserialize, Serialize};
-use std::{fmt::Display, str::FromStr};
+use serde::Deserialize;
+use serde::Serialize;
 use strum_macros::EnumIter;
 
 use crate::Asset;
 
-/// This enum holds all the resources that are available needed to schedule work order.
+/// This enum holds all the resources that are available needed to schedule work
+/// order.
 #[derive(
     PartialOrd,
     Ord,
@@ -136,6 +140,7 @@ pub enum Resources {
 
 impl FromStr for Resources {
     type Err = String;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let resource = match s {
             "MTN-PIPF" => Resources::MtnPipf,
@@ -277,6 +282,7 @@ impl Resources {
                 | Resources::VenSubs
         )
     }
+
     pub fn is_fmc(&self) -> bool {
         matches!(
             self,

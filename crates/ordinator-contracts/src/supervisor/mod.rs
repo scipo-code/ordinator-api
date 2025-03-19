@@ -4,15 +4,15 @@ pub mod responses;
 use std::fmt::Display;
 
 use clap::ValueEnum;
+use ordinator_scheduling_environment::Asset;
 use requests::supervisor_scheduling_message::SupervisorSchedulingMessage;
 use requests::supervisor_status_message::SupervisorStatusMessage;
 use responses::supervisor_response_resources::SupervisorResponseResources;
 use responses::supervisor_response_scheduling::SupervisorResponseScheduling;
 use responses::supervisor_response_status::SupervisorResponseStatus;
 use responses::supervisor_response_time::SupervisorResponseTime;
-use serde::{Deserialize, Serialize};
-
-use ordinator_scheduling_environment::Asset;
+use serde::Deserialize;
+use serde::Serialize;
 
 pub type SupervisorObjectiveValue = u64;
 
@@ -86,7 +86,7 @@ impl SupervisorResponseMessage {
 // impl Default for SupervisorInfeasibleCases {
 //     fn default() -> Self {
 //         Self {
-//             respect_main_work_center: ConstraintState::Infeasible("Infeasible".to_string()),
-//         }
+//             respect_main_work_center:
+// ConstraintState::Infeasible("Infeasible".to_string()),         }
 //     }
 // }

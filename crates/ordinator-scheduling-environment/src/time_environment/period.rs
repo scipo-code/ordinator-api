@@ -1,11 +1,21 @@
-use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc, Weekday};
+use std::fmt::Display;
+use std::fmt::{self};
+use std::ops::Add;
+use std::ops::Sub;
+use std::str::FromStr;
+
+use chrono::DateTime;
+use chrono::Datelike;
+use chrono::Duration;
+use chrono::NaiveDate;
+use chrono::TimeZone;
+use chrono::Utc;
+use chrono::Weekday;
 use clap::Args;
 use colored::Colorize;
 use rust_xlsxwriter::IntoExcelData;
-use serde::{Deserialize, Serialize};
-use std::fmt::{self, Display};
-use std::ops::{Add, Sub};
-use std::str::FromStr;
+use serde::Deserialize;
+use serde::Serialize;
 
 #[derive(Args, Serialize, Deserialize, Eq, PartialEq, Hash, Clone, PartialOrd, Ord)]
 pub struct Period {
@@ -29,11 +39,11 @@ impl std::fmt::Debug for Period {
                     "id_internal",
                     self.id_internal,
                     "year",
-                    self.year, 
+                    self.year,
                     "start_week",
-                    self.start_week, 
+                    self.start_week,
                     "finish_week",
-                    self.finish_week, 
+                    self.finish_week,
                 )
                 .bright_green()
             )
@@ -273,8 +283,10 @@ impl IntoExcelData for Period {
 #[cfg(test)]
 mod tests {
 
+    use chrono::TimeZone;
+    use chrono::Utc;
+
     use super::*;
-    use chrono::{TimeZone, Utc};
 
     #[test]
     fn test_period_add_duration_1() {

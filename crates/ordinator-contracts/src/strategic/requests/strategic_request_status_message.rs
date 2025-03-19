@@ -1,8 +1,9 @@
-use std::fmt::{self, Display};
-
-use serde::{Deserialize, Serialize};
+use std::fmt::Display;
+use std::fmt::{self};
 
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use serde::Deserialize;
+use serde::Serialize;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum StrategicStatusMessage {

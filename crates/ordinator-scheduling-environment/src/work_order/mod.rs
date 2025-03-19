@@ -4,24 +4,19 @@ pub mod work_order_analytic;
 pub mod work_order_dates;
 pub mod work_order_info;
 
-use anyhow::Result;
-use chrono::DateTime;
-use chrono::NaiveDate;
-use chrono::Utc;
-use colored::Colorize;
-use serde::{Deserialize, Serialize};
-use work_order_dates::WorkOrderDatesBuilder;
-
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
-use crate::Asset;
-use crate::time_environment::MaterialToPeriod;
-
-use super::time_environment::period::Period;
-use super::worker_environment::resources::Resources;
+use anyhow::Result;
+use chrono::DateTime;
+use chrono::NaiveDate;
+use chrono::Utc;
+use colored::Colorize;
+use serde::Deserialize;
+use serde::Serialize;
+use work_order_dates::WorkOrderDatesBuilder;
 
 use self::operation::ActivityNumber;
 use self::operation::Operation;
@@ -37,6 +32,10 @@ use self::work_order_info::WorkOrderInfoBuilder;
 use self::work_order_info::functional_location::FunctionalLocation;
 use self::work_order_info::priority::Priority;
 use self::work_order_info::work_order_type::WorkOrderType;
+use super::time_environment::period::Period;
+use super::worker_environment::resources::Resources;
+use crate::Asset;
+use crate::time_environment::MaterialToPeriod;
 
 pub type WorkOrderValue = u64;
 
@@ -226,6 +225,7 @@ impl WorkOrderBuilder {
         self.work_order_info = work_order_info_builder.build();
         self
     }
+
     pub fn work_order_dates_builder<F>(mut self, configure: F) -> Self
     where
         F: FnOnce(WorkOrderDatesBuilder) -> WorkOrderDatesBuilder,
@@ -372,11 +372,12 @@ impl WorkOrder {
             })
     }
 
-    /// This method determines that earliest allow start date and period for the work order. This is
-    /// a maximum of the material status and the earliest start period of the operations.
-    /// TODO : A stance will have to be taken on the VEN, SHUTDOWN, and SUBNETWORKS.
-    /// We will get an error here! The problem is that after this the EASD will not be contained
-    /// anymore.
+    /// This method determines that earliest allow start date and period for the
+    /// work order. This is a maximum of the material status and the
+    /// earliest start period of the operations. TODO : A stance will have
+    /// to be taken on the VEN, SHUTDOWN, and SUBNETWORKS. We will get an
+    /// error here! The problem is that after this the EASD will not be
+    /// contained anymore.
     // TODO [ ]
     // Extract these parameters into a config file.
     // TODO [ ]
@@ -466,8 +467,8 @@ impl WorkOrder {
     // fn random_latest_periods(&mut self, periods: &[Period]) {
     //     let mut rng = thread_rng();
     //     let random_period = periods.choose(&mut rng).unwrap();
-    //     self.work_order_dates.latest_allowed_finish_period = random_period.clone();
-    // }
+    //     self.work_order_dates.latest_allowed_finish_period =
+    // random_period.clone(); }
 }
 impl FromStr for WorkOrderNumber {
     type Err = ParseIntError;
@@ -545,10 +546,9 @@ impl WorkOrder {
 mod tests {
     use std::str::FromStr;
 
-    use crate::worker_environment::resources::Resources;
-
     use super::WorkOrder;
     use super::operation::Work;
+    use crate::worker_environment::resources::Resources;
 
     #[test]
     fn test_initialize_work_load() {

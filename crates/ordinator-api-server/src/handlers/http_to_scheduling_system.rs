@@ -1,13 +1,13 @@
 // FIX
 // This is a wrong way to import dependencies. It should be refactored.
+use std::sync::Arc;
+use std::sync::Mutex;
+
 use shared_types::SystemMessages;
 use shared_types::SystemResponses;
 use shared_types::agents::strategic::StrategicResponse;
 use tracing::Level;
 use tracing::event;
-
-use std::sync::Arc;
-use std::sync::Mutex;
 
 use crate::orchestrator::Orchestrator;
 
@@ -93,13 +93,11 @@ mod tests {
     use std::collections::HashMap;
 
     use chrono::Utc;
-    use shared_types::{
-        agents::tactical::{Days, TacticalResources},
-        scheduling_environment::{
-            time_environment::day::Day, work_order::operation::Work,
-            worker_environment::resources::Resources,
-        },
-    };
+    use shared_types::agents::tactical::Days;
+    use shared_types::agents::tactical::TacticalResources;
+    use shared_types::scheduling_environment::time_environment::day::Day;
+    use shared_types::scheduling_environment::work_order::operation::Work;
+    use shared_types::scheduling_environment::worker_environment::resources::Resources;
 
     #[test]
     fn test_day_serialize() {

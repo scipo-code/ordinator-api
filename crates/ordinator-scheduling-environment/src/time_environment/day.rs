@@ -1,11 +1,12 @@
-use std::{
-    collections::HashMap,
-    fmt::{self, Display},
-};
+use std::collections::HashMap;
+use std::fmt::Display;
+use std::fmt::{self};
 
-use chrono::{DateTime, Utc};
+use chrono::DateTime;
+use chrono::Utc;
 use rust_xlsxwriter::IntoExcelData;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
 use crate::work_order::operation::Work;
 

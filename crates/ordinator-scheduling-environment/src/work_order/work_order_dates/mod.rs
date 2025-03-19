@@ -1,7 +1,11 @@
 pub mod unloading_point;
 
-use chrono::{DateTime, Duration, NaiveDate, Utc};
-use serde::{Deserialize, Serialize};
+use chrono::DateTime;
+use chrono::Duration;
+use chrono::NaiveDate;
+use chrono::Utc;
+use serde::Deserialize;
+use serde::Serialize;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WorkOrderDates {
@@ -66,34 +70,42 @@ impl WorkOrderDatesBuilder {
             material_expected_date: self.material_expected_date ,
         }
     }
+
     pub fn earliest_allowed_start_date(mut self, earliest_allowed_start_date: NaiveDate) -> Self {
         self.earliest_allowed_start_date = Some(earliest_allowed_start_date);
         self
     }
+
     pub fn latest_allowed_finish_date(mut self, latest_allowed_finish_date: NaiveDate) -> Self {
         self.latest_allowed_finish_date = Some(latest_allowed_finish_date);
         self
     }
+
     pub fn basic_start_date(mut self, basic_start_date: NaiveDate) -> Self {
         self.basic_start_date = Some(basic_start_date);
         self
     }
+
     pub fn basic_finish_date(mut self, basic_finish_date: NaiveDate) -> Self {
         self.basic_finish_date = Some(basic_finish_date);
         self
     }
+
     pub fn duration(mut self, duration: Duration) -> Self {
         self.duration = Some(duration);
         self
     }
+
     pub fn basic_start_scheduled(mut self, basic_start_scheduled: DateTime<Utc>) -> Self {
         self.basic_start_scheduled = Some(basic_start_scheduled);
         self
     }
+
     pub fn basic_finish_scheduled(mut self, basic_finish_scheduled: DateTime<Utc>) -> Self {
         self.basic_finish_scheduled = Some(basic_finish_scheduled);
         self
     }
+
     pub fn material_expected_date(mut self, material_expected_date: DateTime<Utc>) -> Self {
         self.material_expected_date = Some(material_expected_date);
         self

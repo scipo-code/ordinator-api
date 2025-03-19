@@ -1,15 +1,13 @@
-use ordinator_scheduling_environment::{
-    Asset,
-    worker_environment::{
-        OperationalId,
-        crew::{
-            AgentEnvironment, OperationalConfiguration, OperationalConfigurationAll,
-            SupervisorConfigurationAll,
-        },
-        resources::{Id, Resources},
-    },
-};
-use serde::{Deserialize, Serialize};
+use ordinator_scheduling_environment::Asset;
+use ordinator_scheduling_environment::worker_environment::OperationalId;
+use ordinator_scheduling_environment::worker_environment::crew::AgentEnvironment;
+use ordinator_scheduling_environment::worker_environment::crew::OperationalConfiguration;
+use ordinator_scheduling_environment::worker_environment::crew::OperationalConfigurationAll;
+use ordinator_scheduling_environment::worker_environment::crew::SupervisorConfigurationAll;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
+use ordinator_scheduling_environment::worker_environment::resources::Resources;
+use serde::Deserialize;
+use serde::Serialize;
 
 // WARN
 // This type if for initializing data based on the configuration

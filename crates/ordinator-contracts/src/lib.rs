@@ -4,12 +4,18 @@ pub mod strategic;
 pub mod supervisor;
 pub mod tactical;
 
-use operational::{OperationalRequest, OperationalResponse};
-use orchestrator::{OrchestratorRequest, OrchestratorResponse};
-use serde::{Deserialize, Serialize};
-use strategic::{StrategicRequest, StrategicResponse};
-use supervisor::{SupervisorRequest, SupervisorResponse};
-use tactical::{TacticalRequest, TacticalResponse};
+use operational::OperationalRequest;
+use operational::OperationalResponse;
+use orchestrator::OrchestratorRequest;
+use orchestrator::OrchestratorResponse;
+use serde::Deserialize;
+use serde::Serialize;
+use strategic::StrategicRequest;
+use strategic::StrategicResponse;
+use supervisor::SupervisorRequest;
+use supervisor::SupervisorResponse;
+use tactical::TacticalRequest;
+use tactical::TacticalResponse;
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "message_type")]

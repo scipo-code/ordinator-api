@@ -1,9 +1,10 @@
 use std::collections::HashSet;
 
 use clap::Args;
-use serde::{Deserialize, Deserializer, Serialize};
-
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use serde::Deserialize;
+use serde::Deserializer;
+use serde::Serialize;
 
 use crate::strategic::TimePeriod;
 

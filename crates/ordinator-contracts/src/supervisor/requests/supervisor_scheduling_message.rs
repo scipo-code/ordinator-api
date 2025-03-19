@@ -1,8 +1,7 @@
-use serde::{Deserialize, Serialize};
-
-use ordinator_scheduling_environment::{
-    work_order::WorkOrderActivity, worker_environment::resources::Id,
-};
+use ordinator_scheduling_environment::work_order::WorkOrderActivity;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
+use serde::Deserialize;
+use serde::Serialize;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SupervisorSchedulingMessage {

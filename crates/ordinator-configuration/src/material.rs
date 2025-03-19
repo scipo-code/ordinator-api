@@ -1,4 +1,5 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 // TODO [ ]
 // This should be moved, the question is whether we should make one or two types
 

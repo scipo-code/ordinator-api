@@ -1,26 +1,25 @@
-use anyhow::Context;
-use anyhow::Result;
-use ordinator_scheduling_environment::IntoSchedulingEnvironment;
-use ordinator_scheduling_environment::SchedulingEnvironment;
-use serde::Deserialize;
-use serde::de::DeserializeOwned;
-
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 use std::hash::Hash;
 use std::path::PathBuf;
 
+use anyhow::Context;
+use anyhow::Result;
+use ordinator_configuration::SystemConfigurations;
+use ordinator_configuration::toml_baptiste::BaptisteToml;
+use ordinator_scheduling_environment::IntoSchedulingEnvironment;
+use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
 use ordinator_scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
 use ordinator_scheduling_environment::work_order::work_order_info::work_order_type::WorkOrderType;
 use ordinator_scheduling_environment::worker_environment::WorkerEnvironment;
+use serde::Deserialize;
+use serde::de::DeserializeOwned;
 
 use super::baptiste_csv_reader_merges::load_csv_data;
 use super::create_time_environment;
-
-use ordinator_configuration::toml_baptiste::BaptisteToml;
 
 pub struct TotalSap {
     data_locations: BaptisteToml,
@@ -44,8 +43,8 @@ impl TotalSap {
 // TODO [ ]
 // You should make a new type to hold the data here.
 impl IntoSchedulingEnvironment for TotalSap {
-    type S = SystemConfiguration;
     type D = Database;
+    type S = SystemConfigurations;
 
     fn into_scheduling_environment(
         &self,
@@ -55,14 +54,10 @@ impl IntoSchedulingEnvironment for TotalSap {
         // TODO [ ]
         // You need to pass the configs
         Ok(SchedulingEnvironment::builder()
-            .time_environment(create_time_environment(&time_input))
+            .time_environment(create_time_environment(&system_configuration.time_input))
             .worker_environment(WorkerEnvironment::new())
             .work_orders(
-                load_csv_data(
-                    &data_source.data_locations,
-                    &time_environment.strategic_periods,
-                )
-                .with_context(|| {
+                load_csv_data(self.data_source.data_locations).with_context(|| {
                     format!(
                         "SchedulingEnvironment could not be built from {}",
                         std::any::type_name_of_val(&data_source)
@@ -116,12 +111,12 @@ pub struct WorkCenterCsv {
 }
 
 impl CsvType for WorkCenterCsv {
+    type Container = HashMap<Self::KeyType, Self>;
     type KeyType = String;
+
     fn get_and_clone_key(&self) -> Self::KeyType {
         self.WBS_ID.clone()
     }
-
-    type Container = HashMap<Self::KeyType, Self>;
 
     fn make_entry(key: Self::KeyType, container: &mut Self::Container, value: Self) {
         container.insert(key, value);
@@ -148,8 +143,8 @@ pub struct WorkOperationsCsv {
 }
 
 impl CsvType for WorkOperationsCsv {
-    type KeyType = (String, u64);
     type Container = HashMap<String, HashMap<u64, Self>>;
+    type KeyType = (String, u64);
 
     fn get_and_clone_key(&self) -> Self::KeyType {
         (self.OPR_Routing_Number.clone(), self.OPR_Counter)
@@ -186,13 +181,12 @@ pub struct WorkOrdersStatusCsv {
 }
 
 impl CsvType for WorkOrdersStatusCsv {
+    type Container = Vec<Self>;
+    type KeyType = String;
+
     fn get_and_clone_key(&self) -> Self::KeyType {
         self.WO_Object_Number.clone()
     }
-
-    type KeyType = String;
-
-    type Container = Vec<Self>;
 
     fn make_entry(_key: Self::KeyType, container: &mut Self::Container, value: Self) {
         container.push(value);
@@ -213,9 +207,8 @@ pub struct OperationsStatusCsv {
 
 #[allow(non_snake_case, dead_code)]
 impl CsvType for OperationsStatusCsv {
-    type KeyType = String;
-
     type Container = Vec<Self>;
+    type KeyType = String;
 
     fn get_and_clone_key(&self) -> Self::KeyType {
         self.OPR_Object_Number.clone()
@@ -236,13 +229,12 @@ pub struct SecondaryLocationsCsv {
 }
 
 impl CsvType for SecondaryLocationsCsv {
+    type Container = Vec<Self>;
+    type KeyType = String;
+
     fn get_and_clone_key(&self) -> Self::KeyType {
         todo!()
     }
-
-    type KeyType = String;
-
-    type Container = Vec<Self>;
 
     fn make_entry(_key: Self::KeyType, _container: &mut Self::Container, _value: Self) {
         todo!()
@@ -260,13 +252,12 @@ pub struct FunctionalLocationsCsv {
 }
 
 impl CsvType for FunctionalLocationsCsv {
+    type Container = HashMap<Self::KeyType, Self>;
     type KeyType = u64;
 
     fn get_and_clone_key(&self) -> Self::KeyType {
         self.FLOC_Technical_ID
     }
-
-    type Container = HashMap<Self::KeyType, Self>;
 
     fn make_entry(key: Self::KeyType, container: &mut Self::Container, value: Self) {
         container.entry(key).or_insert(value);
@@ -306,9 +297,8 @@ pub struct WorkOrdersCsv {
 }
 
 impl CsvType for WorkOrdersCsv {
-    type KeyType = WorkOrderNumber;
-
     type Container = HashMap<Self::KeyType, Self>;
+    type KeyType = WorkOrderNumber;
 
     fn get_and_clone_key(&self) -> Self::KeyType {
         WorkOrderNumber(self.WO_Number)

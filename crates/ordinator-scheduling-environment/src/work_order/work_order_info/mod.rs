@@ -5,10 +5,11 @@ pub mod system_condition;
 pub mod work_order_text;
 pub mod work_order_type;
 
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
-
 use std::str::FromStr;
+
+use anyhow::Result;
+use serde::Deserialize;
+use serde::Serialize;
 
 use self::functional_location::FunctionalLocation;
 use self::priority::Priority;
@@ -82,26 +83,32 @@ impl WorkOrderInfoBuilder {
         self.priority = Some(priority);
         self
     }
+
     pub fn work_order_type(mut self, work_order_type: WorkOrderType) -> Self {
         self.work_order_type = Some(work_order_type);
         self
     }
+
     pub fn functional_location(mut self, functional_location: FunctionalLocation) -> Self {
         self.functional_location = Some(functional_location);
         self
     }
+
     pub fn work_order_text(mut self, work_order_text: WorkOrderText) -> Self {
         self.work_order_text = Some(work_order_text);
         self
     }
+
     pub fn revision(mut self, revision: Revision) -> Self {
         self.revision = Some(revision);
         self
     }
+
     pub fn system_condition(mut self, system_condition: SystemCondition) -> Self {
         self.system_condition = Some(system_condition);
         self
     }
+
     pub fn work_order_info_detail(mut self, work_order_info_detail: WorkOrderInfoDetail) -> Self {
         self.work_order_info_detail = Some(work_order_info_detail);
         self
@@ -116,6 +123,7 @@ impl WorkOrderInfoBuilder {
         self.revision = Some(Revision::new(revision));
         self
     }
+
     pub fn system_condition_from_str(mut self, system_condition: &str) -> Result<Self> {
         self.system_condition = Some(SystemCondition::from_str(system_condition)?);
         Ok(self)

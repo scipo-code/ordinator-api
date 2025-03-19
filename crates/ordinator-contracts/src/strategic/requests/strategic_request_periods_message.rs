@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "scheduler_message_type")]

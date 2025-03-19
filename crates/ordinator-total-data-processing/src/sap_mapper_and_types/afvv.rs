@@ -1,4 +1,12 @@
-use crate::sap_mapper_and_types::{CHAR, CLNT, DATS, DEC, FLTP, NUMC, QUAN, TIMS, UNIT};
+use crate::sap_mapper_and_types::CHAR;
+use crate::sap_mapper_and_types::CLNT;
+use crate::sap_mapper_and_types::DATS;
+use crate::sap_mapper_and_types::DEC;
+use crate::sap_mapper_and_types::FLTP;
+use crate::sap_mapper_and_types::NUMC;
+use crate::sap_mapper_and_types::QUAN;
+use crate::sap_mapper_and_types::TIMS;
+use crate::sap_mapper_and_types::UNIT;
 
 #[allow(non_snake_case, dead_code)]
 struct Afvv {

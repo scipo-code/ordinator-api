@@ -1,18 +1,18 @@
 pub mod requests;
 pub mod responses;
 
-use anyhow::{Context, Result};
+use anyhow::Context;
+use anyhow::Result;
 use ordinator_scheduling_environment::Asset;
-use requests::{
-    tactical_resources_message::TacticalResourceRequest,
-    tactical_scheduling_message::TacticalSchedulingRequest,
-    tactical_status_message::TacticalStatusMessage, tactical_time_message::TacticalTimeRequest,
-};
-use responses::{
-    tactical_response_scheduling::TacticalResponseScheduling,
-    tactical_response_status::TacticalResponseStatus, tactical_response_time::TacticalResponseTime,
-};
-use serde::{Deserialize, Serialize};
+use requests::tactical_resources_message::TacticalResourceRequest;
+use requests::tactical_scheduling_message::TacticalSchedulingRequest;
+use requests::tactical_status_message::TacticalStatusMessage;
+use requests::tactical_time_message::TacticalTimeRequest;
+use responses::tactical_response_scheduling::TacticalResponseScheduling;
+use responses::tactical_response_status::TacticalResponseStatus;
+use responses::tactical_response_time::TacticalResponseTime;
+use serde::Deserialize;
+use serde::Serialize;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TacticalRequest {
@@ -66,10 +66,12 @@ pub enum TacticalResponseMessage {
 // impl Default for TacticalInfeasibleCases {
 //     fn default() -> Self {
 //         TacticalInfeasibleCases {
-//             aggregated_load: ConstraintState::Infeasible("Infeasible".to_owned()),
-//             earliest_start_day: ConstraintState::Infeasible("Infeasible".to_owned()),
-//             all_scheduled: ConstraintState::Infeasible("Infeasible".to_owned()),
-//             respect_period_id: ConstraintState::Infeasible("Infeasible".to_owned()),
+//             aggregated_load:
+// ConstraintState::Infeasible("Infeasible".to_owned()),
+// earliest_start_day: ConstraintState::Infeasible("Infeasible".to_owned()),
+//             all_scheduled:
+// ConstraintState::Infeasible("Infeasible".to_owned()),
+// respect_period_id: ConstraintState::Infeasible("Infeasible".to_owned()),
 //         }
 //     }
 // }

@@ -1,24 +1,23 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
 
-use ordinator_scheduling_environment::{
-    Asset,
-    time_environment::{day::Day, period::Period},
-    work_order::{
-        WorkOrderNumber,
-        operation::Work,
-        work_order_analytic::status_codes::{SystemStatusCodes, UserStatusCodes},
-        work_order_info::WorkOrderInfo,
-    },
-    worker_environment::resources::{Id, Resources},
-};
-use serde::{Deserialize, Serialize};
+use ordinator_scheduling_environment::Asset;
+use ordinator_scheduling_environment::time_environment::day::Day;
+use ordinator_scheduling_environment::time_environment::period::Period;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::work_order::operation::Work;
+use ordinator_scheduling_environment::work_order::work_order_analytic::status_codes::SystemStatusCodes;
+use ordinator_scheduling_environment::work_order::work_order_analytic::status_codes::UserStatusCodes;
+use ordinator_scheduling_environment::work_order::work_order_info::WorkOrderInfo;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
+use ordinator_scheduling_environment::worker_environment::resources::Resources;
+use serde::Deserialize;
+use serde::Serialize;
 
-use crate::{
-    operational::responses::operational_response_status::OperationalResponseStatus,
-    strategic::responses::strategic_response_status::StrategicResponseStatus,
-    supervisor::responses::supervisor_response_status::SupervisorResponseStatus,
-    tactical::responses::tactical_response_status::TacticalResponseStatus,
-};
+use crate::operational::responses::operational_response_status::OperationalResponseStatus;
+use crate::strategic::responses::strategic_response_status::StrategicResponseStatus;
+use crate::supervisor::responses::supervisor_response_status::SupervisorResponseStatus;
+use crate::tactical::responses::tactical_response_status::TacticalResponseStatus;
 
 // best to simply comment all of this out
 // Where should these be found? I think that the
@@ -147,8 +146,8 @@ struct ApiOperational {
 }
 
 // TODO [ ]
-// Delete this type! These kind of things should always be found in the `conversions`
-// crate and not as a stray something in here.
+// Delete this type! These kind of things should always be found in the
+// `conversions` crate and not as a stray something in here.
 // Should you delete this thing?
 // Yes
 

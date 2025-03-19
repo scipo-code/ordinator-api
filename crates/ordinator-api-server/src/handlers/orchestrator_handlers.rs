@@ -1,26 +1,31 @@
-use std::sync::{Arc, Mutex};
-use std::{collections::HashMap, fs::File, io::Read};
+use std::collections::HashMap;
+use std::fs::File;
+use std::io::Read;
+use std::sync::Arc;
+use std::sync::Mutex;
 
-use actix_web::{HttpResponse, web};
+use actix_web::HttpResponse;
+use actix_web::web;
 use anyhow::Context;
 use data_processing::excel_dumps::create_excel_dump;
 use shared_types::Asset;
+use shared_types::SystemResponses;
+use shared_types::agents::operational::OperationalRequest;
+use shared_types::agents::operational::OperationalRequestMessage;
+use shared_types::agents::operational::OperationalResponse;
+use shared_types::agents::operational::OperationalResponseMessage;
 use shared_types::agents::operational::requests::operational_request_status::OperationalStatusRequest;
-use shared_types::agents::operational::{
-    OperationalRequest, OperationalRequestMessage, OperationalResponse, OperationalResponseMessage,
-};
-use shared_types::agents::supervisor::{SupervisorRequest, SupervisorResponse};
-use shared_types::scheduling_environment::{
-    time_environment::day::Day,
-    work_order::{WorkOrderNumber, operation::ActivityNumber},
-    worker_environment::resources::Id,
-};
-use shared_types::{
-    SystemResponses,
-    agents::tactical::{TacticalRequest, TacticalResponse},
-    orchestrator::OrchestratorRequest,
-};
-use tracing::{Level, event};
+use shared_types::agents::supervisor::SupervisorRequest;
+use shared_types::agents::supervisor::SupervisorResponse;
+use shared_types::agents::tactical::TacticalRequest;
+use shared_types::agents::tactical::TacticalResponse;
+use shared_types::orchestrator::OrchestratorRequest;
+use shared_types::scheduling_environment::time_environment::day::Day;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
+use shared_types::scheduling_environment::worker_environment::resources::Id;
+use tracing::Level;
+use tracing::event;
 
 use crate::agents::orchestrator::Orchestrator;
 
@@ -45,14 +50,6 @@ pub async fn scheduler_asset_names<'a>(
     orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
 ) -> Result<HttpResponse, actix_web::Error> {
     let asset_names = Asset::convert_to_asset_names();
-
-    struct Data<'a> {
-        one: &'a str,
-    }
-
-    return Data {
-        one: "Hello".to_string(),
-    }
 
     let http_response = HttpResponse::Ok().json(asset_names);
 

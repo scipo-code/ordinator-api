@@ -1,8 +1,8 @@
-use chrono::{NaiveTime, TimeDelta};
-use shared_types::{
-    agents::operational::{responses::operational_response_scheduling::EventType, TimeInterval},
-    scheduling_environment::work_order::WorkOrderActivity,
-};
+use chrono::NaiveTime;
+use chrono::TimeDelta;
+use shared_types::agents::operational::TimeInterval;
+use shared_types::agents::operational::responses::operational_response_scheduling::EventType;
+use shared_types::scheduling_environment::work_order::WorkOrderActivity;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OperationalEvents {
@@ -25,6 +25,7 @@ impl OperationalEvents {
             Self::Unavailable(time_interval) => time_interval.duration(),
         }
     }
+
     pub fn start_time(&self) -> NaiveTime {
         match self {
             Self::WrenchTime((time_interval, _)) => time_interval.start,
@@ -35,6 +36,7 @@ impl OperationalEvents {
             Self::Unavailable(time_interval) => time_interval.start,
         }
     }
+
     pub fn finish_time(&self) -> NaiveTime {
         match self {
             Self::WrenchTime((time_interval, _)) => time_interval.end,

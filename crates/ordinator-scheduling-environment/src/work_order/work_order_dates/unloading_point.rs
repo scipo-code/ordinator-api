@@ -1,16 +1,17 @@
-use crate::time_environment::period::Period;
 use clap::Args;
 use rust_xlsxwriter::IntoExcelData;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
 #[derive(Default, Args, Clone, Serialize, Deserialize, Debug)]
 pub struct UnloadingPoint {
     pub string: String,
 }
-// This field simply needs to be derived when we want a period. That is the only way of implementing it in
-// a way that will scale into the future. You cannot afford not to FIX things that are in error.
+// This field simply needs to be derived when we want a period. That is the only
+// way of implementing it in a way that will scale into the future. You cannot
+// afford not to FIX things that are in error.
 impl UnloadingPoint {
-    pub fn new(string: String, periods: &[Period]) -> Self {
+    pub fn new(string: String) -> Self {
         UnloadingPoint {
             string: string.clone(),
         }

@@ -3,10 +3,11 @@ pub mod crew;
 pub mod resources;
 pub mod worker;
 
+use std::collections::HashSet;
+
 use crew::AgentEnvironment;
 use serde::Deserialize;
 use serde::Serialize;
-use std::collections::HashSet;
 use strum::IntoEnumIterator;
 
 use self::resources::Resources;

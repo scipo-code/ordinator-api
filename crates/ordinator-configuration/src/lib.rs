@@ -6,33 +6,32 @@ pub mod time_input;
 pub mod toml_baptiste;
 mod user_interface;
 
-use anyhow::Result;
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 use actor_specifications::ActorSpecifications;
 use actor_specifications::OperationalOptionsConfig;
 use actor_specifications::StrategicOptionsConfig;
 use actor_specifications::SupervisorOptionsConfig;
 use actor_specifications::TacticalOptionsConfig;
-use ordinator_scheduling_environment::Asset;
-
+use anyhow::Result;
 use material::MaterialToPeriod;
-use throttling::Throttling;
-use toml_baptiste::BaptisteToml;
-
+use ordinator_scheduling_environment::Asset;
+use ordinator_scheduling_environment::SystemConfigurationTrait;
 use ordinator_scheduling_environment::work_order::WorkOrderConfigurations;
+use throttling::Throttling;
 use time_input::TimeInput;
+use toml_baptiste::BaptisteToml;
 use user_interface::EventColors;
 
 // QUESTION
 // How should this be handled?
-// They should be handled by created by handling a `From<<Actor>OptionConfig> for <Actor>Config`
-// in the `ordinator-actors` crate!
+// They should be handled by created by handling a `From<<Actor>OptionConfig>
+// for <Actor>Config` in the `ordinator-actors` crate!
 
-/// This struct is used to load in all configuraions centrally into the Orchestrator.
-/// The `Orchestrator` then uses dependency injection to provide the actors with the
-/// correct `Configurations`.
-///
+/// This struct is used to load in all configuraions centrally into the
+/// Orchestrator. The `Orchestrator` then uses dependency injection to provide
+/// the actors with the correct `Configurations`.
 // There is something that you do not understand here. Where should
 // all these configurations go?
 // WARN
@@ -55,6 +54,8 @@ pub struct SystemConfigurations {
     pub material_to_period: MaterialToPeriod,
 }
 
+impl SystemConfigurationTrait for SystemConfigurations {}
+
 // Okay the `Option`s are looking okay, the options
 // are related to the functioning of the `Actor`s and
 // the `Configuration`s are related to how the data in
@@ -75,7 +76,8 @@ struct ActorConfigurations {
 }
 
 // FIX [ ]
-// This is a good initial approach but remember to make it better if you have to revisit it.
+// This is a good initial approach but remember to make it better if you have to
+// revisit it.
 impl SystemConfigurations {
     pub fn read_all_configs() -> Result<SystemConfigurations> {
         let work_order_configurations: WorkOrderConfigurations =
@@ -177,7 +179,8 @@ impl SystemConfigurations {
         // TODO [ ]
         // Integrate this if you have issues with data initialization
         // let file_string = dotenvy::var("ORDINATOR_INPUT")
-        //     .expect("The ORDINATOR_INPUT environment variable have to be set");
+        //     .expect("The ORDINATOR_INPUT environment variable have to be
+        // set");
 
         // let mut file_path = PathBuf::new();
 
@@ -189,11 +192,11 @@ impl SystemConfigurations {
 
 #[cfg(test)]
 mod tests {
-    use super::SystemConfigurations;
     use chrono::NaiveTime;
-
-    use crate::ActorSpecifications;
     use ordinator_scheduling_environment::worker_environment::resources::Resources;
+
+    use super::SystemConfigurations;
+    use crate::ActorSpecifications;
 
     #[test]
     fn test_read_config() {

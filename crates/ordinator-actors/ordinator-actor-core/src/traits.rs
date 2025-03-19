@@ -1,15 +1,14 @@
-use anyhow::Context;
-use anyhow::Result;
-
 use std::fmt::Debug;
 
+use anyhow::Context;
+use anyhow::Result;
 use ordinator_orchestrator_actor_traits::Solution;
 
 /// This trait will be crucial for making this whole thing work correctly.
 /// I think that the best approach will be to make only a single message
-/// and then have that as an enum. Then we should have the 'update_shared_solution'
-/// as a function to make sure that if the state of the other agents have
-/// changed that we update that correctly in the solution.
+/// and then have that as an enum. Then we should have the
+/// 'update_shared_solution' as a function to make sure that if the state of the
+/// other agents have changed that we update that correctly in the solution.
 ///
 /// QUESTION:
 /// Should you make this function on the correct kind of

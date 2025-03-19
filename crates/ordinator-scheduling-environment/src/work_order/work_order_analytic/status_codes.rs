@@ -1,11 +1,15 @@
-use std::fmt::{self, Display};
+use std::fmt::Display;
+use std::fmt::{self};
 
-use clap::{Args, ValueEnum};
+use clap::Args;
+use clap::ValueEnum;
 use regex::Regex;
 use rust_xlsxwriter::IntoExcelData;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
-use crate::{time_environment::period::Period, work_order::WorkOrderNumber};
+use crate::time_environment::period::Period;
+use crate::work_order::WorkOrderNumber;
 
 // pub material_status: MaterialStatus,
 // #[arg(long)]
@@ -366,6 +370,7 @@ impl SystemStatusCodesBuilder {
             gmco: self.0.gmco,
         }
     }
+
     pub fn rel(mut self, rel: bool) -> Self {
         self.0.rel = rel;
         self
@@ -426,7 +431,8 @@ impl SystemStatusCodesBuilder {
 
 #[derive(Args, Clone, Serialize, Deserialize, Debug)]
 pub struct StrategicUserStatusCodes {
-    /// Provide the work order number for the work order that you want to change.
+    /// Provide the work order number for the work order that you want to
+    /// change.
     pub work_order_numbers: Vec<WorkOrderNumber>,
     #[arg(long, value_parser = clap::value_parser!(bool))]
     pub sch: Option<bool>,

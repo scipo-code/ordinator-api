@@ -1,10 +1,15 @@
-use chrono::NaiveTime;
-use serde::{Deserialize, Deserializer, Serialize, de};
-
-use crate::{time_environment::TimeInterval, worker_environment::worker::Worker};
 use std::collections::HashMap;
 
-use super::{availability::Availability, resources::Id};
+use chrono::NaiveTime;
+use serde::Deserialize;
+use serde::Deserializer;
+use serde::Serialize;
+use serde::de;
+
+use super::availability::Availability;
+use super::resources::Id;
+use crate::time_environment::TimeInterval;
+use crate::worker_environment::worker::Worker;
 
 // TODO [ ]
 // This should go to the `SchedulingEnvironment::worker_environment`

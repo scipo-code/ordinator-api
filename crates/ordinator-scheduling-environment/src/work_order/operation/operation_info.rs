@@ -14,7 +14,8 @@ pub struct OperationInfo {
     pub operating_time: Work,
 }
 
-// Good! The fields should be optional in the OperationInfoBuilder, not the OperationInfo
+// Good! The fields should be optional in the OperationInfoBuilder, not the
+// OperationInfo
 pub struct OperationInfoBuilder {
     number: Option<NumberOfPeople>,
     work_remaining: Option<Work>,
@@ -52,18 +53,22 @@ impl OperationInfoBuilder {
         self.number = Some(number);
         self
     }
+
     pub fn work_remaining(mut self, work_remaining: f64) -> Self {
         self.work_remaining = Some(Work::from(work_remaining));
         self
     }
+
     pub fn work_actual(mut self, work_actual: f64) -> Self {
         self.work_actual = Some(Work::from(work_actual));
         self
     }
+
     pub fn work(mut self, work: f64) -> Self {
         self.work = Some(Work::from(work));
         self
     }
+
     pub fn operating_time(mut self, operating_time: f64) -> Self {
         self.operating_time = Some(Work::from(operating_time));
         self

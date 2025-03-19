@@ -1,7 +1,8 @@
 // TODO [ ]
 // Import this if necessary
 // use rgb::Rgb;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
 // This should be a configuration type not a backend type!
 #[derive(Serialize, Deserialize, Debug)]

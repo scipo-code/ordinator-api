@@ -1,31 +1,33 @@
 pub mod operation_analytic;
 pub mod operation_info;
 
-use anyhow::Context;
-use chrono::{DateTime, Utc};
-use colored::Colorize;
-use operation_analytic::OperationAnalyticBuilder;
-use operation_info::OperationInfoBuilder;
-use rust_decimal::prelude::*;
-use rust_xlsxwriter::IntoExcelData;
-use serde::de::{self, MapAccess, Visitor};
-use serde::ser::SerializeStruct;
-use serde::{Deserialize, Serialize};
-
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::num::ParseFloatError;
 use std::str::FromStr;
 
-use crate::time_environment::day::Day;
-use crate::time_environment::period::Period;
-use crate::worker_environment::resources::Resources;
+use anyhow::Context;
+use chrono::DateTime;
+use chrono::Utc;
+use colored::Colorize;
+use operation_analytic::OperationAnalyticBuilder;
+use operation_info::OperationInfoBuilder;
+use rust_decimal::prelude::*;
+use rust_xlsxwriter::IntoExcelData;
+use serde::Deserialize;
+use serde::Serialize;
+use serde::de::MapAccess;
+use serde::de::Visitor;
+use serde::de::{self};
+use serde::ser::SerializeStruct;
 
 use self::operation_analytic::OperationAnalytic;
 use self::operation_info::OperationInfo;
-
 use super::ActivityRelation;
 use super::work_order_dates::unloading_point::UnloadingPoint;
+use crate::time_environment::day::Day;
+use crate::time_environment::period::Period;
+use crate::worker_environment::resources::Resources;
 
 pub type ActivityNumber = u64;
 
@@ -64,9 +66,11 @@ impl Operation {
             operation_dates: None,
         }
     }
+
     pub fn possible_start(&self) -> Day {
         todo!("Derive these based on self")
     }
+
     pub fn target_finish(&self) -> Day {
         todo!("Derive these based on self")
     }
@@ -168,6 +172,7 @@ impl OperationBuilder {
         self.unloading_point = Some(unloading_point);
         self
     }
+
     pub fn operation_info<F>(mut self, f: F) -> Self
     where
         F: FnOnce(OperationInfoBuilder) -> OperationInfoBuilder,
@@ -179,6 +184,7 @@ impl OperationBuilder {
         self.operation_info = Some(operation_info_builder.build());
         self
     }
+
     pub fn operation_analytic<F>(mut self, f: F) -> Self
     where
         F: FnOnce(OperationAnalyticBuilder) -> OperationAnalyticBuilder,
@@ -189,6 +195,7 @@ impl OperationBuilder {
         self.operation_analytic = Some(operation_analytic_builder.build());
         self
     }
+
     pub fn operation_dates<F>(mut self, f: F) -> Self
     where
         F: FnOnce(OperationDatesBuilder) -> OperationDatesBuilder,
@@ -452,10 +459,12 @@ impl OperationDatesBuilder {
             earliest_finish_datetime: self.earliest_finish_datetime.unwrap(),
         }
     }
+
     pub fn earliest_start_datetime(mut self, earliest_start_datetime: DateTime<Utc>) -> Self {
         self.earliest_start_datetime = Some(earliest_start_datetime);
         self
     }
+
     pub fn earliest_finish_datetime(mut self, earliest_finish_datetime: DateTime<Utc>) -> Self {
         self.earliest_finish_datetime = Some(earliest_finish_datetime);
         self

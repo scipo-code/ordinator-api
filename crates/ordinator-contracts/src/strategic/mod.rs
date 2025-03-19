@@ -1,11 +1,17 @@
 pub mod requests;
 pub mod responses;
 
+use std::fmt::{self};
+
 use anyhow::Result;
 use clap::Subcommand;
-use std::fmt::{self};
+use ordinator_scheduling_environment::Asset;
+use ordinator_scheduling_environment::work_order::work_order_analytic::status_codes::StrategicUserStatusCodes;
+use serde::Deserialize;
+use serde::Serialize;
 use strategic_request_periods_message::StrategicTimeRequest;
-use strategic_request_resources_message::{ManualResource, StrategicRequestResource};
+use strategic_request_resources_message::ManualResource;
+use strategic_request_resources_message::StrategicRequestResource;
 use strategic_request_scheduling_message::StrategicRequestScheduling;
 use strategic_request_status_message::StrategicStatusMessage;
 use strategic_response_periods::StrategicResponsePeriods;
@@ -13,15 +19,9 @@ use strategic_response_resources::StrategicResponseResources;
 use strategic_response_scheduling::StrategicResponseScheduling;
 use strategic_response_status::StrategicResponseStatus;
 
-use serde::{Deserialize, Serialize};
-
-use ordinator_scheduling_environment::Asset;
-use ordinator_scheduling_environment::work_order::work_order_analytic::status_codes::StrategicUserStatusCodes;
-
-use crate::orchestrator::WorkOrdersStatus;
-
 use self::requests::*;
 use self::responses::*;
+use crate::orchestrator::WorkOrdersStatus;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "strategic_message_type")]
@@ -141,10 +141,12 @@ impl TimePeriod {
 // impl Default for StrategicInfeasibleCases {
 //     fn default() -> Self {
 //         StrategicInfeasibleCases {
-//             respect_awsc: ConstraintState::Infeasible("Infeasible".to_string()),
-//             respect_unloading: ConstraintState::Infeasible("Infeasible".to_string()),
-//             respect_sch: ConstraintState::Infeasible("Infeasible".to_string()),
-//             respect_aggregated_load: ConstraintState::Infeasible("Infeasible".to_string()),
-//         }
+//             respect_awsc:
+// ConstraintState::Infeasible("Infeasible".to_string()),
+// respect_unloading: ConstraintState::Infeasible("Infeasible".to_string()),
+//             respect_sch:
+// ConstraintState::Infeasible("Infeasible".to_string()),
+// respect_aggregated_load:
+// ConstraintState::Infeasible("Infeasible".to_string()),         }
 //     }
 // }

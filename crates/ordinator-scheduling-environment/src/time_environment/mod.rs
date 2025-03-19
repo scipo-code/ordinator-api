@@ -1,5 +1,12 @@
-use chrono::{DateTime, Days, NaiveTime, TimeDelta, Utc};
-use serde::{Deserialize, Deserializer, Serialize, de};
+use chrono::DateTime;
+use chrono::Days;
+use chrono::NaiveTime;
+use chrono::TimeDelta;
+use chrono::Utc;
+use serde::Deserialize;
+use serde::Deserializer;
+use serde::Serialize;
+use serde::de;
 
 use self::day::Day;
 use self::period::Period;
@@ -7,8 +14,8 @@ use self::period::Period;
 pub mod day;
 pub mod period;
 
-// WARN: Make the fields private. It does not make sense to change these individually.
-// FIX
+// WARN: Make the fields private. It does not make sense to change these
+// individually. FIX
 // All Periods here refer to the same thing. You should use references
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct TimeEnvironment {
