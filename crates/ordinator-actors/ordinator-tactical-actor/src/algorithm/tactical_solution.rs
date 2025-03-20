@@ -1,22 +1,27 @@
 use std::fmt::Display;
 
 use ordinator_scheduling_environment::time_environment::day::Day;
-use ordinator_scheduling_environment::work_order::operation::{
-    ActivityNumber, Work, operation_info::NumberOfPeople,
-};
-use ordinator_scheduling_environment::work_order::{WorkOrderActivity, WorkOrderNumber};
+use ordinator_scheduling_environment::work_order::WorkOrderActivity;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
+use ordinator_scheduling_environment::work_order::operation::Work;
+use ordinator_scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Clone)]
-pub struct TacticalObjectiveValue {
+pub struct TacticalObjectiveValue
+{
     pub objective_value: u64,
     pub urgency: (u64, u64),
     pub resource_penalty: (u64, u64),
 }
 
-impl Default for TacticalObjectiveValue {
-    fn default() -> Self {
+impl Default for TacticalObjectiveValue
+{
+    fn default() -> Self
+    {
         Self {
             objective_value: u64::MAX,
             urgency: (u64::MAX, u64::MAX),
@@ -24,8 +29,10 @@ impl Default for TacticalObjectiveValue {
         }
     }
 }
-impl TacticalObjectiveValue {
-    pub fn new(objective_value: u64, urgency: (u64, u64), resource_penalty: (u64, u64)) -> Self {
+impl TacticalObjectiveValue
+{
+    pub fn new(objective_value: u64, urgency: (u64, u64), resource_penalty: (u64, u64)) -> Self
+    {
         Self {
             objective_value,
             urgency,
@@ -33,24 +40,28 @@ impl TacticalObjectiveValue {
         }
     }
 
-    pub fn aggregate_objectives(&mut self) {
+    pub fn aggregate_objectives(&mut self)
+    {
         self.objective_value =
             self.urgency.0 * self.urgency.1 + self.resource_penalty.0 * self.resource_penalty.1;
     }
 }
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
-pub struct TacticalSolution {
+pub struct TacticalSolution
+{
     pub objective_value: TacticalObjectiveValue,
     pub tactical_work_orders: TacticalScheduledWorkOrders,
     pub tactical_loadings: TacticalResources,
 }
 // This should be put into the `algorithm.rs` file
-impl Solution for TacticalSolution {
+impl Solution for TacticalSolution
+{
     type ObjectiveValue = TacticalObjectiveValue;
     type Parameters = TacticalParameters;
 
-    fn new(parameters: &Self::Parameters) -> Self {
+    fn new(parameters: &Self::Parameters) -> Self
+    {
         let tactical_loadings_inner: HashMap<Resources, Days> = parameters
             .tactical_capacity
             .resources
@@ -78,22 +89,27 @@ impl Solution for TacticalSolution {
         }
     }
 
-    fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue) {
+    fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue)
+    {
         self.objective_value = other_objective_value;
     }
 }
 
-impl TacticalSolution {
-    pub fn release_from_tactical_solution(&mut self, work_order_number: &WorkOrderNumber) {
+impl TacticalSolution
+{
+    pub fn release_from_tactical_solution(&mut self, work_order_number: &WorkOrderNumber)
+    {
         self.tactical_work_orders
             .0
             .insert(*work_order_number, WhereIsWorkOrder::Strategic);
     }
+
     pub fn tactical_scheduled_days(
         &self,
         work_order_number: &WorkOrderNumber,
         activity_number: &ActivityNumber,
-    ) -> Result<&Vec<(Day, Work)>> {
+    ) -> Result<&Vec<(Day, Work)>>
+    {
         let tactical_day = &self
             .tactical_work_orders
             .0
@@ -128,7 +144,8 @@ impl TacticalSolution {
         &mut self,
         work_order_number: WorkOrderNumber,
         tactical_scheduled_operations: TacticalScheduledOperations,
-    ) {
+    )
+    {
         self.tactical_work_orders.0.insert(
             work_order_number,
             WhereIsWorkOrder::Tactical(tactical_scheduled_operations),
@@ -140,12 +157,15 @@ pub struct TacticalScheduledWorkOrders(
     pub HashMap<WorkOrderNumber, WhereIsWorkOrder<TacticalScheduledOperations>>,
 );
 
-impl WhereIsWorkOrder<TacticalScheduledOperations> {
-    pub fn is_tactical(&self) -> bool {
+impl WhereIsWorkOrder<TacticalScheduledOperations>
+{
+    pub fn is_tactical(&self) -> bool
+    {
         matches!(self, WhereIsWorkOrder::Tactical(_))
     }
 
-    pub fn tactical_operations(&self) -> Result<&TacticalScheduledOperations> {
+    pub fn tactical_operations(&self) -> Result<&TacticalScheduledOperations>
+    {
         match self {
             WhereIsWorkOrder::Strategic => bail!(
                 "A call to extract the {} was made but received {}",
@@ -162,8 +182,10 @@ impl WhereIsWorkOrder<TacticalScheduledOperations> {
     }
 }
 
-impl TacticalScheduledWorkOrders {
-    pub fn scheduled_work_orders(&self) -> usize {
+impl TacticalScheduledWorkOrders
+{
+    pub fn scheduled_work_orders(&self) -> usize
+    {
         self.0
             .iter()
             .filter(|(_won, sch_wo)| sch_wo.is_tactical())
@@ -174,18 +196,22 @@ impl TacticalScheduledWorkOrders {
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct TacticalScheduledOperations(pub HashMap<ActivityNumber, OperationSolution>);
 
-impl TacticalScheduledOperations {
+impl TacticalScheduledOperations
+{
     fn insert_operation_solution(
         &mut self,
         activity: ActivityNumber,
         operation_solution: OperationSolution,
-    ) {
+    )
+    {
         self.0.insert(activity, operation_solution);
     }
 }
 
-impl Display for TacticalScheduledOperations {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for TacticalScheduledOperations
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
         let mut tactical_operations = self.0.iter().collect::<Vec<_>>();
         tactical_operations
             .sort_by(|a, b| a.1.work_order_activity.1.cmp(&b.1.work_order_activity.1));
@@ -203,20 +229,24 @@ impl Display for TacticalScheduledOperations {
 pub struct TacticalSolutionBuilder(TacticalSolution);
 
 #[allow(dead_code)]
-impl TacticalSolutionBuilder {
-    pub fn new() -> Self {
+impl TacticalSolutionBuilder
+{
+    pub fn new() -> Self
+    {
         Self::default()
     }
 
     pub fn with_tactical_days(
         mut self,
         tactical_days: HashMap<WorkOrderNumber, WhereIsWorkOrder<TacticalScheduledOperations>>,
-    ) -> Self {
+    ) -> Self
+    {
         self.0.tactical_work_orders.0 = tactical_days;
         self
     }
 
-    pub fn build(self) -> TacticalSolution {
+    pub fn build(self) -> TacticalSolution
+    {
         TacticalSolution {
             objective_value: self.0.objective_value,
             tactical_work_orders: self.0.tactical_work_orders,
@@ -225,7 +255,8 @@ impl TacticalSolutionBuilder {
     }
 }
 #[derive(Hash, PartialEq, PartialOrd, Ord, Eq, Clone, Debug, Serialize)]
-pub struct OperationSolution {
+pub struct OperationSolution
+{
     pub scheduled: Vec<(Day, Work)>,
     pub resource: Resources,
     pub number: NumberOfPeople,
@@ -233,7 +264,8 @@ pub struct OperationSolution {
     pub work_order_activity: WorkOrderActivity,
 }
 
-impl OperationSolution {
+impl OperationSolution
+{
     pub fn new(
         scheduled: Vec<(Day, Work)>,
         resource: Resources,
@@ -241,7 +273,8 @@ impl OperationSolution {
         work_remaining: Work,
         work_order_number: WorkOrderNumber,
         activity_number: ActivityNumber,
-    ) -> OperationSolution {
+    ) -> OperationSolution
+    {
         OperationSolution {
             scheduled,
             resource,
@@ -252,8 +285,10 @@ impl OperationSolution {
     }
 }
 
-impl Display for OperationSolution {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for OperationSolution
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
         write!(f, "{:?}", self.work_order_activity)?;
         for scheduled in &self.scheduled {
             write!(f, "{} on {}", scheduled.1, scheduled.0)?

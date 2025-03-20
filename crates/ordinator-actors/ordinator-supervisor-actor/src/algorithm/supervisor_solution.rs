@@ -1,25 +1,28 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
 
 use shared_types::scheduling_environment::work_order::WorkOrderActivity;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use shared_types::scheduling_environment::worker_environment::resources::Id;
 
+use super::delegate::Delegate;
 use crate::agents::OperationalSolution;
 use crate::agents::SupervisorSolution;
 use crate::agents::operational_agent::algorithm::operational_solution::MarginalFitness;
 
-use super::delegate::Delegate;
-
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
-pub struct SupervisorSolution {
+pub struct SupervisorSolution
+{
     pub objective_value: SupervisorObjectiveValue,
     operational_state_machine: HashMap<(Id, WorkOrderActivity), Delegate>,
 }
-impl Solution for SupervisorSolution {
+impl Solution for SupervisorSolution
+{
     type ObjectiveValue = SupervisorObjectiveValue;
     type Parameters = SupervisorParameters;
 
-    fn new(parameters: &Self::Parameters) -> Self {
+    fn new(parameters: &Self::Parameters) -> Self
+    {
         // The SupervisorParameters should have knowledge of the agents.
 
         let operational_state_machine: HashMap<(Id, WorkOrderActivity), Delegate> = parameters
@@ -44,29 +47,34 @@ impl Solution for SupervisorSolution {
         }
     }
 
-    fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue) {
+    fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue)
+    {
         self.objective_value = other_objective_value;
     }
 }
 /// The SupervisorSolution is a state machine that keeps track of all the
 /// states of the operational agents. It is a solution representation of
 /// a **iterative combinatorial auction algorithms**.
-impl SupervisorSolution {
-    pub fn turn_work_order_into_delegate_assess(&mut self, work_order_number: WorkOrderNumber) {
+impl SupervisorSolution
+{
+    pub fn turn_work_order_into_delegate_assess(&mut self, work_order_number: WorkOrderNumber)
+    {
         self.operational_state_machine
             .iter_mut()
             .filter(|(key, _)| key.1.0 == work_order_number)
             .for_each(|(_, delegate)| *delegate = Delegate::Assess)
     }
 
-    pub fn count_unique_woa(&self) -> usize {
+    pub fn count_unique_woa(&self) -> usize
+    {
         self.operational_state_machine
             .keys()
             .map(|(_, woa)| woa)
             .len()
     }
 
-    pub fn number_of_assigned_work_orders(&self) -> HashSet<WorkOrderActivity> {
+    pub fn number_of_assigned_work_orders(&self) -> HashSet<WorkOrderActivity>
+    {
         self.operational_state_machine
             .iter()
             .filter(|(_, val)| val.is_assign())
@@ -78,7 +86,8 @@ impl SupervisorSolution {
         &self,
         work_order_activity: &WorkOrderActivity,
         operational_solutions: &'a HashMap<Id, OperationalSolution>,
-    ) -> Vec<(Id, Delegate, &'a MarginalFitness)> {
+    ) -> Vec<(Id, Delegate, &'a MarginalFitness)>
+    {
         self.operational_state_machine
             .iter()
             .filter(|(id_woa, _)| id_woa.1 == *work_order_activity)
@@ -92,7 +101,9 @@ impl SupervisorSolution {
                         .scheduled_work_order_activities
                         .iter()
                         .find(|woa_ass| woa_ass.0 == id_woa.1)
-                        .map(|woa_ass| &woa_ass.1.marginal_fitness), // What should be done if the Agent does not yet have a
+                        .map(|woa_ass| &woa_ass.1.marginal_fitness), /* What should be done if
+                                                                      * the Agent does not yet
+                                                                      * have a */
                 )
             })
             .filter(|id_del_opt_mar_fit| id_del_opt_mar_fit.2.is_some())
@@ -108,11 +119,13 @@ impl SupervisorSolution {
 
     pub(crate) fn get_iter(
         &self,
-    ) -> std::collections::hash_map::Iter<(Id, WorkOrderActivity), Delegate> {
+    ) -> std::collections::hash_map::Iter<(Id, WorkOrderActivity), Delegate>
+    {
         self.operational_state_machine.iter()
     }
 
-    pub(crate) fn get_assigned_and_unassigned_work_orders(&self) -> Vec<WorkOrderNumber> {
+    pub(crate) fn get_assigned_and_unassigned_work_orders(&self) -> Vec<WorkOrderNumber>
+    {
         self.operational_state_machine
             .iter()
             .filter(|(_, delegate)| {
@@ -122,7 +135,8 @@ impl SupervisorSolution {
             .collect()
     }
 
-    pub(crate) fn get_work_order_activities(&self) -> HashSet<WorkOrderActivity> {
+    pub(crate) fn get_work_order_activities(&self) -> HashSet<WorkOrderActivity>
+    {
         self.operational_state_machine
             .keys()
             .map(|(_, woa)| woa)
@@ -133,7 +147,8 @@ impl SupervisorSolution {
     pub fn delegates_for_agent(
         &self,
         operational_agent: &Id,
-    ) -> HashMap<WorkOrderActivity, Delegate> {
+    ) -> HashMap<WorkOrderActivity, Delegate>
+    {
         self.operational_state_machine
             .iter()
             .filter(|(id_woa, _)| &id_woa.0 == operational_agent)
@@ -141,7 +156,8 @@ impl SupervisorSolution {
             .collect()
     }
 
-    pub fn count_delegate_types(&self, operational_agent: &Id) -> (u64, u64, u64) {
+    pub fn count_delegate_types(&self, operational_agent: &Id) -> (u64, u64, u64)
+    {
         let mut count_assign = 0;
         let mut count_assess = 0;
         let mut count_unassign = 0;

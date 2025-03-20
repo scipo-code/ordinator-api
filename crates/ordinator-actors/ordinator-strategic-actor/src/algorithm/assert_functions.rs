@@ -1,23 +1,25 @@
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 
-use anyhow::{bail, ensure, Result};
+use anyhow::Result;
+use anyhow::bail;
+use anyhow::ensure;
 use priority_queue::PriorityQueue;
-use shared_types::{
-    agents::strategic::StrategicResources,
-    scheduling_environment::{
-        work_order::{operation::Work, WorkOrderNumber},
-        worker_environment::resources::Resources,
-    },
-};
+use shared_types::agents::strategic::StrategicResources;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::work_order::operation::Work;
+use shared_types::scheduling_environment::worker_environment::resources::Resources;
 use strum::IntoEnumIterator;
-use tracing::{event, Level};
-
-use crate::agents::{Algorithm, StrategicSolution};
+use tracing::Level;
+use tracing::event;
 
 use super::strategic_parameters::StrategicParameters;
+use crate::agents::Algorithm;
+use crate::agents::StrategicSolution;
 
 #[allow(dead_code)]
-pub trait StrategicAssertions {
+pub trait StrategicAssertions
+{
     fn assert_that_capacity_is_respected(
         strategic_loading: &StrategicResources,
         strategic_capacity: &StrategicResources,
@@ -32,7 +34,8 @@ impl StrategicAssertions
     fn assert_that_capacity_is_respected(
         strategic_loading: &StrategicResources,
         strategic_capacity: &StrategicResources,
-    ) -> Result<()> {
+    ) -> Result<()>
+    {
         for (period, operational_resources) in strategic_loading.0.iter() {
             for (operational_id, work) in operational_resources.iter() {
                 let capacity = strategic_capacity
@@ -59,7 +62,8 @@ impl StrategicAssertions
         Ok(())
     }
 
-    fn assert_aggregated_load(&self) -> Result<()> {
+    fn assert_aggregated_load(&self) -> Result<()>
+    {
         // let mut aggregated_strategic_load = StrategicResources::default();
         let mut aggregated_strategic_load = HashMap::new();
         for period in &self.parameters.strategic_periods {
@@ -76,8 +80,9 @@ impl StrategicAssertions
                     for resource in Resources::iter() {
                         let load: Work =
                             work_load.get(&resource).cloned().unwrap_or(Work::from(0.0));
-                        // We just need to test that the total hours are correct. We do not have to focus
-                        // on the individual resources. We can handle that in another assert function.
+                        // We just need to test that the total hours are correct. We do not have to
+                        // focus on the individual resources. We can handle
+                        // that in another assert function.
 
                         match aggregated_strategic_load.entry((period, resource)) {
                             Entry::Occupied(mut occupied_entry) => {
@@ -112,7 +117,8 @@ impl StrategicAssertions
         Ok(())
     }
 
-    fn assert_excluded_periods(&self) -> Result<()> {
+    fn assert_excluded_periods(&self) -> Result<()>
+    {
         for (work_order_number, strategic_parameter) in
             &self.parameters.strategic_work_order_parameters
         {

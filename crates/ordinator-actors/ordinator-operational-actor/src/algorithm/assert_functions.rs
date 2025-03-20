@@ -1,18 +1,26 @@
-use anyhow::{Result, ensure};
+use anyhow::Result;
+use anyhow::ensure;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 
+use super::OperationalNonProductive;
+use super::operational_parameter::OperationalParameters;
 use super::operational_solution::OperationalSolution;
 use crate::algorithm::Algorithm;
 
-use super::{OperationalNonProductive, operational_parameter::OperationalParameters};
-
-pub trait OperationalAlgorithmAsserts {
+pub trait OperationalAlgorithmAsserts
+{
     fn assert_no_operation_overlap(&self) -> Result<()>;
 }
 
-impl OperationalAlgorithmAsserts
-    for Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive>
+// TODO [ ]
+// These kind of asserts should also look at the `SharedSolution`
+impl<Ss> OperationalAlgorithmAsserts
+    for Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>
+where
+    Ss: SharedSolutionTrait,
 {
-    fn assert_no_operation_overlap(&self) -> Result<()> {
+    fn assert_no_operation_overlap(&self) -> Result<()>
+    {
         let operational_solutions = self
             .solution
             .scheduled_work_order_activities

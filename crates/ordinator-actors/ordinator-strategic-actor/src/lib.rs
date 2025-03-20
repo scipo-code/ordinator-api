@@ -3,15 +3,15 @@ pub mod display;
 pub mod message_handlers;
 
 use rand::rngs::StdRng;
-use serde::{Deserialize, Serialize};
-use shared_types::{
-    configuration::material::MaterialToPeriod,
-    scheduling_environment::work_order::WorkOrderConfigurations,
-};
+use serde::Deserialize;
+use serde::Serialize;
+use shared_types::configuration::material::MaterialToPeriod;
+use shared_types::scheduling_environment::work_order::WorkOrderConfigurations;
 
 /// *question*
 #[derive(Debug, PartialEq, Clone)]
-pub struct StrategicOptions {
+pub struct StrategicOptions
+{
     pub number_of_removed_work_order: usize,
     pub rng: StdRng,
     pub urgency_weight: u64,
@@ -20,8 +20,10 @@ pub struct StrategicOptions {
     pub work_order_configurations: WorkOrderConfigurations,
     pub material_to_period: MaterialToPeriod,
 }
-impl From<&RwLockReadGuard<SystemConfiguration>> for StrategicOptions {
-    fn from(value: &RwLockReadGuard<SystemConfiguration>) -> Self {
+impl From<&RwLockReadGuard<SystemConfiguration>> for StrategicOptions
+{
+    fn from(value: &RwLockReadGuard<SystemConfiguration>) -> Self
+    {
         let number_of_removed_work_order = self
             .actor_configurations
             .strategic_options
@@ -57,15 +59,18 @@ impl From<&RwLockReadGuard<SystemConfiguration>> for StrategicOptions {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
-pub struct StrategicObjectiveValue {
+pub struct StrategicObjectiveValue
+{
     pub objective_value: u64,
     pub urgency: (u64, u64),
     pub resource_penalty: (u64, u64),
     pub clustering_value: (u64, u64),
 }
 
-impl StrategicObjectiveValue {
-    pub fn new(strategic_options: &StrategicOptions) -> Self {
+impl StrategicObjectiveValue
+{
+    pub fn new(strategic_options: &StrategicOptions) -> Self
+    {
         Self {
             objective_value: 0,
             urgency: (strategic_options.urgency_weight, u64::MAX),
@@ -74,7 +79,8 @@ impl StrategicObjectiveValue {
         }
     }
 
-    pub fn aggregate_objectives(&mut self) {
+    pub fn aggregate_objectives(&mut self)
+    {
         self.objective_value = self.urgency.0 * self.urgency.1
             + self.resource_penalty.0 * self.resource_penalty.1
             - self.clustering_value.0 * self.clustering_value.1;
@@ -82,7 +88,14 @@ impl StrategicObjectiveValue {
 }
 
 #[cfg(test)]
-mod tests {
+mod tests
+{
+    use std::collections::HashMap;
+    use std::collections::HashSet;
+    use std::str::FromStr;
+    use std::sync::Arc;
+    use std::sync::Mutex;
+
     use algorithm::ForcedWorkOrder;
     use anyhow::Result;
     use operation::OperationBuilder;
@@ -91,18 +104,17 @@ mod tests {
     use shared_types::agents::strategic::requests::strategic_request_scheduling_message::ScheduleChange;
     use shared_types::agents::strategic::requests::strategic_request_scheduling_message::StrategicRequestScheduling;
     use shared_types::scheduling_environment::SchedulingEnvironment;
+    use shared_types::scheduling_environment::time_environment::period::Period;
+    use shared_types::scheduling_environment::work_order::operation::Operation;
     use shared_types::scheduling_environment::work_order::operation::Work;
+    use shared_types::scheduling_environment::work_order::*;
     use shared_types::scheduling_environment::worker_environment::resources::Id;
+    use shared_types::scheduling_environment::worker_environment::resources::Resources;
     use tests::algorithm::strategic_parameters::StrategicParameters;
     use tests::algorithm::strategic_parameters::WorkOrderParameter;
     use work_order_dates::unloading_point::UnloadingPoint;
 
-    use std::collections::HashMap;
-    use std::collections::HashSet;
-    use std::str::FromStr;
-    use std::sync::Arc;
-    use std::sync::Mutex;
-
+    use super::*;
     use crate::agents::Algorithm;
     use crate::agents::ArcSwapSharedSolution;
     use crate::agents::Solution;
@@ -111,16 +123,9 @@ mod tests {
     use crate::agents::traits::ObjectiveValueType;
     use crate::agents::traits::Parameters;
 
-    use super::*;
-    use shared_types::scheduling_environment::worker_environment::resources::Resources;
-
-    use shared_types::scheduling_environment::work_order::operation::Operation;
-    use shared_types::scheduling_environment::work_order::*;
-
-    use shared_types::scheduling_environment::time_environment::period::Period;
-
     #[test]
-    fn test_extract_state_to_scheduler_overview() {
+    fn test_extract_state_to_scheduler_overview()
+    {
         let mut operations: HashMap<u32, Operation> = HashMap::new();
 
         let unloading_point = UnloadingPoint::default();
@@ -160,7 +165,8 @@ mod tests {
     }
 
     #[test]
-    fn test_update_scheduler_state() -> Result<()> {
+    fn test_update_scheduler_state() -> Result<()>
+    {
         let work_order_number = WorkOrderNumber(2200002020);
         let vec_work_order_number = vec![work_order_number];
         let period_string: String = "2023-W47-48".to_string();
@@ -231,7 +237,8 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_objective_value() -> Result<()> {
+    fn test_calculate_objective_value() -> Result<()>
+    {
         let work_order_number = WorkOrderNumber(2100023841);
 
         let period = Period::from_str("2023-W49-50").unwrap();

@@ -25,7 +25,8 @@ use crate::tactical::responses::tactical_response_status::TacticalResponseStatus
 // This should be created with routes and handlers it should all go away
 // at somepoint.
 #[derive(Debug, Serialize, Deserialize)]
-pub enum OrchestratorRequest {
+pub enum OrchestratorRequest
+{
     GetWorkOrderStatus(WorkOrderNumber),
     GetWorkOrdersState(Asset),
     GetPeriods,
@@ -41,7 +42,8 @@ pub enum OrchestratorRequest {
 
 #[derive(Serialize)]
 #[allow(clippy::large_enum_variant)]
-pub enum OrchestratorResponse {
+pub enum OrchestratorResponse
+{
     AgentStatus(AgentStatusResponse),
     WorkOrderStatus(WorkOrdersStatus),
     RequestStatus(String),
@@ -52,31 +54,37 @@ pub enum OrchestratorResponse {
 }
 
 #[derive(Serialize)]
-pub struct AgentStatusResponse {
+pub struct AgentStatusResponse
+{
     pub agent_status: HashMap<Asset, AgentStatus>,
 }
 
-impl AgentStatusResponse {
-    pub fn new(agent_status: HashMap<Asset, AgentStatus>) -> Self {
+impl AgentStatusResponse
+{
+    pub fn new(agent_status: HashMap<Asset, AgentStatus>) -> Self
+    {
         Self { agent_status }
     }
 }
 
 #[derive(Serialize)]
-pub struct AgentStatus {
+pub struct AgentStatus
+{
     pub strategic_status: StrategicResponseStatus,
     pub tactical_status: TacticalResponseStatus,
     pub supervisor_statai: Vec<SupervisorResponseStatus>,
     pub operational_statai: Vec<OperationalResponseStatus>,
 }
 
-impl AgentStatus {
+impl AgentStatus
+{
     pub fn new(
         strategic_status: StrategicResponseStatus,
         tactical_status: TacticalResponseStatus,
         supervisor_status: Vec<SupervisorResponseStatus>,
         operational_status: Vec<OperationalResponseStatus>,
-    ) -> Self {
+    ) -> Self
+    {
         Self {
             strategic_status,
             tactical_status,
@@ -88,14 +96,16 @@ impl AgentStatus {
 
 #[derive(Serialize)]
 #[allow(clippy::large_enum_variant)]
-pub enum WorkOrdersStatus {
+pub enum WorkOrdersStatus
+{
     Single(WorkOrderResponse),
     SingleSolution(StrategicApiSolution),
     Multiple(HashMap<WorkOrderNumber, WorkOrderResponse>),
 }
 
 #[derive(Serialize)]
-pub struct WorkOrderResponse {
+pub struct WorkOrderResponse
+{
     earliest_period: Period,
     work_order_info: WorkOrderInfo,
     vendor: bool,
@@ -107,7 +117,8 @@ pub struct WorkOrderResponse {
 }
 
 #[derive(Serialize)]
-pub struct ApiSolution {
+pub struct ApiSolution
+{
     pub strategic: String,   //ApiStrategic,
     pub tactical: String,    //ApiTactical,
     pub supervisor: String,  //HashMap<Id, ApiSupervisor>,
@@ -115,7 +126,8 @@ pub struct ApiSolution {
 }
 
 #[derive(Serialize)]
-pub struct StrategicApiSolution {
+pub struct StrategicApiSolution
+{
     pub solution: Option<Period>,
     pub locked_in_period: Option<Period>,
     pub excluded_from_period: HashSet<Period>,
@@ -123,25 +135,29 @@ pub struct StrategicApiSolution {
 
 #[derive(Serialize)]
 #[allow(dead_code)]
-struct ApiStrategic {
+struct ApiStrategic
+{
     solution_data: String,
 }
 
 #[derive(Serialize)]
 #[allow(dead_code)]
-struct ApiTactical {
+struct ApiTactical
+{
     solution_data: String,
 }
 
 #[derive(Serialize)]
 #[allow(dead_code)]
-struct ApiSupervisor {
+struct ApiSupervisor
+{
     solution_data: String,
 }
 
 #[derive(Serialize)]
 #[allow(dead_code)]
-struct ApiOperational {
+struct ApiOperational
+{
     solution_data: String,
 }
 
@@ -152,20 +168,23 @@ struct ApiOperational {
 // Yes
 
 #[derive(Serialize)]
-pub struct OptimizedWorkOrderResponse {
+pub struct OptimizedWorkOrderResponse
+{
     scheduled_period: Period,
     locked_in_period: Option<Period>,
     excluded_periods: HashSet<Period>,
     latest_period: Period,
 }
 
-impl OptimizedWorkOrderResponse {
+impl OptimizedWorkOrderResponse
+{
     pub fn new(
         scheduled_period: Period,
         locked_in_period: Option<Period>,
         excluded_periods: HashSet<Period>,
         latest_period: Period,
-    ) -> Self {
+    ) -> Self
+    {
         Self {
             scheduled_period,
             locked_in_period,
@@ -176,12 +195,15 @@ impl OptimizedWorkOrderResponse {
 }
 
 #[derive(Clone, Debug)]
-pub struct OrchestratorMessage<T> {
+pub struct OrchestratorMessage<T>
+{
     pub message_from_orchestrator: T,
 }
 
-impl<T> OrchestratorMessage<T> {
-    pub fn new(message_from_orchestrator: T) -> Self {
+impl<T> OrchestratorMessage<T>
+{
+    pub fn new(message_from_orchestrator: T) -> Self
+    {
         Self {
             message_from_orchestrator,
         }

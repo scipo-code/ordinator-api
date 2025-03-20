@@ -5,5 +5,10 @@ edition = "2024"
 
 [dependencies]
 ordinator-orchestrator-actor-traits = {path = "../../ordinator-orchestrator-actor-traits"}
-ordinator-actor-core = {path = "../ordinator-actor-core"}
 ordinator-scheduling-environment = {path = "../../ordinator-scheduling-environment"}
+
+ordinator-actor-core = {path = "../ordinator-actor-core"}
+ordinator-strategic-actor ={ path = "../ordinator-strategic-actor"}
+ordinator-tactical-actor ={ path = "../ordinator-tactical-actor"}
+ordinator-supervisor-actor ={ path = "../ordinator-supervisor-actor"}
+ordinator-operational-actor ={ path = "../ordinator-operational-actor"}

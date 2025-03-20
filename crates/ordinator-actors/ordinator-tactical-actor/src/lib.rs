@@ -6,12 +6,15 @@ use std::sync::RwLockReadGuard;
 use ordinator_configuration::SystemConfigurations;
 use rand::rngs::StdRng;
 
-pub struct TacticalOptions {
+pub struct TacticalOptions
+{
     pub number_of_removed_work_orders: usize,
     pub rng: StdRng,
 }
-impl From<&RwLockReadGuard<SystemConfigurations>> for TacticalOptions {
-    fn from(value: &RwLockReadGuard<SystemConfigurations>) -> Self {
+impl From<&RwLockReadGuard<SystemConfigurations>> for TacticalOptions
+{
+    fn from(value: &RwLockReadGuard<SystemConfigurations>) -> Self
+    {
         TacticalOptions {
             number_of_removed_work_orders: self
                 .actor_configurations

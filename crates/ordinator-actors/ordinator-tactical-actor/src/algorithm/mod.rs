@@ -3,40 +3,37 @@ pub mod tactical_parameters;
 pub mod tactical_resources;
 pub mod tactical_solution;
 
+use std::cmp::Ordering;
+use std::sync::Arc;
+
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 // QUESTION [ ]
 // Should `chrono` be in here? I am not really sure about it!
 use chrono::TimeDelta;
-use priority_queue::PriorityQueue;
-use rand::seq::IndexedRandom;
-use tracing::Level;
-use tracing::event;
-
-use std::cmp::Ordering;
-use std::sync::Arc;
-
-use self::TacticalObjectiveValue;
-use crate::algorithm::LoadOperation;
 use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
 use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
+use priority_queue::PriorityQueue;
+use rand::seq::IndexedRandom;
+use tracing::Level;
+use tracing::event;
 
+use self::TacticalObjectiveValue;
+use self::assert_functions::TacticalAssertions;
+use self::tactical_parameters::TacticalParameters;
+use self::tactical_solution::OperationSolution;
+use super::TacticalOptions;
 use crate::agents::TacticalScheduledOperations;
 use crate::agents::TacticalSolution;
 use crate::agents::WhereIsWorkOrder;
 use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
 use crate::agents::traits::ObjectiveValueType;
 use crate::algorithm::Algorithm;
-
-use super::TacticalOptions;
-
-use self::assert_functions::TacticalAssertions;
-use self::tactical_parameters::TacticalParameters;
-use self::tactical_solution::OperationSolution;
+use crate::algorithm::LoadOperation;
 
 // FIX
 // Move the `tactical_days` into the parameters.
@@ -46,8 +43,10 @@ use self::tactical_solution::OperationSolution;
 // TODO [ ]
 // Delete all the getters and turn the TacticalResources into a array based
 // representation.
-impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>> {
-    pub fn capacity(&self, resource: &Resources, day: &Day) -> &Work {
+impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>>
+{
+    pub fn capacity(&self, resource: &Resources, day: &Day) -> &Work
+    {
         self.parameters
             .tactical_capacity
             .resources
@@ -56,7 +55,8 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
             .get(day)
     }
 
-    pub fn capacity_mut(&mut self, resource: &Resources, day: &Day) -> &mut Work {
+    pub fn capacity_mut(&mut self, resource: &Resources, day: &Day) -> &mut Work
+    {
         self.parameters
             .tactical_capacity
             .resources
@@ -65,7 +65,8 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
             .day_mut(day)
     }
 
-    pub fn loading(&self, resource: &Resources, day: &Day) -> &Work {
+    pub fn loading(&self, resource: &Resources, day: &Day) -> &Work
+    {
         self.solution
             .tactical_loadings
             .resources
@@ -74,7 +75,8 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
             .get(day)
     }
 
-    pub fn loading_mut(&mut self, resource: &Resources, day: &Day) -> &mut Work {
+    pub fn loading_mut(&mut self, resource: &Resources, day: &Day) -> &mut Work
+    {
         self.solution
             .tactical_loadings
             .resources
@@ -83,7 +85,8 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
             .day_mut(day)
     }
 
-    fn determine_aggregate_excess(&self, tactical_objective_value: &mut TacticalObjectiveValue) {
+    fn determine_aggregate_excess(&self, tactical_objective_value: &mut TacticalObjectiveValue)
+    {
         let mut objective_value_from_excess = 0;
         for resource in self.parameters.tactical_capacity.resources.keys() {
             for day in self.parameters.tactical_days.clone() {
@@ -97,7 +100,8 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
         tactical_objective_value.resource_penalty.1 = objective_value_from_excess;
     }
 
-    fn determine_tardiness(&mut self, tactical_objective_value: &mut TacticalObjectiveValue) {
+    fn determine_tardiness(&mut self, tactical_objective_value: &mut TacticalObjectiveValue)
+    {
         let mut objective_value_from_tardiness = 0;
         for (work_order_number, _solution) in self
             .solution
@@ -160,25 +164,21 @@ impl ActorBasedLargeNeighborhoodSearch
 {
     type Options = TacticalOptions;
 
-    fn incorporate_shared_state(&mut self) -> Result<bool> {
+    fn incorporate_shared_state(&mut self) -> Result<bool>
+    {
         Ok(true)
     }
 
-    fn make_atomic_pointer_swap(&self) {
+    fn make_atomic_pointer_swap(&self)
+    {
         // Performance enhancements:
-        // * COW:
-        //      #[derive(Clone)]
-        //      struct SharedSolution<'a> {
-        //          tactical: Cow<'a, TacticalSolution>,
-        //          // other fields...
-        //      }
+        // * COW: #[derive(Clone)] struct SharedSolution<'a> { tactical: Cow<'a,
+        //   TacticalSolution>, // other fields... }
         //
-        // * Reuse the old SharedSolution, cloning only the fields that are needed.
-        //     let shared_solution = Arc::new(SharedSolution {
-        //             tactical: self.solution.clone(),
-        //             // Copy over other fields without cloning
-        //             ..(**old).clone()
-        //         });
+        // * Reuse the old SharedSolution, cloning only the fields that are needed. let
+        //   shared_solution = Arc::new(SharedSolution { tactical:
+        //   self.solution.clone(), // Copy over other fields without cloning
+        //   ..(**old).clone() });
         self.arc_swap_shared_solution.0.rcu(|old| {
             let mut shared_solution = (**old).clone();
             shared_solution.tactical = self.solution.clone();
@@ -186,7 +186,8 @@ impl ActorBasedLargeNeighborhoodSearch
         });
     }
 
-    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType<Self::ObjectiveValue>> {
+    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType<Self::ObjectiveValue>>
+    {
         // TODO
         let mut tactical_objective_value =
             TacticalObjectiveValue::new(0, (1, u64::MAX), (1000000000, u64::MAX));
@@ -208,7 +209,8 @@ impl ActorBasedLargeNeighborhoodSearch
         }
     }
 
-    fn schedule(&mut self) -> Result<()> {
+    fn schedule(&mut self) -> Result<()>
+    {
         self.asset_that_loading_matches_scheduled()
             .with_context(|| format!("TESTING_ASSERTION on line: {}", line!()))?;
         for (work_order_number, solution) in &self.solution.tactical_work_orders.0 {
@@ -235,8 +237,8 @@ impl ActorBasedLargeNeighborhoodSearch
         };
 
         let mut counter = 0;
-        // The issue is that the code here is running a lot of iterations. What should we
-        // do about this? I am not really sure! I thi
+        // The issue is that the code here is running a lot of iterations. What should
+        // we do about this? I am not really sure! I thi
         'back_to_loop_state_handle: loop {
             counter += 1;
 
@@ -409,7 +411,9 @@ impl ActorBasedLargeNeighborhoodSearch
         }
         Ok(())
     }
-    fn unschedule(&mut self) -> Result<()> {
+
+    fn unschedule(&mut self) -> Result<()>
+    {
         let work_order_numbers: Vec<WorkOrderNumber> = self
             .solution
             .tactical_work_orders
@@ -437,18 +441,21 @@ impl ActorBasedLargeNeighborhoodSearch
     }
 }
 
-enum LoopState {
+enum LoopState
+{
     Unscheduled,
     Scheduled,
     ReleasedFromTactical,
 }
 
-impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>> {
+impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>>
+{
     fn update_loadings(
         &mut self,
         operation_solutions: &TacticalScheduledOperations,
         load_operation: LoadOperation,
-    ) -> Result<()> {
+    ) -> Result<()>
+    {
         for operation in operation_solutions.0.values() {
             let resource = &operation.resource;
             for loadings in &operation.scheduled {
@@ -469,7 +476,8 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
     pub fn unschedule_specific_work_order(
         &mut self,
         work_order_number: WorkOrderNumber,
-    ) -> Result<()> {
+    ) -> Result<()>
+    {
         let solution = self
             .solution
             .tactical_work_orders
@@ -489,7 +497,8 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
         }
     }
 
-    fn remaining_capacity(&self, resource: &Resources, day: &Day) -> Option<Work> {
+    fn remaining_capacity(&self, resource: &Resources, day: &Day) -> Option<Work>
+    {
         let remaining_capacity = self.capacity(resource, day) - self.loading(resource, day);
 
         if remaining_capacity <= Work::from(0.0) {
@@ -503,7 +512,8 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
         remaining_capacity: Work,
         operating_time: &Work,
         mut work_remaining: Work,
-    ) -> Vec<Work> {
+    ) -> Vec<Work>
+    {
         let mut loadings = Vec::new();
 
         let first_day_load = match remaining_capacity.partial_cmp(operating_time) {
@@ -526,48 +536,49 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
 }
 
 #[allow(dead_code)]
-enum OperationDifference {
+enum OperationDifference
+{
     SameDay,
     DiffDay,
 }
 
 #[cfg(test)]
-pub mod tests {
-    use std::{collections::HashMap, str::FromStr};
+pub mod tests
+{
+    use std::collections::HashMap;
+    use std::str::FromStr;
 
     use chrono::Days;
-    use shared_types::{
-        agents::tactical::TacticalResources,
-        scheduling_environment::{
-            SchedulingEnvironment, SchedulingEnvironmentBuilder,
-            work_order::{WorkOrderNumber, operation::Work},
-            worker_environment::resources::{Id, Resources},
-        },
-    };
+    use shared_types::agents::tactical::TacticalResources;
+    use shared_types::scheduling_environment::SchedulingEnvironment;
+    use shared_types::scheduling_environment::SchedulingEnvironmentBuilder;
+    use shared_types::scheduling_environment::time_environment::period::Period;
+    use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+    use shared_types::scheduling_environment::work_order::operation::Work;
+    use shared_types::scheduling_environment::worker_environment::resources::Id;
+    use shared_types::scheduling_environment::worker_environment::resources::Resources;
     use strum::IntoEnumIterator;
 
-    use crate::{
-        agents::{
-            Algorithm, AlgorithmUtils, ArcSwapSharedSolution, Solution,
-            TacticalScheduledOperations, TacticalSolution, WhereIsWorkOrder,
-            tactical_agent::{
-                TacticalOptions,
-                algorithm::{OperationSolution, tactical_parameters::TacticalParameters},
-            },
-            traits::{ActorBasedLargeNeighborhoodSearch, Parameters},
-        },
-        orchestrator::configuration::SystemConfigurations,
-    };
-
-    use super::{
-        Day,
-        tactical_parameters::{OperationParameter, TacticalParameter},
-    };
-
-    use shared_types::scheduling_environment::time_environment::period::Period;
+    use super::Day;
+    use super::tactical_parameters::OperationParameter;
+    use super::tactical_parameters::TacticalParameter;
+    use crate::agents::Algorithm;
+    use crate::agents::AlgorithmUtils;
+    use crate::agents::ArcSwapSharedSolution;
+    use crate::agents::Solution;
+    use crate::agents::TacticalScheduledOperations;
+    use crate::agents::TacticalSolution;
+    use crate::agents::WhereIsWorkOrder;
+    use crate::agents::tactical_agent::TacticalOptions;
+    use crate::agents::tactical_agent::algorithm::OperationSolution;
+    use crate::agents::tactical_agent::algorithm::tactical_parameters::TacticalParameters;
+    use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
+    use crate::agents::traits::Parameters;
+    use crate::orchestrator::configuration::SystemConfigurations;
 
     #[test]
-    fn test_determine_load_1() {
+    fn test_determine_load_1()
+    {
         let remaining_capacity = Work::from(3.0);
         let operating_time = Work::from(5.0);
         let work_remaining = Work::from(10.0);
@@ -583,7 +594,8 @@ pub mod tests {
     }
 
     #[test]
-    fn test_determine_load_2() {
+    fn test_determine_load_2()
+    {
         let id = Id::default();
 
         let remaining_capacity = Work::from(3.0);
@@ -602,7 +614,8 @@ pub mod tests {
     }
 
     #[test]
-    fn test_work_min() {
+    fn test_work_min()
+    {
         let operating_time = Work::from(3.0);
         let work_remaining = Work::from(10.0);
 
@@ -619,7 +632,8 @@ pub mod tests {
     }
 
     #[test]
-    fn test_calculate_objective_value() {
+    fn test_calculate_objective_value()
+    {
         let work_order_number = WorkOrderNumber(2100000001);
         let activity_number = 1;
         let first_period = Period::from_str("2024-W13-14").unwrap();
@@ -660,13 +674,14 @@ pub mod tests {
 
         // TODO [ ]
         // Which Options should be inserted into this? I think that the best
-        // You should make a method on the SystemConfigurations::strategic_options(...) -> StrategicOptions
-        // TODO [ ]
+        // You should make a method on the SystemConfigurations::strategic_options(...)
+        // -> StrategicOptions TODO [ ]
         // Put the system configuration into the Orchestrator
         // TODO [ ]
         // Put the system configuration into the Agents
         // TODO [ ]
-        // Make methods on the `SystemConfiguration` to extract the required configurations.
+        // Make methods on the `SystemConfiguration` to extract the required
+        // configurations.
         let parameters = TacticalParameters::new(&id, tactical_options, &scheduling_environment);
         let solution = TacticalSolution::new(&parameters);
 
@@ -677,12 +692,13 @@ pub mod tests {
             ArcSwapSharedSolution::default().into(),
         );
 
-        // This whole thing is ugly. Remember, you should work on getting the configs into the
-        // program, not the other way around.
+        // This whole thing is ugly. Remember, you should work on getting the configs
+        // into the program, not the other way around.
 
         // FIX
-        // This does not confine to the correct interface setup of the program. You should think about this
-        // in the code. What other thing could you do here?
+        // This does not confine to the correct interface setup of the program. You
+        // should think about this in the code. What other thing could you do
+        // here?
         let operation_parameter = OperationParameter::new(work_order_number, operation);
 
         let operation_solution = OperationSolution::new(
@@ -718,7 +734,8 @@ pub mod tests {
 
     // This is ugly... I think that the best think to do here
     #[test]
-    fn test_schedule_1() {
+    fn test_schedule_1()
+    {
         let work_order_number = WorkOrderNumber(2100000001);
         let first_period = Period::from_str("2024-W13-14").unwrap();
 
@@ -806,7 +823,8 @@ pub mod tests {
     }
 
     #[test]
-    fn test_schedule_2() {
+    fn test_schedule_2()
+    {
         let work_order_number = WorkOrderNumber(2100000010);
         let activity_number = 1;
         let first_period = Period::from_str("2024-W13-14").unwrap();

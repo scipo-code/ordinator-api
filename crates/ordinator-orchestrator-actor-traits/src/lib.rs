@@ -9,7 +9,8 @@ use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
-pub trait OrchestratorNotifier: Send + Sync + 'static {
+pub trait OrchestratorNotifier: Send + Sync + 'static
+{
     fn notify_all_agents_of_work_order_change(
         &self,
         work_orders: Vec<WorkOrderNumber>,
@@ -17,7 +18,8 @@ pub trait OrchestratorNotifier: Send + Sync + 'static {
     ) -> Result<()>;
 }
 
-pub struct Communication<Req, Res> {
+pub struct Communication<Req, Res>
+{
     pub sender: Sender<Req>,
     pub receiver: Receiver<Result<Res>>,
 }
@@ -47,7 +49,8 @@ where
     pub operational: HashMap<Id, V>,
 }
 
-pub trait SharedSolutionTrait {
+pub trait SharedSolutionTrait
+{
     type Strategic;
     type Tactical;
     type Supervisor;
@@ -77,7 +80,7 @@ where
     type Key;
     type Options;
 
-    fn new(
+    fn from_source(
         id: &Id,
         options: &Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
@@ -96,7 +99,8 @@ where
     // Add methods for updating configurations.
 }
 
-pub trait Solution {
+pub trait Solution
+{
     type ObjectiveValue;
     type Parameters;
 
@@ -108,7 +112,8 @@ pub trait Solution {
     fn update_objective_value(&mut self, other_objective: Self::ObjectiveValue);
 }
 
-pub trait MessageHandler {
+pub trait MessageHandler
+{
     type Req;
     type Res;
 
@@ -139,7 +144,8 @@ where
 }
 
 #[derive(Clone)]
-pub enum ActorMessage<ActorRequest> {
+pub enum ActorMessage<ActorRequest>
+{
     State(StateLink),
     Actor(ActorRequest),
     // FIX
@@ -160,13 +166,15 @@ pub enum ActorMessage<ActorRequest> {
 /// statically typed.
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-pub enum StateLink {
+pub enum StateLink
+{
     WorkOrders(ActorSpecific),
     WorkerEnvironment,
     TimeEnvironment,
 }
 
 #[derive(Debug, Clone)]
-pub enum ActorSpecific {
+pub enum ActorSpecific
+{
     Strategic(Vec<WorkOrderNumber>),
 }

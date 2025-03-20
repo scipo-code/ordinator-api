@@ -4,18 +4,22 @@ use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use serde::Serialize;
 
 #[derive(Serialize)]
-pub enum OperationalSchedulingResponse {
+pub enum OperationalSchedulingResponse
+{
     EventList(Vec<ApiAssignmentEvents>),
 }
 
 #[derive(Serialize)]
-pub struct ApiAssignmentEvents {
+pub struct ApiAssignmentEvents
+{
     event_info: EventInfo,
     json_assignments: Vec<ApiAssignment>,
 }
 
-impl ApiAssignmentEvents {
-    pub fn new(event_info: EventInfo, json_assignments: Vec<ApiAssignment>) -> Self {
+impl ApiAssignmentEvents
+{
+    pub fn new(event_info: EventInfo, json_assignments: Vec<ApiAssignment>) -> Self
+    {
         Self {
             event_info,
             json_assignments,
@@ -24,18 +28,21 @@ impl ApiAssignmentEvents {
 }
 
 #[derive(Serialize)]
-pub struct ApiAssignment {
+pub struct ApiAssignment
+{
     event_type: EventType,
     start_date_time: DateTime<Utc>,
     finish_data_time: DateTime<Utc>,
 }
 
-impl ApiAssignment {
+impl ApiAssignment
+{
     pub fn new(
         event_type: EventType,
         start_date_time: DateTime<Utc>,
         finish_data_time: DateTime<Utc>,
-    ) -> Self {
+    ) -> Self
+    {
         Self {
             event_type,
             start_date_time,
@@ -45,12 +52,15 @@ impl ApiAssignment {
 }
 
 #[derive(Serialize)]
-pub struct EventInfo {
+pub struct EventInfo
+{
     work_order_activity: Option<WorkOrderActivity>,
 }
 
-impl EventInfo {
-    pub fn new(work_order_activity: Option<WorkOrderActivity>) -> Self {
+impl EventInfo
+{
+    pub fn new(work_order_activity: Option<WorkOrderActivity>) -> Self
+    {
         Self {
             work_order_activity,
         }
@@ -58,7 +68,8 @@ impl EventInfo {
 }
 
 #[derive(Serialize)]
-pub enum EventType {
+pub enum EventType
+{
     WrenchTime,
     Break,
     Toolbox,

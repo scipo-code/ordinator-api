@@ -17,7 +17,8 @@ use serde::Serialize;
 // should be located together. I think that is the best approach
 // here.
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ActorSpecifications {
+pub struct ActorSpecifications
+{
     pub strategic: InputStrategic,
     pub tactical: InputTactical,
     pub supervisors: Vec<InputSupervisor>,
@@ -30,8 +31,10 @@ pub struct ActorSpecifications {
     pub operational: Vec<InputOperational>,
 }
 
-impl From<ActorSpecifications> for AgentEnvironment {
-    fn from(value: ActorSpecifications) -> Self {
+impl From<ActorSpecifications> for AgentEnvironment
+{
+    fn from(value: ActorSpecifications) -> Self
+    {
         let operational = value
             .operational
             .into_iter()
@@ -66,21 +69,24 @@ impl From<ActorSpecifications> for AgentEnvironment {
     }
 }
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct InputStrategic {
+pub struct InputStrategic
+{
     pub id: String,
     pub asset: String,
     pub strategic_options_config: StrategicOptionsConfig,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct InputTactical {
+pub struct InputTactical
+{
     pub id: String,
     pub asset: String,
     pub tactical_options_config: TacticalOptionsConfig,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct InputSupervisor {
+pub struct InputSupervisor
+{
     pub id: String,
     pub resource: Option<Resources>,
     pub number_of_supervisor_periods: u64,
@@ -89,7 +95,8 @@ pub struct InputSupervisor {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct InputOperational {
+pub struct InputOperational
+{
     pub id: OperationalId,
     pub resources: Vec<Resources>,
     pub hours_per_day: f64,
@@ -101,7 +108,8 @@ pub struct InputOperational {
 /// so that the `StrategicOptions` can be loaded in to the `Agent`
 /// in the correct format.
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct StrategicOptionsConfig {
+pub struct StrategicOptionsConfig
+{
     pub number_of_removed_work_orders: usize,
     pub urgency_weight: usize,
     pub resource_penalty_weight: usize,
@@ -109,18 +117,21 @@ pub struct StrategicOptionsConfig {
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct TacticalOptionsConfig {
+pub struct TacticalOptionsConfig
+{
     pub number_of_removed_work_orders: u64,
     pub urgency: u64,
     pub resource_penalty: u64,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct SupervisorOptionsConfig {
+pub struct SupervisorOptionsConfig
+{
     pub number_of_removed_work_orders: u64,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct OperationalOptionsConfig {
+pub struct OperationalOptionsConfig
+{
     pub number_of_removed_work_orders: u64,
 }

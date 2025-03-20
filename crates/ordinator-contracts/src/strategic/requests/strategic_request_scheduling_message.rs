@@ -10,16 +10,19 @@ use crate::strategic::TimePeriod;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "scheduling_message_type")]
-pub enum StrategicRequestScheduling {
+pub enum StrategicRequestScheduling
+{
     Schedule(ScheduleChange),
     ExcludeFromPeriod(ScheduleChange),
 }
 
-impl StrategicRequestScheduling {
+impl StrategicRequestScheduling
+{
     pub fn new_single_work_order(
         work_order_number: Vec<WorkOrderNumber>,
         period_string: String,
-    ) -> Self {
+    ) -> Self
+    {
         Self::Schedule(ScheduleChange {
             work_order_number,
             period_string,
@@ -28,32 +31,38 @@ impl StrategicRequestScheduling {
 }
 
 #[derive(Args, Serialize, Deserialize, Debug, Clone)]
-pub struct ScheduleChange {
+pub struct ScheduleChange
+{
     pub work_order_number: Vec<WorkOrderNumber>,
     pub period_string: String,
 }
 
-impl ScheduleChange {
-    pub fn new(work_order_number: Vec<WorkOrderNumber>, period_string: String) -> Self {
+impl ScheduleChange
+{
+    pub fn new(work_order_number: Vec<WorkOrderNumber>, period_string: String) -> Self
+    {
         Self {
             work_order_number,
             period_string,
         }
     }
 
-    pub fn period_string(&self) -> String {
+    pub fn period_string(&self) -> String
+    {
         self.period_string.clone()
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct WorkOrderPeriodMapping {
+pub struct WorkOrderPeriodMapping
+{
     pub work_order_number: WorkOrderNumber,
     pub period_status: WorkOrderStatusInPeriod,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct WorkOrderStatusInPeriod {
+pub struct WorkOrderStatusInPeriod
+{
     pub locked_in_period: Option<TimePeriod>,
     #[serde(deserialize_with = "deserialize_period_set")]
     pub excluded_from_periods: HashSet<TimePeriod>,

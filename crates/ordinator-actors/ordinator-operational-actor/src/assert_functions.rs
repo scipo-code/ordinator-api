@@ -1,19 +1,19 @@
-use anyhow::{ensure, Result};
+use anyhow::Result;
+use anyhow::ensure;
 use chrono::TimeDelta;
 use colored::Colorize;
 
-use crate::agents::{
-    operational_agent::algorithm::{
-        operational_events::OperationalEvents, operational_solution::MarginalFitness,
-    },
-    supervisor_agent::algorithm::delegate::Delegate,
-    Algorithm, OperationalSolution,
-};
-
-use super::algorithm::{operational_parameter::OperationalParameters, OperationalNonProductive};
+use super::algorithm::OperationalNonProductive;
+use super::algorithm::operational_parameter::OperationalParameters;
+use crate::agents::Algorithm;
+use crate::agents::OperationalSolution;
+use crate::agents::operational_agent::algorithm::operational_events::OperationalEvents;
+use crate::agents::operational_agent::algorithm::operational_solution::MarginalFitness;
+use crate::agents::supervisor_agent::algorithm::delegate::Delegate;
 
 #[allow(dead_code)]
-pub trait OperationalAssertions {
+pub trait OperationalAssertions
+{
     fn assert_operational_solutions_does_not_have_delegate_unassign(&self) -> Result<()>;
     fn assert_marginal_fitness_is_correct(&self) -> Result<()>;
 }
@@ -21,7 +21,8 @@ pub trait OperationalAssertions {
 impl OperationalAssertions
     for Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive>
 {
-    fn assert_operational_solutions_does_not_have_delegate_unassign(&self) -> Result<()> {
+    fn assert_operational_solutions_does_not_have_delegate_unassign(&self) -> Result<()>
+    {
         for delegate in self
             .loaded_shared_solution
             .supervisor
@@ -34,7 +35,8 @@ impl OperationalAssertions
         Ok(())
     }
 
-    fn assert_marginal_fitness_is_correct(&self) -> Result<()> {
+    fn assert_marginal_fitness_is_correct(&self) -> Result<()>
+    {
         for assignments in self.solution.scheduled_work_order_activities.windows(3) {
             let finish_of_prev = assignments[0].1.finish_time();
             let start_of_next = assignments[2].1.start_time();

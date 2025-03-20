@@ -2,7 +2,8 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Throttling {
+pub struct Throttling
+{
     strategic: u64,
     tactical: u64,
     supervisor: u64,

@@ -18,20 +18,24 @@ use self::time_environment::TimeEnvironment;
 use self::worker_environment::WorkerEnvironment;
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct SchedulingEnvironment {
+pub struct SchedulingEnvironment
+{
     pub work_orders: WorkOrders,
     pub worker_environment: WorkerEnvironment,
     pub time_environment: TimeEnvironment,
     // material
 }
-pub struct SchedulingEnvironmentBuilder {
+pub struct SchedulingEnvironmentBuilder
+{
     work_orders: Option<WorkOrders>,
     worker_environment: Option<WorkerEnvironment>,
     time_environment: Option<TimeEnvironment>,
 }
 
-impl SchedulingEnvironment {
-    pub fn builder() -> SchedulingEnvironmentBuilder {
+impl SchedulingEnvironment
+{
+    pub fn builder() -> SchedulingEnvironmentBuilder
+    {
         SchedulingEnvironmentBuilder {
             work_orders: None,
             worker_environment: None,
@@ -40,7 +44,8 @@ impl SchedulingEnvironment {
     }
 }
 
-pub trait IntoSchedulingEnvironment {
+pub trait IntoSchedulingEnvironment
+{
     type S: SystemConfigurationTrait;
     type D: DatabaseConfigurationTrait;
 
@@ -55,8 +60,10 @@ pub trait DatabaseConfigurationTrait {}
 
 // dsafskdfsd;kfjsda;lkfjsdal;kfjs;adlkjfls;da kjf;lsdakjflsdkajfl
 // sda;kjflsadkjflsa;d kjfls;dakjfl;ksadjflk;sjk
-impl SchedulingEnvironmentBuilder {
-    pub fn build(self) -> SchedulingEnvironment {
+impl SchedulingEnvironmentBuilder
+{
+    pub fn build(self) -> SchedulingEnvironment
+    {
         SchedulingEnvironment {
             work_orders: self
                 .work_orders
@@ -66,7 +73,8 @@ impl SchedulingEnvironmentBuilder {
         }
     }
 
-    pub fn time_environment(&mut self, time_environment: TimeEnvironment) -> &mut Self {
+    pub fn time_environment(&mut self, time_environment: TimeEnvironment) -> &mut Self
+    {
         self.time_environment = Some(time_environment);
         self
     }
@@ -83,12 +91,14 @@ impl SchedulingEnvironmentBuilder {
         self
     }
 
-    pub fn worker_environment(&mut self, worker_environment: WorkerEnvironment) -> &mut Self {
+    pub fn worker_environment(&mut self, worker_environment: WorkerEnvironment) -> &mut Self
+    {
         self.worker_environment = Some(worker_environment);
         self
     }
 
-    pub fn work_orders(&mut self, work_orders: WorkOrders) -> &mut Self {
+    pub fn work_orders(&mut self, work_orders: WorkOrders) -> &mut Self
+    {
         self.work_orders = Some(work_orders);
         self
     }
@@ -106,8 +116,10 @@ impl SchedulingEnvironmentBuilder {
     }
 }
 
-impl fmt::Display for SchedulingEnvironment {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl fmt::Display for SchedulingEnvironment
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+    {
         let workers = self.worker_environment.agent_environment.operational.len();
         write!(
             f,
@@ -125,7 +137,8 @@ impl fmt::Display for SchedulingEnvironment {
     }
 }
 #[derive(PartialEq, Eq, Hash, Serialize, Deserialize, Debug, Clone, EnumIter)]
-pub enum Asset {
+pub enum Asset
+{
     DF,
     DM,
     DE,
@@ -148,13 +161,16 @@ pub enum Asset {
 }
 
 #[derive(Serialize)]
-pub struct AssetNames {
+pub struct AssetNames
+{
     value: String,
     label: String,
 }
 
-impl Display for Asset {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for Asset
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
         match self {
             Asset::DF => write!(f, "DF"),
             Asset::DM => write!(f, "DM"),
@@ -179,8 +195,10 @@ impl Display for Asset {
     }
 }
 
-impl Asset {
-    pub fn new_from_string(asset_string: &str) -> Option<Asset> {
+impl Asset
+{
+    pub fn new_from_string(asset_string: &str) -> Option<Asset>
+    {
         match asset_string {
             "DF" => Some(Asset::DF),
             "DM" => Some(Asset::DM),
@@ -203,7 +221,8 @@ impl Asset {
         }
     }
 
-    pub fn convert_to_asset_names() -> Vec<AssetNames> {
+    pub fn convert_to_asset_names() -> Vec<AssetNames>
+    {
         let mut vec = Vec::new();
         for asset in Asset::iter() {
             let asset_name = AssetNames {

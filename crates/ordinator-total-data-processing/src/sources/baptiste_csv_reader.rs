@@ -21,12 +21,15 @@ use serde::de::DeserializeOwned;
 use super::baptiste_csv_reader_merges::load_csv_data;
 use super::create_time_environment;
 
-pub struct TotalSap {
+pub struct TotalSap
+{
     data_locations: BaptisteToml,
 }
 
-impl TotalSap {
-    pub fn new(data_locations: BaptisteToml) -> Self {
+impl TotalSap
+{
+    pub fn new(data_locations: BaptisteToml) -> Self
+    {
         Self { data_locations }
     }
 }
@@ -42,7 +45,8 @@ impl TotalSap {
 // [ ]
 // TODO [ ]
 // You should make a new type to hold the data here.
-impl IntoSchedulingEnvironment for TotalSap {
+impl IntoSchedulingEnvironment for TotalSap
+{
     type D = Database;
     type S = SystemConfigurations;
 
@@ -50,7 +54,8 @@ impl IntoSchedulingEnvironment for TotalSap {
         &self,
         system_configuration: &Self::S,
         database_connection: &Self::D,
-    ) -> Result<SchedulingEnvironment> {
+    ) -> Result<SchedulingEnvironment>
+    {
         // TODO [ ]
         // You need to pass the configs
         Ok(SchedulingEnvironment::builder()
@@ -84,7 +89,8 @@ where
     Ok(container)
 }
 
-pub trait CsvType {
+pub trait CsvType
+{
     type KeyType: PartialEq + Eq + Hash;
     type Container;
 
@@ -103,29 +109,34 @@ pub type FLOCTechnicaID = u64;
 
 #[derive(Clone, Deserialize, Debug)]
 #[allow(non_snake_case, dead_code)]
-pub struct WorkCenterCsv {
+pub struct WorkCenterCsv
+{
     pub WBS_ID: WBSID,
     pub WBS_Name: String,
     pub WBS_Plant: String,
     pub WBS_Full_name: String,
 }
 
-impl CsvType for WorkCenterCsv {
+impl CsvType for WorkCenterCsv
+{
     type Container = HashMap<Self::KeyType, Self>;
     type KeyType = String;
 
-    fn get_and_clone_key(&self) -> Self::KeyType {
+    fn get_and_clone_key(&self) -> Self::KeyType
+    {
         self.WBS_ID.clone()
     }
 
-    fn make_entry(key: Self::KeyType, container: &mut Self::Container, value: Self) {
+    fn make_entry(key: Self::KeyType, container: &mut Self::Container, value: Self)
+    {
         container.insert(key, value);
     }
 }
 
 #[derive(Default, Deserialize, Debug, Clone)]
 #[allow(non_snake_case, dead_code)]
-pub struct WorkOperationsCsv {
+pub struct WorkOperationsCsv
+{
     pub OPR_Routing_Number: String,
     pub OPR_Counter: u64,
     pub OPR_WBS_ID: String,
@@ -142,15 +153,18 @@ pub struct WorkOperationsCsv {
     pub OPR_Status_ID: String,
 }
 
-impl CsvType for WorkOperationsCsv {
+impl CsvType for WorkOperationsCsv
+{
     type Container = HashMap<String, HashMap<u64, Self>>;
     type KeyType = (String, u64);
 
-    fn get_and_clone_key(&self) -> Self::KeyType {
+    fn get_and_clone_key(&self) -> Self::KeyType
+    {
         (self.OPR_Routing_Number.clone(), self.OPR_Counter)
     }
 
-    fn make_entry(key: Self::KeyType, container: &mut Self::Container, value: Self) {
+    fn make_entry(key: Self::KeyType, container: &mut Self::Container, value: Self)
+    {
         if value.OPR_WBS_ID == "0" {
             return;
         }
@@ -170,7 +184,8 @@ impl CsvType for WorkOperationsCsv {
 
 #[derive(Default, Clone, Deserialize, Debug)]
 #[allow(non_snake_case, dead_code)]
-pub struct WorkOrdersStatusCsv {
+pub struct WorkOrdersStatusCsv
+{
     pub WO_Object_Number: String,
     pub WO_Status_ID: String,
     pub WO_Status_Profile: String,
@@ -180,22 +195,26 @@ pub struct WorkOrdersStatusCsv {
     pub WO_I_Status_Message: String,
 }
 
-impl CsvType for WorkOrdersStatusCsv {
+impl CsvType for WorkOrdersStatusCsv
+{
     type Container = Vec<Self>;
     type KeyType = String;
 
-    fn get_and_clone_key(&self) -> Self::KeyType {
+    fn get_and_clone_key(&self) -> Self::KeyType
+    {
         self.WO_Object_Number.clone()
     }
 
-    fn make_entry(_key: Self::KeyType, container: &mut Self::Container, value: Self) {
+    fn make_entry(_key: Self::KeyType, container: &mut Self::Container, value: Self)
+    {
         container.push(value);
     }
 }
 
 #[allow(non_snake_case, dead_code)]
 #[derive(Clone, Deserialize, Debug)]
-pub struct OperationsStatusCsv {
+pub struct OperationsStatusCsv
+{
     pub OPR_Object_Number: String,
     pub OPR_Status_ID: String,
     pub OPR_Status_Profile: String,
@@ -206,44 +225,52 @@ pub struct OperationsStatusCsv {
 }
 
 #[allow(non_snake_case, dead_code)]
-impl CsvType for OperationsStatusCsv {
+impl CsvType for OperationsStatusCsv
+{
     type Container = Vec<Self>;
     type KeyType = String;
 
-    fn get_and_clone_key(&self) -> Self::KeyType {
+    fn get_and_clone_key(&self) -> Self::KeyType
+    {
         self.OPR_Object_Number.clone()
     }
 
-    fn make_entry(_key: Self::KeyType, container: &mut Self::Container, value: Self) {
+    fn make_entry(_key: Self::KeyType, container: &mut Self::Container, value: Self)
+    {
         container.push(value);
     }
 }
 
 #[allow(non_snake_case, dead_code)]
 #[derive(Clone, Deserialize, Debug)]
-pub struct SecondaryLocationsCsv {
+pub struct SecondaryLocationsCsv
+{
     pub PM_Object_Number: String,
     pub PM_Functional_Location: String,
     pub PM_Object_Sorting: String,
     pub PM_Object_Usage: String,
 }
 
-impl CsvType for SecondaryLocationsCsv {
+impl CsvType for SecondaryLocationsCsv
+{
     type Container = Vec<Self>;
     type KeyType = String;
 
-    fn get_and_clone_key(&self) -> Self::KeyType {
+    fn get_and_clone_key(&self) -> Self::KeyType
+    {
         todo!()
     }
 
-    fn make_entry(_key: Self::KeyType, _container: &mut Self::Container, _value: Self) {
+    fn make_entry(_key: Self::KeyType, _container: &mut Self::Container, _value: Self)
+    {
         todo!()
     }
 }
 
 #[allow(non_snake_case, dead_code)]
 #[derive(Clone, Deserialize, Debug)]
-pub struct FunctionalLocationsCsv {
+pub struct FunctionalLocationsCsv
+{
     pub FLOC_Technical_ID: FLOCTechnicaID,
     pub FLOC_Functional_ID: String,
     pub FLOC_Name: String,
@@ -251,22 +278,26 @@ pub struct FunctionalLocationsCsv {
     pub FLOC_Plant_Code: String,
 }
 
-impl CsvType for FunctionalLocationsCsv {
+impl CsvType for FunctionalLocationsCsv
+{
     type Container = HashMap<Self::KeyType, Self>;
     type KeyType = u64;
 
-    fn get_and_clone_key(&self) -> Self::KeyType {
+    fn get_and_clone_key(&self) -> Self::KeyType
+    {
         self.FLOC_Technical_ID
     }
 
-    fn make_entry(key: Self::KeyType, container: &mut Self::Container, value: Self) {
+    fn make_entry(key: Self::KeyType, container: &mut Self::Container, value: Self)
+    {
         container.entry(key).or_insert(value);
     }
 }
 
 #[allow(non_snake_case, dead_code)]
 #[derive(Clone, Deserialize, Debug)]
-pub struct WorkOrdersCsv {
+pub struct WorkOrdersCsv
+{
     pub WO_Number: u64,
     pub WO_Priority: String,
     pub WO_Functional_Location_Number: u64,
@@ -296,15 +327,18 @@ pub struct WorkOrdersCsv {
     pub WO_SubNetwork_ID: String,
 }
 
-impl CsvType for WorkOrdersCsv {
+impl CsvType for WorkOrdersCsv
+{
     type Container = HashMap<Self::KeyType, Self>;
     type KeyType = WorkOrderNumber;
 
-    fn get_and_clone_key(&self) -> Self::KeyType {
+    fn get_and_clone_key(&self) -> Self::KeyType
+    {
         WorkOrderNumber(self.WO_Number)
     }
 
-    fn make_entry(key: Self::KeyType, container: &mut Self::Container, value: Self) {
+    fn make_entry(key: Self::KeyType, container: &mut Self::Container, value: Self)
+    {
         // This is custom logic needed to handle incorrectly formatted csv data
         // This is not a permanent solution
         if ["", "0"].contains(&value.WO_Earliest_Allowed_Start_Date.trim_end_matches(".0")) {
@@ -334,12 +368,15 @@ impl CsvType for WorkOrdersCsv {
 }
 
 #[derive(Clone)]
-pub struct WorkOrdersStatusCsvAggregated {
+pub struct WorkOrdersStatusCsvAggregated
+{
     pub inner: HashMap<WOObjectNumber, String>,
 }
 
-impl WorkOrdersStatusCsvAggregated {
-    pub fn new(work_orders_status: Vec<WorkOrdersStatusCsv>) -> Self {
+impl WorkOrdersStatusCsvAggregated
+{
+    pub fn new(work_orders_status: Vec<WorkOrdersStatusCsv>) -> Self
+    {
         let mut work_order_status_aggregated: HashMap<String, String> = HashMap::new();
 
         for work_order_status in work_orders_status {
@@ -361,12 +398,15 @@ impl WorkOrdersStatusCsvAggregated {
 }
 
 #[derive(Clone)]
-pub struct OperationsStatusCsvAggregated {
+pub struct OperationsStatusCsvAggregated
+{
     pub inner: HashMap<OPRObjectNumber, String>,
 }
 
-impl OperationsStatusCsvAggregated {
-    pub fn new(operations_status: Vec<OperationsStatusCsv>) -> Self {
+impl OperationsStatusCsvAggregated
+{
+    pub fn new(operations_status: Vec<OperationsStatusCsv>) -> Self
+    {
         let mut operations_status_aggregated: HashMap<String, String> = HashMap::new();
 
         for operations_status in operations_status {
@@ -386,15 +426,18 @@ impl OperationsStatusCsvAggregated {
         }
     }
 }
-pub struct WorkOperations {
+pub struct WorkOperations
+{
     pub inner: HashMap<WorkOrderNumber, HashMap<ActivityNumber, WorkOperationsCsv>>,
 }
 
-impl WorkOperations {
+impl WorkOperations
+{
     pub fn new(
         work_orders_csv: &HashMap<WorkOrderNumber, WorkOrdersCsv>,
         operations_csv: &HashMap<OPRRoutingNumber, HashMap<OPRCounter, WorkOperationsCsv>>,
-    ) -> Self {
+    ) -> Self
+    {
         let mut work_operations = HashMap::new();
 
         for work_order_csv in work_orders_csv.iter() {
@@ -416,12 +459,14 @@ impl WorkOperations {
 }
 
 #[cfg(test)]
-mod tests {
+mod tests
+{
 
     use super::*;
 
     #[test]
-    fn test_populate_csv_structures() {
+    fn test_populate_csv_structures()
+    {
         let mut path = PathBuf::new();
 
         path.push("../temp_scheduling_environment_database/mid_work_operations.csv");

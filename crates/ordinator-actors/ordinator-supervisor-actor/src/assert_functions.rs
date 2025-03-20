@@ -1,15 +1,19 @@
 use std::collections::HashSet;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
+use anyhow::bail;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use tracing::{event, Level};
-
-use crate::agents::{Actor, Algorithm, SupervisorSolution};
+use tracing::Level;
+use tracing::event;
 
 use super::algorithm::supervisor_parameters::SupervisorParameters;
+use crate::agents::Actor;
+use crate::agents::Algorithm;
+use crate::agents::SupervisorSolution;
 
 #[allow(dead_code)]
-pub trait SupervisorAssertions {
+pub trait SupervisorAssertions
+{
     fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(
         &self,
     ) -> Result<()>;
@@ -23,7 +27,8 @@ impl<MessageRequest, MessageResponse> SupervisorAssertions
 {
     fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(
         &self,
-    ) -> Result<()> {
+    ) -> Result<()>
+    {
         let tactical_operation_woas: HashSet<WorkOrderNumber> = self
             .algorithm
             .loaded_shared_solution
@@ -34,7 +39,7 @@ impl<MessageRequest, MessageResponse> SupervisorAssertions
             .algorithm
             .solution
             .get_iter()
-            .map(|(woa, _)| woa.1 .0)
+            .map(|(woa, _)| woa.1.0)
             .collect();
         // What would it mean to schedule these work
         let symmetric_difference = tactical_operation_woas
@@ -48,7 +53,9 @@ impl<MessageRequest, MessageResponse> SupervisorAssertions
                 in_the_tactical_operations = ?symmetric_difference.intersection(&tactical_operation_woas),
                 in_the_operational_state_woas = ?symmetric_difference.intersection(&operational_state_woas),
             );
-            bail!("If the symmetric difference is empty it means that there are state inconsistencies");
+            bail!(
+                "If the symmetric difference is empty it means that there are state inconsistencies"
+            );
         }
         Ok(())
     }
@@ -56,7 +63,8 @@ impl<MessageRequest, MessageResponse> SupervisorAssertions
     // This assertion tests that
     fn assert_operational_state_machine_woas_is_subset_of_tactical_shared_solution(
         &self,
-    ) -> Result<()> {
+    ) -> Result<()>
+    {
         let strategic_work_orders: HashSet<WorkOrderNumber> = self
             .algorithm
             .loaded_shared_solution
@@ -67,7 +75,7 @@ impl<MessageRequest, MessageResponse> SupervisorAssertions
             .algorithm
             .solution
             .get_iter()
-            .map(|(woa, _)| woa.1 .0)
+            .map(|(woa, _)| woa.1.0)
             .collect();
 
         if !operational_state_work_order_activities.is_subset(&strategic_work_orders) {
@@ -78,7 +86,9 @@ impl<MessageRequest, MessageResponse> SupervisorAssertions
                     .cloned()
                     .collect::<HashSet<_>>()
             );
-            bail!("The tactical_operations should always hold all the work_order_activities of the operational_state_machine");
+            bail!(
+                "The tactical_operations should always hold all the work_order_activities of the operational_state_machine"
+            );
         }
         Ok(())
     }

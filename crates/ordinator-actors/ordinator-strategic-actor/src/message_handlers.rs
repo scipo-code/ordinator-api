@@ -1,37 +1,37 @@
 use std::any::type_name;
 use std::collections::HashMap;
 
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::bail;
 use colored::Colorize;
 use priority_queue::PriorityQueue;
+use shared_types::agents::strategic::StrategicRequestMessage;
+use shared_types::agents::strategic::StrategicResponseMessage;
+use shared_types::agents::strategic::StrategicSchedulingEnvironmentCommands;
 use shared_types::agents::strategic::requests::strategic_request_scheduling_message::StrategicRequestScheduling;
 use shared_types::agents::strategic::requests::strategic_request_status_message::StrategicStatusMessage;
 use shared_types::agents::strategic::responses::strategic_response_periods::StrategicResponsePeriods;
 use shared_types::agents::strategic::responses::strategic_response_scheduling::StrategicResponseScheduling;
 use shared_types::agents::strategic::responses::strategic_response_status::StrategicResponseStatus;
-use shared_types::agents::strategic::StrategicSchedulingEnvironmentCommands;
-use shared_types::agents::strategic::{StrategicRequestMessage, StrategicResponseMessage};
 use shared_types::orchestrator::StrategicApiSolution;
 use shared_types::orchestrator::WorkOrderResponse;
 use shared_types::orchestrator::WorkOrdersStatus;
 use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use tracing::event;
 use tracing::Level;
+use tracing::event;
 
-use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
-use crate::agents::ActorSpecific;
+use super::algorithm::ScheduleWorkOrder;
+use super::algorithm::strategic_parameters::StrategicParameters;
+use super::algorithm::strategic_parameters::WorkOrderParameter;
+use super::algorithm::strategic_parameters::WorkOrderParameterBuilder;
 use crate::agents::Actor;
+use crate::agents::ActorSpecific;
 use crate::agents::Algorithm;
 use crate::agents::MessageHandler;
 use crate::agents::StateLink;
 use crate::agents::StrategicSolution;
-
-use super::algorithm::strategic_parameters::StrategicParameters;
-use super::algorithm::strategic_parameters::WorkOrderParameter;
-use super::algorithm::strategic_parameters::WorkOrderParameterBuilder;
-use super::algorithm::ScheduleWorkOrder;
+use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
 
 type StrategicAgent = Actor<
     StrategicRequestMessage,
@@ -40,14 +40,14 @@ type StrategicAgent = Actor<
     StrategicParameters,
     PriorityQueue<WorkOrderNumber, u64>,
 >;
-impl MessageHandler for StrategicAgent {
+impl MessageHandler for StrategicAgent
+{
     type Req = StrategicRequestMessage;
     type Res = StrategicResponseMessage;
 
-    fn handle_request_message(
-        &mut self,
-        strategic_request_message: Self::Req,
-    ) -> Result<Self::Res> {
+    fn handle_request_message(&mut self, strategic_request_message: Self::Req)
+    -> Result<Self::Res>
+    {
         let strategic_response = match strategic_request_message {
             StrategicRequestMessage::Status(strategic_status_message) => {
                 match strategic_status_message {
@@ -108,7 +108,8 @@ impl MessageHandler for StrategicAgent {
                         //                 &work_orders.work_order_configurations;
 
                         //             let work_order =
-                        //                 &work_orders.inner.get(work_order_number).unwrap().clone();
+                        //                 
+                        // &work_orders.inner.get(work_order_number).unwrap().clone();
 
                         //             let work_order_response = WorkOrderResponse::new(
                         //                 work_order,
@@ -245,7 +246,8 @@ impl MessageHandler for StrategicAgent {
                                 )
                             })?;
 
-                        // This should ideally be encapsulated into the a method on the WorkOrder that accepts a StrategicUserStatusCodes
+                        // This should ideally be encapsulated into the a method on the WorkOrder
+                        // that accepts a StrategicUserStatusCodes
                         let user_status_codes =
                             &mut work_order.work_order_analytic.user_status_codes;
 
@@ -340,7 +342,8 @@ impl MessageHandler for StrategicAgent {
         strategic_response
     }
 
-    fn handle_state_link(&mut self, msg: StateLink) -> Result<()> {
+    fn handle_state_link(&mut self, msg: StateLink) -> Result<()>
+    {
         match msg {
             StateLink::WorkOrders(agent_specific) => {
                 match agent_specific {

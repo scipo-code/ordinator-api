@@ -3,35 +3,37 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use anyhow::Result;
+use ordinator_scheduling_environment::Asset;
+use ordinator_scheduling_environment::time_environment::day::Day;
+use ordinator_scheduling_environment::time_environment::day::OptionDay;
+use ordinator_scheduling_environment::time_environment::period::Period;
+use ordinator_scheduling_environment::work_order::WorkOrder;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::work_order::WorkOrders;
+use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
+use ordinator_scheduling_environment::work_order::operation::Work;
+use ordinator_scheduling_environment::work_order::work_order_analytic::status_codes::MaterialStatus;
+use ordinator_scheduling_environment::work_order::work_order_analytic::status_codes::SystemStatusCodes;
+use ordinator_scheduling_environment::work_order::work_order_analytic::status_codes::UserStatusCodes;
+use ordinator_scheduling_environment::work_order::work_order_dates::unloading_point::UnloadingPoint;
+use ordinator_scheduling_environment::work_order::work_order_info::functional_location::FunctionalLocation;
+use ordinator_scheduling_environment::work_order::work_order_info::priority::Priority;
+use ordinator_scheduling_environment::work_order::work_order_info::revision::Revision;
+use ordinator_scheduling_environment::work_order::work_order_info::system_condition::SystemCondition;
+use ordinator_scheduling_environment::work_order::work_order_info::work_order_type::WorkOrderType;
+use ordinator_scheduling_environment::worker_environment::resources::Resources;
+use rust_xlsxwriter::IntoExcelData;
 use rust_xlsxwriter::Worksheet;
-use shared_types::AgentExports;
-use shared_types::Asset;
-use shared_types::ReasonForNotScheduling;
-use shared_types::scheduling_environment::time_environment::day::Day;
-use shared_types::scheduling_environment::time_environment::day::OptionDay;
-use shared_types::scheduling_environment::work_order::WorkOrder;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::scheduling_environment::work_order::WorkOrders;
-use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
-use shared_types::scheduling_environment::work_order::operation::Work;
-use shared_types::scheduling_environment::work_order::work_order_analytic::status_codes::MaterialStatus;
-use shared_types::scheduling_environment::work_order::work_order_analytic::status_codes::SystemStatusCodes;
-use shared_types::scheduling_environment::work_order::work_order_analytic::status_codes::UserStatusCodes;
-use shared_types::scheduling_environment::work_order::work_order_dates::unloading_point::UnloadingPoint;
-use shared_types::scheduling_environment::work_order::work_order_info::functional_location::FunctionalLocation;
-use shared_types::scheduling_environment::work_order::work_order_info::priority::Priority;
-use shared_types::scheduling_environment::work_order::work_order_info::revision::Revision;
-use shared_types::scheduling_environment::work_order::work_order_info::system_condition::SystemCondition;
-use shared_types::scheduling_environment::work_order::work_order_info::work_order_type::WorkOrderType;
-use shared_types::scheduling_environment::worker_environment::resources::Resources;
 
 use crate::sap_mapper_and_types::DATS;
 
 #[derive(Debug)]
 struct AllRows(Vec<RowNames>);
 
-impl AllRows {
-    fn make_xlsx_dump(&self, asset: Asset) -> Result<PathBuf, rust_xlsxwriter::XlsxError> {
+impl AllRows
+{
+    fn make_xlsx_dump(&self, asset: Asset) -> Result<PathBuf, rust_xlsxwriter::XlsxError>
+    {
         let mut rust_dump = rust_xlsxwriter::Workbook::new();
 
         let worksheet: &mut Worksheet = rust_dump.add_worksheet();
@@ -163,7 +165,8 @@ impl AllRows {
 }
 
 #[derive(Debug)]
-struct RowNames {
+struct RowNames
+{
     strategic_schedule: ReasonForNotScheduling,
     tactical_schedule: OptionDay,
     priority: Priority,
@@ -210,9 +213,9 @@ struct RowNames {
 pub fn create_excel_dump(
     asset: Asset,
     work_orders: WorkOrders,
-    strategic_solution: HashMap<WorkOrderNumber, Option<Period>>,
-    tactical_solution: HashMap<WorkOrderNumber, HashMap<ActivityNumber, Day>>,
-) -> Result<PathBuf> {
+    shared_solution: impl Guard<Arc<SharedSolutionTrait>>,
+) -> Result<PathBuf>
+{
     let mut all_rows: Vec<RowNames> = Vec::new();
 
     dbg!("Total WorkOrder(s):", work_orders.inner.len());
@@ -360,7 +363,8 @@ pub fn create_excel_dump(
 
     Ok(xlsx_path)
 }
-fn make_header_row(worksheet: &mut Worksheet) {
+fn make_header_row(worksheet: &mut Worksheet)
+{
     worksheet.write(0, 0, "strategic_schedule").unwrap();
     worksheet.write(0, 1, "tactical_schedule").unwrap();
     worksheet.write(0, 2, "priority").unwrap();
@@ -401,18 +405,21 @@ fn make_header_row(worksheet: &mut Worksheet) {
 }
 
 #[derive(Debug, Clone)]
-pub enum ReasonForNotScheduling {
+pub enum ReasonForNotScheduling
+{
     Scheduled(Period),
     Unknown(String),
 }
 
-impl IntoExcelData for ReasonForNotScheduling {
+impl IntoExcelData for ReasonForNotScheduling
+{
     fn write(
         self,
         worksheet: &mut rust_xlsxwriter::Worksheet,
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
-    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
+    {
         let value = match self {
             ReasonForNotScheduling::Scheduled(period) => period.period_string(),
             ReasonForNotScheduling::Unknown(unknown) => unknown,
@@ -426,7 +433,8 @@ impl IntoExcelData for ReasonForNotScheduling {
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
         format: &rust_xlsxwriter::Format,
-    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
+    {
         let value = match self {
             ReasonForNotScheduling::Scheduled(period) => period.period_string(),
             ReasonForNotScheduling::Unknown(unknown) => unknown,

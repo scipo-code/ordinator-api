@@ -1,12 +1,28 @@
-// Where should the operational struct be found? I think that it should
-// be in the shared types
-#[derive(Default, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub struct StrategicResources(
-    #[serde(with = "any_key_map")] pub HashMap<Period, HashMap<OperationalId, OperationalResource>>,
-);
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
+use std::sync::MutexGuard;
 
-impl From<&MutexGuard<SchedulingEnvironment>> for StrategicResources {
-    fn from(value: &MutexGuard<SchedulingEnvironment>) -> Self {
+use anyhow::Result;
+use anyhow::ensure;
+use ordinator_actor_core::algorithm::LoadOperation;
+use ordinator_scheduling_environment::SchedulingEnvironment;
+use ordinator_scheduling_environment::time_environment::period::Period;
+use ordinator_scheduling_environment::work_order::operation::Work;
+use ordinator_scheduling_environment::worker_environment::OperationalId;
+use ordinator_scheduling_environment::worker_environment::resources::Resources;
+use serde::Deserialize;
+use serde::Serialize;
+
+// Where should the operational struct be found? I think that it should
+// be in the shared types. You should not deserialize this. You cannot
+// code software with this mentality.
+#[derive(Default, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct StrategicResources(pub HashMap<Period, HashMap<OperationalId, OperationalResource>>);
+
+impl<'a> From<MutexGuard<'a, SchedulingEnvironment>> for StrategicResources
+{
+    fn from(value: &MutexGuard<SchedulingEnvironment>) -> Self
+    {
         let gradual_reduction = |i: usize| -> f64 {
             if i == 0 {
                 1.0
@@ -22,9 +38,9 @@ impl From<&MutexGuard<SchedulingEnvironment>> for StrategicResources {
         let mut strategic_resources_inner =
             HashMap::<Period, HashMap<OperationalId, OperationalResource>>::new();
 
-        for (i, period) in periods.iter().enumerate() {
+        for (i, period) in value.time_environment.strategic_periods.iter().enumerate() {
             let mut operational_resource_map = HashMap::new();
-            for operational_agent in &value..agent_environment.operational {
+            for operational_agent in &value.worker_environment.agent_environment.operational {
                 // What is it that you are trying to do here? You want to instantiate an agent
                 // TODO: Could you reuse the OperationalResource. No could you inplement a
                 // into formulation here? I think that is a that ... THis is actually fun!
@@ -66,14 +82,17 @@ impl From<&MutexGuard<SchedulingEnvironment>> for StrategicResources {
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, Default)]
-pub struct OperationalResource {
+pub struct OperationalResource
+{
     pub id: OperationalId,
     pub total_hours: Work,
     pub skill_hours: HashMap<Resources, Work>,
 }
 
-impl OperationalResource {
-    pub fn new(id: &str, total_hours: Work, skills: Vec<Resources>) -> Self {
+impl OperationalResource
+{
+    pub fn new(id: &str, total_hours: Work, skills: Vec<Resources>) -> Self
+    {
         let skill_hours = skills.iter().map(|ski| (*ski, total_hours)).collect();
 
         Self {
@@ -84,8 +103,10 @@ impl OperationalResource {
     }
 }
 
-impl StrategicResources {
-    pub fn assert_well_shaped_resources(&self) -> Result<()> {
+impl StrategicResources
+{
+    pub fn assert_well_shaped_resources(&self) -> Result<()>
+    {
         for period in &self.0 {
             for operational_resource in period.1 {
                 let total_hours = operational_resource.1.total_hours;
@@ -109,7 +130,8 @@ impl StrategicResources {
         &mut self,
         period: Period,
         operational_resource: OperationalResource,
-    ) {
+    )
+    {
         let operational_key = operational_resource.id.clone();
         self.0
             .entry(period)
@@ -120,16 +142,18 @@ impl StrategicResources {
     }
 }
 
-impl StrategicResources {
-    pub fn new(resources: HashMap<Period, HashMap<OperationalId, OperationalResource>>) -> Self {
+impl StrategicResources
+{
+    pub fn new(resources: HashMap<Period, HashMap<OperationalId, OperationalResource>>) -> Self
+    {
         Self(resources)
     }
 
-    // Okay so you have to determine a good way of updating the load here. The best approach
-    // would probably be to create a small heuristic
+    // Okay so you have to determine a good way of updating the load here. The best
+    // approach would probably be to create a small heuristic
     //
-    // The load should be updated and this means that we need to generate a small heuristic.
-    // As this is no longer deterministic.
+    // The load should be updated and this means that we need to generate a small
+    // heuristic. As this is no longer deterministic.
     pub fn update_load(
         &mut self,
         period: &Period,
@@ -137,7 +161,8 @@ impl StrategicResources {
         load: Work,
         operational_resource: &OperationalResource,
         load_operation: LoadOperation,
-    ) {
+    )
+    {
         let period_entry = self.0.entry(period.clone());
         let operational = match period_entry {
             Entry::Occupied(entry) => entry.into_mut(),
@@ -213,7 +238,8 @@ impl StrategicResources {
         };
     }
 
-    pub fn update_resource_capacities(&mut self, resources: Self) -> Result<()> {
+    pub fn update_resource_capacities(&mut self, resources: Self) -> Result<()>
+    {
         for period in &resources.0 {
             for operational in period.1 {
                 self.0
@@ -227,7 +253,8 @@ impl StrategicResources {
         Ok(())
     }
 
-    pub fn initialize_resource_loadings(&mut self, resources: Self) {
+    pub fn initialize_resource_loadings(&mut self, resources: Self)
+    {
         for period in resources.0 {
             for operational in period.1 {
                 let mut operational_resource = operational.1;
@@ -253,7 +280,8 @@ impl StrategicResources {
         &self,
         period: &Period,
         resource: &Resources,
-    ) -> Result<Work> {
+    ) -> Result<Work>
+    {
         Ok(self
             .0
             .get(period)

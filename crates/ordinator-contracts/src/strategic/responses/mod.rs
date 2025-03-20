@@ -7,6 +7,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Serialize, Deserialize)]
-pub struct StrategicObjectiveValueResponse {
+pub struct StrategicObjectiveValueResponse
+{
     field_one: String,
 }

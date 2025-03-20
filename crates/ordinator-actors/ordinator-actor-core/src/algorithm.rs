@@ -6,7 +6,6 @@ use anyhow::Result;
 use arc_swap::ArcSwap;
 use arc_swap::Guard;
 use ordinator_orchestrator_actor_traits::Parameters;
-use ordinator_orchestrator_actor_traits::SharedSolution;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_scheduling_environment::SchedulingEnvironment;
@@ -26,12 +25,12 @@ where
     P: Parameters,
     Ss: SharedSolutionTrait,
 {
-    pub(super) id: Id,
-    pub(super) solution_intermediate: I,
-    pub(super) solution: S,
-    pub(super) parameters: P,
-    pub(super) arc_swap_shared_solution: Arc<ArcSwap<Ss>>,
-    pub(super) loaded_shared_solution: Guard<Arc<Ss>>,
+    pub id: Id,
+    pub solution_intermediate: I,
+    pub solution: S,
+    pub parameters: P,
+    pub arc_swap_shared_solution: Arc<ArcSwap<Ss>>,
+    pub loaded_shared_solution: Guard<Arc<Ss>>,
 }
 
 pub struct AlgorithmBuilder<S, P, I, Ss>
@@ -55,7 +54,8 @@ where
     P: Parameters,
     Ss: SharedSolutionTrait,
 {
-    pub fn builder() -> AlgorithmBuilder<S, P, I, Ss> {
+    pub fn builder() -> AlgorithmBuilder<S, P, I, Ss>
+    {
         AlgorithmBuilder {
             id: None,
             solution_intermediate: I::default(),
@@ -75,22 +75,26 @@ where
 {
     type SolutionType = S;
 
-    fn clone_algorithm_solution(&self) -> S {
+    fn clone_algorithm_solution(&self) -> S
+    {
         self.solution.clone()
     }
 
-    fn load_shared_solution(&mut self) {
+    fn load_shared_solution(&mut self)
+    {
         self.loaded_shared_solution = self.arc_swap_shared_solution.load();
     }
 
-    fn swap_solution(&mut self, solution: S) {
+    fn swap_solution(&mut self, solution: S)
+    {
         self.solution = solution;
     }
 
     fn update_objective_value(
         &mut self,
         objective_value: <Self::SolutionType as Solution>::ObjectiveValue,
-    ) {
+    )
+    {
         self.solution.update_objective_value(objective_value);
     }
 }
@@ -102,7 +106,8 @@ where
     I: Default,
     Ss: SharedSolutionTrait,
 {
-    pub fn build(self) -> Algorithm<S, P, I, Ss> {
+    pub fn build(self) -> Algorithm<S, P, I, Ss>
+    {
         Algorithm {
             id: self.id.unwrap(),
             solution_intermediate: self.solution_intermediate,
@@ -113,13 +118,15 @@ where
         }
     }
 
-    pub fn id(mut self, id: Id) -> Self {
+    pub fn id(mut self, id: Id) -> Self
+    {
         self.id = Some(id);
         self
     }
 
     // This should call the relevant method instead of the
-    pub fn solution(mut self) -> Self {
+    pub fn solution(mut self) -> Self
+    {
         let parameters = self
             .parameters
             .as_ref()
@@ -129,12 +136,17 @@ where
         self
     }
 
+    // This is a needless level of indirection. You should be careful of this type
+    // of thing. The issue here is what we should do about this.
+    // What should happen to this function? I think that the best place to have
+    // there kind of things
     pub fn parameters(
         mut self,
         options: &P::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
-    ) -> Result<Self> {
-        let parameters = Parameters::new(
+    ) -> Result<Self>
+    {
+        let parameters = P::from_source(
             self.id.as_ref().expect("Call `id()` build method first"),
             options,
             scheduling_environment,
@@ -161,7 +173,8 @@ where
 // TODO [x]
 // Where should this be moved to? I am not really sure! I think that the best
 // place is the `Algorithm` no I think it is the `ordinator-actors` crate
-pub enum LoadOperation {
+pub enum LoadOperation
+{
     Add,
     Sub,
 }

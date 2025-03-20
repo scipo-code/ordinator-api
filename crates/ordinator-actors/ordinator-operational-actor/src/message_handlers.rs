@@ -1,19 +1,24 @@
-use anyhow::{bail, Result};
-use shared_types::agents::operational::{
-    requests::operational_request_scheduling::OperationalSchedulingRequest,
-    responses::operational_response_scheduling::{
-        ApiAssignment, ApiAssignmentEvents, EventInfo, OperationalSchedulingResponse,
-    },
-    responses::operational_response_status::OperationalResponseStatus,
-    OperationalRequestMessage, OperationalResponseMessage,
-};
-use tracing::{event, Level};
+use anyhow::Result;
+use anyhow::bail;
+use ordinator::operational::OperationalRequestMessage;
+use ordinator::operational::OperationalResponseMessage;
+use ordinator::operational::requests::operational_request_scheduling::OperationalSchedulingRequest;
+use ordinator::operational::responses::operational_response_scheduling::ApiAssignment;
+use ordinator::operational::responses::operational_response_scheduling::ApiAssignmentEvents;
+use ordinator::operational::responses::operational_response_scheduling::EventInfo;
+use ordinator::operational::responses::operational_response_scheduling::OperationalSchedulingResponse;
+use ordinator::operational::responses::operational_response_status::OperationalResponseStatus;
+use tracing::Level;
+use tracing::event;
 
-use crate::agents::{
-    Actor, ActorSpecific, Algorithm, MessageHandler, OperationalSolution, StateLink,
-};
-
-use super::algorithm::{operational_parameter::OperationalParameters, OperationalNonProductive};
+use super::algorithm::OperationalNonProductive;
+use super::algorithm::operational_parameter::OperationalParameters;
+use crate::agents::Actor;
+use crate::agents::ActorSpecific;
+use crate::agents::Algorithm;
+use crate::agents::MessageHandler;
+use crate::agents::OperationalSolution;
+use crate::agents::StateLink;
 
 type OperationalAlgorithm =
     Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive>;
@@ -29,7 +34,8 @@ impl MessageHandler
     type Req = OperationalRequestMessage;
     type Res = OperationalResponseMessage;
 
-    fn handle_state_link(&mut self, state_link: StateLink) -> Result<()> {
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<()>
+    {
         event!(
             Level::INFO,
             self.algorithm.operational_parameters =
@@ -49,7 +55,8 @@ impl MessageHandler
     fn handle_request_message(
         &mut self,
         request: OperationalRequestMessage,
-    ) -> Result<OperationalResponseMessage> {
+    ) -> Result<OperationalResponseMessage>
+    {
         match request {
             OperationalRequestMessage::Status(_) => {
                 // WARN DEBUG: This should be included if you get an error
@@ -84,6 +91,11 @@ impl MessageHandler
                     operational_response_status,
                 ))
             }
+            // The messages should change the parameters the SchedulingEnvironment and
+            // this should in turn update the `Parameters` this is the flow that we need
+            // in the program for this to work. The issue here is that we cannot actually
+            // update anything in the `SchedulingEnvironment` as there are no data for
+            // the individual workers.
             OperationalRequestMessage::Scheduling(operational_scheduling_request) => {
                 match operational_scheduling_request {
                     OperationalSchedulingRequest::OperationalIds => todo!(),

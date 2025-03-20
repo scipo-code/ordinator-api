@@ -4,7 +4,8 @@ use crate::sap_mapper_and_types::NUMC;
 
 #[allow(non_snake_case)]
 #[allow(dead_code)]
-struct Aufm {
+struct Aufm
+{
     MANDT: CLNT,
     MBLNR: CHAR,
     MJAHR: NUMC,

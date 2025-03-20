@@ -2,6 +2,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
-pub enum OperationalStatusRequest {
+pub enum OperationalStatusRequest
+{
     General,
 }

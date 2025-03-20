@@ -1,8 +1,0 @@
-wrap_comments = true
-imports_granularity = "Item"
-
-space_after_colon = true
-reorder_impl_items = true
-
-group_imports = "StdExternalCrate"
-struct_field_align_threshold = 0 

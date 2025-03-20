@@ -6,20 +6,25 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub enum StrategicStatusMessage {
+pub enum StrategicStatusMessage
+{
     General,
     Period(String),
     WorkOrder(WorkOrderNumber),
 }
 
-impl StrategicStatusMessage {
-    pub fn new_period(period: String) -> Self {
+impl StrategicStatusMessage
+{
+    pub fn new_period(period: String) -> Self
+    {
         Self::Period(period)
     }
 }
 
-impl Display for StrategicStatusMessage {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for StrategicStatusMessage
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    {
         match self {
             StrategicStatusMessage::General => write!(f, "general"),
             StrategicStatusMessage::Period(period) => write!(f, "period: {}", period),

@@ -25,7 +25,8 @@ type LogLayer =
 type ProfilingLayer = Filtered<FlameLayer<Registry, BufWriter<File>>, EnvFilter, Registry>;
 
 #[derive(Clone, Debug)]
-pub struct LogHandles {
+pub struct LogHandles
+{
     pub file_handle: Handle<LogLayer, Registry>,
     pub _flame_handle: Handle<ProfilingLayer, Registry>,
 }
@@ -34,7 +35,8 @@ pub struct LogHandles {
 // I think that this should be removed and replaced by the
 // `tracing` crate. Yes you should
 #[derive(Subcommand, Debug, Clone, Serialize, Deserialize)]
-pub enum LogLevel {
+pub enum LogLevel
+{
     Trace,
     Debug,
     Info,
@@ -42,8 +44,10 @@ pub enum LogLevel {
     Error,
 }
 
-impl LogLevel {
-    pub fn to_level_string(&self) -> String {
+impl LogLevel
+{
+    pub fn to_level_string(&self) -> String
+    {
         match self {
             LogLevel::Trace => "trace".to_string(),
             LogLevel::Debug => "debug".to_string(),
@@ -54,7 +58,8 @@ impl LogLevel {
     }
 }
 
-pub fn setup_logging() -> (LogHandles, WorkerGuard) {
+pub fn setup_logging() -> (LogHandles, WorkerGuard)
+{
     let previous_log_files = fs::read_dir(
         dotenvy::var("ORDINATOR_LOG_DIR")
             .expect("The ORDINATOR_LOG_DIR environment variables should always be set."),

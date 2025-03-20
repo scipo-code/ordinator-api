@@ -38,9 +38,10 @@ use user_interface::EventColors;
 // Remember! You have a single source of all configurations here,
 // so there is no reason to question that in the system.
 #[derive(Debug)]
-pub struct SystemConfigurations {
+pub struct SystemConfigurations
+{
     work_order_configurations: WorkOrderConfigurations,
-    actor_configurations: ActorConfigurations,
+    pub actor_configurations: ActorConfigurations,
     actor_specification: HashMap<Asset, ActorSpecifications>,
     pub data_locations: BaptisteToml,
     throttling: Throttling,
@@ -68,18 +69,21 @@ impl SystemConfigurationTrait for SystemConfigurations {}
 // and then move a file for each of them
 // TODO [ ] This should be removed to make the code run correctly
 #[derive(Debug)]
-struct ActorConfigurations {
-    strategic_options: StrategicOptionsConfig,
-    tactical_options: TacticalOptionsConfig,
-    supervisor_options: SupervisorOptionsConfig,
-    operational_options: OperationalOptionsConfig,
+struct ActorConfigurations
+{
+    pub strategic_options: StrategicOptionsConfig,
+    pub tactical_options: TacticalOptionsConfig,
+    pub supervisor_options: SupervisorOptionsConfig,
+    pub operational_options: OperationalOptionsConfig,
 }
 
 // FIX [ ]
 // This is a good initial approach but remember to make it better if you have to
 // revisit it.
-impl SystemConfigurations {
-    pub fn read_all_configs() -> Result<SystemConfigurations> {
+impl SystemConfigurations
+{
+    pub fn read_all_configs() -> Result<SystemConfigurations>
+    {
         let work_order_configurations: WorkOrderConfigurations =
             serde_json::from_str("./configuration/work_orders/work_order_weight_parameters.json")?;
 
@@ -191,7 +195,8 @@ impl SystemConfigurations {
 }
 
 #[cfg(test)]
-mod tests {
+mod tests
+{
     use chrono::NaiveTime;
     use ordinator_scheduling_environment::worker_environment::resources::Resources;
 
@@ -199,14 +204,16 @@ mod tests {
     use crate::ActorSpecifications;
 
     #[test]
-    fn test_read_config() {
+    fn test_read_config()
+    {
         let system_configurations = SystemConfigurations::read_all_configs().unwrap();
 
         println!("{:#?}", system_configurations);
     }
 
     #[test]
-    fn test_toml_operational_parsing() {
+    fn test_toml_operational_parsing()
+    {
         let toml_operational_string = r#"
             [[supervisors]]
             id = "main"

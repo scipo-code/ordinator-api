@@ -2,6 +2,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum SupervisorStatusMessage {
+pub enum SupervisorStatusMessage
+{
     General,
 }

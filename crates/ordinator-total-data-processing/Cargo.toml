@@ -10,13 +10,13 @@ license-file = "../LICENSE"
 [dependencies]
 ordinator-configuration = {path = "../ordinator-configuration"}
 ordinator-scheduling-environment = { path = "../ordinator-scheduling-environment" }
+ordinator-orchestrator-actor-traits = { path = "../ordinator-orchestrator-actor-traits"}
+
 anyhow = "*"
-atoi = "=1.0.0"
 calamine = "*"
 chrono = { version = "0", features = ["serde", "arbitrary"] }
 chrono-tz = "0.10.0"
 csv = "*"
-dotenvy = "*"
 rayon = "*"
 regex = "*"
 rust_decimal = "*"

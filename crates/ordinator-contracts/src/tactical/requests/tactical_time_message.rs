@@ -3,6 +3,7 @@ use serde::Serialize;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 
-pub enum TacticalTimeRequest {
+pub enum TacticalTimeRequest
+{
     Days,
 }

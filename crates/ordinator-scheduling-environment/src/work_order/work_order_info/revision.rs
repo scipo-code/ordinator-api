@@ -4,20 +4,24 @@ use rust_xlsxwriter::IntoExcelData;
 use serde::Deserialize;
 use serde::Serialize;
 #[derive(Default, Clone, Debug, Deserialize, Serialize)]
-pub struct Revision {
+pub struct Revision
+{
     pub revision_code: RevisionCode,
 }
 
 #[derive(Default, Clone, Debug, Deserialize, Serialize)]
-pub enum RevisionCode {
+pub enum RevisionCode
+{
     #[default]
     Ne,
     Nosd,
     Code(String),
 }
 
-impl Revision {
-    pub fn new(str: &str) -> Self {
+impl Revision
+{
+    pub fn new(str: &str) -> Self
+    {
         let revision_code = match str {
             "NE" => RevisionCode::Ne,
             "NOSD" => RevisionCode::Nosd,
@@ -26,7 +30,8 @@ impl Revision {
         Revision { revision_code }
     }
 
-    pub fn shutdown(&self) -> bool {
+    pub fn shutdown(&self) -> bool
+    {
         match self.revision_code {
             // Careful here talk with [[Brian Friis Nielsen]]
             RevisionCode::Ne => false,
@@ -36,8 +41,10 @@ impl Revision {
     }
 }
 
-impl Display for Revision {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for Revision
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
         match &self.revision_code {
             RevisionCode::Ne => write!(f, "NE"),
             RevisionCode::Nosd => write!(f, "NOSD"),
@@ -46,13 +53,15 @@ impl Display for Revision {
     }
 }
 
-impl IntoExcelData for Revision {
+impl IntoExcelData for Revision
+{
     fn write(
         self,
         worksheet: &mut rust_xlsxwriter::Worksheet,
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
-    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
+    {
         let value = self.to_string();
         worksheet.write_string(row, col, value)
     }
@@ -63,7 +72,8 @@ impl IntoExcelData for Revision {
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
         format: &rust_xlsxwriter::Format,
-    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
+    {
         let value = self.to_string();
         worksheet.write_string_with_format(row, col, value, format)
     }

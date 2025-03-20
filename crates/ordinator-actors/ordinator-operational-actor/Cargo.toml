@@ -4,8 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-ordinator-orchestrator-actor-traits = {path = "../../ordinator-orchestrator-actor-traits"}
 ordinator-actor-core = {path = "../ordinator-actor-core"}
+ordinator-orchestrator-actor-traits = {path = "../../ordinator-orchestrator-actor-traits"}
+ordinator-scheduling-environment = {path = "../../ordinator-scheduling-environment"}
+ordinator-configuration = {path = "../../ordinator-configuration"}
+
 
 anyhow = { workspace = true}
 arc-swap = {workspace = true}

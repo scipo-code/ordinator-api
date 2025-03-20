@@ -1,4 +1,5 @@
 pub mod algorithm;
+pub mod delegate;
 pub mod traits;
 
 use std::fmt::Debug;
@@ -62,7 +63,8 @@ where
     P: Parameters,
     I: Default,
 {
-    pub fn run(&mut self) -> Result<()> {
+    pub fn run(&mut self) -> Result<()>
+    {
         let mut schedule_iteration = ScheduleIteration::default();
 
         self.algorithm
@@ -92,7 +94,8 @@ where
         }
     }
 
-    pub fn builder() -> ActorBuilder<ActorRequest, ActorResponse, S, P, I, Ss> {
+    pub fn builder() -> ActorBuilder<ActorRequest, ActorResponse, S, P, I, Ss>
+    {
         ActorBuilder {
             agent_id: None,
             scheduling_environment: None,
@@ -141,7 +144,8 @@ where
     I: Default + Send + Sync + 'static,
     Ss: SharedSolutionTrait + Send + Sync + 'static,
 {
-    pub fn build(self) -> Result<Communication<ActorMessage<ActorRequest>, ActorResponse>> {
+    pub fn build(self) -> Result<Communication<ActorMessage<ActorRequest>, ActorResponse>>
+    {
         let mut agent = Actor {
             agent_id: self.agent_id.unwrap(),
             scheduling_environment: self.scheduling_environment.unwrap(),
@@ -167,7 +171,8 @@ where
         Ok(self.communication_for_orchestrator.unwrap())
     }
 
-    pub fn agent_id(mut self, agent_id: Id) -> Self {
+    pub fn agent_id(mut self, agent_id: Id) -> Self
+    {
         self.agent_id = Some(agent_id);
         self
     }
@@ -175,7 +180,8 @@ where
     pub fn scheduling_environment(
         mut self,
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-    ) -> Self {
+    ) -> Self
+    {
         self.scheduling_environment = Some(scheduling_environment);
         self
     }
@@ -195,7 +201,8 @@ where
         self
     }
 
-    pub fn communication(mut self) -> Self {
+    pub fn communication(mut self) -> Self
+    {
         let (sender_to_agent, receiver_from_orchestrator): (
             flume::Sender<ActorMessage<ActorRequest>>,
             flume::Receiver<ActorMessage<ActorRequest>>,
@@ -219,7 +226,8 @@ where
     pub fn receiver_from_orchestrator(
         mut self,
         receiver_from_orchestrator: Receiver<ActorMessage<ActorRequest>>,
-    ) -> Self {
+    ) -> Self
+    {
         self.receiver_from_orchestrator = Some(receiver_from_orchestrator);
         self
     }
@@ -227,38 +235,44 @@ where
     pub fn sender_to_orchestrator(
         mut self,
         sender_to_orchestrator: Sender<Result<ActorResponse>>,
-    ) -> Self {
+    ) -> Self
+    {
         self.sender_to_orchestrator = Some(sender_to_orchestrator);
         self
     }
 
-    pub fn configurations(mut self, configurations: Arc<RwLock<SystemConfigurations>>) -> Self {
+    pub fn configurations(mut self, configurations: Arc<RwLock<SystemConfigurations>>) -> Self
+    {
         self.configurations = Some(configurations);
         self
     }
 
-    pub fn notify_orchestrator(
-        mut self,
-        notify_orchestrator: Box<dyn OrchestratorNotifier>,
-    ) -> Self {
+    pub fn notify_orchestrator(mut self, notify_orchestrator: Box<dyn OrchestratorNotifier>)
+    -> Self
+    {
         self.notify_orchestrator = Some(notify_orchestrator);
         self
     }
 }
 
 #[derive(Default)]
-pub struct ScheduleIteration {
+pub struct ScheduleIteration
+{
     loop_iteration: u64,
 }
 
-impl ScheduleIteration {
-    pub fn increment(&mut self) {
+impl ScheduleIteration
+{
+    pub fn increment(&mut self)
+    {
         self.loop_iteration += 1;
     }
 }
 
-impl fmt::Debug for ScheduleIteration {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl fmt::Debug for ScheduleIteration
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+    {
         if f.alternate() {
             let string = format!(
                 "{}: {}",
@@ -280,7 +294,8 @@ impl fmt::Debug for ScheduleIteration {
 }
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
-pub enum WhereIsWorkOrder<T> {
+pub enum WhereIsWorkOrder<T>
+{
     Strategic,
     Tactical(T),
     #[default]
@@ -299,7 +314,8 @@ where
     P: Parameters,
     Ss: SharedSolutionTrait,
 {
-    pub fn handle(&mut self, agent_message: ActorMessage<ActorRequest>) -> Result<()> {
+    pub fn handle(&mut self, agent_message: ActorMessage<ActorRequest>) -> Result<()>
+    {
         match agent_message {
             ActorMessage::State(state_link) => self.handle_state_link(state_link)?,
             ActorMessage::Actor(strategic_request_message) => {
@@ -317,13 +333,16 @@ where
 /// ActorRequest which is specifically created for each agent.
 // THIS should most likely be removed or refactored.
 #[derive(Debug, Serialize)]
-pub enum AlgorithmState<T> {
+pub enum AlgorithmState<T>
+{
     Feasible,
     Infeasible(T),
 }
 
-impl<T> AlgorithmState<T> {
-    pub fn infeasible_cases_mut(&mut self) -> Option<&mut T> {
+impl<T> AlgorithmState<T>
+{
+    pub fn infeasible_cases_mut(&mut self) -> Option<&mut T>
+    {
         match self {
             AlgorithmState::Feasible => None,
             AlgorithmState::Infeasible(infeasible_cases) => Some(infeasible_cases),
@@ -332,7 +351,8 @@ impl<T> AlgorithmState<T> {
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
-pub enum ConstraintState<Reason> {
+pub enum ConstraintState<Reason>
+{
     Feasible,
     Infeasible(Reason),
     Undetermined,
@@ -342,7 +362,8 @@ impl<Reason> fmt::Display for ConstraintState<Reason>
 where
     Reason: fmt::Display,
 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+    {
         match self {
             ConstraintState::Feasible => write!(f, "FEASIBLE"),
             ConstraintState::Infeasible(reason) => write!(f, "{}", reason),

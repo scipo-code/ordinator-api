@@ -2,56 +2,55 @@ pub mod delegate;
 pub mod supervisor_parameters;
 pub mod supervisor_solution;
 
-use std::{collections::HashSet, sync::Arc};
+use std::collections::HashSet;
+use std::sync::Arc;
 
-use anyhow::{Context, Result};
+use anyhow::Context;
+use anyhow::Result;
 use delegate::Delegate;
 use rand::seq::IndexedRandom;
-use shared_types::scheduling_environment::work_order::{
-    operation::ActivityNumber, WorkOrderNumber,
-};
-
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
 use supervisor_parameters::SupervisorParameters;
 #[allow(unused_imports)]
-use tracing::{event, Level};
-
-use crate::agents::{
-    operational_agent::algorithm::operational_solution::MarginalFitness,
-    traits::{ActorBasedLargeNeighborhoodSearch, ObjectiveValueType},
-    Algorithm, SupervisorSolution,
-};
+use tracing::Level;
+#[allow(unused_imports)]
+use tracing::event;
 
 use super::SupervisorOptions;
+use crate::agents::Algorithm;
+use crate::agents::SupervisorSolution;
+use crate::agents::operational_agent::algorithm::operational_solution::MarginalFitness;
+use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
+use crate::agents::traits::ObjectiveValueType;
 
-impl Algorithm<SupervisorSolution, SupervisorParameters, ()> {
+impl Algorithm<SupervisorSolution, SupervisorParameters, ()>
+{
     pub fn unschedule_specific_work_order(
         &mut self,
         work_order_number: WorkOrderNumber,
-    ) -> Result<()> {
+    ) -> Result<()>
+    {
         self.solution
             .turn_work_order_into_delegate_assess(work_order_number);
         Ok(())
     }
 }
 
-impl ActorBasedLargeNeighborhoodSearch for Algorithm<SupervisorSolution, SupervisorParameters, ()> {
+impl ActorBasedLargeNeighborhoodSearch for Algorithm<SupervisorSolution, SupervisorParameters, ()>
+{
     type Options = SupervisorOptions;
 
-    fn make_atomic_pointer_swap(&self) {
+    fn make_atomic_pointer_swap(&self)
+    {
         // Performance enhancements:
-        // * COW:
-        //      #[derive(Clone)]
-        //      struct SharedSolution<'a> {
-        //          tactical: Cow<'a, TacticalSolution>,
-        //          // other fields...
-        //      }
+        // * COW: #[derive(Clone)] struct SharedSolution<'a> { tactical: Cow<'a,
+        //   TacticalSolution>, // other fields... }
         //
-        // * Reuse the old SharedSolution, cloning only the fields that are needed.
-        //     let shared_solution = Arc::new(SharedSolution {
-        //             tactical: self.tactical_solution.clone(),
-        //             // Copy over other fields without cloning
-        //             ..(**old).clone()
-        //         });
+        // * Reuse the old SharedSolution, cloning only the fields that are needed. let
+        //   shared_solution = Arc::new(SharedSolution { tactical:
+        //   self.tactical_solution.clone(), // Copy over other fields without cloning
+        //   ..(**old).clone() });
         self.arc_swap_shared_solution.0.rcu(|old| {
             let mut shared_solution = (**old).clone();
             shared_solution.supervisor = self.solution.clone();
@@ -59,7 +58,8 @@ impl ActorBasedLargeNeighborhoodSearch for Algorithm<SupervisorSolution, Supervi
         });
     }
 
-    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType<Self::ObjectiveValue>> {
+    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType<Self::ObjectiveValue>>
+    {
         let assigned_woas = &self.solution.number_of_assigned_work_orders();
 
         let all_woas: HashSet<_> = self.solution.get_work_order_activities();
@@ -88,7 +88,8 @@ impl ActorBasedLargeNeighborhoodSearch for Algorithm<SupervisorSolution, Supervi
         }
     }
 
-    fn schedule(&mut self) -> Result<()> {
+    fn schedule(&mut self) -> Result<()>
+    {
         for work_order_activity in &self.solution.get_work_order_activities() {
             let number = self
                 .parameters
@@ -158,7 +159,8 @@ impl ActorBasedLargeNeighborhoodSearch for Algorithm<SupervisorSolution, Supervi
         Ok(())
     }
 
-    fn unschedule(&mut self) -> Result<()> {
+    fn unschedule(&mut self) -> Result<()>
+    {
         let work_order_numbers = self.solution.get_assigned_and_unassigned_work_orders();
 
         let sampled_work_order_numbers = work_order_numbers
@@ -179,10 +181,13 @@ impl ActorBasedLargeNeighborhoodSearch for Algorithm<SupervisorSolution, Supervi
                 })?;
         }
         Ok(())
-        // self.algorithm.operational_state.assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&old_state).unwrap();
+        // self.algorithm.operational_state.
+        // assert_that_operational_state_machine_is_different_from_saved_operational_state_machine(&
+        // old_state).unwrap();
     }
 
-    fn incorporate_shared_state(&mut self) -> Result<bool> {
+    fn incorporate_shared_state(&mut self) -> Result<bool>
+    {
         // List current activities in the `SupervisorAgent`
         let current_activities = self
             .solution
@@ -191,8 +196,9 @@ impl ActorBasedLargeNeighborhoodSearch for Algorithm<SupervisorSolution, Supervi
             .map(|(_, woa)| woa.0)
             .collect::<HashSet<WorkOrderNumber>>();
 
-        // Filter for Strategic scheduled work orders that are inside of the `SupervisorAlgorithm.parameters.strategic_periods`.
-        // This can be made cleaner! Much cleaner,
+        // Filter for Strategic scheduled work orders that are inside of the
+        // `SupervisorAlgorithm.parameters.strategic_periods`. This can be made
+        // cleaner! Much cleaner,
         let strategic_activities_in_supervisor_period = self
             .loaded_shared_solution
             .strategic
@@ -212,8 +218,8 @@ impl ActorBasedLargeNeighborhoodSearch for Algorithm<SupervisorSolution, Supervi
             .clone()
             .filter(|(won, _)| !current_activities.contains(won));
 
-        // Insert all the incoming activities as Delegate::default() for each `OperationalAgent` that
-        // has the required skill, `enum Resources`
+        // Insert all the incoming activities as Delegate::default() for each
+        // `OperationalAgent` that has the required skill, `enum Resources`
         for (work_order_number, _) in incoming_activities {
             for activity_number in (self
                 .parameters
@@ -251,7 +257,7 @@ impl ActorBasedLargeNeighborhoodSearch for Algorithm<SupervisorSolution, Supervi
 
         self.solution
             .operational_state_machine
-            .retain(|id_woa, _| strategic_activities_hash_set.contains(&id_woa.1 .0));
+            .retain(|id_woa, _| strategic_activities_hash_set.contains(&id_woa.1.0));
 
         Ok(true)
     }
@@ -260,7 +266,8 @@ impl ActorBasedLargeNeighborhoodSearch for Algorithm<SupervisorSolution, Supervi
 fn is_assigned_part_of_all(
     assigned_woas: &HashSet<(WorkOrderNumber, ActivityNumber)>,
     all_woas: &HashSet<(WorkOrderNumber, ActivityNumber)>,
-) -> bool {
+) -> bool
+{
     assigned_woas
         .iter()
         .all(|(wo, ac)| all_woas.contains(&(*wo, *ac)))

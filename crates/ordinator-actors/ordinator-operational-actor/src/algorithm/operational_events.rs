@@ -1,11 +1,11 @@
 use chrono::NaiveTime;
 use chrono::TimeDelta;
-use shared_types::agents::operational::TimeInterval;
-use shared_types::agents::operational::responses::operational_response_scheduling::EventType;
-use shared_types::scheduling_environment::work_order::WorkOrderActivity;
+use ordinator_scheduling_environment::time_environment::TimeInterval;
+use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum OperationalEvents {
+pub enum OperationalEvents
+{
     WrenchTime((TimeInterval, WorkOrderActivity)),
     Break(TimeInterval),
     Toolbox(TimeInterval),
@@ -14,8 +14,10 @@ pub enum OperationalEvents {
     Unavailable(TimeInterval),
 }
 
-impl OperationalEvents {
-    pub fn time_delta(&self) -> TimeDelta {
+impl OperationalEvents
+{
+    pub fn time_delta(&self) -> TimeDelta
+    {
         match self {
             Self::WrenchTime((time_interval, _)) => time_interval.duration(),
             Self::Break(time_interval) => time_interval.duration(),
@@ -26,7 +28,8 @@ impl OperationalEvents {
         }
     }
 
-    pub fn start_time(&self) -> NaiveTime {
+    pub fn start_time(&self) -> NaiveTime
+    {
         match self {
             Self::WrenchTime((time_interval, _)) => time_interval.start,
             Self::Break(time_interval) => time_interval.start,
@@ -37,7 +40,8 @@ impl OperationalEvents {
         }
     }
 
-    pub fn finish_time(&self) -> NaiveTime {
+    pub fn finish_time(&self) -> NaiveTime
+    {
         match self {
             Self::WrenchTime((time_interval, _)) => time_interval.end,
             Self::Break(time_interval) => time_interval.end,
@@ -48,17 +52,21 @@ impl OperationalEvents {
         }
     }
 
-    pub fn unavail(&self) -> bool {
+    pub fn unavail(&self) -> bool
+    {
         matches!(&self, OperationalEvents::Unavailable(_))
     }
 
-    pub fn is_wrench_time(&self) -> bool {
+    pub fn is_wrench_time(&self) -> bool
+    {
         matches!(&self, Self::WrenchTime(_))
     }
 }
 
-impl From<OperationalEvents> for EventType {
-    fn from(value: OperationalEvents) -> Self {
+impl From<OperationalEvents> for EventType
+{
+    fn from(value: OperationalEvents) -> Self
+    {
         match value {
             OperationalEvents::WrenchTime(_) => EventType::WrenchTime,
             OperationalEvents::Break(_) => EventType::Break,

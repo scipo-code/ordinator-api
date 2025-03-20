@@ -1,27 +1,28 @@
-use anyhow::Result;
-use anyhow::bail;
-use serde::Serialize;
-use shared_types::scheduling_environment::work_order::ClusteringWeights;
-use shared_types::scheduling_environment::work_order::WorkOrders;
-
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::MutexGuard;
 
-use super::StrategicResources;
+use anyhow::Result;
+use anyhow::bail;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::period::Period;
 use ordinator_scheduling_environment::work_order::WorkOrder;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::Work;
-use ordinator_scheduling_environment::worker_environment::resources::{Id, Resources};
+use ordinator_scheduling_environment::worker_environment::resources::Id;
+use ordinator_scheduling_environment::worker_environment::resources::Resources;
+use serde::Serialize;
+use shared_types::scheduling_environment::work_order::ClusteringWeights;
+use shared_types::scheduling_environment::work_order::WorkOrders;
 
-use crate::strategic_agent::StrategicOptions;
+use super::StrategicResources;
 use crate::agents::traits::Parameters;
+use crate::strategic_agent::StrategicOptions;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct StrategicParameters {
+pub struct StrategicParameters
+{
     pub strategic_work_order_parameters: HashMap<WorkOrderNumber, WorkOrderParameter>,
     pub strategic_capacity: StrategicResources,
     pub strategic_clustering: StrategicClustering,
@@ -33,7 +34,8 @@ pub struct StrategicParameters {
 // QUESTION
 // Should you make a builder for the `Parameters`?
 // I believe that this is a good idea, but I am not really sure
-impl Parameters for StrategicParameters {
+impl Parameters for StrategicParameters
+{
     type Key = WorkOrderNumber;
     type Options = StrategicOptions;
 
@@ -42,7 +44,8 @@ impl Parameters for StrategicParameters {
         id: &Id,
         options: Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
-    ) -> Result<Self> {
+    ) -> Result<Self>
+    {
         let asset = id.2.first().expect("This should never happen");
 
         let work_orders = &scheduling_environment.work_orders;
@@ -62,8 +65,8 @@ impl Parameters for StrategicParameters {
                     // whole system work with dependency injection. The primary goal is to
                     // centralize the configurations.
                     // TODO
-                    // This name confuses you, the type is really important but you should not be immediately
-                    // worried about the name.
+                    // This name confuses you, the type is really important but you should not be
+                    // immediately worried about the name.
                     // You could fix this now, but the configuration policy is much more important.
                     WorkOrderParameter::builder()
                         .with_scheduling_environment(wo, strategic_periods, &options)
@@ -92,13 +95,14 @@ impl Parameters for StrategicParameters {
     }
 
     // TODO [ ]
-    // This should be created as a `Builder` I am not sure that the best decision will
-    // be here.
+    // This should be created as a `Builder` I am not sure that the best decision
+    // will be here.
     fn create_and_insert_new_parameter(
         &mut self,
         key: Self::Key,
         scheduling_environment: MutexGuard<SchedulingEnvironment>,
-    ) {
+    )
+    {
         todo!()
     }
 }
@@ -106,7 +110,8 @@ impl Parameters for StrategicParameters {
 pub type ClusteringValue = u64;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct StrategicClustering {
+pub struct StrategicClustering
+{
     pub inner: HashMap<(WorkOrderNumber, WorkOrderNumber), ClusteringValue>,
 }
 
@@ -115,7 +120,8 @@ pub struct StrategicClustering {
 /// type as there are so many different ways that a `StrategicParameter`
 /// can be handled.
 #[derive(Debug, PartialEq, Clone, Default, Serialize)]
-pub struct WorkOrderParameter {
+pub struct WorkOrderParameter
+{
     pub locked_in_period: Option<Period>,
     pub excluded_periods: HashSet<Period>,
     pub latest_period: Period,
@@ -134,11 +140,11 @@ pub struct WorkOrderParameterBuilder(WorkOrderParameter);
 //     FMCMainWorkCenter,
 // }
 
-impl StrategicParameters {
-    pub fn get_locked_in_period<'a>(
-        &'a self,
-        work_order_number: &'a WorkOrderNumber,
-    ) -> &'a Period {
+impl StrategicParameters
+{
+    pub fn get_locked_in_period<'a>(&'a self, work_order_number: &'a WorkOrderNumber)
+    -> &'a Period
+    {
         let option_period = match self.strategic_work_order_parameters.get(work_order_number) {
             Some(strategic_parameter) => &strategic_parameter.locked_in_period,
             None => panic!(
@@ -159,7 +165,8 @@ impl StrategicParameters {
         &mut self,
         work_order_number: WorkOrderNumber,
         period: Period,
-    ) -> Result<()> {
+    ) -> Result<()>
+    {
         let optimized_work_order = match self
             .strategic_work_order_parameters
             .get_mut(&work_order_number)
@@ -175,23 +182,26 @@ impl StrategicParameters {
     }
 }
 
-impl WorkOrderParameterBuilder {
+impl WorkOrderParameterBuilder
+{
     // WARN
-    // This builder is crucial for the whole business logic of things. I am not sure what the
-    // best approach is for continuing this.
+    // This builder is crucial for the whole business logic of things. I am not sure
+    // what the best approach is for continuing this.
     // TODO [ ]
-    // You need a function for each field here, and you have to understand what each of them
-    // means.
+    // You need a function for each field here, and you have to understand what each
+    // of them means.
     // QUESTION
     // _Where should the configs come from?_
-    // The higher level Parameters implementation includes the `SchedulingEnvironment` that
-    // means that it should be possible to include the `WorkOrderConfigurations` here.
+    // The higher level Parameters implementation includes the
+    // `SchedulingEnvironment` that means that it should be possible to include
+    // the `WorkOrderConfigurations` here.
     pub fn with_scheduling_environment(
         &mut self,
         work_order: &WorkOrder,
         periods: &[Period],
         strategic_options: &StrategicOptions,
-    ) -> &mut Self {
+    ) -> &mut Self
+    {
         // FIX [ ]
         // This is horribly written and very error prone
         self.0.excluded_periods =
@@ -290,7 +300,8 @@ impl WorkOrderParameterBuilder {
         self
     }
 
-    pub fn build(self) -> WorkOrderParameter {
+    pub fn build(self) -> WorkOrderParameter
+    {
         if let Some(ref locked_in_period) = self.0.locked_in_period {
             assert!(!self.0.excluded_periods.contains(locked_in_period));
         }
@@ -305,8 +316,10 @@ impl WorkOrderParameterBuilder {
     }
 }
 
-impl WorkOrderParameter {
-    fn builder() -> WorkOrderParameterBuilder {
+impl WorkOrderParameter
+{
+    fn builder() -> WorkOrderParameterBuilder
+    {
         WorkOrderParameterBuilder(WorkOrderParameter {
             locked_in_period: todo!(),
             excluded_periods: todo!(),
@@ -317,12 +330,14 @@ impl WorkOrderParameter {
     }
 }
 
-impl StrategicClustering {
+impl StrategicClustering
+{
     pub fn calculate_clustering_values(
         asset: &Asset,
         work_orders: &WorkOrders,
         clustering_weights: ClusteringWeights,
-    ) -> Result<HashMap<(WorkOrderNumber, WorkOrderNumber), ClusteringValue>> {
+    ) -> Result<HashMap<(WorkOrderNumber, WorkOrderNumber), ClusteringValue>>
+    {
         let mut clustering_similarity = HashMap::new();
         let work_orders_data: Vec<_> = work_orders
             .inner
@@ -378,5 +393,6 @@ pub fn create_strategic_parameters(
     work_orders: &WorkOrders,
     periods: &[Period],
     asset: &Asset,
-) -> Result<HashMap<WorkOrderNumber, WorkOrderParameter>> {
+) -> Result<HashMap<WorkOrderNumber, WorkOrderParameter>>
+{
 }

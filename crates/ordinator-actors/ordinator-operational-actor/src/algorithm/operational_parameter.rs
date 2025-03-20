@@ -1,20 +1,21 @@
-use anyhow::{Context, Result};
-use ordinator_scheduling_environment::worker_environment::resources::Id;
-use std::{collections::HashMap, sync::MutexGuard};
+use std::collections::HashMap;
+use std::sync::MutexGuard;
 
+use anyhow::Context;
+use anyhow::Result;
 use chrono::TimeDelta;
-
+use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::TimeInterval;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::worker_environment::availability::Availability;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 
-use crate::operational_agent::OperationalOptions;
+use crate::OperationalOptions;
 
-use crate::traits::Parameters;
-
-pub struct OperationalParameters {
+pub struct OperationalParameters
+{
     pub work_order_parameters: HashMap<WorkOrderActivity, OperationalParameter>,
     pub availability: Availability,
     pub off_shift_interval: TimeInterval,
@@ -23,15 +24,18 @@ pub struct OperationalParameters {
     pub options: OperationalOptions,
 }
 
-impl Parameters for OperationalParameters {
+impl Parameters for OperationalParameters
+{
     type Key = WorkOrderActivity;
     // You should not put it in the Options
     type Options = OperationalOptions;
-    fn new(
+
+    fn from_source(
         asset: &Id,
         options: Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
-    ) -> Result<Self> {
+    ) -> Result<Self>
+    {
         let mut work_order_parameters = HashMap::default();
 
         for (work_order_number, work_order) in &scheduling_environment.work_orders.inner {
@@ -75,13 +79,15 @@ impl Parameters for OperationalParameters {
         &mut self,
         key: Self::Key,
         scheduling_environment: MutexGuard<SchedulingEnvironment>,
-    ) {
+    )
+    {
         todo!()
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct OperationalParameter {
+pub struct OperationalParameter
+{
     pub work: Work,
     // TODO: INCLUDE PREPARATION
     pub _preparation: Work,
@@ -92,7 +98,8 @@ pub struct OperationalParameter {
     // marginal_fitness: MarginalFitness,
 }
 
-impl OperationalParameter {
+impl OperationalParameter
+{
     pub fn new(
         work: Work,
         _preparation: Work,
@@ -100,7 +107,8 @@ impl OperationalParameter {
         // end_window: DateTime<Utc>,
         // delegated: Delegate,
         // marginal_fitness: MarginalFitness,
-    ) -> Option<Self> {
+    ) -> Option<Self>
+    {
         let combined_time = (work + _preparation).in_seconds();
         let operation_time_delta = TimeDelta::new(combined_time as i64, 0).unwrap();
         if work.to_f64() == 0.0 {

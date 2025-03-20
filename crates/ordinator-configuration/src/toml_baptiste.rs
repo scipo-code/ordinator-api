@@ -4,7 +4,8 @@ use serde::Deserialize;
 
 #[allow(dead_code)]
 #[derive(Deserialize, Debug)]
-pub struct BaptisteToml {
+pub struct BaptisteToml
+{
     pub mid_functional_locations: PathBuf,
     pub mid_operations_status: PathBuf,
     pub mid_secondary_locations: PathBuf,
@@ -15,6 +16,7 @@ pub struct BaptisteToml {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct TomlOperatingTime {
+pub struct TomlOperatingTime
+{
     operating_time: f64,
 }

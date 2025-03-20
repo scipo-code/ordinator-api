@@ -9,7 +9,8 @@ use crate::sap_mapper_and_types::TIMS;
 use crate::sap_mapper_and_types::UNIT;
 
 #[allow(non_snake_case, dead_code)]
-struct Afvv {
+struct Afvv
+{
     MANDT: CLNT,
     AUFPL: NUMC,
     APLZL: NUMC,

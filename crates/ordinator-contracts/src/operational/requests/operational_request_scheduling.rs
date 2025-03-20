@@ -2,7 +2,8 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
-pub enum OperationalSchedulingRequest {
+pub enum OperationalSchedulingRequest
+{
     OperationalIds,
     OperationalState(String),
 }

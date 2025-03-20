@@ -1,24 +1,27 @@
-use anyhow::{bail, Result};
+use std::borrow::Cow;
+use std::collections::HashMap;
+
+use anyhow::Result;
+use anyhow::bail;
 use colored::Colorize;
 use priority_queue::PriorityQueue;
-use std::{borrow::Cow, collections::HashMap};
+use shared_types::scheduling_environment::time_environment::day::Day;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::work_order::operation::Work;
+use shared_types::scheduling_environment::worker_environment::resources::Resources;
 use strum::IntoEnumIterator;
-use tracing::{event, Level};
+use tracing::Level;
+use tracing::event;
 
-use shared_types::scheduling_environment::{
-    time_environment::day::Day,
-    work_order::{operation::Work, WorkOrderNumber},
-    worker_environment::resources::Resources,
-};
-
+use super::Algorithm;
+use super::tactical_parameters::TacticalParameters;
 use crate::agents::TacticalSolution;
-
-use super::{tactical_parameters::TacticalParameters, Algorithm};
 
 type TotalExcessHours = Work;
 
 #[allow(dead_code)]
-pub trait TacticalAssertions {
+pub trait TacticalAssertions
+{
     fn asset_that_loading_matches_scheduled(&self) -> Result<()>;
 
     fn asset_that_capacity_is_not_exceeded(&self) -> Result<TotalExcessHours>;
@@ -27,7 +30,8 @@ pub trait TacticalAssertions {
 impl TacticalAssertions
     for Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>>
 {
-    fn asset_that_loading_matches_scheduled(&self) -> Result<()> {
+    fn asset_that_loading_matches_scheduled(&self) -> Result<()>
+    {
         let mut aggregated_load: HashMap<Resources, HashMap<Day, Work>> = HashMap::new();
 
         for (_work_order_number, solution) in &self
@@ -64,7 +68,13 @@ impl TacticalAssertions
 
                 if (agg_load - sch_load).0.round_dp(9) != Work::from(0.0).0 {
                     event!(Level::ERROR, agg_load = ?agg_load, sch_load = ?sch_load, resource = ?resource, day = ?day);
-                    bail!("Loads does not match on: day {}\n\tresource: {}\n\tscheduled load: {}\n\taggregated_load: {}\n", day.to_string().bright_green(), resource.to_string().bright_blue(), sch_load.to_string().bright_yellow(), agg_load.to_string().bright_yellow());
+                    bail!(
+                        "Loads does not match on: day {}\n\tresource: {}\n\tscheduled load: {}\n\taggregated_load: {}\n",
+                        day.to_string().bright_green(),
+                        resource.to_string().bright_blue(),
+                        sch_load.to_string().bright_yellow(),
+                        agg_load.to_string().bright_yellow()
+                    );
                 }
             }
         }
@@ -72,7 +82,8 @@ impl TacticalAssertions
         Ok(())
     }
 
-    fn asset_that_capacity_is_not_exceeded(&self) -> Result<TotalExcessHours> {
+    fn asset_that_capacity_is_not_exceeded(&self) -> Result<TotalExcessHours>
+    {
         let mut total_excess_hours = Work::from(0.0);
         for (resource, days) in &self.solution.tactical_loadings.resources {
             for (day, load) in &days.days {
@@ -85,7 +96,8 @@ impl TacticalAssertions
                 // ensure!(
                 //     load <= capacity,
                 //     format!(
-                //         "Load exceeds Capacity for resource: {:?} on day: {:?} with load {:?} and capacity {:?}",
+                //         "Load exceeds Capacity for resource: {:?} on day:
+                // {:?} with load {:?} and capacity {:?}",
                 //         resource, day, load, capacity
                 //     )
                 // );
@@ -99,33 +111,34 @@ impl TacticalAssertions
 //             .infeasible_cases_mut()
 //             .unwrap()
 //             .earliest_start_day = (|| {
-//             for (work_order_number, optimized_work_order) in self.parameters().clone() {
-//                 let start_date_from_period = match optimized_work_order.scheduled_period {
-//                     Some(period) => period.start_date().date_naive(),
-//                     None => optimized_work_order.earliest_allowed_start_date,
-//                 };
+//             for (work_order_number, optimized_work_order) in
+// self.parameters().clone() {                 let start_date_from_period =
+// match optimized_work_order.scheduled_period {                     
+// Some(period) => period.start_date().date_naive(),                     None =>
+// optimized_work_order.earliest_allowed_start_date,                 };
 
-//                 if let Some(operation_solutions) = optimized_work_order.operation_solutions {
-//                     let start_days: Vec<_> =
-//                         operation_solutions
+//                 if let Some(operation_solutions) =
+// optimized_work_order.operation_solutions {                     let
+// start_days: Vec<_> =                         operation_solutions
 //                             .values()
 //                             .map(|operation_solution| {
 //                                 operation_solution
 //                             .scheduled
 //                             .first()
-//                             .expect("All scheduled operations should have a first scheduled day")
-//                             .0
+//                             .expect("All scheduled operations should have a
+// first scheduled day")                             .0
 //                             .clone()
 //                             })
 //                             .collect();
 
 //                     for start_day in start_days {
-//                         if start_day.date().date_naive() < start_date_from_period {
-//                             error!(start_day = ?start_day.date(), start_date_from_period = ?start_date_from_period);
+//                         if start_day.date().date_naive() <
+// start_date_from_period {                             error!(start_day =
+// ?start_day.date(), start_date_from_period = ?start_date_from_period);
 //                             return ConstraintState::Infeasible(format!(
-//                                 "{:?} is outside of its earliest start day: {}",
-//                                 work_order_number, start_date_from_period
-//                             ));
+//                                 "{:?} is outside of its earliest start day:
+// {}",                                 work_order_number,
+// start_date_from_period                             ));
 //                         }
 //                     }
 //                 }
@@ -137,9 +150,10 @@ impl TacticalAssertions
 //             .infeasible_cases_mut()
 //             .unwrap()
 //             .all_scheduled = (|| {
-//             for (work_order_number, optimized_work_order) in self.parameters().clone() {
-//                 if optimized_work_order.operation_solutions.is_none() {
-//                     return ConstraintState::Infeasible(work_order_number.0.to_string());
+//             for (work_order_number, optimized_work_order) in
+// self.parameters().clone() {                 if
+// optimized_work_order.operation_solutions.is_none() {                     
+// return ConstraintState::Infeasible(work_order_number.0.to_string());
 //                 }
 //             }
 //             ConstraintState::Feasible
@@ -149,29 +163,32 @@ impl TacticalAssertions
 //             .infeasible_cases_mut()
 //             .unwrap()
 //             .respect_period_id = (|| {
-//             for (_work_order_number, optimized_work_order) in self.parameters().clone() {
-//                 let scheduled_period = match optimized_work_order.scheduled_period {
-//                     Some(period) => period,
-//                     None => return ConstraintState::Feasible,
+//             for (_work_order_number, optimized_work_order) in
+// self.parameters().clone() {                 let scheduled_period = match
+// optimized_work_order.scheduled_period {                     Some(period) =>
+// period,                     None => return ConstraintState::Feasible,
 //                 };
 //                 if !self.tactical_periods.contains(&scheduled_period) {
-//                     error!(work_order_number = ?_work_order_number, scheduled_period = ?scheduled_period, tactical_periods = ?self.tactical_periods, "Tactical period does not contain the scheduled period of the tactical work order");
-//                     return ConstraintState::Infeasible(format!(
-//                         "{:?} has a wrong scheduled period {}",
-//                         _work_order_number, scheduled_period
-//                     ));
+//                     error!(work_order_number = ?_work_order_number,
+// scheduled_period = ?scheduled_period, tactical_periods =
+// ?self.tactical_periods, "Tactical period does not contain the scheduled
+// period of the tactical work order");                     return
+// ConstraintState::Infeasible(format!(                         "{:?} has a
+// wrong scheduled period {}",                         _work_order_number,
+// scheduled_period                     ));
 //                 }
 //             }
 //             ConstraintState::Feasible
 //         })();
 
-//         let infeasible_cases = algorithm_state.infeasible_cases_mut().unwrap();
+//         let infeasible_cases =
+// algorithm_state.infeasible_cases_mut().unwrap();
 
 //         if infeasible_cases.aggregated_load == ConstraintState::Feasible
-//             && infeasible_cases.earliest_start_day == ConstraintState::Feasible
-//             && infeasible_cases.all_scheduled == ConstraintState::Feasible
-//             && infeasible_cases.respect_period_id == ConstraintState::Feasible
-//         {
+//             && infeasible_cases.earliest_start_day ==
+// ConstraintState::Feasible             && infeasible_cases.all_scheduled ==
+// ConstraintState::Feasible             && infeasible_cases.respect_period_id
+// == ConstraintState::Feasible         {
 //             AlgorithmState::Feasible
 //         } else {
 //             algorithm_state

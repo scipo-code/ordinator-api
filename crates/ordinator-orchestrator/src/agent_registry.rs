@@ -12,7 +12,8 @@ use shared_types::scheduling_environment::worker_environment::resources::Id;
 
 use crate::agents::ActorMessage;
 
-pub struct ActorRegistry {
+pub struct ActorRegistry
+{
     pub strategic_agent_sender:
         Communication<ActorMessage<StrategicRequestMessage>, StrategicResponseMessage>,
     pub tactical_agent_sender:
@@ -27,7 +28,8 @@ pub struct ActorRegistry {
     >,
 }
 
-impl ActorRegistry {
+impl ActorRegistry
+{
     pub fn get_operational_addr(
         &self,
         operational_id: &String,
@@ -50,7 +52,8 @@ impl ActorRegistry {
     // Make this generic
     // WARN
     // Making this generic is probably not the best idea.
-    pub fn recv_all_agents_status(&self) -> Result<AgentStatus> {
+    pub fn recv_all_agents_status(&self) -> Result<AgentStatus>
+    {
         let mut supervisor_statai: Vec<SupervisorResponseStatus> = vec![];
         let mut operational_statai: Vec<OperationalResponseStatus> = vec![];
 

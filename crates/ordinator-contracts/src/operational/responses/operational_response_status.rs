@@ -2,7 +2,8 @@ use ordinator_scheduling_environment::worker_environment::resources::Id;
 use serde::Serialize;
 
 #[derive(Serialize)]
-pub struct OperationalResponseStatus {
+pub struct OperationalResponseStatus
+{
     id: Id,
     assign_number_of_activities: u64,
     assess_number_of_activities: u64,
@@ -10,14 +11,16 @@ pub struct OperationalResponseStatus {
     objective: u64,
 }
 
-impl OperationalResponseStatus {
+impl OperationalResponseStatus
+{
     pub fn new(
         id: Id,
         assign_number_of_activities: u64,
         assess_number_of_activities: u64,
         unassign_number_of_activities: u64,
         objective: u64,
-    ) -> Self {
+    ) -> Self
+    {
         Self {
             id,
             assign_number_of_activities,

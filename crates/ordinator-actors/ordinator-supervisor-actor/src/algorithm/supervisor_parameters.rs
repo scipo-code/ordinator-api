@@ -1,19 +1,23 @@
-use std::{collections::HashMap, sync::MutexGuard};
+use std::collections::HashMap;
+use std::sync::MutexGuard;
 
-use anyhow::{Context, Result};
-use shared_types::scheduling_environment::{
-    time_environment::period::Period,
-    work_order::{
-        operation::{operation_info::NumberOfPeople, ActivityNumber, Operation},
-        WorkOrderActivity, WorkOrderNumber,
-    },
-    worker_environment::resources::{Id, Resources},
-    SchedulingEnvironment,
-};
+use anyhow::Context;
+use anyhow::Result;
+use shared_types::scheduling_environment::SchedulingEnvironment;
+use shared_types::scheduling_environment::time_environment::period::Period;
+use shared_types::scheduling_environment::work_order::WorkOrderActivity;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
+use shared_types::scheduling_environment::work_order::operation::Operation;
+use shared_types::scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
+use shared_types::scheduling_environment::worker_environment::resources::Id;
+use shared_types::scheduling_environment::worker_environment::resources::Resources;
 
-use crate::agents::{supervisor_agent::SupervisorOptions, traits::Parameters};
+use crate::agents::supervisor_agent::SupervisorOptions;
+use crate::agents::traits::Parameters;
 
-pub struct SupervisorParameters {
+pub struct SupervisorParameters
+{
     pub supervisor_work_orders:
         HashMap<WorkOrderNumber, HashMap<ActivityNumber, SupervisorParameter>>,
     pub supervisor_periods: Vec<Period>,
@@ -21,7 +25,8 @@ pub struct SupervisorParameters {
     pub options: SupervisorOptions,
 }
 
-impl Parameters for SupervisorParameters {
+impl Parameters for SupervisorParameters
+{
     type Key = WorkOrderActivity;
     type Options = SupervisorOptions;
 
@@ -29,7 +34,8 @@ impl Parameters for SupervisorParameters {
         id: &Id,
         options: Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
-    ) -> Result<Self> {
+    ) -> Result<Self>
+    {
         let supervisor_periods = &scheduling_environment.time_environment.supervisor_periods;
 
         let mut supervisor_parameters = HashMap::new();
@@ -63,10 +69,10 @@ impl Parameters for SupervisorParameters {
         }
 
         // FIX
-        // You should not select all agents. You should instead pick the ones that fit the correct supervisor.
-        // WARN
-        // You made a huge mistake here! The types in the `SchedulingEnvironment` was wrong and then you
-        // created state duplication to fix the issue.
+        // You should not select all agents. You should instead pick the ones that fit
+        // the correct supervisor. WARN
+        // You made a huge mistake here! The types in the `SchedulingEnvironment` was
+        // wrong and then you created state duplication to fix the issue.
         let operational_ids: Vec<Id> = scheduling_environment
             .worker_environment
             .agent_environment
@@ -89,16 +95,19 @@ impl Parameters for SupervisorParameters {
         scheduling_environment: std::sync::MutexGuard<
             shared_types::scheduling_environment::SchedulingEnvironment,
         >,
-    ) {
+    )
+    {
         todo!()
     }
 }
 
-impl SupervisorParameters {
+impl SupervisorParameters
+{
     pub(crate) fn supervisor_parameter(
         &self,
         work_order_activity: &WorkOrderActivity,
-    ) -> Result<&SupervisorParameter> {
+    ) -> Result<&SupervisorParameter>
+    {
         let supervisor_parameter = self.supervisor_work_orders
             .get(&work_order_activity.0)
             .context(format!("WorkOrderNumber: {:?} was not part of the SupervisorParameters", work_order_activity.0))?
@@ -112,18 +121,22 @@ impl SupervisorParameters {
         &mut self,
         operation: &Operation,
         work_order_activity: &WorkOrderActivity,
-    ) {
+    )
+    {
         // DEBUG: Make assertions here!
     }
 }
 
-pub struct SupervisorParameter {
+pub struct SupervisorParameter
+{
     pub resource: Resources,
     pub number: NumberOfPeople,
 }
 
-impl SupervisorParameter {
-    pub fn new(resource: Resources, number: NumberOfPeople) -> Self {
+impl SupervisorParameter
+{
+    pub fn new(resource: Resources, number: NumberOfPeople) -> Self
+    {
         Self { resource, number }
     }
 }

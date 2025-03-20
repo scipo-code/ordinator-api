@@ -7,17 +7,21 @@ use serde::Serialize;
 // and then have a JSON api data structure. That is the best way of implementing
 // this I do not see a different way.
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum TacticalResourceRequest {
+pub enum TacticalResourceRequest
+{
     // SetResources(TacticalResources),
-    GetLoadings {
+    GetLoadings
+    {
         days_end: String,
         select_resources: Option<Vec<Resources>>,
     },
-    GetCapacities {
+    GetCapacities
+    {
         days_end: String,
         select_resources: Option<Vec<Resources>>,
     },
-    GetPercentageLoadings {
+    GetPercentageLoadings
+    {
         days_end: String,
         resources: Option<Vec<Resources>>,
     },

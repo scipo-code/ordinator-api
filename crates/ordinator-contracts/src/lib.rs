@@ -19,7 +19,8 @@ use tactical::TacticalResponse;
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "message_type")]
-pub enum SystemMessages {
+pub enum SystemMessages
+{
     Orchestrator(OrchestratorRequest),
     Strategic(StrategicRequest),
     Tactical(TacticalRequest),
@@ -29,7 +30,8 @@ pub enum SystemMessages {
 }
 
 #[derive(Serialize)]
-pub enum SystemResponses {
+pub enum SystemResponses
+{
     Orchestrator(OrchestratorResponse),
     Strategic(StrategicResponse),
     Tactical(TacticalResponse),

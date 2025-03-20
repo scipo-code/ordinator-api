@@ -4,7 +4,8 @@ use serde::Serialize;
 // TODO [ ] FIX [ ]
 // Make a custom type for the StrategicResourcesApi
 #[derive(Serialize)]
-pub enum StrategicResponseResources {
+pub enum StrategicResponseResources
+{
     UpdatedResources(u32),
     LoadingAndCapacities(StrategicResourcesApi),
     Percentage(StrategicResourcesApi, StrategicResourcesApi),

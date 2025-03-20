@@ -17,20 +17,24 @@ pub type OperationalId = String;
 // approach is to create something that will allow us to better
 // forcast how the system will behave.
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
-pub struct WorkerEnvironment {
+pub struct WorkerEnvironment
+{
     pub agent_environment: AgentEnvironment,
     work_centers: HashSet<Resources>,
 }
 
-pub struct WorkerEnvironmentBuilder {
+pub struct WorkerEnvironmentBuilder
+{
     pub agent_environment: Option<AgentEnvironment>,
     work_centers: Option<HashSet<Resources>>,
 }
 
-impl WorkerEnvironment {
+impl WorkerEnvironment
+{
     // TODO [ ]
     // This should be refactored!
-    pub fn new() -> Self {
+    pub fn new() -> Self
+    {
         let mut work_centers = HashSet::new();
         for resource in Resources::iter() {
             work_centers.insert(resource);
@@ -42,20 +46,24 @@ impl WorkerEnvironment {
     }
 }
 
-pub enum EmptyFull {
+pub enum EmptyFull
+{
     Empty,
     Full,
 }
 
-impl WorkerEnvironmentBuilder {
-    pub fn build(self) -> WorkerEnvironment {
+impl WorkerEnvironmentBuilder
+{
+    pub fn build(self) -> WorkerEnvironment
+    {
         WorkerEnvironment {
             agent_environment: self.agent_environment.unwrap_or_default(),
             work_centers: self.work_centers.unwrap_or_default(),
         }
     }
 
-    pub fn agent_environment(&mut self, agent_environment: AgentEnvironment) -> &mut Self {
+    pub fn agent_environment(&mut self, agent_environment: AgentEnvironment) -> &mut Self
+    {
         self.agent_environment = Some(agent_environment);
         self
     }

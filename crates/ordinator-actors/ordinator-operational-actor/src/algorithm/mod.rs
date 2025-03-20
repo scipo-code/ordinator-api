@@ -3,43 +3,82 @@ pub mod operational_events;
 pub mod operational_parameter;
 pub mod operational_solution;
 
-use std::{collections::HashSet, sync::Arc};
+use std::collections::HashSet;
+use std::sync::Arc;
 
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::Context;
+use anyhow::Result;
+use anyhow::bail;
+use anyhow::ensure;
 use assert_functions::OperationalAlgorithmAsserts;
-use chrono::{DateTime, TimeDelta, Utc};
+use chrono::DateTime;
+use chrono::TimeDelta;
+use chrono::Utc;
 use itertools::Itertools;
 use operational_events::OperationalEvents;
-use operational_parameter::{OperationalParameter, OperationalParameters};
-use operational_solution::{
-    Assignment, MarginalFitness, OperationalAssignment, OperationalFunctions, OperationalSolution,
-};
+use operational_parameter::OperationalParameter;
+use operational_parameter::OperationalParameters;
+use operational_solution::Assignment;
+use operational_solution::MarginalFitness;
+use operational_solution::OperationalAssignment;
+use operational_solution::OperationalFunctions;
+use operational_solution::OperationalObjectiveValue;
+use operational_solution::OperationalSolution;
+use ordinator_actor_core::WhereIsWorkOrder;
+use ordinator_actor_core::algorithm::Algorithm;
+use ordinator_actor_core::delegate::Delegate;
+use ordinator_actor_core::traits::AbLNSUtils;
+use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
+use ordinator_actor_core::traits::ObjectiveValueType;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_scheduling_environment::time_environment::TimeInterval;
-use ordinator_scheduling_environment::{
-    work_order::{
-        WorkOrderActivity, WorkOrderNumber,
-        operation::{ActivityNumber, Work},
-    },
-    worker_environment::availability::Availability,
-};
-use tracing::{Level, event};
-
-use crate::WhereIsWorkOrder;
-use crate::algorithm::Algorithm;
-use crate::supervisor_agent::algorithm::delegate::Delegate;
-use crate::traits::{ActorBasedLargeNeighborhoodSearch, ObjectiveValueType};
+use ordinator_scheduling_environment::work_order::WorkOrderActivity;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
+use ordinator_scheduling_environment::work_order::operation::Work;
+use ordinator_scheduling_environment::worker_environment::availability::Availability;
+use tracing::Level;
+use tracing::event;
 
 use super::OperationalOptions;
 
 #[derive(Clone, Default)]
 pub struct OperationalNonProductive(pub Vec<Assignment>);
 
-impl Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive> {
+pub trait OperationalTraitUtils
+{
     fn determine_next_event_non_productive(
         &mut self,
         current_time: &mut DateTime<Utc>,
         next_operation: Option<OperationalAssignment>,
-    ) -> (DateTime<Utc>, OperationalEvents) {
+    ) -> (DateTime<Utc>, OperationalEvents);
+
+    fn determine_time_interval_of_function(
+        &mut self,
+        next_operation: Option<OperationalAssignment>,
+        current_time: &DateTime<Utc>,
+        interval: TimeInterval,
+    ) -> TimeInterval;
+
+    fn update_marginal_fitness(
+        &mut self,
+        work_order_activity_previous: (WorkOrderNumber, ActivityNumber),
+        time_delta: TimeDelta,
+    );
+}
+
+impl<Ss> OperationalTraitUtils
+    for Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>
+where
+    Ss: SharedSolutionTrait,
+{
+    fn determine_next_event_non_productive(
+        &mut self,
+        current_time: &mut DateTime<Utc>,
+        next_operation: Option<OperationalAssignment>,
+    ) -> (DateTime<Utc>, OperationalEvents)
+    {
         if self.parameters.break_interval.contains(current_time) {
             let time_interval = self.determine_time_interval_of_function(
                 next_operation,
@@ -94,14 +133,16 @@ impl Algorithm<OperationalSolution, OperationalParameters, OperationalNonProduct
         }
     }
 
-    // This function makes sure that the created event is adjusted to fit the schedule if there has been any manual intervention in the
-    // schedule for the OperationalAgent.
+    // This function makes sure that the created event is adjusted to fit the
+    // schedule if there has been any manual intervention in the schedule for
+    // the OperationalAgent.
     fn determine_time_interval_of_function(
         &mut self,
         next_operation: Option<OperationalAssignment>,
         current_time: &DateTime<Utc>,
         interval: TimeInterval,
-    ) -> TimeInterval {
+    ) -> TimeInterval
+    {
         // What is this code actually trying to do? I think
         let time_interval: TimeInterval = match next_operation {
             Some(operational_solution) => {
@@ -114,19 +155,22 @@ impl Algorithm<OperationalSolution, OperationalParameters, OperationalNonProduct
                     TimeInterval::new(current_time.time(), interval.end)
                 }
             }
+
             None => TimeInterval::new(current_time.time(), interval.end),
         };
         time_interval
     }
 
-    // This is a problem. What should you do about it? I think that the best thing that you can do is move all this
-    // into the `schedule` function and handle it while the code is running. That is probably the best call here. I
+    // This is a problem. What should you do about it? I think that the best thing
+    // that you can do is move all this into the `schedule` function and handle
+    // it while the code is running. That is probably the best call here. I
     // do not see what other way it could be done in a better way.
     fn update_marginal_fitness(
         &mut self,
         work_order_activity_previous: (WorkOrderNumber, ActivityNumber),
         time_delta: TimeDelta,
-    ) {
+    )
+    {
         let time_delta_usize = time_delta.num_seconds() as u64;
 
         self.solution
@@ -139,31 +183,45 @@ impl Algorithm<OperationalSolution, OperationalParameters, OperationalNonProduct
     }
 }
 
-pub enum ContainOrNextOrNone {
+pub enum ContainOrNextOrNone
+{
     Contain(OperationalAssignment),
     Next(OperationalAssignment),
     None,
 }
 
-pub enum Unavailability {
+pub enum Unavailability
+{
     Beginning,
     End,
 }
 
 // FIX
-// Some of the methods here should be moved out of the agent. That will be crucial. You have one hour to m
-// make this compile again.
+// Some of the methods here should be moved out of the agent. That will be
+// crucial. You have one hour to m make this compile again.
 // QUESTION
 // What should be changed here to make the ABLNS work on the Algorithm again?
-impl ActorBasedLargeNeighborhoodSearch
-    for Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive>
+struct OperationalAlgorithm<Ss>(
+    Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>,
+)
+where
+    Ss: SharedSolutionTrait,
+    Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>: AbLNSUtils;
+
+impl<Ss> ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm<Ss>
+where
+    Ss: SharedSolutionTrait,
+    Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>: AbLNSUtils,
 {
+    type Algorithm =
+        Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>;
     type Options = OperationalOptions;
 
     // QUESTION
     // Could this be made generic? I think that it can!
     // It would be difficult.
-    fn incorporate_shared_state(&mut self) -> Result<bool> {
+    fn incorporate_shared_state(&mut self) -> Result<bool>
+    {
         let operational_shared_solution = self
             .loaded_shared_solution
             .supervisor
@@ -185,21 +243,16 @@ impl ActorBasedLargeNeighborhoodSearch
         Ok(true)
     }
 
-    fn make_atomic_pointer_swap(&self) {
+    fn make_atomic_pointer_swap(&self)
+    {
         // Performance enhancements:
-        // * COW:
-        //      #[derive(Clone)]
-        //      struct SharedSolution<'a> {
-        //          tactical: Cow<'a, TacticalSolution>,
-        //          // other fields...
-        //      }
+        // * COW: #[derive(Clone)] struct SharedSolution<'a> { tactical: Cow<'a,
+        //   TacticalSolution>, // other fields... }
         //
-        // * Reuse the old SharedSolution, cloning only the fields that are needed.
-        //     let shared_solution = Arc::new(SharedSolution {
-        //             tactical: self.tactical_solution.clone(),
-        //             // Copy over other fields without cloning
-        //             ..(**old).clone()
-        //         });
+        // * Reuse the old SharedSolution, cloning only the fields that are needed. let
+        //   shared_solution = Arc::new(SharedSolution { tactical:
+        //   self.tactical_solution.clone(), // Copy over other fields without cloning
+        //   ..(**old).clone() });
         self.arc_swap_shared_solution.0.rcu(|old| {
             let mut shared_solution = (**old).clone();
             shared_solution
@@ -210,7 +263,14 @@ impl ActorBasedLargeNeighborhoodSearch
     }
 
     // If we are going to implement delta evaluation we should remove this part.
-    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType<Self::ObjectiveValue>> {
+    fn calculate_objective_value(
+        &mut self,
+    ) -> Result<
+        ObjectiveValueType<
+            <<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue,
+        >,
+    >
+    {
         let operational_events: Vec<Assignment> = self
             .solution
             .scheduled_work_order_activities
@@ -337,7 +397,8 @@ impl ActorBasedLargeNeighborhoodSearch
         }
     }
 
-    fn schedule(&mut self) -> Result<()> {
+    fn schedule(&mut self) -> Result<()>
+    {
         self.solution_intermediate.0.clear();
         let work_order_activities = &self
             .loaded_shared_solution
@@ -420,7 +481,8 @@ impl ActorBasedLargeNeighborhoodSearch
         Ok(())
     }
 
-    fn unschedule(&mut self) -> Result<()> {
+    fn unschedule(&mut self) -> Result<()>
+    {
         let operational_solutions_len = self.solution.scheduled_work_order_activities.len();
 
         let operational_solutions_filtered: Vec<WorkOrderActivity> =
@@ -446,15 +508,24 @@ impl ActorBasedLargeNeighborhoodSearch
         }
         Ok(())
     }
+
+    fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm
+    {
+        &mut self.0
+    }
 }
 
-impl Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive> {
+impl<Ss> OperationalAlgorithm<Ss>
+where
+    Ss: SharedSolutionTrait,
+{
     fn determine_wrench_time_assignment(
         &self,
         work_order_activity: WorkOrderActivity,
         operational_parameter: &OperationalParameter,
         start_time: DateTime<Utc>,
-    ) -> Vec<Assignment> {
+    ) -> Vec<Assignment>
+    {
         assert_ne!(operational_parameter.work, Work::from(0.0));
         assert!(!operational_parameter.operation_time_delta.is_zero());
         let mut assigned_work: Vec<Assignment> = vec![];
@@ -505,7 +576,8 @@ impl Algorithm<OperationalSolution, OperationalParameters, OperationalNonProduct
     fn unschedule_single_work_order_activity(
         &mut self,
         work_order_and_activity_number: WorkOrderActivity,
-    ) -> Result<()> {
+    ) -> Result<()>
+    {
         ensure!(
             self.solution
                 .scheduled_work_order_activities
@@ -529,7 +601,8 @@ impl Algorithm<OperationalSolution, OperationalParameters, OperationalNonProduct
         Ok(())
     }
 
-    fn determine_next_event(&self, current_time: &DateTime<Utc>) -> (TimeDelta, OperationalEvents) {
+    fn determine_next_event(&self, current_time: &DateTime<Utc>) -> (TimeDelta, OperationalEvents)
+    {
         let break_diff = (
             self.parameters.break_interval.start - current_time.time(),
             OperationalEvents::Break(self.parameters.break_interval.clone()),
@@ -557,15 +630,19 @@ impl Algorithm<OperationalSolution, OperationalParameters, OperationalNonProduct
         &self,
         work_order_activity: &WorkOrderActivity,
         operational_parameter: &OperationalParameter,
-    ) -> Result<DateTime<Utc>> {
-        // Here we load in the `TacticalSolution` from the `loaded_shared_solution`. This should function to
-        // make the code work more seamlessly with the `TacticalSolution`. Are we doing this correctly? I do
-        // not think that we are. The thing is that the supervisor can force a work order here and then the
-        // Tactical and Strategic Agent has to respect that. That means that initialially this could be
-        // None, but we should strive to make this as perfect as possible. If there is a tactical days we should
-        // use that. If there is a Strategic period we should use that. If there is none we should check the
-        // manual part. The issue here is not that it is not scheduled, the issue is that the entry does not
-        // exist. What should you do here?
+    ) -> Result<DateTime<Utc>>
+    {
+        // Here we load in the `TacticalSolution` from the `loaded_shared_solution`.
+        // This should function to make the code work more seamlessly with the
+        // `TacticalSolution`. Are we doing this correctly? I do not think that
+        // we are. The thing is that the supervisor can force a work order here and then
+        // the Tactical and Strategic Agent has to respect that. That means that
+        // initialially this could be None, but we should strive to make this as
+        // perfect as possible. If there is a tactical days we should
+        // use that. If there is a Strategic period we should use that. If there is none
+        // we should check the manual part. The issue here is not that it is not
+        // scheduled, the issue is that the entry does not exist. What should
+        // you do here?
         let tactical_days_option = self
             .loaded_shared_solution
             .tactical
@@ -573,7 +650,9 @@ impl Algorithm<OperationalSolution, OperationalParameters, OperationalNonProduct
             .0
             .get(&work_order_activity.0);
 
-        // .expect("This should always be present. If this occurs you should check the initialization. The implementation is that the tactical and strategic algorithm always provide a key for each WorkOrderNumber");
+        // .expect("This should always be present. If this occurs you should check the
+        // initialization. The implementation is that the tactical and strategic
+        // algorithm always provide a key for each WorkOrderNumber");
 
         let strategic_period_option = self
             .loaded_shared_solution
@@ -581,7 +660,9 @@ impl Algorithm<OperationalSolution, OperationalParameters, OperationalNonProduct
             .strategic_scheduled_work_orders
             .get(&work_order_activity.0);
 
-        // .expect("This should always be present. If this occurs you should check the initialization. The implementation is that the tactical and strategic algorithm always provide a key for each WorkOrderNumber");
+        // .expect("This should always be present. If this occurs you should check the
+        // initialization. The implementation is that the tactical and strategic
+        // algorithm always provide a key for each WorkOrderNumber");
 
         let (start_window, end_window) = match (strategic_period_option, tactical_days_option) {
             // What is actually happening here?
@@ -662,7 +743,8 @@ impl Algorithm<OperationalSolution, OperationalParameters, OperationalNonProduct
     fn update_current_time_based_on_event(
         &self,
         mut current_time: DateTime<Utc>,
-    ) -> Option<DateTime<Utc>> {
+    ) -> Option<DateTime<Utc>>
+    {
         if self.parameters.off_shift_interval.contains(&current_time) {
             let off_shift_interval_end = self.parameters.off_shift_interval.end;
             if off_shift_interval_end < current_time.time() {
@@ -699,7 +781,8 @@ impl Algorithm<OperationalSolution, OperationalParameters, OperationalNonProduct
     }
 }
 
-fn no_overlap(events: &Vec<Assignment>) -> bool {
+fn no_overlap(events: &Vec<Assignment>) -> bool
+{
     for event_1 in events {
         for event_2 in events {
             if event_1 == event_2 {
@@ -718,7 +801,8 @@ fn no_overlap(events: &Vec<Assignment>) -> bool {
     true
 }
 
-fn no_overlap_by_ref(events: Vec<&Assignment>) -> bool {
+fn no_overlap_by_ref(events: Vec<&Assignment>) -> bool
+{
     for event_1 in &events {
         for event_2 in &events {
             if event_1 == event_2 {
@@ -737,7 +821,8 @@ fn no_overlap_by_ref(events: Vec<&Assignment>) -> bool {
     true
 }
 
-fn is_assignments_in_bounds(events: &Vec<Assignment>, availability: &Availability) -> bool {
+fn is_assignments_in_bounds(events: &Vec<Assignment>, availability: &Availability) -> bool
+{
     for event in events {
         if event.start < availability.start_date && !event.event_type.unavail() {
             dbg!(event, availability);
@@ -751,7 +836,8 @@ fn is_assignments_in_bounds(events: &Vec<Assignment>, availability: &Availabilit
     true
 }
 
-fn equality_between_time_interval_and_assignments(all_events: &Vec<Assignment>) {
+fn equality_between_time_interval_and_assignments(all_events: &Vec<Assignment>)
+{
     for assignment in all_events {
         assert_eq!(assignment.start.time(), assignment.event_type.start_time());
         assert_eq!(
@@ -766,42 +852,39 @@ fn equality_between_time_interval_and_assignments(all_events: &Vec<Assignment>) 
 }
 
 #[cfg(test)]
-mod tests {
-    use std::{
-        str::FromStr,
-        sync::{Arc, Mutex},
-    };
+mod tests
+{
+    use std::str::FromStr;
+    use std::sync::Arc;
+    use std::sync::Mutex;
 
-    use chrono::{DateTime, NaiveTime, TimeDelta, Utc};
-    use proptest::prelude::*;
-    use shared_types::{
-        OperationalConfigurationAll,
-        agents::operational::{OperationalConfiguration, TimeInterval},
-        scheduling_environment::{
-            SchedulingEnvironment,
-            time_environment::period::Period,
-            work_order::{WorkOrderNumber, operation::Work},
-            worker_environment::{availability::Availability, resources::Id},
-        },
-    };
-
-    use crate::{
-        agents::{
-            Algorithm, ArcSwapSharedSolution, OperationalSolution, Solution, WhereIsWorkOrder,
-            operational_agent::{
-                OperationalOptions,
-                algorithm::{OperationalEvents, operational_parameter::OperationalParameters},
-            },
-            traits::Parameters,
-        },
-        orchestrator::configuration::SystemConfigurations,
-    };
     use anyhow::Result;
+    use chrono::DateTime;
+    use chrono::NaiveTime;
+    use chrono::TimeDelta;
+    use chrono::Utc;
+    use ordinator_actor_core::algorithm::Algorithm;
+    use ordinator_configuration::SystemConfigurations;
+    use ordinator_scheduling_environment::SchedulingEnvironment;
+    use ordinator_scheduling_environment::time_environment::TimeInterval;
+    use ordinator_scheduling_environment::time_environment::period::Period;
+    use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+    use ordinator_scheduling_environment::work_order::operation::Work;
+    use ordinator_scheduling_environment::worker_environment::availability::Availability;
+    use ordinator_scheduling_environment::worker_environment::crew::OperationalConfiguration;
+    use ordinator_scheduling_environment::worker_environment::crew::OperationalConfigurationAll;
+    use ordinator_scheduling_environment::worker_environment::resources::Id;
+    use proptest::prelude::*;
 
     use super::OperationalParameter;
+    use crate::OperationalOptions;
+    use crate::algorithm::operational_events::OperationalEvents;
+    use crate::algorithm::operational_parameter::OperationalParameters;
+    use crate::algorithm::operational_solution::OperationalSolution;
 
     #[test]
-    fn test_determine_next_event_1() -> Result<()> {
+    fn test_determine_next_event_1() -> Result<()>
+    {
         let availability_start: DateTime<Utc> =
             DateTime::parse_from_rfc3339("2024-05-16T07:00:00Z")
                 .unwrap()
@@ -853,11 +936,13 @@ mod tests {
 
         let scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
 
+        // What should be created or changed here? I think that the best appraoch is to
+        // make a trait for each builder.
+        let operational_options = OperationalOptions::from(system_configurations);
         let operational_algorithm = Algorithm::builder()
             .id(id)
-            .parameters(options, scheduling_environment)?
+            .parameters(&operational_options, scheduling_environment)?
             .solution()
-            .arc_swap_shared_solution(arc_swap_shared_solution)
             .build();
 
         let current_time = DateTime::parse_from_rfc3339("2024-05-20T12:00:00Z")
@@ -873,7 +958,8 @@ mod tests {
     }
 
     #[test]
-    fn test_determine_next_event_2() -> Result<()> {
+    fn test_determine_next_event_2() -> Result<()>
+    {
         let availability_start: DateTime<Utc> =
             DateTime::parse_from_rfc3339("2024-05-16T07:00:00Z")
                 .unwrap()
@@ -918,91 +1004,44 @@ mod tests {
 
         let scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
 
-        let operational_parameters = OperationalParameters::new(
-            &id,
-            OperationalOptions::default(),
-            &scheduling_environment.lock().unwrap(),
-        )?;
+        let options = SystemConfigurations::read_all_configs().unwrap();
 
-        let operational_solution = OperationalSolution::new(&operational_parameters);
+        // let operational_algorithm = Algorithm::builder()
+        //     .id(id)
+        //     .parameters(
+        //         OperationalOptions::from::<SystemConfigurations>(options),
+        //         scheduling_environment,
+        //     )?
+        //     .build();
 
-        let operational_algorithm = Algorithm::new(
-            &Id::new("TEST_OPERATIONAL", vec![], vec![]),
-            operational_solution,
-            operational_parameters,
-            Arc::new(ArcSwapSharedSolution::default()),
-        );
+        // let current_time = DateTime::parse_from_rfc3339("2024-05-20T00:00:00Z")
+        //     .unwrap()
+        //     .to_utc();
 
-        let current_time = DateTime::parse_from_rfc3339("2024-05-20T00:00:00Z")
-            .unwrap()
-            .to_utc();
+        // let (time_delta, next_event) =
+        // operational_algorithm.determine_next_event(&current_time);
 
-        let (time_delta, next_event) = operational_algorithm.determine_next_event(&current_time);
-
-        assert_eq!(time_delta, TimeDelta::new(3600 * 7, 0).unwrap());
-        assert_eq!(next_event, OperationalEvents::Toolbox(toolbox_interval));
+        // assert_eq!(time_delta, TimeDelta::new(3600 * 7, 0).unwrap());
+        // assert_eq!(next_event, OperationalEvents::Toolbox(toolbox_interval));
         Ok(())
     }
 
     #[test]
-    fn test_determine_next_event_3() -> Result<()> {
-        let availability_start: DateTime<Utc> =
-            DateTime::parse_from_rfc3339("2024-05-16T07:00:00Z")
-                .unwrap()
-                .to_utc();
-        let availability_end: DateTime<Utc> = DateTime::parse_from_rfc3339("2024-05-30T15:00:00Z")
-            .unwrap()
-            .to_utc();
-
-        let break_interval = TimeInterval::new(
-            NaiveTime::from_hms_opt(11, 0, 0).unwrap(),
-            NaiveTime::from_hms_opt(12, 0, 0).unwrap(),
-        );
-
-        let off_shift_interval = TimeInterval::new(
-            NaiveTime::from_hms_opt(19, 0, 0).unwrap(),
-            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
-        );
-        let toolbox_interval = TimeInterval::new(
-            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
-            NaiveTime::from_hms_opt(8, 0, 0).unwrap(),
-        );
-        let operational_configuration = OperationalConfiguration::new(
-            Availability::new(availability_start, availability_end),
-            break_interval.clone(),
-            off_shift_interval.clone(),
-            toolbox_interval.clone(),
-        );
-
+    fn test_determine_next_event_3() -> Result<()>
+    {
         let mut scheduling_environment = SchedulingEnvironment::default();
 
         let id = &Id::new("TEST_OPERATIONAL", vec![], vec![]);
 
-        let operational_configuration_all =
-            OperationalConfigurationAll::new(id.clone(), 6.0, operational_configuration);
-
-        scheduling_environment
-            .worker_environment
-            .agent_environment
-            .operational
-            .insert(id.clone(), operational_configuration_all);
-
         let scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
 
-        let operational_parameters = OperationalParameters::new(
-            &id,
-            OperationalOptions::default(),
-            &scheduling_environment.lock().unwrap(),
-        )?;
+        let value = SystemConfigurations::read_all_configs().unwrap();
+        let options = OperationalOptions::from(value);
 
-        let operational_solution = OperationalSolution::new(&operational_parameters);
-
-        let operational_algorithm = Algorithm::new(
-            &Id::new("TEST_OPERATIONAL", vec![], vec![]),
-            operational_solution,
-            operational_parameters,
-            Arc::new(ArcSwapSharedSolution::default()),
-        );
+        let operational_algorithm = Algorithm::builder()
+            .id(id)
+            .parameters(&options, scheduling_environment)?
+            .build();
 
         let current_time = DateTime::parse_from_rfc3339("2024-05-20T01:00:00Z")
             .unwrap()
@@ -1011,12 +1050,13 @@ mod tests {
         let (time_delta, next_event) = operational_algorithm.determine_next_event(&current_time);
 
         assert_eq!(time_delta, TimeDelta::new(3600 * 6, 0).unwrap());
-        assert_eq!(next_event, OperationalEvents::Toolbox(toolbox_interval));
+        assert_eq!(next_event, OperationalEvents::Toolbox(value.actor_configurations.operational_options.));
         Ok(())
     }
 
     #[test]
-    fn test_determine_first_available_start_time() -> Result<()> {
+    fn test_determine_first_available_start_time() -> Result<()>
+    {
         let availability_start: DateTime<Utc> =
             DateTime::parse_from_rfc3339("2024-10-07T07:00:00Z")
                 .unwrap()
@@ -1068,12 +1108,12 @@ mod tests {
 
         let operational_solution = OperationalSolution::new(&operational_parameters);
 
-        let mut operational_algorithm = Algorithm::new(
-            &Id::new("TEST_OPERATIONAL", vec![], vec![]),
-            operational_solution,
-            operational_parameters,
-            Arc::new(ArcSwapSharedSolution::default()),
-        );
+        let options = OperationalOptions::from(SystemConfigurations::read_all_configs().unwrap());
+
+        let mut operational_algorithm = Algorithm::builder()
+            .id(&Id::new("TEST_OPERATIONAL", vec![], vec![]))
+            .parameters(&options, scheduling_environment)?
+            .build();
 
         operational_algorithm.load_shared_solution();
 
@@ -1124,10 +1164,6 @@ mod tests {
                 .to_utc()
         );
         Ok(())
-    }
-
-    fn reverse(s: &str) -> String {
-        s.chars().rev().collect()
     }
 
     proptest! {

@@ -18,7 +18,8 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Args, Serialize, Deserialize, Eq, PartialEq, Hash, Clone, PartialOrd, Ord)]
-pub struct Period {
+pub struct Period
+{
     id_internal: i32,
     period_string: String,
     start_date: DateTime<Utc>,
@@ -28,8 +29,10 @@ pub struct Period {
     pub finish_week: u32,
 }
 
-impl std::fmt::Debug for Period {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Debug for Period
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+    {
         if f.alternate() {
             write!(
                 f,
@@ -68,8 +71,10 @@ impl std::fmt::Debug for Period {
 }
 
 #[allow(dead_code)]
-impl Period {
-    pub fn new(id: i32, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Period {
+impl Period
+{
+    pub fn new(id: i32, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Period
+    {
         let mut year = start_date.year();
 
         if is_last_three_days_of_year(start_date.naive_utc().date()) {
@@ -96,14 +101,16 @@ impl Period {
         }
     }
 
-    pub fn contains_date(&self, date: NaiveDate) -> bool {
+    pub fn contains_date(&self, date: NaiveDate) -> bool
+    {
         self.start_date.date_naive() <= date && date <= self.end_date.date_naive()
     }
 
     pub(crate) fn count_overlapping_days(
         &self,
         availability: &crate::worker_environment::availability::Availability,
-    ) -> i64 {
+    ) -> i64
+    {
         let first = std::cmp::max(
             self.start_date.date_naive(),
             availability.start_date.date_naive(),
@@ -118,28 +125,35 @@ impl Period {
     }
 }
 
-impl Period {
-    pub fn period_string(&self) -> String {
+impl Period
+{
+    pub fn period_string(&self) -> String
+    {
         self.period_string.clone()
     }
 
-    pub fn start_date(&self) -> &DateTime<Utc> {
+    pub fn start_date(&self) -> &DateTime<Utc>
+    {
         &self.start_date
     }
 
-    pub fn end_date(&self) -> &DateTime<Utc> {
+    pub fn end_date(&self) -> &DateTime<Utc>
+    {
         &self.end_date
     }
 
-    pub fn id(&self) -> &i32 {
+    pub fn id(&self) -> &i32
+    {
         &self.id_internal
     }
 }
 
-impl Add<Duration> for Period {
+impl Add<Duration> for Period
+{
     type Output = Self;
 
-    fn add(self, rhs: Duration) -> Self::Output {
+    fn add(self, rhs: Duration) -> Self::Output
+    {
         let id = self.id_internal + 1;
         let start_date = self.start_date + rhs;
         let end_date = self.end_date + rhs;
@@ -147,10 +161,12 @@ impl Add<Duration> for Period {
     }
 }
 
-impl Sub<Duration> for Period {
+impl Sub<Duration> for Period
+{
     type Output = Period;
 
-    fn sub(self, rhs: Duration) -> Self::Output {
+    fn sub(self, rhs: Duration) -> Self::Output
+    {
         let id = self.id_internal - 1;
         let start_date = self.start_date - rhs;
         let end_date = self.end_date - rhs;
@@ -158,10 +174,12 @@ impl Sub<Duration> for Period {
     }
 }
 
-impl Add<Duration> for &Period {
+impl Add<Duration> for &Period
+{
     type Output = Period;
 
-    fn add(self, rhs: Duration) -> Self::Output {
+    fn add(self, rhs: Duration) -> Self::Output
+    {
         let id = self.id_internal - 1;
         let start_date = self.start_date + rhs;
         let end_date = self.end_date + rhs;
@@ -169,7 +187,8 @@ impl Add<Duration> for &Period {
     }
 }
 
-fn is_last_three_days_of_year(date: NaiveDate) -> bool {
+fn is_last_three_days_of_year(date: NaiveDate) -> bool
+{
     let year = date.year();
     let dec_29 = NaiveDate::from_ymd_opt(year, 12, 29);
     let dec_30 = NaiveDate::from_ymd_opt(year, 12, 30);
@@ -178,15 +197,19 @@ fn is_last_three_days_of_year(date: NaiveDate) -> bool {
     date == dec_29.unwrap() || date == dec_30.unwrap() || date == dec_31.unwrap()
 }
 
-impl Display for Period {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Period
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    {
         let print_string = self.period_string.clone();
         write!(f, "{}", print_string)
     }
 }
 
-impl Default for Period {
-    fn default() -> Self {
+impl Default for Period
+{
+    fn default() -> Self
+    {
         Period::new(
             0,
             Utc.with_ymd_and_hms(2021, 1, 1, 0, 0, 0).unwrap(),
@@ -195,10 +218,12 @@ impl Default for Period {
     }
 }
 
-impl FromStr for Period {
+impl FromStr for Period
+{
     type Err = String;
 
-    fn from_str(period_string: &str) -> Result<Self, Self::Err> {
+    fn from_str(period_string: &str) -> Result<Self, Self::Err>
+    {
         // Parse the string
         let parts: Vec<&str> = period_string.split('-').collect();
         if parts.len() != 3 {
@@ -257,13 +282,15 @@ impl FromStr for Period {
     }
 }
 
-impl IntoExcelData for Period {
+impl IntoExcelData for Period
+{
     fn write(
         self,
         worksheet: &mut rust_xlsxwriter::Worksheet,
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
-    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
+    {
         let value = self.period_string;
         worksheet.write_string(row, col, value)
     }
@@ -274,14 +301,16 @@ impl IntoExcelData for Period {
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
         format: &rust_xlsxwriter::Format,
-    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
+    {
         let value = self.period_string;
         worksheet.write_string_with_format(row, col, value, format)
     }
 }
 
 #[cfg(test)]
-mod tests {
+mod tests
+{
 
     use chrono::TimeZone;
     use chrono::Utc;
@@ -289,7 +318,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_period_add_duration_1() {
+    fn test_period_add_duration_1()
+    {
         // Setup initial period
         let initial_id = 1;
         let initial_start_date = Utc.with_ymd_and_hms(2023, 1, 1, 0, 0, 0).unwrap();
@@ -309,7 +339,8 @@ mod tests {
     }
 
     #[test]
-    fn test_period_add_duration_2() {
+    fn test_period_add_duration_2()
+    {
         // Setup initial period
         let initial_id = 1;
         let initial_start_date = Utc.with_ymd_and_hms(2023, 12, 18, 0, 0, 0).unwrap();
@@ -330,14 +361,16 @@ mod tests {
     }
 
     #[test]
-    fn test_new_from_string_0() {
+    fn test_new_from_string_0()
+    {
         let period = Period::from_str("2021-W01-02");
 
         assert_eq!(period.unwrap().period_string, "2021-W01-02".to_string());
     }
 
     #[test]
-    fn test_new_from_string_1() {
+    fn test_new_from_string_1()
+    {
         let period = Period::from_str("2023-W49-50");
 
         assert_eq!(
@@ -355,7 +388,8 @@ mod tests {
     }
 
     #[test]
-    fn test_new_from_string_2() {
+    fn test_new_from_string_2()
+    {
         let period = Period::from_str("2023-W51-52");
 
         assert_eq!(
@@ -373,7 +407,8 @@ mod tests {
     }
 
     #[test]
-    fn test_new_from_string_3() {
+    fn test_new_from_string_3()
+    {
         let period = Period::from_str("2023-W1-2");
 
         assert_eq!(
@@ -391,7 +426,8 @@ mod tests {
     }
 
     #[test]
-    fn test_from_isoywd_opt() {
+    fn test_from_isoywd_opt()
+    {
         let year = 2023;
         let week = 52;
 
@@ -404,7 +440,8 @@ mod tests {
     }
 
     #[test]
-    fn test_parse() {
+    fn test_parse()
+    {
         match "01".parse::<u32>() {
             Ok(n) => assert_eq!(n, 1),
             Err(_) => panic!(),
@@ -412,7 +449,8 @@ mod tests {
     }
 
     #[test]
-    fn test_period_new() {
+    fn test_period_new()
+    {
         let period = Period::from_str("2024-W51-52").unwrap();
 
         let new_period = Period::new(

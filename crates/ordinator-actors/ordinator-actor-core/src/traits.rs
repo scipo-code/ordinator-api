@@ -17,14 +17,17 @@ use ordinator_orchestrator_actor_traits::Solution;
 // created using the generic structure? No you need the generic
 // structure. There is no way around it. I think that the best
 // thing to do here is making the
-pub trait ActorBasedLargeNeighborhoodSearch: AbLNSUtils {
+pub trait ActorBasedLargeNeighborhoodSearch
+{
+    type Algorithm: AbLNSUtils;
     type Options;
 
-    fn run_lns_iteration(&mut self) -> Result<()> {
+    fn run_lns_iteration(&mut self) -> Result<()>
+    {
         self.update_based_on_shared_solution()?;
 
         // But that means that we cannot code this
-        let current_solution = self.clone_algorithm_solution();
+        let current_solution = self.algorithm_util_methods().clone_algorithm_solution();
 
         self.unschedule()
             .with_context(|| format!("{:#?}", current_solution))?;
@@ -36,21 +39,30 @@ pub trait ActorBasedLargeNeighborhoodSearch: AbLNSUtils {
 
         match objective_value_type {
             ObjectiveValueType::Better(objective_value) => {
-                self.update_objective_value(objective_value);
+                self.algorithm_util_methods()
+                    .update_objective_value(objective_value);
                 self.make_atomic_pointer_swap();
             }
-            ObjectiveValueType::Worse => self.swap_solution(current_solution),
+            ObjectiveValueType::Worse => self
+                .algorithm_util_methods()
+                .swap_solution(current_solution),
             ObjectiveValueType::Force => todo!(),
         }
 
         Ok(())
     }
 
+    fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm;
+
     fn make_atomic_pointer_swap(&self);
 
     fn calculate_objective_value(
         &mut self,
-    ) -> Result<ObjectiveValueType<<<Self as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue>>;
+    ) -> Result<
+        ObjectiveValueType<
+            <<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue,
+        >,
+    >;
 
     fn schedule(&mut self) -> Result<()>;
 
@@ -60,8 +72,9 @@ pub trait ActorBasedLargeNeighborhoodSearch: AbLNSUtils {
     /// the shared solution. That means that this method has to look at relevant
     /// state in the others `Agent`s and incorporate that and handled changes in
     /// parameters coming from external inputs.
-    fn update_based_on_shared_solution(&mut self) -> Result<()> {
-        self.load_shared_solution();
+    fn update_based_on_shared_solution(&mut self) -> Result<()>
+    {
+        self.algorithm_util_methods().load_shared_solution();
 
         let state_change = self.incorporate_shared_state()?;
 
@@ -76,7 +89,8 @@ pub trait ActorBasedLargeNeighborhoodSearch: AbLNSUtils {
     fn incorporate_shared_state(&mut self) -> Result<bool>;
 }
 
-pub trait AbLNSUtils {
+pub trait AbLNSUtils
+{
     type SolutionType: Solution + Debug + Clone;
 
     fn clone_algorithm_solution(&self) -> Self::SolutionType;
@@ -92,7 +106,8 @@ pub trait AbLNSUtils {
 }
 
 #[allow(dead_code)]
-pub enum ObjectiveValueType<O> {
+pub enum ObjectiveValueType<O>
+{
     Better(O),
     Worse,
     Force,

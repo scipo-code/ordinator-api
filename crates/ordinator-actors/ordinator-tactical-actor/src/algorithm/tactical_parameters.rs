@@ -1,32 +1,31 @@
-use anyhow::Result;
-use std::{
-    collections::HashMap,
-    fmt::{self, Display},
-    sync::MutexGuard,
-};
+use std::collections::HashMap;
+use std::fmt::Display;
+use std::fmt::{self};
+use std::sync::MutexGuard;
 
+use anyhow::Result;
 use chrono::NaiveDate;
 use serde::Serialize;
-use shared_types::{
-    agents::tactical::TacticalResources,
-    scheduling_environment::{
-        time_environment::day::Day,
-        work_order::{
-            operation::{operation_info::NumberOfPeople, ActivityNumber, Operation, Work},
-            ActivityRelation, WorkOrder, WorkOrderNumber,
-        },
-        worker_environment::{
-            resources::{Id, Resources},
-            EmptyFull,
-        },
-        SchedulingEnvironment,
-    },
-};
+use shared_types::agents::tactical::TacticalResources;
+use shared_types::scheduling_environment::SchedulingEnvironment;
+use shared_types::scheduling_environment::time_environment::day::Day;
+use shared_types::scheduling_environment::work_order::ActivityRelation;
+use shared_types::scheduling_environment::work_order::WorkOrder;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
+use shared_types::scheduling_environment::work_order::operation::Operation;
+use shared_types::scheduling_environment::work_order::operation::Work;
+use shared_types::scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
+use shared_types::scheduling_environment::worker_environment::EmptyFull;
+use shared_types::scheduling_environment::worker_environment::resources::Id;
+use shared_types::scheduling_environment::worker_environment::resources::Resources;
 
-use crate::agents::{tactical_agent::TacticalOptions, traits::Parameters};
+use crate::agents::tactical_agent::TacticalOptions;
+use crate::agents::traits::Parameters;
 
 #[derive(Default)]
-pub struct TacticalParameters {
+pub struct TacticalParameters
+{
     pub tactical_work_orders: HashMap<WorkOrderNumber, TacticalParameter>,
     pub tactical_days: Vec<Day>,
     pub tactical_capacity: TacticalResources,
@@ -36,7 +35,8 @@ pub struct TacticalParameters {
 // TODO
 // We should move all the code from the `AgentFactory` in here! That is the
 // best option that we have.
-impl Parameters for TacticalParameters {
+impl Parameters for TacticalParameters
+{
     type Key = WorkOrderNumber;
     type Options = TacticalOptions;
 
@@ -44,7 +44,8 @@ impl Parameters for TacticalParameters {
         id: &Id,
         options: Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
-    ) -> Result<Self> {
+    ) -> Result<Self>
+    {
         let tactical_days = &scheduling_environment.time_environment.tactical_days;
 
         let tactical_capacity = scheduling_environment
@@ -76,19 +77,23 @@ impl Parameters for TacticalParameters {
         &mut self,
         key: Self::Key,
         scheduling_environment: MutexGuard<SchedulingEnvironment>,
-    ) {
+    )
+    {
         todo!()
     }
 }
 
 // TODO
-// We should think carefully about putting this into the `Parameters` trait as an
-// associated function. These `create_parameter` functions will be insanely important
-// later on. Say every algorithm should have their own of these functions... No there
-// should only be one and that one should accept a Generic?
+// We should think carefully about putting this into the `Parameters` trait as
+// an associated function. These `create_parameter` functions will be insanely
+// important later on. Say every algorithm should have their own of these
+// functions... No there should only be one and that one should accept a
+// Generic?
 //
-// Is that even possible? I think that it is. Keep this up! You have to continue.
-pub fn create_tactical_parameter(work_order: &WorkOrder) -> TacticalParameter {
+// Is that even possible? I think that it is. Keep this up! You have to
+// continue.
+pub fn create_tactical_parameter(work_order: &WorkOrder) -> TacticalParameter
+{
     let operation_parameters = work_order
         .operations
         .iter()
@@ -104,7 +109,8 @@ pub fn create_tactical_parameter(work_order: &WorkOrder) -> TacticalParameter {
 }
 
 #[derive(Clone, Serialize)]
-pub struct TacticalParameter {
+pub struct TacticalParameter
+{
     pub main_work_center: Resources,
     pub tactical_operation_parameters: HashMap<ActivityNumber, OperationParameter>,
     pub weight: u64,
@@ -113,11 +119,13 @@ pub struct TacticalParameter {
     pub earliest_allowed_start_date: NaiveDate,
 }
 
-impl TacticalParameter {
+impl TacticalParameter
+{
     pub fn new(
         work_order: &WorkOrder,
         operation_parameters: HashMap<ActivityNumber, OperationParameter>,
-    ) -> Self {
+    ) -> Self
+    {
         Self {
             main_work_center: work_order.main_work_center,
             tactical_operation_parameters: operation_parameters,
@@ -129,7 +137,8 @@ impl TacticalParameter {
 }
 
 #[derive(Clone, Serialize, Debug)]
-pub struct OperationParameter {
+pub struct OperationParameter
+{
     pub work_order_number: WorkOrderNumber,
     pub number: NumberOfPeople,
     pub duration: Work,
@@ -138,8 +147,10 @@ pub struct OperationParameter {
     pub resource: Resources,
 }
 
-impl OperationParameter {
-    pub fn new(work_order_number: WorkOrderNumber, operation: &Operation) -> Self {
+impl OperationParameter
+{
+    pub fn new(work_order_number: WorkOrderNumber, operation: &Operation) -> Self
+    {
         Self {
             work_order_number,
             number: operation.number(),
@@ -153,8 +164,10 @@ impl OperationParameter {
     }
 }
 
-impl Display for OperationParameter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Display for OperationParameter
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+    {
         write!(
             f,
             "OperationParameters:\n

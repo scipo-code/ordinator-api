@@ -25,7 +25,8 @@ use crate::Asset;
     clap::ValueEnum,
     Copy,
 )]
-pub enum Resources {
+pub enum Resources
+{
     #[serde(rename = "MTN-PIPF")]
     MtnPipf,
     #[serde(rename = "VEN-TURB")]
@@ -138,10 +139,12 @@ pub enum Resources {
     ConNpt,
 }
 
-impl FromStr for Resources {
+impl FromStr for Resources
+{
     type Err = String;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self, Self::Err>
+    {
         let resource = match s {
             "MTN-PIPF" => Resources::MtnPipf,
             "VEN-TURB" => Resources::VenTurb,
@@ -204,8 +207,10 @@ impl FromStr for Resources {
     }
 }
 
-impl Resources {
-    pub fn variant_name(&self) -> String {
+impl Resources
+{
+    pub fn variant_name(&self) -> String
+    {
         match self {
             Resources::Medic => "MEDIC".to_string(),
             Resources::MtnCran => "MTN-CRAN".to_string(),
@@ -265,7 +270,8 @@ impl Resources {
         }
     }
 
-    pub fn is_ven_variant(&self) -> bool {
+    pub fn is_ven_variant(&self) -> bool
+    {
         matches!(
             self,
             Resources::VenAcco
@@ -283,7 +289,8 @@ impl Resources {
         )
     }
 
-    pub fn is_fmc(&self) -> bool {
+    pub fn is_fmc(&self) -> bool
+    {
         matches!(
             self,
             Self::MtnRope
@@ -296,8 +303,10 @@ impl Resources {
     }
 }
 
-impl Display for Resources {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for Resources
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
         write!(f, "{}", self.variant_name())
     }
 }
@@ -307,24 +316,30 @@ impl Display for Resources {
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Id(pub String, pub Vec<Resources>, pub Vec<Asset>);
 
-impl Id {
-    pub fn new(id_employee: &str, resources: Vec<Resources>, related_assets: Vec<Asset>) -> Self {
+impl Id
+{
+    pub fn new(id_employee: &str, resources: Vec<Resources>, related_assets: Vec<Asset>) -> Self
+    {
         Id(id_employee.to_string(), resources, related_assets)
     }
 
-    pub fn asset(&self) -> &Asset {
+    pub fn asset(&self) -> &Asset
+    {
         self.2.first().unwrap()
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, EnumIter, clap::ValueEnum)]
-pub enum Shift {
+pub enum Shift
+{
     Day,
     Night,
 }
 
-impl Shift {
-    pub fn generate_time_intervals(&self) -> (NaiveTime, NaiveTime) {
+impl Shift
+{
+    pub fn generate_time_intervals(&self) -> (NaiveTime, NaiveTime)
+    {
         match self {
             Shift::Day => (
                 NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
@@ -338,19 +353,23 @@ impl Shift {
     }
 }
 
-impl Display for Id {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for Id
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
         write!(f, "{} | {:?}", self.0, self.1)
     }
 }
 
-impl IntoExcelData for Resources {
+impl IntoExcelData for Resources
+{
     fn write(
         self,
         worksheet: &mut rust_xlsxwriter::Worksheet,
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
-    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
+    {
         let value = self.variant_name();
         worksheet.write_string(row, col, value)
     }
@@ -361,7 +380,8 @@ impl IntoExcelData for Resources {
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
         format: &rust_xlsxwriter::Format,
-    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
+    {
         let value = self.variant_name();
         worksheet.write_string_with_format(row, col, value, format)
     }

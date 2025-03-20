@@ -8,7 +8,8 @@ use super::configuration::SystemConfigurations;
 
 pub fn initialize_scheduling_environment(
     system_configurations: SystemConfigurations,
-) -> SchedulingEnvironment {
+) -> SchedulingEnvironment
+{
     let total_sap = TotalSap::new(system_configurations.data_locations);
 
     // FIX [ ]

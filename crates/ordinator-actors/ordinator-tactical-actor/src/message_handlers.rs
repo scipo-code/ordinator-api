@@ -1,22 +1,23 @@
-use anyhow::{bail, Context, Result};
+use anyhow::Context;
+use anyhow::Result;
+use anyhow::bail;
 use priority_queue::PriorityQueue;
-use shared_types::{
-    agents::tactical::{
-        requests::tactical_resources_message::TacticalResourceRequest,
-        responses::tactical_response_resources::TacticalResourceResponse, TacticalRequestMessage,
-        TacticalResponseMessage,
-    },
-    scheduling_environment::{
-        time_environment::day::Day, work_order::WorkOrderNumber, worker_environment::EmptyFull,
-    },
-};
+use shared_types::agents::tactical::TacticalRequestMessage;
+use shared_types::agents::tactical::TacticalResponseMessage;
+use shared_types::agents::tactical::requests::tactical_resources_message::TacticalResourceRequest;
+use shared_types::agents::tactical::responses::tactical_response_resources::TacticalResourceResponse;
+use shared_types::scheduling_environment::time_environment::day::Day;
+use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use shared_types::scheduling_environment::worker_environment::EmptyFull;
 
-use crate::agents::{
-    tactical_agent::algorithm::tactical_parameters::{
-        create_tactical_parameter, TacticalParameters,
-    },
-    ActorSpecific, Actor, MessageHandler, StateLink, TacticalSolution, WhereIsWorkOrder,
-};
+use crate::agents::Actor;
+use crate::agents::ActorSpecific;
+use crate::agents::MessageHandler;
+use crate::agents::StateLink;
+use crate::agents::TacticalSolution;
+use crate::agents::WhereIsWorkOrder;
+use crate::agents::tactical_agent::algorithm::tactical_parameters::TacticalParameters;
+use crate::agents::tactical_agent::algorithm::tactical_parameters::create_tactical_parameter;
 
 impl MessageHandler
     for Actor<
@@ -33,7 +34,8 @@ impl MessageHandler
     fn handle_request_message(
         &mut self,
         tactical_request: TacticalRequestMessage,
-    ) -> Result<Self::Res> {
+    ) -> Result<Self::Res>
+    {
         match tactical_request {
             TacticalRequestMessage::Status(_tactical_status_message) => {
                 // let status_message = self.status().unwrap();
@@ -54,7 +56,8 @@ impl MessageHandler
             }
             TacticalRequestMessage::Update => {
                 todo!()
-                // let locked_scheduling_environment = &self.scheduling_environment.lock().unwrap();
+                // let locked_scheduling_environment =
+                // &self.scheduling_environment.lock().unwrap();
                 // let asset = &self.asset;
 
                 // self.algorithm
@@ -64,7 +67,8 @@ impl MessageHandler
         }
     }
 
-    fn handle_state_link(&mut self, state_link: StateLink) -> Result<()> {
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<()>
+    {
         match state_link {
             StateLink::WorkOrders(agent_specific) => match agent_specific {
                 ActorSpecific::Strategic(changed_work_orders) => {
@@ -86,8 +90,9 @@ impl MessageHandler
                         // The solution should also be updated here. Think about how you can make
                         // this generic.
                         // QUESTION
-                        // Is this a good way of coding the program? I think that there is common behavior
-                        // here that we are going to have to exploit to make sense of this.
+                        // Is this a good way of coding the program? I think that there is common
+                        // behavior here that we are going to have to
+                        // exploit to make sense of this.
                         let tactical_work_order = create_tactical_parameter(work_order);
 
                         // It is only the agent that can modify parameters. Not
@@ -141,7 +146,8 @@ impl
     fn update_resources_state(
         &mut self,
         resource_message: TacticalResourceRequest,
-    ) -> Result<TacticalResourceResponse> {
+    ) -> Result<TacticalResourceResponse>
+    {
         match resource_message {
             TacticalResourceRequest::SetResources(resources) => {
                 // The resources should be initialized together with the Agent itself
