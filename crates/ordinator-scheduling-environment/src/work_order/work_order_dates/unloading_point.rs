@@ -53,6 +53,8 @@ impl IntoExcelData for UnloadingPoint {
         worksheet.write_string_with_format(row, col, value, format)
     }
 }
+
+// WARN is this a valid assumption? Might be relevant only for Total?
 fn extract_year_and_weeks(input_string: &str) -> (Option<i32>, Option<u32>, Option<u32>) {
     let re = regex::Regex::new(r"(\d{2})?-?[W|w](\d+)-?[W|w]?(\d+)").unwrap();
     let captures = re.captures(input_string);
