@@ -7,6 +7,7 @@ use chrono::Utc;
 use colored::Colorize;
 use ordinator_actor_core::traits::ObjectiveValue;
 use ordinator_orchestrator_actor_traits::Solution;
+use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
 use ordinator_scheduling_environment::time_environment::TimeInterval;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
@@ -22,7 +23,7 @@ use super::operational_parameter::OperationalParameters;
 
 /// You want this to be a struct so that you can implement methods and
 /// formatting and logging.
-#[derive(PartialEq, PartialOrd, Ord, Eq, Debug, Default, Clone)]
+#[derive(Copy, PartialEq, PartialOrd, Ord, Eq, Debug, Default, Clone)]
 pub struct OperationalObjectiveValue(u64);
 
 impl ObjectiveValue for OperationalObjectiveValue {}
@@ -321,7 +322,7 @@ impl Assignment
 #[cfg(test)]
 mod tests
 {
-    use crate::algorithm::operational_solution::MarginalFitness;
+    use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
 
     #[test]
     fn test_marginal_fitness_debug()

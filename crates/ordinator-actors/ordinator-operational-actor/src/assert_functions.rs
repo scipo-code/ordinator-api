@@ -3,13 +3,13 @@ use anyhow::ensure;
 use chrono::TimeDelta;
 use colored::Colorize;
 use ordinator_actor_core::algorithm::Algorithm;
-use ordinator_actor_core::delegate::Delegate;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::delegate::Delegate;
+use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
 
 use super::algorithm::OperationalNonProductive;
 use super::algorithm::operational_parameter::OperationalParameters;
 use crate::algorithm::operational_events::OperationalEvents;
-use crate::algorithm::operational_solution::MarginalFitness;
 use crate::algorithm::operational_solution::OperationalSolution;
 
 #[allow(dead_code)]
@@ -24,6 +24,7 @@ impl<Ss> OperationalAssertions
 where
     Ss: SharedSolutionTrait,
 {
+    //  This also have to be moved out of the code
     fn assert_operational_solutions_does_not_have_delegate_unassign(&self) -> Result<()>
     {
         for delegate in self

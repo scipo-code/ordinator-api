@@ -1563,6 +1563,7 @@ name = "ordinator-orchestrator-actor-traits"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "flume",
  "ordinator-scheduling-environment",
 ]

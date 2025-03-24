@@ -30,6 +30,7 @@ impl Parameters for OperationalParameters
     // You should not put it in the Options
     type Options = OperationalOptions;
 
+    // Do we even want the code to look like this in the first place?
     fn from_source(
         asset: &Id,
         options: &Self::Options,
@@ -71,7 +72,7 @@ impl Parameters for OperationalParameters
             off_shift_interval: operational_configuration.off_shift_interval.clone(),
             break_interval: operational_configuration.break_interval.clone(),
             toolbox_interval: operational_configuration.toolbox_interval.clone(),
-            options,
+            options: options,
         })
     }
 

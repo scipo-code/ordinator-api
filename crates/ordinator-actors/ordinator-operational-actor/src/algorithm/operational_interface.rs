@@ -22,15 +22,15 @@ impl OperationalInterface for OperationalSolution
     // This is defined on a single operational_solution. Stick with
     // that! I do not think that there is a better way of doing things.
     fn marginal_fitness_for_operational_actor<'a>(
-        &self,
+        &'a self,
         work_order_activity: &WorkOrderActivity,
     ) -> Vec<&'a MarginalFitness>
     {
         self.scheduled_work_order_activities
             .iter()
-            .find(|woa_ass| woa_ass.0 == work_order_activity)
+            .find(|woa_ass| woa_ass.0 == *work_order_activity)
             .map(|woa_ass| &woa_ass.1.marginal_fitness)
-            .iter()
+            .into_iter()
             .collect::<Vec<_>>()
     }
 }

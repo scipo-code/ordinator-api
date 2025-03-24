@@ -2,6 +2,7 @@ mod assert_functions;
 pub mod tactical_parameters;
 pub mod tactical_resources;
 pub mod tactical_solution;
+pub mod tactical_interface;
 
 use std::cmp::Ordering;
 use std::sync::Arc;

@@ -47,13 +47,13 @@ impl TotalSap
 // You should make a new type to hold the data here.
 impl IntoSchedulingEnvironment for TotalSap
 {
-    type D = Database;
+    // FIX [ ]
+    // This is not allowed in the code .
     type S = SystemConfigurations;
 
     fn into_scheduling_environment(
-        &self,
+        self,
         system_configuration: &Self::S,
-        database_connection: &Self::D,
     ) -> Result<SchedulingEnvironment>
     {
         // TODO [ ]
@@ -65,7 +65,7 @@ impl IntoSchedulingEnvironment for TotalSap
                 load_csv_data(self.data_source.data_locations).with_context(|| {
                     format!(
                         "SchedulingEnvironment could not be built from {}",
-                        std::any::type_name_of_val(&data_source)
+                        std::any::type_name_of_val(&system_configuration.data_locations)
                     )
                 })?,
             )

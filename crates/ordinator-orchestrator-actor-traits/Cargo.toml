@@ -7,5 +7,6 @@ edition = "2024"
 ordinator-scheduling-environment ={ path = "../ordinator-scheduling-environment"}
 
 anyhow = {workspace = true}
+chrono.workspace = true
 flume = {workspace = true}
 

@@ -119,19 +119,19 @@ pub struct StrategicOptionsConfig
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
 pub struct TacticalOptionsConfig
 {
-    pub number_of_removed_work_orders: u64,
-    pub urgency: u64,
-    pub resource_penalty: u64,
+    pub number_of_removed_work_orders: usize,
+    pub urgency: usize,
+    pub resource_penalty: usize,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
 pub struct SupervisorOptionsConfig
 {
-    pub number_of_removed_work_orders: u64,
+    pub number_of_removed_work_orders: usize,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
 pub struct OperationalOptionsConfig
 {
-    pub number_of_removed_work_orders: u64,
+    pub number_of_removed_work_orders: usize,
 }

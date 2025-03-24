@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 use std::fmt::Display;
 
+use anyhow::Result;
 use anyhow::bail;
 use ordinator_actor_core::WhereIsWorkOrder;
+use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_scheduling_environment::time_environment::day::Day;
+use ordinator_scheduling_environment::time_environment::day::Days;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
@@ -12,6 +15,9 @@ use ordinator_scheduling_environment::work_order::operation::operation_info::Num
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use serde::Deserialize;
 use serde::Serialize;
+
+use super::tactical_parameters::TacticalParameters;
+use super::tactical_resources::TacticalResources;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Clone)]
 pub struct TacticalObjectiveValue
@@ -53,9 +59,9 @@ impl TacticalObjectiveValue
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct TacticalSolution
 {
-    pub objective_value: TacticalObjectiveValue,
-    pub tactical_work_orders: TacticalScheduledWorkOrders,
-    pub tactical_loadings: TacticalResources,
+    pub(crate) objective_value: TacticalObjectiveValue,
+    pub(crate) tactical_work_orders: TacticalScheduledWorkOrders,
+    pub(crate) tactical_loadings: TacticalResources,
 }
 // This should be put into the `algorithm.rs` file
 impl Solution for TacticalSolution

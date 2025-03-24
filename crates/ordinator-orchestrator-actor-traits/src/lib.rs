@@ -5,6 +5,8 @@ use std::collections::HashSet;
 use std::sync::MutexGuard;
 
 use anyhow::Result;
+use chrono::DateTime;
+use chrono::Utc;
 use delegate::Delegate;
 use flume::Receiver;
 use flume::Sender;
@@ -48,7 +50,7 @@ where
     S: StrategicInterface,
     T: TacticalInterface,
     U: SupervisorInterface,
-    V: OperationalInterface,
+    V: OperationalInterface + Solution,
 {
     pub strategic: S,
     pub tactical: T,
@@ -61,12 +63,16 @@ pub trait SharedSolutionTrait: Clone
     type Strategic: StrategicInterface;
     type Tactical: TacticalInterface;
     type Supervisor: SupervisorInterface;
-    type Operational: OperationalInterface;
+    type Operational: OperationalInterface + Solution;
 
     fn strategic(&self) -> &Self::Strategic;
     fn tactical(&self) -> &Self::Tactical;
     fn supervisor(&self) -> &Self::Supervisor;
     fn operational(&self, id: &Id) -> &Self::Operational;
+    // If you make all Id's internal you could simply work on those?
+    fn operational_swap(&mut self, id: &Id, solution: Self::Operational)
+    where
+        Self::Operational: Solution;
 }
 
 // You are out in the woods here. You should keep up the work and focus on
@@ -80,7 +86,7 @@ where
     S: StrategicInterface,
     T: TacticalInterface,
     U: SupervisorInterface,
-    V: OperationalInterface,
+    V: OperationalInterface + Solution,
 {
     type Operational = V;
     type Strategic = S;
@@ -107,6 +113,14 @@ where
         self.operational
             .get(id)
             .expect("querieed nonexisting operaional agent")
+    }
+
+    // Can you even do this? Is this allowed? I do not t
+    fn operational_swap(&mut self, id: &Id, solution: Self::Operational)
+    where
+        Self::Operational: Solution,
+    {
+        self.operational.insert(id.clone(), solution);
     }
 
     // You could implement the pointer swapping here. Hmm... that might not be the
@@ -180,12 +194,34 @@ pub trait StrategicInterface
 where
     Self: Clone + std::fmt::Debug + Eq + PartialEq,
 {
-    fn scheduled_task(&self, work_order_number: &WorkOrderNumber) -> Option<Option<Period>>;
+    fn scheduled_task(&self, work_order_number: &WorkOrderNumber) -> Option<Option<&Period>>;
 }
 pub trait TacticalInterface
 where
     Self: Clone + std::fmt::Debug + Eq + PartialEq,
 {
+    fn start_and_finish_dates(
+        &self,
+        work_order_activity: &WorkOrderActivity,
+    ) -> Option<(&DateTime<Utc>, &DateTime<Utc>)>;
+}
+
+// This is a core type that each `Actor` should implement, I think
+// that it should be part of a trait but which is a little difficult
+// to tell.
+// QUESTION
+// What is this type set in the world to do?
+// The goal of it is to make sure that the `Actor` can make
+// custom logic internally depending on where they know the
+// work order to be located. This is crucial to respect
+// business logic.
+#[derive(PartialEq, Eq, Debug, Default, Clone)]
+pub enum WhereIsWorkOrder<T>
+{
+    Strategic,
+    Tactical(T),
+    #[default]
+    NotScheduled,
 }
 
 pub trait SupervisorInterface
@@ -231,7 +267,7 @@ where
     // method cannot see the solution from the `supervisor` are you missing
     // something here?
     fn marginal_fitness_for_operational_actor<'a>(
-        &self,
+        &'a self,
         work_order_activity: &WorkOrderActivity,
     ) -> Vec<&'a MarginalFitness>;
 }

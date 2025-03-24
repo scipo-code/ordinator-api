@@ -47,12 +47,10 @@ impl SchedulingEnvironment
 pub trait IntoSchedulingEnvironment
 {
     type S: SystemConfigurationTrait;
-    type D: DatabaseConfigurationTrait;
 
     fn into_scheduling_environment(
         self,
         system_configuration: &Self::S,
-        database_connection: &Self::D,
     ) -> Result<SchedulingEnvironment>;
 }
 pub trait SystemConfigurationTrait {}

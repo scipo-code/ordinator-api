@@ -6,7 +6,8 @@ use std::sync::RwLockReadGuard;
 
 use ordinator_actor_core::Actor;
 use ordinator_configuration::SystemConfigurations;
-use rand::rngs::StdRng;
+use rand::rng;
+use rand::rngs::ThreadRng;
 
 // Is this actually needed? I do not think so
 // pub struct OperationalActor(
@@ -23,7 +24,7 @@ use rand::rngs::StdRng;
 pub struct OperationalOptions
 {
     pub number_of_removed_activities: usize,
-    pub rng: StdRng,
+    pub rng: ThreadRng,
 }
 
 impl<'a> From<RwLockReadGuard<'a, SystemConfigurations>> for OperationalOptions
@@ -35,7 +36,7 @@ impl<'a> From<RwLockReadGuard<'a, SystemConfigurations>> for OperationalOptions
             .operational_options
             .number_of_removed_work_orders;
         OperationalOptions {
-            rng: StdRng::from_os_rng(),
+            rng: rng(),
             number_of_removed_activities,
         }
     }
@@ -59,7 +60,7 @@ impl From<SystemConfigurations> for OperationalOptions
             .number_of_removed_work_orders;
         Self {
             number_of_removed_activities,
-            rng: rand::thread_rng(),
+            rng: rand::rng(),
         }
     }
 }

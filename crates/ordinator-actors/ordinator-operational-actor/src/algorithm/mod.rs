@@ -25,14 +25,15 @@ use operational_solution::OperationalAssignment;
 use operational_solution::OperationalFunctions;
 use operational_solution::OperationalObjectiveValue;
 use operational_solution::OperationalSolution;
-use ordinator_actor_core::WhereIsWorkOrder;
 use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_actor_core::traits::AbLNSUtils;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_actor_core::traits::ObjectiveValueType;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use ordinator_orchestrator_actor_traits::Solution;
+use ordinator_orchestrator_actor_traits::StrategicInterface;
 use ordinator_orchestrator_actor_traits::SupervisorInterface;
+use ordinator_orchestrator_actor_traits::TacticalInterface;
 use ordinator_orchestrator_actor_traits::delegate::Delegate;
 use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
 use ordinator_scheduling_environment::time_environment::TimeInterval;
@@ -238,8 +239,9 @@ where
 
 impl<Ss> ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm<Ss>
 where
-    Ss: SharedSolutionTrait,
-    Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>: AbLNSUtils,
+    Ss: SharedSolutionTrait<Operational = OperationalSolution>,
+    Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>:
+        AbLNSUtils<SolutionType = OperationalSolution>,
 {
     type Algorithm =
         Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>;
@@ -280,9 +282,7 @@ where
         //   ..(**old).clone() });
         self.arc_swap_shared_solution.rcu(|old| {
             let mut shared_solution = (**old).clone();
-            shared_solution
-                .operational(&self.id)
-                .update_solution(self.solution.clone());
+            shared_solution.operational_swap(&self.id, self.solution.clone());
             Arc::new(shared_solution)
         });
     }
@@ -709,10 +709,10 @@ where
             .loaded_shared_solution
             // Swap the solution in the `ArcSwap`
             .tactical()
-            .work_order_
-            .tactical_work_orders
-            .0
-            .get(&work_order_activity.0);
+            // FIX [ ]
+            // Rename this! It is basically a way of sharing what the
+            // `tactical` actor needs to do his scheduling.
+            .start_and_finish_dates(&work_order_activity);
 
         // .expect("This should always be present. If this occurs you should check the
         // initialization. The implementation is that the tactical and strategic
@@ -726,21 +726,18 @@ where
         // initialization. The implementation is that the tactical and strategic
         // algorithm always provide a key for each WorkOrderNumber");
 
-        // This should also be reformulated
+        // This should also be reformulated. The key to ask yourself here is "What
+        // exactly is it that you need?" You should not include anything else
+        // into the scope here. For a given work order and corresponding activity
+        // when can we start? This is the information that the operational actor
+        // needs to know to fullfill his duty. This is a crucial insight.
         let (start_window, end_window) = match (strategic_period_option, tactical_days_option) {
             // What is actually happening here?
             (None, None) => (
                 &self.parameters.availability.start_date,
                 &self.parameters.availability.finish_date,
             ),
-            (_, Some(WhereIsWorkOrder::Tactical(activities))) => {
-                let scheduled_days = &activities.0.get(&work_order_activity.1).unwrap().scheduled;
-
-                let start = scheduled_days.first().unwrap().0.date();
-                let end = scheduled_days.last().unwrap().0.date();
-
-                (start, end)
-            }
+            (_, Some(d)) => d,
             (Some(Some(period)), _) => (period.start_date(), period.end_date()),
 
             _ => bail!(
@@ -926,7 +923,6 @@ mod tests
     use chrono::NaiveTime;
     use chrono::TimeDelta;
     use chrono::Utc;
-    use ordinator_actor_core::WhereIsWorkOrder;
     use ordinator_actor_core::algorithm::Algorithm;
     use ordinator_configuration::SystemConfigurations;
     use ordinator_scheduling_environment::SchedulingEnvironment;
@@ -985,7 +981,7 @@ mod tests
 
         let mut scheduling_environment = SchedulingEnvironment::builder().build();
 
-        let id = &Id::new("TEST_OPERATIONAL", vec![], vec![]);
+        let id = Id::new("TEST_OPERATIONAL", vec![], vec![]);
 
         // TODO [ ]
         // Remove this
@@ -998,14 +994,14 @@ mod tests
             .operational
             .insert(id.clone(), operational_configuration_all);
 
-        let scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
+        let scheduling_environment = Arc::new(Mutex::new(scheduling_environment)).lock().unwrap();
 
         // What should be created or changed here? I think that the best appraoch is to
         // make a trait for each builder.
         let operational_options = OperationalOptions::from(system_configurations);
         let operational_algorithm = Algorithm::builder()
             .id(id)
-            .parameters(&operational_options, scheduling_environment)?
+            .parameters(&operational_options, &scheduling_environment)?
             .solution()
             .build();
 
@@ -1093,18 +1089,18 @@ mod tests
     #[test]
     fn test_determine_next_event_3() -> Result<()>
     {
-        let mut scheduling_environment = SchedulingEnvironment::default();
+        let mut scheduling_environment = SchedulingEnvironment::builder().build();
 
-        let id = &Id::new("TEST_OPERATIONAL", vec![], vec![]);
+        let id = Id::new("TEST_OPERATIONAL", vec![], vec![]);
 
-        let scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
+        let scheduling_environment = Arc::new(Mutex::new(scheduling_environment)).lock().unwrap();
 
         let value = SystemConfigurations::read_all_configs().unwrap();
         let options = OperationalOptions::from(value);
 
         let operational_algorithm = Algorithm::builder()
             .id(id)
-            .parameters(&options, scheduling_environment)?
+            .parameters(&options, &scheduling_environment)?
             .build();
 
         let current_time = DateTime::parse_from_rfc3339("2024-05-20T01:00:00Z")
@@ -1150,9 +1146,9 @@ mod tests
             toolbox_interval.clone(),
         );
 
-        let mut scheduling_environment = SchedulingEnvironment::default();
+        let mut scheduling_environment = SchedulingEnvironment::builder().build();
 
-        let id = &Id::new("TEST_OPERATIONAL", vec![], vec![]);
+        let id = Id::new("TEST_OPERATIONAL", vec![], vec![]);
 
         let operational_configuration_all =
             OperationalConfigurationAll::new(id.clone(), 6.0, operational_configuration);
@@ -1163,21 +1159,13 @@ mod tests
             .operational
             .insert(id.clone(), operational_configuration_all);
 
-        let scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
-
-        let operational_parameters = OperationalParameters::new(
-            &id,
-            OperationalOptions::default(),
-            &scheduling_environment.lock().unwrap(),
-        )?;
-
-        let operational_solution = OperationalSolution::new(&operational_parameters);
-
+        let scheduling_environment = Arc::new(Mutex::new(scheduling_environment)).lock().unwrap();
         let options = OperationalOptions::from(SystemConfigurations::read_all_configs().unwrap());
 
-        let mut operational_algorithm = Algorithm::builder()
-            .id(&Id::new("TEST_OPERATIONAL", vec![], vec![]))
-            .parameters(&options, scheduling_environment)?
+        let operational_algorithm = Algorithm::builder()
+            .id(id)
+            .parameters(options, &scheduling_environment)?
+            .solution()
             .build();
 
         operational_algorithm.load_shared_solution();
@@ -1185,6 +1173,12 @@ mod tests
         let mut strategic_updated_shared_solution =
             (**operational_algorithm.loaded_shared_solution).clone();
 
+        // Here you can simply access what it is that you need? Is that not a better
+        // approach? No I do not think that it is. I believe that we are doing it the
+        // You have a hard time making these test after what you have done here. I
+        // you lose the ability to simply insert things as you like into the
+        // other actors and that could hamper you ability to test edge cases...
+        // No that is actually a good thing.
         strategic_updated_shared_solution
             .strategic
             .strategic_scheduled_work_orders

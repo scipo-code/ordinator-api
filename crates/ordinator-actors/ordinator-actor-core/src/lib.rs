@@ -1,4 +1,5 @@
 pub mod algorithm;
+pub mod delegate;
 pub mod traits;
 
 use std::fmt::Debug;
@@ -275,24 +276,6 @@ impl fmt::Debug for ScheduleIteration
                 .finish()
         }
     }
-}
-
-// This is a core type that each `Actor` should implement, I think
-// that it should be part of a trait but which is a little difficult
-// to tell.
-// QUESTION
-// What is this type set in the world to do?
-// The goal of it is to make sure that the `Actor` can make
-// custom logic internally depending on where they know the
-// work order to be located. This is crucial to respect
-// business logic.
-#[derive(PartialEq, Eq, Debug, Default, Clone)]
-pub enum WhereIsWorkOrder<T>
-{
-    Strategic,
-    Tactical(T),
-    #[default]
-    NotScheduled,
 }
 
 /// This type is the primary message type that all agents should receive.
