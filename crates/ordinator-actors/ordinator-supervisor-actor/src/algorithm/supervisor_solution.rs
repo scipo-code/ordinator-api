@@ -1,20 +1,23 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use shared_types::scheduling_environment::work_order::WorkOrderActivity;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::scheduling_environment::worker_environment::resources::Id;
+use arc_swap::Guard;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::Solution;
+use ordinator_orchestrator_actor_traits::delegate::Delegate;
+use ordinator_scheduling_environment::work_order::WorkOrderActivity;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 
-use super::delegate::Delegate;
-use crate::agents::OperationalSolution;
-use crate::agents::SupervisorSolution;
-use crate::agents::operational_agent::algorithm::operational_solution::MarginalFitness;
+use super::supervisor_parameters::SupervisorParameters;
+
+pub type SupervisorObjectiveValue = u64;
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct SupervisorSolution
 {
-    pub objective_value: SupervisorObjectiveValue,
-    operational_state_machine: HashMap<(Id, WorkOrderActivity), Delegate>,
+    pub(crate) objective_value: SupervisorObjectiveValue,
+    pub(crate) operational_state_machine: HashMap<(Id, WorkOrderActivity), Delegate>,
 }
 impl Solution for SupervisorSolution
 {
@@ -55,6 +58,8 @@ impl Solution for SupervisorSolution
 /// The SupervisorSolution is a state machine that keeps track of all the
 /// states of the operational agents. It is a solution representation of
 /// a **iterative combinatorial auction algorithms**.
+///
+/// We should be careful about how we implement this system.
 impl SupervisorSolution
 {
     pub fn turn_work_order_into_delegate_assess(&mut self, work_order_number: WorkOrderNumber)
@@ -82,11 +87,14 @@ impl SupervisorSolution
             .collect()
     }
 
-    pub fn operational_status_by_work_order_activity<'a>(
+    pub fn operational_status_by_work_order_activity<Ss>(
         &self,
         work_order_activity: &WorkOrderActivity,
-        operational_solutions: &'a HashMap<Id, OperationalSolution>,
-    ) -> Vec<(Id, Delegate, &'a MarginalFitness)>
+        // It can only ever reference the `loaded_shared_solution`
+        loaded_shared_solution: &Guard<Arc<Ss>>,
+    ) -> Vec<(Id, Delegate, &MarginalFitness)>
+    where
+        Ss: SharedSolutionTrait,
     {
         self.operational_state_machine
             .iter()
@@ -95,6 +103,9 @@ impl SupervisorSolution
                 (
                     id_woa.0.clone(),
                     *del,
+                    // This is what you want to return. I do not think that
+                    // there is a better approach. You should simply extract
+                    // the most simple part of this.
                     operational_solutions
                         .get(&id_woa.0)
                         .expect("The agent should be present")
@@ -141,18 +152,6 @@ impl SupervisorSolution
             .keys()
             .map(|(_, woa)| woa)
             .cloned()
-            .collect()
-    }
-
-    pub fn delegates_for_agent(
-        &self,
-        operational_agent: &Id,
-    ) -> HashMap<WorkOrderActivity, Delegate>
-    {
-        self.operational_state_machine
-            .iter()
-            .filter(|(id_woa, _)| &id_woa.0 == operational_agent)
-            .map(|(id_woa, del)| (id_woa.1, *del))
             .collect()
     }
 

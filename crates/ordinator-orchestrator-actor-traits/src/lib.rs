@@ -1,11 +1,18 @@
+pub mod delegate;
+pub mod marginal_fitness;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::MutexGuard;
 
 use anyhow::Result;
+use delegate::Delegate;
 use flume::Receiver;
 use flume::Sender;
+use marginal_fitness::MarginalFitness;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SchedulingEnvironment;
+use ordinator_scheduling_environment::time_environment::period::Period;
+use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
@@ -49,14 +56,25 @@ where
     pub operational: HashMap<Id, V>,
 }
 
-pub trait SharedSolutionTrait
+pub trait SharedSolutionTrait: Clone
 {
-    type Strategic;
-    type Tactical;
-    type Supervisor;
-    type Operational;
+    type Strategic: StrategicInterface;
+    type Tactical: TacticalInterface;
+    type Supervisor: SupervisorInterface;
+    type Operational: OperationalInterface;
+
+    fn strategic(&self) -> &Self::Strategic;
+    fn tactical(&self) -> &Self::Tactical;
+    fn supervisor(&self) -> &Self::Supervisor;
+    fn operational(&self, id: &Id) -> &Self::Operational;
 }
 
+// You are out in the woods here. You should keep up the work and focus on
+// making the You are not making this in the correct way. I think that a better
+// approach is to
+//
+// TODO [ ]
+// Make this work with the correct way of designing
 impl<S, T, U, V> SharedSolutionTrait for SharedSolution<S, T, U, V>
 where
     S: StrategicInterface,
@@ -68,6 +86,28 @@ where
     type Strategic = S;
     type Supervisor = U;
     type Tactical = T;
+
+    fn strategic(&self) -> &Self::Strategic
+    {
+        &self.strategic
+    }
+
+    fn tactical(&self) -> &Self::Tactical
+    {
+        &self.tactical
+    }
+
+    fn supervisor(&self) -> &Self::Supervisor
+    {
+        &self.supervisor
+    }
+
+    fn operational(&self, id: &Id) -> &Self::Operational
+    {
+        self.operational
+            .get(id)
+            .expect("querieed nonexisting operaional agent")
+    }
 
     // You could implement the pointer swapping here. Hmm... that might not be the
     // best idea.
@@ -117,30 +157,83 @@ pub trait MessageHandler
     type Req;
     type Res;
 
-    fn handle_state_link(&mut self, state_link: StateLink) -> Result<()>;
+    fn handle(&mut self, actor_message: ActorMessage<Self::Req>) -> Result<Self::Res>
+    {
+        match actor_message {
+            ActorMessage::State(state_link) => self.handle_state_link(state_link),
+            ActorMessage::Actor(actor_request) => self.handle_request_message(actor_request),
+        }
+    }
+
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<Self::Res>;
 
     fn handle_request_message(&mut self, request_message: Self::Req) -> Result<Self::Res>;
 }
 
+//
+// There should only be a single interface here there should be a
+// a set of standard operations that every solution should inplement
+// this is to make sure that you do not make stray impl blocks and
+// TODO [ ]
+// Make a solution interface that is common
 pub trait StrategicInterface
 where
     Self: Clone + std::fmt::Debug + Eq + PartialEq,
 {
+    fn scheduled_task(&self, work_order_number: &WorkOrderNumber) -> Option<Option<Period>>;
 }
 pub trait TacticalInterface
 where
     Self: Clone + std::fmt::Debug + Eq + PartialEq,
 {
 }
+
 pub trait SupervisorInterface
 where
     Self: Clone + std::fmt::Debug + Eq + PartialEq,
 {
+    fn delegated_tasks(&self, operational_agent: &Id) -> HashSet<WorkOrderActivity>;
+    // Where should the `Delegate` be located?
+    // I believe that the best place is in the `actor-core` the issue is that you
+    // wanted to use these interface for the `orchestrator` as well and that is not
+    // what you actually want. You need the orchestrator to have the delegate as
+    // well in general you would like to have the `Solutions` able to be
+    // exported directly from the `orchestrator`.
+    // QUESTION
+    // TODO [ ]
+    // Should you simply move the module into this crate? Yes I think that is a good
+    // idea.
+    // What should the `delegates` here be called? Remember that you can use
+    // associated types to fix this in the correct way. The best approach would
+    // QUESTION
+    // What exactly is the function doing? It is for a specific actor finding every
+    // work order activity that is relevant for this actor. The function is
+    // basically returning a `SortedSolution` for the `SupervisorSolution`.
+    //
+    // I think...
+    // The best approach here is to make something that we make a trait for each and
+    // then afterwards you look at all four of these traits and then make a
+    // common! Bullseye! This is the approach abstract should always be created
+    // with evidence not blind faith.
+    fn delegates_for_agent(&self, operational_agent: &Id) -> HashMap<WorkOrderActivity, Delegate>;
 }
+// The `solution` should be updated on the `SharedSolution` not the
+// individual solution. These interfaces are implemented on the
+// individual solution.
 pub trait OperationalInterface
 where
     Self: Clone + std::fmt::Debug + Eq + PartialEq,
 {
+    // This function is completely on the wrong level of abstraction, this
+    // feeling is what should guide you towards correct behavior.
+    // This interface should be implemented by the `operational` actor.
+    // And this means that the most important thing is the that the
+    // method cannot see the solution from the `supervisor` are you missing
+    // something here?
+    fn marginal_fitness_for_operational_actor<'a>(
+        &self,
+        work_order_activity: &WorkOrderActivity,
+    ) -> Vec<&'a MarginalFitness>;
 }
 
 #[derive(Clone)]

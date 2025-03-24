@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
+use anyhow::Context;
 use anyhow::Result;
 use chrono::DateTime;
 use chrono::Utc;
+use colored::Colorize;
+use ordinator_actor_core::traits::ObjectiveValue;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_scheduling_environment::time_environment::TimeInterval;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
@@ -17,7 +20,20 @@ use super::no_overlap_by_ref;
 use super::operational_events::OperationalEvents;
 use super::operational_parameter::OperationalParameters;
 
-pub type OperationalObjectiveValue = u64;
+/// You want this to be a struct so that you can implement methods and
+/// formatting and logging.
+#[derive(PartialEq, PartialOrd, Ord, Eq, Debug, Default, Clone)]
+pub struct OperationalObjectiveValue(u64);
+
+impl ObjectiveValue for OperationalObjectiveValue {}
+
+impl From<u64> for OperationalObjectiveValue
+{
+    fn from(value: u64) -> Self
+    {
+        OperationalObjectiveValue(value)
+    }
+}
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct OperationalSolution
@@ -50,7 +66,7 @@ impl Solution for OperationalSolution
         scheduled_work_order_activities.push(((WorkOrderNumber(0), 0), unavailability_end_event));
 
         Self {
-            objective_value: 0,
+            objective_value: OperationalObjectiveValue(0),
             scheduled_work_order_activities,
         }
     }
@@ -61,6 +77,15 @@ impl Solution for OperationalSolution
     }
 }
 
+#[allow(dead_code)]
+pub trait GetMarginalFitness
+{
+    fn marginal_fitness(
+        &self,
+        operational_agent: &Id,
+        work_order_activity: &WorkOrderActivity,
+    ) -> Result<&MarginalFitness>;
+}
 impl GetMarginalFitness for HashMap<Id, OperationalSolution>
 {
     fn marginal_fitness(
@@ -293,60 +318,10 @@ impl Assignment
     }
 }
 
-#[derive(AsRefStr, Eq, PartialEq, PartialOrd, Ord, Clone, Default)]
-pub enum MarginalFitness
-{
-    Scheduled(u64),
-    #[default]
-    None,
-}
-// WARN
-// More complex logic will be needed here for later. Start with this kind
-// of implementation and then continue to make the most of it. I think
-// that it is a better choice to quickly make this interface and then
-// change afterwards.
-//
-// This means that this should not have a `new` function, but instead
-//
-
-/// You should most likely remove this and insert something else instead. I
-/// think
-#[allow(dead_code)]
-pub trait GetMarginalFitness
-{
-    fn marginal_fitness(
-        &self,
-        operational_agent: &Id,
-        work_order_activity: &WorkOrderActivity,
-    ) -> Result<&MarginalFitness>;
-}
-
-impl std::fmt::Debug for MarginalFitness
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
-    {
-        match self {
-            MarginalFitness::Scheduled(time) => write!(
-                f,
-                "{}::{}({}, {}, {})",
-                std::any::type_name::<MarginalFitness>()
-                    .split("::")
-                    .last()
-                    .unwrap(),
-                self.as_ref(),
-                time,
-                time / 3600,
-                time / 3600 / 24,
-            ),
-            MarginalFitness::None => write!(f, "{}", self.as_ref()),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests
 {
-    use crate::agents::operational_agent::algorithm::operational_solution::MarginalFitness;
+    use crate::algorithm::operational_solution::MarginalFitness;
 
     #[test]
     fn test_marginal_fitness_debug()

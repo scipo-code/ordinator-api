@@ -1,32 +1,24 @@
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
+use ordinator_contracts::tactical::TacticalRequestMessage;
+use ordinator_contracts::tactical::TacticalResponseMessage;
+use ordinator_contracts::tactical::requests::tactical_resources_message::TacticalResourceRequest;
+use ordinator_contracts::tactical::responses::tactical_response_resources::TacticalResourceResponse;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_scheduling_environment::time_environment::day::Day;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::worker_environment::EmptyFull;
 use priority_queue::PriorityQueue;
-use shared_types::agents::tactical::TacticalRequestMessage;
-use shared_types::agents::tactical::TacticalResponseMessage;
-use shared_types::agents::tactical::requests::tactical_resources_message::TacticalResourceRequest;
-use shared_types::agents::tactical::responses::tactical_response_resources::TacticalResourceResponse;
-use shared_types::scheduling_environment::time_environment::day::Day;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::scheduling_environment::worker_environment::EmptyFull;
 
-use crate::agents::Actor;
-use crate::agents::ActorSpecific;
-use crate::agents::MessageHandler;
-use crate::agents::StateLink;
-use crate::agents::TacticalSolution;
-use crate::agents::WhereIsWorkOrder;
-use crate::agents::tactical_agent::algorithm::tactical_parameters::TacticalParameters;
-use crate::agents::tactical_agent::algorithm::tactical_parameters::create_tactical_parameter;
-
-impl MessageHandler
-    for Actor<
-        TacticalRequestMessage,
-        TacticalResponseMessage,
-        TacticalSolution,
-        TacticalParameters,
-        PriorityQueue<WorkOrderNumber, u64>,
-    >
+// TODO [ ]
+// Make a TacticalAgent here! I believe that this is the best appraoch. The only
+// way that you will find out is by creating the system in the new way you are
+// so much out of the water here that getting it to compile and run is the only
+// way to consolidate your knowledge.
+impl<Ss> MessageHandler for TacticalActor<Ss>
+where
+    Ss: SharedSolutionTrait,
 {
     type Req = TacticalRequestMessage;
     type Res = TacticalResponseMessage;

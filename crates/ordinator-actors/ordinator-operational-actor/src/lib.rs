@@ -4,8 +4,21 @@ pub mod message_handlers;
 
 use std::sync::RwLockReadGuard;
 
+use ordinator_actor_core::Actor;
 use ordinator_configuration::SystemConfigurations;
 use rand::rngs::StdRng;
+
+// Is this actually needed? I do not think so
+// pub struct OperationalActor(
+//     Actor<
+//         OperationalRequestMessage,
+//         OperationalResponseMessage,
+//         OperationalSolution,
+//         OperationalParameters,
+//         OperationalNonProductive,
+//         Ss,
+//     >,
+// );
 
 pub struct OperationalOptions
 {
@@ -15,7 +28,7 @@ pub struct OperationalOptions
 
 impl<'a> From<RwLockReadGuard<'a, SystemConfigurations>> for OperationalOptions
 {
-    fn from(value: &RwLockReadGuard<SystemConfigurations>) -> Self
+    fn from(value: RwLockReadGuard<'a, SystemConfigurations>) -> Self
     {
         let number_of_removed_activities = value
             .actor_configurations

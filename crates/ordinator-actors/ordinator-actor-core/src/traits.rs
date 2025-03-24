@@ -97,6 +97,8 @@ pub trait AbLNSUtils
 
     fn load_shared_solution(&mut self);
 
+    // You made the SolutionType to fix this issue. Now you are diviating
+    // from it again. I think that this is the best approach
     fn update_objective_value(
         &mut self,
         objective_value: <Self::SolutionType as Solution>::ObjectiveValue,
@@ -113,4 +115,4 @@ pub enum ObjectiveValueType<O>
     Force,
 }
 
-trait ObjectiveValue {}
+pub trait ObjectiveValue {}

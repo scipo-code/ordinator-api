@@ -1,0 +1,7 @@
+brace_style = "AlwaysNextLine"
+group_imports = "StdExternalCrate"
+imports_granularity = "Item"
+reorder_impl_items = true
+space_after_colon = true
+struct_field_align_threshold = 0 
+wrap_comments = true

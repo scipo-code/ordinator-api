@@ -14,8 +14,6 @@ use responses::supervisor_response_time::SupervisorResponseTime;
 use serde::Deserialize;
 use serde::Serialize;
 
-pub type SupervisorObjectiveValue = u64;
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SupervisorRequest
 {

@@ -1,4 +1,5 @@
-pub mod delegate;
+pub mod assert_functions;
+pub mod supervisor_interface;
 pub mod supervisor_parameters;
 pub mod supervisor_solution;
 
@@ -7,24 +8,22 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
-use delegate::Delegate;
+use ordinator_actor_core::algorithm::Algorithm;
+use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
+use ordinator_actor_core::traits::ObjectiveValueType;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use rand::seq::IndexedRandom;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
 use supervisor_parameters::SupervisorParameters;
+use supervisor_solution::SupervisorSolution;
 #[allow(unused_imports)]
 use tracing::Level;
 #[allow(unused_imports)]
 use tracing::event;
 
 use super::SupervisorOptions;
-use crate::agents::Algorithm;
-use crate::agents::SupervisorSolution;
-use crate::agents::operational_agent::algorithm::operational_solution::MarginalFitness;
-use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
-use crate::agents::traits::ObjectiveValueType;
+use crate::SupervisorAlgorithm;
 
-impl Algorithm<SupervisorSolution, SupervisorParameters, ()>
+impl<Ss> SupervisorAlgorithm<Ss>
 {
     pub fn unschedule_specific_work_order(
         &mut self,
@@ -37,8 +36,9 @@ impl Algorithm<SupervisorSolution, SupervisorParameters, ()>
     }
 }
 
-impl ActorBasedLargeNeighborhoodSearch for Algorithm<SupervisorSolution, SupervisorParameters, ()>
+impl<Ss> ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm<Ss>
 {
+    type Algorithm = Algorithm<SupervisorSolution, SupervisorParameters, ()>;
     type Options = SupervisorOptions;
 
     fn make_atomic_pointer_swap(&self)
@@ -99,8 +99,10 @@ impl ActorBasedLargeNeighborhoodSearch for Algorithm<SupervisorSolution, Supervi
                 .expect("The SupervisorParameter should always be available")
                 .number;
 
-            let operational_solutions = &self.loaded_shared_solution.operational;
+            // This is the fundamental issue.
+            let operational_solutions = &self.loaded_shared_solution.operational();
 
+            // And this comes in as a close second.
             let mut operational_status_by_work_order_activity =
                 self.solution.operational_status_by_work_order_activity(
                     work_order_activity,
@@ -260,6 +262,11 @@ impl ActorBasedLargeNeighborhoodSearch for Algorithm<SupervisorSolution, Supervi
             .retain(|id_woa, _| strategic_activities_hash_set.contains(&id_woa.1.0));
 
         Ok(true)
+    }
+
+    fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm
+    {
+        &mut self.0
     }
 }
 

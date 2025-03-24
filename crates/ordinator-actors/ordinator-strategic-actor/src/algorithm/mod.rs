@@ -2,6 +2,7 @@ pub mod assert_functions;
 pub mod strategic_parameters;
 pub mod strategic_resources;
 pub mod strategic_solution;
+pub mod strategic_interface;
 
 use std::any::type_name;
 use std::collections::HashMap;
@@ -13,21 +14,29 @@ use anyhow::Result;
 use anyhow::ensure;
 use itertools::Itertools;
 use ordinator_actor_core::algorithm::Algorithm;
+use ordinator_actor_core::algorithm::LoadOperation;
+use ordinator_actor_core::traits::AbLNSUtils;
+use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_actor_core::WhereIsWorkOrder;
+use ordinator_orchestrator_actor_traits::Parameters;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_scheduling_environment::time_environment::period::Period;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
+use priority_queue::PriorityQueue;
 use rand::prelude::SliceRandom;
 use strategic_parameters::StrategicClustering;
 use strategic_parameters::StrategicParameters;
 use strategic_parameters::WorkOrderParameter;
+use strategic_resources::OperationalResource;
+use strategic_resources::StrategicResources;
 use strategic_solution::StrategicSolution;
 use tracing::Level;
 use tracing::event;
 use tracing::instrument;
 
-use super::StrategicObjectiveValue;
 use super::StrategicOptions;
 
 // How would it look like here if you made it generic? impl
@@ -39,7 +48,9 @@ use super::StrategicOptions;
 // many generic things have to be changed in 4 different places, even though you
 // want the same behavior. I think that making the behavior generic is the most
 // important thing here.
-impl Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>>
+impl<Ss> StrategicAlgorithm<Ss>
+where
+    Ss: SharedSolutionTrait,
 {
     pub fn update_the_locked_in_period(
         &mut self,
@@ -282,13 +293,54 @@ pub enum ScheduleWorkOrder
     Unschedule,
 }
 
+trait StrategicUtils
+{
+    fn determine_tactical_period(
+            &self,
+            tactical_work_order: Option<
+                &WhereIsWorkOrder<TacticalScheduledOperations>,
+            >,
+        ) -> Result<&Period, anyhow::Error>;
+    
+    fn schedule_strategic_work_order(
+            &mut self,
+            work_order_number: WorkOrderNumber,
+            period: &Period,
+        ) -> Result<Option<WorkOrderNumber>>;
+    
+    fn schedule_forced_work_order(
+            &mut self,
+            force_schedule_work_order: &ForcedWorkOrder,
+        ) -> Result<()>;
+    
+    fn is_scheduled(&self, work_order_number: &WorkOrderNumber) -> bool;
+
+    /// This function updates the StrategicResources based on the a provided
+    /// loading.
+    fn update_loadings(
+        &mut self,
+        strategic_resources: StrategicResources,
+        load_operation: LoadOperation,
+    );
+    
+fn determine_best_permutation(
+        &self,
+        work_load: HashMap<Resources, Work>,
+        period: &Period,
+        schedule: ScheduleWorkOrder,
+    ) -> Result<Option<StrategicResources>>;
+    
+    
+}
 // This should be exchanged by a binary heap.
-impl Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>>
+impl<Ss> StrategicUtils for Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>
+where
+    Ss: SharedSolutionTrait,
 {
     fn determine_tactical_period(
         &self,
         tactical_work_order: Option<
-            &WhereIsWorkOrder<crate::agents::TacticalScheduledOperations>,
+            &WhereIsWorkOrder<TacticalScheduledOperations>,
         >,
     ) -> Result<&Period, anyhow::Error>
     {
@@ -319,7 +371,7 @@ impl Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNu
         Ok(tactical_period)
     }
 
-    pub fn schedule_strategic_work_order(
+    fn schedule_strategic_work_order(
         &mut self,
         work_order_number: WorkOrderNumber,
         period: &Period,
@@ -389,7 +441,7 @@ impl Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNu
     }
 
     // Where should this code go now? I think that it should go into the
-    pub fn schedule_forced_work_order(
+     fn schedule_forced_work_order(
         &mut self,
         force_schedule_work_order: &ForcedWorkOrder,
     ) -> Result<()>
@@ -457,7 +509,7 @@ impl Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNu
 
     /// This function updates the StrategicResources based on the a provided
     /// loading.
-    pub fn update_loadings(
+    fn update_loadings(
         &mut self,
         strategic_resources: StrategicResources,
         load_operation: LoadOperation,
@@ -523,7 +575,7 @@ impl Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNu
     /// * Determine if there is a feasible permutaion
     /// * If true, return the loading that should be put into the
     ///   StrategicSolution::strategic_loadings.
-    pub fn determine_best_permutation(
+    fn determine_best_permutation(
         &self,
         work_load: HashMap<Resources, Work>,
         period: &Period,
@@ -1004,16 +1056,29 @@ pub fn calculate_period_difference(scheduled_period: &Period, latest_period: &Pe
     std::cmp::max(days / 7, 0) as u64
 }
 
-impl ActorBasedLargeNeighborhoodSearch
-    for Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>>
+struct StrategicAlgorithm<Ss>(Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>,Ss>)
+where
+    StrategicSolution: Solution,
+    StrategicParameters: Parameters,
+    Ss: SharedSolutionTrait;
+    
+impl<Ss> ActorBasedLargeNeighborhoodSearch
+    for StrategicAlgorithm<Ss>
+    where
+        Self: AbLNSUtils,
+        StrategicSolution: Solution,
+        StrategicParameters: Parameters,
+        Ss: SharedSolutionTrait,
 {
     type Options = StrategicOptions;
+    type Algorithm = Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>>;
 
     fn incorporate_shared_state(&mut self) -> Result<bool>
     {
         let mut work_order_numbers: Vec<ForcedWorkOrder> = vec![];
         let mut state_change = false;
 
+        // This is the problem. What is the best way around it? 
         let tactical_work_orders = &self.loaded_shared_solution.tactical.tactical_work_orders;
         // We should create a method to update the
         for (work_order_number, strategic_parameter) in
@@ -1190,9 +1255,13 @@ impl ActorBasedLargeNeighborhoodSearch
         }
         Ok(())
     }
+
+    fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm {
+        &mut self.0
+    }
 }
 
-impl Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>>
+impl<Ss> StrategicAlgorithm<Ss>
 {
     pub fn update_resources_state(
         &mut self,

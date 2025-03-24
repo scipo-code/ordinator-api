@@ -352,15 +352,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
 
 [[package]]
-name = "atoi"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7c57d12312ff59c811c0643f4d80830505833c9ffaebd193d819392b265be8e"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -769,13 +760,12 @@ name = "data_processing"
 version = "0.2.2"
 dependencies = [
  "anyhow",
- "atoi",
  "calamine",
  "chrono",
  "chrono-tz",
  "csv",
- "dotenvy",
  "ordinator-configuration",
+ "ordinator-orchestrator-actor-traits",
  "ordinator-scheduling-environment",
  "rayon",
  "regex",
@@ -1477,7 +1467,7 @@ dependencies = [
  "ordinator-orchestrator-actor-traits",
  "ordinator-scheduling-environment",
  "proptest",
- "rand 0.8.5",
+ "rand 0.9.0",
  "serde",
  "tracing",
 ]
@@ -1487,8 +1477,12 @@ name = "ordinator-actor-factories"
 version = "0.1.0"
 dependencies = [
  "ordinator-actor-core",
+ "ordinator-operational-actor",
  "ordinator-orchestrator-actor-traits",
  "ordinator-scheduling-environment",
+ "ordinator-strategic-actor",
+ "ordinator-supervisor-actor",
+ "ordinator-tactical-actor",
 ]
 
 [[package]]
@@ -1542,9 +1536,12 @@ dependencies = [
  "colored",
  "itertools",
  "ordinator-actor-core",
+ "ordinator-configuration",
+ "ordinator-contracts",
  "ordinator-orchestrator-actor-traits",
+ "ordinator-scheduling-environment",
  "proptest",
- "rand 0.8.5",
+ "rand 0.9.0",
  "serde",
  "tracing",
 ]
@@ -1555,7 +1552,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arc-swap",
- "ordinator-actor-core",
+ "ordinator-actor-factories",
  "ordinator-contracts",
  "ordinator-orchestrator-actor-traits",
  "ordinator-scheduling-environment",
@@ -1602,9 +1599,13 @@ dependencies = [
  "colored",
  "itertools",
  "ordinator-actor-core",
+ "ordinator-configuration",
+ "ordinator-contracts",
  "ordinator-orchestrator-actor-traits",
+ "ordinator-scheduling-environment",
+ "priority-queue",
  "proptest",
- "rand 0.8.5",
+ "rand 0.9.0",
  "serde",
  "tracing",
 ]
@@ -1619,9 +1620,12 @@ dependencies = [
  "colored",
  "itertools",
  "ordinator-actor-core",
+ "ordinator-configuration",
+ "ordinator-contracts",
  "ordinator-orchestrator-actor-traits",
+ "ordinator-scheduling-environment",
  "proptest",
- "rand 0.8.5",
+ "rand 0.9.0",
  "serde",
  "tracing",
 ]
@@ -1636,9 +1640,13 @@ dependencies = [
  "colored",
  "itertools",
  "ordinator-actor-core",
+ "ordinator-configuration",
+ "ordinator-contracts",
  "ordinator-orchestrator-actor-traits",
+ "ordinator-scheduling-environment",
+ "priority-queue",
  "proptest",
- "rand 0.8.5",
+ "rand 0.9.0",
  "serde",
  "tracing",
 ]
@@ -1750,6 +1758,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77957b295656769bb8ad2b6a6b09d897d94f05c41b069aede1fcdaa675eaea04"
 dependencies = [
  "zerocopy 0.7.35",
+]
+
+[[package]]
+name = "priority-queue"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6af7c37f3487fd85d8e576b32095e1fe8c4860472f035d25472f1223b5026c88"
+dependencies = [
+ "autocfg",
+ "equivalent",
+ "indexmap",
 ]
 
 [[package]]

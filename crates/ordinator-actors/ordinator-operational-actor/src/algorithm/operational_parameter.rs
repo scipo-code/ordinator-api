@@ -32,7 +32,7 @@ impl Parameters for OperationalParameters
 
     fn from_source(
         asset: &Id,
-        options: Self::Options,
+        options: &Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self>
     {

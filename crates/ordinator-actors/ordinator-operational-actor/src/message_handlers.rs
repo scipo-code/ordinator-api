@@ -1,35 +1,29 @@
 use anyhow::Result;
 use anyhow::bail;
-use ordinator::operational::OperationalRequestMessage;
-use ordinator::operational::OperationalResponseMessage;
-use ordinator::operational::requests::operational_request_scheduling::OperationalSchedulingRequest;
-use ordinator::operational::responses::operational_response_scheduling::ApiAssignment;
-use ordinator::operational::responses::operational_response_scheduling::ApiAssignmentEvents;
-use ordinator::operational::responses::operational_response_scheduling::EventInfo;
-use ordinator::operational::responses::operational_response_scheduling::OperationalSchedulingResponse;
-use ordinator::operational::responses::operational_response_status::OperationalResponseStatus;
+use ordinator_actor_core::Actor;
+use ordinator_contracts::operational::OperationalRequestMessage;
+use ordinator_contracts::operational::OperationalResponseMessage;
+use ordinator_contracts::operational::requests::operational_request_scheduling::OperationalSchedulingRequest;
+use ordinator_contracts::operational::responses::operational_response_scheduling::ApiAssignment;
+use ordinator_contracts::operational::responses::operational_response_scheduling::ApiAssignmentEvents;
+use ordinator_contracts::operational::responses::operational_response_scheduling::EventInfo;
+use ordinator_contracts::operational::responses::operational_response_scheduling::OperationalSchedulingResponse;
+use ordinator_contracts::operational::responses::operational_response_status::OperationalResponseStatus;
+use ordinator_orchestrator_actor_traits::ActorSpecific;
+use ordinator_orchestrator_actor_traits::MessageHandler;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::StateLink;
 use tracing::Level;
 use tracing::event;
 
 use super::algorithm::OperationalNonProductive;
 use super::algorithm::operational_parameter::OperationalParameters;
-use crate::agents::Actor;
-use crate::agents::ActorSpecific;
-use crate::agents::Algorithm;
-use crate::agents::MessageHandler;
-use crate::agents::OperationalSolution;
-use crate::agents::StateLink;
+use crate::OperationalActor;
+use crate::algorithm::operational_solution::OperationalSolution;
 
-type OperationalAlgorithm =
-    Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive>;
-impl MessageHandler
-    for Actor<
-        OperationalRequestMessage,
-        OperationalResponseMessage,
-        OperationalSolution,
-        OperationalParameters,
-        OperationalNonProductive,
-    >
+impl<Ss> MessageHandler for OperationalActor
+where
+    Ss: SharedSolutionTrait,
 {
     type Req = OperationalRequestMessage;
     type Res = OperationalResponseMessage;

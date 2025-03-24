@@ -2,14 +2,15 @@ use anyhow::Result;
 use anyhow::ensure;
 use chrono::TimeDelta;
 use colored::Colorize;
+use ordinator_actor_core::algorithm::Algorithm;
+use ordinator_actor_core::delegate::Delegate;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 
 use super::algorithm::OperationalNonProductive;
 use super::algorithm::operational_parameter::OperationalParameters;
-use crate::agents::Algorithm;
-use crate::agents::OperationalSolution;
-use crate::agents::operational_agent::algorithm::operational_events::OperationalEvents;
-use crate::agents::operational_agent::algorithm::operational_solution::MarginalFitness;
-use crate::agents::supervisor_agent::algorithm::delegate::Delegate;
+use crate::algorithm::operational_events::OperationalEvents;
+use crate::algorithm::operational_solution::MarginalFitness;
+use crate::algorithm::operational_solution::OperationalSolution;
 
 #[allow(dead_code)]
 pub trait OperationalAssertions
@@ -18,8 +19,10 @@ pub trait OperationalAssertions
     fn assert_marginal_fitness_is_correct(&self) -> Result<()>;
 }
 
-impl OperationalAssertions
-    for Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive>
+impl<Ss> OperationalAssertions
+    for Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>
+where
+    Ss: SharedSolutionTrait,
 {
     fn assert_operational_solutions_does_not_have_delegate_unassign(&self) -> Result<()>
     {

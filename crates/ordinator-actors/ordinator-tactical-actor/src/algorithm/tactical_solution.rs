@@ -1,5 +1,8 @@
+use std::collections::HashMap;
 use std::fmt::Display;
 
+use anyhow::bail;
+use ordinator_actor_core::WhereIsWorkOrder;
 use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
@@ -152,19 +155,31 @@ impl TacticalSolution
         );
     }
 }
+// This is part of the solution. I think that you should rewrite the trait here
+// so that you can work with the
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct TacticalScheduledWorkOrders(
     pub HashMap<WorkOrderNumber, WhereIsWorkOrder<TacticalScheduledOperations>>,
 );
 
-impl WhereIsWorkOrder<TacticalScheduledOperations>
+// TODO [ ]
+// Make a trait here to implement the type.
+// This is basically an interface to the type that we need to implement this
+// on. I think that the
+trait TacticalWhereIsWorkOrder
 {
-    pub fn is_tactical(&self) -> bool
+    fn is_tactical(&self) -> bool;
+
+    fn tactical_operations(&self) -> Result<&TacticalScheduledOperations>;
+}
+impl TacticalWhereIsWorkOrder for WhereIsWorkOrder<TacticalScheduledOperations>
+{
+    fn is_tactical(&self) -> bool
     {
         matches!(self, WhereIsWorkOrder::Tactical(_))
     }
 
-    pub fn tactical_operations(&self) -> Result<&TacticalScheduledOperations>
+    fn tactical_operations(&self) -> Result<&TacticalScheduledOperations>
     {
         match self {
             WhereIsWorkOrder::Strategic => bail!(

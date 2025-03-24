@@ -13,6 +13,9 @@ members = [
     "crates/ordinator-orchestrator",
     "crates/ordinator-orchestrator-actor-traits",
     "crates/ordinator-scheduling-environment",
+    # TODO [ ]
+    # Make `imperium` rely on `ordinator-api-server` and `ordinator-contracts`
+    # "crates/ordinator-scheduling-environment-common",
     "crates/ordinator-total-data-processing",
 ]
 
@@ -37,6 +40,7 @@ colored = "*"
 dotenvy = "*"
 flume = "*"
 itertools ="*"
+priority-queue = "*"
 proptest ="*"
 rand = "*"
 rgb = "*"

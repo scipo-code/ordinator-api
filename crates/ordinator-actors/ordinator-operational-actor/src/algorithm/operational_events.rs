@@ -63,17 +63,17 @@ impl OperationalEvents
     }
 }
 
-impl From<OperationalEvents> for EventType
-{
-    fn from(value: OperationalEvents) -> Self
-    {
-        match value {
-            OperationalEvents::WrenchTime(_) => EventType::WrenchTime,
-            OperationalEvents::Break(_) => EventType::Break,
-            OperationalEvents::Toolbox(_) => EventType::Toolbox,
-            OperationalEvents::OffShift(_) => EventType::OffShift,
-            OperationalEvents::NonProductiveTime(_) => EventType::NonProductiveTime,
-            OperationalEvents::Unavailable(_) => EventType::Unavailable,
-        }
-    }
-}
+// impl From<OperationalEvents> for EventType
+// {
+//     fn from(value: OperationalEvents) -> Self
+//     {
+//         match value {
+//             OperationalEvents::WrenchTime(_) => EventType::WrenchTime,
+//             OperationalEvents::Break(_) => EventType::Break,
+//             OperationalEvents::Toolbox(_) => EventType::Toolbox,
+//             OperationalEvents::OffShift(_) => EventType::OffShift,
+//             OperationalEvents::NonProductiveTime(_) =>
+// EventType::NonProductiveTime,             OperationalEvents::Unavailable(_)
+// => EventType::Unavailable,         }
+//     }
+// }

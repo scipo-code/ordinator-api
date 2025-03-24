@@ -6,6 +6,8 @@ use std::sync::RwLockReadGuard;
 use ordinator_configuration::SystemConfigurations;
 use rand::rngs::StdRng;
 
+pub struct TacticalActor(Actor<TacticalRequestMessage, TacticalResponseMessage, TacticalAlgorithm>);
+
 pub struct TacticalOptions
 {
     pub number_of_removed_work_orders: usize,
