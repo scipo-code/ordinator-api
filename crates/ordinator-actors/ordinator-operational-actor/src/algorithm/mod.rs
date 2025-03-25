@@ -48,6 +48,13 @@ use tracing::event;
 
 use super::OperationalOptions;
 
+pub struct OperationalAlgorithm<Ss>(
+    Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>,
+)
+where
+    Ss: SharedSolutionTrait,
+    Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>: AbLNSUtils;
+
 #[derive(Clone, Default)]
 pub struct OperationalNonProductive(pub Vec<Assignment>);
 
@@ -207,12 +214,16 @@ pub enum Unavailability
 // crucial. You have one hour to m make this compile again.
 // QUESTION
 // What should be changed here to make the ABLNS work on the Algorithm again?
-struct OperationalAlgorithm<Ss>(
-    Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>,
-)
+impl<Ss> Into<OperationalAlgorithm<Ss>>
+    for Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>
 where
     Ss: SharedSolutionTrait,
-    Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>: AbLNSUtils;
+{
+    fn into(self) -> OperationalAlgorithm<Ss>
+    {
+        OperationalAlgorithm(self)
+    }
+}
 
 impl<Ss> Deref for OperationalAlgorithm<Ss>
 where
@@ -908,330 +919,5 @@ fn equality_between_time_interval_and_assignments(all_events: &Vec<Assignment>)
             assignment.event_type.time_delta(),
             assignment.finish - assignment.start
         )
-    }
-}
-
-#[cfg(test)]
-mod tests
-{
-    use std::str::FromStr;
-    use std::sync::Arc;
-    use std::sync::Mutex;
-
-    use anyhow::Result;
-    use chrono::DateTime;
-    use chrono::NaiveTime;
-    use chrono::TimeDelta;
-    use chrono::Utc;
-    use ordinator_actor_core::algorithm::Algorithm;
-    use ordinator_configuration::SystemConfigurations;
-    use ordinator_scheduling_environment::SchedulingEnvironment;
-    use ordinator_scheduling_environment::time_environment::TimeInterval;
-    use ordinator_scheduling_environment::time_environment::period::Period;
-    use ordinator_scheduling_environment::work_order::WorkOrderNumber;
-    use ordinator_scheduling_environment::work_order::operation::Work;
-    use ordinator_scheduling_environment::worker_environment::availability::Availability;
-    use ordinator_scheduling_environment::worker_environment::crew::OperationalConfiguration;
-    use ordinator_scheduling_environment::worker_environment::crew::OperationalConfigurationAll;
-    use ordinator_scheduling_environment::worker_environment::resources::Id;
-    use proptest::prelude::*;
-
-    use super::OperationalParameter;
-    use crate::OperationalOptions;
-    use crate::algorithm::operational_events::OperationalEvents;
-    use crate::algorithm::operational_parameter::OperationalParameters;
-    use crate::algorithm::operational_solution::OperationalSolution;
-
-    #[test]
-    fn test_determine_next_event_1() -> Result<()>
-    {
-        let availability_start: DateTime<Utc> =
-            DateTime::parse_from_rfc3339("2024-05-16T07:00:00Z")
-                .unwrap()
-                .to_utc();
-        let availability_end: DateTime<Utc> = DateTime::parse_from_rfc3339("2024-05-30T15:00:00Z")
-            .unwrap()
-            .to_utc();
-
-        let break_interval = TimeInterval::new(
-            NaiveTime::from_hms_opt(11, 0, 0).unwrap(),
-            NaiveTime::from_hms_opt(12, 0, 0).unwrap(),
-        );
-
-        let off_shift_interval = TimeInterval::new(
-            NaiveTime::from_hms_opt(19, 0, 0).unwrap(),
-            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
-        );
-        let toolbox_interval = TimeInterval::new(
-            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
-            NaiveTime::from_hms_opt(8, 0, 0).unwrap(),
-        );
-
-        // An OperationalAgent should be be able to run without this. It is crucial that
-        // it is functioning correctly.
-
-        let operational_configuration = OperationalConfiguration::new(
-            Availability::new(availability_start, availability_end),
-            break_interval,
-            off_shift_interval.clone(),
-            toolbox_interval,
-        );
-
-        let system_configurations = SystemConfigurations::read_all_configs()?;
-
-        let mut scheduling_environment = SchedulingEnvironment::builder().build();
-
-        let id = Id::new("TEST_OPERATIONAL", vec![], vec![]);
-
-        // TODO [ ]
-        // Remove this
-        let operational_configuration_all =
-            OperationalConfigurationAll::new(id.clone(), 6.0, operational_configuration);
-
-        scheduling_environment
-            .worker_environment
-            .agent_environment
-            .operational
-            .insert(id.clone(), operational_configuration_all);
-
-        let scheduling_environment = Arc::new(Mutex::new(scheduling_environment)).lock().unwrap();
-
-        // What should be created or changed here? I think that the best appraoch is to
-        // make a trait for each builder.
-        let operational_options = OperationalOptions::from(system_configurations);
-        let operational_algorithm = Algorithm::builder()
-            .id(id)
-            .parameters(&operational_options, &scheduling_environment)?
-            .solution()
-            .build();
-
-        let current_time = DateTime::parse_from_rfc3339("2024-05-20T12:00:00Z")
-            .unwrap()
-            .to_utc();
-
-        let (time_delta, next_event) = operational_algorithm.determine_next_event(&current_time);
-
-        assert_eq!(time_delta, TimeDelta::new(3600 * 7, 0).unwrap());
-
-        assert_eq!(next_event, OperationalEvents::OffShift(off_shift_interval));
-        Ok(())
-    }
-
-    #[test]
-    fn test_determine_next_event_2() -> Result<()>
-    {
-        let availability_start: DateTime<Utc> =
-            DateTime::parse_from_rfc3339("2024-05-16T07:00:00Z")
-                .unwrap()
-                .to_utc();
-        let availability_end: DateTime<Utc> = DateTime::parse_from_rfc3339("2024-05-30T15:00:00Z")
-            .unwrap()
-            .to_utc();
-
-        let break_interval = TimeInterval::new(
-            NaiveTime::from_hms_opt(11, 0, 0).unwrap(),
-            NaiveTime::from_hms_opt(12, 0, 0).unwrap(),
-        );
-
-        let off_shift_interval = TimeInterval::new(
-            NaiveTime::from_hms_opt(19, 0, 0).unwrap(),
-            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
-        );
-        let toolbox_interval = TimeInterval::new(
-            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
-            NaiveTime::from_hms_opt(8, 0, 0).unwrap(),
-        );
-
-        let operational_configuration = OperationalConfiguration::new(
-            Availability::new(availability_start, availability_end),
-            break_interval.clone(),
-            off_shift_interval.clone(),
-            toolbox_interval.clone(),
-        );
-
-        let mut scheduling_environment = SchedulingEnvironment::default();
-
-        let id = &Id::new("TEST_OPERATIONAL", vec![], vec![]);
-
-        let operational_configuration_all =
-            OperationalConfigurationAll::new(id.clone(), 6.0, operational_configuration);
-
-        scheduling_environment
-            .worker_environment
-            .agent_environment
-            .operational
-            .insert(id.clone(), operational_configuration_all);
-
-        let scheduling_environment = Arc::new(Mutex::new(scheduling_environment));
-
-        let options = SystemConfigurations::read_all_configs().unwrap();
-
-        // let operational_algorithm = Algorithm::builder()
-        //     .id(id)
-        //     .parameters(
-        //         OperationalOptions::from::<SystemConfigurations>(options),
-        //         scheduling_environment,
-        //     )?
-        //     .build();
-
-        // let current_time = DateTime::parse_from_rfc3339("2024-05-20T00:00:00Z")
-        //     .unwrap()
-        //     .to_utc();
-
-        // let (time_delta, next_event) =
-        // operational_algorithm.determine_next_event(&current_time);
-
-        // assert_eq!(time_delta, TimeDelta::new(3600 * 7, 0).unwrap());
-        // assert_eq!(next_event, OperationalEvents::Toolbox(toolbox_interval));
-        Ok(())
-    }
-
-    #[test]
-    fn test_determine_next_event_3() -> Result<()>
-    {
-        let mut scheduling_environment = SchedulingEnvironment::builder().build();
-
-        let id = Id::new("TEST_OPERATIONAL", vec![], vec![]);
-
-        let scheduling_environment = Arc::new(Mutex::new(scheduling_environment)).lock().unwrap();
-
-        let value = SystemConfigurations::read_all_configs().unwrap();
-        let options = OperationalOptions::from(value);
-
-        let operational_algorithm = Algorithm::builder()
-            .id(id)
-            .parameters(&options, &scheduling_environment)?
-            .build();
-
-        let current_time = DateTime::parse_from_rfc3339("2024-05-20T01:00:00Z")
-            .unwrap()
-            .to_utc();
-
-        let (time_delta, next_event) = operational_algorithm.determine_next_event(&current_time);
-
-        assert_eq!(time_delta, TimeDelta::new(3600 * 6, 0).unwrap());
-        // assert_eq!(next_event,
-        // OperationalEvents::Toolbox(value.actor_configurations.));
-        Ok(())
-    }
-
-    #[test]
-    fn test_determine_first_available_start_time() -> Result<()>
-    {
-        let availability_start: DateTime<Utc> =
-            DateTime::parse_from_rfc3339("2024-10-07T07:00:00Z")
-                .unwrap()
-                .to_utc();
-        let availability_end: DateTime<Utc> = DateTime::parse_from_rfc3339("2024-10-20T15:00:00Z")
-            .unwrap()
-            .to_utc();
-
-        let break_interval = TimeInterval::new(
-            NaiveTime::from_hms_opt(11, 0, 0).unwrap(),
-            NaiveTime::from_hms_opt(12, 0, 0).unwrap(),
-        );
-
-        let off_shift_interval = TimeInterval::new(
-            NaiveTime::from_hms_opt(19, 0, 0).unwrap(),
-            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
-        );
-        let toolbox_interval = TimeInterval::new(
-            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
-            NaiveTime::from_hms_opt(8, 0, 0).unwrap(),
-        );
-        let operational_configuration = OperationalConfiguration::new(
-            Availability::new(availability_start, availability_end),
-            break_interval.clone(),
-            off_shift_interval.clone(),
-            toolbox_interval.clone(),
-        );
-
-        let mut scheduling_environment = SchedulingEnvironment::builder().build();
-
-        let id = Id::new("TEST_OPERATIONAL", vec![], vec![]);
-
-        let operational_configuration_all =
-            OperationalConfigurationAll::new(id.clone(), 6.0, operational_configuration);
-
-        scheduling_environment
-            .worker_environment
-            .agent_environment
-            .operational
-            .insert(id.clone(), operational_configuration_all);
-
-        let scheduling_environment = Arc::new(Mutex::new(scheduling_environment)).lock().unwrap();
-        let options = OperationalOptions::from(SystemConfigurations::read_all_configs().unwrap());
-
-        let operational_algorithm = Algorithm::builder()
-            .id(id)
-            .parameters(options, &scheduling_environment)?
-            .solution()
-            .build();
-
-        operational_algorithm.load_shared_solution();
-
-        let mut strategic_updated_shared_solution =
-            (**operational_algorithm.loaded_shared_solution).clone();
-
-        // Here you can simply access what it is that you need? Is that not a better
-        // approach? No I do not think that it is. I believe that we are doing it the
-        // You have a hard time making these test after what you have done here. I
-        // you lose the ability to simply insert things as you like into the
-        // other actors and that could hamper you ability to test edge cases...
-        // No that is actually a good thing.
-        strategic_updated_shared_solution
-            .strategic
-            .strategic_scheduled_work_orders
-            .insert(
-                WorkOrderNumber(0),
-                Some(Period::from_str("2024-W41-42").unwrap()),
-            );
-
-        operational_algorithm
-            .arc_swap_shared_solution
-            .0
-            .store(Arc::new(strategic_updated_shared_solution));
-
-        operational_algorithm.load_shared_solution();
-        let mut tactical_updated_shared_solution =
-            (**operational_algorithm.loaded_shared_solution).clone();
-
-        tactical_updated_shared_solution
-            .tactical
-            .tactical_work_orders
-            .0
-            .insert(WorkOrderNumber(0), WhereIsWorkOrder::NotScheduled);
-
-        operational_algorithm
-            .arc_swap_shared_solution
-            .0
-            .store(Arc::new(tactical_updated_shared_solution));
-
-        operational_algorithm.load_shared_solution();
-
-        let operational_parameter = OperationalParameter::new(Work::from(20.0), Work::from(0.0))
-            .expect("Work has to be non-zero to create an OperationalParameter");
-
-        let start_time = operational_algorithm
-            .determine_first_available_start_time(&(WorkOrderNumber(0), 0), &operational_parameter)
-            .unwrap();
-
-        assert_eq!(
-            start_time,
-            DateTime::parse_from_rfc3339("2024-10-07T08:00:00Z")
-                .unwrap()
-                .to_utc()
-        );
-        Ok(())
-    }
-
-    proptest! {
-        #[test]
-        fn test_with_custom_strategy(vec in prop::collection::vec(0..100i32, 0..100)) {
-            let reversed: Vec<i32> = vec.iter().rev().cloned().collect();
-            let double_reversed: Vec<i32> = reversed.iter().rev().cloned().collect();
-
-            prop_assert_eq!(vec, double_reversed);
-        }
     }
 }

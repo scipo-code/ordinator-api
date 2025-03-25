@@ -1,6 +1,5 @@
 use anyhow::Result;
 use anyhow::bail;
-use ordinator_actor_core::Actor;
 use ordinator_contracts::operational::OperationalRequestMessage;
 use ordinator_contracts::operational::OperationalResponseMessage;
 use ordinator_contracts::operational::requests::operational_request_scheduling::OperationalSchedulingRequest;
@@ -16,19 +15,19 @@ use ordinator_orchestrator_actor_traits::StateLink;
 use tracing::Level;
 use tracing::event;
 
-use super::algorithm::OperationalNonProductive;
-use super::algorithm::operational_parameter::OperationalParameters;
 use crate::OperationalActor;
 use crate::algorithm::operational_solution::OperationalSolution;
 
-impl<Ss> MessageHandler for OperationalActor
+// Was this actually needed? I am not really sure here I believe that
+// the best approach is to make something.
+impl<Ss> MessageHandler for OperationalActor<Ss>
 where
-    Ss: SharedSolutionTrait,
+    Ss: SharedSolutionTrait<Operational = OperationalSolution>,
 {
     type Req = OperationalRequestMessage;
     type Res = OperationalResponseMessage;
 
-    fn handle_state_link(&mut self, state_link: StateLink) -> Result<()>
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<OperationalResponseMessage>
     {
         event!(
             Level::INFO,
@@ -41,7 +40,10 @@ where
                 event!(Level::ERROR, unhandled_work_orders = ?changed_work_orders);
                 bail!("IMPLEMENT STATELINK FOR THE OPERATIONAL AGENT");
             }
+            // Here you should make a clear separation between the different
+            // ways
             StateLink::WorkerEnvironment => todo!(),
+
             StateLink::TimeEnvironment => todo!(),
         }
     }

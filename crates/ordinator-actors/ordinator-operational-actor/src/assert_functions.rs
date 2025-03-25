@@ -4,6 +4,7 @@ use chrono::TimeDelta;
 use colored::Colorize;
 use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::SupervisorInterface;
 use ordinator_orchestrator_actor_traits::delegate::Delegate;
 use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
 
@@ -24,12 +25,14 @@ impl<Ss> OperationalAssertions
 where
     Ss: SharedSolutionTrait,
 {
-    //  This also have to be moved out of the code
+    // This also have to be moved out of the code
+    // TODO [ ]
+    // Turn this into the interface!
     fn assert_operational_solutions_does_not_have_delegate_unassign(&self) -> Result<()>
     {
         for delegate in self
             .loaded_shared_solution
-            .supervisor
+            .supervisor()
             .delegates_for_agent(&self.id)
             .values()
         {

@@ -50,6 +50,8 @@ where
     S: StrategicInterface,
     T: TacticalInterface,
     U: SupervisorInterface,
+    // FIX [ ]
+    // This `Solution` should be removed.
     V: OperationalInterface + Solution,
 {
     pub strategic: S,
@@ -58,6 +60,8 @@ where
     pub operational: HashMap<Id, V>,
 }
 
+// This is made completely wrong. I am not sure what the
+// best approach of solving it will be.
 pub trait SharedSolutionTrait: Clone
 {
     type Strategic: StrategicInterface;
@@ -136,7 +140,7 @@ where
 
     fn from_source(
         id: &Id,
-        options: &Self::Options,
+        options: Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self>;
 

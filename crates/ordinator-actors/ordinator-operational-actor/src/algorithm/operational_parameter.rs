@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::MutexGuard;
 
 use anyhow::Context;
@@ -24,6 +25,7 @@ pub struct OperationalParameters
     pub options: OperationalOptions,
 }
 
+// There is something rotten about this function.
 impl Parameters for OperationalParameters
 {
     type Key = WorkOrderActivity;
@@ -33,7 +35,7 @@ impl Parameters for OperationalParameters
     // Do we even want the code to look like this in the first place?
     fn from_source(
         asset: &Id,
-        options: &Self::Options,
+        options: Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self>
     {
@@ -72,7 +74,7 @@ impl Parameters for OperationalParameters
             off_shift_interval: operational_configuration.off_shift_interval.clone(),
             break_interval: operational_configuration.break_interval.clone(),
             toolbox_interval: operational_configuration.toolbox_interval.clone(),
-            options: options,
+            options,
         })
     }
 

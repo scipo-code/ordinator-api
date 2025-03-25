@@ -12,6 +12,7 @@ use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
 use crate::traits::AbLNSUtils;
+use crate::traits::ActorBasedLargeNeighborhoodSearch;
 
 // pub type SharedSolution = SharedSolution<
 
@@ -106,16 +107,20 @@ where
     I: Default,
     Ss: SharedSolutionTrait,
 {
-    pub fn build(self) -> Algorithm<S, P, I, Ss>
+    pub fn build<Alg>(self) -> Alg
+    where
+        Algorithm<S, P, I, Ss>: Into<Alg>,
     {
-        Algorithm {
+        let algorithm_inner = Algorithm {
             id: self.id.unwrap(),
             solution_intermediate: self.solution_intermediate,
             solution: self.solution.unwrap(),
             parameters: self.parameters.unwrap(),
             arc_swap_shared_solution: self.arc_swap_shared_solution.unwrap(),
             loaded_shared_solution: self.loaded_shared_solution.unwrap(),
-        }
+        };
+
+        algorithm_inner.into()
     }
 
     pub fn id(mut self, id: Id) -> Self
@@ -142,7 +147,7 @@ where
     // there kind of things
     pub fn parameters(
         mut self,
-        options: &P::Options,
+        options: P::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self>
     {

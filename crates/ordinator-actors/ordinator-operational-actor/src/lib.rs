@@ -4,22 +4,23 @@ pub mod message_handlers;
 
 use std::sync::RwLockReadGuard;
 
+use algorithm::OperationalAlgorithm;
+use algorithm::operational_solution::OperationalSolution;
 use ordinator_actor_core::Actor;
 use ordinator_configuration::SystemConfigurations;
+use ordinator_contracts::operational::OperationalRequestMessage;
+use ordinator_contracts::operational::OperationalResponseMessage;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use rand::rng;
 use rand::rngs::ThreadRng;
 
-// Is this actually needed? I do not think so
-// pub struct OperationalActor(
-//     Actor<
-//         OperationalRequestMessage,
-//         OperationalResponseMessage,
-//         OperationalSolution,
-//         OperationalParameters,
-//         OperationalNonProductive,
-//         Ss,
-//     >,
-// );
+// You are beginning to see the truth. That there are no shortcuts
+// to be made here and no.
+pub struct OperationalActor<Ss>(
+    Actor<OperationalRequestMessage, OperationalResponseMessage, OperationalAlgorithm<Ss>>,
+)
+where
+    Ss: SharedSolutionTrait<Operational = OperationalSolution>;
 
 pub struct OperationalOptions
 {
