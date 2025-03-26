@@ -1,15 +1,10 @@
-pub mod operational_response_resource;
-pub mod operational_response_scheduling;
-pub mod operational_response_status;
-pub mod operational_response_time;
-use serde::Serialize;
-
-#[derive(Serialize)]
-pub enum OperationalResourceResponse {}
 use chrono::DateTime;
 use chrono::Utc;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use serde::Serialize;
+
+#[derive(Serialize)]
+pub enum OperationalResourceResponse {}
 
 #[derive(Serialize)]
 pub enum OperationalSchedulingResponse

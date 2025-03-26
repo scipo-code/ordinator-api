@@ -1,13 +1,5 @@
 use anyhow::Result;
 use anyhow::bail;
-use ordinator_contracts::operational::OperationalRequestMessage;
-use ordinator_contracts::operational::OperationalResponseMessage;
-use ordinator_contracts::operational::requests::operational_request_scheduling::OperationalSchedulingRequest;
-use ordinator_contracts::operational::responses::operational_response_scheduling::ApiAssignment;
-use ordinator_contracts::operational::responses::operational_response_scheduling::ApiAssignmentEvents;
-use ordinator_contracts::operational::responses::operational_response_scheduling::EventInfo;
-use ordinator_contracts::operational::responses::operational_response_scheduling::OperationalSchedulingResponse;
-use ordinator_contracts::operational::responses::operational_response_status::OperationalResponseStatus;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
@@ -15,6 +7,9 @@ use ordinator_orchestrator_actor_traits::StateLink;
 use tracing::Level;
 use tracing::event;
 
+use super::OperationalRequestMessage;
+use super::OperationalResponseMessage;
+use super::OperationalSchedulingRequest;
 use crate::OperationalActor;
 use crate::algorithm::operational_solution::OperationalSolution;
 
@@ -75,7 +70,7 @@ where
                 let (assign, assess, unassign): (u64, u64, u64) = self
                     .algorithm
                     .loaded_shared_solution
-                    .supervisor
+                    .supervisor()
                     .count_delegate_types(&self.agent_id);
 
                 let operational_response_status = OperationalResponseStatus::new(
