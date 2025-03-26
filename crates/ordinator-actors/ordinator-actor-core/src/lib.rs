@@ -33,6 +33,16 @@ use self::traits::ActorBasedLargeNeighborhoodSearch;
 // You should reuse the trait bounds on the Agent and the Algorithm.
 pub struct Actor<ActorRequest, ActorResponse, Algorithm>
 where
+    // What should you do here with the
+    // You should implement the MessageHandler for all of the
+    // Actors this means that you need to create a blanket
+    // implementation, and then the actors will have to supply
+    // an implementation of the functions needed to actually
+    // perform the required operations.
+    // TODO [ ]
+    // Look into whether it is possible for you to make a
+    // blanket implementation that simply makes the
+    // Actor implementations provide functions.
     Self: MessageHandler<Req = ActorRequest, Res = ActorResponse>,
     Algorithm: ActorBasedLargeNeighborhoodSearch,
 {
@@ -48,7 +58,7 @@ where
 // TODO [ ]
 // You should consider making a trait here for the agent. That is the best way
 // of coding this. You are getting the hang of this and that is the most
-// important thing here.
+// important thing here
 impl<ActorRequest, ActorResponse, Algorithm> Actor<ActorRequest, ActorResponse, Algorithm>
 where
     Self: MessageHandler<Req = ActorRequest, Res = ActorResponse>,
@@ -59,7 +69,6 @@ where
     pub fn run(&mut self) -> Result<()>
     {
         let mut schedule_iteration = ScheduleIteration::default();
-
         self.algorithm
             .schedule()
             .with_context(|| {
@@ -99,6 +108,26 @@ where
             notify_orchestrator: None,
             communication_for_orchestrator: None,
         }
+    }
+}
+
+impl<ActorRequest, ActorResponse, Algorithm> MessageHandler
+    for Actor<ActorRequest, ActorResponse, Algorithm>
+{
+    type Req;
+    type Res;
+
+    fn handle_state_link(
+        &mut self,
+        state_link: ordinator_orchestrator_actor_traits::StateLink,
+    ) -> Result<Self::Res>
+    {
+        todo!()
+    }
+
+    fn handle_request_message(&mut self, request_message: Self::Req) -> Result<Self::Res>
+    {
+        todo!()
     }
 }
 

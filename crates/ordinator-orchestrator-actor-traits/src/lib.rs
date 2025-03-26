@@ -188,7 +188,6 @@ pub trait MessageHandler
     fn handle_request_message(&mut self, request_message: Self::Req) -> Result<Self::Res>;
 }
 
-//
 // There should only be a single interface here there should be a
 // a set of standard operations that every solution should inplement
 // this is to make sure that you do not make stray impl blocks and
@@ -281,6 +280,9 @@ pub enum ActorMessage<ActorRequest>
 {
     State(StateLink),
     Actor(ActorRequest),
+    // Yes so options should be included here as part of what needs to be created for
+    // this to work. I believe that the best approach here will be to make something
+    // that
     // FIX
     // Add Options here so that every agent can have its options updated at run time.
     // Options(),

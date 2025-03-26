@@ -46,6 +46,13 @@ pub enum StrategicSchedulingEnvironmentCommands
     UserStatus(StrategicUserStatusCodes),
 }
 
+// This is what should be removed. I think that, so the messages
+// need to be internal to the crate and then it would be better
+// to group the messages by trait than by enum. The logic of the
+// messages is really not that difficult, so neiter should the
+// structure for the messages be. I think that is very insightful.
+//
+//
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum StrategicRequestMessage
 {

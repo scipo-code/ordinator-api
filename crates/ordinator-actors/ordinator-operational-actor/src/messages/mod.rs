@@ -43,12 +43,17 @@ where
     R: Resource,
     T: Time,
 {
+    // I am not sure that this is the best approach for making the
+    // messages. The messages will always have to work on the
+    // `Parameters` and we should use this.
     Status(S),
     Scheduling(Sc),
     Resource(R),
     Time(T),
 }
 
+// You need type safety here I do not see another way around it
+//
 pub enum ResponseMessage<S, Sc, R, T>
 {
     Status(S),
@@ -57,6 +62,29 @@ pub enum ResponseMessage<S, Sc, R, T>
     Time(T),
 }
 
+// QUESTION TODO [ ]
+// Should this be the common message type for the whole system? I
+// think that it is a good idea, but before scrutinizing it I think
+// that you should strive to make the system as idiot proof as possible
+// The idea here is that the Actors should reuse as much as possible.
+//
+// The Problem here would be if you also needed different kind of functionality
+// this goes back to the issue of what to do about the ... I think that the
+// best approach here is to make it as. I think that this is the best kind of
+// approach to
+//
+// So each `Actor` should process messages, it needs to be this way as you need
+// to have a connection to the `SchedulingEnvironment` and the `Algorithm` and
+// the `SystemConfiguration` to make this work. Now the issue is what we should
+// do with the Messages. I do not like having
+//
+// What is it that you do not understand here?
+// * You are mixing API types with internal message types. This is causing your
+// mind to be unable to
+// understand what the path forward is here. Ideally the API types should be
+// generating the `OperationalRequestMessage` but this is also not the best
+// approach forward here. The question is should we make something that will
+// allow us to make something even better.
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub enum OperationalRequestMessage
 {

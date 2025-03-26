@@ -54,6 +54,8 @@ where
     ) -> Result<OperationalResponseMessage>
     {
         match request {
+            // You should put the `contract` message types in here. I do not see
+            // any different way of doing it.
             OperationalRequestMessage::Status(_) => {
                 // WARN DEBUG: This should be included if you get an error
                 //     format!(
