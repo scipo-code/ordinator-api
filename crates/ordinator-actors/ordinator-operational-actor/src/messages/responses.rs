@@ -1,3 +1,11 @@
+pub mod operational_response_resource;
+pub mod operational_response_scheduling;
+pub mod operational_response_status;
+pub mod operational_response_time;
+use serde::Serialize;
+
+#[derive(Serialize)]
+pub enum OperationalResourceResponse {}
 use chrono::DateTime;
 use chrono::Utc;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
@@ -77,3 +85,39 @@ pub enum EventType
     NonProductiveTime,
     Unavailable,
 }
+use ordinator_scheduling_environment::worker_environment::resources::Id;
+use serde::Serialize;
+
+#[derive(Serialize)]
+pub struct OperationalResponseStatus
+{
+    id: Id,
+    assign_number_of_activities: u64,
+    assess_number_of_activities: u64,
+    unassign_number_of_activities: u64,
+    objective: u64,
+}
+
+impl OperationalResponseStatus
+{
+    pub fn new(
+        id: Id,
+        assign_number_of_activities: u64,
+        assess_number_of_activities: u64,
+        unassign_number_of_activities: u64,
+        objective: u64,
+    ) -> Self
+    {
+        Self {
+            id,
+            assign_number_of_activities,
+            assess_number_of_activities,
+            unassign_number_of_activities,
+            objective,
+        }
+    }
+}
+use serde::Serialize;
+
+#[derive(Serialize)]
+pub enum OperationalTimeResponse {}
