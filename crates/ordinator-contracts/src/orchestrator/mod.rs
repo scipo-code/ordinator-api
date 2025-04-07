@@ -14,11 +14,6 @@ use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::operational::responses::operational_response_status::OperationalResponseStatus;
-use crate::strategic::responses::strategic_response_status::StrategicResponseStatus;
-use crate::supervisor::responses::supervisor_response_status::SupervisorResponseStatus;
-use crate::tactical::responses::tactical_response_status::TacticalResponseStatus;
-
 // best to simply comment all of this out
 // Where should these be found? I think that the
 // FIX [ ]
@@ -44,54 +39,12 @@ pub enum OrchestratorRequest
 #[allow(clippy::large_enum_variant)]
 pub enum OrchestratorResponse
 {
-    AgentStatus(AgentStatusResponse),
     WorkOrderStatus(WorkOrdersStatus),
     RequestStatus(String),
     Periods(Vec<Period>),
     Days(Vec<Day>),
     Export(String),
     Success,
-}
-
-#[derive(Serialize)]
-pub struct AgentStatusResponse
-{
-    pub agent_status: HashMap<Asset, AgentStatus>,
-}
-
-impl AgentStatusResponse
-{
-    pub fn new(agent_status: HashMap<Asset, AgentStatus>) -> Self
-    {
-        Self { agent_status }
-    }
-}
-
-#[derive(Serialize)]
-pub struct AgentStatus
-{
-    pub strategic_status: StrategicResponseStatus,
-    pub tactical_status: TacticalResponseStatus,
-    pub supervisor_statai: Vec<SupervisorResponseStatus>,
-    pub operational_statai: Vec<OperationalResponseStatus>,
-}
-
-impl AgentStatus
-{
-    pub fn new(
-        strategic_status: StrategicResponseStatus,
-        tactical_status: TacticalResponseStatus,
-        supervisor_status: Vec<SupervisorResponseStatus>,
-        operational_status: Vec<OperationalResponseStatus>,
-    ) -> Self
-    {
-        Self {
-            strategic_status,
-            tactical_status,
-            supervisor_statai: supervisor_status,
-            operational_statai: operational_status,
-        }
-    }
 }
 
 #[derive(Serialize)]

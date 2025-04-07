@@ -255,6 +255,7 @@ where
     // common! Bullseye! This is the approach abstract should always be created
     // with evidence not blind faith.
     fn delegates_for_agent(&self, operational_agent: &Id) -> HashMap<WorkOrderActivity, Delegate>;
+    fn count_delegate_types(&self, operational_agent: &Id) -> (u64, u64, u64);
 }
 // The `solution` should be updated on the `SharedSolution` not the
 // individual solution. These interfaces are implemented on the

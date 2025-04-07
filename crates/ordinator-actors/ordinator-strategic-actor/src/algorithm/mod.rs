@@ -17,10 +17,15 @@ use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_actor_core::algorithm::LoadOperation;
 use ordinator_actor_core::traits::AbLNSUtils;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
-use ordinator_actor_core::WhereIsWorkOrder;
+use ordinator_actor_core::traits::ObjectiveValueType;
+use ordinator_contracts::strategic::requests::strategic_request_resources_message::StrategicRequestResource;
+use ordinator_contracts::strategic::requests::strategic_request_scheduling_message::StrategicRequestScheduling;
+use ordinator_contracts::strategic::responses::strategic_response_resources::StrategicResponseResources;
+use ordinator_contracts::strategic::responses::strategic_response_scheduling::StrategicResponseScheduling;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use ordinator_orchestrator_actor_traits::Solution;
+use ordinator_orchestrator_actor_traits::WhereIsWorkOrder;
 use ordinator_scheduling_environment::time_environment::period::Period;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::Work;
@@ -32,6 +37,7 @@ use strategic_parameters::StrategicParameters;
 use strategic_parameters::WorkOrderParameter;
 use strategic_resources::OperationalResource;
 use strategic_resources::StrategicResources;
+use strategic_solution::StrategicObjectiveValue;
 use strategic_solution::StrategicSolution;
 use tracing::Level;
 use tracing::event;
@@ -293,6 +299,7 @@ pub enum ScheduleWorkOrder
     Unschedule,
 }
 
+// There has to be changed something in here as well.
 trait StrategicUtils
 {
     fn determine_tactical_period(
@@ -337,6 +344,9 @@ impl<Ss> StrategicUtils for Algorithm<StrategicSolution, StrategicParameters, Pr
 where
     Ss: SharedSolutionTrait,
 {
+    // TODO [ ]
+    // This should be changed as well. But now I will go home. I think that your best approach is
+    // to make something that will allow us to implement this and create something for our fellow man.
     fn determine_tactical_period(
         &self,
         tactical_work_order: Option<
@@ -1262,6 +1272,7 @@ impl<Ss> ActorBasedLargeNeighborhoodSearch
 }
 
 impl<Ss> StrategicAlgorithm<Ss>
+where Ss: SharedSolutionTrait
 {
     pub fn update_resources_state(
         &mut self,
@@ -1505,23 +1516,13 @@ mod tests
     use std::sync::Mutex;
 
     use arc_swap::ArcSwap;
+    use ordinator_scheduling_environment::worker_environment::resources::Id;
+    use ordinator_scheduling_environment::{Asset, SchedulingEnvironment};
     use rand::SeedableRng;
     use rand::rngs::StdRng;
-    use shared_types::Asset;
-    use shared_types::scheduling_environment::SchedulingEnvironment;
-    use shared_types::scheduling_environment::worker_environment::resources::Id;
-    use shared_types::scheduling_environment::worker_environment::resources::Resources;
     use strategic_parameters::WorkOrderParameter;
 
     use super::*;
-    use crate::agents::AlgorithmUtils;
-    use crate::agents::ArcSwapSharedSolution;
-    use crate::agents::SharedSolution;
-    use crate::agents::Solution;
-    use crate::agents::TacticalSolutionBuilder;
-    use crate::agents::WhereIsWorkOrder;
-    use crate::agents::strategic_agent::algorithm::StrategicParameters;
-    use crate::agents::traits::Parameters;
 
     impl WorkOrderParameter
     {

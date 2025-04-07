@@ -1,3 +1,4 @@
+pub mod message_handlers;
 pub mod requests;
 pub mod responses;
 

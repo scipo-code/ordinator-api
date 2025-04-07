@@ -8,7 +8,6 @@ ordinator-actor-core = {path = "../ordinator-actor-core"}
 ordinator-orchestrator-actor-traits = {path = "../../ordinator-orchestrator-actor-traits"}
 ordinator-scheduling-environment = {path = "../../ordinator-scheduling-environment"}
 ordinator-configuration = {path = "../../ordinator-configuration"}
-ordinator-contracts = {path = "../../ordinator-contracts"}
 
 anyhow = { workspace = true}
 arc-swap = {workspace = true}

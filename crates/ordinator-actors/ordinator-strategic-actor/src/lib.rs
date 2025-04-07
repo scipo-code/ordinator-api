@@ -1,6 +1,5 @@
-pub mod algorithm;
-pub mod display;
-pub mod message_handlers;
+mod algorithm;
+pub mod messages;
 
 use rand::rngs::StdRng;
 use serde::Deserialize;
@@ -292,3 +291,17 @@ mod tests
         Ok(())
     }
 }
+// use std::fmt::Display;
+
+// TODO
+// Make a generic display for `Agent` so that we can view all the different
+// agent easily. impl Display for Agent {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         write!(
+//             f,
+//             "SchedulerAgent: \n
+//             Platform: {}, \n",
+//             self.asset,
+//         )
+//     }
+// }

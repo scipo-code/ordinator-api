@@ -22,6 +22,7 @@ use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use ordinator_orchestrator_actor_traits::Solution;
+use ordinator_orchestrator_actor_traits::StateLink;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use serde::Serialize;
@@ -46,8 +47,8 @@ where
     Self: MessageHandler<Req = ActorRequest, Res = ActorResponse>,
     Algorithm: ActorBasedLargeNeighborhoodSearch,
 {
-    agent_id: Id,
-    scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
+    pub agent_id: Id,
+    pub scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub algorithm: Algorithm,
     pub receiver_from_orchestrator: Receiver<ActorMessage<ActorRequest>>,
     pub sender_to_orchestrator: Sender<Result<ActorResponse>>,
@@ -111,23 +112,30 @@ where
     }
 }
 
+// Is what you are getting from this worth it? I do not really
+// think so. You will have to make a new function in the
+// other
 impl<ActorRequest, ActorResponse, Algorithm> MessageHandler
     for Actor<ActorRequest, ActorResponse, Algorithm>
+where
+    Algorithm: ActorBasedLargeNeighborhoodSearch,
 {
-    type Req;
-    type Res;
+    type Req = ActorRequest;
+    type Res = ActorResponse;
 
-    fn handle_state_link(
-        &mut self,
-        state_link: ordinator_orchestrator_actor_traits::StateLink,
-    ) -> Result<Self::Res>
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<Self::Res>
     {
-        todo!()
+        match state_link {
+            StateLink::WorkOrders(actor_specific) => todo!(),
+            StateLink::WorkerEnvironment => todo!(),
+            StateLink::TimeEnvironment => todo!(),
+        }
     }
 
     fn handle_request_message(&mut self, request_message: Self::Req) -> Result<Self::Res>
     {
-        todo!()
+        // The individual actor has to implement this
+        todo!();
     }
 }
 

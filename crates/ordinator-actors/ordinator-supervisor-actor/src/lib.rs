@@ -1,6 +1,6 @@
-pub mod algorithm;
-pub mod assert_functions;
-pub mod message_handlers;
+mod algorithm;
+mod assert_functions;
+pub mod messages;
 
 use std::sync::RwLockReadGuard;
 

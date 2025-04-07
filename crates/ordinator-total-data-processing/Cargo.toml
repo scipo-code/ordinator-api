@@ -13,6 +13,7 @@ ordinator-scheduling-environment = { path = "../ordinator-scheduling-environment
 ordinator-orchestrator-actor-traits = { path = "../ordinator-orchestrator-actor-traits"}
 
 anyhow = "*"
+arc-swap = {workspace = true} 
 calamine = "*"
 chrono = { version = "0", features = ["serde", "arbitrary"] }
 chrono-tz = "0.10.0"

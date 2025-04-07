@@ -29,4 +29,23 @@ impl SupervisorInterface for SupervisorSolution
             .map(|(id_woa, _)| id_woa.1)
             .collect::<HashSet<_>>()
     }
+
+    // This function has to be moved.
+    fn count_delegate_types(&self, operational_agent: &Id) -> (u64, u64, u64)
+    {
+        let mut count_assign = 0;
+        let mut count_assess = 0;
+        let mut count_unassign = 0;
+        for delegate in self.delegates_for_agent(operational_agent).values() {
+            match delegate {
+                Delegate::Assess => count_assess += 1,
+                Delegate::Assign => count_assign += 1,
+                Delegate::Unassign => count_unassign += 1,
+                Delegate::Drop => (),
+                Delegate::Done => (),
+                Delegate::Fixed => (),
+            }
+        }
+        (count_assign, count_assess, count_unassign)
+    }
 }

@@ -4,6 +4,7 @@ use std::sync::MutexGuard;
 
 use anyhow::Result;
 use anyhow::bail;
+use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::period::Period;
@@ -13,12 +14,9 @@ use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use serde::Serialize;
-use shared_types::scheduling_environment::work_order::ClusteringWeights;
-use shared_types::scheduling_environment::work_order::WorkOrders;
 
 use super::StrategicResources;
-use crate::agents::traits::Parameters;
-use crate::strategic_agent::StrategicOptions;
+use crate::StrategicOptions;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct StrategicParameters
@@ -40,7 +38,7 @@ impl Parameters for StrategicParameters
     type Options = StrategicOptions;
 
     // That change in the asset, was not complete without downsides.
-    fn new(
+    fn from_source(
         id: &Id,
         options: Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,

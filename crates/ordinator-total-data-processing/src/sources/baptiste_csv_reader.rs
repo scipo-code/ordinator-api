@@ -61,14 +61,12 @@ impl IntoSchedulingEnvironment for TotalSap
         Ok(SchedulingEnvironment::builder()
             .time_environment(create_time_environment(&system_configuration.time_input))
             .worker_environment(WorkerEnvironment::new())
-            .work_orders(
-                load_csv_data(self.data_source.data_locations).with_context(|| {
-                    format!(
-                        "SchedulingEnvironment could not be built from {}",
-                        std::any::type_name_of_val(&system_configuration.data_locations)
-                    )
-                })?,
-            )
+            .work_orders(load_csv_data(&self.data_locations).with_context(|| {
+                format!(
+                    "SchedulingEnvironment could not be built from {}",
+                    std::any::type_name_of_val(&system_configuration.data_locations)
+                )
+            })?)
             .build())
     }
 }

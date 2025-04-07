@@ -1,6 +1,6 @@
-pub mod algorithm;
-pub mod assert_functions;
-pub mod message_handlers;
+mod algorithm;
+mod assert_functions;
+pub mod messages;
 
 use std::ops::Deref;
 use std::ops::DerefMut;
@@ -8,10 +8,10 @@ use std::sync::RwLockReadGuard;
 
 use algorithm::OperationalAlgorithm;
 use algorithm::operational_solution::OperationalSolution;
+use messages::OperationalRequestMessage;
+use messages::OperationalResponseMessage;
 use ordinator_actor_core::Actor;
 use ordinator_configuration::SystemConfigurations;
-use ordinator_contracts::operational::OperationalRequestMessage;
-use ordinator_contracts::operational::OperationalResponseMessage;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use rand::rng;
@@ -55,7 +55,7 @@ impl<'a> From<RwLockReadGuard<'a, SystemConfigurations>> for OperationalOptions
 //     }
 // }
 //
-impl<Ss> From<SystemConfigurations> for OperationalOptions
+impl From<SystemConfigurations> for OperationalOptions
 {
     fn from(value: SystemConfigurations) -> Self
     {
@@ -75,7 +75,7 @@ where
     Ss: SharedSolutionTrait<Operational = OperationalSolution>,
 {
     type Target =
-        Actor<OperationalRequestMessage, OperationalRequestMessage, OperationalAlgorithm<Ss>>;
+        Actor<OperationalRequestMessage, OperationalResponseMessage, OperationalAlgorithm<Ss>>;
 
     fn deref(&self) -> &Self::Target
     {
@@ -84,6 +84,8 @@ where
 }
 
 impl<Ss> DerefMut for OperationalActor<Ss>
+where
+    Ss: SharedSolutionTrait<Operational = OperationalSolution>,
 {
     fn deref_mut(&mut self) -> &mut Self::Target
     {

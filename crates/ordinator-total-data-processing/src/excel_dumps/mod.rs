@@ -1,8 +1,13 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
+use arc_swap::Guard;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::StrategicInterface;
+use ordinator_orchestrator_actor_traits::TacticalInterface;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::time_environment::day::OptionDay;
@@ -210,11 +215,15 @@ struct RowNames
 ///
 /// The function will dump the excel file in the folder specified by the
 /// EXCEL_DUMP_DIRECTORY environment variable.
-pub fn create_excel_dump(
+// What should you do here? You could make the function into a
+// It is acceptable that it gets the shared traits.
+pub fn create_excel_dump<Ss>(
     asset: Asset,
     work_orders: WorkOrders,
-    shared_solution: impl Guard<Arc<SharedSolutionTrait>>,
+    shared_solution: Guard<Arc<Ss>>,
 ) -> Result<PathBuf>
+where
+    Ss: SharedSolutionTrait,
 {
     let mut all_rows: Vec<RowNames> = Vec::new();
 
@@ -232,23 +241,14 @@ pub fn create_excel_dump(
         sorted_operations
             .sort_unstable_by(|value1, value2| value1.0.partial_cmp(value2.0).unwrap());
 
-        let strategic_period = match strategic_solution.clone() {
-            AgentExports::Strategic(solution) => {
-                let reason_for_scheduling = solution
-                    .get(&work_order.work_order_number)
-                    .with_context(|| format!("{:#?}", work_order))?
-                    .clone();
+        let strategic_period = shared_solution
+            .strategic()
+            .scheduled_task(&work_order.work_order_number);
 
-                match reason_for_scheduling {
-                    Some(period) => ReasonForNotScheduling::Scheduled(period),
-                    None => {
-                        ReasonForNotScheduling::Unknown("COULD NOT BE SCHEDULED, WHY?".to_string())
-                    }
-                }
-            }
-            AgentExports::Tactical(_) => panic!(),
-        };
         for activity in sorted_operations {
+            let tactical_solution = shared_solution
+                .tactical()
+                .start_and_finish_dates(&(work_order.work_order_number, activity));
             let option_day = match tactical_solution.get(&work_order.work_order_number) {
                 Some(tactical_day) => {
                     let mut days = tactical_day.iter().collect::<Vec<_>>();
