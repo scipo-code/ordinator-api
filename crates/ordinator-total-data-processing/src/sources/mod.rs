@@ -1,18 +1,15 @@
 pub mod baptiste_csv_reader;
 pub mod baptiste_csv_reader_merges;
 
-use anyhow::Result;
 use chrono::Datelike;
 use chrono::Days;
 use chrono::Duration;
 use chrono::Timelike;
 use chrono::Utc;
 use ordinator_configuration::time_input::TimeInput;
-use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::TimeEnvironment;
 use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::time_environment::period::Period;
-use thiserror::Error;
 
 // This should be abstracted out be the. All this should be moved to the
 // builder. You are

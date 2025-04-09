@@ -104,15 +104,6 @@ pub enum OperationalResponse
     NoOperationalAgentFound(String),
 }
 
-// TODO [ ]
-// Move this to the constracts. Or
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct TomlTimeInterval
-{
-    pub start: toml::value::Datetime,
-    pub end: toml::value::Datetime,
-}
-
 // #[derive(Clone, Deserialize, Serialize, Debug, clap::ValueEnum)]
 // pub enum OperationalTarget {
 //     #[clap(skip)]
@@ -148,6 +139,7 @@ mod tests
 
     use chrono::DateTime;
     use chrono::NaiveTime;
+    use chrono::TimeDelta;
     use ordinator_scheduling_environment::time_environment::TimeInterval;
 
     use super::*;

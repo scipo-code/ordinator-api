@@ -30,6 +30,16 @@ pub struct ActorSpecifications
     // TODO [] Make separate config files for options
     pub operational: Vec<InputOperational>,
 }
+// TODO [ ]
+// Move this to the constracts. Or the configuration. What is the best choice?
+// I think that the best choice is the configuration, but does the configuration
+// depend on the contracts?
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct TomlTimeInterval
+{
+    pub start: toml::value::Datetime,
+    pub end: toml::value::Datetime,
+}
 
 impl From<ActorSpecifications> for AgentEnvironment
 {

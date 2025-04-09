@@ -1,8 +1,4 @@
-pub mod strategic_response_periods;
-pub mod strategic_response_resources;
-pub mod strategic_response_scheduling;
-pub mod strategic_response_status;
-
+use ordinator_scheduling_environment::time_environment::period::Period;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -11,8 +7,6 @@ pub struct StrategicObjectiveValueResponse
 {
     field_one: String,
 }
-use ordinator_scheduling_environment::time_environment::period::Period;
-use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct StrategicResponsePeriods
@@ -27,7 +21,6 @@ impl StrategicResponsePeriods
         Self { periods }
     }
 }
-use serde::Serialize;
 
 // This is a low level type and it should not be exposed here
 // TODO [ ] FIX [ ]
@@ -39,11 +32,9 @@ pub enum StrategicResponseResources
     LoadingAndCapacities(StrategicResourcesApi),
     Percentage(StrategicResourcesApi, StrategicResourcesApi),
 }
+
 #[derive(Serialize)]
 struct StrategicResourcesApi {}
-use ordinator_scheduling_environment::time_environment::period::Period;
-use serde::Deserialize;
-use serde::Serialize;
 
 #[derive(Serialize, Deserialize)]
 pub struct StrategicResponseScheduling
@@ -63,10 +54,6 @@ impl StrategicResponseScheduling
     }
 }
 use ordinator_scheduling_environment::Asset;
-use serde::Deserialize;
-use serde::Serialize;
-
-use super::StrategicObjectiveValueResponse;
 
 #[derive(Serialize, Deserialize)]
 pub struct StrategicResponseStatus

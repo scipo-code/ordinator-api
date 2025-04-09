@@ -4,16 +4,21 @@ pub mod messages;
 
 use std::ops::Deref;
 use std::ops::DerefMut;
+use std::sync;
+use std::sync::Arc;
 use std::sync::RwLockReadGuard;
 
 use algorithm::OperationalAlgorithm;
 use algorithm::operational_solution::OperationalSolution;
+use arc_swap::Guard;
 use messages::OperationalRequestMessage;
 use messages::OperationalResponseMessage;
 use ordinator_actor_core::Actor;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_scheduling_environment::Asset;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 use rand::rng;
 use rand::rngs::ThreadRng;
 
@@ -32,12 +37,23 @@ pub struct OperationalOptions
     pub rng: ThreadRng,
 }
 
-impl<'a> From<RwLockReadGuard<'a, SystemConfigurations>> for OperationalOptions
+// I this that this is not a good idea for the design of the system. There are
+// some serious issues here with the architecture. The scheduling environment
+// is growing very big and that is a good thing. It is becoming more database
+// like and that is also a good thing for this kind of system.
+impl<'a> From<(&Guard<Arc<SystemConfigurations>>, &Id)> for OperationalOptions
 {
-    fn from(value: RwLockReadGuard<'a, SystemConfigurations>) -> Self
+    fn from(value: (&Guard<Arc<SystemConfigurations>>, &Id)) -> Self
     {
         let number_of_removed_activities = value
-            .actor_configurations
+            .0
+            .actor_specification
+            .get(value.1.asset())
+            .unwrap()
+            .operational
+            .iter()
+            .find(|e| e.id == value.1.0)
+            .unwrap()
             .operational_options
             .number_of_removed_work_orders;
         OperationalOptions {
@@ -55,21 +71,27 @@ impl<'a> From<RwLockReadGuard<'a, SystemConfigurations>> for OperationalOptions
 //     }
 // }
 //
-impl From<SystemConfigurations> for OperationalOptions
+impl From<(SystemConfigurations, &Asset, &Id)> for OperationalOptions
 {
-    fn from(value: SystemConfigurations) -> Self
+    fn from(value: (SystemConfigurations, &Asset, &Id)) -> Self
     {
         let number_of_removed_activities = value
-            .actor_configurations
+            .0
+            .actor_specification
+            .get(value.1)
+            .unwrap()
+            .operational
+            .iter()
+            .find(|e| e.id == value.2.0)
+            .unwrap()
             .operational_options
             .number_of_removed_work_orders;
-        Self {
+        OperationalOptions {
+            rng: rng(),
             number_of_removed_activities,
-            rng: rand::rng(),
         }
     }
 }
-
 impl<Ss> Deref for OperationalActor<Ss>
 where
     Ss: SharedSolutionTrait<Operational = OperationalSolution>,

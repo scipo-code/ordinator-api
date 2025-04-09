@@ -21,7 +21,7 @@ pub struct StrategicResources(pub HashMap<Period, HashMap<OperationalId, Operati
 
 impl<'a> From<MutexGuard<'a, SchedulingEnvironment>> for StrategicResources
 {
-    fn from(value: &MutexGuard<SchedulingEnvironment>) -> Self
+    fn from(value: MutexGuard<'a, SchedulingEnvironment>) -> Self
     {
         let gradual_reduction = |i: usize| -> f64 {
             if i == 0 {

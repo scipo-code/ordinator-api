@@ -47,6 +47,13 @@ impl OperationalConfigurationAll
         }
     }
 }
+
+// Ahh shit. You have to make them work with the correct data. You have to
+// determine right now if you want to make something that. The way that you have
+// it have is a little weird You should make a high level decision about how to
+// structure the data correct.
+//
+// Ask God what to do here?
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct OperationalConfiguration
 {

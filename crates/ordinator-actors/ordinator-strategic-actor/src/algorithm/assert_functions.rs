@@ -10,6 +10,7 @@ use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use priority_queue::PriorityQueue;
+use strum::IntoEnumIterator;
 use tracing::Level;
 use tracing::event;
 

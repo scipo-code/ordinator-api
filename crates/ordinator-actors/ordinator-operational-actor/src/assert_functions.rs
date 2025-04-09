@@ -51,7 +51,7 @@ where
                 .solution_intermediate
                 .0
                 .iter()
-                .filter(|non_prod| match &non_prod.event_type {
+                .filter(|non_prod| match &non_prod.operational_events {
                     OperationalEvents::NonProductiveTime(_time_interval) => {
                         finish_of_prev <= non_prod.start && non_prod.finish <= start_of_next
                     }

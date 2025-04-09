@@ -12,7 +12,6 @@ use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
 use crate::traits::AbLNSUtils;
-use crate::traits::ActorBasedLargeNeighborhoodSearch;
 
 // pub type SharedSolution = SharedSolution<
 

@@ -1,45 +1,18 @@
 use std::any::type_name;
-use std::collections::HashMap;
 
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use colored::Colorize;
-use priority_queue::PriorityQueue;
-use shared_types::agents::strategic::StrategicRequestMessage;
-use shared_types::agents::strategic::StrategicResponseMessage;
-use shared_types::agents::strategic::StrategicSchedulingEnvironmentCommands;
-use shared_types::agents::strategic::requests::strategic_request_scheduling_message::StrategicRequestScheduling;
-use shared_types::agents::strategic::requests::strategic_request_status_message::StrategicStatusMessage;
-use shared_types::agents::strategic::responses::strategic_response_periods::StrategicResponsePeriods;
-use shared_types::agents::strategic::responses::strategic_response_scheduling::StrategicResponseScheduling;
-use shared_types::agents::strategic::responses::strategic_response_status::StrategicResponseStatus;
-use shared_types::orchestrator::StrategicApiSolution;
-use shared_types::orchestrator::WorkOrderResponse;
-use shared_types::orchestrator::WorkOrdersStatus;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_actor_core::Actor;
+use ordinator_orchestrator_actor_traits::MessageHandler;
 use tracing::Level;
 use tracing::event;
 
-use super::algorithm::ScheduleWorkOrder;
-use super::algorithm::strategic_parameters::StrategicParameters;
-use super::algorithm::strategic_parameters::WorkOrderParameter;
-use super::algorithm::strategic_parameters::WorkOrderParameterBuilder;
-use crate::agents::Actor;
-use crate::agents::ActorSpecific;
-use crate::agents::Algorithm;
-use crate::agents::MessageHandler;
-use crate::agents::StateLink;
-use crate::agents::StrategicSolution;
-use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
+use super::StrategicRequestMessage;
+use super::StrategicResponseMessage;
 
-type StrategicAgent = Actor<
-    StrategicRequestMessage,
-    StrategicResponseMessage,
-    StrategicSolution,
-    StrategicParameters,
-    PriorityQueue<WorkOrderNumber, u64>,
->;
+type StrategicAgent = Actor<StrategicRequestMessage, StrategicResponseMessage, StrategicAlgorithm>;
 impl MessageHandler for StrategicAgent
 {
     type Req = StrategicRequestMessage;
@@ -108,7 +81,7 @@ impl MessageHandler for StrategicAgent
                         //                 &work_orders.work_order_configurations;
 
                         //             let work_order =
-                        //                 
+                        //
                         // &work_orders.inner.get(work_order_number).unwrap().clone();
 
                         //             let work_order_response = WorkOrderResponse::new(

@@ -1,6 +1,7 @@
 pub mod operation_analytic;
 pub mod operation_info;
 
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::num::ParseFloatError;
@@ -32,7 +33,7 @@ use crate::worker_environment::resources::Resources;
 pub type ActivityNumber = u64;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct Operations(pub HashMap<ActivityNumber, Operation>);
+pub struct Operations(pub BTreeMap<ActivityNumber, Operation>);
 
 impl Operations
 {
@@ -47,9 +48,9 @@ impl Operations
     }
 }
 
-impl From<HashMap<u64, Operation>> for Operations
+impl From<BTreeMap<u64, Operation>> for Operations
 {
-    fn from(value: HashMap<u64, Operation>) -> Self
+    fn from(value: BTreeMap<u64, Operation>) -> Self
     {
         Self(value)
     }

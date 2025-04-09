@@ -271,14 +271,14 @@ pub enum ActivityRelation
 #[derive(Serialize, Deserialize, Debug)]
 pub struct WorkOrderConfigurations
 {
-    order_type_weights: HashMap<String, u64>,
-    status_weights: HashMap<String, u64>,
-    vis_priority_map: HashMap<char, u64>,
-    wdf_priority_map: HashMap<u64, u64>,
-    wgn_priority_map: HashMap<u64, u64>,
-    wpm_priority_map: HashMap<char, u64>,
-    clustering_weights: ClusteringWeights,
-    operating_time: f64,
+    pub order_type_weights: HashMap<String, u64>,
+    pub status_weights: HashMap<String, u64>,
+    pub vis_priority_map: HashMap<char, u64>,
+    pub wdf_priority_map: HashMap<u64, u64>,
+    pub wgn_priority_map: HashMap<u64, u64>,
+    pub wpm_priority_map: HashMap<char, u64>,
+    pub clustering_weights: ClusteringWeights,
+    pub operating_time: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

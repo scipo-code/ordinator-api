@@ -70,8 +70,20 @@ pub trait SharedSolutionTrait: Clone
     type Operational: OperationalInterface + Solution;
 
     fn strategic(&self) -> &Self::Strategic;
+
+    fn strategic_swap(&mut self, id: &Id, solution: Self::Strategic)
+    where
+        Self::Strategic: Solution;
     fn tactical(&self) -> &Self::Tactical;
+
+    fn tactical_swap(&mut self, id: &Id, solution: Self::Tactical)
+    where
+        Self::Tactical: Solution;
     fn supervisor(&self) -> &Self::Supervisor;
+
+    fn supervisor_swap(&mut self, id: &Id, solution: Self::Supervisor)
+    where
+        Self::Supervisor: Solution;
     fn operational(&self, id: &Id) -> &Self::Operational;
     // If you make all Id's internal you could simply work on those?
     fn operational_swap(&mut self, id: &Id, solution: Self::Operational)
@@ -125,6 +137,27 @@ where
         Self::Operational: Solution,
     {
         self.operational.insert(id.clone(), solution);
+    }
+
+    fn strategic_swap(&mut self, id: &Id, solution: Self::Strategic)
+    where
+        Self::Strategic: Solution,
+    {
+        self.strategic = solution;
+    }
+
+    fn tactical_swap(&mut self, id: &Id, solution: Self::Tactical)
+    where
+        Self::Tactical: Solution,
+    {
+        todo!()
+    }
+
+    fn supervisor_swap(&mut self, id: &Id, solution: Self::Supervisor)
+    where
+        Self::Supervisor: Solution,
+    {
+        todo!()
     }
 
     // You could implement the pointer swapping here. Hmm... that might not be the
@@ -207,6 +240,8 @@ where
         &self,
         work_order_activity: &WorkOrderActivity,
     ) -> Option<(&DateTime<Utc>, &DateTime<Utc>)>;
+
+    fn tactical_period(&self, work_order_number: &WorkOrderNumber) -> Option<&Period>;
 }
 
 // This is a core type that each `Actor` should implement, I think

@@ -10,10 +10,6 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use actor_specifications::ActorSpecifications;
-use actor_specifications::OperationalOptionsConfig;
-use actor_specifications::StrategicOptionsConfig;
-use actor_specifications::SupervisorOptionsConfig;
-use actor_specifications::TacticalOptionsConfig;
 use anyhow::Result;
 use material::MaterialToPeriod;
 use ordinator_scheduling_environment::Asset;
@@ -40,14 +36,15 @@ use user_interface::EventColors;
 #[derive(Debug)]
 pub struct SystemConfigurations
 {
-    work_order_configurations: WorkOrderConfigurations,
-    pub actor_configurations: ActorConfigurations,
-    actor_specification: HashMap<Asset, ActorSpecifications>,
+    pub work_order_configurations: WorkOrderConfigurations,
+    // This should be derived for the single actor only. Not all of them.
+    // That is important.
+    pub actor_specification: HashMap<Asset, ActorSpecifications>,
     pub data_locations: BaptisteToml,
-    throttling: Throttling,
+    pub throttling: Throttling,
     // FIX
     // This should be more general later on.
-    user_interface: EventColors,
+    pub user_interface: EventColors,
     // TODO [ ]
     // Extend this for mongodb if ever needed.
     pub database_config: PathBuf,
@@ -56,26 +53,6 @@ pub struct SystemConfigurations
 }
 
 impl SystemConfigurationTrait for SystemConfigurations {}
-
-// Okay the `Option`s are looking okay, the options
-// are related to the functioning of the `Actor`s and
-// the `Configuration`s are related to how the data in
-// the `SchedulingEnvironment` is intrepreted by the
-// actors, this is a completely different concern and
-//
-// should be handled as such. Good! Good progress.
-// TODO [ ]
-// We should remove the `Default` on all `Option`s
-// and then move a file for each of them
-// TODO [ ] This should be removed to make the code run correctly
-#[derive(Debug)]
-struct ActorConfigurations
-{
-    pub strategic_options: StrategicOptionsConfig,
-    pub tactical_options: TacticalOptionsConfig,
-    pub supervisor_options: SupervisorOptionsConfig,
-    pub operational_options: OperationalOptionsConfig,
-}
 
 // FIX [ ]
 // This is a good initial approach but remember to make it better if you have to
@@ -119,29 +96,6 @@ impl SystemConfigurations
             })
             .collect();
 
-        let operational_options_content =
-            std::fs::read_to_string("./configuration/actor_options/operational_options.toml")
-                .unwrap();
-        let strategic_options_content =
-            std::fs::read_to_string("./configuration/actor_options/strategic_options.toml")
-                .unwrap();
-        let supervisor_options_content =
-            std::fs::read_to_string("./configuration/actor_options/supervisor_options.toml")
-                .unwrap();
-        let tactical_options_content =
-            std::fs::read_to_string("./configuration/actor_options/tactical_options.toml").unwrap();
-        let operational_options = toml::from_str(&operational_options_content).unwrap();
-        let strategic_options = toml::from_str(&strategic_options_content).unwrap();
-        let supervisor_options = toml::from_str(&supervisor_options_content).unwrap();
-        let tactical_options = toml::from_str(&tactical_options_content).unwrap();
-
-        let actor_configurations: ActorConfigurations = ActorConfigurations {
-            operational_options,
-            strategic_options,
-            supervisor_options,
-            tactical_options,
-        };
-
         let baptiste_data_locations_contents =
             std::fs::read_to_string("./configuration/data_locations/baptiste_data_locations.toml")
                 .unwrap();
@@ -171,7 +125,6 @@ impl SystemConfigurations
 
         Ok(SystemConfigurations {
             work_order_configurations,
-            actor_configurations,
             actor_specification,
             data_locations,
             throttling,

@@ -71,13 +71,13 @@ impl SchedulingEnvironmentBuilder
         }
     }
 
-    pub fn time_environment(&mut self, time_environment: TimeEnvironment) -> &mut Self
+    pub fn time_environment(mut self, time_environment: TimeEnvironment) -> Self
     {
         self.time_environment = Some(time_environment);
         self
     }
 
-    pub fn time_environment_builder<F>(&mut self, f: F) -> &mut Self
+    pub fn time_environment_builder<F>(mut self, f: F) -> Self
     where
         F: FnOnce(&mut TimeEnvironmentBuilder) -> &mut TimeEnvironmentBuilder,
     {
@@ -89,13 +89,13 @@ impl SchedulingEnvironmentBuilder
         self
     }
 
-    pub fn worker_environment(&mut self, worker_environment: WorkerEnvironment) -> &mut Self
+    pub fn worker_environment(mut self, worker_environment: WorkerEnvironment) -> Self
     {
         self.worker_environment = Some(worker_environment);
         self
     }
 
-    pub fn work_orders(&mut self, work_orders: WorkOrders) -> &mut Self
+    pub fn work_orders(mut self, work_orders: WorkOrders) -> Self
     {
         self.work_orders = Some(work_orders);
         self

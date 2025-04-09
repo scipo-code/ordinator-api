@@ -18,4 +18,5 @@ priority-queue = {workspace = true}
 proptest = {workspace = true}
 rand = {workspace = true}
 serde = {workspace = true}
+strum = { workspace = true }
 tracing = {workspace = true}

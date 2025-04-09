@@ -13,6 +13,7 @@ use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::worker_environment::availability::Availability;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
+use serde::Serialize;
 
 // This is for the `constracts`, `conversions`, and the `orchstrator` to handle.
 use super::ContainOrNextOrNone;
@@ -23,8 +24,8 @@ use super::operational_parameter::OperationalParameters;
 
 /// You want this to be a struct so that you can implement methods and
 /// formatting and logging.
-#[derive(Copy, PartialEq, PartialOrd, Ord, Eq, Debug, Default, Clone)]
-pub struct OperationalObjectiveValue(u64);
+#[derive(Serialize, Copy, PartialEq, PartialOrd, Ord, Eq, Debug, Default, Clone)]
+pub struct OperationalObjectiveValue(pub u64);
 
 impl ObjectiveValue for OperationalObjectiveValue {}
 
@@ -251,10 +252,12 @@ impl OperationalAssignment
 }
 
 // This kind of behavior should be part of the `SharedSolutionTrait`
+// The issue here is that the code is not ready for use. We have to
+// change the different
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Assignment
 {
-    pub event_type: OperationalEvents,
+    pub operational_events: OperationalEvents,
     pub start: DateTime<Utc>,
     pub finish: DateTime<Utc>,
 }
@@ -268,7 +271,7 @@ impl Assignment
         assert_eq!(event_type.start_time(), start.time());
         assert_eq!(event_type.finish_time(), finish.time());
         Self {
-            event_type,
+            operational_events: event_type,
             start,
             finish,
         }

@@ -8,8 +8,10 @@ use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::period::Period;
+use ordinator_scheduling_environment::work_order::ClusteringWeights;
 use ordinator_scheduling_environment::work_order::WorkOrder;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::work_order::WorkOrders;
 use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
@@ -56,7 +58,7 @@ impl Parameters for StrategicParameters
             .filter(|(won, wo)| wo.functional_location().asset == *asset)
             .map(|(won, wo)| {
                 (
-                    won,
+                    *won,
                     // TODO [ ]
                     // Okay parameters are needed here and you are stuck because you do not know
                     // what to do about it. I think that the best course of action is to make the
@@ -73,9 +75,14 @@ impl Parameters for StrategicParameters
             })
             .collect();
 
-        let strategic_clustering =
-            StrategicClustering::calculate_clustering_values(asset, work_orders, options)?;
+        let strategic_clustering = StrategicClustering::calculate_clustering_values(
+            asset,
+            work_orders,
+            options.work_order_configurations.clustering_weights,
+        )?;
 
+        // The `SchedulingEnvironment` should not know about the `StrategicResources`
+        // This is wrongly implemented and therefore should be changed.
         let strategic_capacity = scheduling_environment
             .worker_environment
             .generate_strategic_resources(strategic_periods);
@@ -207,14 +214,24 @@ impl WorkOrderParameterBuilder
 
         self.0.weight = work_order.work_order_value(&strategic_options.work_order_configurations);
 
-        self.0.work_load = work_order.work_load();
+        self.0.work_load = work_order.work_order_load();
 
         self.0.latest_period = work_order.latest_allowed_finish_period(periods).clone();
         // FIX
 
-        let unloading_point_period = work_order.unloading_point().clone();
+        // Ideally we should split the work orders by the operations in the code. I
+        // think that is the best approach going forward. For now simply take
+        // the first element of the code.
+        let unloading_point_period = work_order
+            .operations
+            .0
+            .iter()
+            .nth(0)
+            .unwrap()
+            .unloading_point()
+            .clone();
 
-        if work_order.is_vendor()
+        if work_order.vendor()
             && (unloading_point_period.is_some()
                 || work_order.work_order_analytic.user_status_codes.awsc)
         {
@@ -227,7 +244,7 @@ impl WorkOrderParameterBuilder
                     let scheduled_period = periods
                         .iter()
                         .find(|period| {
-                            period.contains_date(work_order.order_dates().basic_start_date)
+                            period.contains_date(work_order.work_order_dates.basic_start_date)
                         })
                         .cloned();
 

@@ -42,6 +42,7 @@ use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
 use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::worker_environment::availability::Availability;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 use rand::seq::IndexedRandom;
 use tracing::Level;
 use tracing::event;
@@ -281,7 +282,7 @@ where
         Ok(true)
     }
 
-    fn make_atomic_pointer_swap(&self)
+    fn make_atomic_pointer_swap(&mut self)
     {
         // Performance enhancements:
         // * COW: #[derive(Clone)] struct SharedSolution<'a> { tactical: Cow<'a,
@@ -301,6 +302,7 @@ where
     // If we are going to implement delta evaluation we should remove this part.
     fn calculate_objective_value(
         &mut self,
+        options: &Self::Options,
     ) -> Result<
         ObjectiveValueType<
             <<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue,
@@ -315,7 +317,7 @@ where
             .cloned()
             .collect();
 
-        event!(Level::DEBUG, operational_events_len = ?operational_events.iter().filter(|val| val.event_type.is_wrench_time()).collect::<Vec<_>>().len());
+        event!(Level::DEBUG, operational_events_len = ?operational_events.iter().filter(|val| val.operational_events.is_wrench_time()).collect::<Vec<_>>().len());
 
         let all_events = operational_events
             .into_iter()
@@ -342,7 +344,7 @@ where
         // What is the problem here?
         // If the work order changes you
         for assignment in all_events.clone() {
-            match &assignment.event_type {
+            match &assignment.operational_events {
                 OperationalEvents::WrenchTime((time_interval, work_order_activity)) => {
                     wrench_time += time_interval.duration();
                     current_time += time_interval.duration();
@@ -560,6 +562,28 @@ where
     {
         &mut self.0
     }
+
+    fn update_based_on_shared_solution(&mut self, options: &Self::Options) -> Result<()>
+    {
+        self.algorithm_util_methods().load_shared_solution();
+
+        let state_change = self.incorporate_shared_state()?;
+
+        if state_change {
+            self.calculate_objective_value(options)?;
+            self.make_atomic_pointer_swap();
+        }
+
+        Ok(())
+    }
+
+    fn derive_options(
+        configurations: &arc_swap::Guard<Arc<ordinator_configuration::SystemConfigurations>>,
+        id: &Id,
+    ) -> Self::Options
+    {
+        Self::Options::from((configurations, id))
+    }
 }
 
 impl<Ss> OperationalAlgorithm<Ss>
@@ -723,7 +747,7 @@ where
             // FIX [ ]
             // Rename this! It is basically a way of sharing what the
             // `tactical` actor needs to do his scheduling.
-            .start_and_finish_dates(&work_order_activity);
+            .start_and_finish_dates(work_order_activity);
 
         // .expect("This should always be present. If this occurs you should check the
         // initialization. The implementation is that the tactical and strategic
@@ -895,11 +919,11 @@ fn no_overlap_by_ref(events: Vec<&Assignment>) -> bool
 fn is_assignments_in_bounds(events: &Vec<Assignment>, availability: &Availability) -> bool
 {
     for event in events {
-        if event.start < availability.start_date && !event.event_type.unavail() {
+        if event.start < availability.start_date && !event.operational_events.unavail() {
             dbg!(event, availability);
             return false;
         }
-        if availability.finish_date < event.finish && !event.event_type.unavail() {
+        if availability.finish_date < event.finish && !event.operational_events.unavail() {
             dbg!(event, availability);
             return false;
         }
@@ -910,13 +934,16 @@ fn is_assignments_in_bounds(events: &Vec<Assignment>, availability: &Availabilit
 fn equality_between_time_interval_and_assignments(all_events: &Vec<Assignment>)
 {
     for assignment in all_events {
-        assert_eq!(assignment.start.time(), assignment.event_type.start_time());
         assert_eq!(
-            assignment.finish.time(),
-            assignment.event_type.finish_time()
+            assignment.start.time(),
+            assignment.operational_events.start_time()
         );
         assert_eq!(
-            assignment.event_type.time_delta(),
+            assignment.finish.time(),
+            assignment.operational_events.finish_time()
+        );
+        assert_eq!(
+            assignment.operational_events.time_delta(),
             assignment.finish - assignment.start
         )
     }

@@ -47,6 +47,7 @@ rand = "*"
 rgb = "*"
 serde = { version = "*", features = ["derive"] } 
 serde_json = "*"
+strum = "*"
 tokio = "*"
 toml = "*"
 tracing = "*"

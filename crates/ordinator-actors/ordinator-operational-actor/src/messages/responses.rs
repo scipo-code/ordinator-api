@@ -12,6 +12,8 @@ pub enum OperationalSchedulingResponse
     EventList(Vec<ApiAssignmentEvents>),
 }
 
+// What should this be called? I think that the best word is to call it
+// the
 #[derive(Serialize)]
 pub struct ApiAssignmentEvents
 {
@@ -81,7 +83,6 @@ pub enum EventType
     Unavailable,
 }
 use ordinator_scheduling_environment::worker_environment::resources::Id;
-use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct OperationalResponseStatus
@@ -90,7 +91,7 @@ pub struct OperationalResponseStatus
     assign_number_of_activities: u64,
     assess_number_of_activities: u64,
     unassign_number_of_activities: u64,
-    objective: u64,
+    objective: OperationalObjectiveValue,
 }
 
 impl OperationalResponseStatus
@@ -100,7 +101,7 @@ impl OperationalResponseStatus
         assign_number_of_activities: u64,
         assess_number_of_activities: u64,
         unassign_number_of_activities: u64,
-        objective: u64,
+        objective: OperationalObjectiveValue,
     ) -> Self
     {
         Self {
@@ -112,7 +113,8 @@ impl OperationalResponseStatus
         }
     }
 }
-use serde::Serialize;
+
+use crate::algorithm::operational_solution::OperationalObjectiveValue;
 
 #[derive(Serialize)]
 pub enum OperationalTimeResponse {}

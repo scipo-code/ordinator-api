@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -207,7 +208,7 @@ fn create_work_orders(
 
                 Ok((*operations_number, operation))
                 
-            }).collect::<Result<HashMap<u64, Operation>>>().map_err(|e| anyhow!(e)).expect("This is not the best way of making error handling")
+            }).collect::<Result<BTreeMap<u64, Operation>>>().map_err(|e| anyhow!(e)).expect("This is not the best way of making error handling")
             .into();
 
         let status_codes_string = work_orders_status.inner

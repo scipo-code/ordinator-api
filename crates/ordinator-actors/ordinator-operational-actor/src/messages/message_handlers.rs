@@ -4,11 +4,13 @@ use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use ordinator_orchestrator_actor_traits::StateLink;
+use ordinator_orchestrator_actor_traits::SupervisorInterface;
 use tracing::Level;
 use tracing::event;
 
 use super::OperationalRequestMessage;
 use super::OperationalResponseMessage;
+use super::OperationalResponseStatus;
 use super::OperationalSchedulingRequest;
 use crate::OperationalActor;
 use crate::algorithm::operational_solution::OperationalSolution;
@@ -73,6 +75,11 @@ where
                     .supervisor()
                     .count_delegate_types(&self.agent_id);
 
+                // Remember that the business types should not be the same type as the
+                // algorithm types. That is crucial to understand in all this.
+                // These should not have the `OperationalResponseStatus`
+                // QUESTION
+                // Should the `OperationalObjectiveValue` be shareable? No I do not think so.
                 let operational_response_status = OperationalResponseStatus::new(
                     self.agent_id.clone(),
                     assign,
@@ -93,32 +100,37 @@ where
                 match operational_scheduling_request {
                     OperationalSchedulingRequest::OperationalIds => todo!(),
                     OperationalSchedulingRequest::OperationalState(_) => {
-                        let mut json_assignments_events: Vec<ApiAssignmentEvents> = vec![];
+                        // let mut json_assignments_events: Vec<ApiAssignmentEvents> = vec![];
 
-                        for (work_order_activity, operational_solution) in
-                            &self.algorithm.solution.scheduled_work_order_activities
-                        {
-                            let mut json_assignments = vec![];
-                            for assignment in &operational_solution.assignments {
-                                let json_assignment = ApiAssignment::new(
-                                    assignment.event_type.clone().into(),
-                                    assignment.start,
-                                    assignment.finish,
-                                );
-                                json_assignments.push(json_assignment);
-                            }
+                        // I think that you should starte removing code that does not really
+                        // work here. You have to make something operational fast.
+                        // for (work_order_activity, operational_solution) in
+                        //     &self.algorithm.solution.scheduled_work_order_activities
+                        // {
+                        //     let mut json_assignments = vec![];
+                        //     for assignment in &operational_solution.assignments {
+                        //         // ApiAssignment is an API type not a business type, so where
+                        //         // should it go in the code?
+                        //         let json_assignment = ApiAssignment::new(
+                        //             assignment.operational_events,
+                        //             assignment.start,
+                        //             assignment.finish,
+                        //         );
+                        //         json_assignments.push(json_assignment);
+                        //     }
 
-                            let event_info = EventInfo::new(Some(*work_order_activity));
-                            let json_assignment_event =
-                                ApiAssignmentEvents::new(event_info, json_assignments);
-                            json_assignments_events.push(json_assignment_event);
-                        }
+                        //     let event_info = EventInfo::new(Some(*work_order_activity));
+                        //     let json_assignment_event =
+                        //         ApiAssignmentEvents::new(event_info, json_assignments);
+                        //     json_assignments_events.push(json_assignment_event);
+                        // }
 
-                        let operational_scheduling_response =
-                            OperationalSchedulingResponse::EventList(json_assignments_events);
-                        Ok(OperationalResponseMessage::Scheduling(
-                            operational_scheduling_response,
-                        ))
+                        todo!()
+                        // let operational_scheduling_response =
+                        //     OperationalSchedulingResponse::EventList(json_assignments_events);
+                        // Ok(OperationalResponseMessage::Scheduling(
+                        //     operational_scheduling_response,
+                        // ))
                     }
                 }
             }

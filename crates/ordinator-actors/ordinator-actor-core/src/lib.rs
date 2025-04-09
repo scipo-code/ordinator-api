@@ -6,11 +6,11 @@ use std::fmt::Debug;
 use std::fmt::{self};
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::RwLock;
 
 use algorithm::AlgorithmBuilder;
 use anyhow::Context;
 use anyhow::Result;
+use arc_swap::ArcSwap;
 use colored::Colorize;
 use flume::Receiver;
 use flume::Sender;
@@ -52,7 +52,7 @@ where
     pub algorithm: Algorithm,
     pub receiver_from_orchestrator: Receiver<ActorMessage<ActorRequest>>,
     pub sender_to_orchestrator: Sender<Result<ActorResponse>>,
-    pub configurations: Arc<RwLock<SystemConfigurations>>,
+    pub configurations: Arc<ArcSwap<SystemConfigurations>>,
     pub notify_orchestrator: Box<dyn OrchestratorNotifier>,
 }
 
@@ -88,8 +88,25 @@ where
                 self.handle(message).unwrap();
             }
 
+            // There is no good way of doing this. You simply have to make the
+            // system so that it will always return to the correct state.
+            // You have to circumvent the `configurations` here and simply
+            // have the system run on the data. I do not see what other options
+            // that we have here. You could simply use an arc swap again. I think
+            // that is a good decision. You should use `ArcSwap` for the
+            // configurations as well. Yes or no? Yes, that is a good idea.
+            //
+            // I think that this is the best way of doing it, but how should we
+            // get the code inside of the algorithm? The idea of putting it into the
+            // algorithm is probably not such a good idea. I cannot see what other
+            // appraoch that we should.
+            // So is this even possible to do here? I am not really sure. I think that the
+            // best approach is to make the system. How do I make a function here that
+            // accepts the correct number of.
+            // You have to make a method for getting the functionality out.
+
             self.algorithm
-                .run_lns_iteration()
+                .run_lns_iteration(self.configurations.load(), &self.agent_id)
                 .with_context(|| format!("{:#?}", schedule_iteration))
                 .unwrap();
 
@@ -126,7 +143,7 @@ where
     fn handle_state_link(&mut self, state_link: StateLink) -> Result<Self::Res>
     {
         match state_link {
-            StateLink::WorkOrders(actor_specific) => todo!(),
+            StateLink::WorkOrders(_actor_specific) => todo!(),
             StateLink::WorkerEnvironment => todo!(),
             StateLink::TimeEnvironment => todo!(),
         }
@@ -150,7 +167,7 @@ where
     algorithm: Option<Algorithm>,
     receiver_from_orchestrator: Option<Receiver<ActorMessage<ActorRequest>>>,
     sender_to_orchestrator: Option<Sender<Result<ActorResponse>>>,
-    configurations: Option<Arc<RwLock<SystemConfigurations>>>,
+    configurations: Option<Arc<ArcSwap<SystemConfigurations>>>,
     notify_orchestrator: Option<Box<dyn OrchestratorNotifier>>,
     //
     communication_for_orchestrator:
@@ -264,7 +281,7 @@ where
         self
     }
 
-    pub fn configurations(mut self, configurations: Arc<RwLock<SystemConfigurations>>) -> Self
+    pub fn configurations(mut self, configurations: Arc<ArcSwap<SystemConfigurations>>) -> Self
     {
         self.configurations = Some(configurations);
         self

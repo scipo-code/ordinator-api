@@ -5,7 +5,6 @@ pub mod responses;
 use std::fmt::{self};
 
 use anyhow::Result;
-use clap::Subcommand;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::work_order::work_order_analytic::status_codes::StrategicUserStatusCodes;
 use serde::Deserialize;
@@ -15,14 +14,9 @@ use strategic_request_resources_message::ManualResource;
 use strategic_request_resources_message::StrategicRequestResource;
 use strategic_request_scheduling_message::StrategicRequestScheduling;
 use strategic_request_status_message::StrategicStatusMessage;
-use strategic_response_periods::StrategicResponsePeriods;
-use strategic_response_resources::StrategicResponseResources;
-use strategic_response_scheduling::StrategicResponseScheduling;
-use strategic_response_status::StrategicResponseStatus;
 
 use self::requests::*;
 use self::responses::*;
-use crate::orchestrator::WorkOrdersStatus;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "strategic_message_type")]
@@ -41,7 +35,7 @@ impl StrategicRequest
 }
 // You should determine a better way of making this in the
 // code I think that the best approach is to make something.
-#[derive(Subcommand, Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum StrategicSchedulingEnvironmentCommands
 {
     UserStatus(StrategicUserStatusCodes),
@@ -72,7 +66,6 @@ pub enum StrategicResponseMessage
     Scheduling(StrategicResponseScheduling),
     Resources(StrategicResponseResources),
     Periods(StrategicResponsePeriods),
-    WorkOrder(WorkOrdersStatus),
     Success,
 }
 

@@ -1,8 +1,13 @@
 use std::fmt::Debug;
+use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
+use arc_swap::Guard;
+use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::Solution;
+use ordinator_scheduling_environment::Asset;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 
 /// This trait will be crucial for making this whole thing work correctly.
 /// I think that the best approach will be to make only a single message
@@ -16,15 +21,26 @@ use ordinator_orchestrator_actor_traits::Solution;
 // Do you even need this trait? No you do not... This can simply be
 // created using the generic structure? No you need the generic
 // structure. There is no way around it. I think that the best
-// thing to do here is making the
+// thing to do here is making the.
+// The high level thing only requires the actor specification, and only the
+// actor should know about that. I really do not think that I need an additional
+// break here. I do not see what other approach.
 pub trait ActorBasedLargeNeighborhoodSearch
 {
     type Algorithm: AbLNSUtils;
     type Options;
 
-    fn run_lns_iteration(&mut self) -> Result<()>
+    fn run_lns_iteration(
+        &mut self,
+        configurations: Guard<Arc<SystemConfigurations>>,
+        id: &Id,
+    ) -> Result<()>
     {
-        self.update_based_on_shared_solution()?;
+        let options = &Self::derive_options(&configurations, id);
+
+        // You still have the same problem. Why do you keep running in circles? I do not
+        // understand it. You have to fix this. You will work longer hours.
+        self.update_based_on_shared_solution(options)?;
 
         // But that means that we cannot code this
         let current_solution = self.algorithm_util_methods().clone_algorithm_solution();
@@ -35,7 +51,7 @@ pub trait ActorBasedLargeNeighborhoodSearch
         self.schedule()
             .with_context(|| format!("Could not schedule\n{:#?}", current_solution))?;
 
-        let objective_value_type = self.calculate_objective_value()?;
+        let objective_value_type = self.calculate_objective_value(options)?;
 
         match objective_value_type {
             ObjectiveValueType::Better(objective_value) => {
@@ -52,12 +68,15 @@ pub trait ActorBasedLargeNeighborhoodSearch
         Ok(())
     }
 
+    fn derive_options(configurations: &Guard<Arc<SystemConfigurations>>, id: &Id) -> Self::Options;
+
     fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm;
 
-    fn make_atomic_pointer_swap(&self);
+    fn make_atomic_pointer_swap(&mut self);
 
     fn calculate_objective_value(
         &mut self,
+        options: &Self::Options,
     ) -> Result<
         ObjectiveValueType<
             <<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue,
@@ -72,14 +91,14 @@ pub trait ActorBasedLargeNeighborhoodSearch
     /// the shared solution. That means that this method has to look at relevant
     /// state in the others `Agent`s and incorporate that and handled changes in
     /// parameters coming from external inputs.
-    fn update_based_on_shared_solution(&mut self) -> Result<()>
+    fn update_based_on_shared_solution(&mut self, options: &Self::Options) -> Result<()>
     {
         self.algorithm_util_methods().load_shared_solution();
 
         let state_change = self.incorporate_shared_state()?;
 
         if state_change {
-            self.calculate_objective_value()?;
+            self.calculate_objective_value(options)?;
             self.make_atomic_pointer_swap();
         }
 
