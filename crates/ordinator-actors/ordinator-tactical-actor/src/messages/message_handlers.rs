@@ -1,15 +1,22 @@
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
+use ordinator_actor_core::Actor;
 use ordinator_contracts::tactical::TacticalRequestMessage;
 use ordinator_contracts::tactical::TacticalResponseMessage;
 use ordinator_contracts::tactical::requests::tactical_resources_message::TacticalResourceRequest;
 use ordinator_contracts::tactical::responses::tactical_response_resources::TacticalResourceResponse;
+use ordinator_orchestrator_actor_traits::ActorSpecific;
+use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::StateLink;
+use ordinator_orchestrator_actor_traits::WhereIsWorkOrder;
 use ordinator_scheduling_environment::time_environment::day::Day;
-use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::worker_environment::EmptyFull;
-use priority_queue::PriorityQueue;
+
+use crate::TacticalActor;
+use crate::algorithm::tactical_parameters::TacticalParameters;
+use crate::algorithm::tactical_parameters::create_tactical_parameter;
 
 // TODO [ ]
 // Make a TacticalAgent here! I believe that this is the best appraoch. The only
@@ -126,14 +133,7 @@ where
     }
 }
 
-impl
-    Actor<
-        TacticalRequestMessage,
-        TacticalResponseMessage,
-        TacticalSolution,
-        TacticalParameters,
-        PriorityQueue<WorkOrderNumber, u64>,
-    >
+impl Actor<TacticalRequestMessage, TacticalResponseMessage, TacticalAlgorithm>
 {
     fn update_resources_state(
         &mut self,

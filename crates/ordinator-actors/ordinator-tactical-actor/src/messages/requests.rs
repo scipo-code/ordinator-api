@@ -1,8 +1,4 @@
-pub mod tactical_resources_message;
-pub mod tactical_scheduling_message;
-pub mod tactical_status_message;
-pub mod tactical_time_message;
-pub mod tactical_update_message;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use serde::Deserialize;
 use serde::Serialize;
@@ -31,10 +27,6 @@ pub enum TacticalResourceRequest
         resources: Option<Vec<Resources>>,
     },
 }
-use serde::Deserialize;
-use serde::Serialize;
-
-use crate::strategic::requests::strategic_request_scheduling_message::ScheduleChange;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum TacticalSchedulingRequest
@@ -43,8 +35,6 @@ pub enum TacticalSchedulingRequest
     ScheduleMultiple(Vec<ScheduleChange>),
     ExcludeFromDay(ScheduleChange),
 }
-use serde::Deserialize;
-use serde::Serialize;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum TacticalStatusMessage
@@ -52,17 +42,34 @@ pub enum TacticalStatusMessage
     General,
     Day(String),
 }
-use serde::Deserialize;
-use serde::Serialize;
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 
 pub enum TacticalTimeRequest
 {
     Days,
 }
-use serde::Deserialize;
-use serde::Serialize;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TacticalUpdateRequest {}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ScheduleChange
+{
+    pub work_order_number: Vec<WorkOrderNumber>,
+    pub period_string: String,
+}
+
+impl ScheduleChange
+{
+    pub fn new(work_order_number: Vec<WorkOrderNumber>, period_string: String) -> Self
+    {
+        Self {
+            work_order_number,
+            period_string,
+        }
+    }
+
+    pub fn period_string(&self) -> String
+    {
+        self.period_string.clone()
+    }
+}

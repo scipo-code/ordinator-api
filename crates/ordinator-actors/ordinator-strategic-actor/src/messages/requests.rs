@@ -1,11 +1,15 @@
-pub mod strategic_request_periods_message;
-pub mod strategic_request_resources_message;
-pub mod strategic_request_scheduling_message;
-pub mod strategic_request_status_message;
+use core::fmt;
 use std::collections::HashMap;
+use std::collections::HashSet;
+use std::fmt::Display;
 
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
+
+use super::TimePeriod;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "scheduler_message_type")]
@@ -19,11 +23,6 @@ pub struct StrategicPeriodsMessage
 {
     pub period_lock: HashMap<String, bool>,
 }
-use ordinator_scheduling_environment::worker_environment::resources::Resources;
-use serde::Deserialize;
-use serde::Serialize;
-
-use crate::strategic::TimePeriod;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum StrategicRequestResource
@@ -69,15 +68,6 @@ impl ManualResource
         }
     }
 }
-use std::collections::HashSet;
-
-use clap::Args;
-use ordinator_scheduling_environment::work_order::WorkOrderNumber;
-use serde::Deserialize;
-use serde::Deserializer;
-use serde::Serialize;
-
-use crate::strategic::TimePeriod;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "scheduling_message_type")]
@@ -101,7 +91,7 @@ impl StrategicRequestScheduling
     }
 }
 
-#[derive(Args, Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ScheduleChange
 {
     pub work_order_number: Vec<WorkOrderNumber>,
@@ -152,12 +142,6 @@ where
     }
     Ok(set)
 }
-use std::fmt::Display;
-use std::fmt::{self};
-
-use ordinator_scheduling_environment::work_order::WorkOrderNumber;
-use serde::Deserialize;
-use serde::Serialize;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum StrategicStatusMessage

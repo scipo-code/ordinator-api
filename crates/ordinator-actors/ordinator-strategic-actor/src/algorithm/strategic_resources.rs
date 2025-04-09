@@ -19,9 +19,9 @@ use serde::Serialize;
 #[derive(Default, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct StrategicResources(pub HashMap<Period, HashMap<OperationalId, OperationalResource>>);
 
-impl<'a> From<MutexGuard<'a, SchedulingEnvironment>> for StrategicResources
+impl<'a> From<&MutexGuard<'a, SchedulingEnvironment>> for StrategicResources
 {
-    fn from(value: MutexGuard<'a, SchedulingEnvironment>) -> Self
+    fn from(value: &MutexGuard<'a, SchedulingEnvironment>) -> Self
     {
         let gradual_reduction = |i: usize| -> f64 {
             if i == 0 {

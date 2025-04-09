@@ -10,7 +10,6 @@ use anyhow::anyhow;
 use chrono::NaiveDate;
 use chrono::NaiveTime;
 use ordinator_configuration::toml_baptiste::BaptisteToml;
-use ordinator_scheduling_environment::time_environment::period::Period;
 use ordinator_scheduling_environment::work_order;
 use ordinator_scheduling_environment::work_order::WorkOrder;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;

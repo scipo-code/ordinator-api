@@ -20,7 +20,7 @@ use serde::Serialize;
 use super::StrategicResources;
 use crate::StrategicOptions;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug)]
 pub struct StrategicParameters
 {
     pub strategic_work_order_parameters: HashMap<WorkOrderNumber, WorkOrderParameter>,
@@ -78,14 +78,12 @@ impl Parameters for StrategicParameters
         let strategic_clustering = StrategicClustering::calculate_clustering_values(
             asset,
             work_orders,
-            options.work_order_configurations.clustering_weights,
+            &options.work_order_configurations.clustering_weights,
         )?;
 
         // The `SchedulingEnvironment` should not know about the `StrategicResources`
         // This is wrongly implemented and therefore should be changed.
-        let strategic_capacity = scheduling_environment
-            .worker_environment
-            .generate_strategic_resources(strategic_periods);
+        let strategic_capacity = StrategicResources::from(scheduling_environment);
 
         Ok(Self {
             strategic_work_order_parameters,
@@ -201,11 +199,11 @@ impl WorkOrderParameterBuilder
     // `SchedulingEnvironment` that means that it should be possible to include
     // the `WorkOrderConfigurations` here.
     pub fn with_scheduling_environment(
-        &mut self,
+        mut self,
         work_order: &WorkOrder,
         periods: &[Period],
         strategic_options: &StrategicOptions,
-    ) -> &mut Self
+    ) -> Self
     {
         // FIX [ ]
         // This is horribly written and very error prone
@@ -228,7 +226,8 @@ impl WorkOrderParameterBuilder
             .iter()
             .nth(0)
             .unwrap()
-            .unloading_point()
+            .1
+            .unloading_point(periods)
             .clone();
 
         if work_order.vendor()
@@ -257,7 +256,7 @@ impl WorkOrderParameterBuilder
             return self;
         }
 
-        if work_order.is_vendor() {
+        if work_order.vendor() {
             self.0.locked_in_period = periods.last().cloned();
             self.0
                 .excluded_periods
@@ -269,14 +268,16 @@ impl WorkOrderParameterBuilder
             if unloading_point_period.is_some()
                 && periods[0..=1].contains(&unloading_point_period.clone().unwrap())
             {
-                self.0.locked_in_period.clone_from(&unloading_point_period);
+                self.0
+                    .locked_in_period
+                    .clone_from(&unloading_point_period.cloned());
                 self.0
                     .excluded_periods
                     .remove(self.0.locked_in_period.as_ref().unwrap());
             } else {
-                let scheduled_period = periods[0..=1]
-                    .iter()
-                    .find(|period| period.contains_date(work_order.order_dates().basic_start_date));
+                let scheduled_period = periods[0..=1].iter().find(|period| {
+                    period.contains_date(work_order.work_order_dates.basic_start_date)
+                });
 
                 if let Some(locked_in_period) = scheduled_period {
                     self.0.locked_in_period = Some(locked_in_period.clone());
@@ -291,7 +292,7 @@ impl WorkOrderParameterBuilder
         if work_order.work_order_analytic.user_status_codes.awsc {
             let scheduled_period = periods
                 .iter()
-                .find(|period| period.contains_date(work_order.order_dates().basic_start_date));
+                .find(|period| period.contains_date(work_order.work_order_dates.basic_start_date));
 
             if let Some(locked_in_period) = scheduled_period {
                 self.0.locked_in_period = Some(locked_in_period.clone());
@@ -302,7 +303,16 @@ impl WorkOrderParameterBuilder
             return self;
         }
 
-        if work_order.unloading_point().is_some() {
+        if work_order
+            .operations
+            .0
+            .iter()
+            .nth(0)
+            .unwrap()
+            .1
+            .unloading_point(periods)
+            .is_some()
+        {
             let locked_in_period = unloading_point_period.clone().unwrap();
             if !periods[0..=1].contains(unloading_point_period.as_ref().unwrap()) {
                 self.0.locked_in_period = Some(locked_in_period.clone());
@@ -350,8 +360,8 @@ impl StrategicClustering
     pub fn calculate_clustering_values(
         asset: &Asset,
         work_orders: &WorkOrders,
-        clustering_weights: ClusteringWeights,
-    ) -> Result<HashMap<(WorkOrderNumber, WorkOrderNumber), ClusteringValue>>
+        clustering_weights: &ClusteringWeights,
+    ) -> Result<Self>
     {
         let mut clustering_similarity = HashMap::new();
         let work_orders_data: Vec<_> = work_orders
@@ -400,7 +410,9 @@ impl StrategicClustering
                 clustering_similarity.insert((**wo_num1, **wo_num2), similarity);
             }
         }
-        Ok(clustering_similarity)
+        Ok(StrategicClustering {
+            inner: clustering_similarity,
+        })
     }
 }
 
@@ -410,4 +422,5 @@ pub fn create_strategic_parameters(
     asset: &Asset,
 ) -> Result<HashMap<WorkOrderNumber, WorkOrderParameter>>
 {
+    todo!()
 }

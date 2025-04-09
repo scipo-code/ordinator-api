@@ -3,13 +3,26 @@ pub mod messages;
 
 use std::sync::RwLockReadGuard;
 
+use algorithm::StrategicAlgorithm;
+use algorithm::strategic_solution::StrategicSolution;
+use messages::StrategicRequestMessage;
+use messages::StrategicResponseMessage;
+use ordinator_actor_core::Actor;
 use ordinator_configuration::SystemConfigurations;
+use ordinator_orchestrator_actor_traits::MessageHandler;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use ordinator_scheduling_environment::time_environment::MaterialToPeriod;
 use ordinator_scheduling_environment::work_order::WorkOrderConfigurations;
 use rand::rngs::StdRng;
 
-/// *question*
-#[derive(Debug, PartialEq, Clone)]
+pub struct StrategicActor<Ss>(
+    Actor<StrategicRequestMessage, StrategicResponseMessage, StrategicAlgorithm<Ss>>,
+)
+where
+    Ss: SharedSolutionTrait<Strategic = StrategicSolution>,
+    Self: MessageHandler<Req = StrategicRequestMessage, Res = StrategicResponseMessage>;
+
+#[derive(Debug)]
 pub struct StrategicOptions
 {
     pub number_of_removed_work_order: usize,
@@ -66,14 +79,12 @@ mod tests
     use std::sync::Arc;
     use std::sync::Mutex;
 
-    use algorithm::ForcedWorkOrder;
     use algorithm::strategic_resources::OperationalResource;
     use algorithm::strategic_resources::StrategicResources;
     use algorithm::strategic_solution::StrategicSolution;
     use anyhow::Result;
     use messages::requests::ScheduleChange;
     use messages::requests::StrategicRequestScheduling;
-    use ordinator_actor_core::algorithm::Algorithm;
     use ordinator_scheduling_environment::SchedulingEnvironment;
     use ordinator_scheduling_environment::time_environment::period::Period;
     use ordinator_scheduling_environment::work_order::WorkOrder;

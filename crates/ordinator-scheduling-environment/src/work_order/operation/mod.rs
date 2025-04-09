@@ -2,7 +2,6 @@ pub mod operation_analytic;
 pub mod operation_info;
 
 use std::collections::BTreeMap;
-use std::collections::HashMap;
 use std::fmt::Display;
 use std::num::ParseFloatError;
 use std::str::FromStr;

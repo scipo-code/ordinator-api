@@ -5,23 +5,15 @@ use std::sync::MutexGuard;
 
 use anyhow::Result;
 use chrono::NaiveDate;
+use ordinator_orchestrator_actor_traits::Parameters;
+use ordinator_scheduling_environment::time_environment::day::Day;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::worker_environment::EmptyFull;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 use serde::Serialize;
-use shared_types::agents::tactical::TacticalResources;
-use shared_types::scheduling_environment::SchedulingEnvironment;
-use shared_types::scheduling_environment::time_environment::day::Day;
-use shared_types::scheduling_environment::work_order::ActivityRelation;
-use shared_types::scheduling_environment::work_order::WorkOrder;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
-use shared_types::scheduling_environment::work_order::operation::Operation;
-use shared_types::scheduling_environment::work_order::operation::Work;
-use shared_types::scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
-use shared_types::scheduling_environment::worker_environment::EmptyFull;
-use shared_types::scheduling_environment::worker_environment::resources::Id;
-use shared_types::scheduling_environment::worker_environment::resources::Resources;
 
-use crate::agents::tactical_agent::TacticalOptions;
-use crate::agents::traits::Parameters;
+use super::tactical_resources::TacticalResources;
+use crate::TacticalOptions;
 
 #[derive(Default)]
 pub struct TacticalParameters
@@ -40,10 +32,12 @@ impl Parameters for TacticalParameters
     type Key = WorkOrderNumber;
     type Options = TacticalOptions;
 
-    fn new(
+    fn from_source(
         id: &Id,
         options: Self::Options,
-        scheduling_environment: &MutexGuard<SchedulingEnvironment>,
+        scheduling_environment: &MutexGuard<
+            ordinator_scheduling_environment::SchedulingEnvironment,
+        >,
     ) -> Result<Self>
     {
         let tactical_days = &scheduling_environment.time_environment.tactical_days;

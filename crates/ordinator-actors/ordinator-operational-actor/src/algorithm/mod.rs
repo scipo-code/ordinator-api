@@ -391,7 +391,7 @@ where
                 }
                 OperationalEvents::Unavailable(_) => {
                     if !first_fitness {
-                        assert!(assignment == all_events.clone().last().unwrap());
+                        assert!(assignment == all_events.clone().next_back().unwrap());
                         let marginal_fitness_time_delta = prev_fitness + next_fitness;
                         self.update_marginal_fitness(
                             current_work_order_activity

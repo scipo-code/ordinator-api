@@ -765,6 +765,7 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "csv",
+ "dotenvy",
  "ordinator-configuration",
  "ordinator-orchestrator-actor-traits",
  "ordinator-scheduling-environment",

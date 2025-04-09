@@ -18,6 +18,7 @@ calamine = "*"
 chrono = { version = "0", features = ["serde", "arbitrary"] }
 chrono-tz = "0.10.0"
 csv = "*"
+dotenvy = {workspace = true}
 rayon = "*"
 regex = "*"
 rust_decimal = "*"

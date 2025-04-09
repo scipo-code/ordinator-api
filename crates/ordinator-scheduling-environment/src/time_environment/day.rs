@@ -51,7 +51,7 @@ impl Display for Day
 }
 
 #[derive(Debug, Clone)]
-pub struct OptionDay(pub Option<Day>);
+pub struct OptionDay(pub Option<DateTime<Utc>>);
 
 impl IntoExcelData for OptionDay
 {
@@ -63,7 +63,7 @@ impl IntoExcelData for OptionDay
     ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
     {
         let value = match self.0 {
-            Some(day) => day.date.to_string(),
+            Some(day) => day.to_string(),
             None => "".to_string(),
         };
 
@@ -79,7 +79,7 @@ impl IntoExcelData for OptionDay
     ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
     {
         let value = match self.0 {
-            Some(day) => day.date.to_string(),
+            Some(day) => day.to_string(),
             None => "".to_string(),
         };
 

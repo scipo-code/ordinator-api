@@ -11,8 +11,10 @@ use tracing::event;
 
 use super::StrategicRequestMessage;
 use super::StrategicResponseMessage;
+use super::StrategicResponseStatus;
+use super::StrategicStatusMessage;
+use crate::algorithm::StrategicAlgorithm;
 
-type StrategicAgent = Actor<StrategicRequestMessage, StrategicResponseMessage, StrategicAlgorithm>;
 impl MessageHandler for StrategicAgent
 {
     type Req = StrategicRequestMessage;

@@ -242,21 +242,34 @@ where
             .strategic()
             .scheduled_task(&work_order.work_order_number);
 
+        let strategic_schedule = match strategic_period {
+            Some(opt_period) => match opt_period {
+                Some(period) => ReasonForNotScheduling::Scheduled(period.clone()),
+                None => ReasonForNotScheduling::Unknown("Strategic Algorithm could not schedule the Work Order. If this is a mistake please not down why, and send a message to christian-brunbjerg.jespersen@external.totalenergies.com".to_string()),
+            },
+            None => ReasonForNotScheduling::Unknown("Work Order not part of scheduling process".to_string()),
+        };
+
         for activity in sorted_operations {
             let tactical_solution = shared_solution
                 .tactical()
-                .start_and_finish_dates(&(work_order.work_order_number, activity));
-            let option_day = match tactical_solution.get(&work_order.work_order_number) {
-                Some(tactical_day) => {
-                    let mut days = tactical_day.iter().collect::<Vec<_>>();
-                    days.sort();
-                    OptionDay(Some(days[0].1.clone()))
-                }
+                .start_and_finish_dates(&(work_order.work_order_number, *activity.0));
+
+            let option_day = match tactical_solution {
+                // Day::index is a weird thing. How should it work in a real time system? I think
+                // that the best approach would
+                Some(tactical_day) => OptionDay(Some(*tactical_day.0)),
                 None => OptionDay(None),
             };
 
+            // The issue with what you are doing is that we can keep implementing stuff like
+            // this until the day we die. You have to simply go for the money here. I think
+            // that is the best approach.
+            //
+            // You are not good enough to code. You are good enough to do this, Brian
+            // believes in you. You simply have to keep working.
             let one_row = RowNames {
-                strategic_schedule: strategic_period.clone(),
+                strategic_schedule: strategic_schedule.clone(),
                 tactical_schedule: option_day,
                 priority: work_order.work_order_info.priority.clone(),
                 revision: work_order.work_order_info.revision.clone(),

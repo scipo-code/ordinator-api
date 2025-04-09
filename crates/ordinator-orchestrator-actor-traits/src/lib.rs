@@ -230,7 +230,7 @@ pub trait StrategicInterface
 where
     Self: Clone + std::fmt::Debug + Eq + PartialEq,
 {
-    fn scheduled_task(&self, work_order_number: &WorkOrderNumber) -> Option<Option<&Period>>;
+    fn scheduled_task(&self, work_order_number: &WorkOrderNumber) -> Option<&Option<Period>>;
 }
 pub trait TacticalInterface
 where

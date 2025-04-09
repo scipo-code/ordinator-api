@@ -4,9 +4,7 @@ pub mod messages;
 
 use std::ops::Deref;
 use std::ops::DerefMut;
-use std::sync;
 use std::sync::Arc;
-use std::sync::RwLockReadGuard;
 
 use algorithm::OperationalAlgorithm;
 use algorithm::operational_solution::OperationalSolution;

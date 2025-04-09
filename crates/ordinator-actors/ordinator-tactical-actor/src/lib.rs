@@ -3,9 +3,14 @@ pub mod messages;
 
 use std::sync::RwLockReadGuard;
 
+use messages::TacticalRequestMessage;
+use messages::TacticalResponseMessage;
+use ordinator_actor_core::Actor;
 use ordinator_configuration::SystemConfigurations;
 use rand::rngs::StdRng;
 
+//TODO [ ]
+// Make `TacticalAlgorithm` but... Eat first.
 pub struct TacticalActor(Actor<TacticalRequestMessage, TacticalResponseMessage, TacticalAlgorithm>);
 
 pub struct TacticalOptions

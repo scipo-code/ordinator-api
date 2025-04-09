@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 
-use chrono::NaiveTime;
 use serde::Deserialize;
-use serde::Deserializer;
 use serde::Serialize;
-use serde::de;
 
 use super::availability::Availability;
 use super::resources::Id;

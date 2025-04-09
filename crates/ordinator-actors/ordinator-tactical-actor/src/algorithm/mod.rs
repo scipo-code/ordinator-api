@@ -1,10 +1,12 @@
 mod assert_functions;
+pub mod tactical_interface;
 pub mod tactical_parameters;
 pub mod tactical_resources;
 pub mod tactical_solution;
-pub mod tactical_interface;
 
 use std::cmp::Ordering;
+use std::ops::Deref;
+use std::ops::DerefMut;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -13,6 +15,9 @@ use anyhow::bail;
 // QUESTION [ ]
 // Should `chrono` be in here? I am not really sure about it!
 use chrono::TimeDelta;
+use ordinator_orchestrator_actor_traits::Parameters;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
@@ -448,8 +453,41 @@ enum LoopState
     Scheduled,
     ReleasedFromTactical,
 }
+pub struct TacticalAlgorithm<Ss>(
+    Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>,
+)
+where
+    TacticalSolution: Solution,
+    TacticalParameters: Parameters,
+    Ss: SharedSolutionTrait;
 
-impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>>
+impl<Ss> Deref for TacticalAlgorithm<Ss>
+where
+    Ss: SharedSolutionTrait,
+{
+    type Target =
+        Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
+
+    fn deref(&self) -> &Self::Target
+    {
+        &self.0
+    }
+}
+impl<Ss> DerefMut for TacticalAlgorithm<Ss>
+where
+    Ss: SharedSolutionTrait,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target
+    {
+        &mut self.0
+    }
+}
+
+impl<Ss> TacticalAlgorithm<Ss>
+where
+    TacticalSolution: Solution,
+    TacticalParameters: Parameters,
+    Ss: SharedSolutionTrait,
 {
     fn update_loadings(
         &mut self,

@@ -14,7 +14,6 @@ use std::sync::Arc;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::ensure;
-use assert_functions::StrategicAssertions;
 use itertools::Itertools;
 use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_actor_core::algorithm::LoadOperation;
@@ -25,7 +24,6 @@ use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::TacticalInterface;
-use ordinator_orchestrator_actor_traits::WhereIsWorkOrder;
 use ordinator_scheduling_environment::time_environment::period::Period;
 use ordinator_scheduling_environment::time_environment::TimeEnvironment;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
@@ -1050,7 +1048,8 @@ pub struct StrategicAlgorithm<Ss>(Algorithm<StrategicSolution, StrategicParamete
 where
     StrategicSolution: Solution,
     StrategicParameters: Parameters,
-    Ss: SharedSolutionTrait;
+    Ss: SharedSolutionTrait,
+    Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>: AbLNSUtils;
 
 impl<Ss> Deref for StrategicAlgorithm<Ss>
 where
@@ -1538,10 +1537,6 @@ mod tests
 {
     use std::collections::HashMap;
     use std::str::FromStr;
-    use std::sync::Mutex;
-
-    use ordinator_scheduling_environment::worker_environment::resources::Id;
-    use ordinator_scheduling_environment::{Asset, SchedulingEnvironment};
     use rand::SeedableRng;
     use rand::rngs::StdRng;
     use strategic_parameters::WorkOrderParameter;

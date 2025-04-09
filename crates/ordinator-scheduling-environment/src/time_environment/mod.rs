@@ -26,7 +26,7 @@ pub struct TimeEnvironment
     pub supervisor_periods: Vec<Period>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct MaterialToPeriod
 {
     pub nmat: usize,
