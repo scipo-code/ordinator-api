@@ -1,9 +1,12 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::MutexGuard;
 
 use anyhow::Context;
 use anyhow::Result;
+use arc_swap::Guard;
 use chrono::TimeDelta;
+use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::TimeInterval;
@@ -28,14 +31,14 @@ pub struct OperationalParameters
 impl Parameters for OperationalParameters
 {
     type Key = WorkOrderActivity;
+
     // You should not put it in the Options
-    type Options = OperationalOptions;
 
     // Do we even want the code to look like this in the first place?
     fn from_source(
         asset: &Id,
-        options: Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
+        system_configurations: &Guard<Arc<SystemConfigurations>>,
     ) -> Result<Self>
     {
         let mut work_order_parameters = HashMap::default();
@@ -66,6 +69,8 @@ impl Parameters for OperationalParameters
             .find(|oca| asset == &oca.id)
             .with_context(|| format!("{:#?} did not exist", asset.0))?
             .operational_configuration;
+
+        let options = OperationalOptions::from((system_configurations, asset));
 
         Ok(Self {
             work_order_parameters,

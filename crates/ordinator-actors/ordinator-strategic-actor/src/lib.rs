@@ -38,6 +38,45 @@ use rand::rngs::StdRng;
 // message types and then implement the `From` trait on all of them. What other
 // thing could be done here? I am really not sure. You know what to do here
 // the issue is that you simply do not have the persistence to actually do it.
+//
+// Okay what should be done about this parameter? What is the high level
+// strategy for handling the logic behind this?
+// QUESTION
+// * How strongly typed should the system be?
+// * Should nested enums be used?
+// I actually think that they should be. The best approach here would be to make
+// something is type safe I think, I do not see a better approach for the
+// system. You could make trait objects but I generally think that it would be a
+// better idea to use enum. And then make a "CatchAll" for all odd variants.
+// * Why is it that generics cannot be used?
+// The generics propagate up into the nested types. That is because every
+// parent type also need to be generic. The problem arise when non of the
+// parant ever actually provide a concrete type into the system. That
+// means that the system will have to work in such a way that every combination
+// of generics should be able to be `monomorphized` by the compiler and that
+// is generally not the thing that we want. We want the code to work with
+// as few generics as possible. This is a little like using the `HashMap<K, V>`
+// where instead of inserting your own types into the `HashMap<K, V>` you
+// instead try to make the code work with the `K` all the way through. I
+// believe that to confuse yourself less, you should start to think more
+// in terms of data structures, like the once from the std library. This
+// is the best way of working with the code I believe.
+// So what should be done about the generic parameter? I think that the
+// best approach is to make the code work as well as possible ...
+//
+// The question here is what we should do about the generic parameter in the
+// `StrategicResponseMessage` I think that the best approach is to make a
+// type for each request message. I do not think that there is a better
+// approach here.
+//
+// You want a type safe system. You need that personally, I do not see a way
+// around it. That is a personal requirement. The issue here is whether you
+// want a generic interface to express all these different kinds of messages.
+// The best appraoch is probably to make a large enum for each of the
+// actors and then provide a standard interface to each of them.
+//
+// * What is it that you are misunderstanding?
+//
 pub struct StrategicActor<Ss>(
     Actor<StrategicRequestMessage, StrategicResponseMessage, StrategicAlgorithm<Ss>>,
 )
@@ -52,10 +91,7 @@ where
     // here.
     // TODO
     // Here you want the code to function on the
-    Self: MessageHandler<
-            Req = StrategicRequestMessage,
-            Res = StrategicResponseMessage<T: ObjectiveValue>,
-        >;
+    Self: MessageHandler<Req = StrategicRequestMessage, Res = StrategicResponseMessage>;
 
 #[derive(Debug)]
 pub struct StrategicOptions

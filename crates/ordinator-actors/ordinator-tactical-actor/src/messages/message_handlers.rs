@@ -76,8 +76,9 @@ where
                 ActorSpecific::Strategic(changed_work_orders) => {
                     let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
-                    let work_orders = &scheduling_environment_guard.work_orders.inner;
+                    let work_orders = &scheduling_environment_guard.work_orders.inner.clone();
 
+                    drop(scheduling_environment_guard);
                     for work_order_number in changed_work_orders {
                         let work_order =
                             work_orders.get(&work_order_number).with_context(|| {
@@ -94,14 +95,24 @@ where
                         // QUESTION
                         // Is this a good way of coding the program? I think that there is common
                         // behavior here that we are going to have to
-                        // exploit to make sense of this.
-                        let tactical_work_order = create_tactical_parameter(work_order);
+                        // exploit to make sense of this. You are not creating this in the best
+                        // possible way at the moment I think. There is a
+                        // better approach for dealing with this.
+                        //
+                        // You should wrap this up in the `Interface`
+                        let tactical_parameter = create_tactical_parameter(
+                            work_order,
+                            &self.configurations.load().work_order_configurations,
+                        );
 
-                        // It is only the agent that can modify parameters. Not
+                        // It is only the algorithm that can modify parameters. Not the the Actor
+                        // directly you should fix this issue soon. What
+                        // about the code. You should make the interface
+                        // here for interacting with the algorithm.
                         self.algorithm
                             .parameters
                             .tactical_work_orders
-                            .insert(work_order_number, tactical_work_order);
+                            .insert(work_order_number, tactical_parameter);
 
                         self.algorithm
                             .solution
@@ -116,7 +127,11 @@ where
             },
             StateLink::WorkerEnvironment => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+
+                // The issue here is that `from` does not consume the value. But instead work
+                // with the reference.
                 let tactical_resources = TacticalResources::from(&scheduling_environment_guard);
+                drop(scheduling_environment_guard);
 
                 self.algorithm
                     .parameters

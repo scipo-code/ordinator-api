@@ -5,6 +5,7 @@ use std::sync::MutexGuard;
 use anyhow::Result;
 use arc_swap::ArcSwap;
 use arc_swap::Guard;
+use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use ordinator_orchestrator_actor_traits::Solution;
@@ -19,6 +20,10 @@ use crate::traits::AbLNSUtils;
 // You are making a lot of fields public here. I do not think that
 // is a good idea. Why you should use a method to retain and remove
 // solutions. And this is the only way of doing it.
+// WARN TODO [ ]
+// You have to split the algorithm into a set of different traits.
+// with each one controlling access to the underlying code. That
+// is important that we do it that way.
 pub struct Algorithm<S, P, I, Ss>
 where
     S: Solution,
@@ -33,6 +38,10 @@ where
     pub loaded_shared_solution: Guard<Arc<Ss>>,
 }
 
+// You are designing these all wrong. You have to spend the time that it takes
+// to actually learn this. I do not see what other option we have... You will
+// move way to slow if you do not master this skill. There is simply no way
+// around it.
 pub struct AlgorithmBuilder<S, P, I, Ss>
 where
     S: Solution,
@@ -146,14 +155,14 @@ where
     // there kind of things
     pub fn parameters(
         mut self,
-        options: P::Options,
+        system_configurations: &Guard<Arc<SystemConfigurations>>,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self>
     {
         let parameters = P::from_source(
             self.id.as_ref().expect("Call `id()` build method first"),
-            options,
             scheduling_environment,
+            system_configurations,
         )?;
         self.parameters = Some(parameters);
         Ok(self.solution())

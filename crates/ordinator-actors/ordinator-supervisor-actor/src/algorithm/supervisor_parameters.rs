@@ -3,18 +3,15 @@ use std::sync::MutexGuard;
 
 use anyhow::Context;
 use anyhow::Result;
-use shared_types::scheduling_environment::SchedulingEnvironment;
-use shared_types::scheduling_environment::time_environment::period::Period;
-use shared_types::scheduling_environment::work_order::WorkOrderActivity;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
-use shared_types::scheduling_environment::work_order::operation::Operation;
-use shared_types::scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
-use shared_types::scheduling_environment::worker_environment::resources::Id;
-use shared_types::scheduling_environment::worker_environment::resources::Resources;
+use ordinator_orchestrator_actor_traits::Parameters;
+use ordinator_scheduling_environment::SchedulingEnvironment;
+use ordinator_scheduling_environment::time_environment::period::Period;
+use ordinator_scheduling_environment::work_order::WorkOrderActivity;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 
-use crate::agents::supervisor_agent::SupervisorOptions;
-use crate::agents::traits::Parameters;
+use crate::SupervisorOptions;
 
 pub struct SupervisorParameters
 {
@@ -28,12 +25,11 @@ pub struct SupervisorParameters
 impl Parameters for SupervisorParameters
 {
     type Key = WorkOrderActivity;
-    type Options = SupervisorOptions;
 
-    fn new(
+    fn from_source(
         id: &Id,
-        options: Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
+        system_configurations: &Guard<Arc<SystemConfigurations>>,
     ) -> Result<Self>
     {
         let supervisor_periods = &scheduling_environment.time_environment.supervisor_periods;
@@ -81,6 +77,8 @@ impl Parameters for SupervisorParameters
             .cloned()
             .collect();
 
+        let options = SupervisorOptions::from(*system_configurations);
+
         Ok(Self {
             supervisor_work_orders: supervisor_parameters,
             supervisor_periods: supervisor_periods.clone(),
@@ -92,9 +90,7 @@ impl Parameters for SupervisorParameters
     fn create_and_insert_new_parameter(
         &mut self,
         key: Self::Key,
-        scheduling_environment: std::sync::MutexGuard<
-            shared_types::scheduling_environment::SchedulingEnvironment,
-        >,
+        scheduling_environment: MutexGuard<SchedulingEnvironment>,
     )
     {
         todo!()

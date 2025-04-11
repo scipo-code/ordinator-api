@@ -77,6 +77,8 @@ impl TacticalResources
     }
 }
 
+// Is this the correct way to think about the different things? Yes
+// let the caller decide
 impl<'a> From<&MutexGuard<'a, SchedulingEnvironment>> for TacticalResources
 {
     fn from(value: &MutexGuard<'a, SchedulingEnvironment>) -> Self

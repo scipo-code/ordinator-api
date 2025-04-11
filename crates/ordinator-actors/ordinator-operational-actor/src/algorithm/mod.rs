@@ -337,8 +337,7 @@ where
         let mut first_fitness: bool = true;
         let mut current_work_order_activity: Option<WorkOrderActivity> = None;
 
-        self.0
-            .assert_no_operation_overlap()
+        self.assert_no_operation_overlap()
             .context("Operational_events overlap in the operational objective value calculation")?;
 
         // What is the problem here?

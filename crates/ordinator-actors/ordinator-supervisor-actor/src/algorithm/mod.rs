@@ -9,8 +9,12 @@ use std::sync::Arc;
 use anyhow::Context;
 use anyhow::Result;
 use ordinator_actor_core::algorithm::Algorithm;
+use ordinator_actor_core::traits::AbLNSUtils;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_actor_core::traits::ObjectiveValueType;
+use ordinator_orchestrator_actor_traits::Parameters;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use rand::seq::IndexedRandom;
 use supervisor_parameters::SupervisorParameters;
@@ -24,6 +28,8 @@ use super::SupervisorOptions;
 use crate::SupervisorAlgorithm;
 
 impl<Ss> SupervisorAlgorithm<Ss>
+where
+    Ss: SharedSolutionTrait,
 {
     pub fn unschedule_specific_work_order(
         &mut self,
@@ -37,11 +43,16 @@ impl<Ss> SupervisorAlgorithm<Ss>
 }
 
 impl<Ss> ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm<Ss>
+where
+    Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>: AbLNSUtils,
+    SupervisorSolution: Solution,
+    SupervisorParameters: Parameters,
+    Ss: SharedSolutionTrait<Supervisor = SupervisorSolution>,
 {
-    type Algorithm = Algorithm<SupervisorSolution, SupervisorParameters, ()>;
+    type Algorithm = Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>;
     type Options = SupervisorOptions;
 
-    fn make_atomic_pointer_swap(&self)
+    fn make_atomic_pointer_swap(&mut self)
     {
         // Performance enhancements:
         // * COW: #[derive(Clone)] struct SharedSolution<'a> { tactical: Cow<'a,
@@ -267,6 +278,14 @@ impl<Ss> ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm<Ss>
     fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm
     {
         &mut self.0
+    }
+
+    fn derive_options(
+        configurations: &arc_swap::Guard<Arc<ordinator_configuration::SystemConfigurations>>,
+        id: &ordinator_scheduling_environment::worker_environment::resources::Id,
+    ) -> Self::Options
+    {
+        todo!()
     }
 }
 

@@ -25,6 +25,7 @@ use crate::algorithm::ScheduleWorkOrder;
 use crate::algorithm::StrategicUtils;
 use crate::algorithm::strategic_parameters::WorkOrderParameter;
 use crate::algorithm::strategic_parameters::WorkOrderParameterBuilder;
+use crate::algorithm::strategic_resources::StrategicResources;
 use crate::algorithm::strategic_solution::StrategicSolution;
 use crate::messages::StrategicRequestScheduling;
 use crate::messages::StrategicResponseScheduling;
@@ -43,31 +44,13 @@ where
             StrategicRequestMessage::Status(strategic_status_message) => {
                 match strategic_status_message {
                     StrategicStatusMessage::General => {
+                        // You should not provide a message of this type with the
+                        // CRUCIAL INSIGHT
+                        // You should always strive to make the code run with the correct,
+                        let response = StrategicResponseStatus::from(&mut *self);
 
-                        StrategicResponseStatus::from
-                        let strategic_objective_value = &self.algorithm.solution.objective_value;
+                        let strategic_response_message = StrategicResponseMessage::Status(response);
 
-                        let strategic_parameters = &self.algorithm.parameters;
-
-                        let number_of_strategic_work_orders =
-                            strategic_parameters.strategic_work_order_parameters.len();
-
-                        let asset = self.agent_id.asset();
-
-                        let number_of_periods = self.algorithm.parameters.strategic_periods.len();
-
-                        // You need to generate a trait for the `objective value`
-                        // I would rather want to have a `from` implementation on this type than
-                        // make something like this.
-                        let strategic_response_status = StrategicResponseStatus::new(
-                            asset.clone(),
-                            (strategic_objective_value.clone()).into(),
-                            number_of_strategic_work_orders,
-                            number_of_periods,
-                        );
-
-                        let strategic_response_message =
-                            StrategicResponseMessage::Status(strategic_response_status);
                         Ok(strategic_response_message)
                     }
                     // This could be created by the `Orchestrator` instead
@@ -205,26 +188,31 @@ where
                 ))
             }
             StrategicRequestMessage::Periods(periods_message) => {
-                let mut scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+                // let mut scheduling_environment_guard =
+                // self.scheduling_environment.lock().unwrap();
 
-                let periods = &mut scheduling_environment_guard
-                    .time_environment
-                    .strategic_periods;
+                // let periods = &mut scheduling_environment_guard
+                //     .time_environment
+                //     .strategic_periods;
 
-                for period_id in periods_message.periods.iter() {
-                    if periods.last().unwrap().id() + 1 == *period_id {
-                        let new_period =
-                            periods.last().unwrap().clone() + chrono::Duration::weeks(2);
-                        periods.push(new_period);
-                    } else {
-                        event!(Level::ERROR, "periods not handled correctly");
-                    }
-                }
-                self.algorithm.parameters.strategic_periods = periods.to_vec();
-                let strategic_response_periods = StrategicResponsePeriods::new(periods.clone());
-                Ok(StrategicResponseMessage::Periods(
-                    strategic_response_periods,
-                ))
+                // for period_id in periods_message.periods.iter() {
+                //     if periods.last().unwrap().id() + 1 == *period_id {
+                //         let new_period =
+                //             periods.last().unwrap().clone() + chrono::Duration::weeks(2);
+                //         periods.push(new_period);
+                //     } else {
+                //         event!(Level::ERROR, "periods not handled correctly");
+                //     }
+                // }
+                // // It should not happen like this. I think that the periods should be
+                // // created through the
+                // self.algorithm.parameters.strategic_periods = periods.to_vec();
+                // let strategic_response_periods =
+                // StrategicResponsePeriods::new(periods.clone());
+                // Ok(StrategicResponseMessage::Periods(
+                //     strategic_response_periods,
+                // ))
+                todo!()
             }
             // Make from implementations for all of this
             StrategicRequestMessage::SchedulingEnvironment(
@@ -262,67 +250,126 @@ where
                             user_status_codes.awsc = awsc;
                         }
 
-                        let last_period =
-                            self.algorithm.parameters.strategic_periods.last().cloned();
+                        // Should this be handeled here? I think that the best
+                        // approach is to simple update
+                        // the scheduling environment and then the
+                        // algorithm should handle the rest. The issue is that
+                        // you are leaking internals in
+                        // the system and that is making it
+                        // impossible for you to understand the systems
+                        // behavior. Ideally the the
+                        // only think that you change is scheduling
+                        // environment and then the parameters are derived from
+                        // this afterwards. I do not see
+                        // that there is a better way of
+                        // doing the project.
 
-                        let unscheduled_period = self
-                            .algorithm
-                            .solution
-                            .strategic_scheduled_work_orders
-                            .insert(*work_order_number, last_period.clone())
-                            .expect("WorkOrderNumber should always be present")
-                            .expect(
-                                "All WorkOrders should be scheduled in between ScheduleIteration loops",
-                            );
+                        // QUESTION
+                        // Should these message handlers mutate self? No I do
+                        // not think so. What should
+                        // happen then instead?
+                        // This should happen in a different message.
+                        // FIX THIS should happen in the internal logic of the
+                        // `StrategicAlgorithm`! That is
+                        // the best way of doing all this. I think that the best
+                        // approach here is to make the
+                        // system work so that the `Actor`s cannot ever modify
+                        // anything inside of the
+                        // `Algorithm` here you will need to create an interface
+                        // through which they are
+                        // allowed to communicate together.
+                        //
+                        //
+                        // This means that writing `self.algorithm.<field or
+                        // method>` is a complete no go.
+                        // I do not see another way around it. You have to
+                        // *encapsulate* the `Algorithm`
+                        // it becomes impossible to handle the coding thing
+                        // otherwise, too much state.
+                        // That also raises the question of how we should handle
+                        // the `SchedulingEnvironment`.
+                        // There is a question or whether we should make it
+                        // in the orchestrator... Hmm I think that you should
+                        // maybe create an `InteractWithSchedulingEnvironment`
+                        // that each of the different `Actor` should implement.
+                        // Yes that is a good idea. Then the public
+                        // interface for the Actor will include that and then
+                        // the message handler can only extract that
+                        // from the interface.
+                        //
+                        // I think that this is the best way of doing it.
+                        //
+                        //     let last_period =
+                        //         self.algorithm.parameters.strategic_periods.
+                        // last().cloned();
 
-                        let work_load = self
-                            .algorithm
-                            .parameters
-                            .strategic_work_order_parameters
-                            .get(work_order_number)
-                            .unwrap()
-                            .work_load
-                            .clone();
+                        //     let unscheduled_period = self
+                        //         .algorithm
+                        //         .solution
+                        //         .strategic_scheduled_work_orders
+                        //         .insert(*work_order_number,
+                        // last_period.clone())
+                        //         .expect("WorkOrderNumber should always be
+                        // present")         .expect(
+                        //             "All WorkOrders should be scheduled in
+                        // between ScheduleIteration loops",
+                        //         );
 
-                        let unscheduled_resources = self
-                            .algorithm
-                            .determine_best_permutation(
-                                work_load.clone(),
-                                &unscheduled_period,
-                                ScheduleWorkOrder::Unschedule,
-                            )
-                            .with_context(|| {
-                                format!(
-                                    "{:?}\nin period {:?}\ncould not be {:?}",
-                                    work_order_number,
-                                    unscheduled_period,
-                                    ScheduleWorkOrder::Unschedule
-                                )
-                            })?
-                            .expect("It should always be possible to release resources");
+                        //     let work_load = self
+                        //         .algorithm
+                        //         .parameters
+                        //         .strategic_work_order_parameters
+                        //         .get(work_order_number)
+                        //         .unwrap()
+                        //         .work_load
+                        //         .clone();
 
-                        self.algorithm
-                            .update_loadings(unscheduled_resources, LoadOperation::Sub);
+                        //     let unscheduled_resources = self
+                        //         .algorithm
+                        //         .determine_best_permutation(
+                        //             work_load.clone(),
+                        //             &unscheduled_period,
+                        //             ScheduleWorkOrder::Unschedule,
+                        //         )
+                        //         .with_context(|| {
+                        //             format!(
+                        //                 "{:?}\nin period {:?}\ncould not be
+                        // {:?}",
+                        // work_order_number,
+                        //                 unscheduled_period,
+                        //                 ScheduleWorkOrder::Unschedule
+                        //             )
+                        //         })?
+                        //         .expect("It should always be possible to
+                        // release resources");
 
-                        let scheduled_resources = self
-                            .algorithm
-                            .determine_best_permutation(
-                                work_load,
-                                &last_period.unwrap(),
-                                ScheduleWorkOrder::Forced,
-                            )
-                            .with_context(|| {
-                                format!(
-                                    "{:?}\nin period {:?}\ncould not be {:?}",
-                                    work_order_number,
-                                    unscheduled_period,
-                                    ScheduleWorkOrder::Forced
-                                )
-                            })?
-                            .expect("It should always be possible to release resources");
+                        //     self.algorithm
+                        //         .update_loadings(unscheduled_resources,
+                        // LoadOperation::Sub);
 
-                        self.algorithm
-                            .update_loadings(scheduled_resources, LoadOperation::Add);
+                        //     let scheduled_resources = self
+                        //         .algorithm
+                        //         .determine_best_permutation(
+                        //             work_load,
+                        //             &last_period.unwrap(),
+                        //             ScheduleWorkOrder::Forced,
+                        //         )
+                        //         .with_context(|| {
+                        //             format!(
+                        //                 "{:?}\nin period {:?}\ncould not be
+                        // {:?}",
+                        // work_order_number,
+                        //                 unscheduled_period,
+                        //                 ScheduleWorkOrder::Forced
+                        //             )
+                        //         })?
+                        //         .expect("It should always be possible to
+                        // release resources");
+
+                        //     self.algorithm
+                        //         .update_loadings(scheduled_resources,
+                        // LoadOperation::Add);
+                        // FIX
                     }
 
                     // Signal Orchestrator that the it should tell all actor to update work orders
@@ -382,6 +429,7 @@ where
                                 )
                                 .build();
 
+                            drop(scheduling_environment_guard);
                             self.algorithm
                                 .parameters
                                 .strategic_work_order_parameters
@@ -390,13 +438,12 @@ where
                     }
                 }
 
-                Ok(StrategicResponseMessage::Status(()))
+                Ok(StrategicResponseMessage::StateLink)
             }
             StateLink::WorkerEnvironment => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
-                let strategic_resources = scheduling_environment_guard
-                    .worker_environment
-                    .generate_strategic_resources(&self.algorithm.parameters.strategic_periods);
+                let strategic_resources = StrategicResources::from(&scheduling_environment_guard);
+                drop(scheduling_environment_guard);
 
                 self.algorithm
                     .parameters
@@ -404,7 +451,7 @@ where
                     .update_resource_capacities(strategic_resources)
                     .expect("Could not update the StrategicResources");
 
-                Ok(())
+                Ok(StrategicResponseMessage::StateLink)
             }
             StateLink::TimeEnvironment => todo!(),
         }

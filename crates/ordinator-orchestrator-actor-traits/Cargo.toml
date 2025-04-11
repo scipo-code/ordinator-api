@@ -5,8 +5,10 @@ edition = "2024"
 
 [dependencies]
 ordinator-scheduling-environment ={ path = "../ordinator-scheduling-environment"}
+ordinator-configuration = {path = "../ordinator-configuration"}
 
 anyhow = {workspace = true}
+arc-swap = {workspace = true}
 chrono.workspace = true
 flume = {workspace = true}
 

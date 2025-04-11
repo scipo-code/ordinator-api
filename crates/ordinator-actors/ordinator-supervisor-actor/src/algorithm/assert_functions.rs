@@ -1,19 +1,25 @@
-use super::SupervisorSolution;
-use crate::agents::supervisor_agent::delegate::Delegate;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
 use std::collections::HashSet;
-use tracing::{event, Level};
+
+use ordinator_actor_core::delegate::Delegate;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use tracing::Level;
+use tracing::event;
+
+use super::SupervisorSolution;
 
 #[allow(dead_code)]
-pub trait OperationalStateMachineAssertions {
+pub trait OperationalStateMachineAssertions
+{
     fn assert_that_unassigned_woas_are_valid(&self);
     fn assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess(
         &self,
     );
 }
 
-impl OperationalStateMachineAssertions for SupervisorSolution {
-    fn assert_that_unassigned_woas_are_valid(&self) {
+impl OperationalStateMachineAssertions for SupervisorSolution
+{
+    fn assert_that_unassigned_woas_are_valid(&self)
+    {
         for work_order_activity in self
             .operational_state_machine
             .keys()
@@ -42,7 +48,8 @@ impl OperationalStateMachineAssertions for SupervisorSolution {
 
     fn assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess(
         &self,
-    ) {
+    )
+    {
         let work_order_numbers: HashSet<WorkOrderNumber> = self.get_work_order_numbers();
         for work_order_number in work_order_numbers {
             let mut assess_work_orders: HashSet<WorkOrderNumber> = HashSet::new();
@@ -50,7 +57,7 @@ impl OperationalStateMachineAssertions for SupervisorSolution {
 
             self.operational_state_machine
                 .iter()
-                .filter(|(id_woa, _)| id_woa.1 .0 == work_order_number)
+                .filter(|(id_woa, _)| id_woa.1.0 == work_order_number)
                 .for_each(|osm| {
                     let delegate = osm.1;
 
@@ -65,3 +72,11 @@ impl OperationalStateMachineAssertions for SupervisorSolution {
         }
     }
 }
+
+// Your biggest issue at the moment is that you do not understand visibility
+// mechanics well enough to simply design the system as you want. That is
+// causing a lot of problems. You should never have refactored all that
+// code into different crates you should simply have learned to use
+// visibility `pub`, `pub(crate)`, and `pub(super)` instead. The fact that
+// you did not chase your own blindspots when it comes to knowledge has
+// cost you months of wasted development effort.

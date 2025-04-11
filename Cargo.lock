@@ -1603,8 +1603,10 @@ name = "ordinator-orchestrator-actor-traits"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "chrono",
  "flume",
+ "ordinator-configuration",
  "ordinator-scheduling-environment",
 ]
 

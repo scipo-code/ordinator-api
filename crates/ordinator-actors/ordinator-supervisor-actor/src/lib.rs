@@ -2,10 +2,11 @@ mod algorithm;
 mod assert_functions;
 pub mod messages;
 
-use std::sync::RwLockReadGuard;
+use std::sync::Arc;
 
 use algorithm::supervisor_parameters::SupervisorParameters;
 use algorithm::supervisor_solution::SupervisorSolution;
+use arc_swap::Guard;
 #[allow(unused_imports)]
 use assert_functions::SupervisorAssertions;
 use ordinator_actor_core::algorithm::Algorithm;
@@ -24,9 +25,9 @@ pub struct SupervisorAlgorithm<Ss>(Algorithm<SupervisorSolution, SupervisorParam
 where
     Ss: SharedSolutionTrait;
 
-impl<'a> From<RwLockReadGuard<'a, SystemConfigurations>> for SupervisorOptions
+impl<'a> From<Guard<Arc<SystemConfigurations>>> for SupervisorOptions
 {
-    fn from(value: RwLockReadGuard<SystemConfigurations>) -> Self
+    fn from(value: Guard<Arc<SystemConfigurations>>) -> Self
     {
         let number_of_unassigned_work_orders = value
             .actor_configurations

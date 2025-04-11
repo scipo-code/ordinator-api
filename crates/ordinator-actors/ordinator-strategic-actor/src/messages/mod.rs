@@ -62,10 +62,10 @@ pub enum StrategicRequestMessage
 // simply have to work without the stress.
 #[derive(Serialize)]
 #[allow(clippy::large_enum_variant)]
-pub enum StrategicResponseMessage<T: ObjectiveValue>
+pub enum StrategicResponseMessage
 {
     StateLink,
-    Status(StrategicResponseStatus<T>),
+    Status(StrategicResponseStatus),
     Scheduling(StrategicResponseScheduling),
     Resources(StrategicResponseResources),
     Periods(StrategicResponsePeriods),

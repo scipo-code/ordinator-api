@@ -2,6 +2,7 @@ use anyhow::Result;
 use anyhow::ensure;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 
+use super::OperationalAlgorithm;
 use super::OperationalNonProductive;
 use super::operational_parameter::OperationalParameters;
 use super::operational_solution::OperationalSolution;
@@ -14,8 +15,7 @@ pub trait OperationalAlgorithmAsserts
 
 // TODO [ ]
 // These kind of asserts should also look at the `SharedSolution`
-impl<Ss> OperationalAlgorithmAsserts
-    for Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>
+impl<Ss> OperationalAlgorithmAsserts for OperationalAlgorithm<Ss>
 where
     Ss: SharedSolutionTrait,
 {

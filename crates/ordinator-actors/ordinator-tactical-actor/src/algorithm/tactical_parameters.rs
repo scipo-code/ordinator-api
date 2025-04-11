@@ -1,21 +1,34 @@
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::fmt::{self};
+use std::ops::Deref;
+use std::sync::Arc;
 use std::sync::MutexGuard;
 
 use anyhow::Result;
+use arc_swap::Guard;
+use arc_swap::access::Access;
 use chrono::NaiveDate;
+use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::Parameters;
+use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::day::Day;
+use ordinator_scheduling_environment::work_order::ActivityRelation;
+use ordinator_scheduling_environment::work_order::WorkOrder;
+use ordinator_scheduling_environment::work_order::WorkOrderConfigurations;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
+use ordinator_scheduling_environment::work_order::operation::Operation;
+use ordinator_scheduling_environment::work_order::operation::Work;
+use ordinator_scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
 use ordinator_scheduling_environment::worker_environment::EmptyFull;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
+use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use serde::Serialize;
 
 use super::tactical_resources::TacticalResources;
 use crate::TacticalOptions;
 
-#[derive(Default)]
 pub struct TacticalParameters
 {
     pub tactical_work_orders: HashMap<WorkOrderNumber, TacticalParameter>,
@@ -30,21 +43,14 @@ pub struct TacticalParameters
 impl Parameters for TacticalParameters
 {
     type Key = WorkOrderNumber;
-    type Options = TacticalOptions;
 
     fn from_source(
         id: &Id,
-        options: Self::Options,
-        scheduling_environment: &MutexGuard<
-            ordinator_scheduling_environment::SchedulingEnvironment,
-        >,
+        scheduling_environment: &MutexGuard<SchedulingEnvironment>,
+        system_configurations: &Guard<Arc<SystemConfigurations>>,
     ) -> Result<Self>
     {
         let tactical_days = &scheduling_environment.time_environment.tactical_days;
-
-        let tactical_capacity = scheduling_environment
-            .worker_environment
-            .generate_tactical_resources(tactical_days, EmptyFull::Full);
 
         let work_orders = scheduling_environment
             .work_orders
@@ -54,9 +60,21 @@ impl Parameters for TacticalParameters
             // QUESTION: Is this actually true?
             .filter(|(_, wo)| &wo.functional_location().asset == id.2.first().unwrap());
 
+        // This is what you get from working with Rust, you get all the nice things and
+        // then this is what you have to deal with. What is the correct approach
+        // here? You need to understand what the goal of the code is to be able
+        // to fix this.
+        let tactical_capacity = TacticalResources::from(scheduling_environment);
+
         let tactical_work_orders: HashMap<WorkOrderNumber, TacticalParameter> = work_orders
-            .map(|(won, wo)| (*won, create_tactical_parameter(wo)))
+            .map(|(won, wo)| {
+                (
+                    *won,
+                    create_tactical_parameter(wo, &system_configurations.work_order_configurations),
+                )
+            })
             .collect();
+        let options = TacticalOptions::from((system_configurations, id));
 
         Ok(Self {
             tactical_work_orders,
@@ -86,10 +104,14 @@ impl Parameters for TacticalParameters
 //
 // Is that even possible? I think that it is. Keep this up! You have to
 // continue.
-pub fn create_tactical_parameter(work_order: &WorkOrder) -> TacticalParameter
+pub fn create_tactical_parameter(
+    work_order: &WorkOrder,
+    work_order_configuration: &WorkOrderConfigurations,
+) -> TacticalParameter
 {
     let operation_parameters = work_order
         .operations
+        .0
         .iter()
         .map(|(acn, op)| {
             (
@@ -99,7 +121,7 @@ pub fn create_tactical_parameter(work_order: &WorkOrder) -> TacticalParameter
         })
         .collect::<HashMap<_, _>>();
 
-    TacticalParameter::new(work_order, operation_parameters)
+    TacticalParameter::new(work_order, work_order_configuration, operation_parameters)
 }
 
 #[derive(Clone, Serialize)]
@@ -113,18 +135,20 @@ pub struct TacticalParameter
     pub earliest_allowed_start_date: NaiveDate,
 }
 
+// How should the parameters be build here?
 impl TacticalParameter
 {
     pub fn new(
         work_order: &WorkOrder,
+        work_order_configuration: &WorkOrderConfigurations,
         operation_parameters: HashMap<ActivityNumber, OperationParameter>,
     ) -> Self
     {
         Self {
             main_work_center: work_order.main_work_center,
             tactical_operation_parameters: operation_parameters,
-            weight: work_order.work_order_value(),
-            relations: work_order.relations.clone(),
+            weight: work_order.work_order_value(work_order_configuration),
+            relations: work_order.operations.relations(),
             earliest_allowed_start_date: work_order.work_order_dates.earliest_allowed_start_date,
         }
     }
@@ -147,13 +171,13 @@ impl OperationParameter
     {
         Self {
             work_order_number,
-            number: operation.number(),
+            number: operation.operation_info.number,
             // FIX
             // This should also have been created differently.
-            duration: operation.duration().unwrap(),
-            operating_time: operation.operating_time().unwrap(),
-            work_remaining: operation.work_remaining().unwrap(),
-            resource: *operation.resource(),
+            duration: operation.operation_analytic.duration,
+            operating_time: operation.operation_info.operating_time,
+            work_remaining: operation.operation_info.work_remaining,
+            resource: operation.resource,
         }
     }
 }

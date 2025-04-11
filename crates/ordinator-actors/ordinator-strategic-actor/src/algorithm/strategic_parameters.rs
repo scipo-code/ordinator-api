@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::sync::Arc;
 use std::sync::MutexGuard;
 
 use anyhow::Result;
 use anyhow::bail;
+use arc_swap::Guard;
+use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SchedulingEnvironment;
@@ -37,13 +40,12 @@ pub struct StrategicParameters
 impl Parameters for StrategicParameters
 {
     type Key = WorkOrderNumber;
-    type Options = StrategicOptions;
 
     // That change in the asset, was not complete without downsides.
     fn from_source(
         id: &Id,
-        options: Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
+        system_configurations: &Guard<Arc<SystemConfigurations>>,
     ) -> Result<Self>
     {
         let asset = id.2.first().expect("This should never happen");
@@ -51,6 +53,8 @@ impl Parameters for StrategicParameters
         let work_orders = &scheduling_environment.work_orders;
 
         let strategic_periods = &scheduling_environment.time_environment.strategic_periods;
+
+        let options = StrategicOptions::from((system_configurations, id));
 
         let strategic_work_order_parameters = work_orders
             .inner

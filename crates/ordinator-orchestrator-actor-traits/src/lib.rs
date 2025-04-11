@@ -2,15 +2,18 @@ pub mod delegate;
 pub mod marginal_fitness;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::sync::Arc;
 use std::sync::MutexGuard;
 
 use anyhow::Result;
+use arc_swap::Guard;
 use chrono::DateTime;
 use chrono::Utc;
 use delegate::Delegate;
 use flume::Receiver;
 use flume::Sender;
 use marginal_fitness::MarginalFitness;
+use ordinator_configuration::SystemConfigurations;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::period::Period;
@@ -169,12 +172,11 @@ where
     Self: Sized,
 {
     type Key;
-    type Options;
 
     fn from_source(
         id: &Id,
-        options: Self::Options,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
+        system_configurations: &Guard<Arc<SystemConfigurations>>,
     ) -> Result<Self>;
 
     /// WARNING
