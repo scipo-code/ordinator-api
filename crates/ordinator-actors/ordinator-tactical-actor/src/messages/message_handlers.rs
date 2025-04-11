@@ -1,11 +1,6 @@
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
-use ordinator_actor_core::Actor;
-use ordinator_contracts::tactical::TacticalRequestMessage;
-use ordinator_contracts::tactical::TacticalResponseMessage;
-use ordinator_contracts::tactical::requests::tactical_resources_message::TacticalResourceRequest;
-use ordinator_contracts::tactical::responses::tactical_response_resources::TacticalResourceResponse;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
@@ -14,9 +9,15 @@ use ordinator_orchestrator_actor_traits::WhereIsWorkOrder;
 use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::worker_environment::EmptyFull;
 
+use super::TacticalRequestMessage;
+use super::TacticalResponseMessage;
+use super::requests::TacticalResourceRequest;
 use crate::TacticalActor;
+use crate::algorithm::TacticalAlgorithm;
 use crate::algorithm::tactical_parameters::TacticalParameters;
 use crate::algorithm::tactical_parameters::create_tactical_parameter;
+use crate::algorithm::tactical_resources::TacticalResources;
+use crate::algorithm::tactical_solution::TacticalSolution;
 
 // TODO [ ]
 // Make a TacticalAgent here! I believe that this is the best appraoch. The only
@@ -25,7 +26,7 @@ use crate::algorithm::tactical_parameters::create_tactical_parameter;
 // way to consolidate your knowledge.
 impl<Ss> MessageHandler for TacticalActor<Ss>
 where
-    Ss: SharedSolutionTrait,
+    Ss: SharedSolutionTrait<Tactical = TacticalSolution>,
 {
     type Req = TacticalRequestMessage;
     type Res = TacticalResponseMessage;
@@ -45,10 +46,12 @@ where
                 todo!()
             }
             TacticalRequestMessage::Resources(tactical_resources_message) => {
-                let resource_response = self
-                    .update_resources_state(tactical_resources_message)
-                    .unwrap();
-                Ok(TacticalResponseMessage::Resources(resource_response))
+                // let resource_response = self
+                //     .update_resources_state(tactical_resources_message)
+                //     .unwrap();
+                Ok(TacticalResponseMessage::FreeStringResponse(
+                    "Implement the Update code here.".to_string(),
+                ))
             }
             TacticalRequestMessage::Days(_tactical_time_message) => {
                 todo!()
@@ -66,7 +69,7 @@ where
         }
     }
 
-    fn handle_state_link(&mut self, state_link: StateLink) -> Result<()>
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<Self::Res>
     {
         match state_link {
             StateLink::WorkOrders(agent_specific) => match agent_specific {
@@ -106,24 +109,25 @@ where
                             .0
                             .insert(work_order_number, WhereIsWorkOrder::NotScheduled);
                     }
-                    Ok(())
+                    Ok(TacticalResponseMessage::FreeStringResponse(
+                        "Updated StateLink::WorkOrders".to_string(),
+                    ))
                 }
             },
             StateLink::WorkerEnvironment => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
-                let tactical_resources = scheduling_environment_guard
-                    .worker_environment
-                    .generate_tactical_resources(
-                        &self.algorithm.parameters.tactical_days,
-                        EmptyFull::Full,
-                    );
+                let tactical_resources = TacticalResources::from(&scheduling_environment_guard);
 
                 self.algorithm
                     .parameters
                     .tactical_capacity
                     .update_resources(tactical_resources);
 
-                Ok(())
+                // TODO [ ]
+                // Turn this into a JSON
+                Ok(TacticalResponseMessage::FreeStringResponse(
+                    "Updated StateLink::WorkerEnvironment".to_string(),
+                ))
             }
 
             StateLink::TimeEnvironment => {
@@ -133,70 +137,72 @@ where
     }
 }
 
-impl Actor<TacticalRequestMessage, TacticalResponseMessage, TacticalAlgorithm>
-{
-    fn update_resources_state(
-        &mut self,
-        resource_message: TacticalResourceRequest,
-    ) -> Result<TacticalResourceResponse>
-    {
-        match resource_message {
-            TacticalResourceRequest::SetResources(resources) => {
-                // The resources should be initialized together with the Agent itself
-                let mut count = 0;
-                for (resource, days) in resources.resources {
-                    for (day, capacity) in days.days {
-                        let day: Day = match self
-                            .algorithm
-                            .parameters
-                            .tactical_days
-                            .iter()
-                            .find(|d| **d == day)
-                        {
-                            Some(day) => {
-                                count += 1;
-                                day.clone()
-                            }
-                            None => {
-                                bail!("Day not found in the tactical days".to_string(),);
-                            }
-                        };
+// impl<Ss> TacticalActor<TacticalRequestMessage, TacticalResponseMessage,
+// TacticalAlgorithm<Ss>> {
+//     fn update_resources_state(
+//         &mut self,
+//         resource_message: TacticalResourceRequest,
+//     ) -> Result<TacticalResourceResponse>
+//     {
+//         match resource_message {
+// TacticalResourceRequest::SetResources(resources) => {
+//     // The resources should be initialized together with the Agent itself
+//     let mut count = 0;
+//     for (resource, days) in resources.resources {
+//         for (day, capacity) in days.days {
+//             let day: Day = match self
+//                 .algorithm
+//                 .parameters
+//                 .tactical_days
+//                 .iter()
+//                 .find(|d| **d == day)
+//             {
+//                 Some(day) => {
+//                     count += 1;
+//                     day.clone()
+//                 }
+//                 None => {
+//                     bail!("Day not found in the tactical days".to_string(),);
+//                 }
+//             };
 
-                        *self.algorithm.capacity_mut(&resource, &day) = capacity;
-                    }
-                }
-                Ok(TacticalResourceResponse::UpdatedResources(count))
-            }
-            TacticalResourceRequest::GetLoadings {
-                days_end: _,
-                select_resources: _,
-            } => {
-                let loadings = self.algorithm.solution.tactical_loadings.clone();
+//             *self.algorithm.capacity_mut(&resource, &day) = capacity;
+//         }
+//     }
+//     Ok(TacticalResourceResponse::UpdatedResources(count))
+// TacticalResourceRequest::GetLoadings {
+//     days_end: _,
+//     select_resources: _,
+// } => {
+//     let loadings = self.algorithm.solution.tactical_loadings.clone();
 
-                let tactical_response_resources = TacticalResourceResponse::Loading(loadings);
-                Ok(tactical_response_resources)
-            }
-            TacticalResourceRequest::GetCapacities {
-                days_end: _,
-                select_resources: _,
-            } => {
-                let capacities = self.algorithm.parameters.tactical_capacity.clone();
+//     let tactical_response_resources =
+// TacticalResourceResponse::Loading(loadings);
+//     Ok(tactical_response_resources)
+// }
+// TacticalResourceRequest::GetCapacities {
+//     days_end: _,
+//     select_resources: _,
+// } => {
+//     let capacities = self.algorithm.parameters.tactical_capacity.clone();
 
-                let tactical_response_resources = TacticalResourceResponse::Capacity(capacities);
+//     let tactical_response_resources =
+// TacticalResourceResponse::Capacity(capacities);
 
-                Ok(tactical_response_resources)
-            }
-            TacticalResourceRequest::GetPercentageLoadings {
-                days_end: _,
-                resources: _,
-            } => {
-                let capacities = &self.algorithm.parameters.tactical_capacity;
-                let loadings = &self.algorithm.solution.tactical_loadings;
+//     Ok(tactical_response_resources)
+// }
+// TacticalResourceRequest::GetPercentageLoadings {
+//     days_end: _,
+//     resources: _,
+// } => {
+//     let capacities = &self.algorithm.parameters.tactical_capacity;
+//     let loadings = &self.algorithm.solution.tactical_loadings;
 
-                let tactical_response_resources =
-                    TacticalResourceResponse::Percentage((capacities.clone(), loadings.clone()));
-                Ok(tactical_response_resources)
-            }
-        }
-    }
-}
+//     let tactical_response_resources =
+//         TacticalResourceResponse::Percentage((capacities.clone(),
+// loadings.clone()));     Ok(tactical_response_resources)
+// }
+//             _ => todo!(),
+//         }
+//     }
+// }

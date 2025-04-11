@@ -11,9 +11,9 @@ use std::path::PathBuf;
 
 use actor_specifications::ActorSpecifications;
 use anyhow::Result;
-use material::MaterialToPeriod;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SystemConfigurationTrait;
+use ordinator_scheduling_environment::time_environment::MaterialToPeriod;
 use ordinator_scheduling_environment::work_order::WorkOrderConfigurations;
 use throttling::Throttling;
 use time_input::TimeInput;

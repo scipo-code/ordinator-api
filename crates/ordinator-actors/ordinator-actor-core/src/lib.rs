@@ -249,8 +249,8 @@ where
         ) = flume::unbounded();
 
         let (sender_to_orchestrator, receiver_from_agent): (
-            flume::Sender<std::result::Result<ActorResponse, anyhow::Error>>,
-            flume::Receiver<std::result::Result<ActorResponse, anyhow::Error>>,
+            flume::Sender<Result<ActorResponse>>,
+            flume::Receiver<Result<ActorResponse>>,
         ) = flume::unbounded();
 
         self.communication_for_orchestrator = Some(Communication {

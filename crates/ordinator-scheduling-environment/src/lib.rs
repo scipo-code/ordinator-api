@@ -53,11 +53,11 @@ pub trait IntoSchedulingEnvironment
         system_configuration: &Self::S,
     ) -> Result<SchedulingEnvironment>;
 }
+
 pub trait SystemConfigurationTrait {}
+
 pub trait DatabaseConfigurationTrait {}
 
-// dsafskdfsd;kfjsda;lkfjsdal;kfjs;adlkjfls;da kjf;lsdakjflsdkajfl
-// sda;kjflsadkjflsa;d kjfls;dakjfl;ksadjflk;sjk
 impl SchedulingEnvironmentBuilder
 {
     pub fn build(self) -> SchedulingEnvironment

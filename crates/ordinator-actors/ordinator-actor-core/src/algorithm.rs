@@ -129,7 +129,7 @@ where
     }
 
     // This should call the relevant method instead of the
-    pub fn solution(mut self) -> Self
+    fn solution(mut self) -> Self
     {
         let parameters = self
             .parameters
@@ -156,7 +156,7 @@ where
             scheduling_environment,
         )?;
         self.parameters = Some(parameters);
-        Ok(self)
+        Ok(self.solution())
     }
 
     pub fn arc_swap_shared_solution(mut self, arc_swap_shared_solution: Arc<ArcSwap<Ss>>) -> Self

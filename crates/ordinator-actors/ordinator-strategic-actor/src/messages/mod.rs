@@ -5,6 +5,7 @@ pub mod responses;
 use std::fmt::{self};
 
 use anyhow::Result;
+use ordinator_actor_core::traits::ObjectiveValue;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::work_order::work_order_analytic::status_codes::StrategicUserStatusCodes;
 use serde::Deserialize;
@@ -53,11 +54,18 @@ pub enum StrategicRequestMessage
     SchedulingEnvironment(StrategicSchedulingEnvironmentCommands),
 }
 
+// You should make the generic structure. You will need to make a
+// different structure here. I think that you cannot have a generic
+// here for every single type. You need to make something different
+// but what? I am not really sure. You need to learn from someone
+// better than your self. You are more than smart enough. You
+// simply have to work without the stress.
 #[derive(Serialize)]
 #[allow(clippy::large_enum_variant)]
-pub enum StrategicResponseMessage
+pub enum StrategicResponseMessage<T: ObjectiveValue>
 {
-    Status(StrategicResponseStatus),
+    StateLink,
+    Status(StrategicResponseStatus<T>),
     Scheduling(StrategicResponseScheduling),
     Resources(StrategicResponseResources),
     Periods(StrategicResponsePeriods),
@@ -88,13 +96,6 @@ pub struct TimePeriod
     pub period_string: String,
 }
 
-impl TimePeriod
-{
-    pub fn get_period_string(&self) -> String
-    {
-        self.period_string.clone()
-    }
-}
 impl fmt::Display for StrategicRequestMessage
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), std::fmt::Error>

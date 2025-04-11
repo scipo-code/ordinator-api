@@ -4,18 +4,34 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use colored::Colorize;
-use ordinator_actor_core::Actor;
+use ordinator_actor_core::algorithm::LoadOperation;
+use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
+use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::MessageHandler;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::StateLink;
 use tracing::Level;
 use tracing::event;
 
 use super::StrategicRequestMessage;
 use super::StrategicResponseMessage;
+use super::StrategicResponsePeriods;
 use super::StrategicResponseStatus;
+use super::StrategicSchedulingEnvironmentCommands;
 use super::StrategicStatusMessage;
-use crate::algorithm::StrategicAlgorithm;
+use crate::StrategicActor;
+use crate::StrategicOptions;
+use crate::algorithm::ScheduleWorkOrder;
+use crate::algorithm::StrategicUtils;
+use crate::algorithm::strategic_parameters::WorkOrderParameter;
+use crate::algorithm::strategic_parameters::WorkOrderParameterBuilder;
+use crate::algorithm::strategic_solution::StrategicSolution;
+use crate::messages::StrategicRequestScheduling;
+use crate::messages::StrategicResponseScheduling;
 
-impl MessageHandler for StrategicAgent
+impl<Ss> MessageHandler for StrategicActor<Ss>
+where
+    Ss: SharedSolutionTrait<Strategic = StrategicSolution>,
 {
     type Req = StrategicRequestMessage;
     type Res = StrategicResponseMessage;
@@ -27,6 +43,8 @@ impl MessageHandler for StrategicAgent
             StrategicRequestMessage::Status(strategic_status_message) => {
                 match strategic_status_message {
                     StrategicStatusMessage::General => {
+
+                        StrategicResponseStatus::from
                         let strategic_objective_value = &self.algorithm.solution.objective_value;
 
                         let strategic_parameters = &self.algorithm.parameters;
@@ -38,7 +56,9 @@ impl MessageHandler for StrategicAgent
 
                         let number_of_periods = self.algorithm.parameters.strategic_periods.len();
 
-                        // Yes so you use
+                        // You need to generate a trait for the `objective value`
+                        // I would rather want to have a `from` implementation on this type than
+                        // make something like this.
                         let strategic_response_status = StrategicResponseStatus::new(
                             asset.clone(),
                             (strategic_objective_value.clone()).into(),
@@ -104,50 +124,49 @@ impl MessageHandler for StrategicAgent
 
                         bail!("The endpoints are being refactored")
                     }
+                    // This should be created in a different way. I think that you should rely
+                    // on a lot of `From` implementations here. I think that is the best approach
+                    // to fixing this issue.
                     StrategicStatusMessage::WorkOrder(work_order_number) => {
-                        let strategic_solution_for_specific_work_order = self
-                            .algorithm
-                            .solution
-                            .strategic_scheduled_work_orders
-                            .get(&work_order_number)
-                            .with_context(|| {
-                                format!(
-                                    "{:?} not found in {}",
-                                    work_order_number,
-                                    std::any::type_name::<StrategicAgent>()
-                                )
-                            })?;
+                        // TODO [ ]
+                        // Make a `From` implementation.
+                        // let strategic_solution_for_specific_work_order = self
+                        //     .algorithm
+                        //     .solution
+                        //     .strategic_scheduled_work_orders
+                        //     .get(&work_order_number)
+                        //     .with_context(|| format!("{:?} not found in", work_order_number,))?;
 
-                        let strategic_parameter = self
-                            .algorithm
-                            .parameters
-                            .strategic_work_order_parameters
-                            .get(&work_order_number)
-                            .with_context(|| {
-                                format!(
-                                    "{:?} does not have a {} in {}",
-                                    work_order_number,
-                                    std::any::type_name::<WorkOrderParameter>(),
-                                    std::any::type_name::<StrategicAgent>()
-                                )
-                            })?;
+                        // let strategic_parameter = self
+                        //     .algorithm
+                        //     .parameters
+                        //     .strategic_work_order_parameters
+                        //     .get(&work_order_number)
+                        //     .with_context(|| {
+                        //         format!(
+                        //             "{:?} does not have a {}",
+                        //             work_order_number,
+                        //             std::any::type_name::<WorkOrderParameter>(),
+                        //         )
+                        //     })?;
 
-                        let locked_in_period = &strategic_parameter.locked_in_period;
-                        let excluded_from_period = &strategic_parameter.excluded_periods;
+                        // let locked_in_period = &strategic_parameter.locked_in_period;
+                        // let excluded_from_period = &strategic_parameter.excluded_periods;
 
-                        let strategic_api_solution = StrategicApiSolution {
-                            solution: strategic_solution_for_specific_work_order.clone(),
-                            locked_in_period: locked_in_period.clone(),
-                            excluded_from_period: excluded_from_period.clone(),
-                        };
+                        // let strategic_api_solution = StrategicApiSolution {
+                        //     solution: strategic_solution_for_specific_work_order.clone(),
+                        //     locked_in_period: locked_in_period.clone(),
+                        //     excluded_from_period: excluded_from_period.clone(),
+                        // };
 
-                        let work_orders_in_period =
-                            WorkOrdersStatus::SingleSolution(strategic_api_solution);
+                        // let work_orders_in_period =
+                        //     WorkOrdersStatus::SingleSolution(strategic_api_solution);
 
-                        let strategic_response_message =
-                            StrategicResponseMessage::WorkOrder(work_orders_in_period);
+                        // let strategic_response_message =
+                        //     StrategicResponseMessage::WorkOrder(work_orders_in_period);
 
-                        Ok(strategic_response_message)
+                        // Ok(strategic_response_message)
+                        todo!()
                     }
                 }
             }
@@ -166,14 +185,20 @@ impl MessageHandler for StrategicAgent
                         )
                     })?;
 
-                self.algorithm.calculate_objective_value()?;
+                let strategic_options =
+                    StrategicOptions::from((&self.configurations.load(), &self.agent_id));
+                self.algorithm
+                    .calculate_objective_value(&strategic_options)?;
                 event!(Level::INFO, strategic_objective_value = ?self.algorithm.solution.objective_value);
                 Ok(StrategicResponseMessage::Scheduling(scheduling_output))
             }
             StrategicRequestMessage::Resources(resources_message) => {
                 let resources_output = self.algorithm.update_resources_state(resources_message);
 
-                self.algorithm.calculate_objective_value()?;
+                let strategic_options =
+                    StrategicOptions::from((&self.configurations.load(), &self.agent_id));
+                self.algorithm
+                    .calculate_objective_value(&strategic_options)?;
                 event!(Level::INFO, strategic_objective_value = ?self.algorithm.solution.objective_value);
                 Ok(StrategicResponseMessage::Resources(
                     resources_output.unwrap(),
@@ -201,6 +226,7 @@ impl MessageHandler for StrategicAgent
                     strategic_response_periods,
                 ))
             }
+            // Make from implementations for all of this
             StrategicRequestMessage::SchedulingEnvironment(
                 strategic_scheduling_environment_commands,
             ) => match strategic_scheduling_environment_commands {
@@ -275,10 +301,8 @@ impl MessageHandler for StrategicAgent
                             })?
                             .expect("It should always be possible to release resources");
 
-                        self.algorithm.update_loadings(
-                            unscheduled_resources,
-                            shared_types::LoadOperation::Sub,
-                        );
+                        self.algorithm
+                            .update_loadings(unscheduled_resources, LoadOperation::Sub);
 
                         let scheduled_resources = self
                             .algorithm
@@ -298,7 +322,7 @@ impl MessageHandler for StrategicAgent
                             .expect("It should always be possible to release resources");
 
                         self.algorithm
-                            .update_loadings(scheduled_resources, shared_types::LoadOperation::Add);
+                            .update_loadings(scheduled_resources, LoadOperation::Add);
                     }
 
                     // Signal Orchestrator that the it should tell all actor to update work orders
@@ -313,11 +337,15 @@ impl MessageHandler for StrategicAgent
                 }
             },
         };
-        self.algorithm.calculate_objective_value()?;
+        let strategic_options =
+            StrategicOptions::from((&self.configurations.load(), &self.agent_id));
+        self.algorithm
+            .calculate_objective_value(&strategic_options)?;
+
         strategic_response
     }
 
-    fn handle_state_link(&mut self, msg: StateLink) -> Result<()>
+    fn handle_state_link(&mut self, msg: StateLink) -> Result<StrategicResponseMessage>
     {
         match msg {
             StateLink::WorkOrders(agent_specific) => {
@@ -337,21 +365,32 @@ impl MessageHandler for StrategicAgent
                                     )
                                 })?;
 
-                            let strategic_parameter = WorkOrderParameterBuilder::new()
-                                .build_from_work_order(
+                            // This is not made in the best way. I can sense it. What should I do
+                            // about it? I think that the best way is to
+                            // make something that can schedule everything.
+                            let options = StrategicOptions::from((
+                                &self.configurations.load(),
+                                &self.agent_id,
+                            ));
+                            let strategic_parameter = WorkOrderParameter::builder()
+                                .with_scheduling_environment(
                                     work_order,
-                                    &self.algorithm.parameters.strategic_periods,
+                                    &scheduling_environment_guard
+                                        .time_environment
+                                        .strategic_periods,
+                                    &options,
                                 )
                                 .build();
 
                             self.algorithm
                                 .parameters
-                                .insert_strategic_parameter(work_order_number, strategic_parameter);
+                                .strategic_work_order_parameters
+                                .insert(work_order_number, strategic_parameter);
                         }
                     }
                 }
 
-                Ok(())
+                Ok(StrategicResponseMessage::Status(()))
             }
             StateLink::WorkerEnvironment => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();

@@ -8,6 +8,7 @@ use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
+use serde::Serialize;
 
 /// This trait will be crucial for making this whole thing work correctly.
 /// I think that the best approach will be to make only a single message
@@ -134,4 +135,4 @@ pub enum ObjectiveValueType<O>
     Force,
 }
 
-pub trait ObjectiveValue {}
+pub trait ObjectiveValue: Serialize {}

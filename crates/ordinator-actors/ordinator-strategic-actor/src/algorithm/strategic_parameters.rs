@@ -132,6 +132,13 @@ pub struct WorkOrderParameter
     pub work_load: HashMap<Resources, Work>,
 }
 
+// This should be reformulated in a different way I think. You
+// should strive to make something that will enable us to make
+// the most of the procious time here.
+//
+// This has to be formulated together with the
+// I believe that we should experiment here with making the `Type state`
+// pattern
 #[derive(Debug)]
 pub struct WorkOrderParameterBuilder(WorkOrderParameter);
 
@@ -207,6 +214,7 @@ impl WorkOrderParameterBuilder
     {
         // FIX [ ]
         // This is horribly written and very error prone
+        // Use a TypeState pattern if you are in doubt.
         self.0.excluded_periods =
             work_order.find_excluded_periods(periods, &strategic_options.material_to_period);
 
@@ -343,7 +351,7 @@ impl WorkOrderParameterBuilder
 
 impl WorkOrderParameter
 {
-    fn builder() -> WorkOrderParameterBuilder
+    pub fn builder() -> WorkOrderParameterBuilder
     {
         WorkOrderParameterBuilder(WorkOrderParameter {
             locked_in_period: todo!(),

@@ -25,9 +25,9 @@ pub struct StrategicSolution
 pub struct StrategicObjectiveValue
 {
     pub objective_value: u64,
-    pub urgency: (u64, u64),
-    pub resource_penalty: (u64, u64),
-    pub clustering_value: (u64, u64),
+    pub urgency: (usize, u64),
+    pub resource_penalty: (usize, u64),
+    pub clustering_value: (usize, u64),
 }
 
 impl StrategicObjectiveValue
@@ -44,9 +44,9 @@ impl StrategicObjectiveValue
 
     pub fn aggregate_objectives(&mut self)
     {
-        self.objective_value = self.urgency.0 * self.urgency.1
-            + self.resource_penalty.0 * self.resource_penalty.1
-            - self.clustering_value.0 * self.clustering_value.1;
+        self.objective_value = self.urgency.0 as u64 * self.urgency.1
+            + self.resource_penalty.0 as u64 * self.resource_penalty.1
+            - self.clustering_value.0 as u64 * self.clustering_value.1;
     }
 }
 impl Solution for StrategicSolution
@@ -69,7 +69,7 @@ impl Solution for StrategicSolution
                             OperationalResource::new(
                                 id,
                                 Work::from(0.0),
-                                or.skill_hours.keys().cloned().collect_vec(),
+                                or.skill_hours.keys().cloned().collect(),
                             ),
                         )
                     })

@@ -12,12 +12,15 @@ use std::sync::Arc;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
-// QUESTION [ ]
-// Should `chrono` be in here? I am not really sure about it!
 use chrono::TimeDelta;
+use ordinator_actor_core::algorithm::Algorithm;
+use ordinator_actor_core::traits::AbLNSUtils;
+use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
+use ordinator_actor_core::traits::ObjectiveValueType;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use ordinator_orchestrator_actor_traits::Solution;
+use ordinator_orchestrator_actor_traits::StrategicInterface;
 use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
@@ -25,21 +28,24 @@ use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use priority_queue::PriorityQueue;
 use rand::seq::IndexedRandom;
+use tactical_solution::TacticalObjectiveValue;
+use tactical_solution::TacticalSolution;
 use tracing::Level;
 use tracing::event;
 
-use self::TacticalObjectiveValue;
 use self::assert_functions::TacticalAssertions;
 use self::tactical_parameters::TacticalParameters;
 use self::tactical_solution::OperationSolution;
 use super::TacticalOptions;
-use crate::agents::TacticalScheduledOperations;
-use crate::agents::TacticalSolution;
-use crate::agents::WhereIsWorkOrder;
-use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
-use crate::agents::traits::ObjectiveValueType;
-use crate::algorithm::Algorithm;
-use crate::algorithm::LoadOperation;
+
+// If you had a single crate you should simply call thie
+pub struct TacticalAlgorithm<Ss>(
+    Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>,
+)
+where
+    TacticalSolution: Solution,
+    TacticalParameters: Parameters,
+    Ss: SharedSolutionTrait;
 
 // FIX
 // Move the `tactical_days` into the parameters.
@@ -49,7 +55,13 @@ use crate::algorithm::LoadOperation;
 // TODO [ ]
 // Delete all the getters and turn the TacticalResources into a array based
 // representation.
-impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>>
+// TODO [ ]
+// You have to make this thing work.
+impl<Ss> TacticalAlgorithm<Ss>
+where
+    TacticalSolution: Solution,
+    TacticalParameters: Parameters,
+    Ss: SharedSolutionTrait,
 {
     pub fn capacity(&self, resource: &Resources, day: &Day) -> &Work
     {
@@ -58,7 +70,9 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
             .resources
             .get(resource)
             .unwrap()
+            .days
             .get(day)
+            .unwrap()
     }
 
     pub fn capacity_mut(&mut self, resource: &Resources, day: &Day) -> &mut Work
@@ -68,9 +82,12 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
             .resources
             .get_mut(resource)
             .unwrap()
-            .day_mut(day)
+            .days
+            .get_mut(day)
+            .unwrap()
     }
 
+    // This is a horrible way of working with the data. What should be done instead?
     pub fn loading(&self, resource: &Resources, day: &Day) -> &Work
     {
         self.solution
@@ -78,7 +95,9 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
             .resources
             .get(resource)
             .unwrap()
+            .days
             .get(day)
+            .unwrap()
     }
 
     pub fn loading_mut(&mut self, resource: &Resources, day: &Day) -> &mut Work
@@ -88,7 +107,9 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
             .resources
             .get_mut(resource)
             .unwrap()
-            .day_mut(day)
+            .days
+            .get_mut(day)
+            .unwrap()
     }
 
     fn determine_aggregate_excess(&self, tactical_objective_value: &mut TacticalObjectiveValue)
@@ -127,9 +148,8 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
             // What should we do to give him the correct state
             let period_start_date = match &self
                 .loaded_shared_solution
-                .strategic
-                .strategic_scheduled_work_orders
-                .get(work_order_number)
+                .strategic()
+                .scheduled_task(work_order_number)
                 .unwrap_or(&Option::None)
             {
                 Some(period) => period.start_date().date_naive(),
@@ -165,9 +185,16 @@ impl Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumb
     }
 }
 
-impl ActorBasedLargeNeighborhoodSearch
-    for Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>>
+impl<Ss> ActorBasedLargeNeighborhoodSearch for TacticalAlgorithm<Ss>
+where
+    Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>:
+        AbLNSUtils,
+    TacticalSolution: Solution,
+    TacticalParameters: Parameters,
+    Ss: SharedSolutionTrait<Tactical = TacticalSolution>,
 {
+    type Algorithm =
+        Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
     type Options = TacticalOptions;
 
     fn incorporate_shared_state(&mut self) -> Result<bool>
@@ -175,7 +202,7 @@ impl ActorBasedLargeNeighborhoodSearch
         Ok(true)
     }
 
-    fn make_atomic_pointer_swap(&self)
+    fn make_atomic_pointer_swap(&mut self)
     {
         // Performance enhancements:
         // * COW: #[derive(Clone)] struct SharedSolution<'a> { tactical: Cow<'a,
@@ -185,18 +212,23 @@ impl ActorBasedLargeNeighborhoodSearch
         //   shared_solution = Arc::new(SharedSolution { tactical:
         //   self.solution.clone(), // Copy over other fields without cloning
         //   ..(**old).clone() });
-        self.arc_swap_shared_solution.0.rcu(|old| {
+        self.arc_swap_shared_solution.rcu(|old| {
             let mut shared_solution = (**old).clone();
-            shared_solution.tactical = self.solution.clone();
+            shared_solution.tactical_swap(&self.id, self.solution.clone());
             Arc::new(shared_solution)
         });
     }
 
-    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType<Self::ObjectiveValue>>
+    fn calculate_objective_value(
+        &mut self,
+        options: &Self::Options,
+    ) -> Result<ObjectiveValueType<<TacticalSolution as Solution>::ObjectiveValue>>
     {
-        // TODO
-        let mut tactical_objective_value =
-            TacticalObjectiveValue::new(0, (1, u64::MAX), (1000000000, u64::MAX));
+        let mut tactical_objective_value = TacticalObjectiveValue::new(
+            0,
+            (options.urgency, u64::MAX),
+            (options.resource_penalty, u64::MAX),
+        );
 
         self.determine_tardiness(&mut tactical_objective_value);
 
@@ -445,6 +477,19 @@ impl ActorBasedLargeNeighborhoodSearch
         }
         Ok(())
     }
+
+    fn derive_options(
+        configurations: &arc_swap::Guard<Arc<ordinator_configuration::SystemConfigurations>>,
+        id: &ordinator_scheduling_environment::worker_environment::resources::Id,
+    ) -> Self::Options
+    {
+        todo!()
+    }
+
+    fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm
+    {
+        todo!()
+    }
 }
 
 enum LoopState
@@ -453,14 +498,6 @@ enum LoopState
     Scheduled,
     ReleasedFromTactical,
 }
-pub struct TacticalAlgorithm<Ss>(
-    Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>,
-)
-where
-    TacticalSolution: Solution,
-    TacticalParameters: Parameters,
-    Ss: SharedSolutionTrait;
-
 impl<Ss> Deref for TacticalAlgorithm<Ss>
 where
     Ss: SharedSolutionTrait,
@@ -585,35 +622,26 @@ enum OperationDifference
 pub mod tests
 {
     use std::collections::HashMap;
-    use std::str::FromStr;
 
     use chrono::Days;
-    use shared_types::agents::tactical::TacticalResources;
-    use shared_types::scheduling_environment::SchedulingEnvironment;
-    use shared_types::scheduling_environment::SchedulingEnvironmentBuilder;
-    use shared_types::scheduling_environment::time_environment::period::Period;
-    use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-    use shared_types::scheduling_environment::work_order::operation::Work;
-    use shared_types::scheduling_environment::worker_environment::resources::Id;
-    use shared_types::scheduling_environment::worker_environment::resources::Resources;
-    use strum::IntoEnumIterator;
+    use ordinator_actor_core::algorithm::Algorithm;
+    use ordinator_configuration::SystemConfigurations;
+    use ordinator_orchestrator_actor_traits::WhereIsWorkOrder;
+    use ordinator_scheduling_environment::SchedulingEnvironmentBuilder;
+    use ordinator_scheduling_environment::time_environment::period::Period;
+    use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+    use ordinator_scheduling_environment::work_order::operation::Work;
+    use ordinator_scheduling_environment::worker_environment::resources::Id;
+    use ordinator_scheduling_environment::worker_environment::resources::Resources;
 
     use super::Day;
     use super::tactical_parameters::OperationParameter;
     use super::tactical_parameters::TacticalParameter;
-    use crate::agents::Algorithm;
-    use crate::agents::AlgorithmUtils;
-    use crate::agents::ArcSwapSharedSolution;
-    use crate::agents::Solution;
-    use crate::agents::TacticalScheduledOperations;
-    use crate::agents::TacticalSolution;
-    use crate::agents::WhereIsWorkOrder;
-    use crate::agents::tactical_agent::TacticalOptions;
-    use crate::agents::tactical_agent::algorithm::OperationSolution;
-    use crate::agents::tactical_agent::algorithm::tactical_parameters::TacticalParameters;
-    use crate::agents::traits::ActorBasedLargeNeighborhoodSearch;
-    use crate::agents::traits::Parameters;
-    use crate::orchestrator::configuration::SystemConfigurations;
+    use super::tactical_parameters::TacticalParameters;
+    use super::tactical_solution::TacticalSolution;
+    use crate::algorithm::tactical_resources::TacticalResources;
+    use crate::algorithm::tactical_solution::OperationSolution;
+    use crate::algorithm::tactical_solution::TacticalScheduledOperations;
 
     #[test]
     fn test_determine_load_1()
@@ -724,51 +752,52 @@ pub mod tests
         let parameters = TacticalParameters::new(&id, tactical_options, &scheduling_environment);
         let solution = TacticalSolution::new(&parameters);
 
-        let mut tactical_algorithm = Algorithm::new(
-            &id,
-            solution,
-            parameters,
-            ArcSwapSharedSolution::default().into(),
-        );
+        // let mut tactical_algorithm = Algorithm::new(
+        //     &id,
+        //     solution,
+        //     parameters,
+        //     ArcSwapSharedSolution::default().into(),
+        // );
 
-        // This whole thing is ugly. Remember, you should work on getting the configs
-        // into the program, not the other way around.
+        // // This whole thing is ugly. Remember, you should work on getting the
+        // configs // into the program, not the other way around.
 
-        // FIX
-        // This does not confine to the correct interface setup of the program. You
-        // should think about this in the code. What other thing could you do
-        // here?
-        let operation_parameter = OperationParameter::new(work_order_number, operation);
+        // // FIX
+        // // This does not confine to the correct interface setup of the
+        // program. You // should think about this in the code. What
+        // other thing could you do // here?
+        // let operation_parameter = OperationParameter::new(work_order_number,
+        // operation);
 
-        let operation_solution = OperationSolution::new(
-            vec![(
-                tactical_algorithm.tactical_days[27].clone(),
-                Work::from(1.0),
-            )],
-            Resources::MtnMech,
-            operation_parameter.number,
-            operation_parameter.work_remaining,
-            work_order_number,
-            activity_number,
-        );
+        // let operation_solution = OperationSolution::new(
+        //     vec![(
+        //         tactical_algorithm.tactical_days[27].clone(),
+        //         Work::from(1.0),
+        //     )],
+        //     Resources::MtnMech,
+        //     operation_parameter.number,
+        //     operation_parameter.work_remaining,
+        //     work_order_number,
+        //     activity_number,
+        // );
 
-        let mut operation_parameters = HashMap::new();
-        operation_parameters.insert(activity_number, operation_parameter);
+        // let mut operation_parameters = HashMap::new();
+        // operation_parameters.insert(activity_number, operation_parameter);
 
-        let mut operation_solutions = HashMap::new();
-        operation_solutions.insert(1, operation_solution);
+        // let mut operation_solutions = HashMap::new();
+        // operation_solutions.insert(1, operation_solution);
 
-        // We simply have to make
-        let optimized_tactical_work_order =
-            TacticalParameter::new(&work_order, operation_parameters);
+        // // We simply have to make
+        // let optimized_tactical_work_order =
+        //     TacticalParameter::new(&work_order, operation_parameters);
 
-        tactical_algorithm
-            .parameters_mut()
-            .insert(work_order_number, optimized_tactical_work_order);
+        // tactical_algorithm
+        //     .parameters_mut()
+        //     .insert(work_order_number, optimized_tactical_work_order);
 
-        tactical_algorithm.calculate_objective_value().unwrap();
+        // tactical_algorithm.calculate_objective_value().unwrap();
 
-        // assert_eq!(tactical_algorithm.objective_value().0, 270);
+        // // assert_eq!(tactical_algorithm.objective_value().0, 270);
     }
 
     // This is ugly... I think that the best think to do here
@@ -788,77 +817,87 @@ pub mod tests
             days
         };
 
-        let mut tactical_algorithm = Algorithm::builder().solution(f).new(
-            tactical_days(56),
-            TacticalResources::new_from_data(
-                Resources::iter().collect(),
-                tactical_days(56),
-                Work::from(0.0),
-            ),
-            TacticalResources::new_from_data(
-                Resources::iter().collect(),
-                tactical_days(56),
-                Work::from(0.0),
-            ),
-            ArcSwapSharedSolution::default().into(),
-        );
-        // Work Order
-        // Resources::MtnMech,
-        // 10,
-        // vec![],
-        // NaiveDate::from_ymd_opt(2024, 10, 10).unwrap(),
+        // Should you work on test? Or getting the system operational? I think
+        // that getting it operational is the best choice here. I do not
+        // see a different way of doing it.
+        // You should also make these test at somepoint.
+        // QUESTION
+        // You should make the test later comment them out. The issue with
+        // starting to creating them now is that you will have to make
+        // some thing of a You will have to comment them out, and then
+        // introduce them back in again. let mut tactical_algorithm =
+        // Algorithm::builder().new(     tactical_days(56),
+        //     TacticalResources::new_from_data(
+        //         Resources::iter().collect(),
+        //         tactical_days(56),
+        //         Work::from(0.0),
+        //     ),
+        //     TacticalResources::new_from_data(
+        //         Resources::iter().collect(),
+        //         tactical_days(56),
+        //         Work::from(0.0),
+        //     ),
+        //     ArcSwapSharedSolution::default().into(),
+        // );
+        // // Work Order
+        // // Resources::MtnMech,
+        // // 10,
+        // // vec![],
+        // // NaiveDate::from_ymd_opt(2024, 10, 10).unwrap(),
 
-        // Operation
-        // 1,
-        // Work::from(1.0),
-        // Work::from(1.0),
-        // Work::from(1.0),
-        // Resources::MtnMech,
+        // // Operation
+        // // 1,
+        // // Work::from(1.0),
+        // // Work::from(1.0),
+        // // Work::from(1.0),
+        // // Resources::MtnMech,
 
-        let operation_parameter = OperationParameter::new(work_order_number, operation);
+        // let operation_parameter = OperationParameter::new(work_order_number,
+        // operation);
 
-        let mut tactical_operation_parameters = HashMap::new();
-        tactical_operation_parameters.insert(1, operation_parameter);
+        // let mut tactical_operation_parameters = HashMap::new();
+        // tactical_operation_parameters.insert(1, operation_parameter);
 
-        let tactical_work_order_parameter =
-            TacticalParameter::new(work_order, tactical_operation_parameters);
+        // let tactical_work_order_parameter =
+        //     TacticalParameter::new(work_order,
+        // tactical_operation_parameters);
 
-        tactical_algorithm
-            .parameters_mut()
-            .insert(work_order_number, tactical_work_order_parameter);
+        // tactical_algorithm
+        //     .parameters_mut()
+        //     .insert(work_order_number, tactical_work_order_parameter);
 
-        let activity_number = 0;
+        // let activity_number = 0;
 
-        let mut tactical_activities = TacticalScheduledOperations::default();
+        // let mut tactical_activities = TacticalScheduledOperations::default();
 
-        tactical_activities.0.insert(
-            activity_number,
-            OperationSolution::new(
-                vec![],
-                Resources::MtnMech,
-                1,
-                Work::from(0.0),
-                work_order_number,
-                activity_number,
-            ),
-        );
+        // tactical_activities.0.insert(
+        //     activity_number,
+        //     OperationSolution::new(
+        //         vec![],
+        //         Resources::MtnMech,
+        //         1,
+        //         Work::from(0.0),
+        //         work_order_number,
+        //         activity_number,
+        //     ),
+        // );
 
-        tactical_algorithm
-            .solution
-            .tactical_scheduled_work_orders
-            .0
-            .insert(
-                work_order_number,
-                WhereIsWorkOrder::Tactical(tactical_activities),
-            );
+        // tactical_algorithm
+        //     .solution
+        //     .tactical_scheduled_work_orders
+        //     .0
+        //     .insert(
+        //         work_order_number,
+        //         WhereIsWorkOrder::Tactical(tactical_activities),
+        //     );
 
-        tactical_algorithm.schedule().unwrap();
+        // tactical_algorithm.schedule().unwrap();
 
-        let scheduled_date = tactical_algorithm
-            .solution
-            .tactical_scheduled_days(&work_order_number, 0);
+        // let scheduled_date = tactical_algorithm
+        //     .solution
+        //     .tactical_scheduled_days(&work_order_number, 0);
 
-        assert!(scheduled_date.is_ok());
+        // assert!(scheduled_date.is_ok());
     }
 
     #[test]

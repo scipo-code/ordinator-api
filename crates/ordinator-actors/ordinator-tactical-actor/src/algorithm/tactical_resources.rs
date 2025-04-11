@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::MutexGuard;
 
+use anyhow::Context;
 use anyhow::Result;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::day::Day;
@@ -24,7 +25,7 @@ impl TacticalResources
 
     pub fn get_resource(&self, resource: &Resources, day: &Day) -> &Work
     {
-        self.resources.get(resource).unwrap().get(day)
+        self.resources.get(resource).unwrap().days.get(day).unwrap()
     }
 
     pub fn new_from_data(resources: Vec<Resources>, tactical_days: Vec<Day>, load: Work) -> Self
@@ -76,9 +77,9 @@ impl TacticalResources
     }
 }
 
-impl<'a> From<MutexGuard<'a, SchedulingEnvironment>> for TacticalResources
+impl<'a> From<&MutexGuard<'a, SchedulingEnvironment>> for TacticalResources
 {
-    fn from(value: &MutexGuard<SchedulingEnvironment>) -> Self
+    fn from(value: &MutexGuard<'a, SchedulingEnvironment>) -> Self
     {
         // TODO [ ]
         // Move this out of the code and into `configuration`
@@ -95,7 +96,12 @@ impl<'a> From<MutexGuard<'a, SchedulingEnvironment>> for TacticalResources
         // WARN
         // Should this be multi skill?
         let mut tactical_resources_inner = HashMap::<Resources, Days>::new();
-        for operational_configuration_all in value.agent_environment.operational.values() {
+        for operational_configuration_all in value
+            .worker_environment
+            .agent_environment
+            .operational
+            .values()
+        {
             for (i, day) in value.time_environment.tactical_days.iter().enumerate() {
                 let resource_periods = tactical_resources_inner
                     // FIX
@@ -103,7 +109,7 @@ impl<'a> From<MutexGuard<'a, SchedulingEnvironment>> for TacticalResources
                     // There is a logic error here. If we want to compare with the
                     // `StrategicAgent`.
                     .entry(operational_configuration_all.id.1.first().cloned().unwrap())
-                    .or_insert(Days::new(HashMap::new()));
+                    .or_insert(Days::default());
 
                 *resource_periods
                     .days

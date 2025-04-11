@@ -10,11 +10,19 @@ use serde::Serialize;
 
 use crate::work_order::operation::Work;
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone)]
+#[derive(Default, PartialEq, Eq, Serialize, Deserialize, Debug, Clone)]
 pub struct Days
 {
     // #[serde(with = "any_key_map")]
     pub days: HashMap<Day, Work>,
+}
+
+impl Days
+{
+    pub fn new(days: HashMap<Day, Work>) -> Self
+    {
+        Self { days }
+    }
 }
 
 #[derive(Eq, PartialEq, Hash, Clone, PartialOrd, Ord, Debug, Serialize, Deserialize)]

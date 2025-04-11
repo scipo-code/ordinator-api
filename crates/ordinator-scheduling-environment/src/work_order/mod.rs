@@ -268,7 +268,7 @@ pub enum ActivityRelation
 }
 
 #[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct WorkOrderConfigurations
 {
     pub order_type_weights: HashMap<String, u64>,
@@ -281,7 +281,7 @@ pub struct WorkOrderConfigurations
     pub operating_time: f64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ClusteringWeights
 {
     pub asset: u64,

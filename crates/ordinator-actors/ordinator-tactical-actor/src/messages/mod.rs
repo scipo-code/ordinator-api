@@ -51,6 +51,7 @@ impl TacticalResponse
 #[derive(Debug, Serialize)]
 pub enum TacticalResponseMessage
 {
+    FreeStringResponse(String),
     Status(TacticalResponseStatus),
     Scheduling(TacticalResponseScheduling),
     // Resources(TacticalResourceResponse),

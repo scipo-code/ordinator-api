@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::fmt::Display;
 
+use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
-use ordinator_actor_core::WhereIsWorkOrder;
 use ordinator_orchestrator_actor_traits::Solution;
+use ordinator_orchestrator_actor_traits::WhereIsWorkOrder;
 use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::time_environment::day::Days;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
@@ -149,7 +150,7 @@ impl TacticalSolution
         Ok(tactical_day)
     }
 
-    fn tactical_insert_work_order(
+    pub fn tactical_insert_work_order(
         &mut self,
         work_order_number: WorkOrderNumber,
         tactical_scheduled_operations: TacticalScheduledOperations,

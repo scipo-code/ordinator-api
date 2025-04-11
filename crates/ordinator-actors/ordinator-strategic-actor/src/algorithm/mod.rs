@@ -312,7 +312,7 @@ pub enum ScheduleWorkOrder
 // That is the main point for these types of things. The interface is
 // what defines the "Metavariables" from the paper and this is what
 // should we. 
-trait StrategicUtils
+pub trait StrategicUtils
 {
     
     fn schedule_strategic_work_order(
@@ -1044,7 +1044,7 @@ pub fn calculate_period_difference(scheduled_period: &Period, latest_period: &Pe
     std::cmp::max(days / 7, 0) as u64
 }
 
-pub struct StrategicAlgorithm<Ss>(Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>,Ss>)
+pub struct StrategicAlgorithm<Ss>(pub Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>,Ss>)
 where
     StrategicSolution: Solution,
     StrategicParameters: Parameters,
@@ -1073,7 +1073,7 @@ where
 impl<Ss> ActorBasedLargeNeighborhoodSearch
     for StrategicAlgorithm<Ss>
     where
-        Self: AbLNSUtils,
+        Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>: AbLNSUtils<SolutionType = StrategicSolution>,
         StrategicSolution: Solution,
         StrategicParameters: Parameters,
         Ss: SharedSolutionTrait<Strategic = StrategicSolution>,
@@ -1159,7 +1159,7 @@ impl<Ss> ActorBasedLargeNeighborhoodSearch
         });
     }
 
-    fn calculate_objective_value(&mut self, options: &Self::Options) -> Result<ObjectiveValueType<<StrategicSolution as Solution>::ObjectiveValue>>
+    fn calculate_objective_value(&mut self, options: &Self::Options) -> Result<ObjectiveValueType<<<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue>>
     {
         let mut strategic_objective_value = StrategicObjectiveValue::new(&options);
 
