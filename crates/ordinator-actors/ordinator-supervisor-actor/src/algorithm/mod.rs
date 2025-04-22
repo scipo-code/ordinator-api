@@ -34,8 +34,7 @@ where
     pub fn unschedule_specific_work_order(
         &mut self,
         work_order_number: WorkOrderNumber,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         self.solution
             .turn_work_order_into_delegate_assess(work_order_number);
         Ok(())
@@ -52,8 +51,7 @@ where
     type Algorithm = Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>;
     type Options = SupervisorOptions;
 
-    fn make_atomic_pointer_swap(&mut self)
-    {
+    fn make_atomic_pointer_swap(&mut self) {
         // Performance enhancements:
         // * COW: #[derive(Clone)] struct SharedSolution<'a> { tactical: Cow<'a,
         //   TacticalSolution>, // other fields... }
@@ -69,8 +67,7 @@ where
         });
     }
 
-    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType<Self::ObjectiveValue>>
-    {
+    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType<Self::ObjectiveValue>> {
         let assigned_woas = &self.solution.number_of_assigned_work_orders();
 
         let all_woas: HashSet<_> = self.solution.get_work_order_activities();
@@ -99,8 +96,7 @@ where
         }
     }
 
-    fn schedule(&mut self) -> Result<()>
-    {
+    fn schedule(&mut self) -> Result<()> {
         for work_order_activity in &self.solution.get_work_order_activities() {
             let number = self
                 .parameters
@@ -172,8 +168,7 @@ where
         Ok(())
     }
 
-    fn unschedule(&mut self) -> Result<()>
-    {
+    fn unschedule(&mut self) -> Result<()> {
         let work_order_numbers = self.solution.get_assigned_and_unassigned_work_orders();
 
         let sampled_work_order_numbers = work_order_numbers
@@ -199,8 +194,7 @@ where
         // old_state).unwrap();
     }
 
-    fn incorporate_shared_state(&mut self) -> Result<bool>
-    {
+    fn incorporate_shared_state(&mut self) -> Result<bool> {
         // List current activities in the `SupervisorAgent`
         let current_activities = self
             .solution
@@ -275,16 +269,14 @@ where
         Ok(true)
     }
 
-    fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm
-    {
+    fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm {
         &mut self.0
     }
 
     fn derive_options(
         configurations: &arc_swap::Guard<Arc<ordinator_configuration::SystemConfigurations>>,
         id: &ordinator_scheduling_environment::worker_environment::resources::Id,
-    ) -> Self::Options
-    {
+    ) -> Self::Options {
         todo!()
     }
 }
@@ -292,8 +284,7 @@ where
 fn is_assigned_part_of_all(
     assigned_woas: &HashSet<(WorkOrderNumber, ActivityNumber)>,
     all_woas: &HashSet<(WorkOrderNumber, ActivityNumber)>,
-) -> bool
-{
+) -> bool {
     assigned_woas
         .iter()
         .all(|(wo, ac)| all_woas.contains(&(*wo, *ac)))

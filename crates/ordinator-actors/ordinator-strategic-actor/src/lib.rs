@@ -1,19 +1,28 @@
 mod algorithm;
 pub mod messages;
 
+use anyhow::Result;
+use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::MutexGuard;
 
 use algorithm::StrategicAlgorithm;
 use algorithm::strategic_solution::StrategicSolution;
+use arc_swap::ArcSwap;
 use arc_swap::Guard;
 use messages::StrategicRequestMessage;
 use messages::StrategicResponseMessage;
 use ordinator_actor_core::Actor;
 use ordinator_configuration::SystemConfigurations;
+use ordinator_orchestrator_actor_traits::ActorMessage;
+use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_scheduling_environment::Asset;
+use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::MaterialToPeriod;
 use ordinator_scheduling_environment::work_order::WorkOrderConfigurations;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
@@ -25,7 +34,7 @@ use rand::rngs::StdRng;
 // Issue is that I do not know how the traits affect each other in the code
 // and how generics play into the large structure
 // How is it that these components actually work? You need to understand this
-// it is like the whole system is flawed and there is nothing that you can do
+// it is like the wole system is flawed and there is nothing that you can do
 // about it as you do not understand it.
 // QUESTION
 // What should you do to fix this? The best option is to figure it out
@@ -94,8 +103,7 @@ where
     Self: MessageHandler<Req = StrategicRequestMessage, Res = StrategicResponseMessage>;
 
 #[derive(Debug)]
-pub struct StrategicOptions
-{
+pub struct StrategicOptions {
     pub number_of_removed_work_order: usize,
     pub rng: StdRng,
     pub urgency_weight: usize,
@@ -104,10 +112,8 @@ pub struct StrategicOptions
     pub work_order_configurations: WorkOrderConfigurations,
     pub material_to_period: MaterialToPeriod,
 }
-impl From<(&Guard<Arc<SystemConfigurations>>, &Id)> for StrategicOptions
-{
-    fn from(value: (&Guard<Arc<SystemConfigurations>>, &Id)) -> Self
-    {
+impl From<(&Guard<Arc<SystemConfigurations>>, &Id)> for StrategicOptions {
+    fn from(value: (&Guard<Arc<SystemConfigurations>>, &Id)) -> Self {
         let strategic_option_config = &value
             .0
             .actor_specification
@@ -142,10 +148,8 @@ impl From<(&Guard<Arc<SystemConfigurations>>, &Id)> for StrategicOptions
         }
     }
 }
-impl From<(SystemConfigurations, &Id)> for StrategicOptions
-{
-    fn from(value: (SystemConfigurations, &Id)) -> Self
-    {
+impl From<(SystemConfigurations, &Id)> for StrategicOptions {
+    fn from(value: (SystemConfigurations, &Id)) -> Self {
         let strategic_option_config = &value
             .0
             .actor_specification
@@ -186,8 +190,7 @@ where
 {
     type Target = Actor<StrategicRequestMessage, StrategicResponseMessage, StrategicAlgorithm<Ss>>;
 
-    fn deref(&self) -> &Self::Target
-    {
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
@@ -196,23 +199,52 @@ impl<Ss> DerefMut for StrategicActor<Ss>
 where
     Ss: SharedSolutionTrait<Strategic = StrategicSolution>,
 {
-    fn deref_mut(&mut self) -> &mut Self::Target
-    {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-#[cfg(test)]
-mod tests
+// This function can only work with the 'SharedSolutionTrait'.
+// You cannot
+// TODO [ ]
+// This should be a trait that should be implemented instead. But first make the function
+// work again. I think that is the best approach here.
+//
+// QUESTION [ ]
+// What the the stance on the 'Configuration'
+pub fn strategic_factory<Ss>(
+    id: Id,
+    scheduling_environment_guard: Arc<Mutex<SchedulingEnvironment>>,
+    shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
+    notify_orchestrator: Box<dyn OrchestratorNotifier>,
+    strategic_options: StrategicOptions,
+) -> Result<Communication<ActorMessage<StrategicRequestMessage>, StrategicResponseMessage>>
+where
+    Ss: SharedSolutionTrait,
 {
+    Actor::builder()
+        .agent_id(Id::new("StrategicAgent", vec![], vec![id.asset().clone()]))
+        .scheduling_environment(Arc::clone(&scheduling_environment_guard))
+        // TODO
+        // Make a builder here!
+        .algorithm(|ab| ab.id(id))
+        // TODO [x]
+        // These should be created in a single step
+        .communication()
+        .configurations(configurations)
+        .notify_orchestrator(notify_orchestrator)
+        .build()
+}
+
+#[cfg(test)]
+mod tests {
     use ordinator_scheduling_environment::work_order::WorkOrder;
     use ordinator_scheduling_environment::work_order::WorkOrderNumber;
     use ordinator_scheduling_environment::work_order::work_order_dates::unloading_point::UnloadingPoint;
     use ordinator_scheduling_environment::worker_environment::resources::Resources;
 
     #[test]
-    fn test_extract_state_to_scheduler_overview()
-    {
+    fn test_extract_state_to_scheduler_overview() {
         WorkOrder::builder(WorkOrderNumber(2100000001))
             .operations_builder(10, Resources::MtnMech, |e| {
                 e.operation_info(|e| e.work_remaining(1.0))
