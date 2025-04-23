@@ -37,99 +37,28 @@ use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
 #[derive(Debug, Clone)]
-pub struct AgentFactory
-{
+pub struct AgentFactory {
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
 }
 
-impl AgentFactory
-{
-    pub fn new(scheduling_environment: Arc<Mutex<SchedulingEnvironment>>) -> Self
-    {
+// TODO [ ]
+// Move every single function into the Agents themselves and have the orchestrator input
+// them. This means that almost everything should be made as "non-pub". This is the crucial
+// lesson learned from 100s of failures.
+// You should test a single instance of the factory. That is the most crucial aspect. Make a single
+// function.
+impl AgentFactory {
+    pub fn new(scheduling_environment: Arc<Mutex<SchedulingEnvironment>>) -> Self {
         AgentFactory {
             scheduling_environment,
         }
     }
 
     // This should be moved to the `Orchestrator`
-    pub fn create_shared_solution_arc_swap() -> Arc<ArcSwap<SharedSolution>>
-    {
+    pub fn create_shared_solution_arc_swap() -> Arc<ArcSwap<SharedSolution>> {
         let shared_solution_arc_swap = SharedSolution::default();
 
         Arc::new(ArcSwap::from(Arc::new(shared_solution_arc_swap)))
-    }
-
-    // Okay very good! Every agent should look like this! That is important.
-    //
-    pub fn build_strategic_agent(
-        &self,
-        asset: &Asset,
-        scheduling_environment_guard: &MutexGuard<SchedulingEnvironment>,
-        shared_solution_arc_swap: Arc<ArcSwap<SharedSolution>>,
-        notify_orchestrator: NotifyOrchestrator,
-        // Okay now the issue is that we have to decide what to do with the
-        // general configurations. I think that this is the best approach for
-        // generating the best result.
-        // This should only have the `SystemConfiguration`. That is the best approach here.
-        //
-        // Should you go to Laura? No, should you go have beer? Maybe, should you
-        // This is pretty cool. I think that it is much nicer to write on the laptop,
-        // keyboard.
-        //
-        //  strategic_options: StrategicOptions,
-    ) -> Result<Communication<ActorMessage<StrategicRequestMessage>, StrategicResponseMessage>>
-    {
-        let agent = Actor::builder()
-            .agent_id(Id::new("StrategicAgent", vec![], vec![asset.clone()]))
-            .scheduling_environment(Arc::clone(&self.scheduling_environment))
-            .algorithm(|ab| ab.id().)
-            // TODO [x]
-            // These should be created in a single step
-            .communication()
-            .configurations(configurations)
-            .notify_orchestrator(notify_orchestrator)
-            .build();
-        // Factory Traits Solve This Problem.
-
-        // The orchestrator only calls
-        // StrategicActorFactory::create_strategic_actor(&self, config: &Config),
-        // It never di
-        let strategic_parameters = StrategicParameters::new(
-            &strategic_id,
-            strategic_options,
-            scheduling_environment_guard,
-        )
-        .with_context(|| format!("Failed to create StrategicParameters for {}", asset))?;
-
-        let strategic_solution = StrategicSolution::new(&strategic_parameters);
-
-        let strategic_algorithm: Algorithm<
-            StrategicSolution,
-            StrategicParameters,
-            // FIX
-            // You do not want a priority queue you want a BinaryHeap. That is a much
-            // better choice.
-            priority_queue::PriorityQueue<WorkOrderNumber, u64>,
-        > = Algorithm::new(
-            &strategic_id,
-            strategic_solution,
-            strategic_parameters,
-            shared_solution_arc_swap,
-        );
-
-        let mut strategic_agent = Actor::new(
-            strategic_id,
-            arc_scheduling_environment,
-            strategic_algorithm,
-            receiver_from_orchestrator,
-            sender_to_orchestrator,
-            notify_orchestrator,
-        );
-
-        Ok(Communication {
-            sender: sender_to_agent,
-            receiver: receiver_from_agent,
-        })
     }
 
     pub fn build_tactical_agent(
@@ -138,8 +67,7 @@ impl AgentFactory
         scheduling_environment_guard: &MutexGuard<SchedulingEnvironment>,
         strategic_tactical_optimized_work_orders: Arc<ArcSwapSharedSolution>,
         notify_orchestrator: NotifyOrchestrator,
-    ) -> Result<Communication<ActorMessage<TacticalRequestMessage>, TacticalResponseMessage>>
-    {
+    ) -> Result<Communication<ActorMessage<TacticalRequestMessage>, TacticalResponseMessage>> {
         // This is a horrible approach. You should centralize it first.
 
         let tactical_id = Id::new(
