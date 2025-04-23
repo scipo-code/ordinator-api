@@ -21,6 +21,7 @@ use super::Unavailability;
 use super::no_overlap_by_ref;
 use super::operational_events::OperationalEvents;
 use super::operational_parameter::OperationalParameters;
+use crate::OperationalOptions;
 
 /// You want this to be a struct so that you can implement methods and
 /// formatting and logging.
@@ -47,9 +48,10 @@ pub struct OperationalSolution
 impl Solution for OperationalSolution
 {
     type ObjectiveValue = OperationalObjectiveValue;
+    type Options = OperationalOptions;
     type Parameters = OperationalParameters;
 
-    fn new(parameters: &Self::Parameters) -> Self
+    fn new(parameters: &Self::Parameters, options: &Self::Options) -> Self
     {
         let mut scheduled_work_order_activities = Vec::new();
 

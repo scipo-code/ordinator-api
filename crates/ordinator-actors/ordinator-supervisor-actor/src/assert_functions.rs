@@ -2,14 +2,15 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use anyhow::bail;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_actor_core::Actor;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::StrategicInterface;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use tracing::Level;
 use tracing::event;
 
-use super::algorithm::supervisor_parameters::SupervisorParameters;
-use crate::agents::Actor;
-use crate::agents::Algorithm;
-use crate::agents::SupervisorSolution;
+use crate::algorithm::SupervisorAlgorithm;
+use crate::algorithm::supervisor_solution::SupervisorSolution;
 
 #[allow(dead_code)]
 pub trait SupervisorAssertions
@@ -22,8 +23,10 @@ pub trait SupervisorAssertions
     ) -> Result<()>;
 }
 
-impl<MessageRequest, MessageResponse> SupervisorAssertions
-    for Actor<MessageRequest, MessageResponse, SupervisorSolution, SupervisorParameters, ()>
+impl<MessageRequest, MessageResponse, Ss> SupervisorAssertions
+    for Actor<MessageRequest, MessageResponse, SupervisorAlgorithm<Ss>>
+where
+    Ss: SharedSolutionTrait<Supervisor = SupervisorSolution>,
 {
     fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(
         &self,
@@ -32,8 +35,11 @@ impl<MessageRequest, MessageResponse> SupervisorAssertions
         let tactical_operation_woas: HashSet<WorkOrderNumber> = self
             .algorithm
             .loaded_shared_solution
-            .strategic
-            .supervisor_work_orders_from_strategic(&self.algorithm.parameters.supervisor_periods);
+            .strategic()
+            .supervisor_tasks(&self.algorithm.parameters.supervisor_periods)
+            .iter()
+            .map(|f| *f.0)
+            .collect();
 
         let operational_state_woas: HashSet<WorkOrderNumber> = self
             .algorithm
@@ -68,8 +74,11 @@ impl<MessageRequest, MessageResponse> SupervisorAssertions
         let strategic_work_orders: HashSet<WorkOrderNumber> = self
             .algorithm
             .loaded_shared_solution
-            .strategic
-            .supervisor_work_orders_from_strategic(&self.algorithm.parameters.supervisor_periods);
+            .strategic()
+            .supervisor_tasks(&self.algorithm.parameters.supervisor_periods)
+            .iter()
+            .map(|f| *f.0)
+            .collect();
 
         let operational_state_work_order_activities: HashSet<WorkOrderNumber> = self
             .algorithm

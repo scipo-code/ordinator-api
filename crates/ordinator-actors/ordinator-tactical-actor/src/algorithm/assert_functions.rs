@@ -4,18 +4,20 @@ use std::collections::HashMap;
 use anyhow::Result;
 use anyhow::bail;
 use colored::Colorize;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_scheduling_environment::time_environment::day::Day;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::work_order::operation::Work;
+use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use priority_queue::PriorityQueue;
-use shared_types::scheduling_environment::time_environment::day::Day;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::scheduling_environment::work_order::operation::Work;
-use shared_types::scheduling_environment::worker_environment::resources::Resources;
 use strum::IntoEnumIterator;
 use tracing::Level;
 use tracing::event;
 
 use super::Algorithm;
 use super::tactical_parameters::TacticalParameters;
-use crate::agents::TacticalSolution;
+use super::tactical_solution::TacticalSolution;
+use super::tactical_solution::TacticalWhereIsWorkOrder;
 
 type TotalExcessHours = Work;
 
@@ -27,8 +29,12 @@ pub trait TacticalAssertions
     fn asset_that_capacity_is_not_exceeded(&self) -> Result<TotalExcessHours>;
 }
 
-impl TacticalAssertions
-    for Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>>
+type Type = TacticalParameters;
+
+impl<Ss> TacticalAssertions
+    for Algorithm<TacticalSolution, Type, PriorityQueue<WorkOrderNumber, u64>, Ss>
+where
+    Ss: SharedSolutionTrait,
 {
     fn asset_that_loading_matches_scheduled(&self) -> Result<()>
     {
@@ -113,7 +119,7 @@ impl TacticalAssertions
 //             .earliest_start_day = (|| {
 //             for (work_order_number, optimized_work_order) in
 // self.parameters().clone() {                 let start_date_from_period =
-// match optimized_work_order.scheduled_period {                     
+// match optimized_work_order.scheduled_period {
 // Some(period) => period.start_date().date_naive(),                     None =>
 // optimized_work_order.earliest_allowed_start_date,                 };
 
@@ -152,7 +158,7 @@ impl TacticalAssertions
 //             .all_scheduled = (|| {
 //             for (work_order_number, optimized_work_order) in
 // self.parameters().clone() {                 if
-// optimized_work_order.operation_solutions.is_none() {                     
+// optimized_work_order.operation_solutions.is_none() {
 // return ConstraintState::Infeasible(work_order_number.0.to_string());
 //                 }
 //             }

@@ -1,15 +1,19 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use arc_swap::Guard;
+use ordinator_orchestrator_actor_traits::OperationalInterface;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::delegate::Delegate;
+use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
 use super::supervisor_parameters::SupervisorParameters;
+use crate::SupervisorOptions;
 
 pub type SupervisorObjectiveValue = u64;
 
@@ -19,12 +23,14 @@ pub struct SupervisorSolution
     pub(crate) objective_value: SupervisorObjectiveValue,
     pub(crate) operational_state_machine: HashMap<(Id, WorkOrderActivity), Delegate>,
 }
+
 impl Solution for SupervisorSolution
 {
     type ObjectiveValue = SupervisorObjectiveValue;
+    type Options = SupervisorOptions;
     type Parameters = SupervisorParameters;
 
-    fn new(parameters: &Self::Parameters) -> Self
+    fn new(parameters: &Self::Parameters, options: &Self::Options) -> Self
     {
         // The SupervisorParameters should have knowledge of the agents.
 
@@ -87,12 +93,15 @@ impl SupervisorSolution
             .collect()
     }
 
+    // You have to be afraid of these kind of things here. I believe that the
+    // best approach here is to make something that will allow us to work on the
+    //
     pub fn operational_status_by_work_order_activity<Ss>(
         &self,
         work_order_activity: &WorkOrderActivity,
         // It can only ever reference the `loaded_shared_solution`
         loaded_shared_solution: &Guard<Arc<Ss>>,
-    ) -> Vec<(Id, Delegate, &MarginalFitness)>
+    ) -> Vec<(Id, Delegate, MarginalFitness)>
     where
         Ss: SharedSolutionTrait,
     {
@@ -102,27 +111,21 @@ impl SupervisorSolution
             .map(|(id_woa, del)| {
                 (
                     id_woa.0.clone(),
-                    *del,
+                    del,
                     // This is what you want to return. I do not think that
                     // there is a better approach. You should simply extract
                     // the most simple part of this.
-                    operational_solutions
-                        .get(&id_woa.0)
-                        .expect("The agent should be present")
-                        .scheduled_work_order_activities
-                        .iter()
-                        .find(|woa_ass| woa_ass.0 == id_woa.1)
-                        .map(|woa_ass| &woa_ass.1.marginal_fitness), /* What should be done if
-                                                                      * the Agent does not yet
-                                                                      * have a */
+                    loaded_shared_solution
+                        .operational(&id_woa.0)
+                        .marginal_fitness_for_operational_actor(work_order_activity),
                 )
             })
             .filter(|id_del_opt_mar_fit| id_del_opt_mar_fit.2.is_some())
             .map(|id_del_opt_mar_fit| {
                 (
                     id_del_opt_mar_fit.0,
-                    id_del_opt_mar_fit.1,
-                    id_del_opt_mar_fit.2.unwrap(),
+                    id_del_opt_mar_fit.1.clone(),
+                    id_del_opt_mar_fit.2.cloned().unwrap(),
                 )
             })
             .collect()

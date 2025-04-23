@@ -24,13 +24,11 @@ impl OperationalInterface for OperationalSolution
     fn marginal_fitness_for_operational_actor<'a>(
         &'a self,
         work_order_activity: &WorkOrderActivity,
-    ) -> Vec<&'a MarginalFitness>
+    ) -> Option<&'a MarginalFitness>
     {
         self.scheduled_work_order_activities
             .iter()
             .find(|woa_ass| woa_ass.0 == *work_order_activity)
             .map(|woa_ass| &woa_ass.1.marginal_fitness)
-            .into_iter()
-            .collect::<Vec<_>>()
     }
 }

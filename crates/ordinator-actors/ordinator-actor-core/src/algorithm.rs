@@ -137,23 +137,11 @@ where
         self
     }
 
-    // This should call the relevant method instead of the
-    fn solution(mut self) -> Self
-    {
-        let parameters = self
-            .parameters
-            .as_ref()
-            .expect("You must call `parameters` before `solution`");
-        let solution = S::new(parameters);
-        self.solution = Some(solution);
-        self
-    }
-
     // This is a needless level of indirection. You should be careful of this type
     // of thing. The issue here is what we should do about this.
     // What should happen to this function? I think that the best place to have
     // there kind of things
-    pub fn parameters(
+    pub fn parameters_and_solution(
         mut self,
         system_configurations: &Guard<Arc<SystemConfigurations>>,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
@@ -164,8 +152,15 @@ where
             scheduling_environment,
             system_configurations,
         )?;
+
+        // Okay so the issue here is that the code is not working correctly. So the
+        // reason that you. Ahh CRUCIAL INSIGHT... The S is the actual concrete type
+        // here and `Solution` was simply the trait... This is a crucial insight here.
+        // There is so many
+        let options = S::Options::from((system_configurations, self.id.as_ref().unwrap()));
+        self.solution = Some(S::new(&parameters, &options));
         self.parameters = Some(parameters);
-        Ok(self.solution())
+        Ok(self)
     }
 
     pub fn arc_swap_shared_solution(mut self, arc_swap_shared_solution: Arc<ArcSwap<Ss>>) -> Self

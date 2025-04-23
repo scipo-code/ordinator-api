@@ -10,6 +10,20 @@ impl StrategicInterface for StrategicSolution
     // forward here.
     fn scheduled_task(&self, work_order_number: &WorkOrderNumber) -> Option<&Option<Period>>
     {
-        self.strategic_scheduled_work_orders.get(&work_order_number)
+        self.strategic_scheduled_work_orders.get(work_order_number)
+    }
+
+    fn supervisor_tasks(
+        &self,
+        periods: &[Period],
+    ) -> std::collections::HashMap<WorkOrderNumber, Period>
+    {
+        self.strategic_scheduled_work_orders
+            .clone()
+            .into_iter()
+            .filter_map(|(won, opt_str_per)| {
+                opt_str_per.and_then(|per| periods.contains(&per).then_some((won, per)))
+            })
+            .collect()
     }
 }

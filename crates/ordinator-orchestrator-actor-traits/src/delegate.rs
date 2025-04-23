@@ -1,6 +1,6 @@
 use ordinator_scheduling_environment::work_order::operation::Operation;
 
-#[derive(Default, Hash, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Default, Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
 pub enum Delegate
 {
     #[default]

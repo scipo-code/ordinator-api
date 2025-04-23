@@ -142,8 +142,6 @@ mod tests
     use chrono::TimeDelta;
     use ordinator_scheduling_environment::time_environment::TimeInterval;
 
-    use super::*;
-
     #[test]
     fn test_time_interval_contains_1()
     {

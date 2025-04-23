@@ -14,6 +14,7 @@ use anyhow::Result;
 use anyhow::bail;
 use chrono::TimeDelta;
 use ordinator_actor_core::algorithm::Algorithm;
+use ordinator_actor_core::algorithm::LoadOperation;
 use ordinator_actor_core::traits::AbLNSUtils;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_actor_core::traits::ObjectiveValueType;
@@ -21,6 +22,7 @@ use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::StrategicInterface;
+use ordinator_orchestrator_actor_traits::WhereIsWorkOrder;
 use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
@@ -29,6 +31,7 @@ use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use priority_queue::PriorityQueue;
 use rand::seq::IndexedRandom;
 use tactical_solution::TacticalObjectiveValue;
+use tactical_solution::TacticalScheduledOperations;
 use tactical_solution::TacticalSolution;
 use tracing::Level;
 use tracing::event;
@@ -188,7 +191,7 @@ where
 impl<Ss> ActorBasedLargeNeighborhoodSearch for TacticalAlgorithm<Ss>
 where
     Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>:
-        AbLNSUtils,
+        AbLNSUtils<SolutionType = TacticalSolution>,
     TacticalSolution: Solution,
     TacticalParameters: Parameters,
     Ss: SharedSolutionTrait<Tactical = TacticalSolution>,
@@ -222,13 +225,13 @@ where
     fn calculate_objective_value(
         &mut self,
         options: &Self::Options,
-    ) -> Result<ObjectiveValueType<<TacticalSolution as Solution>::ObjectiveValue>>
+    ) -> Result<
+        ObjectiveValueType<
+            <<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue,
+        >,
+    >
     {
-        let mut tactical_objective_value = TacticalObjectiveValue::new(
-            0,
-            (options.urgency, u64::MAX),
-            (options.resource_penalty, u64::MAX),
-        );
+        let mut tactical_objective_value = TacticalObjectiveValue::new(options);
 
         self.determine_tardiness(&mut tactical_objective_value);
 
@@ -251,12 +254,13 @@ where
     {
         self.asset_that_loading_matches_scheduled()
             .with_context(|| format!("TESTING_ASSERTION on line: {}", line!()))?;
-        for (work_order_number, solution) in &self.solution.tactical_work_orders.0 {
+        for (work_order_number, solution) in &self.solution.tactical_work_orders.0.clone() {
             let tactical_parameter = self
                 .parameters
                 .tactical_work_orders
                 .get(work_order_number)
-                .expect("TacticalParameter should ALWAYS be available for a TacticalSolution");
+                .expect("TacticalParameter should ALWAYS be available for a TacticalSolution")
+                .clone();
 
             // All the work orders that does not have a solution gets pushed to the queue.
             if matches!(solution, WhereIsWorkOrder::NotScheduled) {
@@ -392,7 +396,7 @@ where
                         }
                     };
 
-                let loadings = Self::determine_load(
+                let loadings = determine_load(
                     first_day_remaining_capacity,
                     &operation_parameters.operating_time,
                     operation_parameters.work_remaining,
@@ -461,7 +465,7 @@ where
             .collect();
 
         let random_work_order_numbers = work_order_numbers.choose_multiple(
-            &mut self.parameters.options.rng,
+            &mut self.parameters.options.rng.clone(),
             self.parameters.options.number_of_removed_work_orders,
         );
 
@@ -583,32 +587,31 @@ where
             Some(remaining_capacity)
         }
     }
+}
+fn determine_load(
+    remaining_capacity: Work,
+    operating_time: &Work,
+    mut work_remaining: Work,
+) -> Vec<Work>
+{
+    let mut loadings = Vec::new();
 
-    fn determine_load(
-        remaining_capacity: Work,
-        operating_time: &Work,
-        mut work_remaining: Work,
-    ) -> Vec<Work>
-    {
-        let mut loadings = Vec::new();
-
-        let first_day_load = match remaining_capacity.partial_cmp(operating_time) {
+    let first_day_load = match remaining_capacity.partial_cmp(operating_time) {
         Some(Ordering::Less) => remaining_capacity,
         Some(Ordering::Equal) => remaining_capacity,
         Some(Ordering::Greater) => *operating_time,
         None => panic!("remaining work and operating_time are not comparable. There is an error in the data initialization"),
     }.min(work_remaining);
 
-        loadings.push(first_day_load);
-        work_remaining -= first_day_load;
+    loadings.push(first_day_load);
+    work_remaining -= first_day_load;
 
-        while work_remaining > Work::from(0.0) {
-            let load = *operating_time.min(&work_remaining);
-            loadings.push(load);
-            work_remaining -= load;
-        }
-        loadings
+    while work_remaining > Work::from(0.0) {
+        let load = *operating_time.min(&work_remaining);
+        loadings.push(load);
+        work_remaining -= load;
     }
+    loadings
 }
 
 #[allow(dead_code)]
@@ -621,27 +624,10 @@ enum OperationDifference
 #[cfg(test)]
 pub mod tests
 {
-    use std::collections::HashMap;
-
-    use chrono::Days;
-    use ordinator_actor_core::algorithm::Algorithm;
-    use ordinator_configuration::SystemConfigurations;
-    use ordinator_orchestrator_actor_traits::WhereIsWorkOrder;
-    use ordinator_scheduling_environment::SchedulingEnvironmentBuilder;
-    use ordinator_scheduling_environment::time_environment::period::Period;
-    use ordinator_scheduling_environment::work_order::WorkOrderNumber;
     use ordinator_scheduling_environment::work_order::operation::Work;
     use ordinator_scheduling_environment::worker_environment::resources::Id;
-    use ordinator_scheduling_environment::worker_environment::resources::Resources;
 
-    use super::Day;
-    use super::tactical_parameters::OperationParameter;
-    use super::tactical_parameters::TacticalParameter;
-    use super::tactical_parameters::TacticalParameters;
-    use super::tactical_solution::TacticalSolution;
-    use crate::algorithm::tactical_resources::TacticalResources;
-    use crate::algorithm::tactical_solution::OperationSolution;
-    use crate::algorithm::tactical_solution::TacticalScheduledOperations;
+    use crate::algorithm::determine_load;
 
     #[test]
     fn test_determine_load_1()
@@ -650,8 +636,15 @@ pub mod tests
         let operating_time = Work::from(5.0);
         let work_remaining = Work::from(10.0);
 
-        let loadings =
-            Algorithm::determine_load(remaining_capacity, &operating_time, work_remaining);
+        // You need a `SharedSolution` to call this function... Does this even
+        // make anysense? I think that it does but this is going to be really really
+        // difficult. You should strive to make the code here
+        // This sure is a horrible trait. I think that there is a way of making this
+        // in a really good way
+        //
+        // You could also simply remove the function from the `Algorithm inplementation`
+
+        let loadings = determine_load(remaining_capacity, &operating_time, work_remaining);
 
         assert_eq!(loadings, vec![
             Work::from(3.0),
@@ -669,8 +662,7 @@ pub mod tests
         let operating_time = Work::from(3.0);
         let work_remaining = Work::from(10.0);
 
-        let loadings =
-            Algorithm::determine_load(remaining_capacity, &operating_time, work_remaining);
+        let loadings = determine_load(remaining_capacity, &operating_time, work_remaining);
 
         assert_eq!(loadings, vec![
             Work::from(3.0),
@@ -698,301 +690,10 @@ pub mod tests
         assert_eq!(min_work, Work::from(10.0));
     }
 
-    #[test]
-    fn test_calculate_objective_value()
-    {
-        let work_order_number = WorkOrderNumber(2100000001);
-        let activity_number = 1;
-        let first_period = Period::from_str("2024-W13-14").unwrap();
-
-        let tactical_days = |number_of_days: u32| -> Vec<Day> {
-            let mut days: Vec<Day> = Vec::new();
-            let mut date = first_period.start_date().to_owned();
-            for day_index in 0..number_of_days {
-                days.push(Day::new(day_index as usize, date.to_owned()));
-                date = date.checked_add_days(Days::new(1)).unwrap();
-            }
-            days
-        };
-        // Work Order
-        // Resources::MtnMech,
-        // 10,
-        // vec![],
-        // NaiveDate::from_ymd_opt(2024, 10, 10).unwrap(),
-
-        // Operation
-        // 1,
-        // Work::from(1.0),
-        // Work::from(1.0),
-        // Work::from(1.0),
-        // Resources::MtnMech,
-        let scheduling_environment = SchedulingEnvironmentBuilder::default()
-            .time_environment_builder(|ib| ib.tactical_days("2025-02-22T07:00:00Z", 56))
-            .with_work_order()
-            .with_operation();
-
-        // TODO
-        // Insert the needed functions here to create the `SchedulingEnvironment`
-
-        let id = Id::default();
-
-        let system_configuration = SystemConfigurations::read_all_configs().unwrap();
-        let tactical_options = system_configuration.tactical_options(id.2.first().unwrap());
-
-        // TODO [ ]
-        // Which Options should be inserted into this? I think that the best
-        // You should make a method on the SystemConfigurations::strategic_options(...)
-        // -> StrategicOptions TODO [ ]
-        // Put the system configuration into the Orchestrator
-        // TODO [ ]
-        // Put the system configuration into the Agents
-        // TODO [ ]
-        // Make methods on the `SystemConfiguration` to extract the required
-        // configurations.
-        let parameters = TacticalParameters::new(&id, tactical_options, &scheduling_environment);
-        let solution = TacticalSolution::new(&parameters);
-
-        // let mut tactical_algorithm = Algorithm::new(
-        //     &id,
-        //     solution,
-        //     parameters,
-        //     ArcSwapSharedSolution::default().into(),
-        // );
-
-        // // This whole thing is ugly. Remember, you should work on getting the
-        // configs // into the program, not the other way around.
-
-        // // FIX
-        // // This does not confine to the correct interface setup of the
-        // program. You // should think about this in the code. What
-        // other thing could you do // here?
-        // let operation_parameter = OperationParameter::new(work_order_number,
-        // operation);
-
-        // let operation_solution = OperationSolution::new(
-        //     vec![(
-        //         tactical_algorithm.tactical_days[27].clone(),
-        //         Work::from(1.0),
-        //     )],
-        //     Resources::MtnMech,
-        //     operation_parameter.number,
-        //     operation_parameter.work_remaining,
-        //     work_order_number,
-        //     activity_number,
-        // );
-
-        // let mut operation_parameters = HashMap::new();
-        // operation_parameters.insert(activity_number, operation_parameter);
-
-        // let mut operation_solutions = HashMap::new();
-        // operation_solutions.insert(1, operation_solution);
-
-        // // We simply have to make
-        // let optimized_tactical_work_order =
-        //     TacticalParameter::new(&work_order, operation_parameters);
-
-        // tactical_algorithm
-        //     .parameters_mut()
-        //     .insert(work_order_number, optimized_tactical_work_order);
-
-        // tactical_algorithm.calculate_objective_value().unwrap();
-
-        // // assert_eq!(tactical_algorithm.objective_value().0, 270);
-    }
-
-    // This is ugly... I think that the best think to do here
-    #[test]
-    fn test_schedule_1()
-    {
-        let work_order_number = WorkOrderNumber(2100000001);
-        let first_period = Period::from_str("2024-W13-14").unwrap();
-
-        let tactical_days = |number_of_days: u32| -> Vec<Day> {
-            let mut days: Vec<Day> = Vec::new();
-            let mut date = first_period.start_date().to_owned();
-            for day_index in 0..number_of_days {
-                days.push(Day::new(day_index as usize, date.to_owned()));
-                date = date.checked_add_days(Days::new(1)).unwrap();
-            }
-            days
-        };
-
-        // Should you work on test? Or getting the system operational? I think
-        // that getting it operational is the best choice here. I do not
-        // see a different way of doing it.
-        // You should also make these test at somepoint.
-        // QUESTION
-        // You should make the test later comment them out. The issue with
-        // starting to creating them now is that you will have to make
-        // some thing of a You will have to comment them out, and then
-        // introduce them back in again. let mut tactical_algorithm =
-        // Algorithm::builder().new(     tactical_days(56),
-        //     TacticalResources::new_from_data(
-        //         Resources::iter().collect(),
-        //         tactical_days(56),
-        //         Work::from(0.0),
-        //     ),
-        //     TacticalResources::new_from_data(
-        //         Resources::iter().collect(),
-        //         tactical_days(56),
-        //         Work::from(0.0),
-        //     ),
-        //     ArcSwapSharedSolution::default().into(),
-        // );
-        // // Work Order
-        // // Resources::MtnMech,
-        // // 10,
-        // // vec![],
-        // // NaiveDate::from_ymd_opt(2024, 10, 10).unwrap(),
-
-        // // Operation
-        // // 1,
-        // // Work::from(1.0),
-        // // Work::from(1.0),
-        // // Work::from(1.0),
-        // // Resources::MtnMech,
-
-        // let operation_parameter = OperationParameter::new(work_order_number,
-        // operation);
-
-        // let mut tactical_operation_parameters = HashMap::new();
-        // tactical_operation_parameters.insert(1, operation_parameter);
-
-        // let tactical_work_order_parameter =
-        //     TacticalParameter::new(work_order,
-        // tactical_operation_parameters);
-
-        // tactical_algorithm
-        //     .parameters_mut()
-        //     .insert(work_order_number, tactical_work_order_parameter);
-
-        // let activity_number = 0;
-
-        // let mut tactical_activities = TacticalScheduledOperations::default();
-
-        // tactical_activities.0.insert(
-        //     activity_number,
-        //     OperationSolution::new(
-        //         vec![],
-        //         Resources::MtnMech,
-        //         1,
-        //         Work::from(0.0),
-        //         work_order_number,
-        //         activity_number,
-        //     ),
-        // );
-
-        // tactical_algorithm
-        //     .solution
-        //     .tactical_scheduled_work_orders
-        //     .0
-        //     .insert(
-        //         work_order_number,
-        //         WhereIsWorkOrder::Tactical(tactical_activities),
-        //     );
-
-        // tactical_algorithm.schedule().unwrap();
-
-        // let scheduled_date = tactical_algorithm
-        //     .solution
-        //     .tactical_scheduled_days(&work_order_number, 0);
-
-        // assert!(scheduled_date.is_ok());
-    }
-
-    #[test]
-    fn test_schedule_2()
-    {
-        let work_order_number = WorkOrderNumber(2100000010);
-        let activity_number = 1;
-        let first_period = Period::from_str("2024-W13-14").unwrap();
-
-        let tactical_days = |number_of_days: u32| -> Vec<Day> {
-            let mut days: Vec<Day> = Vec::new();
-            let mut date = first_period.start_date().to_owned();
-            for day_index in 0..number_of_days {
-                days.push(Day::new(day_index as usize, date.to_owned()));
-                date = date.checked_add_days(Days::new(1)).unwrap();
-            }
-            days
-        };
-
-        let id = Id::default();
-        let options = TacticalOptions::default();
-        let scheduling_environment = SchedulingEnvironment::default();
-
-        // SchedulingEnvironment
-
-        let tactical_parameters = TacticalParameters::new(&id, options, &scheduling_environment)?;
-        let tactical_solution = TacticalSolution::new(&tactical_parameters);
-
-        let mut tactical_algorithm = Algorithm::new(
-            tactical_days(56),
-            TacticalResources::new_from_data(
-                Resources::iter().collect(),
-                tactical_days(56),
-                Work::from(100.0),
-            ),
-            TacticalResources::new_from_data(
-                Resources::iter().collect(),
-                tactical_days(56),
-                Work::from(0.0),
-            ),
-            ArcSwapSharedSolution::default().into(),
-        );
-
-        let mut tactical_activities = TacticalScheduledOperations::default();
-
-        tactical_activities.0.insert(
-            activity_number,
-            OperationSolution::new(
-                vec![],
-                Resources::MtnMech,
-                1,
-                Work::from(0.0),
-                work_order_number,
-                activity_number,
-            ),
-        );
-
-        tactical_algorithm
-            .solution
-            .tactical_scheduled_work_orders
-            .0
-            .insert(
-                work_order_number,
-                WhereIsWorkOrder::Tactical(tactical_activities),
-            );
-
-        // Operation
-        // 1,
-        // Work::from(1.0),
-        // Work::from(1.0),
-        // Work::from(1.0),
-        // Resources::MtnMech,
-        let operation_parameter = OperationParameter::new(work_order_number, operation);
-
-        let mut operation_parameters = HashMap::new();
-        operation_parameters.insert(1, operation_parameter);
-
-        // Work Order
-        // Resources::MtnMech,
-        // 10,
-        // vec![],
-        // NaiveDate::from_ymd_opt(2024, 10, 10).unwrap(),
-        let optimized_tactical_work_order =
-            TacticalParameter::new(work_order, operation_parameters);
-
-        tactical_algorithm
-            .parameters_mut()
-            .insert(work_order_number, optimized_tactical_work_order);
-
-        tactical_algorithm.schedule().unwrap();
-
-        let scheduled_date = tactical_algorithm
-            .solution
-            .tactical_scheduled_days(&work_order_number, 1);
-
-        assert!(scheduled_date.is_ok());
-    }
+    // You should test all this in the right order. I think that...
+    // QUESTION
+    // Is it correct of you to move this into the integration testing? Yes
+    // absolutely. I do not see anyother way, as the `objective value` may
+    // always be dependent on the other `Solution`s.
+    // GOOD a decision was made here.
 }

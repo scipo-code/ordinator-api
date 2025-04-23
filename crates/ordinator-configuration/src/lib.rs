@@ -8,9 +8,11 @@ mod user_interface;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use actor_specifications::ActorSpecifications;
 use anyhow::Result;
+use arc_swap::ArcSwap;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SystemConfigurationTrait;
 use ordinator_scheduling_environment::time_environment::MaterialToPeriod;
@@ -59,7 +61,7 @@ impl SystemConfigurationTrait for SystemConfigurations {}
 // revisit it.
 impl SystemConfigurations
 {
-    pub fn read_all_configs() -> Result<SystemConfigurations>
+    pub fn read_all_configs() -> Result<Arc<ArcSwap<SystemConfigurations>>>
     {
         let work_order_configurations: WorkOrderConfigurations =
             serde_json::from_str("./configuration/work_orders/work_order_weight_parameters.json")?;
@@ -123,7 +125,10 @@ impl SystemConfigurations
         let material_to_period: MaterialToPeriod =
             toml::from_str(&material_to_period_contents).unwrap();
 
-        Ok(SystemConfigurations {
+        // I believe that it is the best appraoch here to make sure that the
+        // `Configurations` are always created wrapped. Then you will never
+        // make the mistake, of accessing wild and stray configurations.
+        Ok(Arc::new(ArcSwap::new(Arc::new(SystemConfigurations {
             work_order_configurations,
             actor_specification,
             data_locations,
@@ -132,7 +137,7 @@ impl SystemConfigurations
             database_config: database_path.to_owned(),
             time_input,
             material_to_period,
-        })
+        }))))
         // TODO [ ]
         // Integrate this if you have issues with data initialization
         // let file_string = dotenvy::var("ORDINATOR_INPUT")

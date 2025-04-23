@@ -4,14 +4,13 @@ pub mod responses;
 
 use std::fmt::Display;
 
-use clap::ValueEnum;
 use ordinator_scheduling_environment::Asset;
-use requests::supervisor_scheduling_message::SupervisorSchedulingMessage;
-use requests::supervisor_status_message::SupervisorStatusMessage;
-use responses::supervisor_response_resources::SupervisorResponseResources;
-use responses::supervisor_response_scheduling::SupervisorResponseScheduling;
-use responses::supervisor_response_status::SupervisorResponseStatus;
-use responses::supervisor_response_time::SupervisorResponseTime;
+use requests::SupervisorSchedulingMessage;
+use requests::SupervisorStatusMessage;
+use responses::SupervisorResponseResources;
+use responses::SupervisorResponseScheduling;
+use responses::SupervisorResponseStatus;
+use responses::SupervisorResponseTime;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -23,7 +22,7 @@ pub struct SupervisorRequest
     pub supervisor_request_message: SupervisorRequestMessage,
 }
 
-#[derive(ValueEnum, Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum SupervisorType
 {
     Main,
@@ -70,6 +69,7 @@ impl SupervisorResponse
 #[derive(Serialize)]
 pub enum SupervisorResponseMessage
 {
+    StateLink,
     Status(SupervisorResponseStatus),
     Scheduling(SupervisorResponseScheduling),
     Resources(SupervisorResponseResources),

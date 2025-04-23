@@ -1,5 +1,3 @@
-pub mod supervisor_scheduling_message;
-pub mod supervisor_status_message;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use serde::Deserialize;
@@ -22,8 +20,6 @@ impl SupervisorSchedulingMessage
         }
     }
 }
-use serde::Deserialize;
-use serde::Serialize;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum SupervisorStatusMessage

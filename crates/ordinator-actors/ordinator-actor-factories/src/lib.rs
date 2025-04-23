@@ -8,6 +8,9 @@ use arc_swap::ArcSwap;
 // These are mostly build dependencies and should therefore not be found inside of the
 // `orchestrator`. The question then becomes what we should do about the building of the
 // `actors`
+//
+// I think that you should go to the gym now. There is an issue here in that
+// I do not know what the best way to proceed is for the different.
 use ordinator_actors::Actor;
 use ordinator_actors::ActorMessage;
 use ordinator_actors::Algorithm;
@@ -67,15 +70,19 @@ impl AgentFactory
         // Okay now the issue is that we have to decide what to do with the
         // general configurations. I think that this is the best approach for
         // generating the best result.
-        strategic_options: StrategicOptions,
+        // This should only have the `SystemConfiguration`. That is the best approach here.
+        //
+        // Should you go to Laura? No, should you go have beer? Maybe, should you
+        // This is pretty cool. I think that it is much nicer to write on the laptop,
+        // keyboard.
+        //
+        //  strategic_options: StrategicOptions,
     ) -> Result<Communication<ActorMessage<StrategicRequestMessage>, StrategicResponseMessage>>
     {
         let agent = Actor::builder()
             .agent_id(Id::new("StrategicAgent", vec![], vec![asset.clone()]))
             .scheduling_environment(Arc::clone(&self.scheduling_environment))
-            // TODO
-            // Make a builder here!
-            .algorithm(|ab| ab.id())
+            .algorithm(|ab| ab.id().)
             // TODO [x]
             // These should be created in a single step
             .communication()

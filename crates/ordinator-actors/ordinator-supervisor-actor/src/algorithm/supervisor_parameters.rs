@@ -1,15 +1,21 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::MutexGuard;
 
 use anyhow::Context;
 use anyhow::Result;
+use arc_swap::Guard;
+use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::period::Period;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
+use ordinator_scheduling_environment::work_order::operation::Operation;
+use ordinator_scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
+use ordinator_scheduling_environment::worker_environment::resources::Resources;
 
 use crate::SupervisorOptions;
 
@@ -50,6 +56,7 @@ impl Parameters for SupervisorParameters
         {
             let inner_map = work_order
                 .operations
+                .0
                 .iter()
                 .map(|(acn, op)| {
                     (
@@ -77,7 +84,7 @@ impl Parameters for SupervisorParameters
             .cloned()
             .collect();
 
-        let options = SupervisorOptions::from(*system_configurations);
+        let options = SupervisorOptions::from((system_configurations, id));
 
         Ok(Self {
             supervisor_work_orders: supervisor_parameters,
@@ -123,6 +130,7 @@ impl SupervisorParameters
     }
 }
 
+#[derive(Clone)]
 pub struct SupervisorParameter
 {
     pub resource: Resources,

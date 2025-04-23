@@ -4,6 +4,8 @@ pub mod worker_environment;
 
 use std::fmt::Display;
 use std::fmt::{self};
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use anyhow::Result;
 use serde::Deserialize;
@@ -51,7 +53,7 @@ pub trait IntoSchedulingEnvironment
     fn into_scheduling_environment(
         self,
         system_configuration: &Self::S,
-    ) -> Result<SchedulingEnvironment>;
+    ) -> Result<Arc<Mutex<SchedulingEnvironment>>>;
 }
 
 pub trait SystemConfigurationTrait {}
@@ -60,15 +62,18 @@ pub trait DatabaseConfigurationTrait {}
 
 impl SchedulingEnvironmentBuilder
 {
-    pub fn build(self) -> SchedulingEnvironment
+    // QUESTION
+    // Do you believe that this is the most appropriate way of structuring the code
+    // here? Yes I think that this is the best way of doing it.
+    pub fn build(self) -> Arc<Mutex<SchedulingEnvironment>>
     {
-        SchedulingEnvironment {
+        Arc::new(Mutex::new(SchedulingEnvironment {
             work_orders: self
                 .work_orders
                 .expect("You should build the WorkOrders with the correct parameters injected."),
             worker_environment: self.worker_environment.unwrap_or_default(),
             time_environment: self.time_environment.unwrap_or_default(),
-        }
+        }))
     }
 
     pub fn time_environment(mut self, time_environment: TimeEnvironment) -> Self

@@ -3,6 +3,8 @@ use std::error::Error;
 use std::fs::File;
 use std::hash::Hash;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -54,7 +56,7 @@ impl IntoSchedulingEnvironment for TotalSap
     fn into_scheduling_environment(
         self,
         system_configuration: &Self::S,
-    ) -> Result<SchedulingEnvironment>
+    ) -> Result<Arc<Mutex<SchedulingEnvironment>>>
     {
         // TODO [ ]
         // You need to pass the configs

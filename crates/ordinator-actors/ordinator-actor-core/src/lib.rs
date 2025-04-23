@@ -1,5 +1,4 @@
 pub mod algorithm;
-pub mod delegate;
 pub mod traits;
 
 use std::fmt::Debug;

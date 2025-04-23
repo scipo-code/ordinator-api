@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use ordinator_actor_core::delegate::Delegate;
+use ordinator_orchestrator_actor_traits::delegate::Delegate;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use tracing::Level;
 use tracing::event;
@@ -50,7 +50,12 @@ impl OperationalStateMachineAssertions for SupervisorSolution
         &self,
     )
     {
-        let work_order_numbers: HashSet<WorkOrderNumber> = self.get_work_order_numbers();
+        let work_order_numbers: HashSet<WorkOrderNumber> = self
+            .operational_state_machine
+            .keys()
+            .map(|d| d.1.0)
+            .collect();
+
         for work_order_number in work_order_numbers {
             let mut assess_work_orders: HashSet<WorkOrderNumber> = HashSet::new();
             let mut assign_unassign_work_orders: HashSet<WorkOrderNumber> = HashSet::new();
@@ -61,6 +66,7 @@ impl OperationalStateMachineAssertions for SupervisorSolution
                 .for_each(|osm| {
                     let delegate = osm.1;
 
+                    // Which one is the correct one to use? I think that the right one is th e
                     if *delegate == Delegate::Assess {
                         assess_work_orders.insert(work_order_number);
                     } else if *delegate == Delegate::Assign || *delegate == Delegate::Unassign {

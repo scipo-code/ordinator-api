@@ -570,7 +570,7 @@ where
         schedule: ScheduleWorkOrder,
     ) -> Result<Option<StrategicResources>>
     {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut best_total_excess = Work::from(-999999999.0);
         let mut best_work_order_resource_loadings = StrategicResources::default();
 

@@ -1544,6 +1544,7 @@ name = "ordinator-configuration"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "chrono",
  "dotenvy",
  "ordinator-scheduling-environment",
@@ -1689,6 +1690,7 @@ dependencies = [
  "proptest",
  "rand 0.9.0",
  "serde",
+ "strum",
  "tracing",
 ]
 

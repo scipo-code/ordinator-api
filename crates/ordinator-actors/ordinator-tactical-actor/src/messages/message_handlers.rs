@@ -1,19 +1,14 @@
 use anyhow::Context;
 use anyhow::Result;
-use anyhow::bail;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use ordinator_orchestrator_actor_traits::StateLink;
 use ordinator_orchestrator_actor_traits::WhereIsWorkOrder;
-use ordinator_scheduling_environment::time_environment::day::Day;
-use ordinator_scheduling_environment::worker_environment::EmptyFull;
 
 use super::TacticalRequestMessage;
 use super::TacticalResponseMessage;
-use super::requests::TacticalResourceRequest;
 use crate::TacticalActor;
-use crate::algorithm::TacticalAlgorithm;
 use crate::algorithm::tactical_parameters::TacticalParameters;
 use crate::algorithm::tactical_parameters::create_tactical_parameter;
 use crate::algorithm::tactical_resources::TacticalResources;
@@ -45,7 +40,7 @@ where
             TacticalRequestMessage::Scheduling(_tactical_scheduling_message) => {
                 todo!()
             }
-            TacticalRequestMessage::Resources(tactical_resources_message) => {
+            TacticalRequestMessage::Resources(_tactical_resources_message) => {
                 // let resource_response = self
                 //     .update_resources_state(tactical_resources_message)
                 //     .unwrap();

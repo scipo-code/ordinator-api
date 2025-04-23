@@ -4,6 +4,8 @@ pub mod supervisor_parameters;
 pub mod supervisor_solution;
 
 use std::collections::HashSet;
+use std::ops::Deref;
+use std::ops::DerefMut;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -15,7 +17,11 @@ use ordinator_actor_core::traits::ObjectiveValueType;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use ordinator_orchestrator_actor_traits::Solution;
+use ordinator_orchestrator_actor_traits::StrategicInterface;
+use ordinator_orchestrator_actor_traits::delegate::Delegate;
+use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
 use rand::seq::IndexedRandom;
 use supervisor_parameters::SupervisorParameters;
 use supervisor_solution::SupervisorSolution;
@@ -25,7 +31,10 @@ use tracing::Level;
 use tracing::event;
 
 use super::SupervisorOptions;
-use crate::SupervisorAlgorithm;
+
+pub struct SupervisorAlgorithm<Ss>(Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>)
+where
+    Ss: SharedSolutionTrait;
 
 impl<Ss> SupervisorAlgorithm<Ss>
 where
@@ -36,7 +45,8 @@ where
         work_order_number: WorkOrderNumber,
     ) -> Result<()>
     {
-        self.solution
+        self.0
+            .solution
             .turn_work_order_into_delegate_assess(work_order_number);
         Ok(())
     }
@@ -44,7 +54,8 @@ where
 
 impl<Ss> ActorBasedLargeNeighborhoodSearch for SupervisorAlgorithm<Ss>
 where
-    Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>: AbLNSUtils,
+    Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>:
+        AbLNSUtils<SolutionType = SupervisorSolution>,
     SupervisorSolution: Solution,
     SupervisorParameters: Parameters,
     Ss: SharedSolutionTrait<Supervisor = SupervisorSolution>,
@@ -62,14 +73,21 @@ where
         //   shared_solution = Arc::new(SharedSolution { tactical:
         //   self.tactical_solution.clone(), // Copy over other fields without cloning
         //   ..(**old).clone() });
-        self.arc_swap_shared_solution.0.rcu(|old| {
+        self.arc_swap_shared_solution.rcu(|old| {
             let mut shared_solution = (**old).clone();
-            shared_solution.supervisor = self.solution.clone();
+            shared_solution.supervisor_swap(&self.id, self.solution.clone());
             Arc::new(shared_solution)
         });
     }
 
-    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType<Self::ObjectiveValue>>
+    fn calculate_objective_value(
+        &mut self,
+        options: &Self::Options,
+    ) -> Result<
+        ObjectiveValueType<
+            <<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue,
+        >,
+    >
     {
         let assigned_woas = &self.solution.number_of_assigned_work_orders();
 
@@ -110,27 +128,24 @@ where
                 .expect("The SupervisorParameter should always be available")
                 .number;
 
-            // This is the fundamental issue.
-            let operational_solutions = &self.loaded_shared_solution.operational();
-
             // And this comes in as a close second.
             let mut operational_status_by_work_order_activity =
                 self.solution.operational_status_by_work_order_activity(
                     work_order_activity,
-                    operational_solutions,
+                    &self.loaded_shared_solution,
                 );
 
             operational_status_by_work_order_activity
                 .retain(|(_, _, mar_fit)| matches!(mar_fit, MarginalFitness::Scheduled(_)));
 
-            operational_status_by_work_order_activity.sort_by_cached_key(
-                |(_agent_id, _, mar_fit)| match mar_fit {
+            operational_status_by_work_order_activity.sort_by_key(|(_agent_id, _, mar_fit)| {
+                match mar_fit {
                     MarginalFitness::Scheduled(auxillary_operational_objective) => {
-                        auxillary_operational_objective
+                        auxillary_operational_objective.clone()
                     }
                     MarginalFitness::None => panic!(),
-                },
-            );
+                }
+            });
 
             if !operational_status_by_work_order_activity.is_empty() {
 
@@ -146,26 +161,25 @@ where
 
             event!(Level::DEBUG, remaining_to_assign = ?remaining_to_assign);
             for (agent_id, delegate_status, _marginal_fitness) in
-                &mut operational_status_by_work_order_activity
+                operational_status_by_work_order_activity.clone()
             {
-                if *delegate_status != Delegate::Assess {
+                if delegate_status != Delegate::Assess {
                     continue;
                 }
 
+                let solution =
+                    self.solution
+                        .operational_state_machine
+                        .get_mut(&(agent_id.clone(), *work_order_activity)).expect("This value should always be present. Check the generation of keys and values if this fails");
+
                 if remaining_to_assign >= 1 {
                     remaining_to_assign -= 1;
-                    self.solution
-                        .operational_state_machine
-                        .get_mut(&(agent_id.clone(), *work_order_activity)).expect("This value should always be present. Check the generation of keys and values if this fails")
-                        .state_change_to_assign();
+                    solution.state_change_to_assign();
                 } else {
-                    if *delegate_status == Delegate::Assign {
+                    if delegate_status == Delegate::Assign {
                         continue;
                     }
-                    self.solution
-                        .operational_state_machine
-                        .get_mut(&(agent_id.clone(), *work_order_activity)).expect("This value should always be present. Check the generation of keys and values if this fails")
-                        .state_change_to_unassign();
+                    solution.state_change_to_unassign();
                 }
             }
         }
@@ -178,7 +192,7 @@ where
 
         let sampled_work_order_numbers = work_order_numbers
             .choose_multiple(
-                &mut self.parameters.options.rng,
+                &mut self.parameters.options.rng.clone(),
                 self.parameters.options.number_of_unassigned_work_orders,
             )
             .collect::<Vec<_>>()
@@ -214,46 +228,46 @@ where
         // cleaner! Much cleaner,
         let strategic_activities_in_supervisor_period = self
             .loaded_shared_solution
-            .strategic
-            .strategic_scheduled_work_orders
-            .iter()
-            .filter_map(|(won, opt_str_per)| {
-                opt_str_per.as_ref().and_then(|per| {
-                    self.parameters
-                        .supervisor_periods
-                        .contains(per)
-                        .then_some((won, per))
-                })
-            });
+            .strategic()
+            .supervisor_tasks(&self.parameters.supervisor_periods);
 
         // Select only those that are not part of the `SupervisorAgent` already
         let incoming_activities = strategic_activities_in_supervisor_period
-            .clone()
+            .iter()
             .filter(|(won, _)| !current_activities.contains(won));
 
         // Insert all the incoming activities as Delegate::default() for each
         // `OperationalAgent` that has the required skill, `enum Resources`
+        // QUESTION
+        // Why does this happen here? I do not really know why and that is an
+        // issue. You should find out now.
+        //
+        // TODO [ ]
+        // determine exactly how to fix this.
+        let work_order_parameters = self.parameters.supervisor_work_orders.clone();
+        let all_operational_actors = self.loaded_shared_solution.all_operational().clone();
+
         for (work_order_number, _) in incoming_activities {
-            for activity_number in (self
-                .parameters
-                .supervisor_work_orders
+            let activity_number = work_order_parameters
                 .get(work_order_number)
-                .context("Missing WorkOrder Parameter in Supervisor")?)
-            .keys()
-            {
-                for operational_id in self.loaded_shared_solution.operational.keys() {
+                .context("Missing WorkOrder Parameter in Supervisor")?
+                .keys()
+                .cloned();
+
+            for activity_number in activity_number {
+                for operational_id in &all_operational_actors {
                     let supervisor_parameter_resource = &self
                         .parameters
                         .supervisor_work_orders
                         .get(work_order_number)
                         .context("Missing WorkOrder Parameter in Supervisor")?
-                        .get(activity_number)
+                        .get(&activity_number)
                         .context("Missing Activity Parameter in Supervisor")?
                         .resource;
 
                     if operational_id.1.contains(supervisor_parameter_resource) {
-                        let work_order_activity = (*work_order_number, *activity_number);
-                        let operational_state = (operational_id.clone(), work_order_activity);
+                        let work_order_activity = (*work_order_number, activity_number);
+                        let operational_state = ((*operational_id).clone(), work_order_activity);
 
                         self.solution
                             .operational_state_machine
@@ -264,6 +278,7 @@ where
         }
 
         let strategic_activities_hash_set = strategic_activities_in_supervisor_period
+            .iter()
             .map(|e| e.0)
             .cloned()
             .collect::<HashSet<_>>();
@@ -297,4 +312,25 @@ fn is_assigned_part_of_all(
     assigned_woas
         .iter()
         .all(|(wo, ac)| all_woas.contains(&(*wo, *ac)))
+}
+impl<Ss> Deref for SupervisorAlgorithm<Ss>
+where
+    Ss: SharedSolutionTrait,
+{
+    type Target = Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>;
+
+    fn deref(&self) -> &Self::Target
+    {
+        &self.0
+    }
+}
+
+impl<Ss> DerefMut for SupervisorAlgorithm<Ss>
+where
+    Ss: SharedSolutionTrait,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target
+    {
+        &mut self.0
+    }
 }

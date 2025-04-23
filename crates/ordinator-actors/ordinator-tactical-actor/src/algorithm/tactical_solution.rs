@@ -19,45 +19,35 @@ use serde::Serialize;
 
 use super::tactical_parameters::TacticalParameters;
 use super::tactical_resources::TacticalResources;
+use crate::TacticalOptions;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Clone)]
 pub struct TacticalObjectiveValue
 {
     pub objective_value: u64,
-    pub urgency: (u64, u64),
-    pub resource_penalty: (u64, u64),
+    pub urgency: (usize, u64),
+    pub resource_penalty: (usize, u64),
 }
 
-impl Default for TacticalObjectiveValue
-{
-    fn default() -> Self
-    {
-        Self {
-            objective_value: u64::MAX,
-            urgency: (u64::MAX, u64::MAX),
-            resource_penalty: (u64::MAX, u64::MAX),
-        }
-    }
-}
 impl TacticalObjectiveValue
 {
-    pub fn new(objective_value: u64, urgency: (u64, u64), resource_penalty: (u64, u64)) -> Self
+    pub fn new(tactical_options: &TacticalOptions) -> Self
     {
         Self {
-            objective_value,
-            urgency,
-            resource_penalty,
+            objective_value: 0,
+            urgency: (tactical_options.urgency, u64::MAX),
+            resource_penalty: (tactical_options.resource_penalty, u64::MAX),
         }
     }
 
     pub fn aggregate_objectives(&mut self)
     {
-        self.objective_value =
-            self.urgency.0 * self.urgency.1 + self.resource_penalty.0 * self.resource_penalty.1;
+        self.objective_value = self.urgency.0 as u64 * self.urgency.1
+            + self.resource_penalty.0 as u64 * self.resource_penalty.1;
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Default, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct TacticalSolution
 {
     pub(crate) objective_value: TacticalObjectiveValue,
@@ -68,9 +58,10 @@ pub struct TacticalSolution
 impl Solution for TacticalSolution
 {
     type ObjectiveValue = TacticalObjectiveValue;
+    type Options = TacticalOptions;
     type Parameters = TacticalParameters;
 
-    fn new(parameters: &Self::Parameters) -> Self
+    fn new(parameters: &Self::Parameters, tactical_options: &Self::Options) -> Self
     {
         let tactical_loadings_inner: HashMap<Resources, Days> = parameters
             .tactical_capacity
@@ -92,8 +83,9 @@ impl Solution for TacticalSolution
             .map(|won| (*won, WhereIsWorkOrder::NotScheduled))
             .collect();
 
+        // You are still learning this.
         Self {
-            objective_value: TacticalObjectiveValue::default(),
+            objective_value: TacticalObjectiveValue::new(tactical_options),
             tactical_work_orders: TacticalScheduledWorkOrders(tactical_scheduled_work_orders_inner),
             tactical_loadings: TacticalResources::new(tactical_loadings_inner),
         }
@@ -173,7 +165,7 @@ pub struct TacticalScheduledWorkOrders(
 // Make a trait here to implement the type.
 // This is basically an interface to the type that we need to implement this
 // on. I think that the
-trait TacticalWhereIsWorkOrder
+pub trait TacticalWhereIsWorkOrder
 {
     fn is_tactical(&self) -> bool;
 
@@ -218,9 +210,10 @@ impl TacticalScheduledWorkOrders
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct TacticalScheduledOperations(pub HashMap<ActivityNumber, OperationSolution>);
 
+//
 impl TacticalScheduledOperations
 {
-    fn insert_operation_solution(
+    pub fn insert_operation_solution(
         &mut self,
         activity: ActivityNumber,
         operation_solution: OperationSolution,
@@ -246,18 +239,12 @@ impl Display for TacticalScheduledOperations
     }
 }
 
-#[derive(Default)]
 #[allow(dead_code)]
 pub struct TacticalSolutionBuilder(TacticalSolution);
 
 #[allow(dead_code)]
 impl TacticalSolutionBuilder
 {
-    pub fn new() -> Self
-    {
-        Self::default()
-    }
-
     pub fn with_tactical_days(
         mut self,
         tactical_days: HashMap<WorkOrderNumber, WhereIsWorkOrder<TacticalScheduledOperations>>,

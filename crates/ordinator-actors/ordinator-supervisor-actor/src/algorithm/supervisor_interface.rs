@@ -17,7 +17,7 @@ impl SupervisorInterface for SupervisorSolution
         self.operational_state_machine
             .iter()
             .filter(|(id_woa, _)| &id_woa.0 == operational_agent)
-            .map(|(id_woa, del)| (id_woa.1, *del))
+            .map(|(id_woa, del)| (id_woa.1, del.clone()))
             .collect()
     }
 
@@ -25,7 +25,9 @@ impl SupervisorInterface for SupervisorSolution
     {
         self.operational_state_machine
             .iter()
-            .filter(|(id_woa, del)| id_woa.0 == self.id && (del.is_assign() || del.is_assess()))
+            .filter(|(id_woa, del)| {
+                &id_woa.0 == operational_agent && (del.is_assign() || del.is_assess())
+            })
             .map(|(id_woa, _)| id_woa.1)
             .collect::<HashSet<_>>()
     }

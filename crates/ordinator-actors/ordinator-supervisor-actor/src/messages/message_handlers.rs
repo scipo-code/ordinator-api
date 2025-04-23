@@ -3,42 +3,43 @@ use std::collections::HashSet;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
-use shared_types::agents::supervisor::SupervisorRequestMessage;
-use shared_types::agents::supervisor::SupervisorResponseMessage;
-use shared_types::agents::supervisor::responses::supervisor_response_scheduling::SupervisorResponseScheduling;
-use shared_types::agents::supervisor::responses::supervisor_response_status::SupervisorResponseStatus;
-use shared_types::scheduling_environment::worker_environment::resources::Id;
+use ordinator_orchestrator_actor_traits::ActorSpecific;
+use ordinator_orchestrator_actor_traits::MessageHandler;
+use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::StateLink;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 use tracing::Level;
 use tracing::event;
 
-use crate::agents::Actor;
-use crate::agents::ActorSpecific;
-use crate::agents::MessageHandler;
-use crate::agents::StateLink;
-use crate::agents::SupervisorSolution;
-use crate::agents::supervisor_agent::algorithm::supervisor_parameters::SupervisorParameters;
+use super::SupervisorRequestMessage;
+use super::SupervisorResponseMessage;
+use crate::SupervisorActor;
+use crate::algorithm::supervisor_parameters::SupervisorParameters;
+use crate::algorithm::supervisor_solution::SupervisorSolution;
+use crate::messages::responses::SupervisorResponseScheduling;
+use crate::messages::responses::SupervisorResponseStatus;
 
-impl MessageHandler
-    for Actor<
-        SupervisorRequestMessage,
-        SupervisorResponseMessage,
-        SupervisorSolution,
-        SupervisorParameters,
-        (),
-    >
+impl<Ss> MessageHandler for SupervisorActor<Ss>
+where
+    Ss: SharedSolutionTrait<Supervisor = SupervisorSolution>,
 {
     type Req = SupervisorRequestMessage;
     type Res = SupervisorResponseMessage;
 
-    fn handle_state_link(&mut self, state_link: StateLink) -> Result<()>
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<Self::Res>
     {
         match state_link {
             StateLink::WorkOrders(agent_specific) => match agent_specific {
                 ActorSpecific::Strategic(changed_work_orders) => {
+                    // It is beginning to seem a little horrible that the self. here holds both the
+                    // `scheduling_environment` and the `algorithm`. There is a
+                    // couple of issues here relating to how we interact
+                    // with the algorithm. I
                     let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
-                    let work_orders = &scheduling_environment_guard.work_orders.inner;
+                    let work_orders = scheduling_environment_guard.work_orders.inner.clone();
 
+                    drop(scheduling_environment_guard);
                     for work_order_number in changed_work_orders {
                         let work_order =
                             work_orders.get(&work_order_number).with_context(|| {
@@ -48,9 +49,14 @@ impl MessageHandler
                                     std::any::type_name::<SupervisorParameters>()
                                 )
                             })?;
-                        for activity_number in work_order.operations.keys() {
-                            let operation = scheduling_environment_guard
-                                .operation(&(work_order_number, *activity_number));
+                        // TODO [ ]
+                        // You need to take a clear stance on this in the code. Should you make an
+                        // API for this? Of course you should.
+                        //
+                        // This is written so sloppy.
+                        // I can sense that we should instead think about the data flow in
+                        // the program. That probably has a higher chance of success. Yes.
+                        for (activity_number, operation) in &work_order.operations.0 {
                             self.algorithm
                                 .parameters
                                 .create_and_insert_supervisor_parameter(
@@ -59,7 +65,7 @@ impl MessageHandler
                                 )
                         }
                     }
-                    Ok(())
+                    Ok(SupervisorResponseMessage::StateLink)
                 }
             },
             StateLink::WorkerEnvironment => {
@@ -77,14 +83,13 @@ impl MessageHandler
                     does_state_ids_and_addr_ids_match = self
                         .algorithm
                         .loaded_shared_solution
-                        .operational
-                        .keys()
-                        .collect::<HashSet<&Id>>()
-                        == operational_agents,
+                        .all_operational()
+                        .iter()
+                        .eq(operational_agents.iter().map(|&x| x)),
                     "Check this error later. FIX: YOU SHOULD call '.send()' instead of '.do_send()' and use the lldb debugger to trace the flow."
                 );
 
-                Ok(())
+                Ok(SupervisorResponseMessage::StateLink)
             }
             StateLink::TimeEnvironment => todo!(),
         }
@@ -113,11 +118,11 @@ impl MessageHandler
                     "Received SupervisorStatusMessage: {:?}",
                     supervisor_status_message
                 );
-                let supervisor_status = SupervisorResponseStatus::new(
-                    self.algorithm.parameters.operational_ids.clone(),
-                    self.algorithm.solution.count_unique_woa(),
-                    self.algorithm.solution.objective_value,
-                );
+                let supervisor_status = SupervisorResponseStatus {
+                    supervisor_resource: self.algorithm.parameters.operational_ids.clone(),
+                    delegated_work_order_activities: self.algorithm.solution.count_unique_woa(),
+                    objective: self.algorithm.solution.objective_value,
+                };
                 event!(Level::WARN, "after creation of the supervisor_status");
 
                 Ok(SupervisorResponseMessage::Status(supervisor_status))

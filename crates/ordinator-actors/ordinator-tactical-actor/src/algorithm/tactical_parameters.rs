@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::fmt::{self};
-use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::MutexGuard;
 
 use anyhow::Result;
 use arc_swap::Guard;
-use arc_swap::access::Access;
 use chrono::NaiveDate;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::Parameters;
@@ -21,7 +19,6 @@ use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
 use ordinator_scheduling_environment::work_order::operation::Operation;
 use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
-use ordinator_scheduling_environment::worker_environment::EmptyFull;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use serde::Serialize;

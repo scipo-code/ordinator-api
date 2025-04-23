@@ -88,6 +88,8 @@ pub trait SharedSolutionTrait: Clone
     where
         Self::Supervisor: Solution;
     fn operational(&self, id: &Id) -> &Self::Operational;
+
+    fn all_operational(&self) -> HashSet<Id>;
     // If you make all Id's internal you could simply work on those?
     fn operational_swap(&mut self, id: &Id, solution: Self::Operational)
     where
@@ -163,6 +165,11 @@ where
         todo!()
     }
 
+    fn all_operational(&self) -> HashSet<Id>
+    {
+        self.operational.keys().cloned().collect()
+    }
+
     // You could implement the pointer swapping here. Hmm... that might not be the
     // best idea.
 }
@@ -192,15 +199,23 @@ where
     // Add methods for updating configurations.
 }
 
+// There is something that I do not like about having `new` here
+// I think that the best option is to make the system work with the
+// `from` trait. Meaning that we should focus on making the system
+// work with the
+// Should this function have an option or not? Yes it should.
 pub trait Solution
 {
     type ObjectiveValue;
     type Parameters;
+    type Options: for<'a> From<(&'a Guard<Arc<SystemConfigurations>>, &'a Id)>;
 
+    // The weightings are found inside of the
+    // `Solution`
     // QUESTION
     // Is this a good idea to create the Solution? I actually believe that it
     // is!
-    fn new(parameters: &Self::Parameters) -> Self;
+    fn new(parameters: &Self::Parameters, options: &Self::Options) -> Self;
 
     fn update_objective_value(&mut self, other_objective: Self::ObjectiveValue);
 }
@@ -233,7 +248,10 @@ where
     Self: Clone + std::fmt::Debug + Eq + PartialEq,
 {
     fn scheduled_task(&self, work_order_number: &WorkOrderNumber) -> Option<&Option<Period>>;
+
+    fn supervisor_tasks(&self, periods: &[Period]) -> HashMap<WorkOrderNumber, Period>;
 }
+
 pub trait TacticalInterface
 where
     Self: Clone + std::fmt::Debug + Eq + PartialEq,
@@ -262,6 +280,13 @@ pub enum WhereIsWorkOrder<T>
     Tactical(T),
     #[default]
     NotScheduled,
+}
+impl<T> WhereIsWorkOrder<T>
+{
+    pub fn is_tactical(&self) -> bool
+    {
+        matches!(self, WhereIsWorkOrder::Tactical(_))
+    }
 }
 
 pub trait SupervisorInterface
@@ -307,10 +332,13 @@ where
     // And this means that the most important thing is the that the
     // method cannot see the solution from the `supervisor` are you missing
     // something here?
+    //
+    // This should not be a `Vec` correct? A `WorkOrderActivity` is unique to
+    // this actor? Yes
     fn marginal_fitness_for_operational_actor<'a>(
         &'a self,
         work_order_activity: &WorkOrderActivity,
-    ) -> Vec<&'a MarginalFitness>;
+    ) -> Option<&'a MarginalFitness>;
 }
 
 #[derive(Clone)]

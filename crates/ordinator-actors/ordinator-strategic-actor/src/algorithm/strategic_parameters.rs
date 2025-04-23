@@ -325,7 +325,7 @@ impl WorkOrderParameterBuilder
             .unloading_point(periods)
             .is_some()
         {
-            let locked_in_period = unloading_point_period.clone().unwrap();
+            let locked_in_period = unloading_point_period.unwrap();
             if !periods[0..=1].contains(unloading_point_period.as_ref().unwrap()) {
                 self.0.locked_in_period = Some(locked_in_period.clone());
                 self.0

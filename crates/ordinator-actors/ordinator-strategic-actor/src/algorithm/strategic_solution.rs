@@ -52,9 +52,10 @@ impl StrategicObjectiveValue
 impl Solution for StrategicSolution
 {
     type ObjectiveValue = StrategicObjectiveValue;
+    type Options = StrategicOptions;
     type Parameters = StrategicParameters;
 
-    fn new(parameters: &Self::Parameters) -> Self
+    fn new(parameters: &Self::Parameters, options: &Self::Options) -> Self
     {
         let strategic_loadings = parameters
             .strategic_capacity
@@ -87,6 +88,17 @@ impl Solution for StrategicSolution
             .map(|won| (*won, None))
             .collect();
 
+        // Motherfucker. Should the parameters have the options or not? This is a
+        // crucial question. I think that they should I am not sure what I
+        // should do here. This code is horrible... You have to do better, you
+        // need more faith... You have to remain calm in this.
+        // QUESTION
+        // Should the options be inside of the parameters or used as a dependency
+        // injected variable? I think that the best approach here is to make the
+        // code function. The issue is that this becomes very complex, You need to
+        // do it in a consistent way across all the different actors.
+        //
+        //
         let strategic_objective_value = StrategicObjectiveValue::new(&parameters.strategic_options);
         Self {
             objective_value: strategic_objective_value,
@@ -98,27 +110,5 @@ impl Solution for StrategicSolution
     fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue)
     {
         self.objective_value = other_objective_value;
-    }
-}
-
-impl StrategicSolution
-{
-    pub fn supervisor_work_orders_from_strategic(
-        &self,
-        supervisor_periods: &[Period],
-    ) -> HashSet<WorkOrderNumber>
-    {
-        let mut supervisor_work_orders: HashSet<WorkOrderNumber> = HashSet::new();
-
-        self.strategic_scheduled_work_orders
-            .iter()
-            .for_each(|(won, opt_per)| {
-                if let Some(period) = opt_per {
-                    if supervisor_periods.contains(period) {
-                        supervisor_work_orders.insert(*won);
-                    }
-                }
-            });
-        supervisor_work_orders
     }
 }
