@@ -7,8 +7,21 @@ edition = "2024"
 ordinator-contracts = { path = "../ordinator-contracts" }
 ordinator-orchestrator-actor-traits = {path = "../ordinator-orchestrator-actor-traits"}
 ordinator-scheduling-environment = { path = "../ordinator-scheduling-environment" }
-ordinator-actor-factories = { path = "../ordinator-actors/ordinator-actor-factories"}
+ordinator-total-data-processing = { path = "../ordinator-total-data-processing"}
+ordinator-configuration = { path = "../ordinator-configuration"}
+
+
+ordinator-strategic-actor = {path = "../ordinator-actors/ordinator-strategic-actor"}
+ordinator-tactical-actor = {path = "../ordinator-actors/ordinator-tactical-actor"}
+ordinator-supervisor-actor = {path = "../ordinator-actors/ordinator-supervisor-actor"}
+ordinator-operational-actor = {path = "../ordinator-actors/ordinator-operational-actor"}
+
 
 anyhow = { workspace = true }
 arc-swap = {workspace = true}
+dotenvy = { workspace = true}
 
+tracing = {workspace = true}
+tracing-appender = {workspace = true}
+tracing-flame = {workspace = true}
+tracing-subscriber = {workspace = true}

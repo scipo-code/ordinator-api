@@ -1,15 +1,10 @@
-use data_processing::sources::SchedulingEnvironmentFactory;
-use data_processing::sources::TimeInput;
-use data_processing::sources::baptiste_csv_reader::TotalSap;
-use shared_types::scheduling_environment::SchedulingEnvironment;
-use tracing::info;
-
-use super::configuration::SystemConfigurations;
+use ordinator_configuration::SystemConfigurations;
+use ordinator_scheduling_environment::SchedulingEnvironment;
+use ordinator_total_data_processing::sources::baptiste_csv_reader::TotalSap;
 
 pub fn initialize_scheduling_environment(
     system_configurations: SystemConfigurations,
-) -> SchedulingEnvironment
-{
+) -> SchedulingEnvironment {
     let total_sap = TotalSap::new(system_configurations.data_locations);
 
     // FIX [ ]

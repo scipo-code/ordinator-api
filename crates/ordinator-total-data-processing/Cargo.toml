@@ -1,5 +1,5 @@
 [package]
-name = "data_processing"
+name = "ordinator-total-data-processing"
 version = "0.2.2"
 edition = "2024"
 description = "Data processing crate for interacting with SAP"

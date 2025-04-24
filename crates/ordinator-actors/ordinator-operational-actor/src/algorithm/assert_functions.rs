@@ -3,13 +3,8 @@ use anyhow::ensure;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 
 use super::OperationalAlgorithm;
-use super::OperationalNonProductive;
-use super::operational_parameter::OperationalParameters;
-use super::operational_solution::OperationalSolution;
-use crate::algorithm::Algorithm;
 
-pub trait OperationalAlgorithmAsserts
-{
+pub trait OperationalAlgorithmAsserts {
     fn assert_no_operation_overlap(&self) -> Result<()>;
 }
 
@@ -19,8 +14,7 @@ impl<Ss> OperationalAlgorithmAsserts for OperationalAlgorithm<Ss>
 where
     Ss: SharedSolutionTrait,
 {
-    fn assert_no_operation_overlap(&self) -> Result<()>
-    {
+    fn assert_no_operation_overlap(&self) -> Result<()> {
         let operational_solutions = self
             .solution
             .scheduled_work_order_activities
