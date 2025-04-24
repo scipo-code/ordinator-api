@@ -36,7 +36,7 @@
             pkgs.libxlsxwriter
             pkgs.linuxKernel.packages.linux_zen.perf
             pkgs.nushell
-            pkgs.openssl_3_3
+            pkgs.openssl_3
             pkgs.pkg-config
             pkgs.rust-bin.nightly.latest.default
             pkgs.zellij
@@ -52,11 +52,11 @@
             lockFile = ./Cargo.lock;
           };
           buildInputs = [
-              pkgs.openssl_3_3
+              pkgs.openssl_3
               pkgs.pkg-config
           ];
           nativeBuildInputs = [
-              pkgs.openssl_3_3
+              pkgs.openssl_3
               pkgs.pkg-config
           ];
         };
