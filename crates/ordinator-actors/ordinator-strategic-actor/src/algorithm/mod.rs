@@ -1532,6 +1532,15 @@ where Ss: SharedSolutionTrait
     }
 }
 
+impl<Ss> From<Algorithm<StrategicSolution, StrategicParameters,PriorityQueue<WorkOrderNumber, u64>,Ss>> for StrategicAlgorithm<Ss>
+where
+    Ss: SharedSolutionTrait
+{
+    fn from(value: Algorithm<StrategicSolution, StrategicParameters,PriorityQueue<WorkOrderNumber, u64>,Ss>) -> Self {
+        StrategicAlgorithm(value)
+    }
+}
+
 #[cfg(test)]
 mod tests
 {

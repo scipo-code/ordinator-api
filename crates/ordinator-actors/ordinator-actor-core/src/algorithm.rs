@@ -63,8 +63,7 @@ where
     P: Parameters,
     Ss: SharedSolutionTrait,
 {
-    pub fn builder() -> AlgorithmBuilder<S, P, I, Ss>
-    {
+    pub fn builder() -> AlgorithmBuilder<S, P, I, Ss> {
         AlgorithmBuilder {
             id: None,
             solution_intermediate: I::default(),
@@ -84,30 +83,27 @@ where
 {
     type SolutionType = S;
 
-    fn clone_algorithm_solution(&self) -> S
-    {
+    fn clone_algorithm_solution(&self) -> S {
         self.solution.clone()
     }
 
-    fn load_shared_solution(&mut self)
-    {
+    fn load_shared_solution(&mut self) {
         self.loaded_shared_solution = self.arc_swap_shared_solution.load();
     }
 
-    fn swap_solution(&mut self, solution: S)
-    {
+    fn swap_solution(&mut self, solution: S) {
         self.solution = solution;
     }
 
     fn update_objective_value(
         &mut self,
         objective_value: <Self::SolutionType as Solution>::ObjectiveValue,
-    )
-    {
+    ) {
         self.solution.update_objective_value(objective_value);
     }
 }
 
+// Why does this function require a `Alg` that is `Result<Alg>`
 impl<S, P, I, Ss> AlgorithmBuilder<S, P, I, Ss>
 where
     S: Solution<Parameters = P>,
@@ -115,8 +111,17 @@ where
     I: Default,
     Ss: SharedSolutionTrait,
 {
-    pub fn build<Alg>(self) -> Alg
+    pub fn build<Alg>(self) -> Result<Alg>
+    // So here the function will return a `Alg` which is the same as
+    // the
     where
+        // So here the `Algorithm` has to implement the
+        // `Into` trait. This means that the code should
+        // work correct? The issue is that I do not know where
+        // the code is going wrong here.
+        // I really do not understand all this. I think that the best
+        // approach is to make something that can make the whole system
+        //
         Algorithm<S, P, I, Ss>: Into<Alg>,
     {
         let algorithm_inner = Algorithm {
@@ -128,11 +133,10 @@ where
             loaded_shared_solution: self.loaded_shared_solution.unwrap(),
         };
 
-        algorithm_inner.into()
+        Ok(algorithm_inner.into())
     }
 
-    pub fn id(mut self, id: Id) -> Self
-    {
+    pub fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
         self
     }
@@ -145,8 +149,7 @@ where
         mut self,
         system_configurations: &Guard<Arc<SystemConfigurations>>,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
-    ) -> Result<Self>
-    {
+    ) -> Result<Self> {
         let parameters = P::from_source(
             self.id.as_ref().expect("Call `id()` build method first"),
             scheduling_environment,
@@ -163,11 +166,11 @@ where
         Ok(self)
     }
 
-    pub fn arc_swap_shared_solution(mut self, arc_swap_shared_solution: Arc<ArcSwap<Ss>>) -> Self
+    pub fn arc_swap_shared_solution(mut self, shared_solution_arc_swap: Arc<ArcSwap<Ss>>) -> Self
     where
         Ss: SharedSolutionTrait,
     {
-        self.arc_swap_shared_solution = Some(arc_swap_shared_solution);
+        self.arc_swap_shared_solution = Some(shared_solution_arc_swap);
         self.loaded_shared_solution = Some(
             self.arc_swap_shared_solution
                 .as_ref()
@@ -181,8 +184,7 @@ where
 // TODO [x]
 // Where should this be moved to? I am not really sure! I think that the best
 // place is the `Algorithm` no I think it is the `ordinator-actors` crate
-pub enum LoadOperation
-{
+pub enum LoadOperation {
     Add,
     Sub,
 }

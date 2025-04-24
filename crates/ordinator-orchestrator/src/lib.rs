@@ -1,4 +1,5 @@
-pub mod agent_registry;
+mod actor_factory;
+pub mod actor_registry;
 pub mod database;
 pub mod logging;
 pub mod model_initializers;
@@ -8,7 +9,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::Weak;
 
-use agent_registry::Communication;
+use actor_registry::Communication;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
@@ -41,8 +42,8 @@ use shared_types::scheduling_environment::worker_environment::resources::Id;
 use tracing::instrument;
 use tracing_subscriber::EnvFilter;
 
+use self::actor_registry::ActorRegistry;
 use self::agent_factory::AgentFactory;
-use self::agent_registry::ActorRegistry;
 use self::configuration::SystemConfigurations;
 use self::database::DataBaseConnection;
 use self::logging::LogHandles;
@@ -51,8 +52,7 @@ use super::agents::ActorSpecific;
 use super::agents::ArcSwapSharedSolution;
 use super::agents::StateLink;
 
-pub struct Orchestrator
-{
+pub struct Orchestrator {
     pub scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub arc_swap_shared_solutions: HashMap<Asset, Arc<ArcSwap<SharedSolution>>>,
     pub agent_factory: AgentFactory,
@@ -68,14 +68,12 @@ pub struct Orchestrator
 pub struct NotifyOrchestrator(Arc<Mutex<Orchestrator>>);
 
 // WARNING: This should only take immutable references to self!
-impl OrchestratorNotifier for NotifyOrchestrator
-{
+impl OrchestratorNotifier for NotifyOrchestrator {
     fn notify_all_agents_of_work_order_change(
         &self,
         work_orders: Vec<WorkOrderNumber>,
         asset: &Asset,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         let locked_orchestrator = self.0.lock().unwrap();
 
         let agent_registry = locked_orchestrator
@@ -119,14 +117,12 @@ impl OrchestratorNotifier for NotifyOrchestrator
     }
 }
 
-impl Orchestrator
-{
+impl Orchestrator {
     #[instrument(level = "info", skip_all)]
     pub async fn handle(
         &mut self,
         orchestrator_request: OrchestratorRequest,
-    ) -> Result<OrchestratorResponse>
-    {
+    ) -> Result<OrchestratorResponse> {
         match orchestrator_request {
             OrchestratorRequest::AgentStatusRequest => {
                 let _buffer = String::new();
@@ -502,8 +498,7 @@ impl Orchestrator
     // Is it correct to remove the agents here? I believe yes, the system have the
     // agents that it does. In the scheduling environment. I do not think that
     // we should move too much with this.
-    pub fn initialize_operational_agents(&mut self) -> Result<()>
-    {
+    pub fn initialize_operational_agents(&mut self) -> Result<()> {
         let operational_agents = &self
             .scheduling_environment
             .lock()
@@ -531,8 +526,7 @@ impl Orchestrator
     fn create_operational_agent(
         &mut self,
         operational_agent: &OperationalConfigurationAll,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         let notify_orchestrator = NotifyOrchestrator(
             self.agent_notify
                 .as_ref()
@@ -574,8 +568,7 @@ impl Orchestrator
     }
 }
 
-impl ActorRegistry
-{
+impl ActorRegistry {
     fn new(
         strategic_agent_addr: Communication<
             ActorMessage<StrategicRequestMessage>,
@@ -589,8 +582,7 @@ impl ActorRegistry
             Id,
             Communication<ActorMessage<SupervisorRequestMessage>, SupervisorResponseMessage>,
         >,
-    ) -> Self
-    {
+    ) -> Self {
         ActorRegistry {
             strategic_agent_sender: strategic_agent_addr,
             tactical_agent_sender: tactical_agent_addr,
@@ -606,8 +598,7 @@ impl ActorRegistry
             ActorMessage<SupervisorRequestMessage>,
             SupervisorResponseMessage,
         >,
-    )
-    {
+    ) {
         self.supervisor_agent_senders.insert(id, communication);
     }
 
@@ -618,13 +609,11 @@ impl ActorRegistry
             ActorMessage<OperationalRequestMessage>,
             OperationalResponseMessage,
         >,
-    )
-    {
+    ) {
         self.operational_agent_senders.insert(id, communication);
     }
 
-    pub fn supervisor_by_id_string(&self, id_string: String) -> Id
-    {
+    pub fn supervisor_by_id_string(&self, id_string: String) -> Id {
         self.supervisor_agent_senders
             .keys()
             .find(|id| id.0 == id_string)
@@ -633,10 +622,8 @@ impl ActorRegistry
     }
 }
 
-impl Orchestrator
-{
-    pub async fn new() -> Arc<Mutex<Self>>
-    {
+impl Orchestrator {
+    pub async fn new() -> Arc<Mutex<Self>> {
         let configurations = SystemConfigurations::read_all_configs().unwrap();
 
         let (log_handles, _logging_guard) = logging::setup_logging();
@@ -705,8 +692,7 @@ impl Orchestrator
     // What the fuck is this? Loading in configurations as a `system_agents_bytes`
     // You are a pathetic idiot! You knew better even when you wrote this. This
     // is a horrible way to live your life, God must be ashamed of you!
-    pub fn asset_factory(&mut self, asset: Asset, system_agents_bytes: Vec<u8>) -> Result<()>
-    {
+    pub fn asset_factory(&mut self, asset: Asset, system_agents_bytes: Vec<u8>) -> Result<()> {
         let mut scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
         // Initialization should not occur in here. Also the configurations should come

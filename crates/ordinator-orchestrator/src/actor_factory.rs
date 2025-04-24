@@ -13,6 +13,8 @@ use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
+// There is no reason to update this. I think that the best appraoch is to make the code
+// function with the
 #[derive(Debug, Clone)]
 pub struct AgentFactory {
     scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,

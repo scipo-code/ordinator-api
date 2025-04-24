@@ -1,8 +1,14 @@
 mod algorithm;
 pub mod messages;
 
+use algorithm::strategic_parameters::StrategicParameters;
 use anyhow::Result;
+use ordinator_actor_core::algorithm::Algorithm;
+use ordinator_actor_core::algorithm::AlgorithmBuilder;
+use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use priority_queue::PriorityQueue;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::sync::Arc;
@@ -204,6 +210,16 @@ where
     }
 }
 
+type Type<Ss> = ordinator_actor_core::algorithm::AlgorithmBuilder<
+    StrategicSolution,
+    algorithm::strategic_parameters::StrategicParameters,
+    priority_queue::PriorityQueue<
+        ordinator_scheduling_environment::work_order::WorkOrderNumber,
+        u64,
+    >,
+    Ss,
+>;
+
 // This function can only work with the 'SharedSolutionTrait'.
 // You cannot
 // TODO [ ]
@@ -212,26 +228,56 @@ where
 //
 // QUESTION [ ]
 // What the the stance on the 'Configuration'
+// Could the configuration go into the `factory`? I think that
+// this is the the case. The problem is that the ActorSpecification
+// should not. They could come from the `SchedulingEnvironment` I
+// think that the best approach is to make something that is more
+// Having the configuration centralized is a good idea. I think that
+// refactoring it after this works is a better option.
 pub fn strategic_factory<Ss>(
     id: Id,
     scheduling_environment_guard: Arc<Mutex<SchedulingEnvironment>>,
     shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
     notify_orchestrator: Box<dyn OrchestratorNotifier>,
-    strategic_options: StrategicOptions,
+    system_configurations: Arc<ArcSwap<SystemConfigurations>>,
 ) -> Result<Communication<ActorMessage<StrategicRequestMessage>, StrategicResponseMessage>>
 where
-    Ss: SharedSolutionTrait,
+    Ss: SharedSolutionTrait<Strategic = StrategicSolution> + Send + Sync + 'static,
+    StrategicAlgorithm<Ss>: ActorBasedLargeNeighborhoodSearch
+        + Send
+        + Sync
+        + From<
+            Algorithm<
+                StrategicSolution,
+                StrategicParameters,
+                PriorityQueue<WorkOrderNumber, u64>,
+                Ss,
+            >,
+        >,
 {
-    Actor::builder()
+    Actor::<StrategicRequestMessage, StrategicResponseMessage, StrategicAlgorithm<Ss>>::builder()
         .agent_id(Id::new("StrategicAgent", vec![], vec![id.asset().clone()]))
         .scheduling_environment(Arc::clone(&scheduling_environment_guard))
         // TODO
         // Make a builder here!
-        .algorithm(|ab| ab.id(id))
+        // This is a little difficult. We would like to use the same scheduling environment
+        // Why am I not allowed to propagate the error here?
+        // Why is this so damn difficult for you to understand? What are you not understanding? I think
+        // that taking a short break is a good idea.
+        // The issue is that you do not understand `Fn` traits well enough
+        .algorithm(|ab| {
+            ab.id(id)
+                // So this function returns a `Result`
+                .arc_swap_shared_solution(shared_solution_arc_swap)
+                .parameters_and_solution(
+                    &system_configurations.load(),
+                    &scheduling_environment_guard.lock().unwrap(),
+                )
+        })?
         // TODO [x]
         // These should be created in a single step
         .communication()
-        .configurations(configurations)
+        .configurations(system_configurations)
         .notify_orchestrator(notify_orchestrator)
         .build()
 }

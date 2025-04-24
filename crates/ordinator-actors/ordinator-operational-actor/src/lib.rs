@@ -2,20 +2,30 @@ mod algorithm;
 mod assert_functions;
 pub mod messages;
 
+use anyhow::Result;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::sync::Arc;
+use std::sync::Mutex;
 
 use algorithm::OperationalAlgorithm;
+use algorithm::operational_parameter::OperationalParameters;
 use algorithm::operational_solution::OperationalSolution;
+use arc_swap::ArcSwap;
 use arc_swap::Guard;
 use messages::OperationalRequestMessage;
 use messages::OperationalResponseMessage;
 use ordinator_actor_core::Actor;
+use ordinator_actor_core::algorithm::Algorithm;
+use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_configuration::SystemConfigurations;
+use ordinator_orchestrator_actor_traits::ActorMessage;
+use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
+use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use ordinator_scheduling_environment::Asset;
+use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use rand::rng;
 use rand::rngs::ThreadRng;
@@ -29,8 +39,7 @@ where
     Ss: SharedSolutionTrait<Operational = OperationalSolution>,
     Self: MessageHandler<Req = OperationalRequestMessage, Res = OperationalResponseMessage>;
 
-pub struct OperationalOptions
-{
+pub struct OperationalOptions {
     pub number_of_removed_activities: usize,
     pub rng: ThreadRng,
 }
@@ -39,10 +48,8 @@ pub struct OperationalOptions
 // some serious issues here with the architecture. The scheduling environment
 // is growing very big and that is a good thing. It is becoming more database
 // like and that is also a good thing for this kind of system.
-impl<'a> From<(&Guard<Arc<SystemConfigurations>>, &Id)> for OperationalOptions
-{
-    fn from(value: (&Guard<Arc<SystemConfigurations>>, &Id)) -> Self
-    {
+impl From<(&Guard<Arc<SystemConfigurations>>, &Id)> for OperationalOptions {
+    fn from(value: (&Guard<Arc<SystemConfigurations>>, &Id)) -> Self {
         let number_of_removed_activities = value
             .0
             .actor_specification
@@ -69,10 +76,8 @@ impl<'a> From<(&Guard<Arc<SystemConfigurations>>, &Id)> for OperationalOptions
 //     }
 // }
 //
-impl From<(SystemConfigurations, &Asset, &Id)> for OperationalOptions
-{
-    fn from(value: (SystemConfigurations, &Asset, &Id)) -> Self
-    {
+impl From<(SystemConfigurations, &Asset, &Id)> for OperationalOptions {
+    fn from(value: (SystemConfigurations, &Asset, &Id)) -> Self {
         let number_of_removed_activities = value
             .0
             .actor_specification
@@ -97,8 +102,7 @@ where
     type Target =
         Actor<OperationalRequestMessage, OperationalResponseMessage, OperationalAlgorithm<Ss>>;
 
-    fn deref(&self) -> &Self::Target
-    {
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
@@ -107,8 +111,47 @@ impl<Ss> DerefMut for OperationalActor<Ss>
 where
     Ss: SharedSolutionTrait<Operational = OperationalSolution>,
 {
-    fn deref_mut(&mut self) -> &mut Self::Target
-    {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
+}
+pub fn operational_factory<Ss>(
+    id: Id,
+    scheduling_environment_guard: Arc<Mutex<SchedulingEnvironment>>,
+    shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
+    notify_orchestrator: Box<dyn OrchestratorNotifier>,
+    system_configurations: Arc<ArcSwap<SystemConfigurations>>,
+) -> Result<Communication<ActorMessage<OperationalRequestMessage>, OperationalResponseMessage>>
+where
+    Ss: SharedSolutionTrait<Operational = OperationalSolution> + Send + Sync + 'static,
+    OperationalAlgorithm<Ss>: ActorBasedLargeNeighborhoodSearch
+        + Send
+        + Sync
+        + From<Algorithm<OperationalSolution, OperationalParameters, (), Ss>>,
+{
+    Actor::<OperationalRequestMessage, OperationalResponseMessage, OperationalAlgorithm<Ss>>::builder()
+        .agent_id(Id::new("OperationalAgent", vec![], vec![id.asset().clone()]))
+        .scheduling_environment(Arc::clone(&scheduling_environment_guard))
+        // TODO
+        // Make a builder here!
+        // This is a little difficult. We would like to use the same scheduling environment
+        // Why am I not allowed to propagate the error here?
+        // Why is this so damn difficult for you to understand? What are you not understanding? I think
+        // that taking a short break is a good idea.
+        // The issue is that you do not understand `Fn` traits well enough
+        .algorithm(|ab| {
+            ab.id(id)
+                // So this function returns a `Result`
+                .arc_swap_shared_solution(shared_solution_arc_swap)
+                .parameters_and_solution(
+                    &system_configurations.load(),
+                    &scheduling_environment_guard.lock().unwrap(),
+                )
+        })?
+        // TODO [x]
+        // These should be created in a single step
+        .communication()
+        .configurations(system_configurations)
+        .notify_orchestrator(notify_orchestrator)
+        .build()
 }
