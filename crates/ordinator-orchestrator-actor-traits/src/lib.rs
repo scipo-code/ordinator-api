@@ -3,9 +3,11 @@ pub mod marginal_fitness;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::MutexGuard;
 
 use anyhow::Result;
+use arc_swap::ArcSwap;
 use arc_swap::Guard;
 use chrono::DateTime;
 use chrono::Utc;
@@ -21,8 +23,7 @@ use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
-pub trait OrchestratorNotifier: Send + Sync + 'static
-{
+pub trait OrchestratorNotifier: Send + Sync + 'static {
     fn notify_all_agents_of_work_order_change(
         &self,
         work_orders: Vec<WorkOrderNumber>,
@@ -30,8 +31,7 @@ pub trait OrchestratorNotifier: Send + Sync + 'static
     ) -> Result<()>;
 }
 
-pub struct Communication<Req, Res>
-{
+pub struct Communication<Req, Res> {
     pub sender: Sender<Req>,
     pub receiver: Receiver<Result<Res>>,
 }
@@ -65,8 +65,7 @@ where
 
 // This is made completely wrong. I am not sure what the
 // best approach of solving it will be.
-pub trait SharedSolutionTrait: Clone
-{
+pub trait SharedSolutionTrait: Clone {
     type Strategic: StrategicInterface;
     type Tactical: TacticalInterface;
     type Supervisor: SupervisorInterface;
@@ -114,23 +113,19 @@ where
     type Supervisor = U;
     type Tactical = T;
 
-    fn strategic(&self) -> &Self::Strategic
-    {
+    fn strategic(&self) -> &Self::Strategic {
         &self.strategic
     }
 
-    fn tactical(&self) -> &Self::Tactical
-    {
+    fn tactical(&self) -> &Self::Tactical {
         &self.tactical
     }
 
-    fn supervisor(&self) -> &Self::Supervisor
-    {
+    fn supervisor(&self) -> &Self::Supervisor {
         &self.supervisor
     }
 
-    fn operational(&self, id: &Id) -> &Self::Operational
-    {
+    fn operational(&self, id: &Id) -> &Self::Operational {
         self.operational
             .get(id)
             .expect("querieed nonexisting operaional agent")
@@ -165,8 +160,7 @@ where
         todo!()
     }
 
-    fn all_operational(&self) -> HashSet<Id>
-    {
+    fn all_operational(&self) -> HashSet<Id> {
         self.operational.keys().cloned().collect()
     }
 
@@ -204,8 +198,7 @@ where
 // `from` trait. Meaning that we should focus on making the system
 // work with the
 // Should this function have an option or not? Yes it should.
-pub trait Solution
-{
+pub trait Solution {
     type ObjectiveValue;
     type Parameters;
     type Options: for<'a> From<(&'a Guard<Arc<SystemConfigurations>>, &'a Id)>;
@@ -220,13 +213,11 @@ pub trait Solution
     fn update_objective_value(&mut self, other_objective: Self::ObjectiveValue);
 }
 
-pub trait MessageHandler
-{
+pub trait MessageHandler {
     type Req;
     type Res;
 
-    fn handle(&mut self, actor_message: ActorMessage<Self::Req>) -> Result<Self::Res>
-    {
+    fn handle(&mut self, actor_message: ActorMessage<Self::Req>) -> Result<Self::Res> {
         match actor_message {
             ActorMessage::State(state_link) => self.handle_state_link(state_link),
             ActorMessage::Actor(actor_request) => self.handle_request_message(actor_request),
@@ -274,17 +265,14 @@ where
 // work order to be located. This is crucial to respect
 // business logic.
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
-pub enum WhereIsWorkOrder<T>
-{
+pub enum WhereIsWorkOrder<T> {
     Strategic,
     Tactical(T),
     #[default]
     NotScheduled,
 }
-impl<T> WhereIsWorkOrder<T>
-{
-    pub fn is_tactical(&self) -> bool
-    {
+impl<T> WhereIsWorkOrder<T> {
+    pub fn is_tactical(&self) -> bool {
         matches!(self, WhereIsWorkOrder::Tactical(_))
     }
 }
@@ -342,8 +330,7 @@ where
 }
 
 #[derive(Clone)]
-pub enum ActorMessage<ActorRequest>
-{
+pub enum ActorMessage<ActorRequest> {
     State(StateLink),
     Actor(ActorRequest),
     // Yes so options should be included here as part of what needs to be created for
@@ -367,15 +354,24 @@ pub enum ActorMessage<ActorRequest>
 /// statically typed.
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-pub enum StateLink
-{
+pub enum StateLink {
     WorkOrders(ActorSpecific),
     WorkerEnvironment,
     TimeEnvironment,
 }
 
 #[derive(Debug, Clone)]
-pub enum ActorSpecific
-{
+pub enum ActorSpecific {
     Strategic(Vec<WorkOrderNumber>),
+}
+pub trait ActorFactory<Ss> {
+    type Communication;
+
+    fn construct_actor(
+        id: Id,
+        scheduling_environment_guard: Arc<Mutex<SchedulingEnvironment>>,
+        shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
+        notify_orchestrator: Box<dyn OrchestratorNotifier>,
+        system_configurations: Arc<ArcSwap<SystemConfigurations>>,
+    ) -> Result<Self::Communication>;
 }

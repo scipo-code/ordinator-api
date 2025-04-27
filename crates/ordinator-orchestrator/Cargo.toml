@@ -20,6 +20,8 @@ ordinator-operational-actor = {path = "../ordinator-actors/ordinator-operational
 anyhow = { workspace = true }
 arc-swap = {workspace = true}
 dotenvy = { workspace = true}
+serde = {workspace = true}
+serde_json ={ workspace = true}
 
 tracing = {workspace = true}
 tracing-appender = {workspace = true}

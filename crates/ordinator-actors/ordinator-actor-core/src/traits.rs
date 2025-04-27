@@ -1,12 +1,17 @@
 use std::fmt::Debug;
 use std::sync::Arc;
+use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
+use arc_swap::ArcSwap;
 use arc_swap::Guard;
 use ordinator_configuration::SystemConfigurations;
+use ordinator_orchestrator_actor_traits::Communication;
+use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_scheduling_environment::Asset;
+use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use serde::Serialize;
 
@@ -26,8 +31,7 @@ use serde::Serialize;
 // The high level thing only requires the actor specification, and only the
 // actor should know about that. I really do not think that I need an additional
 // break here. I do not see what other approach.
-pub trait ActorBasedLargeNeighborhoodSearch
-{
+pub trait ActorBasedLargeNeighborhoodSearch {
     type Algorithm: AbLNSUtils;
     type Options;
 
@@ -35,8 +39,7 @@ pub trait ActorBasedLargeNeighborhoodSearch
         &mut self,
         configurations: Guard<Arc<SystemConfigurations>>,
         id: &Id,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         let options = &Self::derive_options(&configurations, id);
 
         // You still have the same problem. Why do you keep running in circles? I do not
@@ -92,8 +95,7 @@ pub trait ActorBasedLargeNeighborhoodSearch
     /// the shared solution. That means that this method has to look at relevant
     /// state in the others `Agent`s and incorporate that and handled changes in
     /// parameters coming from external inputs.
-    fn update_based_on_shared_solution(&mut self, options: &Self::Options) -> Result<()>
-    {
+    fn update_based_on_shared_solution(&mut self, options: &Self::Options) -> Result<()> {
         self.algorithm_util_methods().load_shared_solution();
 
         let state_change = self.incorporate_shared_state()?;
@@ -109,8 +111,7 @@ pub trait ActorBasedLargeNeighborhoodSearch
     fn incorporate_shared_state(&mut self) -> Result<bool>;
 }
 
-pub trait AbLNSUtils
-{
+pub trait AbLNSUtils {
     type SolutionType: Solution + Debug + Clone;
 
     fn clone_algorithm_solution(&self) -> Self::SolutionType;
@@ -128,8 +129,7 @@ pub trait AbLNSUtils
 }
 
 #[allow(dead_code)]
-pub enum ObjectiveValueType<O>
-{
+pub enum ObjectiveValueType<O> {
     Better(O),
     Worse,
     Force,

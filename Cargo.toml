@@ -53,4 +53,4 @@ toml = "*"
 tracing = "*"
 tracing-appender = "*"
 tracing-flame = "*"
-tracing-subscriber = "*"
+tracing-subscriber ={version = "*", features = ["std", "fmt", "env-filter", "json"]} 
