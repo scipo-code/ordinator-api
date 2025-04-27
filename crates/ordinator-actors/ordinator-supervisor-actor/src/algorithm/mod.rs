@@ -15,9 +15,9 @@ use ordinator_actor_core::traits::AbLNSUtils;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_actor_core::traits::ObjectiveValueType;
 use ordinator_orchestrator_actor_traits::Parameters;
-use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::StrategicInterface;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::delegate::Delegate;
 use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
@@ -34,11 +34,11 @@ use super::SupervisorOptions;
 
 pub struct SupervisorAlgorithm<Ss>(Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>)
 where
-    Ss: SharedSolutionTrait;
+    Ss: SystemSolutionTrait;
 
 impl<Ss> SupervisorAlgorithm<Ss>
 where
-    Ss: SharedSolutionTrait,
+    Ss: SystemSolutionTrait,
 {
     pub fn unschedule_specific_work_order(
         &mut self,
@@ -56,7 +56,7 @@ where
         AbLNSUtils<SolutionType = SupervisorSolution>,
     SupervisorSolution: Solution,
     SupervisorParameters: Parameters,
-    Ss: SharedSolutionTrait<Supervisor = SupervisorSolution>,
+    Ss: SystemSolutionTrait<Supervisor = SupervisorSolution>,
 {
     type Algorithm = Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>;
     type Options = SupervisorOptions;
@@ -305,7 +305,7 @@ fn is_assigned_part_of_all(
 }
 impl<Ss> Deref for SupervisorAlgorithm<Ss>
 where
-    Ss: SharedSolutionTrait,
+    Ss: SystemSolutionTrait,
 {
     type Target = Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>;
 
@@ -316,9 +316,18 @@ where
 
 impl<Ss> DerefMut for SupervisorAlgorithm<Ss>
 where
-    Ss: SharedSolutionTrait,
+    Ss: SystemSolutionTrait,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+impl<Ss> From<Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>>
+    for SupervisorAlgorithm<Ss>
+where
+    Ss: SystemSolutionTrait,
+{
+    fn from(value: Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>) -> Self {
+        SupervisorAlgorithm(value)
     }
 }

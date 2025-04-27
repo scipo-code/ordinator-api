@@ -1,12 +1,11 @@
-mod algorithm;
+pub mod algorithm;
 pub mod messages;
 
 use algorithm::strategic_parameters::StrategicParameters;
 use anyhow::Result;
 use ordinator_actor_core::algorithm::Algorithm;
-use ordinator_actor_core::algorithm::AlgorithmBuilder;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
-use ordinator_actor_core::traits::ActorFactory;
+use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use priority_queue::PriorityQueue;
@@ -14,7 +13,6 @@ use std::ops::Deref;
 use std::ops::DerefMut;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::MutexGuard;
 
 use algorithm::StrategicAlgorithm;
 use algorithm::strategic_solution::StrategicSolution;
@@ -27,8 +25,7 @@ use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::ActorMessage;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
-use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
-use ordinator_scheduling_environment::Asset;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::MaterialToPeriod;
 use ordinator_scheduling_environment::work_order::WorkOrderConfigurations;
@@ -36,68 +33,11 @@ use ordinator_scheduling_environment::worker_environment::resources::Id;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-// I really do not understand what the best approach is for going forward here
-// I think that I need to understand how the whole system should be built. The
-// Issue is that I do not know how the traits affect each other in the code
-// and how generics play into the large structure
-// How is it that these components actually work? You need to understand this
-// it is like the wole system is flawed and there is nothing that you can do
-// about it as you do not understand it.
-// QUESTION
-// What should you do to fix this? The best option is to figure it out
-// completely now so that you never need to have this dilemma ever again. Make a
-// test project What should this test project determine? I think that it should
-// determine what What is the actual problem here? The issue is that you need a
-// `contracts` module to hold all the different types of the
-// I think that this is a case of you using the wrong level of abstraction. I do
-// not think that there is a better way than to simply make the differnt
-// message types and then implement the `From` trait on all of them. What other
-// thing could be done here? I am really not sure. You know what to do here
-// the issue is that you simply do not have the persistence to actually do it.
-//
-// Okay what should be done about this parameter? What is the high level
-// strategy for handling the logic behind this?
-// QUESTION
-// * How strongly typed should the system be?
-// * Should nested enums be used?
-// I actually think that they should be. The best approach here would be to make
-// something is type safe I think, I do not see a better approach for the
-// system. You could make trait objects but I generally think that it would be a
-// better idea to use enum. And then make a "CatchAll" for all odd variants.
-// * Why is it that generics cannot be used?
-// The generics propagate up into the nested types. That is because every
-// parent type also need to be generic. The problem arise when non of the
-// parant ever actually provide a concrete type into the system. That
-// means that the system will have to work in such a way that every combination
-// of generics should be able to be `monomorphized` by the compiler and that
-// is generally not the thing that we want. We want the code to work with
-// as few generics as possible. This is a little like using the `HashMap<K, V>`
-// where instead of inserting your own types into the `HashMap<K, V>` you
-// instead try to make the code work with the `K` all the way through. I
-// believe that to confuse yourself less, you should start to think more
-// in terms of data structures, like the once from the std library. This
-// is the best way of working with the code I believe.
-// So what should be done about the generic parameter? I think that the
-// best approach is to make the code work as well as possible ...
-//
-// The question here is what we should do about the generic parameter in the
-// `StrategicResponseMessage` I think that the best approach is to make a
-// type for each request message. I do not think that there is a better
-// approach here.
-//
-// You want a type safe system. You need that personally, I do not see a way
-// around it. That is a personal requirement. The issue here is whether you
-// want a generic interface to express all these different kinds of messages.
-// The best appraoch is probably to make a large enum for each of the
-// actors and then provide a standard interface to each of them.
-//
-// * What is it that you are misunderstanding?
-//
 pub struct StrategicActor<Ss>(
     Actor<StrategicRequestMessage, StrategicResponseMessage, StrategicAlgorithm<Ss>>,
 )
 where
-    Ss: SharedSolutionTrait<Strategic = StrategicSolution>,
+    Ss: SystemSolutionTrait<Strategic = StrategicSolution>,
     // I do not understand the relation, here. The issue is that I think that the
     // primary goal is to make everything generic. But it is not. You should understand
     // this. Not go quickly go the fact.
@@ -193,7 +133,7 @@ impl From<(SystemConfigurations, &Id)> for StrategicOptions {
 }
 impl<Ss> Deref for StrategicActor<Ss>
 where
-    Ss: SharedSolutionTrait<Strategic = StrategicSolution>,
+    Ss: SystemSolutionTrait<Strategic = StrategicSolution>,
 {
     type Target = Actor<StrategicRequestMessage, StrategicResponseMessage, StrategicAlgorithm<Ss>>;
 
@@ -204,7 +144,7 @@ where
 
 impl<Ss> DerefMut for StrategicActor<Ss>
 where
-    Ss: SharedSolutionTrait<Strategic = StrategicSolution>,
+    Ss: SystemSolutionTrait<Strategic = StrategicSolution>,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
@@ -238,7 +178,7 @@ type Type<Ss> = ordinator_actor_core::algorithm::AlgorithmBuilder<
 pub struct StrategicApi {}
 impl<Ss> ActorFactory<Ss> for StrategicApi
 where
-    Ss: SharedSolutionTrait<Strategic = StrategicSolution> + Send + Sync + 'static,
+    Ss: SystemSolutionTrait<Strategic = StrategicSolution> + Send + Sync + 'static,
 {
     type Communication =
         Communication<ActorMessage<StrategicRequestMessage>, StrategicResponseMessage>;
@@ -249,9 +189,9 @@ where
         shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
         notify_orchestrator: Box<dyn OrchestratorNotifier>,
         system_configurations: Arc<ArcSwap<SystemConfigurations>>,
-    ) -> Result<Self::Communication>
+    ) -> Result<<Self as ActorFactory<Ss>>::Communication>
     where
-        Ss: SharedSolutionTrait<Strategic = StrategicSolution> + Send + Sync + 'static,
+        Ss: SystemSolutionTrait<Strategic = StrategicSolution> + Send + Sync + 'static,
         StrategicAlgorithm<Ss>: ActorBasedLargeNeighborhoodSearch
             + Send
             + Sync
@@ -266,7 +206,7 @@ where
     {
         Actor::<StrategicRequestMessage, StrategicResponseMessage, StrategicAlgorithm<Ss>>::builder(
         )
-        .agent_id(Id::new("StrategicAgent", vec![], vec![id.asset().clone()]))
+        .agent_id(id.clone())
         .scheduling_environment(Arc::clone(&scheduling_environment_guard))
         .algorithm(|ab| {
             ab.id(id)

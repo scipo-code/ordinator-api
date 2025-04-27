@@ -2,7 +2,7 @@ use anyhow::Context;
 use anyhow::Result;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::MessageHandler;
-use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::StateLink;
 use ordinator_orchestrator_actor_traits::WhereIsWorkOrder;
 
@@ -21,7 +21,7 @@ use crate::algorithm::tactical_solution::TacticalSolution;
 // way to consolidate your knowledge.
 impl<Ss> MessageHandler for TacticalActor<Ss>
 where
-    Ss: SharedSolutionTrait<Tactical = TacticalSolution>,
+    Ss: SystemSolutionTrait<Tactical = TacticalSolution>,
 {
     type Req = TacticalRequestMessage;
     type Res = TacticalResponseMessage;

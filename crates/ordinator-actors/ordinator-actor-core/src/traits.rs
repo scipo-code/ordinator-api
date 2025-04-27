@@ -1,36 +1,14 @@
 use std::fmt::Debug;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
-use arc_swap::ArcSwap;
 use arc_swap::Guard;
 use ordinator_configuration::SystemConfigurations;
-use ordinator_orchestrator_actor_traits::Communication;
-use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::Solution;
-use ordinator_scheduling_environment::Asset;
-use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use serde::Serialize;
 
-/// This trait will be crucial for making this whole thing work correctly.
-/// I think that the best approach will be to make only a single message
-/// and then have that as an enum. Then we should have the
-/// 'update_shared_solution' as a function to make sure that if the state of the
-/// other agents have changed that we update that correctly in the solution.
-///
-/// QUESTION:
-/// Should you make this function on the correct kind of
-// QUESTION
-// Do you even need this trait? No you do not... This can simply be
-// created using the generic structure? No you need the generic
-// structure. There is no way around it. I think that the best
-// thing to do here is making the.
-// The high level thing only requires the actor specification, and only the
-// actor should know about that. I really do not think that I need an additional
-// break here. I do not see what other approach.
 pub trait ActorBasedLargeNeighborhoodSearch {
     type Algorithm: AbLNSUtils;
     type Options;

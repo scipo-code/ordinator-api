@@ -21,7 +21,7 @@ use ordinator_actor_core::traits::AbLNSUtils;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_actor_core::traits::ObjectiveValueType;
 use ordinator_orchestrator_actor_traits::Parameters;
-use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::TacticalInterface;
 use ordinator_scheduling_environment::time_environment::period::Period;
@@ -62,7 +62,7 @@ use super::StrategicOptions;
 // important thing here.
 impl<Ss> StrategicAlgorithm<Ss>
 where
-    Ss: SharedSolutionTrait,
+    Ss: SystemSolutionTrait,
 {
     pub fn update_the_locked_in_period(
         &mut self,
@@ -349,7 +349,7 @@ pub trait StrategicUtils
 // have all this code in the 
 impl<Ss> StrategicUtils for StrategicAlgorithm<Ss>
 where
-    Ss: SharedSolutionTrait,
+    Ss: SystemSolutionTrait,
 {
     // TODO [ ]
     // This should be changed as well. But now I will go home. I think that your best approach is
@@ -1048,12 +1048,12 @@ pub struct StrategicAlgorithm<Ss>(pub Algorithm<StrategicSolution, StrategicPara
 where
     StrategicSolution: Solution,
     StrategicParameters: Parameters,
-    Ss: SharedSolutionTrait,
+    Ss: SystemSolutionTrait,
     Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>: AbLNSUtils;
 
 impl<Ss> Deref for StrategicAlgorithm<Ss>
 where
-    Ss: SharedSolutionTrait
+    Ss: SystemSolutionTrait
 {
     type Target =Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>,Ss>;
 
@@ -1063,7 +1063,7 @@ where
 }
 impl<Ss> DerefMut for StrategicAlgorithm<Ss>
 where
-    Ss: SharedSolutionTrait
+    Ss: SystemSolutionTrait
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0 
@@ -1076,7 +1076,7 @@ impl<Ss> ActorBasedLargeNeighborhoodSearch
         Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>: AbLNSUtils<SolutionType = StrategicSolution>,
         StrategicSolution: Solution,
         StrategicParameters: Parameters,
-        Ss: SharedSolutionTrait<Strategic = StrategicSolution>,
+        Ss: SystemSolutionTrait<Strategic = StrategicSolution>,
 {
     type Options = StrategicOptions;
     type Algorithm = Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
@@ -1282,7 +1282,7 @@ impl<Ss> ActorBasedLargeNeighborhoodSearch
 }
 
 impl<Ss> StrategicAlgorithm<Ss>
-where Ss: SharedSolutionTrait
+where Ss: SystemSolutionTrait
 {
     pub fn update_resources_state(
         &mut self,
@@ -1534,7 +1534,7 @@ where Ss: SharedSolutionTrait
 
 impl<Ss> From<Algorithm<StrategicSolution, StrategicParameters,PriorityQueue<WorkOrderNumber, u64>,Ss>> for StrategicAlgorithm<Ss>
 where
-    Ss: SharedSolutionTrait
+    Ss: SystemSolutionTrait
 {
     fn from(value: Algorithm<StrategicSolution, StrategicParameters,PriorityQueue<WorkOrderNumber, u64>,Ss>) -> Self {
         StrategicAlgorithm(value)

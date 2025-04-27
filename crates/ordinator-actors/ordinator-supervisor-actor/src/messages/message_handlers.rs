@@ -5,7 +5,7 @@ use anyhow::Result;
 use anyhow::bail;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::MessageHandler;
-use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::StateLink;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use tracing::Level;
@@ -21,7 +21,7 @@ use crate::messages::responses::SupervisorResponseStatus;
 
 impl<Ss> MessageHandler for SupervisorActor<Ss>
 where
-    Ss: SharedSolutionTrait<Supervisor = SupervisorSolution>,
+    Ss: SystemSolutionTrait<Supervisor = SupervisorSolution>,
 {
     type Req = SupervisorRequestMessage;
     type Res = SupervisorResponseMessage;

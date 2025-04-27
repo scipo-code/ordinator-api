@@ -7,8 +7,8 @@ use arc_swap::ArcSwap;
 use arc_swap::Guard;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::Parameters;
-use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use ordinator_orchestrator_actor_traits::Solution;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
@@ -28,7 +28,7 @@ pub struct Algorithm<S, P, I, Ss>
 where
     S: Solution,
     P: Parameters,
-    Ss: SharedSolutionTrait,
+    Ss: SystemSolutionTrait,
 {
     pub id: Id,
     pub solution_intermediate: I,
@@ -46,7 +46,7 @@ pub struct AlgorithmBuilder<S, P, I, Ss>
 where
     S: Solution,
     P: Parameters,
-    Ss: SharedSolutionTrait,
+    Ss: SystemSolutionTrait,
 {
     id: Option<Id>,
     solution_intermediate: I,
@@ -61,7 +61,7 @@ where
     I: Default,
     S: Solution + Debug + Clone,
     P: Parameters,
-    Ss: SharedSolutionTrait,
+    Ss: SystemSolutionTrait,
 {
     pub fn builder() -> AlgorithmBuilder<S, P, I, Ss> {
         AlgorithmBuilder {
@@ -79,7 +79,7 @@ where
     I: Default,
     S: Solution + Debug + Clone,
     P: Parameters,
-    Ss: SharedSolutionTrait,
+    Ss: SystemSolutionTrait,
 {
     type SolutionType = S;
 
@@ -109,7 +109,7 @@ where
     S: Solution<Parameters = P>,
     P: Parameters,
     I: Default,
-    Ss: SharedSolutionTrait,
+    Ss: SystemSolutionTrait,
 {
     pub fn build<Alg>(self) -> Result<Alg>
     // So here the function will return a `Alg` which is the same as
@@ -168,7 +168,7 @@ where
 
     pub fn arc_swap_shared_solution(mut self, shared_solution_arc_swap: Arc<ArcSwap<Ss>>) -> Self
     where
-        Ss: SharedSolutionTrait,
+        Ss: SystemSolutionTrait,
     {
         self.arc_swap_shared_solution = Some(shared_solution_arc_swap);
         self.loaded_shared_solution = Some(

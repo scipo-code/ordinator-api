@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use anyhow::Result;
 use anyhow::bail;
 use ordinator_actor_core::Actor;
-use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::StrategicInterface;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use tracing::Level;
@@ -26,7 +26,7 @@ pub trait SupervisorAssertions
 impl<MessageRequest, MessageResponse, Ss> SupervisorAssertions
     for Actor<MessageRequest, MessageResponse, SupervisorAlgorithm<Ss>>
 where
-    Ss: SharedSolutionTrait<Supervisor = SupervisorSolution>,
+    Ss: SystemSolutionTrait<Supervisor = SupervisorSolution>,
 {
     fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(
         &self,

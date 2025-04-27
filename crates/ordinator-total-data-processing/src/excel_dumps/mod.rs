@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use arc_swap::Guard;
-use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::StrategicInterface;
 use ordinator_orchestrator_actor_traits::TacticalInterface;
 use ordinator_scheduling_environment::Asset;
@@ -220,7 +220,7 @@ pub fn create_excel_dump<Ss>(
     shared_solution: Guard<Arc<Ss>>,
 ) -> Result<PathBuf>
 where
-    Ss: SharedSolutionTrait,
+    Ss: SystemSolutionTrait,
 {
     let mut all_rows: Vec<RowNames> = Vec::new();
 

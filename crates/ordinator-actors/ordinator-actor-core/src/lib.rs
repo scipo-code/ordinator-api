@@ -19,7 +19,7 @@ use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::Parameters;
-use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::StateLink;
 use ordinator_scheduling_environment::SchedulingEnvironment;
@@ -227,7 +227,7 @@ where
     where
         SpecificAlgorithm: From<algorithm::Algorithm<S, P, I, Ss>>,
         S: Solution<Parameters = P> + Debug + Clone,
-        Ss: SharedSolutionTrait,
+        Ss: SystemSolutionTrait,
         P: Parameters,
         I: Default,
         F: FnOnce(AlgorithmBuilder<S, P, I, Ss>) -> Result<AlgorithmBuilder<S, P, I, Ss>>,

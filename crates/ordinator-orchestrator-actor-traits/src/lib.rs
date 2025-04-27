@@ -36,19 +36,8 @@ pub struct Communication<Req, Res> {
     pub receiver: Receiver<Result<Res>>,
 }
 
-// TODO [ ]
-// Rename this crate
-// TODO [x]
-// Move this to the `core-traits`
-// TODO [x]
-// Turn the `<Actor>Solution into S: Solution + StrateticInterface`
-// because the orchestrator and the other actors should not see the
-// concrete implementations of the code
-// I think that the best approach here is to make this
-// Should the code implement this? I am not really sure here
-// I think that
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct SharedSolution<S, T, U, V>
+pub struct SystemSolution<S, T, U, V>
 where
     S: StrategicInterface,
     T: TacticalInterface,
@@ -57,15 +46,34 @@ where
     // This `Solution` should be removed.
     V: OperationalInterface + Solution,
 {
-    pub strategic: S,
-    pub tactical: T,
-    pub supervisor: U,
+    pub strategic: Option<S>,
+    pub tactical: Option<T>,
+    pub supervisor: Option<U>,
     pub operational: HashMap<Id, V>,
+}
+
+impl<S, T, U, V> SystemSolution<S, T, U, V>
+where
+    S: StrategicInterface,
+    T: TacticalInterface,
+    U: SupervisorInterface,
+    // FIX [ ]
+    // This `Solution` should be removed.
+    V: OperationalInterface + Solution,
+{
+    pub fn new() -> Self {
+        Self {
+            strategic: None,
+            tactical: None,
+            supervisor: None,
+            operational: HashMap::default(),
+        }
+    }
 }
 
 // This is made completely wrong. I am not sure what the
 // best approach of solving it will be.
-pub trait SharedSolutionTrait: Clone {
+pub trait SystemSolutionTrait: Clone {
     type Strategic: StrategicInterface;
     type Tactical: TacticalInterface;
     type Supervisor: SupervisorInterface;
@@ -101,7 +109,7 @@ pub trait SharedSolutionTrait: Clone {
 //
 // TODO [ ]
 // Make this work with the correct way of designing
-impl<S, T, U, V> SharedSolutionTrait for SharedSolution<S, T, U, V>
+impl<S, T, U, V> SystemSolutionTrait for SystemSolution<S, T, U, V>
 where
     S: StrategicInterface,
     T: TacticalInterface,
@@ -114,15 +122,15 @@ where
     type Tactical = T;
 
     fn strategic(&self) -> &Self::Strategic {
-        &self.strategic
+        &self.strategic.as_ref().unwrap()
     }
 
     fn tactical(&self) -> &Self::Tactical {
-        &self.tactical
+        &self.tactical.as_ref().unwrap()
     }
 
     fn supervisor(&self) -> &Self::Supervisor {
-        &self.supervisor
+        &self.supervisor.as_ref().unwrap()
     }
 
     fn operational(&self, id: &Id) -> &Self::Operational {
@@ -143,7 +151,7 @@ where
     where
         Self::Strategic: Solution,
     {
-        self.strategic = solution;
+        self.strategic = Some(solution);
     }
 
     fn tactical_swap(&mut self, id: &Id, solution: Self::Tactical)
@@ -364,6 +372,7 @@ pub enum StateLink {
 pub enum ActorSpecific {
     Strategic(Vec<WorkOrderNumber>),
 }
+
 pub trait ActorFactory<Ss> {
     type Communication;
 

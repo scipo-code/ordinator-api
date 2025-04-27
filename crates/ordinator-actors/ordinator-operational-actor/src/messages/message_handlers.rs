@@ -2,7 +2,7 @@ use anyhow::Result;
 use anyhow::bail;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::MessageHandler;
-use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::StateLink;
 use ordinator_orchestrator_actor_traits::SupervisorInterface;
 use tracing::Level;
@@ -19,7 +19,7 @@ use crate::algorithm::operational_solution::OperationalSolution;
 // the best approach is to make something.
 impl<Ss> MessageHandler for OperationalActor<Ss>
 where
-    Ss: SharedSolutionTrait<Operational = OperationalSolution>,
+    Ss: SystemSolutionTrait<Operational = OperationalSolution>,
 {
     type Req = OperationalRequestMessage;
     type Res = OperationalResponseMessage;

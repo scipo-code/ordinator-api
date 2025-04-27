@@ -7,7 +7,7 @@ use colored::Colorize;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::MessageHandler;
-use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::StateLink;
 use tracing::Level;
 use tracing::event;
@@ -27,7 +27,7 @@ use crate::messages::StrategicResponseScheduling;
 
 impl<Ss> MessageHandler for StrategicActor<Ss>
 where
-    Ss: SharedSolutionTrait<Strategic = StrategicSolution>,
+    Ss: SystemSolutionTrait<Strategic = StrategicSolution>,
 {
     type Req = StrategicRequestMessage;
     type Res = StrategicResponseMessage;

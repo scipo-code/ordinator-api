@@ -19,9 +19,9 @@ use ordinator_actor_core::traits::AbLNSUtils;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_actor_core::traits::ObjectiveValueType;
 use ordinator_orchestrator_actor_traits::Parameters;
-use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::StrategicInterface;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::WhereIsWorkOrder;
 use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
@@ -48,7 +48,7 @@ pub struct TacticalAlgorithm<Ss>(
 where
     TacticalSolution: Solution,
     TacticalParameters: Parameters,
-    Ss: SharedSolutionTrait;
+    Ss: SystemSolutionTrait;
 
 // FIX
 // Move the `tactical_days` into the parameters.
@@ -64,10 +64,9 @@ impl<Ss> TacticalAlgorithm<Ss>
 where
     TacticalSolution: Solution,
     TacticalParameters: Parameters,
-    Ss: SharedSolutionTrait,
+    Ss: SystemSolutionTrait,
 {
-    pub fn capacity(&self, resource: &Resources, day: &Day) -> &Work
-    {
+    pub fn capacity(&self, resource: &Resources, day: &Day) -> &Work {
         self.parameters
             .tactical_capacity
             .resources
@@ -78,8 +77,7 @@ where
             .unwrap()
     }
 
-    pub fn capacity_mut(&mut self, resource: &Resources, day: &Day) -> &mut Work
-    {
+    pub fn capacity_mut(&mut self, resource: &Resources, day: &Day) -> &mut Work {
         self.parameters
             .tactical_capacity
             .resources
@@ -91,8 +89,7 @@ where
     }
 
     // This is a horrible way of working with the data. What should be done instead?
-    pub fn loading(&self, resource: &Resources, day: &Day) -> &Work
-    {
+    pub fn loading(&self, resource: &Resources, day: &Day) -> &Work {
         self.solution
             .tactical_loadings
             .resources
@@ -103,8 +100,7 @@ where
             .unwrap()
     }
 
-    pub fn loading_mut(&mut self, resource: &Resources, day: &Day) -> &mut Work
-    {
+    pub fn loading_mut(&mut self, resource: &Resources, day: &Day) -> &mut Work {
         self.solution
             .tactical_loadings
             .resources
@@ -115,8 +111,7 @@ where
             .unwrap()
     }
 
-    fn determine_aggregate_excess(&self, tactical_objective_value: &mut TacticalObjectiveValue)
-    {
+    fn determine_aggregate_excess(&self, tactical_objective_value: &mut TacticalObjectiveValue) {
         let mut objective_value_from_excess = 0;
         for resource in self.parameters.tactical_capacity.resources.keys() {
             for day in self.parameters.tactical_days.clone() {
@@ -130,8 +125,7 @@ where
         tactical_objective_value.resource_penalty.1 = objective_value_from_excess;
     }
 
-    fn determine_tardiness(&mut self, tactical_objective_value: &mut TacticalObjectiveValue)
-    {
+    fn determine_tardiness(&mut self, tactical_objective_value: &mut TacticalObjectiveValue) {
         let mut objective_value_from_tardiness = 0;
         for (work_order_number, _solution) in self
             .solution
@@ -194,19 +188,17 @@ where
         AbLNSUtils<SolutionType = TacticalSolution>,
     TacticalSolution: Solution,
     TacticalParameters: Parameters,
-    Ss: SharedSolutionTrait<Tactical = TacticalSolution>,
+    Ss: SystemSolutionTrait<Tactical = TacticalSolution>,
 {
     type Algorithm =
         Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
     type Options = TacticalOptions;
 
-    fn incorporate_shared_state(&mut self) -> Result<bool>
-    {
+    fn incorporate_shared_state(&mut self) -> Result<bool> {
         Ok(true)
     }
 
-    fn make_atomic_pointer_swap(&mut self)
-    {
+    fn make_atomic_pointer_swap(&mut self) {
         // Performance enhancements:
         // * COW: #[derive(Clone)] struct SharedSolution<'a> { tactical: Cow<'a,
         //   TacticalSolution>, // other fields... }
@@ -229,8 +221,7 @@ where
         ObjectiveValueType<
             <<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue,
         >,
-    >
-    {
+    > {
         let mut tactical_objective_value = TacticalObjectiveValue::new(options);
 
         self.determine_tardiness(&mut tactical_objective_value);
@@ -250,8 +241,7 @@ where
         }
     }
 
-    fn schedule(&mut self) -> Result<()>
-    {
+    fn schedule(&mut self) -> Result<()> {
         self.asset_that_loading_matches_scheduled()
             .with_context(|| format!("TESTING_ASSERTION on line: {}", line!()))?;
         for (work_order_number, solution) in &self.solution.tactical_work_orders.0.clone() {
@@ -454,8 +444,7 @@ where
         Ok(())
     }
 
-    fn unschedule(&mut self) -> Result<()>
-    {
+    fn unschedule(&mut self) -> Result<()> {
         let work_order_numbers: Vec<WorkOrderNumber> = self
             .solution
             .tactical_work_orders
@@ -485,41 +474,36 @@ where
     fn derive_options(
         configurations: &arc_swap::Guard<Arc<ordinator_configuration::SystemConfigurations>>,
         id: &ordinator_scheduling_environment::worker_environment::resources::Id,
-    ) -> Self::Options
-    {
+    ) -> Self::Options {
         todo!()
     }
 
-    fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm
-    {
+    fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm {
         todo!()
     }
 }
 
-enum LoopState
-{
+enum LoopState {
     Unscheduled,
     Scheduled,
     ReleasedFromTactical,
 }
 impl<Ss> Deref for TacticalAlgorithm<Ss>
 where
-    Ss: SharedSolutionTrait,
+    Ss: SystemSolutionTrait,
 {
     type Target =
         Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
 
-    fn deref(&self) -> &Self::Target
-    {
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 impl<Ss> DerefMut for TacticalAlgorithm<Ss>
 where
-    Ss: SharedSolutionTrait,
+    Ss: SystemSolutionTrait,
 {
-    fn deref_mut(&mut self) -> &mut Self::Target
-    {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
@@ -528,14 +512,13 @@ impl<Ss> TacticalAlgorithm<Ss>
 where
     TacticalSolution: Solution,
     TacticalParameters: Parameters,
-    Ss: SharedSolutionTrait,
+    Ss: SystemSolutionTrait,
 {
     fn update_loadings(
         &mut self,
         operation_solutions: &TacticalScheduledOperations,
         load_operation: LoadOperation,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         for operation in operation_solutions.0.values() {
             let resource = &operation.resource;
             for loadings in &operation.scheduled {
@@ -556,8 +539,7 @@ where
     pub fn unschedule_specific_work_order(
         &mut self,
         work_order_number: WorkOrderNumber,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         let solution = self
             .solution
             .tactical_work_orders
@@ -577,8 +559,7 @@ where
         }
     }
 
-    fn remaining_capacity(&self, resource: &Resources, day: &Day) -> Option<Work>
-    {
+    fn remaining_capacity(&self, resource: &Resources, day: &Day) -> Option<Work> {
         let remaining_capacity = self.capacity(resource, day) - self.loading(resource, day);
 
         if remaining_capacity <= Work::from(0.0) {
@@ -592,8 +573,7 @@ fn determine_load(
     remaining_capacity: Work,
     operating_time: &Work,
     mut work_remaining: Work,
-) -> Vec<Work>
-{
+) -> Vec<Work> {
     let mut loadings = Vec::new();
 
     let first_day_load = match remaining_capacity.partial_cmp(operating_time) {
@@ -615,23 +595,37 @@ fn determine_load(
 }
 
 #[allow(dead_code)]
-enum OperationDifference
-{
+enum OperationDifference {
     SameDay,
     DiffDay,
 }
+impl<Ss>
+    From<Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>>
+    for TacticalAlgorithm<Ss>
+where
+    Ss: SystemSolutionTrait,
+{
+    fn from(
+        value: Algorithm<
+            TacticalSolution,
+            TacticalParameters,
+            PriorityQueue<WorkOrderNumber, u64>,
+            Ss,
+        >,
+    ) -> Self {
+        TacticalAlgorithm(value)
+    }
+}
 
 #[cfg(test)]
-pub mod tests
-{
+pub mod tests {
     use ordinator_scheduling_environment::work_order::operation::Work;
     use ordinator_scheduling_environment::worker_environment::resources::Id;
 
     use crate::algorithm::determine_load;
 
     #[test]
-    fn test_determine_load_1()
-    {
+    fn test_determine_load_1() {
         let remaining_capacity = Work::from(3.0);
         let operating_time = Work::from(5.0);
         let work_remaining = Work::from(10.0);
@@ -646,16 +640,14 @@ pub mod tests
 
         let loadings = determine_load(remaining_capacity, &operating_time, work_remaining);
 
-        assert_eq!(loadings, vec![
-            Work::from(3.0),
-            Work::from(5.0),
-            Work::from(2.0)
-        ]);
+        assert_eq!(
+            loadings,
+            vec![Work::from(3.0), Work::from(5.0), Work::from(2.0)]
+        );
     }
 
     #[test]
-    fn test_determine_load_2()
-    {
+    fn test_determine_load_2() {
         let id = Id::default();
 
         let remaining_capacity = Work::from(3.0);
@@ -664,17 +656,19 @@ pub mod tests
 
         let loadings = determine_load(remaining_capacity, &operating_time, work_remaining);
 
-        assert_eq!(loadings, vec![
-            Work::from(3.0),
-            Work::from(3.0),
-            Work::from(3.0),
-            Work::from(1.0)
-        ]);
+        assert_eq!(
+            loadings,
+            vec![
+                Work::from(3.0),
+                Work::from(3.0),
+                Work::from(3.0),
+                Work::from(1.0)
+            ]
+        );
     }
 
     #[test]
-    fn test_work_min()
-    {
+    fn test_work_min() {
         let operating_time = Work::from(3.0);
         let work_remaining = Work::from(10.0);
 

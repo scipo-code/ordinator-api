@@ -1,8 +1,12 @@
-mod algorithm;
+pub mod algorithm;
 mod assert_functions;
 pub mod messages;
 
+use algorithm::OperationalNonProductive;
 use anyhow::Result;
+use ordinator_orchestrator_actor_traits::ActorFactory;
+use rand::SeedableRng;
+use rand::rngs::StdRng;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::sync::Arc;
@@ -23,12 +27,11 @@ use ordinator_orchestrator_actor_traits::ActorMessage;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
-use ordinator_orchestrator_actor_traits::SharedSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use rand::rng;
-use rand::rngs::ThreadRng;
 
 // You are beginning to see the truth. That there are no shortcuts
 // to be made here and no.
@@ -36,12 +39,12 @@ pub struct OperationalActor<Ss>(
     Actor<OperationalRequestMessage, OperationalResponseMessage, OperationalAlgorithm<Ss>>,
 )
 where
-    Ss: SharedSolutionTrait<Operational = OperationalSolution>,
+    Ss: SystemSolutionTrait<Operational = OperationalSolution>,
     Self: MessageHandler<Req = OperationalRequestMessage, Res = OperationalResponseMessage>;
 
 pub struct OperationalOptions {
     pub number_of_removed_activities: usize,
-    pub rng: ThreadRng,
+    pub rng: StdRng,
 }
 
 // I this that this is not a good idea for the design of the system. There are
@@ -62,7 +65,7 @@ impl From<(&Guard<Arc<SystemConfigurations>>, &Id)> for OperationalOptions {
             .operational_options
             .number_of_removed_work_orders;
         OperationalOptions {
-            rng: rng(),
+            rng: StdRng::from_os_rng(),
             number_of_removed_activities,
         }
     }
@@ -90,14 +93,14 @@ impl From<(SystemConfigurations, &Asset, &Id)> for OperationalOptions {
             .operational_options
             .number_of_removed_work_orders;
         OperationalOptions {
-            rng: rng(),
+            rng: StdRng::from_os_rng(),
             number_of_removed_activities,
         }
     }
 }
 impl<Ss> Deref for OperationalActor<Ss>
 where
-    Ss: SharedSolutionTrait<Operational = OperationalSolution>,
+    Ss: SystemSolutionTrait<Operational = OperationalSolution>,
 {
     type Target =
         Actor<OperationalRequestMessage, OperationalResponseMessage, OperationalAlgorithm<Ss>>;
@@ -109,27 +112,39 @@ where
 
 impl<Ss> DerefMut for OperationalActor<Ss>
 where
-    Ss: SharedSolutionTrait<Operational = OperationalSolution>,
+    Ss: SystemSolutionTrait<Operational = OperationalSolution>,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
-pub fn operational_factory<Ss>(
-    id: Id,
-    scheduling_environment_guard: Arc<Mutex<SchedulingEnvironment>>,
-    shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
-    notify_orchestrator: Box<dyn OrchestratorNotifier>,
-    system_configurations: Arc<ArcSwap<SystemConfigurations>>,
-) -> Result<Communication<ActorMessage<OperationalRequestMessage>, OperationalResponseMessage>>
+
+pub struct OperationalApi {}
+
+impl<Ss> ActorFactory<Ss> for OperationalApi
 where
-    Ss: SharedSolutionTrait<Operational = OperationalSolution> + Send + Sync + 'static,
-    OperationalAlgorithm<Ss>: ActorBasedLargeNeighborhoodSearch
-        + Send
-        + Sync
-        + From<Algorithm<OperationalSolution, OperationalParameters, (), Ss>>,
+    Ss: SystemSolutionTrait<Operational = OperationalSolution> + Send + Sync + 'static,
 {
-    Actor::<OperationalRequestMessage, OperationalResponseMessage, OperationalAlgorithm<Ss>>::builder()
+    type Communication =
+        Communication<ActorMessage<OperationalRequestMessage>, OperationalResponseMessage>;
+
+    fn construct_actor(
+        id: Id,
+        scheduling_environment_guard: Arc<Mutex<SchedulingEnvironment>>,
+        shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
+        notify_orchestrator: Box<dyn OrchestratorNotifier>,
+        system_configurations: Arc<ArcSwap<SystemConfigurations>>,
+    ) -> Result<Self::Communication>
+    where
+        Ss: SystemSolutionTrait<Operational = OperationalSolution> + Send + Sync + 'static,
+        OperationalAlgorithm<Ss>: ActorBasedLargeNeighborhoodSearch
+            + Send
+            + Sync
+            + From<
+                Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>,
+            >,
+    {
+        Actor::<OperationalRequestMessage, OperationalResponseMessage, OperationalAlgorithm<Ss>>::builder()
         .agent_id(Id::new("OperationalAgent", vec![], vec![id.asset().clone()]))
         .scheduling_environment(Arc::clone(&scheduling_environment_guard))
         // TODO
@@ -154,4 +169,5 @@ where
         .configurations(system_configurations)
         .notify_orchestrator(notify_orchestrator)
         .build()
+    }
 }
