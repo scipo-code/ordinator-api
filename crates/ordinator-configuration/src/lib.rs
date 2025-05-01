@@ -1,4 +1,3 @@
-mod actor_specifications;
 mod material;
 mod resources;
 mod throttling;
@@ -10,7 +9,6 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use actor_specifications::ActorSpecifications;
 use anyhow::Result;
 use arc_swap::ArcSwap;
 use ordinator_scheduling_environment::Asset;
@@ -36,12 +34,17 @@ use user_interface::EventColors;
 // Remember! You have a single source of all configurations here,
 // so there is no reason to question that in the system.
 #[derive(Debug)]
-pub struct SystemConfigurations
-{
+pub struct SystemConfigurations {
+    // This is also an issue. I am not sure what we should do
+    // to make this work in a better way. If you put this into
+    // the Database you will need to make something that is
+    // better than this.
     pub work_order_configurations: WorkOrderConfigurations,
     // This should be derived for the single actor only. Not all of them.
     // That is important.
-    pub actor_specification: HashMap<Asset, ActorSpecifications>,
+    // So this should be moved. Where should it be moved to? I think that this
+    //
+    // TODO [ ] Move it
     pub data_locations: BaptisteToml,
     pub throttling: Throttling,
     // FIX
@@ -59,44 +62,10 @@ impl SystemConfigurationTrait for SystemConfigurations {}
 // FIX [ ]
 // This is a good initial approach but remember to make it better if you have to
 // revisit it.
-impl SystemConfigurations
-{
-    pub fn read_all_configs() -> Result<Arc<ArcSwap<SystemConfigurations>>>
-    {
+impl SystemConfigurations {
+    pub fn read_all_configs() -> Result<Arc<ArcSwap<SystemConfigurations>>> {
         let work_order_configurations: WorkOrderConfigurations =
             serde_json::from_str("./configuration/work_orders/work_order_weight_parameters.json")?;
-
-        let list_of_actor_specification = vec![
-            (
-                Asset::DF,
-                "./configuration/actor_specification/actor_specification_df.toml",
-            ),
-            (
-                Asset::HB,
-                "./configuration/actor_specification/actor_specification_hb.toml",
-            ),
-            (
-                Asset::HD,
-                "./configuration/actor_specification/actor_specification_hd.toml",
-            ),
-            (
-                Asset::Test,
-                "./configuration/actor_specification/actor_specification_test.toml",
-            ),
-            (
-                Asset::TE,
-                "./configuration/actor_specification/actor_specification_te.toml",
-            ),
-        ];
-
-        let actor_specification: HashMap<Asset, ActorSpecifications> = list_of_actor_specification
-            .into_iter()
-            .map(|(asset, path)| {
-                let contents = std::fs::read_to_string(path).unwrap();
-                let config: ActorSpecifications = toml::from_str(&contents).unwrap();
-                (asset, config)
-            })
-            .collect();
 
         let baptiste_data_locations_contents =
             std::fs::read_to_string("./configuration/data_locations/baptiste_data_locations.toml")
@@ -130,7 +99,6 @@ impl SystemConfigurations
         // make the mistake, of accessing wild and stray configurations.
         Ok(Arc::new(ArcSwap::new(Arc::new(SystemConfigurations {
             work_order_configurations,
-            actor_specification,
             data_locations,
             throttling,
             user_interface: event_colors,
@@ -151,67 +119,10 @@ impl SystemConfigurations
 
     // This is actually a `From <SystemConfiguration> for StrateticOptions`
 }
+// This should be a part of the creation of the `SchedulingEnvironment`
+// #[test]
+// fn test_read_config() {
+//     let system_configurations = SystemConfigurations::read_all_configs().unwrap();
 
-#[cfg(test)]
-mod tests
-{
-    use chrono::NaiveTime;
-    use ordinator_scheduling_environment::worker_environment::resources::Resources;
-
-    use super::SystemConfigurations;
-    use crate::ActorSpecifications;
-
-    #[test]
-    fn test_read_config()
-    {
-        let system_configurations = SystemConfigurations::read_all_configs().unwrap();
-
-        println!("{:#?}", system_configurations);
-    }
-
-    #[test]
-    fn test_toml_operational_parsing()
-    {
-        let toml_operational_string = r#"
-            [[supervisors]]
-            id = "main"
-            number_of_supervisAgentEnvironmentr_periods = 3
-
-            # [[supervisors]]
-            # id = "supervisor-second"
-            ################################
-            ###          MTN-ELEC        ###
-            ################################
-            [[operational]]
-            id = "OP-01-001"
-            resources.resources = ["MTN-ELEC" ]
-            hours_per_day = 6.0
-            operational_configuration.off_shift_interval = { start = "19:00:00",  end = "07:00:00" }
-            operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
-            operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
-            operational_configuration.availability.start_date = "2024-12-02T07:00:00Z"
-            operational_configuration.availability.finish_date = "2024-12-15T15:00:00Z"
-        "#;
-
-        let system_agents: ActorSpecifications = toml::from_str(toml_operational_string).unwrap();
-
-        assert_eq!(system_agents.operational[0].id, "OP-01-001".to_string());
-
-        assert_eq!(system_agents.operational[0].resources, [Resources::MtnElec]);
-
-        assert_eq!(
-            system_agents.operational[0]
-                .operational_configuration
-                .off_shift_interval
-                .start,
-            NaiveTime::from_hms_opt(19, 0, 0).unwrap(),
-        );
-        assert_eq!(
-            system_agents.operational[0]
-                .operational_configuration
-                .off_shift_interval
-                .end,
-            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
-        );
-    }
-}
+//     println!("{:#?}", system_configurations);
+// }

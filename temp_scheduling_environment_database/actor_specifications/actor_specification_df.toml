@@ -5,6 +5,12 @@ strategic_options.number_of_removed_work_orders = 25
 strategic_options.urgency_weight = 1
 strategic_options.resource_penalty_weight = 1000000
 strategic_options.clustering_weight = 1000
+# This should be 
+material_to_period.nmat = 0
+material_to_period.smat = 0
+material_to_period.cmat = 2
+material_to_period.pmat = 3
+material_to_period.wmat = 3
 
 [tactical]
 id = "tactical"
@@ -12,6 +18,11 @@ asset = "Df"
 tactical_options.number_of_removed_work_orders = 25
 tactical_options.urgency = 1
 tactical_options.resource_penalty = 10000000
+material_to_period.nmat = 0
+material_to_period.smat = 0
+material_to_period.cmat = 2
+material_to_period.pmat = 3
+material_to_period.wmat = 3
 
 [[supervisors]]
 id = "main"

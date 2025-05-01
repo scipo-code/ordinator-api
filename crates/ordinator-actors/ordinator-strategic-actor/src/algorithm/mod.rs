@@ -19,6 +19,7 @@ use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_actor_core::algorithm::LoadOperation;
 use ordinator_actor_core::traits::AbLNSUtils;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
+use ordinator_actor_core::traits::ActorLinkToSchedulingEnvironment;
 use ordinator_actor_core::traits::ObjectiveValueType;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
@@ -1276,7 +1277,8 @@ impl<Ss> ActorBasedLargeNeighborhoodSearch
         &mut self.0
     }
 
-    fn derive_options(configurations: &arc_swap::Guard<Arc<ordinator_configuration::SystemConfigurations>>, id: &ordinator_scheduling_environment::worker_environment::resources::Id) -> Self::Options {
+    // TODO [ ] I think that this should be deleted. That is the best approach here. 
+    fn derive_options(configurations: &ActorLinkToSchedulingEnvironment, id: &ordinator_scheduling_environment::worker_environment::resources::Id) -> Self::Options {
         todo!()
     }
 }

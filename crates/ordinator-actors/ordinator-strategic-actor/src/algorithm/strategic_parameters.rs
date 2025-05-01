@@ -43,7 +43,6 @@ impl Parameters for StrategicParameters {
     fn from_source(
         id: &Id,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
-        system_configurations: &Guard<Arc<SystemConfigurations>>,
     ) -> Result<Self> {
         let asset = id.2.first().expect("This should never happen");
 
@@ -51,8 +50,7 @@ impl Parameters for StrategicParameters {
 
         let strategic_periods = &scheduling_environment.time_environment.strategic_periods;
 
-        let options = StrategicOptions::from((system_configurations, id));
-
+        // You need to develop this together with Dall!
         let strategic_work_order_parameters = work_orders
             .inner
             .iter()

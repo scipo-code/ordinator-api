@@ -28,6 +28,7 @@ use operational_solution::OperationalSolution;
 use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_actor_core::traits::AbLNSUtils;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
+use ordinator_actor_core::traits::ActorLinkToSchedulingEnvironment;
 use ordinator_actor_core::traits::ObjectiveValueType;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::StrategicInterface;
@@ -36,6 +37,7 @@ use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::TacticalInterface;
 use ordinator_orchestrator_actor_traits::delegate::Delegate;
 use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
+use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::TimeInterval;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
@@ -551,10 +553,7 @@ where
         Ok(())
     }
 
-    fn derive_options(
-        configurations: &arc_swap::Guard<Arc<ordinator_configuration::SystemConfigurations>>,
-        id: &Id,
-    ) -> Self::Options {
+    fn derive_options(configurations: &ActorLinkToSchedulingEnvironment, id: &Id) -> Self::Options {
         Self::Options::from((configurations, id))
     }
 }

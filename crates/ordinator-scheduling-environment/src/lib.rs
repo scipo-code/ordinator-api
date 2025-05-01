@@ -20,24 +20,20 @@ use self::time_environment::TimeEnvironment;
 use self::worker_environment::WorkerEnvironment;
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct SchedulingEnvironment
-{
+pub struct SchedulingEnvironment {
     pub work_orders: WorkOrders,
     pub worker_environment: WorkerEnvironment,
     pub time_environment: TimeEnvironment,
     // material
 }
-pub struct SchedulingEnvironmentBuilder
-{
+pub struct SchedulingEnvironmentBuilder {
     work_orders: Option<WorkOrders>,
     worker_environment: Option<WorkerEnvironment>,
     time_environment: Option<TimeEnvironment>,
 }
 
-impl SchedulingEnvironment
-{
-    pub fn builder() -> SchedulingEnvironmentBuilder
-    {
+impl SchedulingEnvironment {
+    pub fn builder() -> SchedulingEnvironmentBuilder {
         SchedulingEnvironmentBuilder {
             work_orders: None,
             worker_environment: None,
@@ -46,8 +42,7 @@ impl SchedulingEnvironment
     }
 }
 
-pub trait IntoSchedulingEnvironment
-{
+pub trait IntoSchedulingEnvironment {
     type S: SystemConfigurationTrait;
 
     fn into_scheduling_environment(
@@ -60,13 +55,11 @@ pub trait SystemConfigurationTrait {}
 
 pub trait DatabaseConfigurationTrait {}
 
-impl SchedulingEnvironmentBuilder
-{
+impl SchedulingEnvironmentBuilder {
     // QUESTION
     // Do you believe that this is the most appropriate way of structuring the code
     // here? Yes I think that this is the best way of doing it.
-    pub fn build(self) -> Arc<Mutex<SchedulingEnvironment>>
-    {
+    pub fn build(self) -> Arc<Mutex<SchedulingEnvironment>> {
         Arc::new(Mutex::new(SchedulingEnvironment {
             work_orders: self
                 .work_orders
@@ -76,8 +69,7 @@ impl SchedulingEnvironmentBuilder
         }))
     }
 
-    pub fn time_environment(mut self, time_environment: TimeEnvironment) -> Self
-    {
+    pub fn time_environment(mut self, time_environment: TimeEnvironment) -> Self {
         self.time_environment = Some(time_environment);
         self
     }
@@ -94,14 +86,12 @@ impl SchedulingEnvironmentBuilder
         self
     }
 
-    pub fn worker_environment(mut self, worker_environment: WorkerEnvironment) -> Self
-    {
+    pub fn worker_environment(mut self, worker_environment: WorkerEnvironment) -> Self {
         self.worker_environment = Some(worker_environment);
         self
     }
 
-    pub fn work_orders(mut self, work_orders: WorkOrders) -> Self
-    {
+    pub fn work_orders(mut self, work_orders: WorkOrders) -> Self {
         self.work_orders = Some(work_orders);
         self
     }
@@ -119,29 +109,31 @@ impl SchedulingEnvironmentBuilder
     }
 }
 
-impl fmt::Display for SchedulingEnvironment
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-    {
-        let workers = self.worker_environment.agent_environment.operational.len();
-        write!(
-            f,
-            "The Scheduling Environment is currently comprised of
-        \n  number of work orders: {}
-        \n  number of worker entries: {}
-        \n  number of strategic periods: {}, 
-        \n  number of tactical days: {}",
-            self.work_orders.inner.len(),
-            workers,
-            self.time_environment.strategic_periods.len(),
-            self.time_environment.tactical_days.len(),
-        )?;
+impl fmt::Display for SchedulingEnvironment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // let workers = self
+        //     .worker_environment
+        //     .actor_specification
+        //     .iter
+        //     .operational
+        //     .len();
+        // write!(
+        //     f,
+        //     "The Scheduling Environment is currently comprised of
+        // \n  number of work orders: {}
+        // \n  number of worker entries: {}
+        // \n  number of strategic periods: {},
+        // \n  number of tactical days: {}",
+        //     self.work_orders.inner.len(),
+        //     workers,
+        //     self.time_environment.strategic_periods.len(),
+        //     self.time_environment.tactical_days.len(),
+        // )?;
         Ok(())
     }
 }
 #[derive(PartialEq, Eq, Hash, Serialize, Deserialize, Debug, Clone, EnumIter)]
-pub enum Asset
-{
+pub enum Asset {
     DF,
     DM,
     DE,
@@ -164,16 +156,13 @@ pub enum Asset
 }
 
 #[derive(Serialize)]
-pub struct AssetNames
-{
+pub struct AssetNames {
     value: String,
     label: String,
 }
 
-impl Display for Asset
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
-    {
+impl Display for Asset {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Asset::DF => write!(f, "DF"),
             Asset::DM => write!(f, "DM"),
@@ -198,10 +187,8 @@ impl Display for Asset
     }
 }
 
-impl Asset
-{
-    pub fn new_from_string(asset_string: &str) -> Option<Asset>
-    {
+impl Asset {
+    pub fn new_from_string(asset_string: &str) -> Option<Asset> {
         match asset_string {
             "DF" => Some(Asset::DF),
             "DM" => Some(Asset::DM),
@@ -224,8 +211,7 @@ impl Asset
         }
     }
 
-    pub fn convert_to_asset_names() -> Vec<AssetNames>
-    {
+    pub fn convert_to_asset_names() -> Vec<AssetNames> {
         let mut vec = Vec::new();
         for asset in Asset::iter() {
             let asset_name = AssetNames {

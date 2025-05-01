@@ -185,7 +185,6 @@ where
     fn from_source(
         id: &Id,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
-        system_configurations: &Guard<Arc<SystemConfigurations>>,
     ) -> Result<Self>;
 
     /// WARNING
