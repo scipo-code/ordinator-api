@@ -15,36 +15,20 @@ use serde::Serialize;
 // `WorkerEnvironments` that is inappropriate.
 // Good, so this type is an `API` types. And all API types
 // should be located together. I think that is the best approach
-// here.
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ActorSpecifications
-{
-    pub strategic: InputStrategic,
-    pub tactical: InputTactical,
-    pub supervisors: Vec<InputSupervisor>,
-    // QUESTION
-    // Why not just store the OperationalParameters here?
-    // Hmm... because the WorkOrders should not be part of this
-    // what about the options? The options should be defined in
-    // a separate config file
-    // TODO [] Make separate config files for options
-    pub operational: Vec<InputOperational>,
-}
+// here. This should be the same. I think that it would be better
+// to only have a single
 // TODO [ ]
 // Move this to the constracts. Or the configuration. What is the best choice?
 // I think that the best choice is the configuration, but does the configuration
 // depend on the contracts?
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct TomlTimeInterval
-{
+pub struct TomlTimeInterval {
     pub start: toml::value::Datetime,
     pub end: toml::value::Datetime,
 }
 
-impl From<ActorSpecifications> for AgentEnvironment
-{
-    fn from(value: ActorSpecifications) -> Self
-    {
+impl From<ActorSpecifications> for AgentEnvironment {
+    fn from(value: ActorSpecifications) -> Self {
         let operational = value
             .operational
             .into_iter()
@@ -77,71 +61,4 @@ impl From<ActorSpecifications> for AgentEnvironment
             supervisor,
         }
     }
-}
-#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct InputStrategic
-{
-    pub id: String,
-    pub asset: String,
-    pub strategic_options_config: StrategicOptionsConfig,
-}
-
-#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct InputTactical
-{
-    pub id: String,
-    pub asset: String,
-    pub tactical_options_config: TacticalOptionsConfig,
-}
-
-#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct InputSupervisor
-{
-    pub id: String,
-    pub resource: Option<Resources>,
-    pub number_of_supervisor_periods: u64,
-    pub assets: Vec<Asset>,
-    pub supervisor_options: SupervisorOptionsConfig,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct InputOperational
-{
-    pub id: OperationalId,
-    pub resources: Vec<Resources>,
-    pub hours_per_day: f64,
-    pub operational_configuration: OperationalConfiguration,
-    pub assets: Vec<Asset>,
-    pub operational_options: OperationalOptionsConfig,
-}
-/// This type is for loading in the `Strategic` configurations
-/// so that the `StrategicOptions` can be loaded in to the `Agent`
-/// in the correct format.
-#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct StrategicOptionsConfig
-{
-    pub number_of_removed_work_orders: usize,
-    pub urgency_weight: usize,
-    pub resource_penalty_weight: usize,
-    pub clustering_weight: usize,
-}
-
-#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct TacticalOptionsConfig
-{
-    pub number_of_removed_work_orders: usize,
-    pub urgency: usize,
-    pub resource_penalty: usize,
-}
-
-#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct SupervisorOptionsConfig
-{
-    pub number_of_removed_work_orders: usize,
-}
-
-#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct OperationalOptionsConfig
-{
-    pub number_of_removed_work_orders: usize,
 }

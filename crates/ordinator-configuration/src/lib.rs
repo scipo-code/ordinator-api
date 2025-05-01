@@ -36,12 +36,13 @@ use user_interface::EventColors;
 // Remember! You have a single source of all configurations here,
 // so there is no reason to question that in the system.
 #[derive(Debug)]
-pub struct SystemConfigurations
-{
+pub struct SystemConfigurations {
     pub work_order_configurations: WorkOrderConfigurations,
     // This should be derived for the single actor only. Not all of them.
     // That is important.
-    pub actor_specification: HashMap<Asset, ActorSpecifications>,
+    // So this should be moved. Where should it be moved to? I think that this
+    //
+    // TODO [ ] Move it
     pub data_locations: BaptisteToml,
     pub throttling: Throttling,
     // FIX
@@ -59,10 +60,8 @@ impl SystemConfigurationTrait for SystemConfigurations {}
 // FIX [ ]
 // This is a good initial approach but remember to make it better if you have to
 // revisit it.
-impl SystemConfigurations
-{
-    pub fn read_all_configs() -> Result<Arc<ArcSwap<SystemConfigurations>>>
-    {
+impl SystemConfigurations {
+    pub fn read_all_configs() -> Result<Arc<ArcSwap<SystemConfigurations>>> {
         let work_order_configurations: WorkOrderConfigurations =
             serde_json::from_str("./configuration/work_orders/work_order_weight_parameters.json")?;
 
@@ -153,8 +152,7 @@ impl SystemConfigurations
 }
 
 #[cfg(test)]
-mod tests
-{
+mod tests {
     use chrono::NaiveTime;
     use ordinator_scheduling_environment::worker_environment::resources::Resources;
 
@@ -162,16 +160,14 @@ mod tests
     use crate::ActorSpecifications;
 
     #[test]
-    fn test_read_config()
-    {
+    fn test_read_config() {
         let system_configurations = SystemConfigurations::read_all_configs().unwrap();
 
         println!("{:#?}", system_configurations);
     }
 
     #[test]
-    fn test_toml_operational_parsing()
-    {
+    fn test_toml_operational_parsing() {
         let toml_operational_string = r#"
             [[supervisors]]
             id = "main"
