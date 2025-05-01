@@ -56,7 +56,7 @@ impl IntoSchedulingEnvironment for TotalSap {
             .time_environment(create_time_environment(&system_configuration.time_input))
             // TODO [ ]
             // This should function together with the
-            .worker_environment(WorkerEnvironment::new())
+            .worker_environment(WorkerEnvironment::builder().actor_environment(asset, actor_specification).actor_environment(, actor_specification))
             .work_orders(
                 load_csv_data(&system_configuration.data_locations).with_context(|| {
                     format!(

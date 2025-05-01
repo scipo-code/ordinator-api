@@ -1,4 +1,6 @@
 pub mod algorithm;
+//
+// What
 pub mod messages;
 
 use algorithm::strategic_parameters::StrategicParameters;
@@ -95,6 +97,9 @@ impl From<(&Guard<Arc<SystemConfigurations>>, &Id)> for StrategicOptions {
         }
     }
 }
+
+// You want the StrategicOptions here. This means that you should provide a value to the
+// SchedulingEnvironment instead of the SystemConfigurations.
 impl From<(SystemConfigurations, &Id)> for StrategicOptions {
     fn from(value: (SystemConfigurations, &Id)) -> Self {
         let strategic_option_config = &value

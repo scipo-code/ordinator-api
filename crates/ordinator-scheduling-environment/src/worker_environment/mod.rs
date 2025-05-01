@@ -3,12 +3,14 @@ pub mod crew;
 pub mod resources;
 pub mod worker;
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 
-use crew::AgentEnvironment;
+use crew::OperationalConfiguration;
 use serde::Deserialize;
 use serde::Serialize;
-use strum::IntoEnumIterator;
+
+use crate::Asset;
 
 use self::resources::Resources;
 
@@ -16,7 +18,7 @@ pub type OperationalId = String;
 // There is something rotten about all this! I think that the best
 // approach is to create something that will allow us to better
 // forcast how the system will behave.
-#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+#[derive(Default, Serialize, Deserialize, Debug)]
 pub struct WorkerEnvironment {
     // I think that the actor environment is the correct term here.
     // Changes to the parameters should be changable in the application
@@ -27,15 +29,15 @@ pub struct WorkerEnvironment {
 }
 
 pub struct WorkerEnvironmentBuilder {
-    pub actor_specification: HashMap<Asset, ActorSpecifications>,
+    pub actor_environment: HashMap<Asset, ActorSpecifications>,
 }
 
 impl WorkerEnvironment {
     // TODO [ ]
     // This should be refactored!
-    pub fn new() -> Self {
-        WorkerEnvironment {
-            actor_specification: HashMap::default(),
+    pub fn builder() -> WorkerEnvironmentBuilder {
+        WorkerEnvironmentBuilder {
+            actor_environment: HashMap::default(),
         }
     }
 }
@@ -48,7 +50,7 @@ pub enum EmptyFull {
 impl WorkerEnvironmentBuilder {
     pub fn build(self) -> WorkerEnvironment {
         WorkerEnvironment {
-            actor_specification: self.actor_specification.unwrap_or_default(),
+            actor_specification: self.actor_environment,
         }
     }
 
@@ -56,12 +58,63 @@ impl WorkerEnvironmentBuilder {
     // Ideally we need to provide a resource file for each of the different.
     // assets. That means that this should be callable many times over for
     // this to work.
-    pub fn agent_environment(
-        &mut self,
-        asset: Asset,
-        actor_specification: ActorSpecifications,
-    ) -> &mut Self {
-        self.actor_specification.insert(asset, actor_specification);
+    pub fn actor_environment(&mut self, asset: Asset) -> &mut Self {
+        // This should then be changed into something different for this to
+        // work. You need to put it into the Asset and the ... I think that
+        // it is okay to simply hard code the information for now. Hmm...
+        // The issues comes from the difference between using the toml file
+        // for initialization and using it for data storage... I think that
+        // for now you should simply follow the same model that is used in
+        // for the work orders: If the database file is missing you should
+        // perform a complete reinitialization of the system. And if not
+        // you should simply use the JSON file.
+        //
+        // For now the most important thing is getting all the data into the
+        // `SchedulingEnvironment`
+        // WARN This should not be needed to solve this problem. Keep it for now
+        // DATE 2025-05-01
+        // let list_of_actor_specification = vec![
+        //     (
+        //         Asset::DF,
+        //         "./configuration/actor_specification/actor_specification_df.toml",
+        //     ),
+        //     (
+        //         Asset::HB,
+        //         "./configuration/actor_specification/actor_specification_hb.toml",
+        //     ),
+        //     (
+        //         Asset::HD,
+        //         "./configuration/actor_specification/actor_specification_hd.toml",
+        //     ),
+        //     (
+        //         Asset::Test,
+        //         "./configuration/actor_specification/actor_specification_test.toml",
+        //     ),
+        //     (
+        //         Asset::TE,
+        //         "./configuration/actor_specification/actor_specification_te.toml",
+        //     ),
+        // ];
+
+        let asset_string = asset.to_string();
+
+        let asset_string_format = asset_string
+            .split('.')
+            .next()
+            .unwrap()
+            .split('_')
+            .last()
+            .expect("This function splits the path by the '.'");
+
+        let path = format!(
+            "./temp_scheduling_environment_database/actor_specification/actor_specification_{}.toml",
+            asset_string
+        );
+
+        let contents = std::fs::read_to_string(path).unwrap();
+        let actor_specifications: ActorSpecifications = toml::from_str(&contents).unwrap();
+
+        self.actor_environment.insert(asset, actor_specifications);
         self
     }
 }
@@ -136,4 +189,65 @@ pub struct SupervisorOptionsConfig {
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
 pub struct OperationalOptionsConfig {
     pub number_of_removed_work_orders: usize,
+}
+#[cfg(test)]
+mod tests {
+    use chrono::NaiveTime;
+    use ordinator_scheduling_environment::worker_environment::resources::Resources;
+
+    use super::SystemConfigurations;
+    use crate::ActorSpecifications;
+
+    // This should be a part of the creation of the `SchedulingEnvironment`
+    #[test]
+    fn test_read_config() {
+        let system_configurations = SystemConfigurations::read_all_configs().unwrap();
+
+        println!("{:#?}", system_configurations);
+    }
+
+    #[test]
+    fn test_toml_operational_parsing() {
+        let toml_operational_string = r#"
+            [[supervisors]]
+            id = "main"
+            number_of_supervisAgentEnvironmentr_periods = 3
+
+            # [[supervisors]]
+            # id = "supervisor-second"
+            ################################
+            ###          MTN-ELEC        ###
+            ################################
+            [[operational]]
+            id = "OP-01-001"
+            resources.resources = ["MTN-ELEC" ]
+            hours_per_day = 6.0
+            operational_configuration.off_shift_interval = { start = "19:00:00",  end = "07:00:00" }
+            operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+            operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+            operational_configuration.availability.start_date = "2024-12-02T07:00:00Z"
+            operational_configuration.availability.finish_date = "2024-12-15T15:00:00Z"
+        "#;
+
+        let system_agents: ActorSpecifications = toml::from_str(toml_operational_string).unwrap();
+
+        assert_eq!(system_agents.operational[0].id, "OP-01-001".to_string());
+
+        assert_eq!(system_agents.operational[0].resources, [Resources::MtnElec]);
+
+        assert_eq!(
+            system_agents.operational[0]
+                .operational_configuration
+                .off_shift_interval
+                .start,
+            NaiveTime::from_hms_opt(19, 0, 0).unwrap(),
+        );
+        assert_eq!(
+            system_agents.operational[0]
+                .operational_configuration
+                .off_shift_interval
+                .end,
+            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
+        );
+    }
 }
