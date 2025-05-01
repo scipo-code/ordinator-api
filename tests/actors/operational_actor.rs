@@ -167,14 +167,20 @@ fn test_determine_next_event_1() -> Result<()> {
     // What should be created or changed here? I think that the best appraoch is to
     // make a trait for each builder.
 
-    let operational_options = OperationalOptions::from(system_configurations);
+    // This means that it is not better to use the system_configurations.
+    // You have to test using something else. I think that here the best option
+    // is to use the
+    // FIX You derived the system configurations here for testing purposes. This
+    // is not the fastest way to approach this.
+    // let operational_options = OperationalOptions::from(system_configurations);
 
     // Algorithms need to be generic over the `SharedSolution` I do not see another
     // way of doing it.
 
     let operational_algorithm: OperationalAlgorithm<Ss> = Algorithm::builder()
         .id(id)
-        .parameters(&operational_options, &scheduling_environment)?
+        // Parameters not does not need the `options`
+        .parameters(&scheduling_environment)?
         .solution()
         .build();
 

@@ -35,6 +35,10 @@ use user_interface::EventColors;
 // so there is no reason to question that in the system.
 #[derive(Debug)]
 pub struct SystemConfigurations {
+    // This is also an issue. I am not sure what we should do
+    // to make this work in a better way. If you put this into
+    // the Database you will need to make something that is
+    // better than this.
     pub work_order_configurations: WorkOrderConfigurations,
     // This should be derived for the single actor only. Not all of them.
     // That is important.
@@ -115,3 +119,10 @@ impl SystemConfigurations {
 
     // This is actually a `From <SystemConfiguration> for StrateticOptions`
 }
+// This should be a part of the creation of the `SchedulingEnvironment`
+// #[test]
+// fn test_read_config() {
+//     let system_configurations = SystemConfigurations::read_all_configs().unwrap();
+
+//     println!("{:#?}", system_configurations);
+// }

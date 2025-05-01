@@ -58,7 +58,7 @@ impl WorkerEnvironmentBuilder {
     // Ideally we need to provide a resource file for each of the different.
     // assets. That means that this should be callable many times over for
     // this to work.
-    pub fn actor_environment(&mut self, asset: Asset) -> &mut Self {
+    pub fn actor_environment(mut self, asset: Asset) -> Self {
         // This should then be changed into something different for this to
         // work. You need to put it into the Asset and the ... I think that
         // it is okay to simply hard code the information for now. Hmm...
@@ -193,18 +193,8 @@ pub struct OperationalOptionsConfig {
 #[cfg(test)]
 mod tests {
     use chrono::NaiveTime;
-    use ordinator_scheduling_environment::worker_environment::resources::Resources;
 
-    use super::SystemConfigurations;
-    use crate::ActorSpecifications;
-
-    // This should be a part of the creation of the `SchedulingEnvironment`
-    #[test]
-    fn test_read_config() {
-        let system_configurations = SystemConfigurations::read_all_configs().unwrap();
-
-        println!("{:#?}", system_configurations);
-    }
+    use crate::worker_environment::{ActorSpecifications, resources::Resources};
 
     #[test]
     fn test_toml_operational_parsing() {

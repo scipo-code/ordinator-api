@@ -4,6 +4,7 @@ pub mod messages;
 
 use algorithm::OperationalNonProductive;
 use anyhow::Result;
+use ordinator_actor_core::traits::ActorLinkToSchedulingEnvironment;
 use ordinator_orchestrator_actor_traits::ActorFactory;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -31,7 +32,6 @@ use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
-use rand::rng;
 
 // You are beginning to see the truth. That there are no shortcuts
 // to be made here and no.
@@ -51,10 +51,16 @@ pub struct OperationalOptions {
 // some serious issues here with the architecture. The scheduling environment
 // is growing very big and that is a good thing. It is becoming more database
 // like and that is also a good thing for this kind of system.
-impl From<(&Guard<Arc<SystemConfigurations>>, &Id)> for OperationalOptions {
-    fn from(value: (&Guard<Arc<SystemConfigurations>>, &Id)) -> Self {
+//
+// Do we want this? Hmm... There are no good ideas here... Only tradeoffs...
+// I want to be able to load in the correct.
+// We want to delete this. But how should the testing then be done? I think that
+// is the most crucial issue here. D
+impl<'a> From<(&ActorLinkToSchedulingEnvironment<'a>, &Id)> for OperationalOptions {
+    fn from(value: (&ActorLinkToSchedulingEnvironment, &Id)) -> Self {
         let number_of_removed_activities = value
             .0
+            .worker_environment
             .actor_specification
             .get(value.1.asset())
             .unwrap()
@@ -79,10 +85,11 @@ impl From<(&Guard<Arc<SystemConfigurations>>, &Id)> for OperationalOptions {
 //     }
 // }
 //
-impl From<(SystemConfigurations, &Asset, &Id)> for OperationalOptions {
-    fn from(value: (SystemConfigurations, &Asset, &Id)) -> Self {
+impl From<(SchedulingEnvironment, &Asset, &Id)> for OperationalOptions {
+    fn from(value: (SchedulingEnvironment, &Asset, &Id)) -> Self {
         let number_of_removed_activities = value
             .0
+            .worker_environment
             .actor_specification
             .get(value.1)
             .unwrap()

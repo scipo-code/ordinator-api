@@ -1,21 +1,33 @@
 use std::fmt::Debug;
-use std::sync::Arc;
+use std::sync::MutexGuard;
 
 use anyhow::Context;
 use anyhow::Result;
-use arc_swap::Guard;
-use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::Solution;
+use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use serde::Serialize;
+
+pub type ActorLinkToSchedulingEnvironment<'a> = MutexGuard<'a, SchedulingEnvironment>;
 
 pub trait ActorBasedLargeNeighborhoodSearch {
     type Algorithm: AbLNSUtils;
     type Options;
 
+    // This should be changed as well. You do not want to lock the database on every retry...
+    // Ahh this is why you made the SystemConfiguration use the ArcSwap... Hmm... This is
+    // really annoying. I think that the best approach. You cannot lock the Scheduling
+    // environment on every iteration. I think that you should... The value of having
+    // the Configuration is the database outweights the downside here.
+    //
+    // This is the issue. You have to work on getting the code into the correct
+    // form here. You should decide whether you should work on getting the code
+    // to work with. I believe that the user should be able to change these things.
+    //
+    //
     fn run_lns_iteration(
         &mut self,
-        configurations: Guard<Arc<SystemConfigurations>>,
+        configurations: ActorLinkToSchedulingEnvironment,
         id: &Id,
     ) -> Result<()> {
         let options = &Self::derive_options(&configurations, id);
@@ -50,12 +62,23 @@ pub trait ActorBasedLargeNeighborhoodSearch {
         Ok(())
     }
 
-    fn derive_options(configurations: &Guard<Arc<SystemConfigurations>>, id: &Id) -> Self::Options;
+    // So this should be gotten from the SchedulingEnvironment.
+    fn derive_options(configurations: &ActorLinkToSchedulingEnvironment, id: &Id) -> Self::Options;
 
     fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm;
 
     fn make_atomic_pointer_swap(&mut self);
 
+    // So the issue ultimately arises due to you wanting to avoid a state
+    // change when the options for the strategic actor updates itself.
+    //
+    // You will have to get over this as quickly as possible. I think
+    // that maybe the best approach here will be to
+    //
+    // I think that dependency injecting the Option is a fine approach
+    // the issue arises when you have to upsteam also lock the scheduling
+    // environment. Yes that is the issue. I think that this should simply
+    // be apart of the `StateLink`.
     fn calculate_objective_value(
         &mut self,
         options: &Self::Options,

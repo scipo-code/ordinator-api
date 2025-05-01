@@ -19,9 +19,9 @@ use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::Parameters;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::StateLink;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use serde::Serialize;
@@ -103,8 +103,17 @@ where
             // accepts the correct number of.
             // You have to make a method for getting the functionality out.
 
+
+            // You cannot make this lock on every iteration. I think that the best approach
+            // will be to make the code run with the o
+            //
+            // What should you do here to get the most out of the code? 
+            // I think that the better appraoch... The other approach was nice in that
+            // it made a whole class of bug impossible to represent. What is the best
+            // approach to make system design here. 
             self.algorithm
-                .run_lns_iteration(self.configurations.load(), &self.agent_id)
+
+                .run_lns_iteration(self.scheduling_environment.lock().unwrap(), &self.agent_id)
                 .with_context(|| format!("{:#?}", schedule_iteration))
                 .unwrap();
 

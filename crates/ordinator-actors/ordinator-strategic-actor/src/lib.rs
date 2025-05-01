@@ -61,10 +61,11 @@ pub struct StrategicOptions {
     pub work_order_configurations: WorkOrderConfigurations,
     pub material_to_period: MaterialToPeriod,
 }
-impl From<(&Guard<Arc<SystemConfigurations>>, &Id)> for StrategicOptions {
-    fn from(value: (&Guard<Arc<SystemConfigurations>>, &Id)) -> Self {
+impl From<(&Guard<Arc<SchedulingEnvironment>>, &Id)> for StrategicOptions {
+    fn from(value: (&Guard<Arc<SchedulingEnvironment>>, &Id)) -> Self {
         let strategic_option_config = &value
             .0
+            .worker_environment
             .actor_specification
             .get(value.1.asset())
             .unwrap()
@@ -99,11 +100,13 @@ impl From<(&Guard<Arc<SystemConfigurations>>, &Id)> for StrategicOptions {
 }
 
 // You want the StrategicOptions here. This means that you should provide a value to the
-// SchedulingEnvironment instead of the SystemConfigurations.
-impl From<(SystemConfigurations, &Id)> for StrategicOptions {
-    fn from(value: (SystemConfigurations, &Id)) -> Self {
+// SchedulingEnvironment instead of the SchedulingEnvironment.
+// Okay so the SchedulingEnvironment does not have this.
+impl From<(SchedulingEnvironment, &Id)> for StrategicOptions {
+    fn from(value: (SchedulingEnvironment, &Id)) -> Self {
         let strategic_option_config = &value
             .0
+            .worker_environment
             .actor_specification
             .get(value.1.asset())
             .unwrap()
@@ -116,6 +119,15 @@ impl From<(SystemConfigurations, &Id)> for StrategicOptions {
         let clustering_weight = strategic_option_config.clustering_weight;
         let work_order_configurations = value.0.work_order_configurations;
 
+        // I actually also think that this should be in the data base.
+        // The QUESTION here is what we should do with the material to period
+        // I actially think that it would be nice to allow the user to specify this
+        // that means that it should go into the database.
+        //
+        // Should it be global or specific to the individual actor? I think that
+        // it has to be specific to the actor. That means
+        // The fact that the material to period ended up in here is also indicative
+        // of it belonging to the `actor_specification`.
         let material_to_period = value.0.material_to_period;
 
         let rng = StdRng::from_os_rng();

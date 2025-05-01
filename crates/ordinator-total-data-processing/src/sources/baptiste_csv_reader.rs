@@ -10,6 +10,7 @@ use anyhow::Context;
 use anyhow::Result;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_configuration::toml_baptiste::BaptisteToml;
+use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::IntoSchedulingEnvironment;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
@@ -56,7 +57,11 @@ impl IntoSchedulingEnvironment for TotalSap {
             .time_environment(create_time_environment(&system_configuration.time_input))
             // TODO [ ]
             // This should function together with the
-            .worker_environment(WorkerEnvironment::builder().actor_environment(asset, actor_specification).actor_environment(, actor_specification))
+            .worker_environment(
+                WorkerEnvironment::builder()
+                    .actor_environment(Asset::DF)
+                    .build(), // Add more assets here.
+            )
             .work_orders(
                 load_csv_data(&system_configuration.data_locations).with_context(|| {
                     format!(
