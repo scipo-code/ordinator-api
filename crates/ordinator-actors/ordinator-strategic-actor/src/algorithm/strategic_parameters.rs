@@ -16,12 +16,12 @@ use ordinator_scheduling_environment::work_order::WorkOrder;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::WorkOrders;
 use ordinator_scheduling_environment::work_order::operation::Work;
+use ordinator_scheduling_environment::worker_environment::StrategicOptions;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use serde::Serialize;
 
 use super::StrategicResources;
-use crate::StrategicOptions;
 
 #[derive(Debug)]
 pub struct StrategicParameters {
@@ -29,7 +29,18 @@ pub struct StrategicParameters {
     pub strategic_capacity: StrategicResources,
     pub strategic_clustering: StrategicClustering,
     pub period_locks: HashSet<Period>,
+
+    // TODO #04 #00 #01
+    // enum PeriodState {
+    //     Previous(Period),
+    //     Frozen(Period),
+    //     Draft(Period),
+    //     Draft2(Period),
+    // }
+    // Create this and have it change based on the value
+    // of the [`SystemClock`].
     pub strategic_periods: Vec<Period>,
+    // Should the options be here? Yes they, no they should not
     pub strategic_options: StrategicOptions,
 }
 
@@ -50,7 +61,16 @@ impl Parameters for StrategicParameters {
 
         let strategic_periods = &scheduling_environment.time_environment.strategic_periods;
 
+        let strategic_options = &scheduling_environment
+            .worker_environment
+            .actor_specification
+            .get(id.asset())
+            .unwrap()
+            .strategic
+            .strategic_options_config;
+
         // You need to develop this together with Dall!
+        // Okay so you should put the
         let strategic_work_order_parameters = work_orders
             .inner
             .iter()
@@ -58,17 +78,10 @@ impl Parameters for StrategicParameters {
             .map(|(won, wo)| {
                 (
                     *won,
-                    // TODO [ ]
-                    // Okay parameters are needed here and you are stuck because you do not know
-                    // what to do about it. I think that the best course of action is to make the
-                    // whole system work with dependency injection. The primary goal is to
-                    // centralize the configurations.
-                    // TODO
-                    // This name confuses you, the type is really important but you should not be
-                    // immediately worried about the name.
-                    // You could fix this now, but the configuration policy is much more important.
+                    // TODO #000001 [ ] Move time environment configuraion into SchedulingEnvironment
+                    // TODO #000002 [ ] Move work order parameters from `./configuration` to `./temp_scheduling_environmen_database`
                     WorkOrderParameter::builder()
-                        .with_scheduling_environment(wo, strategic_periods, &options)
+                        .with_scheduling_environment(wo, strategic_periods, &strategic_options)
                         .build(),
                 )
             })
@@ -77,12 +90,14 @@ impl Parameters for StrategicParameters {
         let strategic_clustering = StrategicClustering::calculate_clustering_values(
             asset,
             work_orders,
-            &options.work_order_configurations.clustering_weights,
+            &strategic_options
+                .work_order_configurations
+                .clustering_weights,
         )?;
 
         // The `SchedulingEnvironment` should not know about the `StrategicResources`
         // This is wrongly implemented and therefore should be changed.
-        let strategic_capacity = StrategicResources::from(scheduling_environment);
+        let strategic_capacity = StrategicResources::from((scheduling_environment, id));
 
         Ok(Self {
             strategic_work_order_parameters,
@@ -90,9 +105,7 @@ impl Parameters for StrategicParameters {
             strategic_clustering,
             period_locks: HashSet::default(),
             strategic_periods: strategic_periods.clone(),
-            // How should these be defined? The best approach is to create something that
-            // will allow us to make something that will scale.
-            strategic_options: options,
+            strategic_options: strategic_options.clone(),
         })
     }
 
@@ -124,7 +137,10 @@ pub struct WorkOrderParameter {
     pub locked_in_period: Option<Period>,
     pub excluded_periods: HashSet<Period>,
     pub latest_period: Period,
+
     pub weight: u64,
+    // This weight is derived from the ['StrategicOptions`]. This means that the code should
+    // work better
     pub work_load: HashMap<Resources, Work>,
 }
 

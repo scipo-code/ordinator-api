@@ -109,7 +109,7 @@ where
             SupervisorRequestMessage::Update => {
                 bail!(
                     "IMPLEMENT update logic for Supervisor for Asset: {:?}",
-                    self.agent_id.asset()
+                    self.actor_id.asset()
                 );
             }
             SupervisorRequestMessage::Status(supervisor_status_message) => {

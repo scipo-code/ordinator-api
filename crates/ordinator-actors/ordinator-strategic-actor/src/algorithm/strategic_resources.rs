@@ -10,6 +10,7 @@ use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::period::Period;
 use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::worker_environment::OperationalId;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use serde::Deserialize;
 use serde::Serialize;
@@ -20,8 +21,8 @@ use serde::Serialize;
 #[derive(Default, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct StrategicResources(pub HashMap<Period, HashMap<OperationalId, OperationalResource>>);
 
-impl<'a> From<&MutexGuard<'a, SchedulingEnvironment>> for StrategicResources {
-    fn from(value: &MutexGuard<'a, SchedulingEnvironment>) -> Self {
+impl<'a> From<(&MutexGuard<'a, SchedulingEnvironment>, &Id)> for StrategicResources {
+    fn from(value: (&MutexGuard<'a, SchedulingEnvironment>, &Id)) -> Self {
         let gradual_reduction = |i: usize| -> f64 {
             if i == 0 {
                 1.0
@@ -39,9 +40,25 @@ impl<'a> From<&MutexGuard<'a, SchedulingEnvironment>> for StrategicResources {
         let mut strategic_resources_inner =
             HashMap::<Period, HashMap<OperationalId, OperationalResource>>::new();
 
-        for (i, period) in value.time_environment.strategic_periods.iter().enumerate() {
+        for (i, period) in value
+            .0
+            .time_environment
+            .strategic_periods
+            .iter()
+            .enumerate()
+        {
             let mut operational_resource_map = HashMap::new();
-            for operational_agent in &value.worker_environment.actor_specification.operational {
+            for operational_agent in &value
+                .0
+                .worker_environment
+                .actor_specification
+                .get(value.1.asset())
+                .with_context(|| {
+                    format!("Missing Actor: {:?} in the SchedulingEnvironment", value.1)
+                })
+                .expect("Missing the required Actor")
+                .operational
+            {
                 // What is it that you are trying to do here? You want to instantiate an agent
                 // TODO: Could you reuse the OperationalResource. No could you inplement a
                 // into formulation here? I think that is a that ... THis is actually fun!
@@ -53,27 +70,24 @@ impl<'a> From<&MutexGuard<'a, SchedulingEnvironment>> for StrategicResources {
                 // rely on the 13 days.
                 let days_in_period = 13.0; // WARN: period.count_overlapping_days(availability);
 
-                for resource in &operational_agent.1.id.1 {
+                for resource in &operational_agent.resources {
                     skill_hours.insert(
                         *resource,
                         Work::from(
-                            operational_agent.1.hours_per_day
-                                * days_in_period
-                                * gradual_reduction(i),
+                            operational_agent.hours_per_day * days_in_period * gradual_reduction(i),
                         ),
                     );
                 }
 
                 let operational_resource = OperationalResource::new(
-                    &operational_agent.1.id.0,
+                    &operational_agent.id,
                     Work::from(
-                        operational_agent.1.hours_per_day * days_in_period * gradual_reduction(i),
+                        operational_agent.hours_per_day * days_in_period * gradual_reduction(i),
                     ),
-                    operational_agent.1.id.1.clone(),
+                    operational_agent.resources.clone(),
                 );
 
-                operational_resource_map
-                    .insert(operational_agent.0.0.clone(), operational_resource);
+                operational_resource_map.insert(operational_agent.id.clone(), operational_resource);
             }
             strategic_resources_inner.insert(period.clone(), operational_resource_map);
         }

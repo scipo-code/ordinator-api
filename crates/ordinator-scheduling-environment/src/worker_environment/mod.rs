@@ -11,6 +11,8 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Asset;
+use crate::time_environment::MaterialToPeriod;
+use crate::work_order::WorkOrderConfigurations;
 
 use self::resources::Resources;
 
@@ -118,6 +120,7 @@ impl WorkerEnvironmentBuilder {
         self
     }
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ActorSpecifications {
     pub strategic: InputStrategic,
@@ -128,21 +131,56 @@ pub struct ActorSpecifications {
     // Hmm... because the WorkOrders should not be part of this
     // what about the options? The options should be defined in
     // a separate config file
-    // TODO [] Make separate config files for options
+    // TODO [ ] Make separate config files for options
     pub operational: Vec<InputOperational>,
+    // QUESTION [ ] Is this the way to do it?
+    // It cannot be like this. The idea of a relational database is beginning
+    // to make a lot of sense. 
+    pub work_order_configurations: WorkOrderConfigurations,
+    pub time_input: TimeInput,
+    pub material_to_period: MaterialToPeriod,
 }
-#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TimeInput
+{
+    pub number_of_strategic_periods: u64,
+    pub number_of_tactical_periods: u64,
+    pub number_of_days: u64,
+    pub number_of_supervisor_periods: u64,
+}
+
+// This should be handled as well. What should you do not? I think that a meditation session.
+// 
+        let work_order_configurations: WorkOrderConfigurations =
+            serde_json::from_str("./configuration/work_orders/work_order_weight_parameters.json")?;
+
+        let time_input_contents =
+            std::fs::read_to_string("./configuration/time_environment/time_inputs.toml").unwrap();
+
+        let time_input: TimeInput = toml::from_str(&time_input_contents).unwrap();
+
+        let material_to_period_contents =
+            std::fs::read_to_string("./configuration/materials/status_to_period.toml").unwrap();
+
+        let material_to_period: MaterialToPeriod =
+            toml::from_str(&material_to_period_contents).unwrap();
+
+
+// TODO #00 #00 #03 [x] Move the `./configuration/work_order_parameters.json` here.
+// Is this
+#[derive(Eq, PartialEq, Serialize, Deserialize, Debug)]
 pub struct InputStrategic {
     pub id: String,
     pub asset: String,
-    pub strategic_options_config: StrategicOptionsConfig,
+    pub strategic_options_config: StrategicOptions,
 }
 
-#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
+#[derive(Eq, PartialEq, Serialize, Deserialize, Debug)]
 pub struct InputTactical {
     pub id: String,
     pub asset: String,
-    pub tactical_options_config: TacticalOptionsConfig,
+    pub tactical_options_config: TacticalOptions,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
@@ -151,7 +189,7 @@ pub struct InputSupervisor {
     pub resource: Option<Resources>,
     pub number_of_supervisor_periods: u64,
     pub assets: Vec<Asset>,
-    pub supervisor_options: SupervisorOptionsConfig,
+    pub supervisor_options: SupervisorOptions,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -161,34 +199,62 @@ pub struct InputOperational {
     pub hours_per_day: f64,
     pub operational_configuration: OperationalConfiguration,
     pub assets: Vec<Asset>,
-    pub operational_options: OperationalOptionsConfig,
+    pub operational_options: OperationalOptions,
 }
 /// This type is for loading in the `Strategic` configurations
 /// so that the `StrategicOptions` can be loaded in to the `Agent`
 /// in the correct format.
-#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct StrategicOptionsConfig {
-    pub number_of_removed_work_orders: usize,
+/// How to resolve this duplication? Do you want this in the database?
+/// So you have already understood that this is the case. This is the
+/// priority that you need to understand here.
+// QUESTION [ ]
+// What should you do about the `StdRng`? I think that the best approach
+// here is to make the code. You have to make you own Deser
+//
+// It should leave. The five why was essential. Leave the code out of this. I think
+// that the correct way of making this is the the Orchestrator should apply changes
+//
+// QUESTION [ ]
+// So the key question here is whether the Actor will ever need to
+// see the options? I do not believe that it is. Actuallu does the
+// [`Orchestrator`] even need to know the Actors?
+//
+// The issue here is that you are afraid of using `dyn`. That is the
+// main thing that you need to have more decoupling.
+//
+// This has to be Clone. Otherwise you will not be able to understand the
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Debug)]
+pub struct StrategicOptions {
+    pub number_of_removed_work_order: usize,
     pub urgency_weight: usize,
     pub resource_penalty_weight: usize,
     pub clustering_weight: usize,
+    // These two should go into the `SchedulingEnvironment` that means that
+    // the code should strive to... This means that the StrategicAgent, would
+    // simply import this directly into itself. There is no need for a
+    //
+    // You can move this directly from the scheduling environment into the
+    // Actor. Is the a good idea? I think that it is
+    pub work_order_configurations: WorkOrderConfigurations,
+    pub material_to_period: MaterialToPeriod,
 }
 
+// The `rng` should not be inside of the `ordinator-scheduling-environment`
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct TacticalOptionsConfig {
+pub struct TacticalOptions {
     pub number_of_removed_work_orders: usize,
     pub urgency: usize,
     pub resource_penalty: usize,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct SupervisorOptionsConfig {
-    pub number_of_removed_work_orders: usize,
+pub struct SupervisorOptions {
+    pub number_of_unassigned_work_orders: usize,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct OperationalOptionsConfig {
-    pub number_of_removed_work_orders: usize,
+pub struct OperationalOptions {
+    pub number_of_removed_activities: usize,
 }
 #[cfg(test)]
 mod tests {

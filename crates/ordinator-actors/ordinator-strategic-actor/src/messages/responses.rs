@@ -80,7 +80,7 @@ where
         let number_of_strategic_work_orders =
             strategic_parameters.strategic_work_order_parameters.len();
 
-        let asset = value.agent_id.asset();
+        let asset = value.actor_id.asset();
 
         let number_of_periods = value.algorithm.parameters.strategic_periods.len();
 

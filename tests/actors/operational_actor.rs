@@ -5,11 +5,10 @@ fn test_determine_first_available_start_time() -> Result<()> {
     let id = Id::new("TEST_OPERATIONAL", vec![], vec![]);
 
     let scheduling_environment = Arc::new(Mutex::new(scheduling_environment)).lock().unwrap();
-    let options = OperationalOptions::from(SystemConfigurations::read_all_configs().unwrap());
 
     let operational_algorithm: OperationalAlgorithm<SharedSolution> = Algorithm::builder()
         .id(id)
-        .parameters(&options, &scheduling_environment)?
+        .parameters(&scheduling_environment)?
         .solution()
         .build();
 
@@ -78,11 +77,10 @@ fn test_determine_next_event_3() -> Result<()> {
     let scheduling_environment = Arc::new(Mutex::new(scheduling_environment)).lock().unwrap();
 
     let value = SystemConfigurations::read_all_configs().unwrap();
-    let options = OperationalOptions::from(value);
 
     let operational_algorithm: OperationalAlgorithm<SharedSolution> = Algorithm::builder()
         .id(id)
-        .parameters(&options, &scheduling_environment)?
+        .parameters(&scheduling_environment)?
         .solution()
         .build();
 

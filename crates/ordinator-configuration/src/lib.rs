@@ -35,26 +35,10 @@ use user_interface::EventColors;
 // so there is no reason to question that in the system.
 #[derive(Debug)]
 pub struct SystemConfigurations {
-    // This is also an issue. I am not sure what we should do
-    // to make this work in a better way. If you put this into
-    // the Database you will need to make something that is
-    // better than this.
-    pub work_order_configurations: WorkOrderConfigurations,
-    // This should be derived for the single actor only. Not all of them.
-    // That is important.
-    // So this should be moved. Where should it be moved to? I think that this
-    //
-    // TODO [ ] Move it
     pub data_locations: BaptisteToml,
     pub throttling: Throttling,
-    // FIX
-    // This should be more general later on.
     pub user_interface: EventColors,
-    // TODO [ ]
-    // Extend this for mongodb if ever needed.
     pub database_config: PathBuf,
-    pub time_input: TimeInput,
-    pub material_to_period: MaterialToPeriod,
 }
 
 impl SystemConfigurationTrait for SystemConfigurations {}
@@ -64,9 +48,6 @@ impl SystemConfigurationTrait for SystemConfigurations {}
 // revisit it.
 impl SystemConfigurations {
     pub fn read_all_configs() -> Result<Arc<ArcSwap<SystemConfigurations>>> {
-        let work_order_configurations: WorkOrderConfigurations =
-            serde_json::from_str("./configuration/work_orders/work_order_weight_parameters.json")?;
-
         let baptiste_data_locations_contents =
             std::fs::read_to_string("./configuration/data_locations/baptiste_data_locations.toml")
                 .unwrap();
@@ -85,26 +66,14 @@ impl SystemConfigurations {
 
         let database_path = std::path::Path::new(database_path_string);
 
-        let time_input_contents =
-            std::fs::read_to_string("./configuration/time_environment/time_inputs.toml").unwrap();
-        let time_input: TimeInput = toml::from_str(&time_input_contents).unwrap();
-
-        let material_to_period_contents =
-            std::fs::read_to_string("./configuration/materials/status_to_period.toml").unwrap();
-        let material_to_period: MaterialToPeriod =
-            toml::from_str(&material_to_period_contents).unwrap();
-
         // I believe that it is the best appraoch here to make sure that the
         // `Configurations` are always created wrapped. Then you will never
         // make the mistake, of accessing wild and stray configurations.
         Ok(Arc::new(ArcSwap::new(Arc::new(SystemConfigurations {
-            work_order_configurations,
             data_locations,
             throttling,
             user_interface: event_colors,
             database_config: database_path.to_owned(),
-            time_input,
-            material_to_period,
         }))))
         // TODO [ ]
         // Integrate this if you have issues with data initialization

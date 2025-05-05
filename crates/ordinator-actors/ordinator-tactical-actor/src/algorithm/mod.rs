@@ -454,8 +454,10 @@ where
             .collect();
 
         let random_work_order_numbers = work_order_numbers.choose_multiple(
-            &mut self.parameters.options.rng.clone(),
-            self.parameters.options.number_of_removed_work_orders,
+            &mut self.parameters.tactical_options.rng.clone(),
+            self.parameters
+                .tactical_options
+                .number_of_removed_work_orders,
         );
 
         for work_order_number in random_work_order_numbers {
@@ -469,13 +471,6 @@ where
                 })?;
         }
         Ok(())
-    }
-
-    fn derive_options(
-        configurations: &arc_swap::Guard<Arc<ordinator_configuration::SystemConfigurations>>,
-        id: &ordinator_scheduling_environment::worker_environment::resources::Id,
-    ) -> Self::Options {
-        todo!()
     }
 
     fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm {

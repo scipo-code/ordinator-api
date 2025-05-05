@@ -43,13 +43,12 @@ use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
 use ordinator_scheduling_environment::work_order::operation::Work;
+use ordinator_scheduling_environment::worker_environment::OperationalOptions;
 use ordinator_scheduling_environment::worker_environment::availability::Availability;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use rand::seq::IndexedRandom;
 use tracing::Level;
 use tracing::event;
-
-use super::OperationalOptions;
 
 pub struct OperationalAlgorithm<Ss>(
     Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>,
@@ -284,7 +283,6 @@ where
     // If we are going to implement delta evaluation we should remove this part.
     fn calculate_objective_value(
         &mut self,
-        options: &Self::Options,
     ) -> Result<
         ObjectiveValueType<
             <<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue,
@@ -510,12 +508,13 @@ where
     }
 
     fn unschedule(&mut self) -> Result<()> {
+        let mut rng = rand::rng();
         let operational_solutions_len = self.solution.scheduled_work_order_activities.len();
 
         let operational_solutions_filtered: Vec<WorkOrderActivity> =
             self.solution.scheduled_work_order_activities[1..operational_solutions_len - 1]
                 .choose_multiple(
-                    &mut self.parameters.options.rng.clone(),
+                    &mut rng,
                     self.parameters.options.number_of_removed_activities,
                 )
                 .map(|operational_solution| operational_solution.0)
@@ -540,21 +539,17 @@ where
         &mut self.0
     }
 
-    fn update_based_on_shared_solution(&mut self, options: &Self::Options) -> Result<()> {
+    fn update_based_on_shared_solution(&mut self) -> Result<()> {
         self.algorithm_util_methods().load_shared_solution();
 
         let state_change = self.incorporate_shared_state()?;
 
         if state_change {
-            self.calculate_objective_value(options)?;
+            self.calculate_objective_value()?;
             self.make_atomic_pointer_swap();
         }
 
         Ok(())
-    }
-
-    fn derive_options(configurations: &ActorLinkToSchedulingEnvironment, id: &Id) -> Self::Options {
-        Self::Options::from((configurations, id))
     }
 }
 

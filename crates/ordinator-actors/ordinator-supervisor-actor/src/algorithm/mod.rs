@@ -286,13 +286,6 @@ where
     fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm {
         &mut self.0
     }
-
-    fn derive_options(
-        configurations: &arc_swap::Guard<Arc<ordinator_configuration::SystemConfigurations>>,
-        id: &ordinator_scheduling_environment::worker_environment::resources::Id,
-    ) -> Self::Options {
-        todo!()
-    }
 }
 
 fn is_assigned_part_of_all(

@@ -16,7 +16,6 @@ use std::sync::Mutex;
 use algorithm::TacticalAlgorithm;
 use algorithm::tactical_solution::TacticalSolution;
 use arc_swap::ArcSwap;
-use arc_swap::Guard;
 use messages::TacticalRequestMessage;
 use messages::TacticalResponseMessage;
 use ordinator_actor_core::Actor;
@@ -28,11 +27,8 @@ use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
-use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-//TODO [ ]
-// Make `TacticalAlgorithm` but... Eat first.
 pub struct TacticalActor<Ss>(
     Actor<TacticalRequestMessage, TacticalResponseMessage, TacticalAlgorithm<Ss>>,
 )
@@ -45,23 +41,6 @@ pub struct TacticalOptions {
     pub urgency: usize,
     pub resource_penalty: usize,
     pub rng: StdRng,
-}
-impl From<(&Guard<Arc<SystemConfigurations>>, &Id)> for TacticalOptions {
-    fn from(value: (&Guard<Arc<SystemConfigurations>>, &Id)) -> Self {
-        let tactical_options_config = &value
-            .0
-            .actor_specification
-            .get(value.1.asset())
-            .unwrap()
-            .tactical
-            .tactical_options_config;
-        TacticalOptions {
-            number_of_removed_work_orders: tactical_options_config.number_of_removed_work_orders,
-            rng: StdRng::from_os_rng(),
-            urgency: tactical_options_config.urgency,
-            resource_penalty: tactical_options_config.resource_penalty,
-        }
-    }
 }
 
 impl<Ss> Deref for TacticalActor<Ss>
@@ -125,10 +104,7 @@ where
                 ab.id(id)
                     // So this function returns a `Result`
                     .arc_swap_shared_solution(shared_solution_arc_swap)
-                    .parameters_and_solution(
-                        &system_configurations.load(),
-                        &scheduling_environment_guard.lock().unwrap(),
-                    )
+                    .parameters_and_solution(&scheduling_environment_guard.lock().unwrap())
             })?
             // TODO [x]
             // These should be created in a single step

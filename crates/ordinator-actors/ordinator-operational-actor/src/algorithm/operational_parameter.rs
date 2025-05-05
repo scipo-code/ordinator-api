@@ -12,12 +12,11 @@ use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::TimeInterval;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::work_order::operation::Work;
+use ordinator_scheduling_environment::worker_environment::OperationalOptions;
 use ordinator_scheduling_environment::worker_environment::availability::Availability;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
-
-use crate::OperationalOptions;
 
 pub struct OperationalParameters {
     pub work_order_parameters: HashMap<WorkOrderActivity, OperationalParameter>,
@@ -94,8 +93,7 @@ impl Parameters for OperationalParameters {
             options: OperationalOptions {
                 number_of_removed_activities: operational_configuration
                     .operational_options
-                    .number_of_removed_work_orders,
-                rng: StdRng::from_os_rng(),
+                    .number_of_removed_activities,
             },
         })
     }

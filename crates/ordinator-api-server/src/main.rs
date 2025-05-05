@@ -1,3 +1,29 @@
+// WARNING Central location for all TODOs
+// Description:
+// #xx #yy #zz
+// xx:
+//     10: Configuration
+//     20: Orchestrator
+//     30: SchedulingEnvironment
+//     40: Actor
+//     50: Algorithm
+//     60: Solution/Parameters/Options
+// yy:
+//     10: Strategic
+//     20: Tactical
+//     30: Supervisor
+//     40: Operational
+// zz:
+//     issue number
+// TODO #30 #00 #01 [ ] Move time environment configuraion into SchedulingEnvironment
+//
+// TODO #10 #00 #02 [ ] Move work order parameters from `./configuration` to `./temp_scheduling_environmen_database`
+// TODO #10 #00 #03 [ ] Move the `./configuration/work_order_parameters.json` here.
+//
+// TODO #60 #10 #01 [ ] Move the `Options` into [`Algorithm`] or [`Actor`]
+// TODO #60 #20 #01 [ ] Move the `Options` into [`Algorithm`] or [`Actor`]
+// TODO #60 #30 #01 [ ] Move the `Options` into [`Algorithm`] or [`Actor`]
+// TODO #60 #40 #01 [ ] Move the `Options` into [`Algorithm`] or [`Actor`]
 mod handlers;
 mod routes;
 

@@ -3,10 +3,12 @@ use std::sync::MutexGuard;
 
 use anyhow::Context;
 use anyhow::Result;
+use ordinator_actor_core::traits::ActorLinkToSchedulingEnvironment;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::time_environment::day::Days;
 use ordinator_scheduling_environment::work_order::operation::Work;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use serde::Deserialize;
 use serde::Serialize;
@@ -72,8 +74,8 @@ impl TacticalResources {
 
 // Is this the correct way to think about the different things? Yes
 // let the caller decide
-impl<'a> From<&MutexGuard<'a, SchedulingEnvironment>> for TacticalResources {
-    fn from(value: &MutexGuard<'a, SchedulingEnvironment>) -> Self {
+impl<'a> From<(&ActorLinkToSchedulingEnvironment<'a>, &Id)> for TacticalResources {
+    fn from(value: (&ActorLinkToSchedulingEnvironment<'a>, &Id)) -> Self {
         // TODO [ ]
         // Move this out of the code and into `configuration`
         let _hours_per_day = 6.0;
@@ -90,20 +92,30 @@ impl<'a> From<&MutexGuard<'a, SchedulingEnvironment>> for TacticalResources {
         // Should this be multi skill?
         // This was always wrong. You should never have to make the system function
         // in that way.
+        // Should you simply move the Everything? Yes
         let mut tactical_resources_inner = HashMap::<Resources, Days>::new();
         for operational_configuration_all in value
+            .0
             .worker_environment
             .actor_specification
+            .get(value.1.asset())
+            .expect("Mising actor for the asset")
             .operational
-            .values()
+            .iter()
         {
-            for (i, day) in value.time_environment.tactical_days.iter().enumerate() {
+            for (i, day) in value.0.time_environment.tactical_days.iter().enumerate() {
                 let resource_periods = tactical_resources_inner
                     // FIX
                     // WARN
                     // There is a logic error here. If we want to compare with the
                     // `StrategicAgent`.
-                    .entry(operational_configuration_all.id.1.first().cloned().unwrap())
+                    .entry(
+                        operational_configuration_all
+                            .resources
+                            .first()
+                            .cloned()
+                            .unwrap(),
+                    )
                     .or_insert(Days::default());
 
                 *resource_periods

@@ -73,7 +73,7 @@ where
                     .algorithm
                     .loaded_shared_solution
                     .supervisor()
-                    .count_delegate_types(&self.agent_id);
+                    .count_delegate_types(&self.actor_id);
 
                 // Remember that the business types should not be the same type as the
                 // algorithm types. That is crucial to understand in all this.
@@ -81,7 +81,7 @@ where
                 // QUESTION
                 // Should the `OperationalObjectiveValue` be shareable? No I do not think so.
                 let operational_response_status = OperationalResponseStatus::new(
-                    self.agent_id.clone(),
+                    self.actor_id.clone(),
                     assign,
                     assess,
                     unassign,

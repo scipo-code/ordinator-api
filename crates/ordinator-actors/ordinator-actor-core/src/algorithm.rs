@@ -145,9 +145,10 @@ where
     // of thing. The issue here is what we should do about this.
     // What should happen to this function? I think that the best place to have
     // there kind of things
+    //
+    // What should be done? Keep the current setup. But move the Options in the the Algortihm.
     pub fn parameters_and_solution(
         mut self,
-        system_configurations: &Guard<Arc<SystemConfigurations>>,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self> {
         let parameters = P::from_source(
@@ -159,8 +160,7 @@ where
         // reason that you. Ahh CRUCIAL INSIGHT... The S is the actual concrete type
         // here and `Solution` was simply the trait... This is a crucial insight here.
         // There is so many
-        let options = S::Options::from((system_configurations, self.id.as_ref().unwrap()));
-        self.solution = Some(S::new(&parameters, &options));
+        self.solution = Some(S::new(&parameters));
         self.parameters = Some(parameters);
         Ok(self)
     }

@@ -30,6 +30,7 @@ use ordinator_scheduling_environment::time_environment::TimeEnvironment;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
+use ordinator_scheduling_environment::worker_environment::StrategicOptions;
 use priority_queue::PriorityQueue;
 use rand::prelude::SliceRandom;
 use rand::seq::IndexedRandom;
@@ -50,7 +51,6 @@ use crate::messages::requests::StrategicRequestScheduling;
 use crate::messages::responses::StrategicResponseResources;
 use crate::messages::responses::StrategicResponseScheduling;
 
-use super::StrategicOptions;
 
 // How would it look like here if you made it generic? impl
 // Algorithm<StrategicSolution, StrategicParameters, StrategicAssertions> {
@@ -1160,9 +1160,9 @@ impl<Ss> ActorBasedLargeNeighborhoodSearch
         });
     }
 
-    fn calculate_objective_value(&mut self, options: &Self::Options) -> Result<ObjectiveValueType<<<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue>>
+    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType<<<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue>>
     {
-        let mut strategic_objective_value = StrategicObjectiveValue::new(&options);
+        let mut strategic_objective_value = StrategicObjectiveValue::new(&self.parameters.strategic_options);
 
         self.determine_urgency(&mut strategic_objective_value)
             .context("could not determine strategic urgency")?;
@@ -1229,6 +1229,7 @@ impl<Ss> ActorBasedLargeNeighborhoodSearch
 
     fn unschedule(&mut self) -> Result<()>
     {
+        let mut rng = rand::rng();
         let strategic_work_orders = &self.solution.strategic_scheduled_work_orders;
 
         let strategic_parameters = &self.parameters.strategic_work_order_parameters;
@@ -1249,7 +1250,7 @@ impl<Ss> ActorBasedLargeNeighborhoodSearch
 
         let sampled_work_order_keys = filtered_keys
             .choose_multiple(
-                &mut self.parameters.strategic_options.rng.clone(),
+                &mut rng,
                 self.parameters
                     .strategic_options
                     .number_of_removed_work_order,
@@ -1277,10 +1278,6 @@ impl<Ss> ActorBasedLargeNeighborhoodSearch
         &mut self.0
     }
 
-    // TODO [ ] I think that this should be deleted. That is the best approach here. 
-    fn derive_options(configurations: &ActorLinkToSchedulingEnvironment, id: &ordinator_scheduling_environment::worker_environment::resources::Id) -> Self::Options {
-        todo!()
-    }
 }
 
 impl<Ss> StrategicAlgorithm<Ss>

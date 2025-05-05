@@ -7,8 +7,8 @@ use colored::Colorize;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::MessageHandler;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::StateLink;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use tracing::Level;
 use tracing::event;
 
@@ -32,9 +32,10 @@ where
     type Req = StrategicRequestMessage;
     type Res = StrategicResponseMessage;
 
-    fn handle_request_message(&mut self, strategic_request_message: Self::Req)
-    -> Result<Self::Res>
-    {
+    fn handle_request_message(
+        &mut self,
+        strategic_request_message: Self::Req,
+    ) -> Result<Self::Res> {
         let strategic_response = match strategic_request_message {
             StrategicRequestMessage::Status(strategic_status_message) => {
                 match strategic_status_message {
@@ -163,20 +164,14 @@ where
                         )
                     })?;
 
-                let strategic_options =
-                    StrategicOptions::from((&self.configurations.load(), &self.agent_id));
-                self.algorithm
-                    .calculate_objective_value(&strategic_options)?;
+                self.algorithm.calculate_objective_value()?;
                 event!(Level::INFO, strategic_objective_value = ?self.algorithm.solution.objective_value);
                 Ok(StrategicResponseMessage::Scheduling(scheduling_output))
             }
             StrategicRequestMessage::Resources(resources_message) => {
                 let resources_output = self.algorithm.update_resources_state(resources_message);
 
-                let strategic_options =
-                    StrategicOptions::from((&self.configurations.load(), &self.agent_id));
-                self.algorithm
-                    .calculate_objective_value(&strategic_options)?;
+                self.algorithm.calculate_objective_value()?;
                 event!(Level::INFO, strategic_objective_value = ?self.algorithm.solution.objective_value);
                 Ok(StrategicResponseMessage::Resources(
                     resources_output.unwrap(),
@@ -226,7 +221,7 @@ where
                                 format!(
                                     "{:?} is not found for {:?}",
                                     work_order_number,
-                                    self.agent_id.asset()
+                                    self.actor_id.asset()
                                 )
                             })?;
 
@@ -371,7 +366,7 @@ where
                     self.notify_orchestrator
                         .notify_all_agents_of_work_order_change(
                             strategic_user_status_codes.work_order_numbers,
-                            &self.agent_id.asset(),
+                            &self.actor_id.asset(),
                         )
                         .context("Could not notify Orchestrator")?;
 
@@ -379,16 +374,12 @@ where
                 }
             },
         };
-        let strategic_options =
-            StrategicOptions::from((&self.configurations.load(), &self.agent_id));
-        self.algorithm
-            .calculate_objective_value(&strategic_options)?;
+        self.algorithm.calculate_objective_value()?;
 
         strategic_response
     }
 
-    fn handle_state_link(&mut self, msg: StateLink) -> Result<StrategicResponseMessage>
-    {
+    fn handle_state_link(&mut self, msg: StateLink) -> Result<StrategicResponseMessage> {
         match msg {
             StateLink::WorkOrders(agent_specific) => {
                 match agent_specific {
@@ -410,17 +401,14 @@ where
                             // This is not made in the best way. I can sense it. What should I do
                             // about it? I think that the best way is to
                             // make something that can schedule everything.
-                            let options = StrategicOptions::from((
-                                &self.configurations.load(),
-                                &self.agent_id,
-                            ));
+                            let options = &self.algorithm.parameters.strategic_options;
                             let strategic_parameter = WorkOrderParameter::builder()
                                 .with_scheduling_environment(
                                     work_order,
                                     &scheduling_environment_guard
                                         .time_environment
                                         .strategic_periods,
-                                    &options,
+                                    options,
                                 )
                                 .build();
 
@@ -437,7 +425,8 @@ where
             }
             StateLink::WorkerEnvironment => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
-                let strategic_resources = StrategicResources::from(&scheduling_environment_guard);
+                let strategic_resources =
+                    StrategicResources::from((&scheduling_environment_guard, &self.actor_id));
                 drop(scheduling_environment_guard);
 
                 self.algorithm

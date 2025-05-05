@@ -6,10 +6,12 @@ pub mod messages;
 use algorithm::strategic_parameters::StrategicParameters;
 use anyhow::Result;
 use ordinator_actor_core::algorithm::Algorithm;
+use ordinator_actor_core::algorithm::AlgorithmBuilder;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::worker_environment::StrategicOptions;
 use priority_queue::PriorityQueue;
 use std::ops::Deref;
 use std::ops::DerefMut;
@@ -19,7 +21,6 @@ use std::sync::Mutex;
 use algorithm::StrategicAlgorithm;
 use algorithm::strategic_solution::StrategicSolution;
 use arc_swap::ArcSwap;
-use arc_swap::Guard;
 use messages::StrategicRequestMessage;
 use messages::StrategicResponseMessage;
 use ordinator_actor_core::Actor;
@@ -29,125 +30,15 @@ use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_scheduling_environment::SchedulingEnvironment;
-use ordinator_scheduling_environment::time_environment::MaterialToPeriod;
-use ordinator_scheduling_environment::work_order::WorkOrderConfigurations;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
-use rand::SeedableRng;
-use rand::rngs::StdRng;
 
 pub struct StrategicActor<Ss>(
     Actor<StrategicRequestMessage, StrategicResponseMessage, StrategicAlgorithm<Ss>>,
 )
 where
     Ss: SystemSolutionTrait<Strategic = StrategicSolution>,
-    // I do not understand the relation, here. The issue is that I think that the
-    // primary goal is to make everything generic. But it is not. You should understand
-    // this. Not go quickly go the fact.
-    // I think that ideally we should work with the fact that the code could work with
-    // the... There is only one thing to do here and that is to really understand the
-    // process of making this. You brain want to cycle and panic, that is not helpful
-    // here.
-    // TODO
-    // Here you want the code to function on the
     Self: MessageHandler<Req = StrategicRequestMessage, Res = StrategicResponseMessage>;
 
-#[derive(Debug)]
-pub struct StrategicOptions {
-    pub number_of_removed_work_order: usize,
-    pub rng: StdRng,
-    pub urgency_weight: usize,
-    pub resource_penalty_weight: usize,
-    pub clustering_weight: usize,
-    pub work_order_configurations: WorkOrderConfigurations,
-    pub material_to_period: MaterialToPeriod,
-}
-impl From<(&Guard<Arc<SchedulingEnvironment>>, &Id)> for StrategicOptions {
-    fn from(value: (&Guard<Arc<SchedulingEnvironment>>, &Id)) -> Self {
-        let strategic_option_config = &value
-            .0
-            .worker_environment
-            .actor_specification
-            .get(value.1.asset())
-            .unwrap()
-            .strategic
-            .strategic_options_config;
-
-        let number_of_removed_work_order = strategic_option_config.number_of_removed_work_orders;
-        let urgency_weight = strategic_option_config.urgency_weight;
-        let resource_penalty_weight = strategic_option_config.resource_penalty_weight;
-        let clustering_weight = strategic_option_config.clustering_weight;
-        let work_order_configurations = value.0.work_order_configurations.clone();
-
-        let material_to_period = value.0.material_to_period.clone();
-
-        let rng = StdRng::from_os_rng();
-        // QUESTION [ ]
-        // _Should this field be private or public?_
-        //
-        // You should provide an ID here to solve this problem.
-        // You should always make configuration fields private. That is
-        // the best way of working with the data.
-        StrategicOptions {
-            number_of_removed_work_order,
-            rng,
-            urgency_weight,
-            resource_penalty_weight,
-            clustering_weight,
-            work_order_configurations,
-            material_to_period,
-        }
-    }
-}
-
-// You want the StrategicOptions here. This means that you should provide a value to the
-// SchedulingEnvironment instead of the SchedulingEnvironment.
-// Okay so the SchedulingEnvironment does not have this.
-impl From<(SchedulingEnvironment, &Id)> for StrategicOptions {
-    fn from(value: (SchedulingEnvironment, &Id)) -> Self {
-        let strategic_option_config = &value
-            .0
-            .worker_environment
-            .actor_specification
-            .get(value.1.asset())
-            .unwrap()
-            .strategic
-            .strategic_options_config;
-
-        let number_of_removed_work_order = strategic_option_config.number_of_removed_work_orders;
-        let urgency_weight = strategic_option_config.urgency_weight;
-        let resource_penalty_weight = strategic_option_config.resource_penalty_weight;
-        let clustering_weight = strategic_option_config.clustering_weight;
-        let work_order_configurations = value.0.work_order_configurations;
-
-        // I actually also think that this should be in the data base.
-        // The QUESTION here is what we should do with the material to period
-        // I actially think that it would be nice to allow the user to specify this
-        // that means that it should go into the database.
-        //
-        // Should it be global or specific to the individual actor? I think that
-        // it has to be specific to the actor. That means
-        // The fact that the material to period ended up in here is also indicative
-        // of it belonging to the `actor_specification`.
-        let material_to_period = value.0.material_to_period;
-
-        let rng = StdRng::from_os_rng();
-        // QUESTION [ ]
-        // _Should this field be private or public?_
-        //
-        // You should provide an ID here to solve this problem.
-        // You should always make configuration fields private. That is
-        // the best way of working with the data.
-        StrategicOptions {
-            number_of_removed_work_order,
-            rng,
-            urgency_weight,
-            resource_penalty_weight,
-            clustering_weight,
-            work_order_configurations,
-            material_to_period,
-        }
-    }
-}
 impl<Ss> Deref for StrategicActor<Ss>
 where
     Ss: SystemSolutionTrait<Strategic = StrategicSolution>,
@@ -168,13 +59,10 @@ where
     }
 }
 
-type Type<Ss> = ordinator_actor_core::algorithm::AlgorithmBuilder<
+type Type<Ss> = AlgorithmBuilder<
     StrategicSolution,
-    algorithm::strategic_parameters::StrategicParameters,
-    priority_queue::PriorityQueue<
-        ordinator_scheduling_environment::work_order::WorkOrderNumber,
-        u64,
-    >,
+    StrategicParameters,
+    PriorityQueue<WorkOrderNumber, u64>,
     Ss,
 >;
 
@@ -229,10 +117,7 @@ where
             ab.id(id)
                 // So this function returns a `Result`
                 .arc_swap_shared_solution(shared_solution_arc_swap)
-                .parameters_and_solution(
-                    &system_configurations.load(),
-                    &scheduling_environment_guard.lock().unwrap(),
-                )
+                .parameters_and_solution(&scheduling_environment_guard.lock().unwrap())
         })?
         .communication()
         .configurations(system_configurations)

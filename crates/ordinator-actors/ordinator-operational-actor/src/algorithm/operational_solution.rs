@@ -21,7 +21,6 @@ use super::Unavailability;
 use super::no_overlap_by_ref;
 use super::operational_events::OperationalEvents;
 use super::operational_parameter::OperationalParameters;
-use crate::OperationalOptions;
 
 /// You want this to be a struct so that you can implement methods and
 /// formatting and logging.
@@ -30,29 +29,23 @@ pub struct OperationalObjectiveValue(pub u64);
 
 impl ObjectiveValue for OperationalObjectiveValue {}
 
-impl From<u64> for OperationalObjectiveValue
-{
-    fn from(value: u64) -> Self
-    {
+impl From<u64> for OperationalObjectiveValue {
+    fn from(value: u64) -> Self {
         OperationalObjectiveValue(value)
     }
 }
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
-pub struct OperationalSolution
-{
+pub struct OperationalSolution {
     pub objective_value: OperationalObjectiveValue,
     pub scheduled_work_order_activities: Vec<(WorkOrderActivity, OperationalAssignment)>,
 }
 
-impl Solution for OperationalSolution
-{
+impl Solution for OperationalSolution {
     type ObjectiveValue = OperationalObjectiveValue;
-    type Options = OperationalOptions;
     type Parameters = OperationalParameters;
 
-    fn new(parameters: &Self::Parameters, options: &Self::Options) -> Self
-    {
+    fn new(parameters: &Self::Parameters) -> Self {
         let mut scheduled_work_order_activities = Vec::new();
 
         let start_event =
@@ -75,29 +68,25 @@ impl Solution for OperationalSolution
         }
     }
 
-    fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue)
-    {
+    fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue) {
         self.objective_value = other_objective_value;
     }
 }
 
 #[allow(dead_code)]
-pub trait GetMarginalFitness
-{
+pub trait GetMarginalFitness {
     fn marginal_fitness(
         &self,
         operational_agent: &Id,
         work_order_activity: &WorkOrderActivity,
     ) -> Result<&MarginalFitness>;
 }
-impl GetMarginalFitness for HashMap<Id, OperationalSolution>
-{
+impl GetMarginalFitness for HashMap<Id, OperationalSolution> {
     fn marginal_fitness(
         &self,
         operational_agent: &Id,
         work_order_activity: &WorkOrderActivity,
-    ) -> Result<&MarginalFitness>
-    {
+    ) -> Result<&MarginalFitness> {
         self.get(operational_agent)
             .with_context(|| {
                 format!(
@@ -121,21 +110,18 @@ impl GetMarginalFitness for HashMap<Id, OperationalSolution>
 }
 
 // I think that we should have a Generic solution struct.
-impl OperationalSolution
-{
+impl OperationalSolution {
     pub fn is_operational_solution_already_scheduled(
         &self,
         work_order_activity: WorkOrderActivity,
-    ) -> bool
-    {
+    ) -> bool {
         self.scheduled_work_order_activities
             .iter()
             .any(|(woa, _)| *woa == work_order_activity)
     }
 }
 
-pub trait OperationalFunctions
-{
+pub trait OperationalFunctions {
     type Key;
     type Sequence;
 
@@ -144,13 +130,11 @@ pub trait OperationalFunctions
     fn containing_operational_solution(&self, time: DateTime<Utc>) -> ContainOrNextOrNone;
 }
 
-impl OperationalFunctions for OperationalSolution
-{
+impl OperationalFunctions for OperationalSolution {
     type Key = WorkOrderActivity;
     type Sequence = Vec<Assignment>;
 
-    fn try_insert(&mut self, key: Self::Key, assignments: Self::Sequence)
-    {
+    fn try_insert(&mut self, key: Self::Key, assignments: Self::Sequence) {
         for (index, operational_solution) in self
             .scheduled_work_order_activities
             .iter()
@@ -189,8 +173,7 @@ impl OperationalFunctions for OperationalSolution
         }
     }
 
-    fn containing_operational_solution(&self, time: DateTime<Utc>) -> ContainOrNextOrNone
-    {
+    fn containing_operational_solution(&self, time: DateTime<Utc>) -> ContainOrNextOrNone {
         let containing: Option<OperationalAssignment> = self
             .scheduled_work_order_activities
             .iter()
@@ -217,8 +200,7 @@ impl OperationalFunctions for OperationalSolution
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct OperationalAssignment
-{
+pub struct OperationalAssignment {
     // This is an auxilliary objective value. Where should it lie to solve this issue? You
     // need one per `WorkOrderActivity` so removing it does not really make that much sense
     // I think that you have to store them in the solution.
@@ -226,10 +208,8 @@ pub struct OperationalAssignment
     pub assignments: Vec<Assignment>,
 }
 
-impl OperationalAssignment
-{
-    pub fn new(assignments: Vec<Assignment>) -> Self
-    {
+impl OperationalAssignment {
+    pub fn new(assignments: Vec<Assignment>) -> Self {
         Self {
             assignments,
             marginal_fitness: MarginalFitness::default(),
@@ -237,18 +217,15 @@ impl OperationalAssignment
     }
 
     /// Start time of the Whole Assignment Vec
-    pub fn start_time(&self) -> DateTime<Utc>
-    {
+    pub fn start_time(&self) -> DateTime<Utc> {
         self.assignments.first().unwrap().start
     }
 
-    pub fn finish_time(&self) -> DateTime<Utc>
-    {
+    pub fn finish_time(&self) -> DateTime<Utc> {
         self.assignments.last().unwrap().finish
     }
 
-    pub fn contains(&self, time: DateTime<Utc>) -> bool
-    {
+    pub fn contains(&self, time: DateTime<Utc>) -> bool {
         self.start_time() <= time && time < self.finish_time()
     }
 }
@@ -257,17 +234,14 @@ impl OperationalAssignment
 // The issue here is that the code is not ready for use. We have to
 // change the different
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Assignment
-{
+pub struct Assignment {
     pub operational_events: OperationalEvents,
     pub start: DateTime<Utc>,
     pub finish: DateTime<Utc>,
 }
 
-impl Assignment
-{
-    pub fn new(event_type: OperationalEvents, start: DateTime<Utc>, finish: DateTime<Utc>) -> Self
-    {
+impl Assignment {
+    pub fn new(event_type: OperationalEvents, start: DateTime<Utc>, finish: DateTime<Utc>) -> Self {
         assert_eq!(event_type.time_delta(), finish - start);
         assert!(start < finish);
         assert_eq!(event_type.start_time(), start.time());
@@ -279,8 +253,7 @@ impl Assignment
         }
     }
 
-    pub fn make_unavailable_event(kind: Unavailability, availability: &Availability) -> Self
-    {
+    pub fn make_unavailable_event(kind: Unavailability, availability: &Availability) -> Self {
         match kind {
             Unavailability::Beginning => {
                 let event_start_time = availability
@@ -325,13 +298,11 @@ impl Assignment
 }
 
 #[cfg(test)]
-mod tests
-{
+mod tests {
     use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
 
     #[test]
-    fn test_marginal_fitness_debug()
-    {
+    fn test_marginal_fitness_debug() {
         let marginal_fitness = MarginalFitness::Scheduled(3600);
 
         let formatted_marginal_fitness = format!("{:?}", marginal_fitness);

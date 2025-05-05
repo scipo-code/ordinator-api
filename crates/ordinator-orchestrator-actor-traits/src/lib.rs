@@ -182,6 +182,10 @@ where
 {
     type Key;
 
+    /// Who should build the parameters. That is the key question here.
+    /// Do you want to mutate it?
+    ///
+    /// I really do not like this trait declaration. Something has to change?
     fn from_source(
         id: &Id,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
@@ -208,14 +212,16 @@ where
 pub trait Solution {
     type ObjectiveValue;
     type Parameters;
-    type Options: for<'a> From<(&'a Guard<Arc<SystemConfigurations>>, &'a Id)>;
 
     // The weightings are found inside of the
     // `Solution`
     // QUESTION
     // Is this a good idea to create the Solution? I actually believe that it
     // is!
-    fn new(parameters: &Self::Parameters, options: &Self::Options) -> Self;
+    // Should you have the options here? I think that you should derive the...
+    //
+    // The solution should only contain the things that actually change.
+    fn new(parameters: &Self::Parameters) -> Self;
 
     fn update_objective_value(&mut self, other_objective: Self::ObjectiveValue);
 }

@@ -46,7 +46,7 @@ where
     Self: MessageHandler<Req = ActorRequest, Res = ActorResponse>,
     Algorithm: ActorBasedLargeNeighborhoodSearch,
 {
-    pub agent_id: Id,
+    pub actor_id: Id,
     pub scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub algorithm: Algorithm,
     pub receiver_from_orchestrator: Receiver<ActorMessage<ActorRequest>>,
@@ -103,17 +103,18 @@ where
             // accepts the correct number of.
             // You have to make a method for getting the functionality out.
 
-
             // You cannot make this lock on every iteration. I think that the best approach
             // will be to make the code run with the o
             //
-            // What should you do here to get the most out of the code? 
+            // What should you do here to get the most out of the code?
             // I think that the better appraoch... The other approach was nice in that
             // it made a whole class of bug impossible to represent. What is the best
-            // approach to make system design here. 
+            // approach to make system design here.
             self.algorithm
-
-                .run_lns_iteration(self.scheduling_environment.lock().unwrap(), &self.agent_id)
+                // Ahh the issue is that you cannot put this kind of thing in here. The issue comes from the
+                // fact that the. The Actor needs to run this.
+                // Should the Option be removed? Yes
+                .run_lns_iteration()
                 .with_context(|| format!("{:#?}", schedule_iteration))
                 .unwrap();
 
@@ -189,7 +190,7 @@ where
 {
     pub fn build(self) -> Result<Communication<ActorMessage<ActorRequest>, ActorResponse>> {
         let mut agent = Actor {
-            agent_id: self.agent_id.unwrap(),
+            actor_id: self.agent_id.unwrap(),
             scheduling_environment: self.scheduling_environment.unwrap(),
             algorithm: self.algorithm.unwrap(),
             receiver_from_orchestrator: self.receiver_from_orchestrator.unwrap(),
@@ -201,7 +202,7 @@ where
             "{} for Asset: {}",
             std::any::type_name_of_val(&agent),
             agent
-                .agent_id
+                .actor_id
                 .2
                 .first()
                 .expect("Every agent needs to be associated with an Asset"),

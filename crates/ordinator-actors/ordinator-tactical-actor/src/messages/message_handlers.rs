@@ -2,8 +2,8 @@ use anyhow::Context;
 use anyhow::Result;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::MessageHandler;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::StateLink;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::WhereIsWorkOrder;
 
 use super::TacticalRequestMessage;
@@ -29,8 +29,7 @@ where
     fn handle_request_message(
         &mut self,
         tactical_request: TacticalRequestMessage,
-    ) -> Result<Self::Res>
-    {
+    ) -> Result<Self::Res> {
         match tactical_request {
             TacticalRequestMessage::Status(_tactical_status_message) => {
                 // let status_message = self.status().unwrap();
@@ -64,8 +63,7 @@ where
         }
     }
 
-    fn handle_state_link(&mut self, state_link: StateLink) -> Result<Self::Res>
-    {
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<Self::Res> {
         match state_link {
             StateLink::WorkOrders(agent_specific) => match agent_specific {
                 ActorSpecific::Strategic(changed_work_orders) => {
@@ -125,7 +123,8 @@ where
 
                 // The issue here is that `from` does not consume the value. But instead work
                 // with the reference.
-                let tactical_resources = TacticalResources::from(&scheduling_environment_guard);
+                let tactical_resources =
+                    TacticalResources::from((&scheduling_environment_guard, &self.actor_id));
                 drop(scheduling_environment_guard);
 
                 self.algorithm

@@ -22,17 +22,14 @@ use super::tactical_resources::TacticalResources;
 use crate::TacticalOptions;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Clone)]
-pub struct TacticalObjectiveValue
-{
+pub struct TacticalObjectiveValue {
     pub objective_value: u64,
     pub urgency: (usize, u64),
     pub resource_penalty: (usize, u64),
 }
 
-impl TacticalObjectiveValue
-{
-    pub fn new(tactical_options: &TacticalOptions) -> Self
-    {
+impl TacticalObjectiveValue {
+    pub fn new(tactical_options: &TacticalOptions) -> Self {
         Self {
             objective_value: 0,
             urgency: (tactical_options.urgency, u64::MAX),
@@ -40,29 +37,25 @@ impl TacticalObjectiveValue
         }
     }
 
-    pub fn aggregate_objectives(&mut self)
-    {
+    pub fn aggregate_objectives(&mut self) {
         self.objective_value = self.urgency.0 as u64 * self.urgency.1
             + self.resource_penalty.0 as u64 * self.resource_penalty.1;
     }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct TacticalSolution
-{
+pub struct TacticalSolution {
     pub(crate) objective_value: TacticalObjectiveValue,
     pub(crate) tactical_work_orders: TacticalScheduledWorkOrders,
     pub(crate) tactical_loadings: TacticalResources,
 }
 // This should be put into the `algorithm.rs` file
-impl Solution for TacticalSolution
-{
+impl Solution for TacticalSolution {
     type ObjectiveValue = TacticalObjectiveValue;
-    type Options = TacticalOptions;
+
     type Parameters = TacticalParameters;
 
-    fn new(parameters: &Self::Parameters, tactical_options: &Self::Options) -> Self
-    {
+    fn new(parameters: &Self::Parameters) -> Self {
         let tactical_loadings_inner: HashMap<Resources, Days> = parameters
             .tactical_capacity
             .resources
@@ -85,22 +78,19 @@ impl Solution for TacticalSolution
 
         // You are still learning this.
         Self {
-            objective_value: TacticalObjectiveValue::new(tactical_options),
+            objective_value: TacticalObjectiveValue::new(&parameters.tactical_options),
             tactical_work_orders: TacticalScheduledWorkOrders(tactical_scheduled_work_orders_inner),
             tactical_loadings: TacticalResources::new(tactical_loadings_inner),
         }
     }
 
-    fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue)
-    {
+    fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue) {
         self.objective_value = other_objective_value;
     }
 }
 
-impl TacticalSolution
-{
-    pub fn release_from_tactical_solution(&mut self, work_order_number: &WorkOrderNumber)
-    {
+impl TacticalSolution {
+    pub fn release_from_tactical_solution(&mut self, work_order_number: &WorkOrderNumber) {
         self.tactical_work_orders
             .0
             .insert(*work_order_number, WhereIsWorkOrder::Strategic);
@@ -110,8 +100,7 @@ impl TacticalSolution
         &self,
         work_order_number: &WorkOrderNumber,
         activity_number: &ActivityNumber,
-    ) -> Result<&Vec<(Day, Work)>>
-    {
+    ) -> Result<&Vec<(Day, Work)>> {
         let tactical_day = &self
             .tactical_work_orders
             .0
@@ -146,8 +135,7 @@ impl TacticalSolution
         &mut self,
         work_order_number: WorkOrderNumber,
         tactical_scheduled_operations: TacticalScheduledOperations,
-    )
-    {
+    ) {
         self.tactical_work_orders.0.insert(
             work_order_number,
             WhereIsWorkOrder::Tactical(tactical_scheduled_operations),
@@ -165,21 +153,17 @@ pub struct TacticalScheduledWorkOrders(
 // Make a trait here to implement the type.
 // This is basically an interface to the type that we need to implement this
 // on. I think that the
-pub trait TacticalWhereIsWorkOrder
-{
+pub trait TacticalWhereIsWorkOrder {
     fn is_tactical(&self) -> bool;
 
     fn tactical_operations(&self) -> Result<&TacticalScheduledOperations>;
 }
-impl TacticalWhereIsWorkOrder for WhereIsWorkOrder<TacticalScheduledOperations>
-{
-    fn is_tactical(&self) -> bool
-    {
+impl TacticalWhereIsWorkOrder for WhereIsWorkOrder<TacticalScheduledOperations> {
+    fn is_tactical(&self) -> bool {
         matches!(self, WhereIsWorkOrder::Tactical(_))
     }
 
-    fn tactical_operations(&self) -> Result<&TacticalScheduledOperations>
-    {
+    fn tactical_operations(&self) -> Result<&TacticalScheduledOperations> {
         match self {
             WhereIsWorkOrder::Strategic => bail!(
                 "A call to extract the {} was made but received {}",
@@ -196,10 +180,8 @@ impl TacticalWhereIsWorkOrder for WhereIsWorkOrder<TacticalScheduledOperations>
     }
 }
 
-impl TacticalScheduledWorkOrders
-{
-    pub fn scheduled_work_orders(&self) -> usize
-    {
+impl TacticalScheduledWorkOrders {
+    pub fn scheduled_work_orders(&self) -> usize {
         self.0
             .iter()
             .filter(|(_won, sch_wo)| sch_wo.is_tactical())
@@ -211,22 +193,18 @@ impl TacticalScheduledWorkOrders
 pub struct TacticalScheduledOperations(pub HashMap<ActivityNumber, OperationSolution>);
 
 //
-impl TacticalScheduledOperations
-{
+impl TacticalScheduledOperations {
     pub fn insert_operation_solution(
         &mut self,
         activity: ActivityNumber,
         operation_solution: OperationSolution,
-    )
-    {
+    ) {
         self.0.insert(activity, operation_solution);
     }
 }
 
-impl Display for TacticalScheduledOperations
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
-    {
+impl Display for TacticalScheduledOperations {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut tactical_operations = self.0.iter().collect::<Vec<_>>();
         tactical_operations
             .sort_by(|a, b| a.1.work_order_activity.1.cmp(&b.1.work_order_activity.1));
@@ -243,19 +221,16 @@ impl Display for TacticalScheduledOperations
 pub struct TacticalSolutionBuilder(TacticalSolution);
 
 #[allow(dead_code)]
-impl TacticalSolutionBuilder
-{
+impl TacticalSolutionBuilder {
     pub fn with_tactical_days(
         mut self,
         tactical_days: HashMap<WorkOrderNumber, WhereIsWorkOrder<TacticalScheduledOperations>>,
-    ) -> Self
-    {
+    ) -> Self {
         self.0.tactical_work_orders.0 = tactical_days;
         self
     }
 
-    pub fn build(self) -> TacticalSolution
-    {
+    pub fn build(self) -> TacticalSolution {
         TacticalSolution {
             objective_value: self.0.objective_value,
             tactical_work_orders: self.0.tactical_work_orders,
@@ -264,8 +239,7 @@ impl TacticalSolutionBuilder
     }
 }
 #[derive(Hash, PartialEq, PartialOrd, Ord, Eq, Clone, Debug, Serialize)]
-pub struct OperationSolution
-{
+pub struct OperationSolution {
     pub scheduled: Vec<(Day, Work)>,
     pub resource: Resources,
     pub number: NumberOfPeople,
@@ -273,8 +247,7 @@ pub struct OperationSolution
     pub work_order_activity: WorkOrderActivity,
 }
 
-impl OperationSolution
-{
+impl OperationSolution {
     pub fn new(
         scheduled: Vec<(Day, Work)>,
         resource: Resources,
@@ -282,8 +255,7 @@ impl OperationSolution
         work_remaining: Work,
         work_order_number: WorkOrderNumber,
         activity_number: ActivityNumber,
-    ) -> OperationSolution
-    {
+    ) -> OperationSolution {
         OperationSolution {
             scheduled,
             resource,
@@ -294,10 +266,8 @@ impl OperationSolution
     }
 }
 
-impl Display for OperationSolution
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
-    {
+impl Display for OperationSolution {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self.work_order_activity)?;
         for scheduled in &self.scheduled {
             write!(f, "{} on {}", scheduled.1, scheduled.0)?

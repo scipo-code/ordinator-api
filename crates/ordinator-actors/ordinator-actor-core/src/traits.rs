@@ -24,17 +24,18 @@ pub trait ActorBasedLargeNeighborhoodSearch {
     // form here. You should decide whether you should work on getting the code
     // to work with. I believe that the user should be able to change these things.
     //
-    //
-    fn run_lns_iteration(
-        &mut self,
-        configurations: ActorLinkToSchedulingEnvironment,
-        id: &Id,
-    ) -> Result<()> {
-        let options = &Self::derive_options(&configurations, id);
+    // The issue is that the weights are cached on the workorder. So changing the
+    // should ideally also go through this functional process on every iteration.
+    // but we do not want that
+    // ISSUE #129
+    fn run_lns_iteration(&mut self) -> Result<()> {
+        // The options should be a part of the `Algorithm`... No part of the... It should either be a part of the Algorithm
+        // or a Part of the Actor. If it is a part of the actor it should be dependency injected. I think that this is the best approach
+        //
 
         // You still have the same problem. Why do you keep running in circles? I do not
         // understand it. You have to fix this. You will work longer hours.
-        self.update_based_on_shared_solution(options)?;
+        self.update_based_on_shared_solution()?;
 
         // But that means that we cannot code this
         let current_solution = self.algorithm_util_methods().clone_algorithm_solution();
@@ -45,7 +46,7 @@ pub trait ActorBasedLargeNeighborhoodSearch {
         self.schedule()
             .with_context(|| format!("Could not schedule\n{:#?}", current_solution))?;
 
-        let objective_value_type = self.calculate_objective_value(options)?;
+        let objective_value_type = self.calculate_objective_value()?;
 
         match objective_value_type {
             ObjectiveValueType::Better(objective_value) => {
@@ -61,9 +62,6 @@ pub trait ActorBasedLargeNeighborhoodSearch {
 
         Ok(())
     }
-
-    // So this should be gotten from the SchedulingEnvironment.
-    fn derive_options(configurations: &ActorLinkToSchedulingEnvironment, id: &Id) -> Self::Options;
 
     fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm;
 
@@ -81,7 +79,6 @@ pub trait ActorBasedLargeNeighborhoodSearch {
     // be apart of the `StateLink`.
     fn calculate_objective_value(
         &mut self,
-        options: &Self::Options,
     ) -> Result<
         ObjectiveValueType<
             <<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue,
@@ -96,13 +93,13 @@ pub trait ActorBasedLargeNeighborhoodSearch {
     /// the shared solution. That means that this method has to look at relevant
     /// state in the others `Agent`s and incorporate that and handled changes in
     /// parameters coming from external inputs.
-    fn update_based_on_shared_solution(&mut self, options: &Self::Options) -> Result<()> {
+    fn update_based_on_shared_solution(&mut self) -> Result<()> {
         self.algorithm_util_methods().load_shared_solution();
 
         let state_change = self.incorporate_shared_state()?;
 
         if state_change {
-            self.calculate_objective_value(options)?;
+            self.calculate_objective_value()?;
             self.make_atomic_pointer_swap();
         }
 

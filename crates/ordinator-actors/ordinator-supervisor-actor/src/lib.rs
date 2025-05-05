@@ -59,10 +59,6 @@ where
         &mut self.0
     }
 }
-pub struct SupervisorOptions {
-    pub number_of_unassigned_work_orders: usize,
-    pub rng: StdRng,
-}
 
 impl<'a> From<(&Guard<Arc<SystemConfigurations>>, &Id)> for SupervisorOptions {
     fn from(value: (&Guard<Arc<SystemConfigurations>>, &Id)) -> Self {
