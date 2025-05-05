@@ -5,8 +5,8 @@ use anyhow::Result;
 use anyhow::bail;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::MessageHandler;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::StateLink;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use tracing::Level;
 use tracing::event;
@@ -26,8 +26,7 @@ where
     type Req = SupervisorRequestMessage;
     type Res = SupervisorResponseMessage;
 
-    fn handle_state_link(&mut self, state_link: StateLink) -> Result<Self::Res>
-    {
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<Self::Res> {
         match state_link {
             StateLink::WorkOrders(agent_specific) => match agent_specific {
                 ActorSpecific::Strategic(changed_work_orders) => {
@@ -98,8 +97,7 @@ where
     fn handle_request_message(
         &mut self,
         supervisor_request_message: SupervisorRequestMessage,
-    ) -> Result<SupervisorResponseMessage>
-    {
+    ) -> Result<SupervisorResponseMessage> {
         event!(Level::WARN, "start_of_supervisor_handler");
 
         match supervisor_request_message {

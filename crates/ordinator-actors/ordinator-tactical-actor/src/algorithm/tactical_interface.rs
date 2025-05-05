@@ -5,13 +5,11 @@ use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 
 use super::tactical_solution::TacticalSolution;
 
-impl TacticalInterface for TacticalSolution
-{
+impl TacticalInterface for TacticalSolution {
     fn start_and_finish_dates(
         &self,
         work_order_activity: &WorkOrderActivity,
-    ) -> Option<(&DateTime<Utc>, &DateTime<Utc>)>
-    {
+    ) -> Option<(&DateTime<Utc>, &DateTime<Utc>)> {
         let activities = self
             .tactical_work_orders
             .0
@@ -34,8 +32,7 @@ impl TacticalInterface for TacticalSolution
     fn tactical_period(
         &self,
         work_order_number: &ordinator_scheduling_environment::work_order::WorkOrderNumber,
-    ) -> Option<&ordinator_scheduling_environment::time_environment::period::Period>
-    {
+    ) -> Option<&ordinator_scheduling_environment::time_environment::period::Period> {
         todo!()
     }
 }

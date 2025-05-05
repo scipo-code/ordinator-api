@@ -1,8 +1,8 @@
 pub mod assert_functions;
+pub mod strategic_interface;
 pub mod strategic_parameters;
 pub mod strategic_resources;
 pub mod strategic_solution;
-pub mod strategic_interface;
 
 use std::any::type_name;
 use std::collections::HashMap;
@@ -22,15 +22,15 @@ use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_actor_core::traits::ActorLinkToSchedulingEnvironment;
 use ordinator_actor_core::traits::ObjectiveValueType;
 use ordinator_orchestrator_actor_traits::Parameters;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::Solution;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::TacticalInterface;
-use ordinator_scheduling_environment::time_environment::period::Period;
 use ordinator_scheduling_environment::time_environment::TimeEnvironment;
+use ordinator_scheduling_environment::time_environment::period::Period;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::Work;
-use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use ordinator_scheduling_environment::worker_environment::StrategicOptions;
+use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use priority_queue::PriorityQueue;
 use rand::prelude::SliceRandom;
 use rand::seq::IndexedRandom;
@@ -51,7 +51,6 @@ use crate::messages::requests::StrategicRequestScheduling;
 use crate::messages::responses::StrategicResponseResources;
 use crate::messages::responses::StrategicResponseScheduling;
 
-
 // How would it look like here if you made it generic? impl
 // Algorithm<StrategicSolution, StrategicParameters, StrategicAssertions> {
 //
@@ -69,8 +68,7 @@ where
         &mut self,
         work_order_number: &WorkOrderNumber,
         locked_in_period: &Period,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         self.solution
             .strategic_scheduled_work_orders
             .insert(*work_order_number, Some(locked_in_period.clone()));
@@ -109,7 +107,7 @@ where
     // self.solution.strategic_periods.get_mut(randomly_chosen[1]).unwrap() as *mut
     // Option<Period>;             std::ptr::swap(scheduled_work_order_1,
     // scheduled_work_order_2);             // You cannot do this anymore
-    // either. What is the best remedy for this?             
+    // either. What is the best remedy for this?
     // self.update_loadings(randomly_chosen[0],
     // (*scheduled_work_order_1).as_ref().unwrap(), LoadOperation::Sub);
     //             self.update_loadings(randomly_chosen[1],
@@ -121,24 +119,24 @@ where
     //         }
     // }
 
-    fn strategic_capacity_by_resource(&self, resource: &Resources, period: &Period)
-    -> Result<Work>
-    {
+    fn strategic_capacity_by_resource(
+        &self,
+        resource: &Resources,
+        period: &Period,
+    ) -> Result<Work> {
         self.parameters
             .strategic_capacity
             .aggregated_capacity_by_period_and_resource(period, resource)
     }
 
-    fn strategic_loading_by_resource(&self, resource: &Resources, period: &Period) -> Result<Work>
-    {
+    fn strategic_loading_by_resource(&self, resource: &Resources, period: &Period) -> Result<Work> {
         self.solution
             .strategic_loadings
             .aggregated_capacity_by_period_and_resource(period, resource)
     }
 
     #[allow(dead_code)]
-    pub fn calculate_utilization(&self) -> Result<Vec<(i32, u64)>>
-    {
+    pub fn calculate_utilization(&self) -> Result<Vec<(i32, u64)>> {
         let mut utilization_by_period = Vec::new();
 
         for period in &self.parameters.strategic_periods {
@@ -161,8 +159,7 @@ where
     fn determine_urgency(
         &mut self,
         strategic_objective_value: &mut StrategicObjectiveValue,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         for (work_order_number, scheduled_period) in &self.solution.strategic_scheduled_work_orders
         {
             let optimized_period = match scheduled_period {
@@ -199,8 +196,7 @@ where
         Ok(())
     }
 
-    fn determine_clustering(&mut self, strategic_objective_value: &mut StrategicObjectiveValue)
-    {
+    fn determine_clustering(&mut self, strategic_objective_value: &mut StrategicObjectiveValue) {
         for period in &self.parameters.strategic_periods {
             // Precompute scheduled work orders for the current period
             let scheduled_work_orders_by_period: Vec<_> = self
@@ -259,8 +255,7 @@ where
     fn determine_resource_penalty(
         &mut self,
         strategic_objective_value: &mut StrategicObjectiveValue,
-    )
-    {
+    ) {
         for (resource, periods) in &self.parameters.strategic_capacity.0 {
             let capacity: f64 = periods.iter().map(|ele| ele.1.total_hours.to_f64()).sum();
             let loading: f64 = self
@@ -281,16 +276,13 @@ where
 }
 
 #[derive(Debug)]
-pub enum ForcedWorkOrder
-{
+pub enum ForcedWorkOrder {
     Locked(WorkOrderNumber),
     FromTactical((WorkOrderNumber, Period)),
 }
 
-impl ForcedWorkOrder
-{
-    pub fn work_order_number(&self) -> &WorkOrderNumber
-    {
+impl ForcedWorkOrder {
+    pub fn work_order_number(&self) -> &WorkOrderNumber {
         match self {
             ForcedWorkOrder::Locked(work_order_number) => work_order_number,
             ForcedWorkOrder::FromTactical((work_order_number, _)) => work_order_number,
@@ -299,34 +291,31 @@ impl ForcedWorkOrder
 }
 
 #[derive(Debug)]
-pub enum ScheduleWorkOrder
-{
+pub enum ScheduleWorkOrder {
     Normal,
     Forced,
     Unschedule,
 }
 
-// You cannot define it like this. It is horrible for 
+// You cannot define it like this. It is horrible for
 // There has to be changed something in here as well.
 // TODO [ ]
 // This function should be a part of the `TacticalSolution` interface.
 // That is the main point for these types of things. The interface is
 // what defines the "Metavariables" from the paper and this is what
-// should we. 
-pub trait StrategicUtils
-{
-    
+// should we.
+pub trait StrategicUtils {
     fn schedule_strategic_work_order(
-            &mut self,
-            work_order_number: WorkOrderNumber,
-            period: &Period,
-        ) -> Result<Option<WorkOrderNumber>>;
-    
+        &mut self,
+        work_order_number: WorkOrderNumber,
+        period: &Period,
+    ) -> Result<Option<WorkOrderNumber>>;
+
     fn schedule_forced_work_order(
-            &mut self,
-            force_schedule_work_order: &ForcedWorkOrder,
-        ) -> Result<()>;
-    
+        &mut self,
+        force_schedule_work_order: &ForcedWorkOrder,
+    ) -> Result<()>;
+
     fn is_scheduled(&self, work_order_number: &WorkOrderNumber) -> bool;
 
     /// This function updates the StrategicResources based on the a provided
@@ -336,18 +325,16 @@ pub trait StrategicUtils
         strategic_resources: StrategicResources,
         load_operation: LoadOperation,
     );
-    
+
     fn determine_best_permutation(
         &self,
         work_load: HashMap<Resources, Work>,
         period: &Period,
         schedule: ScheduleWorkOrder,
     ) -> Result<Option<StrategicResources>>;
-    
-    
 }
 // This should be exchanged by a binary heap. This is an issue as well. You do not need to
-// have all this code in the 
+// have all this code in the
 impl<Ss> StrategicUtils for StrategicAlgorithm<Ss>
 where
     Ss: SystemSolutionTrait,
@@ -356,7 +343,7 @@ where
     // This should be changed as well. But now I will go home. I think that your best approach is
     // to make something that will allow us to implement this and create something for our fellow man.
     // You should remove this function from the code. And you should instead rely on the interface. I
-    // think that the interface is the most important thing here. 
+    // think that the interface is the most important thing here.
     // This function is simply about taking the first day of a specific tactical work order and determine
     // its associated period. Nothing else is required for this to function.
 
@@ -364,8 +351,7 @@ where
         &mut self,
         work_order_number: WorkOrderNumber,
         period: &Period,
-    ) -> Result<Option<WorkOrderNumber>>
-    {
+    ) -> Result<Option<WorkOrderNumber>> {
         let strategic_parameter = self
             .parameters
             .strategic_work_order_parameters
@@ -430,11 +416,10 @@ where
     }
 
     // Where should this code go now? I think that it should go into the
-     fn schedule_forced_work_order(
+    fn schedule_forced_work_order(
         &mut self,
         force_schedule_work_order: &ForcedWorkOrder,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         if self.is_scheduled(force_schedule_work_order.work_order_number()) {
             self.unschedule_specific_work_order(*force_schedule_work_order.work_order_number())
                 .with_context(|| {
@@ -487,8 +472,7 @@ where
         Ok(())
     }
 
-    fn is_scheduled(&self, work_order_number: &WorkOrderNumber) -> bool
-    {
+    fn is_scheduled(&self, work_order_number: &WorkOrderNumber) -> bool {
         self.solution
             .strategic_scheduled_work_orders
             .get(work_order_number)
@@ -502,8 +486,7 @@ where
         &mut self,
         strategic_resources: StrategicResources,
         load_operation: LoadOperation,
-    )
-    {
+    ) {
         // How should the change be handled in this function? The most important thing
         // here is to make the function work correctly on the new resource type.
         // This will be difficult as we cannot make the FIX This loading
@@ -569,8 +552,7 @@ where
         work_load: HashMap<Resources, Work>,
         period: &Period,
         schedule: ScheduleWorkOrder,
-    ) -> Result<Option<StrategicResources>>
-    {
+    ) -> Result<Option<StrategicResources>> {
         let mut rng = rand::rng();
         let mut best_total_excess = Work::from(-999999999.0);
         let mut best_work_order_resource_loadings = StrategicResources::default();
@@ -789,8 +771,7 @@ fn assert_work_load_equal_to_strategic_resource(
     strategic_resource_loadings: &StrategicResources,
     work_load: &HashMap<Resources, Work>,
     load_operation: LoadOperation,
-) -> Result<()>
-{
+) -> Result<()> {
     let aggregate_strategic_resource = strategic_resource_loadings
             .0
             .get(period)
@@ -827,8 +808,7 @@ fn determine_unschedule_work_resource_loadings(
     period: &Period,
     loading_resources: &[OperationalResource],
     work_load_permutation: &mut [(Resources, Work)],
-) -> Option<StrategicResources>
-{
+) -> Option<StrategicResources> {
     let mut strategic_resources = StrategicResources::default();
     let mut loading_resources_cloned = loading_resources.to_vec();
     for (resources, work) in work_load_permutation.iter_mut() {
@@ -908,8 +888,7 @@ fn determine_forced_work_order_resource_loadings(
     best_work_order_resource_loadings: &mut StrategicResources,
     technician_permutation: &mut [OperationalResource],
     work_load_permutation: &mut [(Resources, Work)],
-) -> Option<StrategicResources>
-{
+) -> Option<StrategicResources> {
     let mut work_order_resource_loadings = StrategicResources::default();
     for (resources, work) in work_load_permutation.iter_mut() {
         let mut qualified_technicians = technician_permutation
@@ -961,8 +940,7 @@ fn determine_normal_work_order_resource_loadings(
     period: &Period,
     technician_permutation: &mut [OperationalResource],
     work_load_permutation: &mut Vec<(Resources, Work)>,
-) -> Option<StrategicResources>
-{
+) -> Option<StrategicResources> {
     let mut work_order_resource_loadings = StrategicResources::default();
     for operation_load in work_load_permutation {
         for operational_resource in technician_permutation.iter_mut() {
@@ -1016,8 +994,7 @@ fn determine_normal_work_order_resource_loadings(
 fn determine_difference_resources(
     capacity_resources: &HashMap<String, OperationalResource>,
     loading_resources: &HashMap<String, OperationalResource>,
-) -> HashMap<String, OperationalResource>
-{
+) -> HashMap<String, OperationalResource> {
     let mut difference_resources = HashMap::new();
     for capacity in capacity_resources {
         let loading = loading_resources
@@ -1036,8 +1013,7 @@ fn determine_difference_resources(
     difference_resources
 }
 
-pub fn calculate_period_difference(scheduled_period: &Period, latest_period: &Period) -> u64
-{
+pub fn calculate_period_difference(scheduled_period: &Period, latest_period: &Period) -> u64 {
     let scheduled_period_date = scheduled_period.end_date().to_owned();
     let latest_date = latest_period.end_date();
     let duration = scheduled_period_date.signed_duration_since(latest_date);
@@ -1045,18 +1021,22 @@ pub fn calculate_period_difference(scheduled_period: &Period, latest_period: &Pe
     std::cmp::max(days / 7, 0) as u64
 }
 
-pub struct StrategicAlgorithm<Ss>(pub Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>,Ss>)
+pub struct StrategicAlgorithm<Ss>(
+    pub Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>,
+)
 where
     StrategicSolution: Solution,
     StrategicParameters: Parameters,
     Ss: SystemSolutionTrait,
-    Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>: AbLNSUtils;
+    Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>:
+        AbLNSUtils;
 
 impl<Ss> Deref for StrategicAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait
+    Ss: SystemSolutionTrait,
 {
-    type Target =Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>,Ss>;
+    type Target =
+        Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -1064,30 +1044,30 @@ where
 }
 impl<Ss> DerefMut for StrategicAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait
+    Ss: SystemSolutionTrait,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0 
+        &mut self.0
     }
 }
-    
-impl<Ss> ActorBasedLargeNeighborhoodSearch
-    for StrategicAlgorithm<Ss>
-    where
-        Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>: AbLNSUtils<SolutionType = StrategicSolution>,
-        StrategicSolution: Solution,
-        StrategicParameters: Parameters,
-        Ss: SystemSolutionTrait<Strategic = StrategicSolution>,
+
+impl<Ss> ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm<Ss>
+where
+    Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>:
+        AbLNSUtils<SolutionType = StrategicSolution>,
+    StrategicSolution: Solution,
+    StrategicParameters: Parameters,
+    Ss: SystemSolutionTrait<Strategic = StrategicSolution>,
 {
     type Options = StrategicOptions;
-    type Algorithm = Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
+    type Algorithm =
+        Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
 
-    fn incorporate_shared_state(&mut self) -> Result<bool>
-    {
+    fn incorporate_shared_state(&mut self) -> Result<bool> {
         let mut work_order_numbers: Vec<ForcedWorkOrder> = vec![];
         let mut state_change = false;
 
-        // This is the problem. What is the best way around it? 
+        // This is the problem. What is the best way around it?
         // We should create a method to update the
         for (work_order_number, strategic_parameter) in
             self.parameters.strategic_work_order_parameters.iter()
@@ -1111,14 +1091,16 @@ impl<Ss> ActorBasedLargeNeighborhoodSearch
             // encapsulation. That is the most difficult thing in all this. I think that there
             // are many possible different trade offs that can be made here but the most important
             // is getting this running and quickly.
-            // 
+            //
             // If this value is some. It means that the Tactical Algorithm has scheduled the work order.
-            let tactical_work_orders = self.loaded_shared_solution.tactical().tactical_period(work_order_number);
+            let tactical_work_orders = self
+                .loaded_shared_solution
+                .tactical()
+                .tactical_period(work_order_number);
 
             if strategic_parameter.locked_in_period.is_some() {
                 work_order_numbers.push(ForcedWorkOrder::Locked(*work_order_number));
             } else if let Some(tactical_period) = tactical_work_orders {
-
                 work_order_numbers.push(ForcedWorkOrder::FromTactical((
                     *work_order_number,
                     tactical_period.clone(),
@@ -1140,8 +1122,7 @@ impl<Ss> ActorBasedLargeNeighborhoodSearch
         Ok(state_change)
     }
 
-    fn make_atomic_pointer_swap(&mut self)
-    {
+    fn make_atomic_pointer_swap(&mut self) {
         // Performance enhancements:
         // * COW: #[derive(Clone)] struct SharedSolution<'a> { tactical: Cow<'a,
         //   TacticalSolution>, // other fields... }
@@ -1160,9 +1141,15 @@ impl<Ss> ActorBasedLargeNeighborhoodSearch
         });
     }
 
-    fn calculate_objective_value(&mut self) -> Result<ObjectiveValueType<<<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue>>
-    {
-        let mut strategic_objective_value = StrategicObjectiveValue::new(&self.parameters.strategic_options);
+    fn calculate_objective_value(
+        &mut self,
+    ) -> Result<
+        ObjectiveValueType<
+            <<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue,
+        >,
+    > {
+        let mut strategic_objective_value =
+            StrategicObjectiveValue::new(&self.parameters.strategic_options);
 
         self.determine_urgency(&mut strategic_objective_value)
             .context("could not determine strategic urgency")?;
@@ -1189,8 +1176,7 @@ impl<Ss> ActorBasedLargeNeighborhoodSearch
     // one. All work order should go into the priority queue and then the
     // locked_in_period constaint in simply handled in there.
     #[instrument(level = "trace", skip_all)]
-    fn schedule(&mut self) -> Result<()>
-    {
+    fn schedule(&mut self) -> Result<()> {
         // WARNING
         // I am not sure that this is the correct place of putting this.
         // What should we change here? I think that the best thing would be to make this
@@ -1227,8 +1213,7 @@ impl<Ss> ActorBasedLargeNeighborhoodSearch
         Ok(())
     }
 
-    fn unschedule(&mut self) -> Result<()>
-    {
+    fn unschedule(&mut self) -> Result<()> {
         let mut rng = rand::rng();
         let strategic_work_orders = &self.solution.strategic_scheduled_work_orders;
 
@@ -1277,21 +1262,20 @@ impl<Ss> ActorBasedLargeNeighborhoodSearch
     fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm {
         &mut self.0
     }
-
 }
 
 impl<Ss> StrategicAlgorithm<Ss>
-where Ss: SystemSolutionTrait
+where
+    Ss: SystemSolutionTrait,
 {
     pub fn update_resources_state(
         &mut self,
         strategic_resources_request: StrategicRequestResource,
-    ) -> Result<StrategicResponseResources>
-    {
+    ) -> Result<StrategicResponseResources> {
         // You should have done this! But you will need to
         // work a lot on this! You have to be comfortable with all
         // this. You will experience a lot of pain from doing this
-        // work. But you will need to learn it 
+        // work. But you will need to learn it
         // match strategic_resources_request {
 
         //     StrategicRequestResource::GetLoadings {
@@ -1336,8 +1320,7 @@ where Ss: SystemSolutionTrait
     pub fn update_scheduling_state(
         &mut self,
         strategic_scheduling_request: StrategicRequestScheduling,
-    ) -> Result<StrategicResponseScheduling>
-    {
+    ) -> Result<StrategicResponseScheduling> {
         match strategic_scheduling_request {
             StrategicRequestScheduling::Schedule(schedule_work_order) => {
                 let period = self
@@ -1388,18 +1371,19 @@ where Ss: SystemSolutionTrait
                             exclude_from_period.period_string,
                             std::any::type_name::<TimeEnvironment>()
                         )
-                    }).cloned()?;
+                    })
+                    .cloned()?;
 
                 let mut number_of_work_orders = 0;
                 for work_order_number in exclude_from_period.work_order_number {
-                    let solution = 
-                            self.solution 
-                                .strategic_scheduled_work_orders
-                                .get(&work_order_number)
-                                .as_ref()
-                                .unwrap()
-                                .as_ref()
-                                .unwrap()
+                    let solution = self
+                        .solution
+                        .strategic_scheduled_work_orders
+                        .get(&work_order_number)
+                        .as_ref()
+                        .unwrap()
+                        .as_ref()
+                        .unwrap()
                         .clone();
 
                     let strategic_parameter = self
@@ -1408,15 +1392,9 @@ where Ss: SystemSolutionTrait
                             .get_mut(&work_order_number)
                             .with_context(|| format!("The {:?} was not found in the {:#?}. The {:#?} should have been initialized at creation.", work_order_number, type_name::<WorkOrderParameter>(), type_name::<WorkOrderParameter>()))?;
 
-                    assert!(
-                        !strategic_parameter.excluded_periods.contains(
-                            &solution
-                        )
-                    );
+                    assert!(!strategic_parameter.excluded_periods.contains(&solution));
 
-                    strategic_parameter
-                        .excluded_periods
-                        .insert(period.clone());
+                    strategic_parameter.excluded_periods.insert(period.clone());
 
                     // assert!(!strategic_parameter.excluded_periods.contains(self.solution.
                     // strategic_periods.get(&work_order_number).as_ref().unwrap().as_ref().
@@ -1439,7 +1417,7 @@ where Ss: SystemSolutionTrait
 
                     let last_period = self.parameters.strategic_periods.iter().last().cloned();
                     // This should actually be done by the algorithm and not this procedure. I am not really sure
-                    // what I should think or all this. 
+                    // what I should think or all this.
                     self.solution
                         .strategic_scheduled_work_orders
                         .insert(work_order_number, last_period);
@@ -1466,8 +1444,7 @@ where Ss: SystemSolutionTrait
         }
     }
 
-    fn unschedule_specific_work_order(&mut self, work_order_number: WorkOrderNumber) -> Result<()>
-    {
+    fn unschedule_specific_work_order(&mut self, work_order_number: WorkOrderNumber) -> Result<()> {
         let unschedule_from_period = self
             .solution
             .strategic_scheduled_work_orders
@@ -1501,8 +1478,7 @@ where Ss: SystemSolutionTrait
 
     // FIX
     // Determine what to do with this
-    pub fn populate_priority_queue(&mut self)
-    {
+    pub fn populate_priority_queue(&mut self) {
         for work_order_number in self.solution.strategic_scheduled_work_orders.clone().keys() {
             let strategic_parameter = self
                 .parameters
@@ -1531,36 +1507,42 @@ where Ss: SystemSolutionTrait
     }
 }
 
-impl<Ss> From<Algorithm<StrategicSolution, StrategicParameters,PriorityQueue<WorkOrderNumber, u64>,Ss>> for StrategicAlgorithm<Ss>
+impl<Ss>
+    From<Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>>
+    for StrategicAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait
+    Ss: SystemSolutionTrait,
 {
-    fn from(value: Algorithm<StrategicSolution, StrategicParameters,PriorityQueue<WorkOrderNumber, u64>,Ss>) -> Self {
+    fn from(
+        value: Algorithm<
+            StrategicSolution,
+            StrategicParameters,
+            PriorityQueue<WorkOrderNumber, u64>,
+            Ss,
+        >,
+    ) -> Self {
         StrategicAlgorithm(value)
     }
 }
 
 #[cfg(test)]
-mod tests
-{
-    use std::collections::HashMap;
-    use std::str::FromStr;
+mod tests {
     use rand::SeedableRng;
     use rand::rngs::StdRng;
+    use std::collections::HashMap;
+    use std::str::FromStr;
     use strategic_parameters::WorkOrderParameter;
 
     use super::*;
 
-    impl WorkOrderParameter
-    {
+    impl WorkOrderParameter {
         pub fn new(
             locked_in_period: Option<Period>,
             excluded_periods: HashSet<Period>,
             latest_period: Period,
             weight: u64,
             work_load: HashMap<Resources, Work>,
-        ) -> Self
-        {
+        ) -> Self {
             Self {
                 locked_in_period,
                 excluded_periods,
@@ -1575,8 +1557,7 @@ mod tests
     fn test_determine_best_permutation() {}
 
     #[test]
-    fn test_update_load_1()
-    {
+    fn test_update_load_1() {
         let period = Period::from_str("2025-W23-24").unwrap();
         let resource = Resources::MtnMech;
         let load = Work::from(30.0);
@@ -1584,11 +1565,11 @@ mod tests
         let capacity = Work::from(100.0);
         let operational_id = "OP-TEST";
 
-        let operational_resource = OperationalResource::new(operational_id, capacity, vec![
-            Resources::MtnMech,
-            Resources::MtnElec,
-            Resources::Prodtech,
-        ]);
+        let operational_resource = OperationalResource::new(
+            operational_id,
+            capacity,
+            vec![Resources::MtnMech, Resources::MtnElec, Resources::Prodtech],
+        );
 
         let operational_resources_by_period =
             vec![(operational_id.to_string(), operational_resource.clone())]
@@ -1634,8 +1615,7 @@ mod tests
     }
 
     #[test]
-    fn test_update_load_2()
-    {
+    fn test_update_load_2() {
         let period = Period::from_str("2025-W23-24").unwrap();
         let resource = Resources::VenMech;
         let load = Work::from(30.0);
@@ -1643,11 +1623,11 @@ mod tests
         let capacity = Work::from(100.0);
         let operational_id = "OP-TEST";
 
-        let operational_resource = OperationalResource::new(operational_id, capacity, vec![
-            Resources::MtnMech,
-            Resources::MtnElec,
-            Resources::Prodtech,
-        ]);
+        let operational_resource = OperationalResource::new(
+            operational_id,
+            capacity,
+            vec![Resources::MtnMech, Resources::MtnElec, Resources::Prodtech],
+        );
 
         let operational_resources_by_period =
             vec![(operational_id.to_string(), operational_resource.clone())]
@@ -1702,8 +1682,7 @@ mod tests
         );
     }
     #[test]
-    fn test_update_load_3()
-    {
+    fn test_update_load_3() {
         let period = Period::from_str("2025-W23-24").unwrap();
         let resource = Resources::VenMech;
         let load = Work::from(30.0);
@@ -1711,11 +1690,11 @@ mod tests
         let capacity = Work::from(100.0);
         let operational_id = "OP-TEST";
 
-        let operational_resource = OperationalResource::new(operational_id, capacity, vec![
-            Resources::MtnMech,
-            Resources::MtnElec,
-            Resources::Prodtech,
-        ]);
+        let operational_resource = OperationalResource::new(
+            operational_id,
+            capacity,
+            vec![Resources::MtnMech, Resources::MtnElec, Resources::Prodtech],
+        );
 
         let operational_resources_by_period =
             vec![(operational_id.to_string(), operational_resource.clone())]
@@ -1771,19 +1750,20 @@ mod tests
     }
 
     #[test]
-    fn test_determine_normal_work_order_resource_loadings_1()
-    {
+    fn test_determine_normal_work_order_resource_loadings_1() {
         let period = Period::from_str("2025-W23-24").unwrap();
 
         let mut technician_permutation = vec![
-            OperationalResource::new("OP_TEST_0", Work::from(40.0), vec![
-                Resources::MtnMech,
-                Resources::MtnElec,
-            ]),
-            OperationalResource::new("OP_TEST_1", Work::from(40.0), vec![
-                Resources::MtnScaf,
-                Resources::MtnElec,
-            ]),
+            OperationalResource::new(
+                "OP_TEST_0",
+                Work::from(40.0),
+                vec![Resources::MtnMech, Resources::MtnElec],
+            ),
+            OperationalResource::new(
+                "OP_TEST_1",
+                Work::from(40.0),
+                vec![Resources::MtnScaf, Resources::MtnElec],
+            ),
         ];
 
         let mut work_load_permutation = vec![
@@ -1802,19 +1782,20 @@ mod tests
     }
 
     #[test]
-    fn test_determine_normal_work_order_resource_loadings_2()
-    {
+    fn test_determine_normal_work_order_resource_loadings_2() {
         let period = Period::from_str("2025-W23-24").unwrap();
 
         let mut technician_permutation = vec![
-            OperationalResource::new("OP_TEST_0", Work::from(40.0), vec![
-                Resources::MtnMech,
-                Resources::MtnElec,
-            ]),
-            OperationalResource::new("OP_TEST_1", Work::from(40.0), vec![
-                Resources::MtnScaf,
-                Resources::MtnElec,
-            ]),
+            OperationalResource::new(
+                "OP_TEST_0",
+                Work::from(40.0),
+                vec![Resources::MtnMech, Resources::MtnElec],
+            ),
+            OperationalResource::new(
+                "OP_TEST_1",
+                Work::from(40.0),
+                vec![Resources::MtnScaf, Resources::MtnElec],
+            ),
         ];
 
         let mut work_load_permutation = vec![
@@ -1831,14 +1812,16 @@ mod tests
 
         assert!(strategic_resource_option.is_some());
 
-        let operational_resource_1 = OperationalResource::new("OP_TEST_0", Work::from(40.0), vec![
-            Resources::MtnMech,
-            Resources::MtnElec,
-        ]);
-        let operational_resource_2 = OperationalResource::new("OP_TEST_1", Work::from(20.0), vec![
-            Resources::MtnScaf,
-            Resources::MtnElec,
-        ]);
+        let operational_resource_1 = OperationalResource::new(
+            "OP_TEST_0",
+            Work::from(40.0),
+            vec![Resources::MtnMech, Resources::MtnElec],
+        );
+        let operational_resource_2 = OperationalResource::new(
+            "OP_TEST_1",
+            Work::from(20.0),
+            vec![Resources::MtnScaf, Resources::MtnElec],
+        );
 
         let mut strategic_resource = StrategicResources::default();
         strategic_resource.insert_operational_resource(period.clone(), operational_resource_1);
@@ -1848,19 +1831,20 @@ mod tests
     }
 
     #[test]
-    fn test_determine_forced_work_order_resource_loadings_1()
-    {
+    fn test_determine_forced_work_order_resource_loadings_1() {
         let period = Period::from_str("2025-W23-24").unwrap();
 
         let mut technician_permutation = vec![
-            OperationalResource::new("OP_TEST_0", Work::from(40.0), vec![
-                Resources::MtnMech,
-                Resources::MtnElec,
-            ]),
-            OperationalResource::new("OP_TEST_1", Work::from(40.0), vec![
-                Resources::MtnScaf,
-                Resources::MtnElec,
-            ]),
+            OperationalResource::new(
+                "OP_TEST_0",
+                Work::from(40.0),
+                vec![Resources::MtnMech, Resources::MtnElec],
+            ),
+            OperationalResource::new(
+                "OP_TEST_1",
+                Work::from(40.0),
+                vec![Resources::MtnScaf, Resources::MtnElec],
+            ),
         ];
 
         let mut work_load_permutation = vec![
@@ -1882,14 +1866,16 @@ mod tests
 
         assert!(strategic_resources.is_none());
 
-        let operational_resource_1 = OperationalResource::new("OP_TEST_0", Work::from(45.0), vec![
-            Resources::MtnMech,
-            Resources::MtnElec,
-        ]);
-        let operational_resource_2 = OperationalResource::new("OP_TEST_1", Work::from(45.0), vec![
-            Resources::MtnScaf,
-            Resources::MtnElec,
-        ]);
+        let operational_resource_1 = OperationalResource::new(
+            "OP_TEST_0",
+            Work::from(45.0),
+            vec![Resources::MtnMech, Resources::MtnElec],
+        );
+        let operational_resource_2 = OperationalResource::new(
+            "OP_TEST_1",
+            Work::from(45.0),
+            vec![Resources::MtnScaf, Resources::MtnElec],
+        );
         let mut strategic_resources = StrategicResources::default();
 
         strategic_resources.insert_operational_resource(period.clone(), operational_resource_1);
@@ -1899,19 +1885,20 @@ mod tests
     }
 
     #[test]
-    fn test_determine_forced_work_order_resource_loadings_2()
-    {
+    fn test_determine_forced_work_order_resource_loadings_2() {
         let period = Period::from_str("2025-W23-24").unwrap();
 
         let mut technician_permutation = vec![
-            OperationalResource::new("OP_TEST_0", Work::from(40.0), vec![
-                Resources::MtnMech,
-                Resources::MtnElec,
-            ]),
-            OperationalResource::new("OP_TEST_1", Work::from(40.0), vec![
-                Resources::MtnScaf,
-                Resources::MtnElec,
-            ]),
+            OperationalResource::new(
+                "OP_TEST_0",
+                Work::from(40.0),
+                vec![Resources::MtnMech, Resources::MtnElec],
+            ),
+            OperationalResource::new(
+                "OP_TEST_1",
+                Work::from(40.0),
+                vec![Resources::MtnScaf, Resources::MtnElec],
+            ),
         ];
 
         let mut work_load_permutation = vec![
@@ -1932,14 +1919,16 @@ mod tests
         );
 
         assert!(strategic_resources_option.is_some());
-        let operational_resource_1 = OperationalResource::new("OP_TEST_0", Work::from(30.0), vec![
-            Resources::MtnMech,
-            Resources::MtnElec,
-        ]);
-        let operational_resource_2 = OperationalResource::new("OP_TEST_1", Work::from(30.0), vec![
-            Resources::MtnScaf,
-            Resources::MtnElec,
-        ]);
+        let operational_resource_1 = OperationalResource::new(
+            "OP_TEST_0",
+            Work::from(30.0),
+            vec![Resources::MtnMech, Resources::MtnElec],
+        );
+        let operational_resource_2 = OperationalResource::new(
+            "OP_TEST_1",
+            Work::from(30.0),
+            vec![Resources::MtnScaf, Resources::MtnElec],
+        );
         let mut strategic_resources = StrategicResources::default();
 
         strategic_resources.insert_operational_resource(period.clone(), operational_resource_1);
@@ -1949,19 +1938,20 @@ mod tests
     }
 
     #[test]
-    fn test_determine_forced_work_order_resource_loadings_3()
-    {
+    fn test_determine_forced_work_order_resource_loadings_3() {
         let period = Period::from_str("2025-W23-24").unwrap();
 
         let mut technician_permutation = vec![
-            OperationalResource::new("OP_TEST_0", Work::from(40.0), vec![
-                Resources::MtnMech,
-                Resources::MtnElec,
-            ]),
-            OperationalResource::new("OP_TEST_1", Work::from(40.0), vec![
-                Resources::MtnScaf,
-                Resources::MtnElec,
-            ]),
+            OperationalResource::new(
+                "OP_TEST_0",
+                Work::from(40.0),
+                vec![Resources::MtnMech, Resources::MtnElec],
+            ),
+            OperationalResource::new(
+                "OP_TEST_1",
+                Work::from(40.0),
+                vec![Resources::MtnScaf, Resources::MtnElec],
+            ),
         ];
 
         let mut work_load_permutation = vec![
@@ -1984,16 +1974,16 @@ mod tests
 
         assert!(strategic_resources_option.is_some());
         // Is this the right way of doing things? I do not think that it is...
-        let operational_resource_1 = OperationalResource::new("OP_TEST_0", Work::from(40.0), vec![
-            Resources::MtnMech,
-            Resources::MtnElec,
-            Resources::VenMech,
-        ]);
-        let operational_resource_2 = OperationalResource::new("OP_TEST_1", Work::from(40.0), vec![
-            Resources::MtnScaf,
-            Resources::MtnElec,
-            Resources::VenMech,
-        ]);
+        let operational_resource_1 = OperationalResource::new(
+            "OP_TEST_0",
+            Work::from(40.0),
+            vec![Resources::MtnMech, Resources::MtnElec, Resources::VenMech],
+        );
+        let operational_resource_2 = OperationalResource::new(
+            "OP_TEST_1",
+            Work::from(40.0),
+            vec![Resources::MtnScaf, Resources::MtnElec, Resources::VenMech],
+        );
         let mut strategic_resources = StrategicResources::default();
 
         strategic_resources.insert_operational_resource(period.clone(), operational_resource_1);
@@ -2004,8 +1994,7 @@ mod tests
     }
 
     #[test]
-    fn test_determine_unschedule_work_order_loadings_1()
-    {
+    fn test_determine_unschedule_work_order_loadings_1() {
         let period = Period::from_str("2025-W23-24").unwrap();
 
         let mut work_load_permutation = vec![
@@ -2014,14 +2003,16 @@ mod tests
         ];
 
         let loading_resources = [
-            OperationalResource::new("OP_TEST_0", Work::from(20.0), vec![
-                Resources::MtnMech,
-                Resources::MtnElec,
-            ]),
-            OperationalResource::new("OP_TEST_1", Work::from(20.0), vec![
-                Resources::MtnScaf,
-                Resources::MtnElec,
-            ]),
+            OperationalResource::new(
+                "OP_TEST_0",
+                Work::from(20.0),
+                vec![Resources::MtnMech, Resources::MtnElec],
+            ),
+            OperationalResource::new(
+                "OP_TEST_1",
+                Work::from(20.0),
+                vec![Resources::MtnScaf, Resources::MtnElec],
+            ),
         ];
 
         let strategic_resources_option = determine_unschedule_work_resource_loadings(
@@ -2032,16 +2023,16 @@ mod tests
 
         assert!(strategic_resources_option.is_some());
 
-        let operational_resource_1 =
-            OperationalResource::new("OP_TEST_0", Work::from(-20.0), vec![
-                Resources::MtnMech,
-                Resources::MtnElec,
-            ]);
-        let operational_resource_2 =
-            OperationalResource::new("OP_TEST_1", Work::from(-20.0), vec![
-                Resources::MtnScaf,
-                Resources::MtnElec,
-            ]);
+        let operational_resource_1 = OperationalResource::new(
+            "OP_TEST_0",
+            Work::from(-20.0),
+            vec![Resources::MtnMech, Resources::MtnElec],
+        );
+        let operational_resource_2 = OperationalResource::new(
+            "OP_TEST_1",
+            Work::from(-20.0),
+            vec![Resources::MtnScaf, Resources::MtnElec],
+        );
         let mut strategic_resources = StrategicResources::default();
 
         strategic_resources.insert_operational_resource(period.clone(), operational_resource_1);
@@ -2051,8 +2042,7 @@ mod tests
     }
 
     #[test]
-    fn test_determine_unschedule_work_order_loadings_2() -> Result<()>
-    {
+    fn test_determine_unschedule_work_order_loadings_2() -> Result<()> {
         let period = Period::from_str("2026-W33-34").unwrap();
 
         let work_load_permutation = [
@@ -2063,21 +2053,21 @@ mod tests
         ];
 
         let loading_resources = [
-            OperationalResource::new("OP_TEST_1", Work::from(6.0), vec![
-                Resources::MtnMech,
-                Resources::Prodtech,
-                Resources::MtnElec,
-            ]),
-            OperationalResource::new("OP_TEST_2", Work::from(0.0), vec![
-                Resources::MtnScaf,
-                Resources::MtnRigg,
-                Resources::MtnLagg,
-            ]),
-            OperationalResource::new("OP_TEST_0", Work::from(2.0), vec![
-                Resources::MtnInst,
-                Resources::MtnMech,
-                Resources::MtnElec,
-            ]),
+            OperationalResource::new(
+                "OP_TEST_1",
+                Work::from(6.0),
+                vec![Resources::MtnMech, Resources::Prodtech, Resources::MtnElec],
+            ),
+            OperationalResource::new(
+                "OP_TEST_2",
+                Work::from(0.0),
+                vec![Resources::MtnScaf, Resources::MtnRigg, Resources::MtnLagg],
+            ),
+            OperationalResource::new(
+                "OP_TEST_0",
+                Work::from(2.0),
+                vec![Resources::MtnInst, Resources::MtnMech, Resources::MtnElec],
+            ),
         ];
 
         // We should readjust this to take in a Vec<T> instead of a HashMap<K, V>. That
@@ -2118,8 +2108,7 @@ mod tests
     // Should this test go into the integration testing instead? I
     // think that is a really good idea. Also you should never s
     #[test]
-    fn test_unschedule_random_work_orders() -> Result<()>
-    {
+    fn test_unschedule_random_work_orders() -> Result<()> {
         let periods: Vec<Period> = vec![
             Period::from_str("2023-W47-48").unwrap(),
             Period::from_str("2023-W49-50").unwrap(),
@@ -2145,19 +2134,21 @@ mod tests
 
         let mut strategic_resources = StrategicResources::default();
 
-        let operational_resource_0 = OperationalResource::new("OP_TEST_0", Work::from(40.0), vec![
-            Resources::MtnMech,
-            Resources::MtnElec,
-        ]);
-        let operational_resource_1 = OperationalResource::new("OP_TEST_1", Work::from(40.0), vec![
-            Resources::MtnMech,
-            Resources::MtnElec,
-        ]);
+        let operational_resource_0 = OperationalResource::new(
+            "OP_TEST_0",
+            Work::from(40.0),
+            vec![Resources::MtnMech, Resources::MtnElec],
+        );
+        let operational_resource_1 = OperationalResource::new(
+            "OP_TEST_1",
+            Work::from(40.0),
+            vec![Resources::MtnMech, Resources::MtnElec],
+        );
 
         strategic_resources.insert_operational_resource(periods[0].clone(), operational_resource_0);
         strategic_resources.insert_operational_resource(periods[1].clone(), operational_resource_1);
 
-        // This way of making parameters needs to go away. Is the right call here to simply delete the 
+        // This way of making parameters needs to go away. Is the right call here to simply delete the
         // let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
 
         // let id = Id::new("Strategic", vec![], vec![Asset::Unknown]);
@@ -2207,7 +2198,6 @@ mod tests
         // strategic_parameters
         //     .strategic_work_order_parameters
         //     .insert(work_order_number_3, strategic_parameter_3);
-
 
         // let scheduling_environment = Arc::new(Mutex::new(SchedulingEnvironment::default()));
 
@@ -2317,8 +2307,7 @@ mod tests
     }
 
     #[test]
-    fn test_calculate_period_difference_1()
-    {
+    fn test_calculate_period_difference_1() {
         let scheduled_period = Period::from_str("2023-W47-48");
         let latest_period = Period::from_str("2023-W49-50");
 
@@ -2328,8 +2317,7 @@ mod tests
         assert_eq!(difference, 0);
     }
     #[test]
-    fn test_calculate_period_difference_2()
-    {
+    fn test_calculate_period_difference_2() {
         let period_1 = Period::from_str("2023-W47-48");
         let period_2 = Period::from_str("2023-W45-46");
 
@@ -2339,8 +2327,7 @@ mod tests
     }
 
     #[test]
-    fn test_choose_multiple()
-    {
+    fn test_choose_multiple() {
         for _ in 0..19 {
             let seed: [u8; 32] = [
                 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
@@ -2357,16 +2344,16 @@ mod tests
     }
 
     #[test]
-    fn test_unschedule_work_order_none_in_scheduled_period() -> Result<()>
-    {
+    fn test_unschedule_work_order_none_in_scheduled_period() -> Result<()> {
         let work_order_number = WorkOrderNumber(2100000001);
         let periods = [Period::from_str("2026-W41-42").unwrap()];
         let mut strategic_resources = StrategicResources::default();
 
-        let operational_resource_0 = OperationalResource::new("OP_TEST_0", Work::from(40.0), vec![
-            Resources::MtnMech,
-            Resources::MtnElec,
-        ]);
+        let operational_resource_0 = OperationalResource::new(
+            "OP_TEST_0",
+            Work::from(40.0),
+            vec![Resources::MtnMech, Resources::MtnElec],
+        );
 
         strategic_resources.insert_operational_resource(periods[0].clone(), operational_resource_0);
 
@@ -2450,12 +2437,11 @@ mod tests
         //         .unwrap(),
         //     None
         // );
-         Ok(())
+        Ok(())
     }
 
     #[test]
-    fn test_period_clone_equality()
-    {
+    fn test_period_clone_equality() {
         let period_1 = Period::from_str("2023-W47-48").unwrap();
         let period_2 = Period::from_str("2023-W47-48").unwrap();
 

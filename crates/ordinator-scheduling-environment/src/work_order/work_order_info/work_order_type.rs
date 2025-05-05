@@ -5,8 +5,7 @@ use serde::Serialize;
 use super::priority::Priority;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub enum WorkOrderType
-{
+pub enum WorkOrderType {
     Wdf(Priority),
     Wgn(Priority),
     Wpm(Priority),
@@ -15,10 +14,8 @@ pub enum WorkOrderType
     Other,
 }
 
-impl WorkOrderType
-{
-    pub fn get_type_string(&self) -> String
-    {
+impl WorkOrderType {
+    pub fn get_type_string(&self) -> String {
         match self {
             WorkOrderType::Wdf(_) => "WDF".to_owned(),
             WorkOrderType::Wgn(_) => "WGN".to_owned(),
@@ -28,8 +25,7 @@ impl WorkOrderType
         }
     }
 
-    pub fn new(work_order_type_string: &str, priority: Priority) -> Result<Self, String>
-    {
+    pub fn new(work_order_type_string: &str, priority: Priority) -> Result<Self, String> {
         match work_order_type_string {
             "WDF" => Ok(WorkOrderType::Wdf(priority)),
             "WGN" => Ok(WorkOrderType::Wgn(priority)),
@@ -42,21 +38,18 @@ impl WorkOrderType
         }
     }
 
-    pub fn valid_work_order_type(str: &str) -> bool
-    {
+    pub fn valid_work_order_type(str: &str) -> bool {
         matches!(str, "WDF" | "WGN" | "WPM" | "WRO")
     }
 }
 
-impl IntoExcelData for WorkOrderType
-{
+impl IntoExcelData for WorkOrderType {
     fn write(
         self,
         worksheet: &mut rust_xlsxwriter::Worksheet,
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
-    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
-    {
+    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
         let value = self.get_type_string();
         worksheet.write_string(row, col, value)
     }
@@ -67,8 +60,7 @@ impl IntoExcelData for WorkOrderType
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
         format: &rust_xlsxwriter::Format,
-    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
-    {
+    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
         let value = self.get_type_string();
         worksheet.write_string_with_format(row, col, value, format)
     }

@@ -1,7 +1,6 @@
 use actix_web::web;
 
-pub fn api_scope() -> actix_web::Scope
-{
+pub fn api_scope() -> actix_web::Scope {
     // Add routes like shown below
     //
     web::scope("/api")

@@ -1,3 +1,16 @@
+[time_input]
+number_of_strategic_periods = 52
+number_of_tactical_periods = 4
+number_of_days = 100
+number_of_supervisor_periods = 3
+
+[material_to_period]
+nmat = 0
+smat = 0
+cmat = 2
+pmat = 3
+wmat = 3
+
 [strategic]
 id = "strategic"
 asset = "Df"
@@ -58,3 +71,95 @@ qaqcelec = 0.0
 qaqcmech = 0.0
 qaqcpain = 0.0
 wellsupv = 0.0
+[wdf_priority_map]
+
+"1" = 500
+
+"2" = 50
+
+"3" = 5
+
+"4" = 1
+
+"5" = 1
+
+"6" = 1
+
+"7" = 1
+
+"8" = 1
+
+
+[wgn_priority_map]
+
+"1" = 500
+
+"2" = 50
+
+"3" = 5
+
+"4" = 1
+
+"5" = 1
+
+"6" = 1
+
+"7" = 1
+
+"8" = 1
+
+
+[wpm_priority_map]
+
+"A" = 500
+
+"B" = 50
+
+"C" = 5
+
+"D" = 1
+
+
+[vis_priority_map]
+
+"V" = 100
+
+"I" = 10
+
+"S" = 10
+
+
+[order_type_weights]
+
+"WDF" = 10
+
+"WGN" = 8
+
+"WPM" = 5
+
+"Other" = 0
+
+
+[status_weights]
+
+"SECE" = 7500
+
+"PCNF_NMAT_SMAT" = 1500
+
+"AWSC" = 10000
+
+
+[clustering_weights]
+
+"asset" = 10
+
+"sector" = 5
+
+"system" = 2
+
+"subsystem" = 2
+
+"equipment_tag" = 1
+
+
+operating_time = 6

@@ -8,18 +8,15 @@ use tracing::event;
 use super::SupervisorSolution;
 
 #[allow(dead_code)]
-pub trait OperationalStateMachineAssertions
-{
+pub trait OperationalStateMachineAssertions {
     fn assert_that_unassigned_woas_are_valid(&self);
     fn assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess(
         &self,
     );
 }
 
-impl OperationalStateMachineAssertions for SupervisorSolution
-{
-    fn assert_that_unassigned_woas_are_valid(&self)
-    {
+impl OperationalStateMachineAssertions for SupervisorSolution {
+    fn assert_that_unassigned_woas_are_valid(&self) {
         for work_order_activity in self
             .operational_state_machine
             .keys()
@@ -48,8 +45,7 @@ impl OperationalStateMachineAssertions for SupervisorSolution
 
     fn assert_that_operational_state_machine_for_each_work_order_is_either_delegate_assign_and_unassign_or_all_assess(
         &self,
-    )
-    {
+    ) {
         let work_order_numbers: HashSet<WorkOrderNumber> = self
             .operational_state_machine
             .keys()

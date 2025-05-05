@@ -2,10 +2,8 @@ use std::fmt;
 
 use super::WorkOrder;
 
-impl fmt::Display for WorkOrder
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
-    {
+impl fmt::Display for WorkOrder {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "Work order number: {:?} \n

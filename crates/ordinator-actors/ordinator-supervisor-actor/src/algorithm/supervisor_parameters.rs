@@ -19,8 +19,7 @@ use ordinator_scheduling_environment::worker_environment::resources::Resources;
 
 use crate::SupervisorOptions;
 
-pub struct SupervisorParameters
-{
+pub struct SupervisorParameters {
     pub supervisor_work_orders:
         HashMap<WorkOrderNumber, HashMap<ActivityNumber, SupervisorParameter>>,
     pub supervisor_periods: Vec<Period>,
@@ -28,16 +27,14 @@ pub struct SupervisorParameters
     pub options: SupervisorOptions,
 }
 
-impl Parameters for SupervisorParameters
-{
+impl Parameters for SupervisorParameters {
     type Key = WorkOrderActivity;
 
     fn from_source(
         id: &Id,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
         system_configurations: &Guard<Arc<SystemConfigurations>>,
-    ) -> Result<Self>
-    {
+    ) -> Result<Self> {
         let supervisor_periods = &scheduling_environment.time_environment.supervisor_periods;
 
         let mut supervisor_parameters = HashMap::new();
@@ -98,19 +95,16 @@ impl Parameters for SupervisorParameters
         &mut self,
         key: Self::Key,
         scheduling_environment: MutexGuard<SchedulingEnvironment>,
-    )
-    {
+    ) {
         todo!()
     }
 }
 
-impl SupervisorParameters
-{
+impl SupervisorParameters {
     pub(crate) fn supervisor_parameter(
         &self,
         work_order_activity: &WorkOrderActivity,
-    ) -> Result<&SupervisorParameter>
-    {
+    ) -> Result<&SupervisorParameter> {
         let supervisor_parameter = self.supervisor_work_orders
             .get(&work_order_activity.0)
             .context(format!("WorkOrderNumber: {:?} was not part of the SupervisorParameters", work_order_activity.0))?
@@ -124,23 +118,19 @@ impl SupervisorParameters
         &mut self,
         operation: &Operation,
         work_order_activity: &WorkOrderActivity,
-    )
-    {
+    ) {
         // DEBUG: Make assertions here!
     }
 }
 
 #[derive(Clone)]
-pub struct SupervisorParameter
-{
+pub struct SupervisorParameter {
     pub resource: Resources,
     pub number: NumberOfPeople,
 }
 
-impl SupervisorParameter
-{
-    pub fn new(resource: Resources, number: NumberOfPeople) -> Self
-    {
+impl SupervisorParameter {
+    pub fn new(resource: Resources, number: NumberOfPeople) -> Self {
         Self { resource, number }
     }
 }

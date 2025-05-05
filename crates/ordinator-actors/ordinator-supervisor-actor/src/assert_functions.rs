@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use anyhow::Result;
 use anyhow::bail;
 use ordinator_actor_core::Actor;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::StrategicInterface;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use tracing::Level;
 use tracing::event;
@@ -13,8 +13,7 @@ use crate::algorithm::SupervisorAlgorithm;
 use crate::algorithm::supervisor_solution::SupervisorSolution;
 
 #[allow(dead_code)]
-pub trait SupervisorAssertions
-{
+pub trait SupervisorAssertions {
     fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(
         &self,
     ) -> Result<()>;
@@ -30,8 +29,7 @@ where
 {
     fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(
         &self,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         let tactical_operation_woas: HashSet<WorkOrderNumber> = self
             .algorithm
             .loaded_shared_solution
@@ -69,8 +67,7 @@ where
     // This assertion tests that
     fn assert_operational_state_machine_woas_is_subset_of_tactical_shared_solution(
         &self,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         let strategic_work_orders: HashSet<WorkOrderNumber> = self
             .algorithm
             .loaded_shared_solution

@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use arc_swap::Guard;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::StrategicInterface;
+use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::TacticalInterface;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::time_environment::day::OptionDay;
@@ -32,10 +32,8 @@ use crate::sap_mapper_and_types::DATS;
 #[derive(Debug)]
 struct AllRows(Vec<RowNames>);
 
-impl AllRows
-{
-    fn make_xlsx_dump(&self, asset: Asset) -> Result<PathBuf, rust_xlsxwriter::XlsxError>
-    {
+impl AllRows {
+    fn make_xlsx_dump(&self, asset: Asset) -> Result<PathBuf, rust_xlsxwriter::XlsxError> {
         let mut rust_dump = rust_xlsxwriter::Workbook::new();
 
         let worksheet: &mut Worksheet = rust_dump.add_worksheet();
@@ -167,8 +165,7 @@ impl AllRows
 }
 
 #[derive(Debug)]
-struct RowNames
-{
+struct RowNames {
     strategic_schedule: ReasonForNotScheduling,
     tactical_schedule: OptionDay,
     priority: Priority,
@@ -373,8 +370,7 @@ where
 
     Ok(xlsx_path)
 }
-fn make_header_row(worksheet: &mut Worksheet)
-{
+fn make_header_row(worksheet: &mut Worksheet) {
     worksheet.write(0, 0, "strategic_schedule").unwrap();
     worksheet.write(0, 1, "tactical_schedule").unwrap();
     worksheet.write(0, 2, "priority").unwrap();
@@ -415,21 +411,18 @@ fn make_header_row(worksheet: &mut Worksheet)
 }
 
 #[derive(Debug, Clone)]
-pub enum ReasonForNotScheduling
-{
+pub enum ReasonForNotScheduling {
     Scheduled(Period),
     Unknown(String),
 }
 
-impl IntoExcelData for ReasonForNotScheduling
-{
+impl IntoExcelData for ReasonForNotScheduling {
     fn write(
         self,
         worksheet: &mut rust_xlsxwriter::Worksheet,
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
-    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
-    {
+    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
         let value = match self {
             ReasonForNotScheduling::Scheduled(period) => period.period_string(),
             ReasonForNotScheduling::Unknown(unknown) => unknown,
@@ -443,8 +436,7 @@ impl IntoExcelData for ReasonForNotScheduling
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
         format: &rust_xlsxwriter::Format,
-    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
-    {
+    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
         let value = match self {
             ReasonForNotScheduling::Scheduled(period) => period.period_string(),
             ReasonForNotScheduling::Unknown(unknown) => unknown,

@@ -8,37 +8,32 @@ use serde::Serialize;
 use super::availability::Availability;
 
 #[derive(Serialize, Deserialize)]
-enum AssignedOrder
-{
+enum AssignedOrder {
     OrderInt(i32),
     None,
 }
 
 #[derive(Serialize, Deserialize)]
-enum AssignedActivity
-{
+enum AssignedActivity {
     ActivityInt(i32),
     None,
 }
 
 #[derive(Serialize, Deserialize)]
-enum AssignedTime
-{
+enum AssignedTime {
     TimeFloat(f64),
     None,
 }
 
 #[derive(Serialize, Deserialize)]
-struct AssignedWork
-{
+struct AssignedWork {
     order: AssignedOrder,
     activity: AssignedActivity,
     time: AssignedTime,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Worker
-{
+pub struct Worker {
     name: String,
     id_worker: i32,
     capacity: f64,
@@ -47,10 +42,8 @@ pub struct Worker
     assigned_activities: Vec<AssignedWork>,
 }
 
-impl Debug for Worker
-{
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result
-    {
+impl Debug for Worker {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Worker")
             .field("name", &self.name)
             .field("id", &self.id_worker)

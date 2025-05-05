@@ -13,8 +13,7 @@ use ordinator_scheduling_environment::time_environment::period::Period;
 
 // This should be abstracted out be the. All this should be moved to the
 // builder. You are
-pub fn create_time_environment(time_input: &TimeInput) -> TimeEnvironment
-{
+pub fn create_time_environment(time_input: &TimeInput) -> TimeEnvironment {
     let strategic_periods: Vec<Period> = create_periods(time_input.number_of_strategic_periods);
 
     let tactical_periods: &Vec<Period> =
@@ -43,8 +42,7 @@ pub fn create_time_environment(time_input: &TimeInput) -> TimeEnvironment
 }
 
 // This should be moved to the `scheduling-environment`
-fn create_periods(number_of_periods: u64) -> Vec<Period>
-{
+fn create_periods(number_of_periods: u64) -> Vec<Period> {
     let mut periods: Vec<Period> = Vec::<Period>::new();
     let mut start_date = Utc::now();
 

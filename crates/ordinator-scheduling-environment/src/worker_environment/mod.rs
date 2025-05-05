@@ -98,6 +98,20 @@ impl WorkerEnvironmentBuilder {
         //     ),
         // ];
 
+        // You should put the data into the toml? Yes I think that is the best approach here.
+        let work_order_configurations: WorkOrderConfigurations =
+            serde_json::from_str("./configuration/work_orders/work_order_weight_parameters.json")?;
+
+        let time_input_contents =
+            std::fs::read_to_string("./configuration/time_environment/time_inputs.toml").unwrap();
+
+        let time_input: TimeInput = toml::from_str(&time_input_contents).unwrap();
+
+        let material_to_period_contents =
+            std::fs::read_to_string("./configuration/materials/status_to_period.toml").unwrap();
+
+        let material_to_period: MaterialToPeriod =
+            toml::from_str(&material_to_period_contents).unwrap();
         let asset_string = asset.to_string();
 
         let asset_string_format = asset_string
@@ -135,15 +149,14 @@ pub struct ActorSpecifications {
     pub operational: Vec<InputOperational>,
     // QUESTION [ ] Is this the way to do it?
     // It cannot be like this. The idea of a relational database is beginning
-    // to make a lot of sense. 
+    // to make a lot of sense.
     pub work_order_configurations: WorkOrderConfigurations,
     pub time_input: TimeInput,
     pub material_to_period: MaterialToPeriod,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TimeInput
-{
+pub struct TimeInput {
     pub number_of_strategic_periods: u64,
     pub number_of_tactical_periods: u64,
     pub number_of_days: u64,
@@ -151,21 +164,7 @@ pub struct TimeInput
 }
 
 // This should be handled as well. What should you do not? I think that a meditation session.
-// 
-        let work_order_configurations: WorkOrderConfigurations =
-            serde_json::from_str("./configuration/work_orders/work_order_weight_parameters.json")?;
-
-        let time_input_contents =
-            std::fs::read_to_string("./configuration/time_environment/time_inputs.toml").unwrap();
-
-        let time_input: TimeInput = toml::from_str(&time_input_contents).unwrap();
-
-        let material_to_period_contents =
-            std::fs::read_to_string("./configuration/materials/status_to_period.toml").unwrap();
-
-        let material_to_period: MaterialToPeriod =
-            toml::from_str(&material_to_period_contents).unwrap();
-
+//
 
 // TODO #00 #00 #03 [x] Move the `./configuration/work_order_parameters.json` here.
 // Is this

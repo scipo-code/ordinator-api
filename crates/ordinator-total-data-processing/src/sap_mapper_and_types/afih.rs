@@ -9,8 +9,7 @@ use crate::sap_mapper_and_types::UNIT;
 
 #[allow(non_snake_case)]
 #[allow(dead_code)]
-struct Afih
-{
+struct Afih {
     MANDT: CLNT,
     AUFNR: CHAR,
     ARTPR: CHAR,

@@ -16,8 +16,7 @@ pub async fn http_to_scheduling_system(
     orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
     _req: HttpRequest,
     system_messages: web::Json<SystemMessages>,
-) -> Result<HttpResponse, actix_web::Error>
-{
+) -> Result<HttpResponse, actix_web::Error> {
     event!(Level::INFO, orchestrator_request = ?system_messages);
     match system_messages.into_inner() {
         SystemMessages::Orchestrator(orchestrator_request) => {
@@ -90,8 +89,7 @@ pub async fn http_to_scheduling_system(
 }
 
 #[cfg(test)]
-mod tests
-{
+mod tests {
     use std::collections::HashMap;
 
     use chrono::Utc;
@@ -102,8 +100,7 @@ mod tests
     use shared_types::scheduling_environment::worker_environment::resources::Resources;
 
     #[test]
-    fn test_day_serialize()
-    {
+    fn test_day_serialize() {
         let mut hash_map_nested = HashMap::<Day, Work>::new();
 
         let mut hash_map = HashMap::<Resources, Days>::new();

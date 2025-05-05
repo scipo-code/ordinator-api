@@ -6,8 +6,7 @@ use serde::Serialize;
 
 // This should be a configuration type not a backend type!
 #[derive(Serialize, Deserialize, Debug)]
-pub struct EventColors
-{
+pub struct EventColors {
     wrench_time: (u8, u8, u8),
     work_break: (u8, u8, u8),
     toolbox: (u8, u8, u8),

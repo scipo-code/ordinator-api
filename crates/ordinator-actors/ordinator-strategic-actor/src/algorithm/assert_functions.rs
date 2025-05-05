@@ -19,8 +19,7 @@ use super::strategic_resources::StrategicResources;
 use super::strategic_solution::StrategicSolution;
 
 #[allow(dead_code)]
-pub trait StrategicAssertions
-{
+pub trait StrategicAssertions {
     fn assert_that_capacity_is_respected(
         strategic_loading: &StrategicResources,
         strategic_capacity: &StrategicResources,
@@ -37,8 +36,7 @@ where
     fn assert_that_capacity_is_respected(
         strategic_loading: &StrategicResources,
         strategic_capacity: &StrategicResources,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         for (period, operational_resources) in strategic_loading.0.iter() {
             for (operational_id, work) in operational_resources.iter() {
                 let capacity = strategic_capacity
@@ -65,8 +63,7 @@ where
         Ok(())
     }
 
-    fn assert_aggregated_load(&self) -> Result<()>
-    {
+    fn assert_aggregated_load(&self) -> Result<()> {
         // let mut aggregated_strategic_load = StrategicResources::default();
         let mut aggregated_strategic_load = HashMap::new();
         for period in &self.parameters.strategic_periods {
@@ -120,8 +117,7 @@ where
         Ok(())
     }
 
-    fn assert_excluded_periods(&self) -> Result<()>
-    {
+    fn assert_excluded_periods(&self) -> Result<()> {
         for (work_order_number, strategic_parameter) in
             &self.parameters.strategic_work_order_parameters
         {

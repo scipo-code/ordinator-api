@@ -2,8 +2,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Serialize, Deserialize)]
-pub struct TomlResources
-{
+pub struct TomlResources {
     pub medic: f64,
     pub mtncran: f64,
     pub mtnelec: f64,

@@ -5,8 +5,7 @@ use crate::sap_mapper_and_types::TIMS;
 
 #[allow(non_snake_case)]
 #[allow(dead_code)]
-struct Afko
-{
+struct Afko {
     AUFNR: CHAR,
     GLTRP: DATS,
     GSTRP: DATS,
