@@ -5,18 +5,13 @@ pub mod time_input;
 pub mod toml_baptiste;
 mod user_interface;
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
 use arc_swap::ArcSwap;
-use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SystemConfigurationTrait;
-use ordinator_scheduling_environment::time_environment::MaterialToPeriod;
-use ordinator_scheduling_environment::work_order::WorkOrderConfigurations;
 use throttling::Throttling;
-use time_input::TimeInput;
 use toml_baptiste::BaptisteToml;
 use user_interface::EventColors;
 

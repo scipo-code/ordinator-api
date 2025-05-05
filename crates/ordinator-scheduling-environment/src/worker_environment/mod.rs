@@ -4,7 +4,6 @@ pub mod resources;
 pub mod worker;
 
 use std::collections::HashMap;
-use std::collections::HashSet;
 
 use crew::OperationalConfiguration;
 use serde::Deserialize;
@@ -99,19 +98,6 @@ impl WorkerEnvironmentBuilder {
         // ];
 
         // You should put the data into the toml? Yes I think that is the best approach here.
-        let work_order_configurations: WorkOrderConfigurations =
-            serde_json::from_str("./configuration/work_orders/work_order_weight_parameters.json")?;
-
-        let time_input_contents =
-            std::fs::read_to_string("./configuration/time_environment/time_inputs.toml").unwrap();
-
-        let time_input: TimeInput = toml::from_str(&time_input_contents).unwrap();
-
-        let material_to_period_contents =
-            std::fs::read_to_string("./configuration/materials/status_to_period.toml").unwrap();
-
-        let material_to_period: MaterialToPeriod =
-            toml::from_str(&material_to_period_contents).unwrap();
         let asset_string = asset.to_string();
 
         let asset_string_format = asset_string

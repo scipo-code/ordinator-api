@@ -1,11 +1,8 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::MutexGuard;
 
 use anyhow::Context;
 use anyhow::Result;
-use arc_swap::Guard;
-use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::period::Period;
@@ -14,10 +11,9 @@ use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
 use ordinator_scheduling_environment::work_order::operation::Operation;
 use ordinator_scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
+use ordinator_scheduling_environment::worker_environment::SupervisorOptions;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
-
-use crate::SupervisorOptions;
 
 pub struct SupervisorParameters {
     pub supervisor_work_orders:
@@ -33,7 +29,6 @@ impl Parameters for SupervisorParameters {
     fn from_source(
         id: &Id,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
-        system_configurations: &Guard<Arc<SystemConfigurations>>,
     ) -> Result<Self> {
         let supervisor_periods = &scheduling_environment.time_environment.supervisor_periods;
 
@@ -75,13 +70,14 @@ impl Parameters for SupervisorParameters {
         // wrong and then you created state duplication to fix the issue.
         let operational_ids: Vec<Id> = scheduling_environment
             .worker_environment
-            .agent_environment
+            .actor_specification
+            .get(id.asset())
+            .unwrap()
             .operational
-            .keys()
-            .cloned()
+            .iter()
+            // TODO [ ] - Start here.
+            .map(|e| e.id)
             .collect();
-
-        let options = SupervisorOptions::from((system_configurations, id));
 
         Ok(Self {
             supervisor_work_orders: supervisor_parameters,

@@ -1,3 +1,7 @@
+# This Actor specification file serves as a per asset specification file
+# It is better to keep it separate for as long as possible.
+#
+# TODO [ ] Make the Id directly importable from the `actor_specification` file.
 [time_input]
 number_of_strategic_periods = 52
 number_of_tactical_periods = 4

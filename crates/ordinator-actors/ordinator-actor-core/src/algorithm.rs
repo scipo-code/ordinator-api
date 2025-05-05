@@ -5,7 +5,6 @@ use std::sync::MutexGuard;
 use anyhow::Result;
 use arc_swap::ArcSwap;
 use arc_swap::Guard;
-use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::SystemSolutionTrait;

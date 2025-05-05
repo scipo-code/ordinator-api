@@ -22,6 +22,8 @@ use ordinator_orchestrator_actor_traits::delegate::Delegate;
 use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
+use ordinator_scheduling_environment::worker_environment::SupervisorOptions;
+use rand::rng;
 use rand::seq::IndexedRandom;
 use supervisor_parameters::SupervisorParameters;
 use supervisor_solution::SupervisorSolution;
@@ -29,8 +31,6 @@ use supervisor_solution::SupervisorSolution;
 use tracing::Level;
 #[allow(unused_imports)]
 use tracing::event;
-
-use super::SupervisorOptions;
 
 pub struct SupervisorAlgorithm<Ss>(Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>)
 where
@@ -79,7 +79,6 @@ where
 
     fn calculate_objective_value(
         &mut self,
-        options: &Self::Options,
     ) -> Result<
         ObjectiveValueType<
             <<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue,
@@ -182,11 +181,12 @@ where
     }
 
     fn unschedule(&mut self) -> Result<()> {
+        let mut rng = rng();
         let work_order_numbers = self.solution.get_assigned_and_unassigned_work_orders();
 
         let sampled_work_order_numbers = work_order_numbers
             .choose_multiple(
-                &mut self.parameters.options.rng.clone(),
+                &mut rng,
                 self.parameters.options.number_of_unassigned_work_orders,
             )
             .collect::<Vec<_>>()

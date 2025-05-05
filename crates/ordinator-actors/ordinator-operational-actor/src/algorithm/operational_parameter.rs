@@ -1,12 +1,9 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::MutexGuard;
 
 use anyhow::Context;
 use anyhow::Result;
-use arc_swap::Guard;
 use chrono::TimeDelta;
-use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::TimeInterval;
@@ -15,8 +12,6 @@ use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::worker_environment::OperationalOptions;
 use ordinator_scheduling_environment::worker_environment::availability::Availability;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
-use rand::SeedableRng;
-use rand::rngs::StdRng;
 
 pub struct OperationalParameters {
     pub work_order_parameters: HashMap<WorkOrderActivity, OperationalParameter>,
