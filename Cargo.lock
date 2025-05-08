@@ -1716,6 +1716,7 @@ dependencies = [
  "rust_decimal",
  "rust_xlsxwriter",
  "serde",
+ "serde_json",
  "thiserror 2.0.11",
  "toml",
  "tracing",

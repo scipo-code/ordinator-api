@@ -6,14 +6,13 @@ pub mod worker;
 use std::collections::HashMap;
 
 use crew::OperationalConfiguration;
+use resources::Id;
 use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Asset;
 use crate::time_environment::MaterialToPeriod;
 use crate::work_order::WorkOrderConfigurations;
-
-use self::resources::Resources;
 
 pub type OperationalId = String;
 // There is something rotten about all this! I think that the best
@@ -156,24 +155,20 @@ pub struct TimeInput {
 // Is this
 #[derive(Eq, PartialEq, Serialize, Deserialize, Debug)]
 pub struct InputStrategic {
-    pub id: String,
-    pub asset: String,
+    pub id: Id,
     pub strategic_options_config: StrategicOptions,
 }
 
 #[derive(Eq, PartialEq, Serialize, Deserialize, Debug)]
 pub struct InputTactical {
-    pub id: String,
-    pub asset: String,
+    pub id: Id,
     pub tactical_options_config: TacticalOptions,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
 pub struct InputSupervisor {
-    pub id: String,
-    pub resource: Option<Resources>,
+    pub id: Id,
     pub number_of_supervisor_periods: u64,
-    pub assets: Vec<Asset>,
     pub supervisor_options: SupervisorOptions,
 }
 
@@ -181,11 +176,9 @@ pub struct InputSupervisor {
 // Load in the IDs directly.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InputOperational {
-    pub id: OperationalId,
-    pub resources: Vec<Resources>,
+    pub id: Id,
     pub hours_per_day: f64,
     pub operational_configuration: OperationalConfiguration,
-    pub assets: Vec<Asset>,
     pub operational_options: OperationalOptions,
 }
 /// This type is for loading in the `Strategic` configurations
@@ -227,19 +220,19 @@ pub struct StrategicOptions {
 }
 
 // The `rng` should not be inside of the `ordinator-scheduling-environment`
-#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
+#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug, Clone)]
 pub struct TacticalOptions {
     pub number_of_removed_work_orders: usize,
     pub urgency: usize,
     pub resource_penalty: usize,
 }
 
-#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
+#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug, Clone)]
 pub struct SupervisorOptions {
     pub number_of_unassigned_work_orders: usize,
 }
 
-#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
+#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug, Clone)]
 pub struct OperationalOptions {
     pub number_of_removed_activities: usize,
 }
@@ -274,9 +267,9 @@ mod tests {
 
         let system_agents: ActorSpecifications = toml::from_str(toml_operational_string).unwrap();
 
-        assert_eq!(system_agents.operational[0].id, "OP-01-001".to_string());
+        assert_eq!(system_agents.operational[0].id.0, "OP-01-001".to_string());
 
-        assert_eq!(system_agents.operational[0].resources, [Resources::MtnElec]);
+        assert_eq!(system_agents.operational[0].id.1, [Resources::MtnElec]);
 
         assert_eq!(
             system_agents.operational[0]

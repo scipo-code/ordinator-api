@@ -24,6 +24,7 @@ regex = "*"
 rust_decimal = "*"
 rust_xlsxwriter = "*"
 serde = { version = "*", features = [ "derive" ]}
+serde_json = {workspace = true}
 thiserror = "*"
 toml = "*"
 tracing = "*"

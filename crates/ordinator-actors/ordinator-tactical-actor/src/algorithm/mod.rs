@@ -27,8 +27,10 @@ use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
 use ordinator_scheduling_environment::work_order::operation::Work;
+use ordinator_scheduling_environment::worker_environment::TacticalOptions;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use priority_queue::PriorityQueue;
+use rand::rng;
 use rand::seq::IndexedRandom;
 use tactical_solution::TacticalObjectiveValue;
 use tactical_solution::TacticalScheduledOperations;
@@ -39,7 +41,6 @@ use tracing::event;
 use self::assert_functions::TacticalAssertions;
 use self::tactical_parameters::TacticalParameters;
 use self::tactical_solution::OperationSolution;
-use super::TacticalOptions;
 
 // If you had a single crate you should simply call thie
 pub struct TacticalAlgorithm<Ss>(
@@ -216,12 +217,12 @@ where
 
     fn calculate_objective_value(
         &mut self,
-        options: &Self::Options,
     ) -> Result<
         ObjectiveValueType<
             <<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue,
         >,
     > {
+        let options = &self.parameters.tactical_options;
         let mut tactical_objective_value = TacticalObjectiveValue::new(options);
 
         self.determine_tardiness(&mut tactical_objective_value);
@@ -445,6 +446,7 @@ where
     }
 
     fn unschedule(&mut self) -> Result<()> {
+        let mut rng = rng();
         let work_order_numbers: Vec<WorkOrderNumber> = self
             .solution
             .tactical_work_orders
@@ -454,7 +456,7 @@ where
             .collect();
 
         let random_work_order_numbers = work_order_numbers.choose_multiple(
-            &mut self.parameters.tactical_options.rng.clone(),
+            &mut rng,
             self.parameters
                 .tactical_options
                 .number_of_removed_work_orders,

@@ -34,6 +34,23 @@ impl Parameters for SupervisorParameters {
 
         let mut supervisor_parameters = HashMap::new();
 
+        // Should you Clone this? Yes.. But ideally you should simply use Functional programming. That is
+        // the only way in a situation like this.
+        // You should make part of the SchedulingEnvironment reside inside of the Arc<WorkOrders> and the
+        // other part an ArcSwap<TimeEnvironment>
+        let options = scheduling_environment
+            .worker_environment
+            .actor_specification
+            .get(id.asset())
+            .unwrap()
+            .supervisors
+            .iter()
+            .find(|e| e.id == *id)
+            .with_context(|| format!("Missing an Supervisor entry for {}", id))?
+            .supervisor_options
+            // ISSUE #130
+            .clone();
+
         for (work_order_number, work_order) in scheduling_environment
             .work_orders
             .inner
@@ -68,7 +85,7 @@ impl Parameters for SupervisorParameters {
         // the correct supervisor. WARN
         // You made a huge mistake here! The types in the `SchedulingEnvironment` was
         // wrong and then you created state duplication to fix the issue.
-        //
+        // You should load in the `Id` directly.
         let operational_ids: Vec<Id> = scheduling_environment
             .worker_environment
             .actor_specification
@@ -77,7 +94,7 @@ impl Parameters for SupervisorParameters {
             .operational
             .iter()
             // TODO [ ] - Start here.
-            .map(|e| e.id)
+            .map(|e| e.id.clone())
             .collect();
 
         Ok(Self {

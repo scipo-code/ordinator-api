@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::error::Error;
+use std::fs;
 use std::fs::File;
 use std::hash::Hash;
 use std::path::PathBuf;
@@ -9,7 +10,6 @@ use std::sync::Mutex;
 use anyhow::Context;
 use anyhow::Result;
 use ordinator_configuration::SystemConfigurations;
-use ordinator_configuration::toml_baptiste::BaptisteToml;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::IntoSchedulingEnvironment;
 use ordinator_scheduling_environment::SchedulingEnvironment;
@@ -17,6 +17,7 @@ use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
 use ordinator_scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
 use ordinator_scheduling_environment::work_order::work_order_info::work_order_type::WorkOrderType;
+use ordinator_scheduling_environment::worker_environment::TimeInput;
 use ordinator_scheduling_environment::worker_environment::WorkerEnvironment;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
@@ -53,8 +54,12 @@ impl IntoSchedulingEnvironment for TotalSap {
     ) -> Result<Arc<Mutex<SchedulingEnvironment>>> {
         // TODO [ ]
         // You need to pass the configs
+        //
+        let time_input_string = fs::read_to_string(
+            "./temp_scheduling_environment/actor_specifications/time_environment/time_input.toml",
+        )?;
+        let time_input: TimeInput = serde_json::from_str(&time_input_string)?;
         Ok(SchedulingEnvironment::builder()
-            .time_environment(create_time_environment(&system_configuration.time_input))
             // TODO [ ]
             // This should function together with the
             .worker_environment(
@@ -62,6 +67,7 @@ impl IntoSchedulingEnvironment for TotalSap {
                     .actor_environment(Asset::DF)
                     .build(), // Add more assets here.
             )
+            .time_environment(create_time_environment(&time_input))
             .work_orders(
                 load_csv_data(&system_configuration.data_locations).with_context(|| {
                     format!(

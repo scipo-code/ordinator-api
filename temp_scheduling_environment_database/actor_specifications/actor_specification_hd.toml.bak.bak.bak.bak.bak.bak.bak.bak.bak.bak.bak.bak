@@ -1,0 +1,169 @@
+# This Actor specification file serves as a per asset specification file
+# It is better to keep it separate for as long as possible.
+#
+# TODO [ ] Make the Id directly importable from the `actor_specification` file.
+number_of_supervisor_periods = 3
+
+[material_to_period]
+nmat = 0
+smat = 0
+cmat = 2
+pmat = 3
+wmat = 3
+
+[strategic]
+number_of_strategic_periods = 52
+id.resources = []
+id.id = "strategic"
+id.assets ["Df"]
+strategic_options.number_of_removed_work_orders = 25
+strategic_options.urgency_weight = 1
+strategic_options.resource_penalty_weight = 1000000
+strategic_options.clustering_weight = 1000
+material_to_period.nmat = 0
+material_to_period.smat = 0
+material_to_period.cmat = 2
+material_to_period.pmat = 3
+material_to_period.wmat = 3
+
+[tactical]
+number_of_tactical_periods =4
+id.resources = []
+id.id = "tactical"
+id.assets ["Df"]
+tactical_options.number_of_removed_work_orders = 25
+tactical_options.urgency = 1
+tactical_options.resource_penalty = 10000000
+material_to_period.nmat = 0
+material_to_period.smat = 0
+material_to_period.cmat = 2
+material_to_period.pmat = 3
+material_to_period.wmat = 3
+
+# Resources are here given in people
+mtnelec = 0.5
+mtninst = 0.5
+mtnmech = 1.5
+mtncran = 0.0
+mtnturb = 0.0
+mtntele = 1.0
+mtnrous = 2.0
+medic = 0.0
+mtnlagg = 0.0
+mtnpain = 2.0
+mtnpipf = 2.0
+mtnrigg = 2.0
+mtnrope = 2.0
+mtnsat = 0.0
+mtnscaf = 2.0
+inpsite = 0.0
+prodlabo = 0.0
+prodtech = 2.0
+venacco = 0.0
+vencomm = 0.0
+venelec = 0.0
+venhvac = 0.0
+veninsp = 0.0
+veninst = 0.0
+venmech = 0.0
+venmete = 0.0
+venrope = 0.0
+venscaf = 0.0
+vensubs = 0.0
+vencran = 0.0
+qaqcelec = 0.0
+qaqcmech = 0.0
+qaqcpain = 0.0
+wellsupv = 0.0
+[wdf_priority_map]
+
+"1" = 500
+
+"2" = 50
+
+"3" = 5
+
+"4" = 1
+
+"5" = 1
+
+"6" = 1
+
+"7" = 1
+
+"8" = 1
+
+
+[wgn_priority_map]
+
+"1" = 500
+
+"2" = 50
+
+"3" = 5
+
+"4" = 1
+
+"5" = 1
+
+"6" = 1
+
+"7" = 1
+
+"8" = 1
+
+
+[wpm_priority_map]
+
+"A" = 500
+
+"B" = 50
+
+"C" = 5
+
+"D" = 1
+
+
+[vis_priority_map]
+
+"V" = 100
+
+"I" = 10
+
+"S" = 10
+
+
+[order_type_weights]
+
+"WDF" = 10
+
+"WGN" = 8
+
+"WPM" = 5
+
+"Other" = 0
+
+
+[status_weights]
+
+"SECE" = 7500
+
+"PCNF_NMAT_SMAT" = 1500
+
+"AWSC" = 10000
+
+
+[clustering_weights]
+
+"asset" = 10
+
+"sector" = 5
+
+"system" = 2
+
+"subsystem" = 2
+
+"equipment_tag" = 1
+
+
+operating_time = 6

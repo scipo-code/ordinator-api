@@ -5,7 +5,6 @@ use anyhow::Context;
 use anyhow::Result;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_scheduling_environment::SchedulingEnvironment;
-use ordinator_scheduling_environment::worker_environment::resources::Id;
 use serde::Serialize;
 
 pub type ActorLinkToSchedulingEnvironment<'a> = MutexGuard<'a, SchedulingEnvironment>;

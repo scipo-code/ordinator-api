@@ -19,13 +19,12 @@ use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
 use ordinator_scheduling_environment::work_order::operation::Operation;
 use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
+use ordinator_scheduling_environment::worker_environment::TacticalOptions;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use serde::Serialize;
 
-use super::TacticalAlgorithm;
 use super::tactical_resources::TacticalResources;
-use crate::TacticalOptions;
 
 pub struct TacticalParameters {
     pub tactical_work_orders: HashMap<WorkOrderNumber, TacticalParameter>,
@@ -76,10 +75,7 @@ impl Parameters for TacticalParameters {
                 (
                     *won,
                     // This should also be found inside of the database.
-                    create_tactical_parameter(
-                        wo,
-                        &tactical_options.tactical.tactical_options_config,
-                    ),
+                    create_tactical_parameter(wo, &tactical_options.work_order_configurations),
                 )
             })
             .collect();
@@ -88,7 +84,7 @@ impl Parameters for TacticalParameters {
             tactical_work_orders,
             tactical_days: tactical_days.clone(),
             tactical_capacity,
-            tactical_options: options,
+            tactical_options: tactical_options.tactical.tactical_options_config.clone(),
         })
     }
 

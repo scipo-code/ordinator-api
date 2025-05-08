@@ -1,0 +1,614 @@
+[time_input]
+number_of_days = 100
+
+[material_to_period]
+nmat = 0
+smat = 0
+cmat = 2
+pmat = 3
+wmat = 3
+
+[strategic]
+number_of_strategic_periods = 52
+id.resources = []
+id.id = "strategic"
+is.assets ["Df"]
+strategic_options.number_of_removed_work_orders = 25
+strategic_options.urgency_weight = 1
+strategic_options.resource_penalty_weight = 1000000
+strategic_options.clustering_weight = 1000
+material_to_period.nmat = 0
+material_to_period.smat = 0
+material_to_period.cmat = 2
+material_to_period.pmat = 3
+material_to_period.wmat = 3
+
+[tactical]
+number_of_tactical_periods =4
+id.resources = []
+id.id = "tactical"
+is.assets ["Df"]
+tactical_options.number_of_removed_work_orders = 25
+tactical_options.urgency = 1
+tactical_options.resource_penalty = 10000000
+material_to_period.nmat = 0
+material_to_period.smat = 0
+material_to_period.cmat = 2
+material_to_period.pmat = 3
+material_to_period.wmat = 3
+
+[[supervisors]]
+id.id = "main"
+number_of_supervisor_periods = 3
+id.resources = []
+id.assets = ["Df"]
+supervisor_options.number_of_removed_work_orders = 15
+# [[supervisors]]
+# id.id = "supervisor-second"
+################################
+###          MTN-ELEC        ###
+################################
+[[operational]]
+id.id = "OP-01-001"
+id.resources = ["MTN-ELEC"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+[[operational]]
+id.id = "OP-01-002"
+id.resources = ["MTN-ELEC"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+################################
+###          MTN-INST        ###
+################################
+[[operational]]
+id.id = "OP-02-001"
+id.resources = ["MTN-INST"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+[[operational]]
+id.id = "OP-02-002"
+id.resources = ["MTN-INST"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+################################
+###          MTN-MECH        ###
+################################
+[[operational]]
+id.id = "OP-02-001"
+id.resources = ["MTN-MECH"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+[[operational]]
+id.id = "OP-02-002"
+id.resources = ["MTN-MECH"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+################################
+###          MTN-TURB        ###
+################################
+[[operational]]
+id.id = "OP-03-001"
+id.resources = ["MTN-TURB"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+################################
+###          MTN-TELE        ###
+################################
+[[operational]]
+id.id = "OP-03-001"
+id.resources = ["MTN-TELE"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+################################
+###          MTN-ROUS        ###
+################################
+[[operational]]
+id.id = "OP-04-001"
+id.resources = ["MTN-ROUS"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+[[operational]]
+id.id = "OP-04-002"
+id.resources = ["MTN-ROUS"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+[[operational]]
+id.id = "OP-04-003"
+id.resources = ["MTN-ROUS"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+[[operational]]
+id.id = "OP-04-004"
+id.resources = ["MTN-ROUS"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+################################
+###          MEDIC           ###
+################################
+[[operational]]
+id.id = "OP-05-001"
+id.resources = ["MEDIC"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+################################
+###          MTN-LAGG        ###
+################################
+[[operational]]
+id.id = "OP-05-001"
+id.resources = ["MTN-LAGG"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+[[operational]]
+id.id = "OP-05-002"
+id.resources = ["MTN-LAGG"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+################################
+###          MTN-PAIN        ###
+################################
+# [[operational]]
+# id.id = "OP-06-001"
+# id.resources = [ "MTN-PAIN"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+################################
+###          MTN-PIPF        ###
+################################
+# [[operational]]
+# id.id = "OP-07-001"
+# id.resources = [ "MTN-PIPF"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+# [[operational]]
+# id.id = "OP-07-002"
+# id.resources = [ "MTN-PIPF"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+# [[operational]]
+# id.id = "OP-07-003"
+# id.resources = [ "MTN-PIPF"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+# [[operational]]
+# id.id = "OP-07-004"
+# id.resources = [ "MTN-PIPF"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+################################
+###          MTN-ROPE        ###
+################################
+[[operational]]
+id.id = "OP-08-001"
+id.resources = ["MTN-ROPE"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+# [[operational]]
+# id.id = "OP-08-002"
+# id.resources = [ "MTN-ROPE"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+# [[operational]]
+# id.id = "OP-08-003"
+# id.resources = [ "MTN-ROPE"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+# [[operational]]
+# id.id = "OP-08-004"
+# id.resources = [ "MTN-ROPE"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+################################
+###          MTN-SCAF        ###
+################################
+[[operational]]
+id.id = "OP-09-001"
+id.resources = ["MTN-SCAF"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+[[operational]]
+id.id = "OP-09-002"
+id.resources = ["MTN-SCAF"]
+hours_per_day = 6.0
+operational_options.number_of_removed_work_orders = 15
+operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+# [[operational]]
+# id.id = "OP-09-003"
+# id.resources = [ "MTN-SCAF"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+# [[operational]]
+# id.id = "OP-09-004"
+# id.resources = [ "MTN-SCAF"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+################################
+###          INP-SITE        ###
+################################
+# [[operational]]
+# id.id = "OP-10-001"
+# id.resources = [ "INP-SITE"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+# [[operational]]
+# id.id = "OP-10-002"
+# id.resources = [ "INP-SITE"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+# [[operational]]
+# id.id = "OP-10-003"
+# id.resources = [ "INP-SITE"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+################################
+###          PRODTECH        ###
+################################
+# [[operational]]
+# id.id = "OP-11-001"
+# id.resources = [ "PRODTECH"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+# [[operational]]
+# id.id = "OP-11-002"
+# id.resources = [ "PRODTECH"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+# [[operational]]
+# id.id = "OP-11-003"
+# id.resources = [ "PRODTECH"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+# [[operational]]
+# id.id = "OP-11-004"
+# id.resources = [ "PRODTECH"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+# [[operational]]
+# id.id = "OP-11-005"
+# id.resources = [ "PRODTECH"]
+# hours_per_day = 6.0
+# operational_configuration.off_shift_interval = { start = "19:00:00", end = "07:00:00" }
+# operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
+# operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
+# operational_configuration.availability.start_date = 2024-11-04T07:00:00Z
+# operational_configuration.availability.finish_date = 2024-11-17T15:00:00Z
+id.assets = ["Df"]
+
+# mtnelec = 3.5
+# mtninst = 2.5
+# mtnmech = 4.5
+# mtncran = 0.0
+# mtnturb = 3.0
+# mtntele = 3.0
+# mtnrous = 3.0
+# medic = 1.0
+# mtnlagg = 2.0
+# mtnpain = 3.0
+# mtnpipf = 4.0
+# mtnrigg = 2.0
+# mtnrope = 3.5
+# mtnsat = 0.0
+# mtnscaf = 3.5
+# inpsite = 3.0
+# prodlabo = 0.0
+# prodtech = 5.0
+# venacco = 0.0
+# vencomm = 0.0
+# venelec = 0.0
+# venhvac = 0.0
+# veninsp = 0.0
+# veninst = 0.0
+# venmech = 0.0
+# venmete = 0.0
+# venrope = 0.0
+# venscaf = 0.0
+# vensubs = 0.0
+# vencran = 0.0
+# qaqcelec = 0.0
+# qaqcmech = 0.0
+# qaqcpain = 0.0
+# wellsupv = 0.0
+[wdf_priority_map]
+
+"1" = 500
+
+"2" = 50
+
+"3" = 5
+
+"4" = 1
+
+"5" = 1
+
+"6" = 1
+
+"7" = 1
+
+"8" = 1
+
+
+[wgn_priority_map]
+
+"1" = 500
+
+"2" = 50
+
+"3" = 5
+
+"4" = 1
+
+"5" = 1
+
+"6" = 1
+
+"7" = 1
+
+"8" = 1
+
+
+[wpm_priority_map]
+
+"A" = 500
+
+"B" = 50
+
+"C" = 5
+
+"D" = 1
+
+
+[vis_priority_map]
+
+"V" = 100
+
+"I" = 10
+
+"S" = 10
+
+
+[order_type_weights]
+
+"WDF" = 10
+
+"WGN" = 8
+
+"WPM" = 5
+
+"Other" = 0
+
+
+[status_weights]
+
+"SECE" = 7500
+
+"PCNF_NMAT_SMAT" = 1500
+
+"AWSC" = 10000
+
+
+[clustering_weights]
+
+"asset" = 10
+
+"sector" = 5
+
+"system" = 2
+
+"subsystem" = 2
+
+"equipment_tag" = 1
+
+
+operating_time = 6

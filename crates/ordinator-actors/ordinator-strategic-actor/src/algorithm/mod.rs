@@ -19,7 +19,6 @@ use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_actor_core::algorithm::LoadOperation;
 use ordinator_actor_core::traits::AbLNSUtils;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
-use ordinator_actor_core::traits::ActorLinkToSchedulingEnvironment;
 use ordinator_actor_core::traits::ObjectiveValueType;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::Solution;
@@ -1483,7 +1482,7 @@ where
             let strategic_parameter = self
                 .parameters
                 .strategic_work_order_parameters
-                .get(&work_order_number)
+                .get(work_order_number)
                 .expect(
                     "The StrategicParameter should always be available for the StrategicSolution",
                 );
@@ -1495,7 +1494,7 @@ where
             if self
                 .solution
                 .strategic_scheduled_work_orders
-                .get(&work_order_number)
+                .get(work_order_number)
                 .unwrap()
                 .is_none()
             {

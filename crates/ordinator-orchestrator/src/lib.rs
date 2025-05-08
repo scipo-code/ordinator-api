@@ -30,6 +30,7 @@ use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_strategic_actor::StrategicApi;
 use ordinator_strategic_actor::messages::StrategicRequestMessage;
 use ordinator_strategic_actor::messages::StrategicResponseMessage;
+use ordinator_supervisor_actor::messages::SupervisorResponseMessage;
 use ordinator_supervisor_actor::SupervisorApi;
 use ordinator_supervisor_actor::messages::SupervisorRequestMessage;
 use ordinator_tactical_actor::messages::TacticalRequestMessage;
@@ -629,7 +630,7 @@ impl<Ss> Orchestrator<Ss> {
 
         // The ID field is completely defined by the defined by the System configurations here.
 
-        self.start
+        self.
         // FIX [ ] `self.start_strategic_actor()`
         let strategic_agent_addr = StrategicApi::construct_actor(
             id,

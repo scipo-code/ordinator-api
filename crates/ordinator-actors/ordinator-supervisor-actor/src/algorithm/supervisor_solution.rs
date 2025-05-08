@@ -13,7 +13,6 @@ use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
 use super::supervisor_parameters::SupervisorParameters;
-use crate::SupervisorOptions;
 
 pub type SupervisorObjectiveValue = u64;
 
@@ -25,10 +24,9 @@ pub struct SupervisorSolution {
 
 impl Solution for SupervisorSolution {
     type ObjectiveValue = SupervisorObjectiveValue;
-    type Options = SupervisorOptions;
     type Parameters = SupervisorParameters;
 
-    fn new(parameters: &Self::Parameters, options: &Self::Options) -> Self {
+    fn new(parameters: &Self::Parameters) -> Self {
         // The SupervisorParameters should have knowledge of the agents.
 
         let operational_state_machine: HashMap<(Id, WorkOrderActivity), Delegate> = parameters

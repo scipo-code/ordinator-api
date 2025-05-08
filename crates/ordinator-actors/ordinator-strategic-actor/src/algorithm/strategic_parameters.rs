@@ -71,14 +71,14 @@ impl Parameters for StrategicParameters {
         let strategic_work_order_parameters = work_orders
             .inner
             .iter()
-            .filter(|(won, wo)| wo.functional_location().asset == *asset)
+            .filter(|(_, wo)| wo.functional_location().asset == *asset)
             .map(|(won, wo)| {
                 (
                     *won,
                     // TODO #000001 [ ] Move time environment configuraion into SchedulingEnvironment
                     // TODO #000002 [ ] Move work order parameters from `./configuration` to `./temp_scheduling_environmen_database`
                     WorkOrderParameter::builder()
-                        .with_scheduling_environment(wo, strategic_periods, &strategic_options)
+                        .with_scheduling_environment(wo, strategic_periods, strategic_options)
                         .build(),
                 )
             })
@@ -108,7 +108,7 @@ impl Parameters for StrategicParameters {
 
     // TODO [ ]
     // This should be created as a `Builder` I am not sure that the best decision
-    // will be here.
+    // will be here. You should create this in a functional way.
     fn create_and_insert_new_parameter(
         &mut self,
         key: Self::Key,

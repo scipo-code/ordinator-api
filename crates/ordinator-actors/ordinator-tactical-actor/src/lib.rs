@@ -36,13 +36,6 @@ where
     Ss: SystemSolutionTrait<Tactical = TacticalSolution>,
     Self: MessageHandler<Req = TacticalRequestMessage, Res = TacticalResponseMessage>;
 
-pub struct TacticalOptions {
-    pub number_of_removed_work_orders: usize,
-    pub urgency: usize,
-    pub resource_penalty: usize,
-    pub rng: StdRng,
-}
-
 impl<Ss> Deref for TacticalActor<Ss>
 where
     Ss: SystemSolutionTrait<Tactical = TacticalSolution>,

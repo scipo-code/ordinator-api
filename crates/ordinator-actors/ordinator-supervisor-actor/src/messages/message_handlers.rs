@@ -72,9 +72,12 @@ where
 
                 let operational_agents = scheduling_environment_guard
                     .worker_environment
-                    .agent_environment
+                    .actor_specification
+                    .get(self.actor_id.asset())
+                    .unwrap()
                     .operational
-                    .keys()
+                    .iter()
+                    .map(|e| &e.id)
                     .collect::<HashSet<&Id>>();
 
                 event!(
@@ -84,7 +87,7 @@ where
                         .loaded_shared_solution
                         .all_operational()
                         .iter()
-                        .eq(operational_agents.iter().map(|&x| x)),
+                        .eq(operational_agents.iter().copied()),
                     "Check this error later. FIX: YOU SHOULD call '.send()' instead of '.do_send()' and use the lldb debugger to trace the flow."
                 );
 

@@ -18,7 +18,6 @@ use super::StrategicResponseStatus;
 use super::StrategicSchedulingEnvironmentCommands;
 use super::StrategicStatusMessage;
 use crate::StrategicActor;
-use crate::StrategicOptions;
 use crate::algorithm::strategic_parameters::WorkOrderParameter;
 use crate::algorithm::strategic_resources::StrategicResources;
 use crate::algorithm::strategic_solution::StrategicSolution;

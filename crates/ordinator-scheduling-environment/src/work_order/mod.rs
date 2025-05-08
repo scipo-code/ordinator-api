@@ -352,13 +352,12 @@ impl WorkOrder {
             work_order_value
         };
 
-        let total_weight = (base_value + status_weight)
-            * self
+        (base_value + status_weight)
+            * (self
                 .work_order_load()
                 .values()
                 .map(|wor| wor.to_f64())
-                .sum::<f64>() as u64;
-        total_weight
+                .sum::<f64>() as u64)
     }
 
     pub fn work_order_load(&self) -> HashMap<Resources, Work> {

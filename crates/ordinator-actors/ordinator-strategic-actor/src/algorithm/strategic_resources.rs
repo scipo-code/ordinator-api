@@ -70,7 +70,7 @@ impl<'a> From<(&MutexGuard<'a, SchedulingEnvironment>, &Id)> for StrategicResour
                 // rely on the 13 days.
                 let days_in_period = 13.0; // WARN: period.count_overlapping_days(availability);
 
-                for resource in &operational_agent.resources {
+                for resource in &operational_agent.id.1 {
                     skill_hours.insert(
                         *resource,
                         Work::from(
@@ -80,14 +80,15 @@ impl<'a> From<(&MutexGuard<'a, SchedulingEnvironment>, &Id)> for StrategicResour
                 }
 
                 let operational_resource = OperationalResource::new(
-                    &operational_agent.id,
+                    &operational_agent.id.0,
                     Work::from(
                         operational_agent.hours_per_day * days_in_period * gradual_reduction(i),
                     ),
-                    operational_agent.resources.clone(),
+                    operational_agent.id.1.clone(),
                 );
 
-                operational_resource_map.insert(operational_agent.id.clone(), operational_resource);
+                operational_resource_map
+                    .insert(operational_agent.id.0.clone(), operational_resource);
             }
             strategic_resources_inner.insert(period.clone(), operational_resource_map);
         }

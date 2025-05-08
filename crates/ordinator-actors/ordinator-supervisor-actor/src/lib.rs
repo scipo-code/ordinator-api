@@ -15,7 +15,6 @@ use std::sync::Mutex;
 use algorithm::SupervisorAlgorithm;
 use algorithm::supervisor_solution::SupervisorSolution;
 use arc_swap::ArcSwap;
-use arc_swap::Guard;
 #[allow(unused_imports)]
 use assert_functions::SupervisorAssertions;
 use messages::SupervisorRequestMessage;
@@ -29,8 +28,6 @@ use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
-use rand::SeedableRng;
-use rand::rngs::StdRng;
 
 pub struct SupervisorActor<Ss>(
     Actor<SupervisorRequestMessage, SupervisorResponseMessage, SupervisorAlgorithm<Ss>>,
@@ -57,26 +54,6 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
-    }
-}
-
-impl<'a> From<(&Guard<Arc<SystemConfigurations>>, &Id)> for SupervisorOptions {
-    fn from(value: (&Guard<Arc<SystemConfigurations>>, &Id)) -> Self {
-        let number_of_unassigned_work_orders = value
-            .0
-            .actor_specification
-            .get(value.1.asset())
-            .unwrap()
-            .supervisors
-            .iter()
-            .find(|s| s.id == value.1.0)
-            .unwrap()
-            .supervisor_options
-            .number_of_removed_work_orders;
-        SupervisorOptions {
-            rng: StdRng::from_os_rng(),
-            number_of_unassigned_work_orders,
-        }
     }
 }
 
@@ -121,7 +98,6 @@ where
                 // So this function returns a `Result`
                 .arc_swap_shared_solution(shared_solution_arc_swap)
                 .parameters_and_solution(
-                    &system_configurations.load(),
                     &scheduling_environment_guard.lock().unwrap(),
                 )
         })?
@@ -161,10 +137,7 @@ where
             ab.id(id)
                 // So this function returns a `Result`
                 .arc_swap_shared_solution(shared_solution_arc_swap)
-                .parameters_and_solution(
-                    &system_configurations.load(),
-                    &scheduling_environment_guard.lock().unwrap(),
-                )
+                .parameters_and_solution(&scheduling_environment_guard.lock().unwrap())
         })?
         // TODO [x]
         // These should be created in a single step

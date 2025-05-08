@@ -109,13 +109,7 @@ impl<'a> From<(&ActorLinkToSchedulingEnvironment<'a>, &Id)> for TacticalResource
                     // WARN
                     // There is a logic error here. If we want to compare with the
                     // `StrategicAgent`.
-                    .entry(
-                        operational_configuration_all
-                            .resources
-                            .first()
-                            .cloned()
-                            .unwrap(),
-                    )
+                    .entry(operational_configuration_all.id.1.first().cloned().unwrap())
                     .or_insert(Days::default());
 
                 *resource_periods

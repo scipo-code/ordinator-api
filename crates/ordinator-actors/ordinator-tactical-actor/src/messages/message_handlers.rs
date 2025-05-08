@@ -70,6 +70,13 @@ where
                     let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
                     let work_orders = &scheduling_environment_guard.work_orders.inner.clone();
+                    let work_order_configurations = &scheduling_environment_guard
+                        .worker_environment
+                        .actor_specification
+                        .get(self.actor_id.asset())
+                        .unwrap()
+                        .work_order_configurations
+                        .clone();
 
                     drop(scheduling_environment_guard);
                     for work_order_number in changed_work_orders {
@@ -93,10 +100,9 @@ where
                         // better approach for dealing with this.
                         //
                         // You should wrap this up in the `Interface`
-                        let tactical_parameter = create_tactical_parameter(
-                            work_order,
-                            &self.configurations.load().work_order_configurations,
-                        );
+
+                        let tactical_parameter =
+                            create_tactical_parameter(work_order, &work_order_configurations);
 
                         // It is only the algorithm that can modify parameters. Not the the Actor
                         // directly you should fix this issue soon. What

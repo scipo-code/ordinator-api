@@ -28,7 +28,6 @@ use operational_solution::OperationalSolution;
 use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_actor_core::traits::AbLNSUtils;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
-use ordinator_actor_core::traits::ActorLinkToSchedulingEnvironment;
 use ordinator_actor_core::traits::ObjectiveValueType;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::StrategicInterface;
@@ -37,7 +36,6 @@ use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_orchestrator_actor_traits::TacticalInterface;
 use ordinator_orchestrator_actor_traits::delegate::Delegate;
 use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
-use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::TimeInterval;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
@@ -45,7 +43,6 @@ use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
 use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::worker_environment::OperationalOptions;
 use ordinator_scheduling_environment::worker_environment::availability::Availability;
-use ordinator_scheduling_environment::worker_environment::resources::Id;
 use rand::seq::IndexedRandom;
 use tracing::Level;
 use tracing::event;
@@ -409,7 +406,7 @@ where
         // This should not be set here! This is so disguisting! It is really
         // not the way to make this work! You have to find a different
         // way.
-        self.solution.objective_value = new_objective_value.into();
+        self.solution.objective_value = new_objective_value;
         if self.solution.objective_value > old_objective_value {
             event!(Level::INFO, operational_objective_value_better = ?new_objective_value);
             Ok(ObjectiveValueType::Better(new_objective_value))

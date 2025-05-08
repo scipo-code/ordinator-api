@@ -11,7 +11,6 @@ use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
-use ordinator_scheduling_environment::worker_environment::StrategicOptions;
 use priority_queue::PriorityQueue;
 use std::ops::Deref;
 use std::ops::DerefMut;

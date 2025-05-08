@@ -122,15 +122,15 @@ where
     type Tactical = T;
 
     fn strategic(&self) -> &Self::Strategic {
-        &self.strategic.as_ref().unwrap()
+        self.strategic.as_ref().unwrap()
     }
 
     fn tactical(&self) -> &Self::Tactical {
-        &self.tactical.as_ref().unwrap()
+        self.tactical.as_ref().unwrap()
     }
 
     fn supervisor(&self) -> &Self::Supervisor {
-        &self.supervisor.as_ref().unwrap()
+        self.supervisor.as_ref().unwrap()
     }
 
     fn operational(&self, id: &Id) -> &Self::Operational {
