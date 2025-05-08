@@ -68,6 +68,7 @@ impl Parameters for SupervisorParameters {
         // the correct supervisor. WARN
         // You made a huge mistake here! The types in the `SchedulingEnvironment` was
         // wrong and then you created state duplication to fix the issue.
+        //
         let operational_ids: Vec<Id> = scheduling_environment
             .worker_environment
             .actor_specification

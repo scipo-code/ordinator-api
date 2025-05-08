@@ -177,6 +177,8 @@ pub struct InputSupervisor {
     pub supervisor_options: SupervisorOptions,
 }
 
+// TODO [ ]
+// Load in the IDs directly.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InputOperational {
     pub id: OperationalId,
