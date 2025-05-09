@@ -41,18 +41,14 @@ pub type WorkOrderValue = u64;
 
 #[derive(Copy, Clone, PartialOrd, Ord, Hash, PartialEq, Eq)]
 pub struct WorkOrderNumber(pub u64);
-impl WorkOrderNumber
-{
-    pub fn is_dummy(&self) -> bool
-    {
+impl WorkOrderNumber {
+    pub fn is_dummy(&self) -> bool {
         self.0 == 0
     }
 }
 
-impl std::fmt::Debug for WorkOrderNumber
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
-    {
+impl std::fmt::Debug for WorkOrderNumber {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "{}",
@@ -63,8 +59,7 @@ impl std::fmt::Debug for WorkOrderNumber
 // Everything in the `SchedulingEnvironment` should implement
 // `Serialize` it has to, to be able to go into the database.
 #[derive(Serialize, Deserialize, Debug)]
-pub struct WorkOrders
-{
+pub struct WorkOrders {
     pub inner: HashMap<WorkOrderNumber, WorkOrder>,
     // Are these in the correct place in the code? Yes I think
     // that they are.
@@ -73,15 +68,12 @@ pub struct WorkOrders
 // WARN
 // Configurations should only be used during initialization not the
 // remaining parts of the code.
-pub struct WorkOrdersBuilder
-{
+pub struct WorkOrdersBuilder {
     inner: Option<HashMap<WorkOrderNumber, WorkOrder>>,
 }
 
-impl WorkOrdersBuilder
-{
-    pub fn build(self) -> WorkOrders
-    {
+impl WorkOrdersBuilder {
+    pub fn build(self) -> WorkOrders {
         WorkOrders {
             inner: self.inner.unwrap_or_default(),
         }
@@ -115,27 +107,22 @@ impl WorkOrdersBuilder
     }
 }
 
-impl WorkOrders
-{
-    pub fn builder() -> WorkOrdersBuilder
-    {
+impl WorkOrders {
+    pub fn builder() -> WorkOrdersBuilder {
         WorkOrdersBuilder {
             inner: Some(HashMap::new()),
         }
     }
 
-    pub fn insert(&mut self, work_order: WorkOrder)
-    {
+    pub fn insert(&mut self, work_order: WorkOrder) {
         self.inner.insert(work_order.work_order_number, work_order);
     }
 
-    pub fn new_work_order(&self, work_order_number: WorkOrderNumber) -> bool
-    {
+    pub fn new_work_order(&self, work_order_number: WorkOrderNumber) -> bool {
         !self.inner.contains_key(&work_order_number)
     }
 
-    pub fn work_orders_by_asset(&self, asset: &Asset) -> HashMap<&WorkOrderNumber, &WorkOrder>
-    {
+    pub fn work_orders_by_asset(&self, asset: &Asset) -> HashMap<&WorkOrderNumber, &WorkOrder> {
         self.inner
             .iter()
             .filter(|(_, wo)| &wo.work_order_info.functional_location.asset == asset)
@@ -144,8 +131,7 @@ impl WorkOrders
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct WorkOrder
-{
+pub struct WorkOrder {
     pub work_order_number: WorkOrderNumber,
     pub main_work_center: Resources,
     pub operations: Operations,
@@ -154,8 +140,7 @@ pub struct WorkOrder
     pub work_order_info: WorkOrderInfo,
 }
 
-pub struct WorkOrderBuilder
-{
+pub struct WorkOrderBuilder {
     work_order_number: WorkOrderNumber,
     main_work_center: Resources,
     operations: Operations,
@@ -167,10 +152,8 @@ pub struct WorkOrderBuilder
     work_order_info: WorkOrderInfo,
 }
 
-impl WorkOrderBuilder
-{
-    pub fn build(self) -> WorkOrder
-    {
+impl WorkOrderBuilder {
+    pub fn build(self) -> WorkOrder {
         WorkOrder {
             work_order_number: self.work_order_number,
             main_work_center: self.main_work_center,
@@ -183,14 +166,12 @@ impl WorkOrderBuilder
         }
     }
 
-    pub fn work_order_number(&mut self, work_order_number: WorkOrderNumber) -> &mut Self
-    {
+    pub fn work_order_number(&mut self, work_order_number: WorkOrderNumber) -> &mut Self {
         self.work_order_number = work_order_number;
         self
     }
 
-    pub fn main_work_center(mut self, main_work_center: Resources) -> Self
-    {
+    pub fn main_work_center(mut self, main_work_center: Resources) -> Self {
         self.main_work_center = main_work_center;
         self
     }
@@ -216,8 +197,7 @@ impl WorkOrderBuilder
         self
     }
 
-    pub fn operations(mut self, operations: Operations) -> Self
-    {
+    pub fn operations(mut self, operations: Operations) -> Self {
         self.operations = operations;
         self
     }
@@ -260,8 +240,7 @@ impl WorkOrderBuilder
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum ActivityRelation
-{
+pub enum ActivityRelation {
     StartStart,
     FinishStart,
     Postpone(DateTime<Utc>),
@@ -269,8 +248,7 @@ pub enum ActivityRelation
 
 #[allow(dead_code)]
 #[derive(Eq, PartialEq, Serialize, Deserialize, Debug, Clone)]
-pub struct WorkOrderConfigurations
-{
+pub struct WorkOrderConfigurations {
     pub order_type_weights: HashMap<String, u64>,
     pub status_weights: HashMap<String, u64>,
     pub vis_priority_map: HashMap<char, u64>,
@@ -282,8 +260,7 @@ pub struct WorkOrderConfigurations
 }
 
 #[derive(Eq, PartialEq, Serialize, Deserialize, Debug, Clone)]
-pub struct ClusteringWeights
-{
+pub struct ClusteringWeights {
     pub asset: u64,
     pub sector: u64,
     pub system: u64,
@@ -298,10 +275,8 @@ pub struct ClusteringWeights
 // Move all initialization into function calls.
 // FIX [ ]
 // Move the `latest_allowed_period` into a function as well.
-impl WorkOrder
-{
-    pub fn builder(work_order_number: WorkOrderNumber) -> WorkOrderBuilder
-    {
+impl WorkOrder {
+    pub fn builder(work_order_number: WorkOrderNumber) -> WorkOrderBuilder {
         WorkOrderBuilder {
             work_order_number,
             main_work_center: todo!(),
@@ -312,8 +287,7 @@ impl WorkOrder
         }
     }
 
-    pub fn vendor(&self) -> bool
-    {
+    pub fn vendor(&self) -> bool {
         self.operations
             .0
             .values()
@@ -323,8 +297,7 @@ impl WorkOrder
     pub fn work_order_value(
         &self,
         work_order_configurations: &WorkOrderConfigurations,
-    ) -> WorkOrderValue
-    {
+    ) -> WorkOrderValue {
         // FIX
         // This should be removed. Where should the global configs be read
         // from? I am not really sure. You have done a lot today! I think that
@@ -387,8 +360,7 @@ impl WorkOrder
                 .sum::<f64>() as u64)
     }
 
-    pub fn work_order_load(&self) -> HashMap<Resources, Work>
-    {
+    pub fn work_order_load(&self) -> HashMap<Resources, Work> {
         self.operations
             .0
             .values()
@@ -413,8 +385,7 @@ impl WorkOrder
         &self,
         periods: &[Period],
         material_to_periods: &MaterialToPeriod,
-    ) -> HashSet<Period>
-    {
+    ) -> HashSet<Period> {
         periods
             .iter()
             .enumerate()
@@ -427,21 +398,18 @@ impl WorkOrder
             .collect()
     }
 
-    pub fn functional_location(&self) -> &FunctionalLocation
-    {
+    pub fn functional_location(&self) -> &FunctionalLocation {
         &self.work_order_info.functional_location
     }
 
-    pub fn insert_operation(&mut self, operation: Operation)
-    {
+    pub fn insert_operation(&mut self, operation: Operation) {
         self.operations.0.insert(operation.activity, operation);
     }
 
     // QUESTION
     // What should this function do? I think that the best approach is to
     // create something that will
-    pub fn date_to_period<'a>(periods: &'a [Period], date_time: &NaiveDate) -> &'a Period
-    {
+    pub fn date_to_period<'a>(periods: &'a [Period], date_time: &NaiveDate) -> &'a Period {
         let period: Option<&Period> = periods.iter().find(|period| {
             period.start_date().date_naive() <= *date_time
                 && period.end_date().date_naive() >= *date_time
@@ -466,8 +434,7 @@ impl WorkOrder
         &'a self,
         periods: &'a [Period],
         material_to_periods: &MaterialToPeriod,
-    ) -> &'a Period
-    {
+    ) -> &'a Period {
         // This whole thing is bull shit.
         // TODO [ ]
         //
@@ -492,8 +459,7 @@ impl WorkOrder
         }
     }
 
-    pub fn latest_allowed_finish_period<'a>(&'a self, _periods: &'a [Period]) -> &'a Period
-    {
+    pub fn latest_allowed_finish_period<'a>(&'a self, _periods: &'a [Period]) -> &'a Period {
         todo!("Make the code for extracting this information")
     }
 
@@ -503,12 +469,10 @@ impl WorkOrder
     //     self.work_order_dates.latest_allowed_finish_period =
     // random_period.clone(); }
 }
-impl FromStr for WorkOrderNumber
-{
+impl FromStr for WorkOrderNumber {
     type Err = ParseIntError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err>
-    {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let number = s.parse::<u64>()?;
         Ok(Self(number))
     }
@@ -516,16 +480,13 @@ impl FromStr for WorkOrderNumber
 
 pub type WorkOrderActivity = (WorkOrderNumber, ActivityNumber);
 
-impl From<u64> for WorkOrderNumber
-{
-    fn from(value: u64) -> Self
-    {
+impl From<u64> for WorkOrderNumber {
+    fn from(value: u64) -> Self {
         WorkOrderNumber(value)
     }
 }
 
-impl Serialize for WorkOrderNumber
-{
+impl Serialize for WorkOrderNumber {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -534,8 +495,7 @@ impl Serialize for WorkOrderNumber
     }
 }
 
-impl<'de> Deserialize<'de> for WorkOrderNumber
-{
+impl<'de> Deserialize<'de> for WorkOrderNumber {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -548,10 +508,8 @@ impl<'de> Deserialize<'de> for WorkOrderNumber
 
 // TODO [ ]
 // This is a horrible practice! You should refactor it.
-impl WorkOrder
-{
-    pub fn work_order_test() -> Self
-    {
+impl WorkOrder {
+    pub fn work_order_test() -> Self {
         WorkOrder::builder(WorkOrderNumber(2100000001))
             .main_work_center(Resources::MtnMech)
             .operations_builder(10, Resources::Prodtech, |e| {
@@ -584,8 +542,7 @@ impl WorkOrder
     }
 }
 #[cfg(test)]
-mod tests
-{
+mod tests {
     use std::str::FromStr;
 
     use super::WorkOrder;
@@ -593,8 +550,7 @@ mod tests
     use crate::worker_environment::resources::Resources;
 
     #[test]
-    fn test_initialize_work_load()
-    {
+    fn test_initialize_work_load() {
         let work_order = WorkOrder::work_order_test();
 
         assert_eq!(
@@ -616,8 +572,7 @@ mod tests
     use super::*;
 
     #[test]
-    fn test_date_to_period()
-    {
+    fn test_date_to_period() {
         let periods: Vec<Period> = vec![
             Period::from_str("2024-W47-48").unwrap(),
             Period::from_str("2024-W49-50").unwrap(),

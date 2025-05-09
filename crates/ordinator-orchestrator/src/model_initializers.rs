@@ -9,8 +9,7 @@ use ordinator_total_data_processing::sources::baptiste_csv_reader::TotalSap;
 
 pub fn initialize_scheduling_environment(
     system_configurations: Guard<Arc<SystemConfigurations>>,
-) -> Arc<Mutex<SchedulingEnvironment>>
-{
+) -> Arc<Mutex<SchedulingEnvironment>> {
     let total_sap = TotalSap::default();
 
     // FIX [ ]

@@ -44,8 +44,7 @@ where
 {
     type Target = Actor<StrategicRequestMessage, StrategicResponseMessage, StrategicAlgorithm<Ss>>;
 
-    fn deref(&self) -> &Self::Target
-    {
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
@@ -54,8 +53,7 @@ impl<Ss> DerefMut for StrategicActor<Ss>
 where
     Ss: SystemSolutionTrait<Strategic = StrategicSolution>,
 {
-    fn deref_mut(&mut self) -> &mut Self::Target
-    {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
@@ -128,16 +126,14 @@ where
 }
 
 #[cfg(test)]
-mod tests
-{
+mod tests {
     use ordinator_scheduling_environment::work_order::WorkOrder;
     use ordinator_scheduling_environment::work_order::WorkOrderNumber;
     use ordinator_scheduling_environment::work_order::work_order_dates::unloading_point::UnloadingPoint;
     use ordinator_scheduling_environment::worker_environment::resources::Resources;
 
     #[test]
-    fn test_extract_state_to_scheduler_overview()
-    {
+    fn test_extract_state_to_scheduler_overview() {
         WorkOrder::builder(WorkOrderNumber(2100000001))
             .operations_builder(10, Resources::MtnMech, |e| {
                 e.operation_info(|e| e.work_remaining(1.0))

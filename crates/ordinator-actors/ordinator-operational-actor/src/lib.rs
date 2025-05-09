@@ -44,8 +44,7 @@ where
     type Target =
         Actor<OperationalRequestMessage, OperationalResponseMessage, OperationalAlgorithm<Ss>>;
 
-    fn deref(&self) -> &Self::Target
-    {
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
@@ -54,8 +53,7 @@ impl<Ss> DerefMut for OperationalActor<Ss>
 where
     Ss: SystemSolutionTrait<Operational = OperationalSolution>,
 {
-    fn deref_mut(&mut self) -> &mut Self::Target
-    {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }

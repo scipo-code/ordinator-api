@@ -43,8 +43,7 @@ where
     pub fn unschedule_specific_work_order(
         &mut self,
         work_order_number: WorkOrderNumber,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         self.solution
             .turn_work_order_into_delegate_assess(work_order_number);
         Ok(())
@@ -62,8 +61,7 @@ where
     type Algorithm = Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>;
     type Options = SupervisorOptions;
 
-    fn make_atomic_pointer_swap(&mut self)
-    {
+    fn make_atomic_pointer_swap(&mut self) {
         // Performance enhancements:
         // * COW: #[derive(Clone)] struct SharedSolution<'a> { tactical: Cow<'a,
         //   TacticalSolution>, // other fields... }
@@ -85,8 +83,7 @@ where
         ObjectiveValueType<
             <<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue,
         >,
-    >
-    {
+    > {
         let assigned_woas = &self.solution.number_of_assigned_work_orders();
 
         let all_woas: HashSet<_> = self.solution.get_work_order_activities();
@@ -115,8 +112,7 @@ where
         }
     }
 
-    fn schedule(&mut self) -> Result<()>
-    {
+    fn schedule(&mut self) -> Result<()> {
         for work_order_activity in &self.solution.get_work_order_activities() {
             let number = self
                 .parameters
@@ -184,8 +180,7 @@ where
         Ok(())
     }
 
-    fn unschedule(&mut self) -> Result<()>
-    {
+    fn unschedule(&mut self) -> Result<()> {
         let mut rng = rng();
         let work_order_numbers = self.solution.get_assigned_and_unassigned_work_orders();
 
@@ -212,8 +207,7 @@ where
         // old_state).unwrap();
     }
 
-    fn incorporate_shared_state(&mut self) -> Result<bool>
-    {
+    fn incorporate_shared_state(&mut self) -> Result<bool> {
         // List current activities in the `SupervisorAgent`
         let current_activities = self
             .solution
@@ -289,8 +283,7 @@ where
         Ok(true)
     }
 
-    fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm
-    {
+    fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm {
         &mut self.0
     }
 }
@@ -298,8 +291,7 @@ where
 fn is_assigned_part_of_all(
     assigned_woas: &HashSet<(WorkOrderNumber, ActivityNumber)>,
     all_woas: &HashSet<(WorkOrderNumber, ActivityNumber)>,
-) -> bool
-{
+) -> bool {
     assigned_woas
         .iter()
         .all(|(wo, ac)| all_woas.contains(&(*wo, *ac)))
@@ -310,8 +302,7 @@ where
 {
     type Target = Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>;
 
-    fn deref(&self) -> &Self::Target
-    {
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
@@ -320,8 +311,7 @@ impl<Ss> DerefMut for SupervisorAlgorithm<Ss>
 where
     Ss: SystemSolutionTrait,
 {
-    fn deref_mut(&mut self) -> &mut Self::Target
-    {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
@@ -330,8 +320,7 @@ impl<Ss> From<Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>>
 where
     Ss: SystemSolutionTrait,
 {
-    fn from(value: Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>) -> Self
-    {
+    fn from(value: Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>) -> Self {
         SupervisorAlgorithm(value)
     }
 }

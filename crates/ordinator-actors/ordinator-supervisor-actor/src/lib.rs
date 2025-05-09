@@ -42,8 +42,7 @@ where
     type Target =
         Actor<SupervisorRequestMessage, SupervisorResponseMessage, SupervisorAlgorithm<Ss>>;
 
-    fn deref(&self) -> &Self::Target
-    {
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
@@ -52,8 +51,7 @@ impl<Ss> DerefMut for SupervisorActor<Ss>
 where
     Ss: SystemSolutionTrait<Supervisor = SupervisorSolution>,
 {
-    fn deref_mut(&mut self) -> &mut Self::Target
-    {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }

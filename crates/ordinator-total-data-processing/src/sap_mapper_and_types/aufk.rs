@@ -8,8 +8,7 @@ use crate::sap_mapper_and_types::TIMS;
 
 #[allow(non_snake_case)]
 #[allow(dead_code)]
-struct Aufk
-{
+struct Aufk {
     MANDT: CLNT,
     AUFNR: CHAR,
     AUART: CHAR,

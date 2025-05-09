@@ -22,8 +22,7 @@ use super::tactical_solution::TacticalWhereIsWorkOrder;
 type TotalExcessHours = Work;
 
 #[allow(dead_code)]
-pub trait TacticalAssertions
-{
+pub trait TacticalAssertions {
     fn asset_that_loading_matches_scheduled(&self) -> Result<()>;
 
     fn asset_that_capacity_is_not_exceeded(&self) -> Result<TotalExcessHours>;
@@ -36,8 +35,7 @@ impl<Ss> TacticalAssertions
 where
     Ss: SystemSolutionTrait,
 {
-    fn asset_that_loading_matches_scheduled(&self) -> Result<()>
-    {
+    fn asset_that_loading_matches_scheduled(&self) -> Result<()> {
         let mut aggregated_load: HashMap<Resources, HashMap<Day, Work>> = HashMap::new();
 
         for (_work_order_number, solution) in &self
@@ -88,8 +86,7 @@ where
         Ok(())
     }
 
-    fn asset_that_capacity_is_not_exceeded(&self) -> Result<TotalExcessHours>
-    {
+    fn asset_that_capacity_is_not_exceeded(&self) -> Result<TotalExcessHours> {
         let mut total_excess_hours = Work::from(0.0);
         for (resource, days) in &self.solution.tactical_loadings.resources {
             for (day, load) in &days.days {

@@ -50,8 +50,7 @@ use self::actor_registry::ActorRegistry;
 use self::database::DataBaseConnection;
 use self::logging::LogHandles;
 
-pub struct Orchestrator<Ss>
-{
+pub struct Orchestrator<Ss> {
     pub scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub system_solutions: HashMap<Asset, Arc<ArcSwap<Ss>>>,
     pub agent_registries: HashMap<Asset, ActorRegistry>,
@@ -63,10 +62,8 @@ pub struct Orchestrator<Ss>
 
 pub struct NotifyOrchestrator<Ss>(Arc<Mutex<Orchestrator<Ss>>>);
 
-impl<Ss> Clone for NotifyOrchestrator<Ss>
-{
-    fn clone(&self) -> Self
-    {
+impl<Ss> Clone for NotifyOrchestrator<Ss> {
+    fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
@@ -80,8 +77,7 @@ where
         &self,
         work_orders: Vec<WorkOrderNumber>,
         asset: &Asset,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         let locked_orchestrator = self.0.lock().unwrap();
 
         let agent_registry = locked_orchestrator
@@ -134,8 +130,7 @@ where
     pub async fn handle(
         &mut self,
         orchestrator_request: OrchestratorRequest,
-    ) -> Result<OrchestratorResponse>
-    {
+    ) -> Result<OrchestratorResponse> {
         match orchestrator_request {
             OrchestratorRequest::AgentStatusRequest => {
                 // for asset in self.agent_registries.keys() {
@@ -182,7 +177,7 @@ where
                 //         .iter()
                 //     {
                 //         addr.sender.send(ActorMessage::Actor(
-                //             
+                //
                 // OperationalRequestMessage::Status(OperationalStatusRequest::General),
                 //         ))?;
                 //     }
@@ -435,8 +430,7 @@ where
 //
 // The idea is that you have a single function and then you decide to
 // make this function correctly with the right kind of
-impl ActorRegistry
-{
+impl ActorRegistry {
     fn new(
         strategic_agent_addr: Communication<
             ActorMessage<StrategicRequestMessage>,
@@ -454,8 +448,7 @@ impl ActorRegistry
             Id,
             Communication<ActorMessage<OperationalRequestMessage>, OperationalResponseMessage>,
         >,
-    ) -> Self
-    {
+    ) -> Self {
         ActorRegistry {
             strategic_agent_sender: strategic_agent_addr,
             tactical_agent_sender: tactical_agent_addr,
@@ -471,8 +464,7 @@ impl ActorRegistry
             ActorMessage<SupervisorRequestMessage>,
             SupervisorResponseMessage,
         >,
-    )
-    {
+    ) {
         self.supervisor_agent_senders.insert(id, communication);
     }
 
@@ -483,13 +475,11 @@ impl ActorRegistry
             ActorMessage<OperationalRequestMessage>,
             OperationalResponseMessage,
         >,
-    )
-    {
+    ) {
         self.operational_agent_senders.insert(id, communication);
     }
 
-    pub fn supervisor_by_id_string(&self, id_string: String) -> Id
-    {
+    pub fn supervisor_by_id_string(&self, id_string: String) -> Id {
         self.supervisor_agent_senders
             .keys()
             .find(|id| id.0 == id_string)
@@ -509,8 +499,7 @@ where
         + Sync
         + 'static,
 {
-    pub async fn new() -> Arc<Mutex<Self>>
-    {
+    pub async fn new() -> Arc<Mutex<Self>> {
         let configurations = SystemConfigurations::read_all_configs().unwrap();
 
         let (log_handles, _logging_guard) = logging::setup_logging();

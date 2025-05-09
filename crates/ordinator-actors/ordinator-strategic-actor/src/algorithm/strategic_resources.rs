@@ -21,10 +21,8 @@ use serde::Serialize;
 #[derive(Default, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct StrategicResources(pub HashMap<Period, HashMap<OperationalId, OperationalResource>>);
 
-impl<'a> From<(&MutexGuard<'a, SchedulingEnvironment>, &Id)> for StrategicResources
-{
-    fn from(value: (&MutexGuard<'a, SchedulingEnvironment>, &Id)) -> Self
-    {
+impl<'a> From<(&MutexGuard<'a, SchedulingEnvironment>, &Id)> for StrategicResources {
+    fn from(value: (&MutexGuard<'a, SchedulingEnvironment>, &Id)) -> Self {
         let gradual_reduction = |i: usize| -> f64 {
             if i == 0 {
                 1.0
@@ -100,17 +98,14 @@ impl<'a> From<(&MutexGuard<'a, SchedulingEnvironment>, &Id)> for StrategicResour
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, Default)]
-pub struct OperationalResource
-{
+pub struct OperationalResource {
     pub id: OperationalId,
     pub total_hours: Work,
     pub skill_hours: HashMap<Resources, Work>,
 }
 
-impl OperationalResource
-{
-    pub fn new(id: &str, total_hours: Work, skills: Vec<Resources>) -> Self
-    {
+impl OperationalResource {
+    pub fn new(id: &str, total_hours: Work, skills: Vec<Resources>) -> Self {
         let skill_hours = skills.iter().map(|ski| (*ski, total_hours)).collect();
 
         Self {
@@ -121,10 +116,8 @@ impl OperationalResource
     }
 }
 
-impl StrategicResources
-{
-    pub fn assert_well_shaped_resources(&self) -> Result<()>
-    {
+impl StrategicResources {
+    pub fn assert_well_shaped_resources(&self) -> Result<()> {
         for period in &self.0 {
             for operational_resource in period.1 {
                 let total_hours = operational_resource.1.total_hours;
@@ -148,8 +141,7 @@ impl StrategicResources
         &mut self,
         period: Period,
         operational_resource: OperationalResource,
-    )
-    {
+    ) {
         let operational_key = operational_resource.id.clone();
         self.0
             .entry(period)
@@ -160,10 +152,8 @@ impl StrategicResources
     }
 }
 
-impl StrategicResources
-{
-    pub fn new(resources: HashMap<Period, HashMap<OperationalId, OperationalResource>>) -> Self
-    {
+impl StrategicResources {
+    pub fn new(resources: HashMap<Period, HashMap<OperationalId, OperationalResource>>) -> Self {
         Self(resources)
     }
 
@@ -179,8 +169,7 @@ impl StrategicResources
         load: Work,
         operational_resource: &OperationalResource,
         load_operation: LoadOperation,
-    )
-    {
+    ) {
         let period_entry = self.0.entry(period.clone());
         let operational = match period_entry {
             Entry::Occupied(entry) => entry.into_mut(),
@@ -256,8 +245,7 @@ impl StrategicResources
         };
     }
 
-    pub fn update_resource_capacities(&mut self, resources: Self) -> Result<()>
-    {
+    pub fn update_resource_capacities(&mut self, resources: Self) -> Result<()> {
         for period in &resources.0 {
             for operational in period.1 {
                 self.0
@@ -271,8 +259,7 @@ impl StrategicResources
         Ok(())
     }
 
-    pub fn initialize_resource_loadings(&mut self, resources: Self)
-    {
+    pub fn initialize_resource_loadings(&mut self, resources: Self) {
         for period in resources.0 {
             for operational in period.1 {
                 let mut operational_resource = operational.1;
@@ -298,8 +285,7 @@ impl StrategicResources
         &self,
         period: &Period,
         resource: &Resources,
-    ) -> Result<Work>
-    {
+    ) -> Result<Work> {
         Ok(self
             .0
             .get(period)

@@ -8,8 +8,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct WorkOrderDates
-{
+pub struct WorkOrderDates {
     pub earliest_allowed_start_date: NaiveDate,
     pub latest_allowed_finish_date: NaiveDate,
     // TODO [ ]
@@ -32,8 +31,7 @@ pub struct WorkOrderDates
 
 // FIX
 // Find the latest allowed finish period and replace it with a function.
-pub struct WorkOrderDatesBuilder
-{
+pub struct WorkOrderDatesBuilder {
     earliest_allowed_start_date: Option<NaiveDate>,
     latest_allowed_finish_date: Option<NaiveDate>,
     basic_start_date: Option<NaiveDate>,
@@ -44,10 +42,8 @@ pub struct WorkOrderDatesBuilder
     material_expected_date: Option<DateTime<Utc>>,
 }
 
-impl WorkOrderDates
-{
-    pub fn builder() -> WorkOrderDatesBuilder
-    {
+impl WorkOrderDates {
+    pub fn builder() -> WorkOrderDatesBuilder {
         WorkOrderDatesBuilder {
             earliest_allowed_start_date: None,
             latest_allowed_finish_date: None,
@@ -61,10 +57,8 @@ impl WorkOrderDates
     }
 }
 
-impl WorkOrderDatesBuilder
-{
-    pub fn build(self) -> WorkOrderDates
-    {
+impl WorkOrderDatesBuilder {
+    pub fn build(self) -> WorkOrderDates {
         WorkOrderDates {
             earliest_allowed_start_date: self.earliest_allowed_start_date.expect("This is a mandatory field if you are having runtime issue make the builder strong typed") ,
             latest_allowed_finish_date: self.latest_allowed_finish_date.expect("This is a mandatory field if you are having runtime issue make the builder strong typed") ,
@@ -77,50 +71,42 @@ impl WorkOrderDatesBuilder
         }
     }
 
-    pub fn earliest_allowed_start_date(mut self, earliest_allowed_start_date: NaiveDate) -> Self
-    {
+    pub fn earliest_allowed_start_date(mut self, earliest_allowed_start_date: NaiveDate) -> Self {
         self.earliest_allowed_start_date = Some(earliest_allowed_start_date);
         self
     }
 
-    pub fn latest_allowed_finish_date(mut self, latest_allowed_finish_date: NaiveDate) -> Self
-    {
+    pub fn latest_allowed_finish_date(mut self, latest_allowed_finish_date: NaiveDate) -> Self {
         self.latest_allowed_finish_date = Some(latest_allowed_finish_date);
         self
     }
 
-    pub fn basic_start_date(mut self, basic_start_date: NaiveDate) -> Self
-    {
+    pub fn basic_start_date(mut self, basic_start_date: NaiveDate) -> Self {
         self.basic_start_date = Some(basic_start_date);
         self
     }
 
-    pub fn basic_finish_date(mut self, basic_finish_date: NaiveDate) -> Self
-    {
+    pub fn basic_finish_date(mut self, basic_finish_date: NaiveDate) -> Self {
         self.basic_finish_date = Some(basic_finish_date);
         self
     }
 
-    pub fn duration(mut self, duration: Duration) -> Self
-    {
+    pub fn duration(mut self, duration: Duration) -> Self {
         self.duration = Some(duration);
         self
     }
 
-    pub fn basic_start_scheduled(mut self, basic_start_scheduled: DateTime<Utc>) -> Self
-    {
+    pub fn basic_start_scheduled(mut self, basic_start_scheduled: DateTime<Utc>) -> Self {
         self.basic_start_scheduled = Some(basic_start_scheduled);
         self
     }
 
-    pub fn basic_finish_scheduled(mut self, basic_finish_scheduled: DateTime<Utc>) -> Self
-    {
+    pub fn basic_finish_scheduled(mut self, basic_finish_scheduled: DateTime<Utc>) -> Self {
         self.basic_finish_scheduled = Some(basic_finish_scheduled);
         self
     }
 
-    pub fn material_expected_date(mut self, material_expected_date: DateTime<Utc>) -> Self
-    {
+    pub fn material_expected_date(mut self, material_expected_date: DateTime<Utc>) -> Self {
         self.material_expected_date = Some(material_expected_date);
         self
     }

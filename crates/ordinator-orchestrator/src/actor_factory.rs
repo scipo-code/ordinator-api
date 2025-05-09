@@ -49,8 +49,7 @@ where
         // This is sent across thread boundaries. It should be an `Arc<dyn ...>` correct?
         Arc<dyn OrchestratorNotifier>,
         Arc<ArcSwap<SystemConfigurations>>,
-    )>
-    {
+    )> {
         Ok((
             Arc::clone(&self.scheduling_environment),
             // This is the issue. FIX Remove this to proceed. Where should it go? I think that the
@@ -75,8 +74,7 @@ where
     // So the `Id` is actually not only an ID, it specifies everything that is
     // unique to that specific actor. I think that is the reason that the system
     // works so well here.
-    pub fn start_strategic_actor(&mut self, id: &Id) -> Result<()>
-    {
+    pub fn start_strategic_actor(&mut self, id: &Id) -> Result<()> {
         // Insert an entry on the SchedulingEnvironment
         let build_dependencies = self.extract_factory_dependencies(id.asset())?;
 
@@ -106,8 +104,7 @@ where
         Ok(())
     }
 
-    pub fn start_tactical_actor(&mut self, id: &Id) -> Result<()>
-    {
+    pub fn start_tactical_actor(&mut self, id: &Id) -> Result<()> {
         // TODO [ ] - Insert entry into the `SchedulingEnvironment`
         let build_dependencies = self.extract_factory_dependencies(id.asset())?;
 
@@ -129,8 +126,7 @@ where
     }
 
     // TODO [ ] - Move the ActorSpecification into the SchedulingEnvironment.
-    pub fn start_supervisor_actor(&mut self, id: &Id) -> Result<()>
-    {
+    pub fn start_supervisor_actor(&mut self, id: &Id) -> Result<()> {
         // TODO [ ] - Insert entry into the `SchedulingEnvironment`
         let build_dependencies = self.extract_factory_dependencies(id.asset())?;
 
@@ -155,8 +151,7 @@ where
     // the `SchedulingEnvironment` This actor is different. We have to insert a
     // different component into the system here. The best approach would
     // probably be to
-    pub fn start_operational_actor(&mut self, id: &Id) -> Result<()>
-    {
+    pub fn start_operational_actor(&mut self, id: &Id) -> Result<()> {
         // TODO [ ] - Insert entry into the `SchedulingEnvironment`
         let build_dependencies = self.extract_factory_dependencies(id.asset())?;
 

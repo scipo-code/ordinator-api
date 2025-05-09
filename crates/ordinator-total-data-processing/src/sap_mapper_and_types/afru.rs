@@ -7,8 +7,7 @@ use crate::sap_mapper_and_types::UNIT;
 
 #[allow(non_snake_case)]
 #[allow(dead_code)]
-struct Afru
-{
+struct Afru {
     MANDT: CLNT,
     RUECK: NUMC,
     RMZHL: NUMC,

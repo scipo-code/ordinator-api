@@ -27,8 +27,7 @@ use serde::Serialize;
 
 use super::tactical_resources::TacticalResources;
 
-pub struct TacticalParameters
-{
+pub struct TacticalParameters {
     pub tactical_work_orders: HashMap<WorkOrderNumber, TacticalParameter>,
     pub tactical_days: Vec<Day>,
     pub tactical_capacity: TacticalResources,
@@ -38,15 +37,13 @@ pub struct TacticalParameters
 // TODO
 // We should move all the code from the `AgentFactory` in here! That is the
 // best option that we have.
-impl Parameters for TacticalParameters
-{
+impl Parameters for TacticalParameters {
     type Key = WorkOrderNumber;
 
     fn from_source(
         id: &Id,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
-    ) -> Result<Self>
-    {
+    ) -> Result<Self> {
         let tactical_days = &scheduling_environment.time_environment.tactical_days;
 
         let tactical_options = &scheduling_environment
@@ -97,8 +94,7 @@ impl Parameters for TacticalParameters
         &mut self,
         key: Self::Key,
         scheduling_environment: MutexGuard<SchedulingEnvironment>,
-    )
-    {
+    ) {
         todo!()
     }
 }
@@ -115,8 +111,7 @@ impl Parameters for TacticalParameters
 pub fn create_tactical_parameter(
     work_order: &WorkOrder,
     work_order_configuration: &WorkOrderConfigurations,
-) -> TacticalParameter
-{
+) -> TacticalParameter {
     let operation_parameters = work_order
         .operations
         .0
@@ -133,8 +128,7 @@ pub fn create_tactical_parameter(
 }
 
 #[derive(Clone, Serialize)]
-pub struct TacticalParameter
-{
+pub struct TacticalParameter {
     pub main_work_center: Resources,
     pub tactical_operation_parameters: HashMap<ActivityNumber, OperationParameter>,
     pub weight: u64,
@@ -144,15 +138,13 @@ pub struct TacticalParameter
 }
 
 // How should the parameters be build here?
-impl TacticalParameter
-{
+impl TacticalParameter {
     pub fn new(
         work_order: &WorkOrder,
         // This should be a part of the options.
         work_order_configuration: &WorkOrderConfigurations,
         operation_parameters: HashMap<ActivityNumber, OperationParameter>,
-    ) -> Self
-    {
+    ) -> Self {
         Self {
             main_work_center: work_order.main_work_center,
             tactical_operation_parameters: operation_parameters,
@@ -164,8 +156,7 @@ impl TacticalParameter
 }
 
 #[derive(Clone, Serialize, Debug)]
-pub struct OperationParameter
-{
+pub struct OperationParameter {
     pub work_order_number: WorkOrderNumber,
     pub number: NumberOfPeople,
     pub duration: Work,
@@ -174,10 +165,8 @@ pub struct OperationParameter
     pub resource: Resources,
 }
 
-impl OperationParameter
-{
-    pub fn new(work_order_number: WorkOrderNumber, operation: &Operation) -> Self
-    {
+impl OperationParameter {
+    pub fn new(work_order_number: WorkOrderNumber, operation: &Operation) -> Self {
         Self {
             work_order_number,
             number: operation.operation_info.number,
@@ -191,10 +180,8 @@ impl OperationParameter
     }
 }
 
-impl Display for OperationParameter
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-    {
+impl Display for OperationParameter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "OperationParameters:\n

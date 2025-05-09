@@ -5,21 +5,17 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Serialize, Deserialize)]
-pub struct StrategicObjectiveValueResponse
-{
+pub struct StrategicObjectiveValueResponse {
     field_one: String,
 }
 
 #[derive(Serialize)]
-pub struct StrategicResponsePeriods
-{
+pub struct StrategicResponsePeriods {
     periods: Vec<Period>,
 }
 
-impl StrategicResponsePeriods
-{
-    pub fn new(periods: Vec<Period>) -> Self
-    {
+impl StrategicResponsePeriods {
+    pub fn new(periods: Vec<Period>) -> Self {
         Self { periods }
     }
 }
@@ -28,8 +24,7 @@ impl StrategicResponsePeriods
 // TODO [ ] FIX [ ]
 // Make a custom type for the StrategicResourcesApi
 #[derive(Serialize)]
-pub enum StrategicResponseResources
-{
+pub enum StrategicResponseResources {
     UpdatedResources(u32),
     LoadingAndCapacities(StrategicResourcesApi),
     Percentage(StrategicResourcesApi, StrategicResourcesApi),
@@ -39,16 +34,13 @@ pub enum StrategicResponseResources
 struct StrategicResourcesApi {}
 
 #[derive(Serialize, Deserialize)]
-pub struct StrategicResponseScheduling
-{
+pub struct StrategicResponseScheduling {
     work_orders: usize,
     periods: Period,
 }
 
-impl StrategicResponseScheduling
-{
-    pub fn new(number_of_work_orders_changed: usize, period: Period) -> Self
-    {
+impl StrategicResponseScheduling {
+    pub fn new(number_of_work_orders_changed: usize, period: Period) -> Self {
         Self {
             work_orders: number_of_work_orders_changed,
             periods: period,
@@ -61,8 +53,7 @@ use crate::StrategicActor;
 use crate::algorithm::strategic_solution::StrategicSolution;
 
 #[derive(Serialize)]
-pub struct StrategicResponseStatus
-{
+pub struct StrategicResponseStatus {
     pub asset: Asset,
     pub strategic_objective_value: usize,
     pub number_of_strategic_work_orders: usize,
@@ -73,8 +64,7 @@ impl<Ss> From<&mut StrategicActor<Ss>> for StrategicResponseStatus
 where
     Ss: SystemSolutionTrait<Strategic = StrategicSolution>,
 {
-    fn from(value: &mut StrategicActor<Ss>) -> Self
-    {
+    fn from(value: &mut StrategicActor<Ss>) -> Self {
         let strategic_parameters = &value.algorithm.parameters;
 
         let number_of_strategic_work_orders =

@@ -7,26 +7,22 @@ use serde::Serialize;
 use serde::de;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct Availability
-{
+pub struct Availability {
     #[serde(deserialize_with = "chrono_datetime_deserialize")]
     pub start_date: chrono::DateTime<Utc>,
     #[serde(deserialize_with = "chrono_datetime_deserialize")]
     pub finish_date: chrono::DateTime<Utc>,
 }
 
-impl Availability
-{
-    pub fn new(start_date: chrono::DateTime<Utc>, end_date: chrono::DateTime<Utc>) -> Self
-    {
+impl Availability {
+    pub fn new(start_date: chrono::DateTime<Utc>, end_date: chrono::DateTime<Utc>) -> Self {
         Self {
             start_date,
             finish_date: end_date,
         }
     }
 
-    pub fn duration(&self) -> TimeDelta
-    {
+    pub fn duration(&self) -> TimeDelta {
         self.finish_date - self.start_date
     }
 }
@@ -42,16 +38,13 @@ where
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TomlAvailability
-{
+pub struct TomlAvailability {
     start_date: toml::value::Datetime,
     end_date: toml::value::Datetime,
 }
 
-impl From<TomlAvailability> for Availability
-{
-    fn from(value: TomlAvailability) -> Self
-    {
+impl From<TomlAvailability> for Availability {
+    fn from(value: TomlAvailability) -> Self {
         let start_date_time: DateTime<Utc> =
             DateTime::parse_from_rfc3339(&value.start_date.to_string())
                 .unwrap()

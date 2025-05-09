@@ -14,15 +14,13 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct TacticalRequest
-{
+pub struct TacticalRequest {
     pub asset: Asset,
     pub tactical_request_message: TacticalRequestMessage,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum TacticalRequestMessage
-{
+pub enum TacticalRequestMessage {
     Status(TacticalStatusMessage),
     Scheduling(TacticalSchedulingRequest),
     Resources(TacticalResourceRequest),
@@ -31,16 +29,13 @@ pub enum TacticalRequestMessage
 }
 
 #[derive(Serialize)]
-pub struct TacticalResponse
-{
+pub struct TacticalResponse {
     asset: Asset,
     tactical_response_message: TacticalResponseMessage,
 }
 
-impl TacticalResponse
-{
-    pub fn new(asset: Asset, tactical_response_message: TacticalResponseMessage) -> Self
-    {
+impl TacticalResponse {
+    pub fn new(asset: Asset, tactical_response_message: TacticalResponseMessage) -> Self {
         Self {
             asset,
             tactical_response_message,
@@ -49,8 +44,7 @@ impl TacticalResponse
 }
 
 #[derive(Debug, Serialize)]
-pub enum TacticalResponseMessage
-{
+pub enum TacticalResponseMessage {
     FreeStringResponse(String),
     Status(TacticalResponseStatus),
     Scheduling(TacticalResponseScheduling),

@@ -67,8 +67,7 @@ where
         &mut self,
         work_order_number: &WorkOrderNumber,
         locked_in_period: &Period,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         self.solution
             .strategic_scheduled_work_orders
             .insert(*work_order_number, Some(locked_in_period.clone()));
@@ -119,24 +118,24 @@ where
     //         }
     // }
 
-    fn strategic_capacity_by_resource(&self, resource: &Resources, period: &Period)
-    -> Result<Work>
-    {
+    fn strategic_capacity_by_resource(
+        &self,
+        resource: &Resources,
+        period: &Period,
+    ) -> Result<Work> {
         self.parameters
             .strategic_capacity
             .aggregated_capacity_by_period_and_resource(period, resource)
     }
 
-    fn strategic_loading_by_resource(&self, resource: &Resources, period: &Period) -> Result<Work>
-    {
+    fn strategic_loading_by_resource(&self, resource: &Resources, period: &Period) -> Result<Work> {
         self.solution
             .strategic_loadings
             .aggregated_capacity_by_period_and_resource(period, resource)
     }
 
     #[allow(dead_code)]
-    pub fn calculate_utilization(&self) -> Result<Vec<(i32, u64)>>
-    {
+    pub fn calculate_utilization(&self) -> Result<Vec<(i32, u64)>> {
         let mut utilization_by_period = Vec::new();
 
         for period in &self.parameters.strategic_periods {
@@ -159,8 +158,7 @@ where
     fn determine_urgency(
         &mut self,
         strategic_objective_value: &mut StrategicObjectiveValue,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         for (work_order_number, scheduled_period) in &self.solution.strategic_scheduled_work_orders
         {
             let optimized_period = match scheduled_period {
@@ -197,8 +195,7 @@ where
         Ok(())
     }
 
-    fn determine_clustering(&mut self, strategic_objective_value: &mut StrategicObjectiveValue)
-    {
+    fn determine_clustering(&mut self, strategic_objective_value: &mut StrategicObjectiveValue) {
         for period in &self.parameters.strategic_periods {
             // Precompute scheduled work orders for the current period
             let scheduled_work_orders_by_period: Vec<_> = self
@@ -257,8 +254,7 @@ where
     fn determine_resource_penalty(
         &mut self,
         strategic_objective_value: &mut StrategicObjectiveValue,
-    )
-    {
+    ) {
         for (resource, periods) in &self.parameters.strategic_capacity.0 {
             let capacity: f64 = periods.iter().map(|ele| ele.1.total_hours.to_f64()).sum();
             let loading: f64 = self
@@ -279,16 +275,13 @@ where
 }
 
 #[derive(Debug)]
-pub enum ForcedWorkOrder
-{
+pub enum ForcedWorkOrder {
     Locked(WorkOrderNumber),
     FromTactical((WorkOrderNumber, Period)),
 }
 
-impl ForcedWorkOrder
-{
-    pub fn work_order_number(&self) -> &WorkOrderNumber
-    {
+impl ForcedWorkOrder {
+    pub fn work_order_number(&self) -> &WorkOrderNumber {
         match self {
             ForcedWorkOrder::Locked(work_order_number) => work_order_number,
             ForcedWorkOrder::FromTactical((work_order_number, _)) => work_order_number,
@@ -297,8 +290,7 @@ impl ForcedWorkOrder
 }
 
 #[derive(Debug)]
-pub enum ScheduleWorkOrder
-{
+pub enum ScheduleWorkOrder {
     Normal,
     Forced,
     Unschedule,
@@ -311,8 +303,7 @@ pub enum ScheduleWorkOrder
 // That is the main point for these types of things. The interface is
 // what defines the "Metavariables" from the paper and this is what
 // should we.
-pub trait StrategicUtils
-{
+pub trait StrategicUtils {
     fn schedule_strategic_work_order(
         &mut self,
         work_order_number: WorkOrderNumber,
@@ -360,8 +351,7 @@ where
         &mut self,
         work_order_number: WorkOrderNumber,
         period: &Period,
-    ) -> Result<Option<WorkOrderNumber>>
-    {
+    ) -> Result<Option<WorkOrderNumber>> {
         let strategic_parameter = self
             .parameters
             .strategic_work_order_parameters
@@ -429,8 +419,7 @@ where
     fn schedule_forced_work_order(
         &mut self,
         force_schedule_work_order: &ForcedWorkOrder,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         if self.is_scheduled(force_schedule_work_order.work_order_number()) {
             self.unschedule_specific_work_order(*force_schedule_work_order.work_order_number())
                 .with_context(|| {
@@ -483,8 +472,7 @@ where
         Ok(())
     }
 
-    fn is_scheduled(&self, work_order_number: &WorkOrderNumber) -> bool
-    {
+    fn is_scheduled(&self, work_order_number: &WorkOrderNumber) -> bool {
         self.solution
             .strategic_scheduled_work_orders
             .get(work_order_number)
@@ -498,8 +486,7 @@ where
         &mut self,
         strategic_resources: StrategicResources,
         load_operation: LoadOperation,
-    )
-    {
+    ) {
         // How should the change be handled in this function? The most important thing
         // here is to make the function work correctly on the new resource type.
         // This will be difficult as we cannot make the FIX This loading
@@ -565,8 +552,7 @@ where
         work_load: HashMap<Resources, Work>,
         period: &Period,
         schedule: ScheduleWorkOrder,
-    ) -> Result<Option<StrategicResources>>
-    {
+    ) -> Result<Option<StrategicResources>> {
         let mut rng = rand::rng();
         let mut best_total_excess = Work::from(-999999999.0);
         let mut best_work_order_resource_loadings = StrategicResources::default();
@@ -785,8 +771,7 @@ fn assert_work_load_equal_to_strategic_resource(
     strategic_resource_loadings: &StrategicResources,
     work_load: &HashMap<Resources, Work>,
     load_operation: LoadOperation,
-) -> Result<()>
-{
+) -> Result<()> {
     let aggregate_strategic_resource = strategic_resource_loadings
             .0
             .get(period)
@@ -823,8 +808,7 @@ fn determine_unschedule_work_resource_loadings(
     period: &Period,
     loading_resources: &[OperationalResource],
     work_load_permutation: &mut [(Resources, Work)],
-) -> Option<StrategicResources>
-{
+) -> Option<StrategicResources> {
     let mut strategic_resources = StrategicResources::default();
     let mut loading_resources_cloned = loading_resources.to_vec();
     for (resources, work) in work_load_permutation.iter_mut() {
@@ -904,8 +888,7 @@ fn determine_forced_work_order_resource_loadings(
     best_work_order_resource_loadings: &mut StrategicResources,
     technician_permutation: &mut [OperationalResource],
     work_load_permutation: &mut [(Resources, Work)],
-) -> Option<StrategicResources>
-{
+) -> Option<StrategicResources> {
     let mut work_order_resource_loadings = StrategicResources::default();
     for (resources, work) in work_load_permutation.iter_mut() {
         let mut qualified_technicians = technician_permutation
@@ -957,8 +940,7 @@ fn determine_normal_work_order_resource_loadings(
     period: &Period,
     technician_permutation: &mut [OperationalResource],
     work_load_permutation: &mut Vec<(Resources, Work)>,
-) -> Option<StrategicResources>
-{
+) -> Option<StrategicResources> {
     let mut work_order_resource_loadings = StrategicResources::default();
     for operation_load in work_load_permutation {
         for operational_resource in technician_permutation.iter_mut() {
@@ -1012,8 +994,7 @@ fn determine_normal_work_order_resource_loadings(
 fn determine_difference_resources(
     capacity_resources: &HashMap<String, OperationalResource>,
     loading_resources: &HashMap<String, OperationalResource>,
-) -> HashMap<String, OperationalResource>
-{
+) -> HashMap<String, OperationalResource> {
     let mut difference_resources = HashMap::new();
     for capacity in capacity_resources {
         let loading = loading_resources
@@ -1032,8 +1013,7 @@ fn determine_difference_resources(
     difference_resources
 }
 
-pub fn calculate_period_difference(scheduled_period: &Period, latest_period: &Period) -> u64
-{
+pub fn calculate_period_difference(scheduled_period: &Period, latest_period: &Period) -> u64 {
     let scheduled_period_date = scheduled_period.end_date().to_owned();
     let latest_date = latest_period.end_date();
     let duration = scheduled_period_date.signed_duration_since(latest_date);
@@ -1058,8 +1038,7 @@ where
     type Target =
         Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
 
-    fn deref(&self) -> &Self::Target
-    {
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
@@ -1067,8 +1046,7 @@ impl<Ss> DerefMut for StrategicAlgorithm<Ss>
 where
     Ss: SystemSolutionTrait,
 {
-    fn deref_mut(&mut self) -> &mut Self::Target
-    {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
@@ -1085,8 +1063,7 @@ where
         Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
     type Options = StrategicOptions;
 
-    fn incorporate_shared_state(&mut self) -> Result<bool>
-    {
+    fn incorporate_shared_state(&mut self) -> Result<bool> {
         let mut work_order_numbers: Vec<ForcedWorkOrder> = vec![];
         let mut state_change = false;
 
@@ -1146,8 +1123,7 @@ where
         Ok(state_change)
     }
 
-    fn make_atomic_pointer_swap(&mut self)
-    {
+    fn make_atomic_pointer_swap(&mut self) {
         // Performance enhancements:
         // * COW: #[derive(Clone)] struct SharedSolution<'a> { tactical: Cow<'a,
         //   TacticalSolution>, // other fields... }
@@ -1173,8 +1149,7 @@ where
         ObjectiveValueType<
             <<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue,
         >,
-    >
-    {
+    > {
         let mut strategic_objective_value =
             StrategicObjectiveValue::new(&self.parameters.strategic_options);
 
@@ -1203,8 +1178,7 @@ where
     // one. All work order should go into the priority queue and then the
     // locked_in_period constaint in simply handled in there.
     #[instrument(level = "trace", skip_all)]
-    fn schedule(&mut self) -> Result<()>
-    {
+    fn schedule(&mut self) -> Result<()> {
         // WARNING
         // I am not sure that this is the correct place of putting this.
         // What should we change here? I think that the best thing would be to make this
@@ -1241,8 +1215,7 @@ where
         Ok(())
     }
 
-    fn unschedule(&mut self) -> Result<()>
-    {
+    fn unschedule(&mut self) -> Result<()> {
         let mut rng = rand::rng();
         let strategic_work_orders = &self.solution.strategic_scheduled_work_orders;
 
@@ -1288,8 +1261,7 @@ where
         Ok(())
     }
 
-    fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm
-    {
+    fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm {
         &mut self.0
     }
 }
@@ -1301,8 +1273,7 @@ where
     pub fn update_resources_state(
         &mut self,
         strategic_resources_request: StrategicRequestResource,
-    ) -> Result<StrategicResponseResources>
-    {
+    ) -> Result<StrategicResponseResources> {
         // You should have done this! But you will need to
         // work a lot on this! You have to be comfortable with all
         // this. You will experience a lot of pain from doing this
@@ -1316,7 +1287,7 @@ where
         //         let loading = &self.solution.strategic_loadings;
 
         //         let strategic_response_resources =
-        //             
+        //
         // StrategicResponseResources::LoadingAndCapacities(loading.clone());
         //         Ok(strategic_response_resources)
         //     }
@@ -1327,7 +1298,7 @@ where
         //         let capacities = &self.parameters.strategic_capacity;
 
         //         let strategic_response_resources =
-        //             
+        //
         // StrategicResponseResources::LoadingAndCapacities(capacities.clone());
         //         Ok(strategic_response_resources)
         //     }
@@ -1353,8 +1324,7 @@ where
     pub fn update_scheduling_state(
         &mut self,
         strategic_scheduling_request: StrategicRequestScheduling,
-    ) -> Result<StrategicResponseScheduling>
-    {
+    ) -> Result<StrategicResponseScheduling> {
         match strategic_scheduling_request {
             StrategicRequestScheduling::Schedule(schedule_work_order) => {
                 let period = self
@@ -1478,8 +1448,7 @@ where
         }
     }
 
-    fn unschedule_specific_work_order(&mut self, work_order_number: WorkOrderNumber) -> Result<()>
-    {
+    fn unschedule_specific_work_order(&mut self, work_order_number: WorkOrderNumber) -> Result<()> {
         let unschedule_from_period = self
             .solution
             .strategic_scheduled_work_orders
@@ -1513,8 +1482,7 @@ where
 
     // FIX
     // Determine what to do with this
-    pub fn populate_priority_queue(&mut self)
-    {
+    pub fn populate_priority_queue(&mut self) {
         for work_order_number in self.solution.strategic_scheduled_work_orders.clone().keys() {
             let strategic_parameter = self
                 .parameters
@@ -1556,15 +1524,13 @@ where
             PriorityQueue<WorkOrderNumber, u64>,
             Ss,
         >,
-    ) -> Self
-    {
+    ) -> Self {
         StrategicAlgorithm(value)
     }
 }
 
 #[cfg(test)]
-mod tests
-{
+mod tests {
     use std::collections::HashMap;
     use std::str::FromStr;
 
@@ -1574,16 +1540,14 @@ mod tests
 
     use super::*;
 
-    impl WorkOrderParameter
-    {
+    impl WorkOrderParameter {
         pub fn new(
             locked_in_period: Option<Period>,
             excluded_periods: HashSet<Period>,
             latest_period: Period,
             weight: u64,
             work_load: HashMap<Resources, Work>,
-        ) -> Self
-        {
+        ) -> Self {
             Self {
                 locked_in_period,
                 excluded_periods,
@@ -1598,8 +1562,7 @@ mod tests
     fn test_determine_best_permutation() {}
 
     #[test]
-    fn test_update_load_1()
-    {
+    fn test_update_load_1() {
         let period = Period::from_str("2025-W23-24").unwrap();
         let resource = Resources::MtnMech;
         let load = Work::from(30.0);
@@ -1657,8 +1620,7 @@ mod tests
     }
 
     #[test]
-    fn test_update_load_2()
-    {
+    fn test_update_load_2() {
         let period = Period::from_str("2025-W23-24").unwrap();
         let resource = Resources::VenMech;
         let load = Work::from(30.0);
@@ -1725,8 +1687,7 @@ mod tests
         );
     }
     #[test]
-    fn test_update_load_3()
-    {
+    fn test_update_load_3() {
         let period = Period::from_str("2025-W23-24").unwrap();
         let resource = Resources::VenMech;
         let load = Work::from(30.0);
@@ -1794,8 +1755,7 @@ mod tests
     }
 
     #[test]
-    fn test_determine_normal_work_order_resource_loadings_1()
-    {
+    fn test_determine_normal_work_order_resource_loadings_1() {
         let period = Period::from_str("2025-W23-24").unwrap();
 
         let mut technician_permutation = vec![
@@ -1827,8 +1787,7 @@ mod tests
     }
 
     #[test]
-    fn test_determine_normal_work_order_resource_loadings_2()
-    {
+    fn test_determine_normal_work_order_resource_loadings_2() {
         let period = Period::from_str("2025-W23-24").unwrap();
 
         let mut technician_permutation = vec![
@@ -1877,8 +1836,7 @@ mod tests
     }
 
     #[test]
-    fn test_determine_forced_work_order_resource_loadings_1()
-    {
+    fn test_determine_forced_work_order_resource_loadings_1() {
         let period = Period::from_str("2025-W23-24").unwrap();
 
         let mut technician_permutation = vec![
@@ -1932,8 +1890,7 @@ mod tests
     }
 
     #[test]
-    fn test_determine_forced_work_order_resource_loadings_2()
-    {
+    fn test_determine_forced_work_order_resource_loadings_2() {
         let period = Period::from_str("2025-W23-24").unwrap();
 
         let mut technician_permutation = vec![
@@ -1986,8 +1943,7 @@ mod tests
     }
 
     #[test]
-    fn test_determine_forced_work_order_resource_loadings_3()
-    {
+    fn test_determine_forced_work_order_resource_loadings_3() {
         let period = Period::from_str("2025-W23-24").unwrap();
 
         let mut technician_permutation = vec![
@@ -2043,8 +1999,7 @@ mod tests
     }
 
     #[test]
-    fn test_determine_unschedule_work_order_loadings_1()
-    {
+    fn test_determine_unschedule_work_order_loadings_1() {
         let period = Period::from_str("2025-W23-24").unwrap();
 
         let mut work_load_permutation = vec![
@@ -2092,8 +2047,7 @@ mod tests
     }
 
     #[test]
-    fn test_determine_unschedule_work_order_loadings_2() -> Result<()>
-    {
+    fn test_determine_unschedule_work_order_loadings_2() -> Result<()> {
         let period = Period::from_str("2026-W33-34").unwrap();
 
         let work_load_permutation = [
@@ -2159,8 +2113,7 @@ mod tests
     // Should this test go into the integration testing instead? I
     // think that is a really good idea. Also you should never s
     #[test]
-    fn test_unschedule_random_work_orders() -> Result<()>
-    {
+    fn test_unschedule_random_work_orders() -> Result<()> {
         let periods: Vec<Period> = vec![
             Period::from_str("2023-W47-48").unwrap(),
             Period::from_str("2023-W49-50").unwrap(),
@@ -2363,8 +2316,7 @@ mod tests
     }
 
     #[test]
-    fn test_calculate_period_difference_1()
-    {
+    fn test_calculate_period_difference_1() {
         let scheduled_period = Period::from_str("2023-W47-48");
         let latest_period = Period::from_str("2023-W49-50");
 
@@ -2374,8 +2326,7 @@ mod tests
         assert_eq!(difference, 0);
     }
     #[test]
-    fn test_calculate_period_difference_2()
-    {
+    fn test_calculate_period_difference_2() {
         let period_1 = Period::from_str("2023-W47-48");
         let period_2 = Period::from_str("2023-W45-46");
 
@@ -2385,8 +2336,7 @@ mod tests
     }
 
     #[test]
-    fn test_choose_multiple()
-    {
+    fn test_choose_multiple() {
         for _ in 0..19 {
             let seed: [u8; 32] = [
                 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
@@ -2403,8 +2353,7 @@ mod tests
     }
 
     #[test]
-    fn test_unschedule_work_order_none_in_scheduled_period() -> Result<()>
-    {
+    fn test_unschedule_work_order_none_in_scheduled_period() -> Result<()> {
         let work_order_number = WorkOrderNumber(2100000001);
         let periods = [Period::from_str("2026-W41-42").unwrap()];
         let mut strategic_resources = StrategicResources::default();
@@ -2502,8 +2451,7 @@ mod tests
     }
 
     #[test]
-    fn test_period_clone_equality()
-    {
+    fn test_period_clone_equality() {
         let period_1 = Period::from_str("2023-W47-48").unwrap();
         let period_2 = Period::from_str("2023-W47-48").unwrap();
 

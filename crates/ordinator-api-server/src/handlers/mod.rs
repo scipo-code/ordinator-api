@@ -9,7 +9,6 @@ pub async fn scheduler_excel_export(// WARN link to application data
     // orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
     // WARN url query parameters
     // asset: web::Path<Asset>,
-) -> Result<HttpResponse, actix_web::Error>
-{
+) -> Result<HttpResponse, actix_web::Error> {
     Ok(HttpResponse::Ok().into())
 }

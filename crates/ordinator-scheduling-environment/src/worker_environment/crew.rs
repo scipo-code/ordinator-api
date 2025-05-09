@@ -14,8 +14,7 @@ use crate::worker_environment::worker::Worker;
 // by Asset? Ideally you would not, but I think that here it is
 // a really good idea.
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
-pub struct AgentEnvironment
-{
+pub struct AgentEnvironment {
     // TODO [ ]
     // Rename these they have a horrible name, they have nothing to do with
     pub operational: HashMap<Id, OperationalConfigurationAll>,
@@ -25,21 +24,18 @@ pub struct AgentEnvironment
 // WARN
 // You should never be able to clone this.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct OperationalConfigurationAll
-{
+pub struct OperationalConfigurationAll {
     pub id: Id,
     pub hours_per_day: f64,
     pub operational_configuration: OperationalConfiguration,
 }
 
-impl OperationalConfigurationAll
-{
+impl OperationalConfigurationAll {
     pub fn new(
         id: Id,
         hours_per_day: f64,
         operational_configuration: OperationalConfiguration,
-    ) -> Self
-    {
+    ) -> Self {
         Self {
             id,
             hours_per_day,
@@ -56,23 +52,20 @@ impl OperationalConfigurationAll
 // Ask God what to do here?
 // We should have all the required data in the scheduling environment.
 #[derive(Deserialize, Debug, Serialize, Clone)]
-pub struct OperationalConfiguration
-{
+pub struct OperationalConfiguration {
     pub availability: Availability,
     pub break_interval: TimeInterval,
     pub off_shift_interval: TimeInterval,
     pub toolbox_interval: TimeInterval,
 }
 
-impl OperationalConfiguration
-{
+impl OperationalConfiguration {
     pub fn new(
         availability: Availability,
         break_interval: TimeInterval,
         off_shift_interval: TimeInterval,
         toolbox_interval: TimeInterval,
-    ) -> Self
-    {
+    ) -> Self {
         Self {
             availability,
             break_interval,
@@ -84,8 +77,7 @@ impl OperationalConfiguration
 
 // What should the fields be here?
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
-pub struct SupervisorConfigurationAll
-{
+pub struct SupervisorConfigurationAll {
     pub id: Id,
     // FIX
     // This information is found in two different places. That is an
@@ -93,10 +85,8 @@ pub struct SupervisorConfigurationAll
     number_of_supervisor_periods: u64,
 }
 
-impl SupervisorConfigurationAll
-{
-    pub fn new(id: Id, number_of_supervisor_periods: u64) -> Self
-    {
+impl SupervisorConfigurationAll {
+    pub fn new(id: Id, number_of_supervisor_periods: u64) -> Self {
         Self {
             id,
             number_of_supervisor_periods,
@@ -108,16 +98,14 @@ impl SupervisorConfigurationAll
 // I do not think that this is relevant any more. It should be deleted and
 // not to be seen again.
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Crew
-{
+pub struct Crew {
     workers: HashMap<WorkerNumber, Worker>,
 }
 
 #[derive(Hash, Eq, PartialEq, Clone, Debug)]
 pub struct WorkerNumber(pub u32);
 
-impl Serialize for WorkerNumber
-{
+impl Serialize for WorkerNumber {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -126,8 +114,7 @@ impl Serialize for WorkerNumber
     }
 }
 
-impl<'de> Deserialize<'de> for WorkerNumber
-{
+impl<'de> Deserialize<'de> for WorkerNumber {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -138,15 +125,12 @@ impl<'de> Deserialize<'de> for WorkerNumber
     }
 }
 
-impl Crew
-{
-    pub fn new(workers: Option<HashMap<WorkerNumber, Worker>>) -> Option<Self>
-    {
+impl Crew {
+    pub fn new(workers: Option<HashMap<WorkerNumber, Worker>>) -> Option<Self> {
         workers.map(|workers| Crew { workers })
     }
 
-    pub fn get_workers(&self) -> &HashMap<WorkerNumber, Worker>
-    {
+    pub fn get_workers(&self) -> &HashMap<WorkerNumber, Worker> {
         &self.workers
     }
 }

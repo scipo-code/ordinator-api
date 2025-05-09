@@ -62,8 +62,7 @@ where
     P: Parameters,
     Ss: SystemSolutionTrait,
 {
-    pub fn builder() -> AlgorithmBuilder<S, P, I, Ss>
-    {
+    pub fn builder() -> AlgorithmBuilder<S, P, I, Ss> {
         AlgorithmBuilder {
             id: None,
             solution_intermediate: I::default(),
@@ -83,26 +82,22 @@ where
 {
     type SolutionType = S;
 
-    fn clone_algorithm_solution(&self) -> S
-    {
+    fn clone_algorithm_solution(&self) -> S {
         self.solution.clone()
     }
 
-    fn load_shared_solution(&mut self)
-    {
+    fn load_shared_solution(&mut self) {
         self.loaded_shared_solution = self.arc_swap_shared_solution.load();
     }
 
-    fn swap_solution(&mut self, solution: S)
-    {
+    fn swap_solution(&mut self, solution: S) {
         self.solution = solution;
     }
 
     fn update_objective_value(
         &mut self,
         objective_value: <Self::SolutionType as Solution>::ObjectiveValue,
-    )
-    {
+    ) {
         self.solution.update_objective_value(objective_value);
     }
 }
@@ -139,8 +134,7 @@ where
         Ok(algorithm_inner.into())
     }
 
-    pub fn id(mut self, id: Id) -> Self
-    {
+    pub fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
         self
     }
@@ -155,8 +149,7 @@ where
     pub fn parameters_and_solution(
         mut self,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
-    ) -> Result<Self>
-    {
+    ) -> Result<Self> {
         let parameters = P::from_source(
             self.id.as_ref().expect("Call `id()` build method first"),
             scheduling_environment,
@@ -189,8 +182,7 @@ where
 // TODO [x]
 // Where should this be moved to? I am not really sure! I think that the best
 // place is the `Algorithm` no I think it is the `ordinator-actors` crate
-pub enum LoadOperation
-{
+pub enum LoadOperation {
     Add,
     Sub,
 }

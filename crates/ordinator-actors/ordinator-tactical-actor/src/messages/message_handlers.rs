@@ -29,8 +29,7 @@ where
     fn handle_request_message(
         &mut self,
         tactical_request: TacticalRequestMessage,
-    ) -> Result<Self::Res>
-    {
+    ) -> Result<Self::Res> {
         match tactical_request {
             TacticalRequestMessage::Status(_tactical_status_message) => {
                 // let status_message = self.status().unwrap();
@@ -64,8 +63,7 @@ where
         }
     }
 
-    fn handle_state_link(&mut self, state_link: StateLink) -> Result<Self::Res>
-    {
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<Self::Res> {
         match state_link {
             StateLink::WorkOrders(agent_specific) => match agent_specific {
                 ActorSpecific::Strategic(changed_work_orders) => {

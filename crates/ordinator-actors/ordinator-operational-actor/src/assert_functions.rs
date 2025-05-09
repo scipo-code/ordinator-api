@@ -14,8 +14,7 @@ use crate::algorithm::operational_events::OperationalEvents;
 use crate::algorithm::operational_solution::OperationalSolution;
 
 #[allow(dead_code)]
-pub trait OperationalAssertions
-{
+pub trait OperationalAssertions {
     fn assert_operational_solutions_does_not_have_delegate_unassign(&self) -> Result<()>;
     fn assert_marginal_fitness_is_correct(&self) -> Result<()>;
 }
@@ -28,8 +27,7 @@ where
     // This also have to be moved out of the code
     // TODO [ ]
     // Turn this into the interface!
-    fn assert_operational_solutions_does_not_have_delegate_unassign(&self) -> Result<()>
-    {
+    fn assert_operational_solutions_does_not_have_delegate_unassign(&self) -> Result<()> {
         for delegate in self
             .loaded_shared_solution
             .supervisor()
@@ -42,8 +40,7 @@ where
         Ok(())
     }
 
-    fn assert_marginal_fitness_is_correct(&self) -> Result<()>
-    {
+    fn assert_marginal_fitness_is_correct(&self) -> Result<()> {
         for assignments in self.solution.scheduled_work_order_activities.windows(3) {
             let finish_of_prev = assignments[0].1.finish_time();
             let start_of_next = assignments[2].1.start_time();

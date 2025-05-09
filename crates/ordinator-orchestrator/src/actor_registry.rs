@@ -15,8 +15,7 @@ use ordinator_supervisor_actor::messages::responses::SupervisorResponseStatus;
 use ordinator_tactical_actor::messages::TacticalRequestMessage;
 use ordinator_tactical_actor::messages::TacticalResponseMessage;
 
-pub struct ActorRegistry
-{
+pub struct ActorRegistry {
     pub strategic_agent_sender:
         Communication<ActorMessage<StrategicRequestMessage>, StrategicResponseMessage>,
     pub tactical_agent_sender:
@@ -31,8 +30,7 @@ pub struct ActorRegistry
     >,
 }
 
-impl ActorRegistry
-{
+impl ActorRegistry {
     pub fn get_operational_addr(
         &self,
         operational_id: &String,

@@ -43,8 +43,7 @@ use ordinator_orchestrator::Orchestrator;
 use routes::api::v1::api_scope;
 
 #[actix_web::main]
-async fn main() -> Result<()>
-{
+async fn main() -> Result<()> {
     dotenvy::dotenv()
         .context("You need to provide an .env file. Look at the .env.example for guidance")?;
 
