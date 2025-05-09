@@ -1,13 +1,16 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use arc_swap::Guard;
 use ordinator_configuration::SystemConfigurations;
-use ordinator_scheduling_environment::{IntoSchedulingEnvironment, SchedulingEnvironment};
+use ordinator_scheduling_environment::IntoSchedulingEnvironment;
+use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_total_data_processing::sources::baptiste_csv_reader::TotalSap;
 
 pub fn initialize_scheduling_environment(
     system_configurations: Guard<Arc<SystemConfigurations>>,
-) -> Arc<Mutex<SchedulingEnvironment>> {
+) -> Arc<Mutex<SchedulingEnvironment>>
+{
     let total_sap = TotalSap::default();
 
     // FIX [ ]

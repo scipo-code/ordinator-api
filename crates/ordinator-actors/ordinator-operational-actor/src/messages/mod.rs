@@ -10,7 +10,8 @@ use self::requests::*;
 use self::responses::*;
 
 #[derive(Deserialize, Serialize, Debug)]
-pub enum OperationalRequest {
+pub enum OperationalRequest
+{
     GetIds(Asset),
     AllOperationalStatus(Asset),
     ForOperationalAgent((Asset, String, OperationalRequestMessage)),
@@ -39,7 +40,8 @@ where
 
 // You need type safety here I do not see another way around it
 //
-pub enum ResponseMessage<S, Sc, R, T> {
+pub enum ResponseMessage<S, Sc, R, T>
+{
     Status(S),
     Scheduling(Sc),
     Resource(R),
@@ -70,7 +72,8 @@ pub enum ResponseMessage<S, Sc, R, T> {
 // approach forward here. The question is should we make something that will
 // allow us to make something even better.
 #[derive(Clone, Deserialize, Serialize, Debug)]
-pub enum OperationalRequestMessage {
+pub enum OperationalRequestMessage
+{
     Status(OperationalStatusRequest),
     Scheduling(OperationalSchedulingRequest),
     Resource(OperationalResourceRequest),
@@ -78,7 +81,8 @@ pub enum OperationalRequestMessage {
 }
 
 #[derive(Serialize)]
-pub enum OperationalResponseMessage {
+pub enum OperationalResponseMessage
+{
     Status(OperationalResponseStatus),
     Scheduling(OperationalSchedulingResponse),
     Resource(OperationalResourceResponse),
@@ -86,12 +90,14 @@ pub enum OperationalResponseMessage {
 }
 
 #[derive(Serialize)]
-pub struct OperationalStatus {
+pub struct OperationalStatus
+{
     objective: f64,
 }
 
 #[derive(Serialize)]
-pub enum OperationalResponse {
+pub enum OperationalResponse
+{
     AllOperationalStatus(Vec<OperationalResponseMessage>),
     OperationalIds(Vec<Id>),
     OperationalState(OperationalResponseMessage),
@@ -128,7 +134,8 @@ pub enum OperationalResponse {
 // }
 
 #[cfg(test)]
-mod tests {
+mod tests
+{
 
     use chrono::DateTime;
     use chrono::NaiveTime;
@@ -136,7 +143,8 @@ mod tests {
     use ordinator_scheduling_environment::time_environment::TimeInterval;
 
     #[test]
-    fn test_time_interval_contains_1() {
+    fn test_time_interval_contains_1()
+    {
         let start_time = NaiveTime::from_hms_opt(19, 00, 00).unwrap();
         let end_time = NaiveTime::from_hms_opt(1, 0, 0).unwrap();
 
@@ -149,7 +157,8 @@ mod tests {
         assert!(time_interval.contains(&current_time));
     }
     #[test]
-    fn test_time_interval_contains_2() {
+    fn test_time_interval_contains_2()
+    {
         let start_time = NaiveTime::from_hms_opt(19, 00, 00).unwrap();
         let end_time = NaiveTime::from_hms_opt(22, 0, 0).unwrap();
 
@@ -163,7 +172,8 @@ mod tests {
     }
 
     #[test]
-    fn test_time_interval_contains_3() {
+    fn test_time_interval_contains_3()
+    {
         let start_time = NaiveTime::from_hms_opt(19, 00, 00).unwrap();
         let end_time = NaiveTime::from_hms_opt(1, 0, 0).unwrap();
 
@@ -176,7 +186,8 @@ mod tests {
         assert!(!time_interval.contains(&current_time));
     }
     #[test]
-    fn test_time_interval_contains_4() {
+    fn test_time_interval_contains_4()
+    {
         let start_time = NaiveTime::from_hms_opt(19, 00, 00).unwrap();
         let end_time = NaiveTime::from_hms_opt(22, 0, 0).unwrap();
 
@@ -190,7 +201,8 @@ mod tests {
     }
 
     #[test]
-    fn test_time_interval_duration() {
+    fn test_time_interval_duration()
+    {
         let start = NaiveTime::from_hms_opt(19, 00, 00).unwrap();
         let end = NaiveTime::from_hms_opt(7, 00, 00).unwrap();
         let time_interval = TimeInterval { start, end };

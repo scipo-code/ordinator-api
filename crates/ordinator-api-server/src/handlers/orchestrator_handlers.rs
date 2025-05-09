@@ -35,18 +35,21 @@ where
 
 pub async fn scheduler_asset_names<'a>(
     orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
-) -> Result<HttpResponse, actix_web::Error> {
+) -> Result<HttpResponse, actix_web::Error>
+{
     let asset_names = Asset::convert_to_asset_names();
 
     let http_response = HttpResponse::Ok().json(asset_names);
 
     Ok(http_response)
 }
-impl Orchestrator {
+impl Orchestrator
+{
     pub async fn handle_orchestrator_request(
         &mut self,
         orchestrator_request: OrchestratorRequest,
-    ) -> Result<HttpResponse, actix_web::Error> {
+    ) -> Result<HttpResponse, actix_web::Error>
+    {
         event!(Level::INFO, orchestrator_request = ?orchestrator_request);
         self.orchestrator_requests(orchestrator_request).await
     }
@@ -54,7 +57,8 @@ impl Orchestrator {
     async fn orchestrator_requests(
         &mut self,
         orchestrator_request: OrchestratorRequest,
-    ) -> Result<HttpResponse, actix_web::Error> {
+    ) -> Result<HttpResponse, actix_web::Error>
+    {
         let response = match orchestrator_request {
             OrchestratorRequest::Export(asset) => {
                 let (buffer, http_header) = self.export_xlsx_solution(asset)?;
@@ -79,7 +83,8 @@ impl Orchestrator {
     pub fn export_xlsx_solution(
         &mut self,
         asset: Asset,
-    ) -> Result<(Vec<u8>, String), actix_web::Error> {
+    ) -> Result<(Vec<u8>, String), actix_web::Error>
+    {
         let shared_solution = self
             .arc_swap_shared_solutions
             .get(&asset)
@@ -150,7 +155,8 @@ impl Orchestrator {
     pub async fn handle_tactical_request(
         &self,
         tactical_request: TacticalRequest,
-    ) -> Result<HttpResponse, actix_web::Error> {
+    ) -> Result<HttpResponse, actix_web::Error>
+    {
         let agent_registry_for_asset = match self.agent_registries.get(&tactical_request.asset) {
             Some(agent_registry) => &agent_registry.tactical_agent_sender,
             None => {
@@ -181,7 +187,8 @@ impl Orchestrator {
     pub async fn handle_supervisor_request(
         &self,
         supervisor_request: SupervisorRequest,
-    ) -> Result<HttpResponse, actix_web::Error> {
+    ) -> Result<HttpResponse, actix_web::Error>
+    {
         event!(Level::INFO, supervisor_request = ?supervisor_request);
         let supervisor_agent_addrs = match self.agent_registries.get(&supervisor_request.asset) {
             Some(agent_registry) => &agent_registry.supervisor_agent_senders,
@@ -220,7 +227,8 @@ impl Orchestrator {
     pub async fn handle_operational_request(
         &self,
         operational_request: OperationalRequest,
-    ) -> Result<HttpResponse, actix_web::Error> {
+    ) -> Result<HttpResponse, actix_web::Error>
+    {
         let operational_response = match operational_request {
             OperationalRequest::GetIds(asset) => {
                 let mut operational_ids_by_asset: Vec<Id> = Vec::new();

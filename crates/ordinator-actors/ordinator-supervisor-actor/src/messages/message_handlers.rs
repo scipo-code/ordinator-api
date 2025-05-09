@@ -26,7 +26,8 @@ where
     type Req = SupervisorRequestMessage;
     type Res = SupervisorResponseMessage;
 
-    fn handle_state_link(&mut self, state_link: StateLink) -> Result<Self::Res> {
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<Self::Res>
+    {
         match state_link {
             StateLink::WorkOrders(agent_specific) => match agent_specific {
                 ActorSpecific::Strategic(changed_work_orders) => {
@@ -100,7 +101,8 @@ where
     fn handle_request_message(
         &mut self,
         supervisor_request_message: SupervisorRequestMessage,
-    ) -> Result<SupervisorResponseMessage> {
+    ) -> Result<SupervisorResponseMessage>
+    {
         event!(Level::WARN, "start_of_supervisor_handler");
 
         match supervisor_request_message {

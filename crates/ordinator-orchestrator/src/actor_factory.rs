@@ -1,3 +1,6 @@
+use std::sync::Arc;
+use std::sync::Mutex;
+
 use anyhow::Context;
 use anyhow::Result;
 use arc_swap::ArcSwap;
@@ -17,8 +20,6 @@ use ordinator_supervisor_actor::SupervisorApi;
 use ordinator_supervisor_actor::algorithm::supervisor_solution::SupervisorSolution;
 use ordinator_tactical_actor::TacticalApi;
 use ordinator_tactical_actor::algorithm::tactical_solution::TacticalSolution;
-use std::sync::Arc;
-use std::sync::Mutex;
 
 use crate::NotifyOrchestrator;
 use crate::Orchestrator;
@@ -42,12 +43,14 @@ where
     ) -> Result<(
         Arc<Mutex<SchedulingEnvironment>>,
         // This is fundamentally different from the rest of the parameters of the function.
-        // I believe that the best approach is to remove it. That decision has much better semantics
+        // I believe that the best approach is to remove it. That decision has much better
+        // semantics
         Arc<ArcSwap<Ss>>,
         // This is sent across thread boundaries. It should be an `Arc<dyn ...>` correct?
         Arc<dyn OrchestratorNotifier>,
         Arc<ArcSwap<SystemConfigurations>>,
-    )> {
+    )>
+    {
         Ok((
             Arc::clone(&self.scheduling_environment),
             // This is the issue. FIX Remove this to proceed. Where should it go? I think that the
@@ -69,18 +72,21 @@ where
         ))
     }
 
-    // So the `Id` is actually not only an ID, it specifies everything that is unique to that specific
-    // actor. I think that is the reason that the system works so well here.
-    pub fn start_strategic_actor(&mut self, id: &Id) -> Result<()> {
+    // So the `Id` is actually not only an ID, it specifies everything that is
+    // unique to that specific actor. I think that is the reason that the system
+    // works so well here.
+    pub fn start_strategic_actor(&mut self, id: &Id) -> Result<()>
+    {
         // Insert an entry on the SchedulingEnvironment
         let build_dependencies = self.extract_factory_dependencies(id.asset())?;
 
-        // Where should the code for the id come from? You need to make sure that you understand the
-        // process, correctly.
+        // Where should the code for the id come from? You need to make sure that you
+        // understand the process, correctly.
         //
-        // Where should the id come from? I think that the best place to retrieve them from is the
-        // data itself. Usually this comes from either the database or from the API endpoint. What
-        // does that mean for the remaining part of the system. You should add something from the
+        // Where should the id come from? I think that the best place to retrieve them
+        // from is the data itself. Usually this comes from either the database
+        // or from the API endpoint. What does that mean for the remaining part
+        // of the system. You should add something from the
         //
         //
         // TODO [ ] - Determine what to do about the `ID` here.
@@ -99,7 +105,9 @@ where
             .strategic_agent_sender = communication;
         Ok(())
     }
-    pub fn start_tactical_actor(&mut self, id: &Id) -> Result<()> {
+
+    pub fn start_tactical_actor(&mut self, id: &Id) -> Result<()>
+    {
         // TODO [ ] - Insert entry into the `SchedulingEnvironment`
         let build_dependencies = self.extract_factory_dependencies(id.asset())?;
 
@@ -121,7 +129,8 @@ where
     }
 
     // TODO [ ] - Move the ActorSpecification into the SchedulingEnvironment.
-    pub fn start_supervisor_actor(&mut self, id: &Id) -> Result<()> {
+    pub fn start_supervisor_actor(&mut self, id: &Id) -> Result<()>
+    {
         // TODO [ ] - Insert entry into the `SchedulingEnvironment`
         let build_dependencies = self.extract_factory_dependencies(id.asset())?;
 
@@ -142,10 +151,12 @@ where
         Ok(())
     }
 
-    // You should only ever build the actor based on the state that is present in the `SchedulingEnvironment`
-    // This actor is different. We have to insert a different component into the system here.
-    // The best approach would probably be to
-    pub fn start_operational_actor(&mut self, id: &Id) -> Result<()> {
+    // You should only ever build the actor based on the state that is present in
+    // the `SchedulingEnvironment` This actor is different. We have to insert a
+    // different component into the system here. The best approach would
+    // probably be to
+    pub fn start_operational_actor(&mut self, id: &Id) -> Result<()>
+    {
         // TODO [ ] - Insert entry into the `SchedulingEnvironment`
         let build_dependencies = self.extract_factory_dependencies(id.asset())?;
 

@@ -2,7 +2,8 @@ use super::CHAR;
 use super::CLNT;
 
 #[allow(dead_code, non_snake_case)]
-struct Iflot {
+struct Iflot
+{
     MANDT: CLNT,
     TPLNR: CHAR,
     TPLKZ: CHAR,

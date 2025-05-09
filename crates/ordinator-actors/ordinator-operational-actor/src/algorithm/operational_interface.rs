@@ -4,7 +4,8 @@ use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 
 use super::operational_solution::OperationalSolution;
 
-impl OperationalInterface for OperationalSolution {
+impl OperationalInterface for OperationalSolution
+{
     // Here you find the fruits of your labor. You should strive to make
     // this kind of code work.
     //
@@ -23,7 +24,8 @@ impl OperationalInterface for OperationalSolution {
     fn marginal_fitness_for_operational_actor<'a>(
         &'a self,
         work_order_activity: &WorkOrderActivity,
-    ) -> Option<&'a MarginalFitness> {
+    ) -> Option<&'a MarginalFitness>
+    {
         self.scheduled_work_order_activities
             .iter()
             .find(|woa_ass| woa_ass.0 == *work_order_activity)

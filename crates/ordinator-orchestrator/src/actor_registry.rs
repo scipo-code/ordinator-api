@@ -1,18 +1,22 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use ordinator_operational_actor::messages::{
-    OperationalRequestMessage, OperationalResponseMessage, responses::OperationalResponseStatus,
-};
-use ordinator_orchestrator_actor_traits::{ActorMessage, Communication};
+use ordinator_operational_actor::messages::OperationalRequestMessage;
+use ordinator_operational_actor::messages::OperationalResponseMessage;
+use ordinator_operational_actor::messages::responses::OperationalResponseStatus;
+use ordinator_orchestrator_actor_traits::ActorMessage;
+use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
-use ordinator_strategic_actor::messages::{StrategicRequestMessage, StrategicResponseMessage};
-use ordinator_supervisor_actor::messages::{
-    SupervisorRequestMessage, SupervisorResponseMessage, responses::SupervisorResponseStatus,
-};
-use ordinator_tactical_actor::messages::{TacticalRequestMessage, TacticalResponseMessage};
+use ordinator_strategic_actor::messages::StrategicRequestMessage;
+use ordinator_strategic_actor::messages::StrategicResponseMessage;
+use ordinator_supervisor_actor::messages::SupervisorRequestMessage;
+use ordinator_supervisor_actor::messages::SupervisorResponseMessage;
+use ordinator_supervisor_actor::messages::responses::SupervisorResponseStatus;
+use ordinator_tactical_actor::messages::TacticalRequestMessage;
+use ordinator_tactical_actor::messages::TacticalResponseMessage;
 
-pub struct ActorRegistry {
+pub struct ActorRegistry
+{
     pub strategic_agent_sender:
         Communication<ActorMessage<StrategicRequestMessage>, StrategicResponseMessage>,
     pub tactical_agent_sender:
@@ -27,7 +31,8 @@ pub struct ActorRegistry {
     >,
 }
 
-impl ActorRegistry {
+impl ActorRegistry
+{
     pub fn get_operational_addr(
         &self,
         operational_id: &String,
@@ -57,15 +62,15 @@ impl ActorRegistry {
 
     //     let strategic = self.strategic_agent_sender.receiver.recv()??;
 
-    //     let strategic_status = if let StrategicResponseMessage::Status(strategic) = strategic {
-    //         strategic
+    //     let strategic_status = if let StrategicResponseMessage::Status(strategic)
+    // = strategic {         strategic
     //     } else {
     //         panic!()
     //     };
 
     //     let tactical = self.tactical_agent_sender.receiver.recv()??;
-    //     let tactical_status = if let TacticalResponseMessage::Status(tactical) = tactical {
-    //         tactical
+    //     let tactical_status = if let TacticalResponseMessage::Status(tactical) =
+    // tactical {         tactical
     //     } else {
     //         panic!()
     //     };
@@ -81,8 +86,8 @@ impl ActorRegistry {
     //     for receiver in self.operational_agent_senders.iter() {
     //         let operational = receiver.1.receiver.recv()??;
 
-    //         if let OperationalResponseMessage::Status(operational) = operational {
-    //             operational_statai.push(operational);
+    //         if let OperationalResponseMessage::Status(operational) = operational
+    // {             operational_statai.push(operational);
     //         } else {
     //             panic!()
     //         }

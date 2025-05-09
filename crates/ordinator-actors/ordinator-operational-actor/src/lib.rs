@@ -2,17 +2,16 @@ pub mod algorithm;
 mod assert_functions;
 pub mod messages;
 
-use algorithm::OperationalNonProductive;
-use anyhow::Result;
-use ordinator_orchestrator_actor_traits::ActorFactory;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::sync::Arc;
 use std::sync::Mutex;
 
 use algorithm::OperationalAlgorithm;
+use algorithm::OperationalNonProductive;
 use algorithm::operational_parameter::OperationalParameters;
 use algorithm::operational_solution::OperationalSolution;
+use anyhow::Result;
 use arc_swap::ArcSwap;
 use messages::OperationalRequestMessage;
 use messages::OperationalResponseMessage;
@@ -20,6 +19,7 @@ use ordinator_actor_core::Actor;
 use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_configuration::SystemConfigurations;
+use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::ActorMessage;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
@@ -44,7 +44,8 @@ where
     type Target =
         Actor<OperationalRequestMessage, OperationalResponseMessage, OperationalAlgorithm<Ss>>;
 
-    fn deref(&self) -> &Self::Target {
+    fn deref(&self) -> &Self::Target
+    {
         &self.0
     }
 }
@@ -53,7 +54,8 @@ impl<Ss> DerefMut for OperationalActor<Ss>
 where
     Ss: SystemSolutionTrait<Operational = OperationalSolution>,
 {
-    fn deref_mut(&mut self) -> &mut Self::Target {
+    fn deref_mut(&mut self) -> &mut Self::Target
+    {
         &mut self.0
     }
 }

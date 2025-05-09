@@ -10,8 +10,10 @@ use super::supervisor_solution::SupervisorSolution;
 
 /// I think that you have to either make this in the `supervisor` agent or
 /// in the
-impl SupervisorInterface for SupervisorSolution {
-    fn delegates_for_agent(&self, operational_agent: &Id) -> HashMap<WorkOrderActivity, Delegate> {
+impl SupervisorInterface for SupervisorSolution
+{
+    fn delegates_for_agent(&self, operational_agent: &Id) -> HashMap<WorkOrderActivity, Delegate>
+    {
         self.operational_state_machine
             .iter()
             .filter(|(id_woa, _)| &id_woa.0 == operational_agent)
@@ -19,7 +21,8 @@ impl SupervisorInterface for SupervisorSolution {
             .collect()
     }
 
-    fn delegated_tasks(&self, operational_agent: &Id) -> HashSet<WorkOrderActivity> {
+    fn delegated_tasks(&self, operational_agent: &Id) -> HashSet<WorkOrderActivity>
+    {
         self.operational_state_machine
             .iter()
             .filter(|(id_woa, del)| {
@@ -30,7 +33,8 @@ impl SupervisorInterface for SupervisorSolution {
     }
 
     // This function has to be moved.
-    fn count_delegate_types(&self, operational_agent: &Id) -> (u64, u64, u64) {
+    fn count_delegate_types(&self, operational_agent: &Id) -> (u64, u64, u64)
+    {
         let mut count_assign = 0;
         let mut count_assess = 0;
         let mut count_unassign = 0;

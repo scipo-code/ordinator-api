@@ -15,10 +15,12 @@
 //     40: Operational
 // zz:
 //     issue number
-// TODO #30 #00 #01 [ ] Move time environment configuraion into SchedulingEnvironment
+// TODO #30 #00 #01 [ ] Move time environment configuraion into
+// SchedulingEnvironment
 //
-// TODO #10 #00 #02 [ ] Move work order parameters from `./configuration` to `./temp_scheduling_environmen_database`
-// TODO #10 #00 #03 [ ] Move the `./configuration/work_order_parameters.json` here.
+// TODO #10 #00 #02 [ ] Move work order parameters from `./configuration` to
+// `./temp_scheduling_environmen_database` TODO #10 #00 #03 [ ] Move the
+// `./configuration/work_order_parameters.json` here.
 //
 // TODO #60 #10 #01 [ ] Move the `Options` into [`Algorithm`] or [`Actor`]
 // TODO #60 #20 #01 [ ] Move the `Options` into [`Algorithm`] or [`Actor`]
@@ -41,14 +43,15 @@ use ordinator_orchestrator::Orchestrator;
 use routes::api::v1::api_scope;
 
 #[actix_web::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<()>
+{
     dotenvy::dotenv()
         .context("You need to provide an .env file. Look at the .env.example for guidance")?;
 
     let orchestrator = Orchestrator::new().await;
 
-    // WARN: Manually add `Asset`s here. Everything added here should be done from the
-    // API in actual production. So this is only a temporary solution.
+    // WARN: Manually add `Asset`s here. Everything added here should be done from
+    // the API in actual production. So this is only a temporary solution.
     orchestrator.lock().unwrap().asset_factory(Asset::Df)?;
 
     // WARN

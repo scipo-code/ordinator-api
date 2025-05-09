@@ -8,12 +8,14 @@ use status_codes::UserStatusCodes;
 use status_codes::UserStatusCodesBuilder;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct WorkOrderAnalytic {
+pub struct WorkOrderAnalytic
+{
     pub system_status_codes: SystemStatusCodes,
     pub user_status_codes: UserStatusCodes,
 }
 
-pub struct WorkOrderAnalyticBuilder {
+pub struct WorkOrderAnalyticBuilder
+{
     // TODO [x]
     // You should make a builder for these if needed
     system_status_codes: Option<SystemStatusCodes>,
@@ -22,8 +24,10 @@ pub struct WorkOrderAnalyticBuilder {
     user_status_codes: Option<UserStatusCodes>,
 }
 
-impl WorkOrderAnalyticBuilder {
-    pub fn build(self) -> WorkOrderAnalytic {
+impl WorkOrderAnalyticBuilder
+{
+    pub fn build(self) -> WorkOrderAnalytic
+    {
         WorkOrderAnalytic {
             // FIX [ ]
             // This is wrong, you should design it so that the code
@@ -68,9 +72,11 @@ impl WorkOrderAnalyticBuilder {
 // You are doing something very shitty at the moment. Do you actually need any
 // builders anymore when you are simply reading data from the... Yes you are
 // doing it to ease testing that is the purpose.
-impl WorkOrderAnalytic {
+impl WorkOrderAnalytic
+{
     //
-    pub fn builder() -> WorkOrderAnalyticBuilder {
+    pub fn builder() -> WorkOrderAnalyticBuilder
+    {
         // QUESTION
         // How should this be designed?
         let system_status_codes = Some(SystemStatusCodes::builder().build());
@@ -83,7 +89,8 @@ impl WorkOrderAnalytic {
     }
 
     // TODO [ ]
-    pub fn fixed(&self) -> bool {
+    pub fn fixed(&self) -> bool
+    {
         todo!(
             "This could be a very important function to implement. Status codes should ideally express this together with material Statuses."
         )

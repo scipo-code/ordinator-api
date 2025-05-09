@@ -7,7 +7,8 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
-pub enum SystemCondition {
+pub enum SystemCondition
+{
     A,
     B,
     C,
@@ -22,10 +23,12 @@ pub enum SystemCondition {
     Unknown,
 }
 
-impl FromStr for SystemCondition {
+impl FromStr for SystemCondition
+{
     type Err = ParseError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self, Self::Err>
+    {
         let system_condition = match s {
             "A" => SystemCondition::A,
             "B" => SystemCondition::B,
@@ -46,8 +49,10 @@ impl FromStr for SystemCondition {
     }
 }
 
-impl Display for SystemCondition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for SystemCondition
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
         let string = match self {
             SystemCondition::A => "A".to_string(),
             SystemCondition::B => "B".to_string(),
@@ -64,13 +69,15 @@ impl Display for SystemCondition {
         write!(f, "{}", string)
     }
 }
-impl IntoExcelData for SystemCondition {
+impl IntoExcelData for SystemCondition
+{
     fn write(
         self,
         worksheet: &mut rust_xlsxwriter::Worksheet,
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
-    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
+    {
         let value = self.to_string();
         worksheet.write_string(row, col, value)
     }
@@ -81,7 +88,8 @@ impl IntoExcelData for SystemCondition {
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
         format: &rust_xlsxwriter::Format,
-    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
+    {
         let value = self.to_string();
         worksheet.write_string_with_format(row, col, value, format)
     }

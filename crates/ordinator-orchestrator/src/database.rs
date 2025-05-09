@@ -18,14 +18,17 @@ pub struct DataBaseConnection {}
 // connection. I do not think that is a good approach
 // here. You should be able to interact with the data
 // continuously for this to work.
-impl DataBaseConnection {
-    pub fn new() -> Self {
+impl DataBaseConnection
+{
+    pub fn new() -> Self
+    {
         Self {}
     }
 
     pub fn scheduling_environment(
         system_configuration: Arc<ArcSwap<SystemConfigurations>>,
-    ) -> Arc<Mutex<SchedulingEnvironment>> {
+    ) -> Arc<Mutex<SchedulingEnvironment>>
+    {
         let database_path = &system_configuration.load().database_config;
         if database_path.exists() {
             initialize_from_database(database_path)
@@ -36,7 +39,8 @@ impl DataBaseConnection {
     }
 }
 
-fn initialize_from_database(path: &Path) -> Arc<Mutex<SchedulingEnvironment>> {
+fn initialize_from_database(path: &Path) -> Arc<Mutex<SchedulingEnvironment>>
+{
     let mut file = File::open(path).unwrap();
     let mut data = String::new();
 
@@ -49,7 +53,8 @@ fn initialize_from_database(path: &Path) -> Arc<Mutex<SchedulingEnvironment>> {
 
 fn initialize_from_source_data_and_initialize_database(
     system_configurations: arc_swap::Guard<Arc<SystemConfigurations>>,
-) -> Result<Arc<Mutex<SchedulingEnvironment>>, std::io::Error> {
+) -> Result<Arc<Mutex<SchedulingEnvironment>>, std::io::Error>
+{
     let file_path = system_configurations.database_config.clone();
     let scheduling_environment =
         model_initializers::initialize_scheduling_environment(system_configurations);

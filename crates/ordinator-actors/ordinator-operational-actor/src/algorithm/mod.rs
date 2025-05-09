@@ -57,7 +57,8 @@ where
 #[derive(Clone, Default)]
 pub struct OperationalNonProductive(pub Vec<Assignment>);
 
-pub trait OperationalTraitUtils {
+pub trait OperationalTraitUtils
+{
     fn determine_next_event_non_productive(
         &mut self,
         current_time: &mut DateTime<Utc>,
@@ -87,7 +88,8 @@ where
         &mut self,
         current_time: &mut DateTime<Utc>,
         next_operation: Option<OperationalAssignment>,
-    ) -> (DateTime<Utc>, OperationalEvents) {
+    ) -> (DateTime<Utc>, OperationalEvents)
+    {
         if self.0.parameters.break_interval.contains(current_time) {
             let time_interval = self.determine_time_interval_of_function(
                 next_operation,
@@ -150,7 +152,8 @@ where
         next_operation: Option<OperationalAssignment>,
         current_time: &DateTime<Utc>,
         interval: TimeInterval,
-    ) -> TimeInterval {
+    ) -> TimeInterval
+    {
         // What is this code actually trying to do? I think
         let time_interval: TimeInterval = match next_operation {
             Some(operational_solution) => {
@@ -177,7 +180,8 @@ where
         &mut self,
         work_order_activity_previous: (WorkOrderNumber, ActivityNumber),
         time_delta: TimeDelta,
-    ) {
+    )
+    {
         let time_delta_usize = time_delta.num_seconds() as u64;
 
         self.0
@@ -191,13 +195,15 @@ where
     }
 }
 
-pub enum ContainOrNextOrNone {
+pub enum ContainOrNextOrNone
+{
     Contain(OperationalAssignment),
     Next(OperationalAssignment),
     None,
 }
 
-pub enum Unavailability {
+pub enum Unavailability
+{
     Beginning,
     End,
 }
@@ -215,7 +221,8 @@ where
     type Target =
         Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>;
 
-    fn deref(&self) -> &Self::Target {
+    fn deref(&self) -> &Self::Target
+    {
         &self.0
     }
 }
@@ -224,7 +231,8 @@ impl<Ss> DerefMut for OperationalAlgorithm<Ss>
 where
     Ss: SystemSolutionTrait,
 {
-    fn deref_mut(&mut self) -> &mut Self::Target {
+    fn deref_mut(&mut self) -> &mut Self::Target
+    {
         &mut self.0
     }
 }
@@ -239,7 +247,8 @@ where
         Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>;
     type Options = OperationalOptions;
 
-    fn incorporate_shared_state(&mut self) -> Result<bool> {
+    fn incorporate_shared_state(&mut self) -> Result<bool>
+    {
         let operational_shared_solution = self
             .loaded_shared_solution
             .supervisor()
@@ -261,7 +270,8 @@ where
         Ok(true)
     }
 
-    fn make_atomic_pointer_swap(&mut self) {
+    fn make_atomic_pointer_swap(&mut self)
+    {
         // Performance enhancements:
         // * COW: #[derive(Clone)] struct SharedSolution<'a> { tactical: Cow<'a,
         //   TacticalSolution>, // other fields... }
@@ -284,7 +294,8 @@ where
         ObjectiveValueType<
             <<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue,
         >,
-    > {
+    >
+    {
         let operational_events: Vec<Assignment> = self
             .solution
             .scheduled_work_order_activities
@@ -416,7 +427,8 @@ where
         }
     }
 
-    fn schedule(&mut self) -> Result<()> {
+    fn schedule(&mut self) -> Result<()>
+    {
         self.solution_intermediate.0.clear();
         // This method should now go into the trait for the supervisor. And its name
         // will provide for the
@@ -504,7 +516,8 @@ where
         Ok(())
     }
 
-    fn unschedule(&mut self) -> Result<()> {
+    fn unschedule(&mut self) -> Result<()>
+    {
         let mut rng = rand::rng();
         let operational_solutions_len = self.solution.scheduled_work_order_activities.len();
 
@@ -532,11 +545,13 @@ where
         Ok(())
     }
 
-    fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm {
+    fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm
+    {
         &mut self.0
     }
 
-    fn update_based_on_shared_solution(&mut self) -> Result<()> {
+    fn update_based_on_shared_solution(&mut self) -> Result<()>
+    {
         self.algorithm_util_methods().load_shared_solution();
 
         let state_change = self.incorporate_shared_state()?;
@@ -559,7 +574,8 @@ where
         work_order_activity: WorkOrderActivity,
         operational_parameter: &OperationalParameter,
         start_time: DateTime<Utc>,
-    ) -> Vec<Assignment> {
+    ) -> Vec<Assignment>
+    {
         assert_ne!(operational_parameter.work, Work::from(0.0));
         assert!(!operational_parameter.operation_time_delta.is_zero());
         let mut assigned_work: Vec<Assignment> = vec![];
@@ -610,7 +626,8 @@ where
     fn unschedule_single_work_order_activity(
         &mut self,
         work_order_and_activity_number: WorkOrderActivity,
-    ) -> Result<()> {
+    ) -> Result<()>
+    {
         ensure!(
             self.solution
                 .scheduled_work_order_activities
@@ -634,7 +651,8 @@ where
         Ok(())
     }
 
-    fn determine_next_event(&self, current_time: &DateTime<Utc>) -> (TimeDelta, OperationalEvents) {
+    fn determine_next_event(&self, current_time: &DateTime<Utc>) -> (TimeDelta, OperationalEvents)
+    {
         let break_diff = (
             self.parameters.break_interval.start - current_time.time(),
             OperationalEvents::Break(self.parameters.break_interval.clone()),
@@ -662,7 +680,8 @@ where
         &self,
         work_order_activity: &WorkOrderActivity,
         operational_parameter: &OperationalParameter,
-    ) -> Result<DateTime<Utc>> {
+    ) -> Result<DateTime<Utc>>
+    {
         // Actually as the guard is always read only does this even make any sense?
         //
         // The issue here is that the components simply are really coupled and what you
@@ -798,7 +817,8 @@ where
     fn update_current_time_based_on_event(
         &self,
         mut current_time: DateTime<Utc>,
-    ) -> Option<DateTime<Utc>> {
+    ) -> Option<DateTime<Utc>>
+    {
         if self.parameters.off_shift_interval.contains(&current_time) {
             let off_shift_interval_end = self.parameters.off_shift_interval.end;
             if off_shift_interval_end < current_time.time() {
@@ -835,7 +855,8 @@ where
     }
 }
 
-fn no_overlap(events: &Vec<Assignment>) -> bool {
+fn no_overlap(events: &Vec<Assignment>) -> bool
+{
     for event_1 in events {
         for event_2 in events {
             if event_1 == event_2 {
@@ -854,7 +875,8 @@ fn no_overlap(events: &Vec<Assignment>) -> bool {
     true
 }
 
-fn no_overlap_by_ref(events: Vec<&Assignment>) -> bool {
+fn no_overlap_by_ref(events: Vec<&Assignment>) -> bool
+{
     for event_1 in &events {
         for event_2 in &events {
             if event_1 == event_2 {
@@ -873,7 +895,8 @@ fn no_overlap_by_ref(events: Vec<&Assignment>) -> bool {
     true
 }
 
-fn is_assignments_in_bounds(events: &Vec<Assignment>, availability: &Availability) -> bool {
+fn is_assignments_in_bounds(events: &Vec<Assignment>, availability: &Availability) -> bool
+{
     for event in events {
         if event.start < availability.start_date && !event.operational_events.unavail() {
             dbg!(event, availability);
@@ -887,7 +910,8 @@ fn is_assignments_in_bounds(events: &Vec<Assignment>, availability: &Availabilit
     true
 }
 
-fn equality_between_time_interval_and_assignments(all_events: &Vec<Assignment>) {
+fn equality_between_time_interval_and_assignments(all_events: &Vec<Assignment>)
+{
     for assignment in all_events {
         assert_eq!(
             assignment.start.time(),
@@ -910,7 +934,8 @@ where
 {
     fn from(
         value: Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>,
-    ) -> Self {
+    ) -> Self
+    {
         OperationalAlgorithm(value)
     }
 }

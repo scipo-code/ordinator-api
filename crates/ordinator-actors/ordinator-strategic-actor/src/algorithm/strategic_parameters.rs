@@ -21,7 +21,8 @@ use serde::Serialize;
 use super::StrategicResources;
 
 #[derive(Debug)]
-pub struct StrategicParameters {
+pub struct StrategicParameters
+{
     pub strategic_work_order_parameters: HashMap<WorkOrderNumber, WorkOrderParameter>,
     pub strategic_capacity: StrategicResources,
     pub strategic_clustering: StrategicClustering,
@@ -44,14 +45,16 @@ pub struct StrategicParameters {
 // QUESTION
 // Should you make a builder for the `Parameters`?
 // I believe that this is a good idea, but I am not really sure
-impl Parameters for StrategicParameters {
+impl Parameters for StrategicParameters
+{
     type Key = WorkOrderNumber;
 
     // That change in the asset, was not complete without downsides.
     fn from_source(
         id: &Id,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
-    ) -> Result<Self> {
+    ) -> Result<Self>
+    {
         let asset = id.2.first().expect("This should never happen");
 
         let work_orders = &scheduling_environment.work_orders;
@@ -75,8 +78,9 @@ impl Parameters for StrategicParameters {
             .map(|(won, wo)| {
                 (
                     *won,
-                    // TODO #000001 [ ] Move time environment configuraion into SchedulingEnvironment
-                    // TODO #000002 [ ] Move work order parameters from `./configuration` to `./temp_scheduling_environmen_database`
+                    // TODO #000001 [ ] Move time environment configuraion into
+                    // SchedulingEnvironment TODO #000002 [ ] Move work order
+                    // parameters from `./configuration` to `./temp_scheduling_environmen_database`
                     WorkOrderParameter::builder()
                         .with_scheduling_environment(wo, strategic_periods, strategic_options)
                         .build(),
@@ -113,7 +117,8 @@ impl Parameters for StrategicParameters {
         &mut self,
         key: Self::Key,
         scheduling_environment: MutexGuard<SchedulingEnvironment>,
-    ) {
+    )
+    {
         todo!()
     }
 }
@@ -121,7 +126,8 @@ impl Parameters for StrategicParameters {
 pub type ClusteringValue = u64;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct StrategicClustering {
+pub struct StrategicClustering
+{
     pub inner: HashMap<(WorkOrderNumber, WorkOrderNumber), ClusteringValue>,
 }
 
@@ -130,7 +136,8 @@ pub struct StrategicClustering {
 /// type as there are so many different ways that a `StrategicParameter`
 /// can be handled.
 #[derive(Debug, PartialEq, Clone, Default, Serialize)]
-pub struct WorkOrderParameter {
+pub struct WorkOrderParameter
+{
     pub locked_in_period: Option<Period>,
     pub excluded_periods: HashSet<Period>,
     pub latest_period: Period,
@@ -159,11 +166,11 @@ pub struct WorkOrderParameterBuilder(WorkOrderParameter);
 //     FMCMainWorkCenter,
 // }
 
-impl StrategicParameters {
-    pub fn get_locked_in_period<'a>(
-        &'a self,
-        work_order_number: &'a WorkOrderNumber,
-    ) -> &'a Period {
+impl StrategicParameters
+{
+    pub fn get_locked_in_period<'a>(&'a self, work_order_number: &'a WorkOrderNumber)
+    -> &'a Period
+    {
         let option_period = match self.strategic_work_order_parameters.get(work_order_number) {
             Some(strategic_parameter) => &strategic_parameter.locked_in_period,
             None => panic!(
@@ -184,7 +191,8 @@ impl StrategicParameters {
         &mut self,
         work_order_number: WorkOrderNumber,
         period: Period,
-    ) -> Result<()> {
+    ) -> Result<()>
+    {
         let optimized_work_order = match self
             .strategic_work_order_parameters
             .get_mut(&work_order_number)
@@ -200,7 +208,8 @@ impl StrategicParameters {
     }
 }
 
-impl WorkOrderParameterBuilder {
+impl WorkOrderParameterBuilder
+{
     // WARN
     // This builder is crucial for the whole business logic of things. I am not sure
     // what the best approach is for continuing this.
@@ -217,7 +226,8 @@ impl WorkOrderParameterBuilder {
         work_order: &WorkOrder,
         periods: &[Period],
         strategic_options: &StrategicOptions,
-    ) -> Self {
+    ) -> Self
+    {
         // FIX [ ]
         // This is horribly written and very error prone
         // Use a TypeState pattern if you are in doubt.
@@ -339,7 +349,8 @@ impl WorkOrderParameterBuilder {
         self
     }
 
-    pub fn build(self) -> WorkOrderParameter {
+    pub fn build(self) -> WorkOrderParameter
+    {
         if let Some(ref locked_in_period) = self.0.locked_in_period {
             assert!(!self.0.excluded_periods.contains(locked_in_period));
         }
@@ -354,8 +365,10 @@ impl WorkOrderParameterBuilder {
     }
 }
 
-impl WorkOrderParameter {
-    pub fn builder() -> WorkOrderParameterBuilder {
+impl WorkOrderParameter
+{
+    pub fn builder() -> WorkOrderParameterBuilder
+    {
         WorkOrderParameterBuilder(WorkOrderParameter {
             locked_in_period: todo!(),
             excluded_periods: todo!(),
@@ -366,12 +379,14 @@ impl WorkOrderParameter {
     }
 }
 
-impl StrategicClustering {
+impl StrategicClustering
+{
     pub fn calculate_clustering_values(
         asset: &Asset,
         work_orders: &WorkOrders,
         clustering_weights: &ClusteringWeights,
-    ) -> Result<Self> {
+    ) -> Result<Self>
+    {
         let mut clustering_similarity = HashMap::new();
         let work_orders_data: Vec<_> = work_orders
             .inner
@@ -429,6 +444,7 @@ pub fn create_strategic_parameters(
     work_orders: &WorkOrders,
     periods: &[Period],
     asset: &Asset,
-) -> Result<HashMap<WorkOrderNumber, WorkOrderParameter>> {
+) -> Result<HashMap<WorkOrderNumber, WorkOrderParameter>>
+{
     todo!()
 }

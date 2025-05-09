@@ -6,7 +6,8 @@ use super::Work;
 pub type NumberOfPeople = u64;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct OperationInfo {
+pub struct OperationInfo
+{
     pub number: NumberOfPeople,
     pub work_remaining: Work,
     pub work_actual: Work,
@@ -16,7 +17,8 @@ pub struct OperationInfo {
 
 // Good! The fields should be optional in the OperationInfoBuilder, not the
 // OperationInfo
-pub struct OperationInfoBuilder {
+pub struct OperationInfoBuilder
+{
     number: Option<NumberOfPeople>,
     work_remaining: Option<Work>,
     work_actual: Option<Work>,
@@ -24,8 +26,10 @@ pub struct OperationInfoBuilder {
     operating_time: Option<Work>,
 }
 
-impl OperationInfo {
-    pub fn builder() -> OperationInfoBuilder {
+impl OperationInfo
+{
+    pub fn builder() -> OperationInfoBuilder
+    {
         OperationInfoBuilder {
             number: todo!(),
             work_remaining: todo!(),
@@ -36,8 +40,10 @@ impl OperationInfo {
     }
 }
 
-impl OperationInfoBuilder {
-    pub fn build(self) -> OperationInfo {
+impl OperationInfoBuilder
+{
+    pub fn build(self) -> OperationInfo
+    {
         OperationInfo {
             number: self.number.unwrap_or(1),
             work_remaining: self.work_remaining.unwrap_or_default(),
@@ -49,27 +55,32 @@ impl OperationInfoBuilder {
         }
     }
 
-    pub fn number(mut self, number: NumberOfPeople) -> Self {
+    pub fn number(mut self, number: NumberOfPeople) -> Self
+    {
         self.number = Some(number);
         self
     }
 
-    pub fn work_remaining(mut self, work_remaining: f64) -> Self {
+    pub fn work_remaining(mut self, work_remaining: f64) -> Self
+    {
         self.work_remaining = Some(Work::from(work_remaining));
         self
     }
 
-    pub fn work_actual(mut self, work_actual: f64) -> Self {
+    pub fn work_actual(mut self, work_actual: f64) -> Self
+    {
         self.work_actual = Some(Work::from(work_actual));
         self
     }
 
-    pub fn work(mut self, work: f64) -> Self {
+    pub fn work(mut self, work: f64) -> Self
+    {
         self.work = Some(Work::from(work));
         self
     }
 
-    pub fn operating_time(mut self, operating_time: f64) -> Self {
+    pub fn operating_time(mut self, operating_time: f64) -> Self
+    {
         self.operating_time = Some(Work::from(operating_time));
         self
     }

@@ -42,7 +42,8 @@ use crate::sap_mapper_and_types::TIMS;
 // TODO
 // Insert main configuration here,
 // `operating time` is crucial
-pub fn load_csv_data(file_path: &BaptisteToml) -> Result<WorkOrders> {
+pub fn load_csv_data(file_path: &BaptisteToml) -> Result<WorkOrders>
+{
     let functional_locations_csv =
         populate_csv_structures::<FunctionalLocationsCsv>(&file_path.mid_functional_locations)
             .expect("Could not read the csv file");
@@ -100,7 +101,8 @@ fn create_work_orders(
     work_operations_csv: WorkOperations,
     work_orders: HashMap<WorkOrderNumber, WorkOrdersCsv>,
     work_orders_status: WorkOrdersStatusCsvAggregated,
-) -> Result<HashMap<WorkOrderNumber, WorkOrder>> {
+) -> Result<HashMap<WorkOrderNumber, WorkOrder>>
+{
     assert!(!work_operations_csv.inner.is_empty());
 
     let arc_mutex_inner_work_orders = Arc::new(Mutex::new(HashMap::new()));

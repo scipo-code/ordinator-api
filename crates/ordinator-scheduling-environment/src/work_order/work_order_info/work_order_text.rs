@@ -2,7 +2,8 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug)]
-pub struct WorkOrderText {
+pub struct WorkOrderText
+{
     pub order_system_status: Option<String>,
     pub order_user_status: Option<String>,
     pub order_description: String,
@@ -12,7 +13,8 @@ pub struct WorkOrderText {
     pub notes_2: Option<u64>,
 }
 
-impl WorkOrderText {
+impl WorkOrderText
+{
     pub fn new(
         order_system_status: Option<String>,
         order_user_status: Option<String>,
@@ -21,7 +23,8 @@ impl WorkOrderText {
         object_description: Option<String>,
         notes_1: Option<String>,
         notes_2: Option<u64>,
-    ) -> Self {
+    ) -> Self
+    {
         Self {
             order_system_status,
             order_user_status,

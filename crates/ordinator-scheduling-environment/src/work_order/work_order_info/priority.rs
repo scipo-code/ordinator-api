@@ -10,7 +10,8 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub enum Priority {
+pub enum Priority
+{
     Int(u64),
     Char(char),
 }
@@ -23,15 +24,18 @@ struct IntPriority(u64);
 #[derive(Clone, Serialize, Deserialize, Debug)]
 struct CharPriority(char);
 
-impl Priority {
-    pub fn get_priority_string(&self) -> String {
+impl Priority
+{
+    pub fn get_priority_string(&self) -> String
+    {
         match self {
             Priority::Int(priority) => priority.to_string(),
             Priority::Char(priority) => priority.to_string(),
         }
     }
 
-    pub fn dyn_new(input: Box<dyn Any>) -> Self {
+    pub fn dyn_new(input: Box<dyn Any>) -> Self
+    {
         if let Some(int) = input.downcast_ref::<u64>() {
             Priority::Int(*int)
         } else if let Some(char) = input.downcast_ref::<char>() {
@@ -52,18 +56,21 @@ impl Priority {
         }
     }
 
-    pub fn new_int(priority: u64) -> Self {
+    pub fn new_int(priority: u64) -> Self
+    {
         Self::Int(priority)
     }
 }
 
-impl IntoExcelData for Priority {
+impl IntoExcelData for Priority
+{
     fn write(
         self,
         worksheet: &mut Worksheet,
         row: RowNum,
         col: ColNum,
-    ) -> Result<&mut Worksheet, XlsxError> {
+    ) -> Result<&mut Worksheet, XlsxError>
+    {
         let value = self.get_priority_string();
         worksheet.write_string(row, col, value)
     }
@@ -74,7 +81,8 @@ impl IntoExcelData for Priority {
         row: RowNum,
         col: ColNum,
         format: &Format,
-    ) -> Result<&'a mut Worksheet, XlsxError> {
+    ) -> Result<&'a mut Worksheet, XlsxError>
+    {
         let value = self.get_priority_string();
         worksheet.write_string_with_format(row, col, value, format)
     }

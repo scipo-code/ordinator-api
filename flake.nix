@@ -39,10 +39,8 @@
             pkgs.openssl_3
             pkgs.pkg-config
             pkgs.taplo
-            pkgs.rust-bin.nightly.latest.default.override {
-              extensions = [ "rustfmt" "clippy" ];
-            }
-            pkgs.zellij
+            pkgs.rust-bin.nightly.latest.default
+                        pkgs.zellij
             pythonEnv
 
           ];

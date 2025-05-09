@@ -24,7 +24,8 @@ where
     type Req = OperationalRequestMessage;
     type Res = OperationalResponseMessage;
 
-    fn handle_state_link(&mut self, state_link: StateLink) -> Result<OperationalResponseMessage> {
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<OperationalResponseMessage>
+    {
         event!(
             Level::INFO,
             self.algorithm.operational_parameters =
@@ -47,7 +48,8 @@ where
     fn handle_request_message(
         &mut self,
         request: OperationalRequestMessage,
-    ) -> Result<OperationalResponseMessage> {
+    ) -> Result<OperationalResponseMessage>
+    {
         match request {
             // You should put the `contract` message types in here. I do not see
             // any different way of doing it.

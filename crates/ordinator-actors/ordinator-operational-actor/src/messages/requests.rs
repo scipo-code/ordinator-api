@@ -5,13 +5,15 @@ use serde::Serialize;
 pub enum OperationalResourceRequest {}
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
-pub enum OperationalSchedulingRequest {
+pub enum OperationalSchedulingRequest
+{
     OperationalIds,
     OperationalState(String),
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
-pub enum OperationalStatusRequest {
+pub enum OperationalStatusRequest
+{
     General,
 }
 

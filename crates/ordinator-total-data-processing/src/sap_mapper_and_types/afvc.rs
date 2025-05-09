@@ -5,7 +5,8 @@ use crate::sap_mapper_and_types::INT1;
 use crate::sap_mapper_and_types::NUMC;
 
 #[allow(non_snake_case, dead_code)]
-struct Afvc {
+struct Afvc
+{
     MANDT: CLNT,
     AUFPL: NUMC,
     APLZL: NUMC,

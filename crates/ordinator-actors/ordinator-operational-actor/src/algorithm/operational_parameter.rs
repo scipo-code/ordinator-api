@@ -13,7 +13,8 @@ use ordinator_scheduling_environment::worker_environment::OperationalOptions;
 use ordinator_scheduling_environment::worker_environment::availability::Availability;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
-pub struct OperationalParameters {
+pub struct OperationalParameters
+{
     pub work_order_parameters: HashMap<WorkOrderActivity, OperationalParameter>,
     pub availability: Availability,
     pub off_shift_interval: TimeInterval,
@@ -23,7 +24,8 @@ pub struct OperationalParameters {
 }
 
 // There is something rotten about this function.
-impl Parameters for OperationalParameters {
+impl Parameters for OperationalParameters
+{
     type Key = WorkOrderActivity;
 
     // You should not put it in the Options
@@ -34,7 +36,8 @@ impl Parameters for OperationalParameters {
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
         // This is not needed. It should always be a part of your SchedulingEnvironment.
         // Yes this is the best approach here.
-    ) -> Result<Self> {
+    ) -> Result<Self>
+    {
         let mut work_order_parameters = HashMap::default();
 
         for (work_order_number, work_order) in &scheduling_environment.work_orders.inner {
@@ -97,13 +100,15 @@ impl Parameters for OperationalParameters {
         &mut self,
         key: Self::Key,
         scheduling_environment: MutexGuard<SchedulingEnvironment>,
-    ) {
+    )
+    {
         todo!()
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct OperationalParameter {
+pub struct OperationalParameter
+{
     pub work: Work,
     // TODO: INCLUDE PREPARATION
     pub _preparation: Work,
@@ -114,7 +119,8 @@ pub struct OperationalParameter {
     // marginal_fitness: MarginalFitness,
 }
 
-impl OperationalParameter {
+impl OperationalParameter
+{
     pub fn new(
         work: Work,
         _preparation: Work,
@@ -122,7 +128,8 @@ impl OperationalParameter {
         // end_window: DateTime<Utc>,
         // delegated: Delegate,
         // marginal_fitness: MarginalFitness,
-    ) -> Option<Self> {
+    ) -> Option<Self>
+    {
         let combined_time = (work + _preparation).in_seconds();
         let operation_time_delta = TimeDelta::new(combined_time as i64, 0).unwrap();
         if work.to_f64() == 0.0 {

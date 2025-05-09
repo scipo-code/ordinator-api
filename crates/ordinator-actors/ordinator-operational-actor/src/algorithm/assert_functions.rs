@@ -4,7 +4,8 @@ use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 
 use super::OperationalAlgorithm;
 
-pub trait OperationalAlgorithmAsserts {
+pub trait OperationalAlgorithmAsserts
+{
     fn assert_no_operation_overlap(&self) -> Result<()>;
 }
 
@@ -14,7 +15,8 @@ impl<Ss> OperationalAlgorithmAsserts for OperationalAlgorithm<Ss>
 where
     Ss: SystemSolutionTrait,
 {
-    fn assert_no_operation_overlap(&self) -> Result<()> {
+    fn assert_no_operation_overlap(&self) -> Result<()>
+    {
         let operational_solutions = self
             .solution
             .scheduled_work_order_activities

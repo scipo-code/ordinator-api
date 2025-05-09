@@ -25,7 +25,8 @@ type LogLayer =
 type ProfilingLayer = Filtered<FlameLayer<Registry, BufWriter<File>>, EnvFilter, Registry>;
 
 #[derive(Clone, Debug)]
-pub struct LogHandles {
+pub struct LogHandles
+{
     pub file_handle: Handle<LogLayer, Registry>,
     pub _flame_handle: Handle<ProfilingLayer, Registry>,
 }
@@ -54,7 +55,8 @@ pub struct LogHandles {
 //     }
 // }
 
-pub fn setup_logging() -> (LogHandles, WorkerGuard) {
+pub fn setup_logging() -> (LogHandles, WorkerGuard)
+{
     let previous_log_files = fs::read_dir(
         dotenvy::var("ORDINATOR_LOG_DIR")
             .expect("The ORDINATOR_LOG_DIR environment variables should always be set."),

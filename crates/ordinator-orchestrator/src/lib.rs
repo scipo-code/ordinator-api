@@ -4,9 +4,11 @@ pub mod database;
 pub mod logging;
 pub mod model_initializers;
 
-use self::actor_registry::ActorRegistry;
-use self::database::DataBaseConnection;
-use self::logging::LogHandles;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::Weak;
+
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
@@ -42,14 +44,14 @@ use ordinator_tactical_actor::TacticalApi;
 use ordinator_tactical_actor::algorithm::tactical_solution::TacticalSolution;
 pub use ordinator_tactical_actor::messages::TacticalRequestMessage;
 pub use ordinator_tactical_actor::messages::TacticalResponseMessage;
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::Mutex;
-
-use std::sync::Weak;
 use tracing::instrument;
 
-pub struct Orchestrator<Ss> {
+use self::actor_registry::ActorRegistry;
+use self::database::DataBaseConnection;
+use self::logging::LogHandles;
+
+pub struct Orchestrator<Ss>
+{
     pub scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub system_solutions: HashMap<Asset, Arc<ArcSwap<Ss>>>,
     pub agent_registries: HashMap<Asset, ActorRegistry>,
@@ -61,8 +63,10 @@ pub struct Orchestrator<Ss> {
 
 pub struct NotifyOrchestrator<Ss>(Arc<Mutex<Orchestrator<Ss>>>);
 
-impl<Ss> Clone for NotifyOrchestrator<Ss> {
-    fn clone(&self) -> Self {
+impl<Ss> Clone for NotifyOrchestrator<Ss>
+{
+    fn clone(&self) -> Self
+    {
         Self(self.0.clone())
     }
 }
@@ -76,7 +80,8 @@ where
         &self,
         work_orders: Vec<WorkOrderNumber>,
         asset: &Asset,
-    ) -> Result<()> {
+    ) -> Result<()>
+    {
         let locked_orchestrator = self.0.lock().unwrap();
 
         let agent_registry = locked_orchestrator
@@ -129,7 +134,8 @@ where
     pub async fn handle(
         &mut self,
         orchestrator_request: OrchestratorRequest,
-    ) -> Result<OrchestratorResponse> {
+    ) -> Result<OrchestratorResponse>
+    {
         match orchestrator_request {
             OrchestratorRequest::AgentStatusRequest => {
                 // for asset in self.agent_registries.keys() {
@@ -145,8 +151,8 @@ where
                 //         .unwrap()
                 //         .tactical_agent_sender;
 
-                //     // What should we do here? I think that the best approach will be to make the
-                //     // code function
+                //     // What should we do here? I think that the best approach will be to make
+                // the     // code function
                 //     strategic_agent_addr.sender.send(ActorMessage::Actor(
                 //         StrategicRequestMessage::Status(StrategicStatusMessage::General),
                 //     ))?;
@@ -176,7 +182,8 @@ where
                 //         .iter()
                 //     {
                 //         addr.sender.send(ActorMessage::Actor(
-                //             OperationalRequestMessage::Status(OperationalStatusRequest::General),
+                //             
+                // OperationalRequestMessage::Status(OperationalStatusRequest::General),
                 //         ))?;
                 //     }
 
@@ -188,7 +195,8 @@ where
 
                 //     agent_status_by_asset.insert(asset.clone(), agent_status);
                 // }
-                // let orchestrator_response_status = AgentStatusResponse::new(agent_status_by_asset);
+                // let orchestrator_response_status =
+                // AgentStatusResponse::new(agent_status_by_asset);
                 // let orchestrator_response =
                 //     OrchestratorResponse::AgentStatus(orchestrator_response_status);
                 Ok(OrchestratorResponse::Success)
@@ -207,8 +215,8 @@ where
             // work correctly with the database and the with the.
             //
             // So what is the dataflow here? You
-            // You should move the code into the SchedulingEnvironment. The TotalSap should handle the initialization
-            //
+            // You should move the code into the SchedulingEnvironment. The TotalSap should handle
+            // the initialization
             OrchestratorRequest::GetWorkOrderStatus(work_order_number) => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
@@ -311,16 +319,18 @@ where
                 );
 
                 // The methods should be defined on the `actor_factory`
-                // This should be encapsulated. The factory method and the registry should be of the same process.
-                // Should this be inside of the `Orchestrator` or the `ActorFactory`? I think that the. So where should
-                // this be defined. I think that the best component is the Orchestrator itself.
+                // This should be encapsulated. The factory method and the registry should be of
+                // the same process. Should this be inside of the `Orchestrator`
+                // or the `ActorFactory`? I think that the. So where should this
+                // be defined. I think that the best component is the Orchestrator itself.
                 // TODO [x] Make trait
                 // TODO [ ] Make method on Orchestrator
                 // TODO [ ] Integrate `ActorRegistry`
                 //
                 // FIX [ ] Make a `self.start_supervisor`
 
-                // let orchestrator_response = OrchestratorResponse::RequestStatus(response_string);
+                // let orchestrator_response =
+                // OrchestratorResponse::RequestStatus(response_string);
 
                 Ok(OrchestratorResponse::Todo)
             }
@@ -425,7 +435,8 @@ where
 //
 // The idea is that you have a single function and then you decide to
 // make this function correctly with the right kind of
-impl ActorRegistry {
+impl ActorRegistry
+{
     fn new(
         strategic_agent_addr: Communication<
             ActorMessage<StrategicRequestMessage>,
@@ -443,7 +454,8 @@ impl ActorRegistry {
             Id,
             Communication<ActorMessage<OperationalRequestMessage>, OperationalResponseMessage>,
         >,
-    ) -> Self {
+    ) -> Self
+    {
         ActorRegistry {
             strategic_agent_sender: strategic_agent_addr,
             tactical_agent_sender: tactical_agent_addr,
@@ -459,7 +471,8 @@ impl ActorRegistry {
             ActorMessage<SupervisorRequestMessage>,
             SupervisorResponseMessage,
         >,
-    ) {
+    )
+    {
         self.supervisor_agent_senders.insert(id, communication);
     }
 
@@ -470,11 +483,13 @@ impl ActorRegistry {
             ActorMessage<OperationalRequestMessage>,
             OperationalResponseMessage,
         >,
-    ) {
+    )
+    {
         self.operational_agent_senders.insert(id, communication);
     }
 
-    pub fn supervisor_by_id_string(&self, id_string: String) -> Id {
+    pub fn supervisor_by_id_string(&self, id_string: String) -> Id
+    {
         self.supervisor_agent_senders
             .keys()
             .find(|id| id.0 == id_string)
@@ -494,7 +509,8 @@ where
         + Sync
         + 'static,
 {
-    pub async fn new() -> Arc<Mutex<Self>> {
+    pub async fn new() -> Arc<Mutex<Self>>
+    {
         let configurations = SystemConfigurations::read_all_configs().unwrap();
 
         let (log_handles, _logging_guard) = logging::setup_logging();
@@ -553,8 +569,8 @@ where
         )
         .with_context(|| format!("Could not construct StartegicActor {}", strategic_id))?;
 
-        // Where should their IDs come from? I think that the best approach is to include them
-        // from
+        // Where should their IDs come from? I think that the best approach is to
+        // include them from
         let tactical_id = scheduling_environment_guard
             .worker_environment
             .actor_specification

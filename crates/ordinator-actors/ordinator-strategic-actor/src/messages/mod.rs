@@ -16,20 +16,24 @@ use self::responses::*;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "strategic_message_type")]
-pub struct StrategicRequest {
+pub struct StrategicRequest
+{
     pub asset: Asset,
     pub strategic_request_message: StrategicRequestMessage,
 }
 
-impl StrategicRequest {
-    pub fn asset(&self) -> &Asset {
+impl StrategicRequest
+{
+    pub fn asset(&self) -> &Asset
+    {
         &self.asset
     }
 }
 // You should determine a better way of making this in the
 // code I think that the best approach is to make something.
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum StrategicSchedulingEnvironmentCommands {
+pub enum StrategicSchedulingEnvironmentCommands
+{
     UserStatus(StrategicUserStatusCodes),
 }
 
@@ -41,7 +45,8 @@ pub enum StrategicSchedulingEnvironmentCommands {
 //
 //
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub enum StrategicRequestMessage {
+pub enum StrategicRequestMessage
+{
     Status(StrategicStatusMessage),
     Scheduling(StrategicRequestScheduling),
     Resources(StrategicRequestResource),
@@ -57,7 +62,8 @@ pub enum StrategicRequestMessage {
 // simply have to work without the stress.
 #[derive(Serialize)]
 #[allow(clippy::large_enum_variant)]
-pub enum StrategicResponseMessage {
+pub enum StrategicResponseMessage
+{
     StateLink,
     Status(StrategicResponseStatus),
     Scheduling(StrategicResponseScheduling),
@@ -67,13 +73,16 @@ pub enum StrategicResponseMessage {
 }
 
 #[derive(Serialize)]
-pub struct StrategicResponse {
+pub struct StrategicResponse
+{
     asset: Asset,
     strategic_response_message: StrategicResponseMessage,
 }
 
-impl StrategicResponse {
-    pub fn new(asset: Asset, strategic_response_message: StrategicResponseMessage) -> Self {
+impl StrategicResponse
+{
+    pub fn new(asset: Asset, strategic_response_message: StrategicResponseMessage) -> Self
+    {
         Self {
             asset,
             strategic_response_message,
@@ -82,12 +91,15 @@ impl StrategicResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TimePeriod {
+pub struct TimePeriod
+{
     pub period_string: String,
 }
 
-impl fmt::Display for StrategicRequestMessage {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), std::fmt::Error> {
+impl fmt::Display for StrategicRequestMessage
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), std::fmt::Error>
+    {
         match self {
             StrategicRequestMessage::Status(strategic_status_message) => {
                 write!(f, "status: {}", strategic_status_message)?;
@@ -113,8 +125,10 @@ impl fmt::Display for StrategicRequestMessage {
     }
 }
 
-impl fmt::Display for ManualResource {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl fmt::Display for ManualResource
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    {
         write!(
             f,
             "resource: {:?}, period: {}, capacity: {}",
@@ -123,8 +137,10 @@ impl fmt::Display for ManualResource {
     }
 }
 
-impl TimePeriod {
-    pub fn new(period_string: String) -> Self {
+impl TimePeriod
+{
+    pub fn new(period_string: String) -> Self
+    {
         Self { period_string }
     }
 }

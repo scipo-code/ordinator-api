@@ -29,7 +29,8 @@ use user_interface::EventColors;
 // Remember! You have a single source of all configurations here,
 // so there is no reason to question that in the system.
 #[derive(Debug)]
-pub struct SystemConfigurations {
+pub struct SystemConfigurations
+{
     pub data_locations: BaptisteToml,
     pub throttling: Throttling,
     pub user_interface: EventColors,
@@ -41,8 +42,10 @@ impl SystemConfigurationTrait for SystemConfigurations {}
 // FIX [ ]
 // This is a good initial approach but remember to make it better if you have to
 // revisit it.
-impl SystemConfigurations {
-    pub fn read_all_configs() -> Result<Arc<ArcSwap<SystemConfigurations>>> {
+impl SystemConfigurations
+{
+    pub fn read_all_configs() -> Result<Arc<ArcSwap<SystemConfigurations>>>
+    {
         let baptiste_data_locations_contents =
             std::fs::read_to_string("./configuration/data_locations/baptiste_data_locations.toml")
                 .unwrap();
@@ -86,7 +89,8 @@ impl SystemConfigurations {
 // This should be a part of the creation of the `SchedulingEnvironment`
 // #[test]
 // fn test_read_config() {
-//     let system_configurations = SystemConfigurations::read_all_configs().unwrap();
+//     let system_configurations =
+// SystemConfigurations::read_all_configs().unwrap();
 
 //     println!("{:#?}", system_configurations);
 // }

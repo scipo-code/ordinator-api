@@ -31,10 +31,9 @@ where
     type Req = StrategicRequestMessage;
     type Res = StrategicResponseMessage;
 
-    fn handle_request_message(
-        &mut self,
-        strategic_request_message: Self::Req,
-    ) -> Result<Self::Res> {
+    fn handle_request_message(&mut self, strategic_request_message: Self::Req)
+    -> Result<Self::Res>
+    {
         let strategic_response = match strategic_request_message {
             StrategicRequestMessage::Status(strategic_status_message) => {
                 match strategic_status_message {
@@ -378,7 +377,8 @@ where
         strategic_response
     }
 
-    fn handle_state_link(&mut self, msg: StateLink) -> Result<StrategicResponseMessage> {
+    fn handle_state_link(&mut self, msg: StateLink) -> Result<StrategicResponseMessage>
+    {
         match msg {
             StateLink::WorkOrders(agent_specific) => {
                 match agent_specific {

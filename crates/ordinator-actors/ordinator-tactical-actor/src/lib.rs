@@ -1,32 +1,32 @@
 pub mod algorithm;
 pub mod messages;
 
-use algorithm::tactical_parameters::TacticalParameters;
-use anyhow::Result;
-use ordinator_actor_core::algorithm::Algorithm;
-use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
-use ordinator_orchestrator_actor_traits::ActorFactory;
-use ordinator_scheduling_environment::work_order::WorkOrderNumber;
-use priority_queue::PriorityQueue;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::sync::Arc;
 use std::sync::Mutex;
 
 use algorithm::TacticalAlgorithm;
+use algorithm::tactical_parameters::TacticalParameters;
 use algorithm::tactical_solution::TacticalSolution;
+use anyhow::Result;
 use arc_swap::ArcSwap;
 use messages::TacticalRequestMessage;
 use messages::TacticalResponseMessage;
 use ordinator_actor_core::Actor;
+use ordinator_actor_core::algorithm::Algorithm;
+use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_configuration::SystemConfigurations;
+use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::ActorMessage;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_scheduling_environment::SchedulingEnvironment;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
+use priority_queue::PriorityQueue;
 use rand::rngs::StdRng;
 
 pub struct TacticalActor<Ss>(
@@ -42,7 +42,8 @@ where
 {
     type Target = Actor<TacticalRequestMessage, TacticalResponseMessage, TacticalAlgorithm<Ss>>;
 
-    fn deref(&self) -> &Self::Target {
+    fn deref(&self) -> &Self::Target
+    {
         &self.0
     }
 }
@@ -51,7 +52,8 @@ impl<Ss> DerefMut for TacticalActor<Ss>
 where
     Ss: SystemSolutionTrait<Tactical = TacticalSolution>,
 {
-    fn deref_mut(&mut self) -> &mut Self::Target {
+    fn deref_mut(&mut self) -> &mut Self::Target
+    {
         &mut self.0
     }
 }
@@ -82,7 +84,8 @@ where
         shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
         notify_orchestrator: Arc<dyn OrchestratorNotifier>,
         system_configurations: Arc<ArcSwap<SystemConfigurations>>,
-    ) -> Result<Self::Communication> {
+    ) -> Result<Self::Communication>
+    {
         Actor::<TacticalRequestMessage, TacticalResponseMessage, TacticalAlgorithm<Ss>>::builder()
             .agent_id(Id::new("TacticalAgent", vec![], vec![id.asset().clone()]))
             .scheduling_environment(Arc::clone(&scheduling_environment_guard))
@@ -90,8 +93,8 @@ where
             // Make a builder here!
             // This is a little difficult. We would like to use the same scheduling environment
             // Why am I not allowed to propagate the error here?
-            // Why is this so damn difficult for you to understand? What are you not understanding? I think
-            // that taking a short break is a good idea.
+            // Why is this so damn difficult for you to understand? What are you not understanding?
+            // I think that taking a short break is a good idea.
             // The issue is that you do not understand `Fn` traits well enough
             .algorithm(|ab| {
                 ab.id(id)
