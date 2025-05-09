@@ -1,6 +1,3 @@
-use std::sync::Arc;
-use std::sync::Mutex;
-
 use anyhow::Context;
 use anyhow::Result;
 use arc_swap::ArcSwap;
@@ -12,47 +9,20 @@ use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::SystemSolution;
 use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_scheduling_environment::Asset;
-use ordinator_scheduling_environment::worker_environment::resources::Id;
-// These are mostly build dependencies and should therefore not be found inside of the
-// `orchestrator`. The question then becomes what we should do about the building of the
-// `actors`
-//
-// I think that you should go to the gym now. There is an issue here in that
-// I do not know what the best way to proceed is for the different.
 use ordinator_scheduling_environment::SchedulingEnvironment;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_strategic_actor::StrategicApi;
 use ordinator_strategic_actor::algorithm::strategic_solution::StrategicSolution;
 use ordinator_supervisor_actor::SupervisorApi;
 use ordinator_supervisor_actor::algorithm::supervisor_solution::SupervisorSolution;
 use ordinator_tactical_actor::TacticalApi;
 use ordinator_tactical_actor::algorithm::tactical_solution::TacticalSolution;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use crate::NotifyOrchestrator;
 use crate::Orchestrator;
 
-// There is no reason to update this. I think that the best appraoch is to make the code
-// function with the. You need methods for starting the start manually and from the
-// SchedulingEnvironment. You have had this dilemma many times before. You cannot simply
-// shourcurcuit the system in this case.
-// Maybe having the trait is not a bad idea here.
-// There is something here that you have not thought about. You need to create the system
-// so that each of the different parts of the system uses the correct dataflow for making
-// this work. The code should be created so that the Actors knows how to
-// What should happen if the code does two different calls to start strategic? I think that
-// the best approach in that regard will. Ideally you should set the value of the `SharedSolution`
-// in here as well. I think that the best approach is to make the system work with the
-// Option<Solution>.
-// SharedSolution, has to be an option. There is no other way about it.
-// OBSTACLE
-// You have felt for a long time that you want to disregard the `Option`s as much as
-// possible that means that this is the way. You might not always actually want to
-// have a strategic and tactical agent, and you will have to choose the thing that you
-// want the most in each deployment. And then we can also load from the Database itself.
-//
-// Take a break, and what should you then do after the break? So an API call should generate
-// an entry in the SchedulingEnvironment. Everything that has to do with the Database should
-// be done as a cross cutting concern.
-//
 impl<Ss> Orchestrator<Ss>
 where
     Ss: SystemSolutionTrait<
@@ -64,23 +34,30 @@ where
         + Sync
         + 'static,
 {
+    // This is a helper function. This is where the problem becomes appearant
+    // It should be removed from the function.
     pub fn extract_factory_dependencies(
         &self,
         asset: &Asset,
     ) -> Result<(
         Arc<Mutex<SchedulingEnvironment>>,
+        // This is fundamentally different from the rest of the parameters of the function.
+        // I believe that the best approach is to remove it. That decision has much better semantics
         Arc<ArcSwap<Ss>>,
-        Box<dyn OrchestratorNotifier>,
+        // This is sent across thread boundaries. It should be an `Arc<dyn ...>` correct?
+        Arc<dyn OrchestratorNotifier>,
         Arc<ArcSwap<SystemConfigurations>>,
     )> {
         Ok((
             Arc::clone(&self.scheduling_environment),
+            // This is the issue. FIX Remove this to proceed. Where should it go? I think that the
+            // best approach here is the make the code work well with the
             Arc::clone(
                 self.system_solutions
                     .get(asset)
-                    .context("Asset not available in for the SystemSolution")?,
+                    .with_context(|| format!("Missing SystemSolution for Asset {}", asset))?,
             ),
-            Box::new(NotifyOrchestrator(
+            Arc::new(NotifyOrchestrator(
                 self.actor_notify
                     .as_ref()
                     .unwrap()
@@ -88,11 +65,7 @@ where
                     .upgrade()
                     .unwrap(),
             )),
-            Arc::clone(
-                self.system_configurations
-                    .get(asset)
-                    .context("SystemConfigurations not available for the Asset")?,
-            ),
+            Arc::clone(&self.system_configurations),
         ))
     }
 
@@ -195,10 +168,13 @@ where
     }
 }
 
+type TotalSystemSolution =
+    SystemSolution<StrategicSolution, TacticalSolution, SupervisorSolution, OperationalSolution>;
+
 // QUESTION [ ] How to create a
-pub fn create_shared_solution_arc_swap<Ss>() -> Arc<ArcSwap<Ss>>
+pub fn create_shared_solution_arc_swap() -> Arc<ArcSwap<TotalSystemSolution>>
 where
-    Ss: SystemSolutionTrait,
+    TotalSystemSolution: SystemSolutionTrait,
 {
     let shared_solution_arc_swap = SystemSolution::new();
 

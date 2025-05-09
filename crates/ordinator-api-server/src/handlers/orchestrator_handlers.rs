@@ -7,32 +7,19 @@ use std::sync::Mutex;
 use actix_web::HttpResponse;
 use actix_web::web;
 use anyhow::Context;
-use data_processing::excel_dumps::create_excel_dump;
-use shared_types::Asset;
-use shared_types::SystemResponses;
-use shared_types::agents::operational::OperationalRequest;
-use shared_types::agents::operational::OperationalRequestMessage;
-use shared_types::agents::operational::OperationalResponse;
-use shared_types::agents::operational::OperationalResponseMessage;
-use shared_types::agents::operational::requests::operational_request_status::OperationalStatusRequest;
-use shared_types::agents::supervisor::SupervisorRequest;
-use shared_types::agents::supervisor::SupervisorResponse;
-use shared_types::agents::tactical::TacticalRequest;
-use shared_types::agents::tactical::TacticalResponse;
-use shared_types::orchestrator::OrchestratorRequest;
-use shared_types::scheduling_environment::time_environment::day::Day;
-use shared_types::scheduling_environment::work_order::WorkOrderNumber;
-use shared_types::scheduling_environment::work_order::operation::ActivityNumber;
-use shared_types::scheduling_environment::worker_environment::resources::Id;
+use ordinator_orchestrator::Asset;
+use ordinator_orchestrator::Orchestrator;
+use ordinator_orchestrator::SystemSolutionTrait;
 use tracing::Level;
 use tracing::event;
 
-use crate::agents::orchestrator::Orchestrator;
-
-pub async fn scheduler_excel_export(
-    orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
+pub async fn scheduler_excel_export<Ss>(
+    orchestrator: web::Data<Arc<Mutex<Orchestrator<Ss>>>>,
     asset: web::Path<Asset>,
-) -> Result<HttpResponse, actix_web::Error> {
+) -> Result<HttpResponse, actix_web::Error>
+where
+    Ss: SystemSolutionTrait,
+{
     let (buffer, http_header) = orchestrator
         .into_inner()
         .lock()
@@ -89,9 +76,9 @@ impl Orchestrator {
         Ok(response)
     }
 
-    fn export_xlsx_solution(
+    pub fn export_xlsx_solution(
         &mut self,
-        asset: shared_types::Asset,
+        asset: Asset,
     ) -> Result<(Vec<u8>, String), actix_web::Error> {
         let shared_solution = self
             .arc_swap_shared_solutions

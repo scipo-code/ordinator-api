@@ -46,6 +46,7 @@ pub enum OrchestratorResponse {
     Days(Vec<Day>),
     Export(String),
     Success,
+    Todo,
 }
 
 #[derive(Serialize)]

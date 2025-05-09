@@ -77,7 +77,7 @@ where
         id: Id,
         scheduling_environment_guard: Arc<Mutex<SchedulingEnvironment>>,
         shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
-        notify_orchestrator: Box<dyn OrchestratorNotifier>,
+        notify_orchestrator: Arc<dyn OrchestratorNotifier>,
         system_configurations: Arc<ArcSwap<SystemConfigurations>>,
     ) -> Result<Self::Communication>
     where
@@ -113,7 +113,7 @@ pub fn supervisor_factory<Ss>(
     id: Id,
     scheduling_environment_guard: Arc<Mutex<SchedulingEnvironment>>,
     shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
-    notify_orchestrator: Box<dyn OrchestratorNotifier>,
+    notify_orchestrator: Arc<dyn OrchestratorNotifier>,
     system_configurations: Arc<ArcSwap<SystemConfigurations>>,
 ) -> Result<Communication<ActorMessage<SupervisorRequestMessage>, SupervisorResponseMessage>>
 where

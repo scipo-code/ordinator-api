@@ -47,6 +47,12 @@ async fn main() -> Result<()> {
 
     let orchestrator = Orchestrator::new().await;
 
+    // WARN: Manually add `Asset`s here. Everything added here should be done from the
+    // API in actual production. So this is only a temporary solution.
+    orchestrator.lock().unwrap().asset_factory(Asset::Df)?;
+
+    // WARN
+
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(orchestrator.clone()))

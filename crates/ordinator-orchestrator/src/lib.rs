@@ -4,7 +4,9 @@ pub mod database;
 pub mod logging;
 pub mod model_initializers;
 
-use actor_factory::create_shared_solution_arc_swap;
+use self::actor_registry::ActorRegistry;
+use self::database::DataBaseConnection;
+use self::logging::LogHandles;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
@@ -12,44 +14,46 @@ use arc_swap::ArcSwap;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_contracts::orchestrator::OrchestratorRequest;
 use ordinator_contracts::orchestrator::OrchestratorResponse;
-use ordinator_operational_actor::messages::OperationalRequestMessage;
-use ordinator_operational_actor::messages::OperationalResponseMessage;
+use ordinator_operational_actor::OperationalApi;
+use ordinator_operational_actor::algorithm::operational_solution::OperationalSolution;
+pub use ordinator_operational_actor::messages::OperationalRequestMessage;
+pub use ordinator_operational_actor::messages::OperationalResponseMessage;
 use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::ActorMessage;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::StateLink;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
-use ordinator_scheduling_environment::Asset;
+pub use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+pub use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::WorkOrders;
-use ordinator_scheduling_environment::worker_environment::crew::OperationalConfigurationAll;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_strategic_actor::StrategicApi;
-use ordinator_strategic_actor::messages::StrategicRequestMessage;
-use ordinator_strategic_actor::messages::StrategicResponseMessage;
-use ordinator_supervisor_actor::messages::SupervisorResponseMessage;
+use ordinator_strategic_actor::algorithm::strategic_solution::StrategicSolution;
+pub use ordinator_strategic_actor::messages::StrategicRequestMessage;
+pub use ordinator_strategic_actor::messages::StrategicResponseMessage;
 use ordinator_supervisor_actor::SupervisorApi;
-use ordinator_supervisor_actor::messages::SupervisorRequestMessage;
-use ordinator_tactical_actor::messages::TacticalRequestMessage;
-use ordinator_tactical_actor::messages::TacticalResponseMessage;
+use ordinator_supervisor_actor::algorithm::supervisor_solution::SupervisorSolution;
+pub use ordinator_supervisor_actor::messages::SupervisorRequestMessage;
+pub use ordinator_supervisor_actor::messages::SupervisorResponseMessage;
+use ordinator_tactical_actor::TacticalApi;
+use ordinator_tactical_actor::algorithm::tactical_solution::TacticalSolution;
+pub use ordinator_tactical_actor::messages::TacticalRequestMessage;
+pub use ordinator_tactical_actor::messages::TacticalResponseMessage;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
+
 use std::sync::Weak;
 use tracing::instrument;
-
-use self::actor_registry::ActorRegistry;
-use self::database::DataBaseConnection;
-use self::logging::LogHandles;
 
 pub struct Orchestrator<Ss> {
     pub scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub system_solutions: HashMap<Asset, Arc<ArcSwap<Ss>>>,
     pub agent_registries: HashMap<Asset, ActorRegistry>,
-    pub system_configurations: HashMap<Asset, Arc<ArcSwap<SystemConfigurations>>>,
+    pub system_configurations: Arc<ArcSwap<SystemConfigurations>>,
     pub database_connections: DataBaseConnection,
     pub actor_notify: Option<Weak<Mutex<Orchestrator<Ss>>>>,
     pub log_handles: LogHandles,
@@ -116,7 +120,11 @@ where
     }
 }
 
-impl<Ss> Orchestrator<Ss> {
+impl<Ss> Orchestrator<Ss>
+where
+    Ss: SystemSolutionTrait<Operational = OperationalSolution> + Send + Sync,
+    Arc<Mutex<Orchestrator<Ss>>>: OrchestratorNotifier,
+{
     #[instrument(level = "info", skip_all)]
     pub async fn handle(
         &mut self,
@@ -218,8 +226,6 @@ impl<Ss> Orchestrator<Ss> {
 
                 let asset = &work_order.work_order_info.functional_location.asset;
 
-                let work_order_configuration = self.system_configurations.get(&asset).unwrap();
-
                 let api_solution = match self.system_solutions.get(asset) {
                     Some(arc_swap_shared_solution) => (arc_swap_shared_solution).load(),
                     None => bail!("Asset: {:?} is not initialzed", &asset),
@@ -314,8 +320,9 @@ impl<Ss> Orchestrator<Ss> {
                 //
                 // FIX [ ] Make a `self.start_supervisor`
 
-                let orchestrator_response = OrchestratorResponse::RequestStatus(response_string);
-                Ok(orchestrator_response)
+                // let orchestrator_response = OrchestratorResponse::RequestStatus(response_string);
+
+                Ok(OrchestratorResponse::Todo)
             }
             OrchestratorRequest::DeleteSupervisorAgent(asset, id_string) => {
                 let id = self
@@ -404,74 +411,11 @@ impl<Ss> Orchestrator<Ss> {
     // Is it correct to remove the agents here? I believe yes, the system have the
     // agents that it does. In the scheduling environment. I do not think that
     // we should move too much with this.
-    pub fn initialize_operational_agents(&mut self) -> Result<()> {
-        let operational_agents = &self
-            .scheduling_environment
-            .lock()
-            .unwrap()
-            .worker_environment
-            .agent_environment
-            .operational
-            .clone();
-
-        // WARN
-        // You should always initialize the `SchedulingEnvironment` and make sure that
-        // is the single source of truth.
-        for operational_agent in operational_agents.values() {
-            // QUESTION
-            // How should this be build? I think that the best approach will be to make
-            // what is the best approach to making something like this work?
-            // Maybe it is actually okay to do it like this? This issue is that the
-            // `SchedulingEnvironment` might not be updated and this will be a bug
-            // later on.
-            self.create_operational_agent(operational_agent)?;
-        }
-        Ok(())
-    }
-
-    fn create_operational_agent(
-        &mut self,
-        operational_agent: &OperationalConfigurationAll,
-    ) -> Result<()> {
-        let notify_orchestrator = NotifyOrchestrator(
-            self.actor_notify
-                .as_ref()
-                .expect("Orchestrator is initialized with the Option::Some variant")
-                .upgrade()
-                .expect("This Weak reference should always be able to be updated"),
-        );
-
-        let shared_solution = self
-            .system_solutions
-            .get(
-                operational_agent
-                    .id
-                    .2
-                    .first()
-                    .expect("TODO: we should not simply grap the first element here."),
-            )
-            .unwrap()
-            .clone();
-
-        let operational_agent_addr = OperationalApi::build_operational_agent(
-            &operational_agent.id,
-            &self.scheduling_environment.lock().unwrap(),
-            shared_solution,
-            notify_orchestrator,
-        )?;
-
-        let asset = operational_agent
-            .id
-            .2
-            .first()
-            .expect("There should always be an asset available");
-
-        self.agent_registries
-            .get_mut(asset)
-            .unwrap()
-            .add_operational_agent(operational_agent.id.clone(), operational_agent_addr);
-        Ok(())
-    }
+    // TODO [ ]
+    // This should be a part of the asset_builder. Yes that is the correct way of
+    // going about it.
+    // Do not make a complete builder.
+    // FIX You should simply delete this message.
 }
 
 // You need to decouple the messages from the crates. How should
@@ -495,12 +439,16 @@ impl ActorRegistry {
             Id,
             Communication<ActorMessage<SupervisorRequestMessage>, SupervisorResponseMessage>,
         >,
+        operational_actor_communication: HashMap<
+            Id,
+            Communication<ActorMessage<OperationalRequestMessage>, OperationalResponseMessage>,
+        >,
     ) -> Self {
         ActorRegistry {
             strategic_agent_sender: strategic_agent_addr,
             tactical_agent_sender: tactical_agent_addr,
             supervisor_agent_senders: supervisor_agent_addrs,
-            operational_agent_senders: HashMap::new(),
+            operational_agent_senders: operational_actor_communication,
         }
     }
 
@@ -535,13 +483,24 @@ impl ActorRegistry {
     }
 }
 
-impl<Ss> Orchestrator<Ss> {
+impl<Ss> Orchestrator<Ss>
+where
+    Ss: SystemSolutionTrait<
+            Strategic = StrategicSolution,
+            Tactical = TacticalSolution,
+            Supervisor = SupervisorSolution,
+            Operational = OperationalSolution,
+        > + Send
+        + Sync
+        + 'static,
+{
     pub async fn new() -> Arc<Mutex<Self>> {
         let configurations = SystemConfigurations::read_all_configs().unwrap();
 
         let (log_handles, _logging_guard) = logging::setup_logging();
 
-        let scheduling_environment = DataBaseConnection::scheduling_environment(configurations);
+        let scheduling_environment =
+            DataBaseConnection::scheduling_environment(configurations.clone());
 
         let database_connections = DataBaseConnection::new();
 
@@ -559,133 +518,113 @@ impl<Ss> Orchestrator<Ss> {
             system_configurations: configurations,
             database_connections,
         };
-
-        // This should be removed. This think that the best options is to
-        // This should be implemented as. You should not hard code the
-        // creation like this. How should the creation come into existence?
-        //
-        // I think that the best approach to make a mechanism for creating the
-        // correct. The orchestrator is holding all the actors.
-        // TODO [ ]
-        // Develop a initialization process for the actor factory.
-        //
-        // Rely on the environment variable, and then provide a manual approach.
-        orchestrator
-            .lock()
-            .unwrap()
-            .asset_factory(asset.clone(), system_agent_bytes)
-            .with_context(|| {
-                format!(
-                    "{}: {} could not be added",
-                    std::any::type_name::<Asset>(),
-                    asset
-                )
-            })
-            .expect("Could not add asset");
-
-        // FIX [ ]
-        // FIX THIS QUICK. We need to provide this in a centralized way that is
-        // connected to the `Throttling` logic of the application.
-        let asset_string =
-            dotenvy::var("ASSET").expect("The ASSET environment variable should be set");
-
-        let asset = Asset::new_from_string(asset_string.as_str())
-            .expect("Please set a valid ASSET environment variable");
-        // This is much more understandable. You initialize all the agents in theb
-        // `SchedulingEnvironment` and then you simply create them. This is the
-        // way that it should be done.
-        orchestrator
-            .lock()
-            .unwrap()
-            .initialize_operational_agents()
-            .map_err(|err| anyhow!(err))?;
         let arc_orchestrator = Arc::new(Mutex::new(orchestrator));
 
         arc_orchestrator.lock().unwrap().actor_notify = Some(Arc::downgrade(&arc_orchestrator));
         arc_orchestrator
     }
 
-    // How should this asset function be implemented. The real question is what
-    // should be done about the the files versus bitstream. One thing is for
-    // sure if the add_asset function should be reused there can be no file
-    // handling inside of it. FIX
-    // What the fuck is this? Loading in configurations as a `system_agents_bytes`
-    // You are a pathetic idiot! You knew better even when you wrote this. This
-    // is a horrible way to live your life, God must be ashamed of you!
-    pub fn asset_factory(&mut self, asset: Asset) -> Result<()>
+    pub fn asset_factory(&mut self, asset: &Asset) -> Result<&mut Self>
     where
         Ss: SystemSolutionTrait,
     {
-        // Initialization should not occur in here. Also the configurations should come
-        // in from the
-        let shared_solutions_arc_swap = create_shared_solution_arc_swap();
+        let system_solution = Arc::new(ArcSwap::new(Arc::new(Ss::new())));
 
-        let notify_orchestrator = NotifyOrchestrator(
-            self.actor_notify
-                .as_ref()
-                .unwrap()
-                .upgrade()
-                .expect("Weak reference part of initialization"),
-        );
+        self.system_solutions.insert(asset.clone(), system_solution);
+        let dependencies = self.extract_factory_dependencies(asset)?;
 
-        // The ID field is completely defined by the defined by the System configurations here.
+        let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
-        self.
-        // FIX [ ] `self.start_strategic_actor()`
-        let strategic_agent_addr = StrategicApi::construct_actor(
-            id,
-            scheduling_environment_guard,
-            shared_solution_arc_swap,
-            notify_orchestrator,
-            system_configurations,
-        );
+        let strategic_id = scheduling_environment_guard
+            .worker_environment
+            .actor_specification
+            .get(asset)
+            .unwrap()
+            .strategic
+            .id
+            .clone();
+
+        let strategic_communication = StrategicApi::construct_actor(
+            strategic_id.clone(),
+            dependencies.0.clone(),
+            dependencies.1.clone(),
+            dependencies.2.clone(),
+            dependencies.3.clone(),
+        )
+        .with_context(|| format!("Could not construct StartegicActor {}", strategic_id))?;
 
         // Where should their IDs come from? I think that the best approach is to include them
         // from
-        let tactical_agent_addr = tactical_factory(
-            id,
-            Arc::clone(&self.scheduling_environment),
-            shared_solution_arc_swap,
-            notify_orchestrator,
-            system_configurations,
-        );
-
-        let supervisors = scheduling_environment_guard
+        let tactical_id = scheduling_environment_guard
             .worker_environment
-            .agent_environment
-            .supervisor
+            .actor_specification
+            .get(asset)
+            .unwrap()
+            .tactical
+            .id
             .clone();
-
-        let mut supervisor_communication = HashMap::<
-            Id,
-            Communication<ActorMessage<SupervisorRequestMessage>, SupervisorResponseMessage>,
-        >::new();
+        let tactical_communication = TacticalApi::construct_actor(
+            tactical_id.clone(),
+            dependencies.0.clone(),
+            dependencies.1.clone(),
+            dependencies.2.clone(),
+            dependencies.3.clone(),
+        )
+        .with_context(|| format!("{} could not be constructed", tactical_id))?;
 
         // This is a good sign. It means that the system is performing correctly. What
         // should be done about the code in general?
         // Why is the supervisor no used here? This is also not created in the best way.
-        for (id, _supervisor_configuration_all) in supervisors {
-            let supervisor_addr = supervisor_factory(
-                id,
-                Arc::clone(&self.scheduling_environment),
-                shared_solution_arc_swap,
-                notify_orchestrator,
-                system_configurations,
-            );
-            supervisor_communication.insert(id, supervisor_addr);
+        let supervisors = &scheduling_environment_guard
+            .worker_environment
+            .actor_specification
+            .get(asset)
+            .unwrap()
+            .supervisors;
+
+        let mut supervisor_communications = HashMap::default();
+        for supervisor in supervisors {
+            let supervisor_communication = SupervisorApi::construct_actor(
+                supervisor.id.clone(),
+                dependencies.0.clone(),
+                dependencies.1.clone(),
+                dependencies.2.clone(),
+                dependencies.3.clone(),
+            )?;
+
+            supervisor_communications.insert(supervisor.id.clone(), supervisor_communication);
+        }
+
+        let operationals = &scheduling_environment_guard
+            .worker_environment
+            .actor_specification
+            .get(asset)
+            .unwrap()
+            .operational;
+
+        let mut operational_communications = HashMap::default();
+        for operational in operationals {
+            let operational_communication = OperationalApi::construct_actor(
+                operational.id.clone(),
+                dependencies.0.clone(),
+                dependencies.1.clone(),
+                dependencies.2.clone(),
+                dependencies.3.clone(),
+            )?;
+
+            operational_communications.insert(operational.id.clone(), operational_communication);
         }
 
         let agent_registry = ActorRegistry::new(
-            strategic_agent_addr,
-            tactical_agent_addr,
-            supervisor_communication,
+            strategic_communication,
+            tactical_communication,
+            supervisor_communications,
+            operational_communications,
         );
 
-        self.system_solutions
-            .insert(asset.clone(), shared_solutions_arc_swap);
-
-        self.agent_registries.insert(asset, agent_registry);
-        Ok(())
+        self.agent_registries.insert(asset.clone(), agent_registry);
+        drop(scheduling_environment_guard);
+        Ok(self)
     }
 }
 

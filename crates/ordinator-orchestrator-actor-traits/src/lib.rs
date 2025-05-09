@@ -52,25 +52,6 @@ where
     pub operational: HashMap<Id, V>,
 }
 
-impl<S, T, U, V> SystemSolution<S, T, U, V>
-where
-    S: StrategicInterface,
-    T: TacticalInterface,
-    U: SupervisorInterface,
-    // FIX [ ]
-    // This `Solution` should be removed.
-    V: OperationalInterface + Solution,
-{
-    pub fn new() -> Self {
-        Self {
-            strategic: None,
-            tactical: None,
-            supervisor: None,
-            operational: HashMap::default(),
-        }
-    }
-}
-
 // This is made completely wrong. I am not sure what the
 // best approach of solving it will be.
 pub trait SystemSolutionTrait: Clone {
@@ -79,6 +60,7 @@ pub trait SystemSolutionTrait: Clone {
     type Supervisor: SupervisorInterface;
     type Operational: OperationalInterface + Solution;
 
+    fn new() -> Self;
     fn strategic(&self) -> &Self::Strategic;
 
     fn strategic_swap(&mut self, id: &Id, solution: Self::Strategic)
@@ -120,6 +102,15 @@ where
     type Strategic = S;
     type Supervisor = U;
     type Tactical = T;
+
+    fn new() -> Self {
+        Self {
+            strategic: None,
+            tactical: None,
+            supervisor: None,
+            operational: HashMap::default(),
+        }
+    }
 
     fn strategic(&self) -> &Self::Strategic {
         self.strategic.as_ref().unwrap()
@@ -378,14 +369,17 @@ pub enum ActorSpecific {
     Strategic(Vec<WorkOrderNumber>),
 }
 
-pub trait ActorFactory<Ss> {
+pub trait ActorFactory<Ss>
+where
+    Ss: SystemSolutionTrait + Sync + Send,
+{
     type Communication;
 
     fn construct_actor(
         id: Id,
-        scheduling_environment_guard: Arc<Mutex<SchedulingEnvironment>>,
-        shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
-        notify_orchestrator: Box<dyn OrchestratorNotifier>,
+        scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
+        system_solution_arc_swap: Arc<ArcSwap<Ss>>,
+        notify_orchestrator: Arc<dyn OrchestratorNotifier>,
         system_configurations: Arc<ArcSwap<SystemConfigurations>>,
     ) -> Result<Self::Communication>;
 }

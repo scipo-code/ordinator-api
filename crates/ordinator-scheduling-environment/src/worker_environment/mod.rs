@@ -174,7 +174,7 @@ pub struct InputSupervisor {
 
 // TODO [ ]
 // Load in the IDs directly.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InputOperational {
     pub id: Id,
     pub hours_per_day: f64,

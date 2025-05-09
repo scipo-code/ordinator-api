@@ -52,7 +52,7 @@ where
     pub receiver_from_orchestrator: Receiver<ActorMessage<ActorRequest>>,
     pub sender_to_orchestrator: Sender<Result<ActorResponse>>,
     pub configurations: Arc<ArcSwap<SystemConfigurations>>,
-    pub notify_orchestrator: Box<dyn OrchestratorNotifier>,
+    pub notify_orchestrator: Arc<dyn OrchestratorNotifier>,
 }
 
 // TODO [ ]
@@ -173,7 +173,7 @@ where
     receiver_from_orchestrator: Option<Receiver<ActorMessage<ActorRequest>>>,
     sender_to_orchestrator: Option<Sender<Result<ActorResponse>>>,
     configurations: Option<Arc<ArcSwap<SystemConfigurations>>>,
-    notify_orchestrator: Option<Box<dyn OrchestratorNotifier>>,
+    notify_orchestrator: Option<Arc<dyn OrchestratorNotifier>>,
     //
     communication_for_orchestrator:
         Option<Communication<ActorMessage<ActorRequest>, ActorResponse>>,
@@ -294,7 +294,7 @@ where
 
     pub fn notify_orchestrator(
         mut self,
-        notify_orchestrator: Box<dyn OrchestratorNotifier>,
+        notify_orchestrator: Arc<dyn OrchestratorNotifier>,
     ) -> Self {
         self.notify_orchestrator = Some(notify_orchestrator);
         self
