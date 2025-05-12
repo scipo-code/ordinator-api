@@ -74,6 +74,13 @@ pub struct OperationalStatus
     objective: f64,
 }
 
+// We should stop working on this now. Your primary difficulty here is
+// what to do with all these messages. I think that the best thing may be
+// to give each Actor a large enum that can handle all the different cases.
+//
+// What other approaches do I have
+// This is so ugly, how could you even get yourself to code this? I think that
+// the best thing to do now is take a little break and then continue.
 #[derive(Serialize)]
 pub enum OperationalResponse
 {

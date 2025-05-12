@@ -23,7 +23,8 @@ use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
-pub trait OrchestratorNotifier: Send + Sync + 'static {
+pub trait OrchestratorNotifier: Send + Sync + 'static
+{
     fn notify_all_agents_of_work_order_change(
         &self,
         work_orders: Vec<WorkOrderNumber>,
@@ -31,9 +32,31 @@ pub trait OrchestratorNotifier: Send + Sync + 'static {
     ) -> Result<()>;
 }
 
-pub struct Communication<Req, Res> {
-    pub sender: Sender<Req>,
-    pub receiver: Receiver<Result<Res>>,
+pub struct Communication<Req, Res>
+{
+    sender: Sender<Req>,
+    receiver: Receiver<Result<Res>>,
+}
+
+pub trait RequestMessage {}
+
+// StateLink is not a request. It is something different
+// Ahh this is good every Request message from each of the actors
+// should implement a `RequestMessage`. It is a little weird to
+// reuse the `Req` like this. You need to remember this to see
+// what you will learn from it.
+impl<Req, Res> Communication<Req, Res>
+{
+    pub fn new(sender: Sender<Req>, receiver: Receiver<Result<Res>>) -> Self {
+        Self { sender, receiver }
+    }
+
+    pub fn from_agent(&self, message: )
+    {
+        // What is it that you need to do here? You should 
+        let message = ActorMessage::Actor(message);
+        self.sender.send(message);
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -54,7 +77,8 @@ where
 
 // This is made completely wrong. I am not sure what the
 // best approach of solving it will be.
-pub trait SystemSolutionTrait: Clone {
+pub trait SystemSolutionTrait: Clone
+{
     type Strategic: StrategicInterface;
     type Tactical: TacticalInterface;
     type Supervisor: SupervisorInterface;
@@ -103,7 +127,8 @@ where
     type Supervisor = U;
     type Tactical = T;
 
-    fn new() -> Self {
+    fn new() -> Self
+    {
         Self {
             strategic: None,
             tactical: None,
@@ -112,19 +137,23 @@ where
         }
     }
 
-    fn strategic(&self) -> &Self::Strategic {
+    fn strategic(&self) -> &Self::Strategic
+    {
         self.strategic.as_ref().unwrap()
     }
 
-    fn tactical(&self) -> &Self::Tactical {
+    fn tactical(&self) -> &Self::Tactical
+    {
         self.tactical.as_ref().unwrap()
     }
 
-    fn supervisor(&self) -> &Self::Supervisor {
+    fn supervisor(&self) -> &Self::Supervisor
+    {
         self.supervisor.as_ref().unwrap()
     }
 
-    fn operational(&self, id: &Id) -> &Self::Operational {
+    fn operational(&self, id: &Id) -> &Self::Operational
+    {
         self.operational
             .get(id)
             .expect("querieed nonexisting operaional agent")
@@ -159,7 +188,8 @@ where
         todo!()
     }
 
-    fn all_operational(&self) -> HashSet<Id> {
+    fn all_operational(&self) -> HashSet<Id>
+    {
         self.operational.keys().cloned().collect()
     }
 
@@ -200,7 +230,8 @@ where
 // `from` trait. Meaning that we should focus on making the system
 // work with the
 // Should this function have an option or not? Yes it should.
-pub trait Solution {
+pub trait Solution
+{
     type ObjectiveValue;
     type Parameters;
 
@@ -217,11 +248,15 @@ pub trait Solution {
     fn update_objective_value(&mut self, other_objective: Self::ObjectiveValue);
 }
 
-pub trait MessageHandler {
+pub trait MessageHandler
+{
     type Req;
     type Res;
 
-    fn handle(&mut self, actor_message: ActorMessage<Self::Req>) -> Result<Self::Res> {
+    // This has the wrong kind of name. I do not see what else I could do here. Maybe I should
+    // strive 
+    fn handle(&mut self, actor_message: ActorMessage<Self::Req>) -> Result<Self::Res>
+    {
         match actor_message {
             ActorMessage::State(state_link) => self.handle_state_link(state_link),
             ActorMessage::Actor(actor_request) => self.handle_request_message(actor_request),
@@ -269,14 +304,17 @@ where
 // work order to be located. This is crucial to respect
 // business logic.
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
-pub enum WhereIsWorkOrder<T> {
+pub enum WhereIsWorkOrder<T>
+{
     Strategic,
     Tactical(T),
     #[default]
     NotScheduled,
 }
-impl<T> WhereIsWorkOrder<T> {
-    pub fn is_tactical(&self) -> bool {
+impl<T> WhereIsWorkOrder<T>
+{
+    pub fn is_tactical(&self) -> bool
+    {
         matches!(self, WhereIsWorkOrder::Tactical(_))
     }
 }
@@ -333,8 +371,11 @@ where
     ) -> Option<&'a MarginalFitness>;
 }
 
+// You should make an API on the `Communication` struct. What other approach
+// should I take.
 #[derive(Clone)]
-pub enum ActorMessage<ActorRequest> {
+pub enum ActorMessage<ActorRequest>
+{
     State(StateLink),
     Actor(ActorRequest),
     // Yes so options should be included here as part of what needs to be created for
@@ -358,14 +399,16 @@ pub enum ActorMessage<ActorRequest> {
 /// statically typed.
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-pub enum StateLink {
+pub enum StateLink
+{
     WorkOrders(ActorSpecific),
     WorkerEnvironment,
     TimeEnvironment,
 }
 
 #[derive(Debug, Clone)]
-pub enum ActorSpecific {
+pub enum ActorSpecific
+{
     Strategic(Vec<WorkOrderNumber>),
 }
 

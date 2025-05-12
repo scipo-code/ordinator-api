@@ -33,7 +33,7 @@ pub use ordinator_scheduling_environment::time_environment::day::Day;
 pub use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::WorkOrders;
 pub use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
-use ordinator_scheduling_environment::worker_environment::resources::Id;
+pub use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_strategic_actor::StrategicApi;
 use ordinator_strategic_actor::algorithm::strategic_solution::StrategicSolution;
 pub use ordinator_strategic_actor::messages::StrategicRequestMessage;

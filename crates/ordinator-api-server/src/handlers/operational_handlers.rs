@@ -1,86 +1,123 @@
-pub async fn handle_operational_request(
-    orchestrator: web::Data<Arc<Mutex<Orchestrator<Ss>>>>,
-    operational_request: OperationalRequest,
-) -> Result<HttpResponse, actix_web::Error>
+use std::error::Error;
+use std::sync::Arc;
+use std::sync::Mutex;
+
+use anyhow::Context;
+use anyhow::Result;
+use axum::Json;
+use axum::extract::Path;
+use axum::extract::State;
+use axum::response::Response;
+use ordinator_orchestrator::Asset;
+use ordinator_orchestrator::Id;
+use ordinator_orchestrator::OperationalRequestMessage;
+use ordinator_orchestrator::OperationalResponseMessage;
+use ordinator_orchestrator::Orchestrator;
+use ordinator_orchestrator::TotalSystemSolution;
+
+// CRUCIAL INSIGHT: Making enums for handlers and routes is a horrible idea. It
+// becomes difficult to change things and everything becomes coupled.
+//
+// The handlers should create the Messages. That means that the
+// is this even worth it? I am not really sure. I think that the
+// best approach is to create something that will allow us... Just
+// do it! Work fast and be prepared to change things back.
+pub async fn operational_ids(
+    State(orchestrator): State<Arc<Mutex<Orchestrator<TotalSystemSolution>>>>,
+    // This is actually not the best way of coding it?
+    Path(asset): Path<Asset>,
+) -> Result<Json<Vec<Id>>>
 {
-    let operational_response = match operational_request {
-        OperationalRequest::GetIds(asset) => {
-            let mut operational_ids_by_asset: Vec<Id> = Vec::new();
-            self.agent_registries
-                .get(&asset)
-                .expect("This error should be handled higher up")
-                .operational_agent_senders
-                .keys()
-                .for_each(|ele| {
-                    operational_ids_by_asset.push(ele.clone());
-                });
-
-            OperationalResponse::OperationalIds(operational_ids_by_asset)
-        }
-
-        // All of this is a bit out of place. I think that the best approach here is to make the
-        OperationalRequest::ForOperationalAgent((
-            asset,
-            operational_id,
-            operational_request_message,
-        )) => {
-            match self
-                .agent_registries
-                .get(&asset)
-                .expect("This error should be handled higher up")
-                .get_operational_addr(&operational_id)
-            {
-                Some(agent_communication) => {
-                    agent_communication
-                            .sender
-                            .send(crate::agents::ActorMessage::Actor(operational_request_message))
-                            .context("Could not await the message sending, theard problems are the most likely")
-                            .map_err(actix_web::error::ErrorInternalServerError)?;
-
-                    let response = agent_communication
-                        .receiver
-                        .recv()
-                        .map_err(actix_web::error::ErrorInternalServerError)?
-                        .map_err(actix_web::error::ErrorInternalServerError)?;
-
-                    OperationalResponse::OperationalState(response)
-                }
-                None => OperationalResponse::NoOperationalAgentFound(operational_id),
-            }
-        }
-        OperationalRequest::AllOperationalStatus(asset) => {
-            let operational_request_status = OperationalStatusRequest::General;
-            let operational_request_message =
-                OperationalRequestMessage::Status(operational_request_status);
-            let mut operational_responses: Vec<OperationalResponseMessage> = vec![];
-
-            let agent_registry_option = self.agent_registries.get(&asset);
-
-            let agent_registry = match agent_registry_option {
-                Some(agent_registry) => agent_registry,
-                None => {
-                    return Ok(HttpResponse::BadRequest()
-                        .json("STRATEGIC: STRATEGIC AGENT NOT INITIALIZED FOR THE ASSET"));
-                }
-            };
-
-            for operational_addr in agent_registry.operational_agent_senders.values() {
-                operational_addr
-                    .sender
-                    .send(crate::agents::ActorMessage::Actor(
-                        operational_request_message.clone(),
-                    ))
-                    .unwrap();
-            }
-
-            for operational_addr in agent_registry.operational_agent_senders.values() {
-                let response = operational_addr.receiver.recv().unwrap().unwrap();
-
-                operational_responses.push(response);
-            }
-            OperationalResponse::AllOperationalStatus(operational_responses)
-        }
-    };
-    let system_responses = SystemResponses::Operational(operational_response);
-    Ok(HttpResponse::Ok().json(system_responses))
+    Ok(Json(
+        orchestrator
+            .lock()
+            .unwrap()
+            .agent_registries
+            .get(&asset)
+            .expect("This error should be handled higher up")
+            .operational_agent_senders
+            .keys()
+            .map(|e| e.clone())
+            .collect(),
+    ))
 }
+
+pub async fn operational_handler_for_operational_agent(
+    State(orchestrator): State<Arc<Mutex<Orchestrator<TotalSystemSolution>>>>,
+    Path(asset): Path<Asset>,
+    Path(technician_id): Path<String>,
+) -> Result<Json<OperationalResponseMessage>>
+{
+    // INFO; So state link should not be possible to send here. This will be
+    // a very good exercise in how to use the `pub` keyword in a good way.
+    // I really think that a large `enum` is a fine approach. Otherwise
+    // we will have to turn the many types into a 
+    OperationalRequestMessage::Status();
+    // OperationalStatusMessage
+    let communication = orchestrator
+        .lock()
+        .unwrap()
+        .agent_registries
+        .get(&asset)
+        .expect("This error should be handled higher up")
+        .get_operational_addr(&technician_id)
+        .context("OperationalCommunication not found")?;
+
+    let response = communication
+        .from_agent(message);
+        // TODO [ ] Make an API on the Orchestrator so that only actor messages can be send to
+        // each other. It should not be possible to Send StateLink and jii
+        .send(ActorMessage::Actor(operational_request_message))
+        .context("Could not await the message sending, theard problems are the most likely")?;
+
+    let response = communication.receiver.recv()??;
+
+    Ok(Json(response))
+}
+
+// pub async fn operational_handler_alloperationalstatus(Path(asset):
+// Path<Asset>) -> Result<Json> {
+
+// }
+//             let operational_request_status =
+// OperationalStatusRequest::General;             let
+// operational_request_message =     pub async fn
+// operational_handler_operationalrequestmessage() -> {
+
+//     }
+//
+// OperationalRequestMessage::Status(operational_request_status);
+// let mut operational_responses: Vec<OperationalResponseMessage> = vec![];
+
+//             let agent_registry_option = self.agent_registries.get(&asset);
+
+//             let agent_registry = match agent_registry_option {
+//                 Some(agent_registry) => agent_registry,
+//                 None => {
+//                     return Ok(HttpResponse::BadRequest()
+//                         .json("STRATEGIC: STRATEGIC AGENT NOT INITIALIZED FOR
+// THE ASSET"));                 }
+//             };
+
+//             for operational_addr in
+// agent_registry.operational_agent_senders.values() {
+// operational_addr                     .sender
+//                     .send(crate::agents::ActorMessage::Actor(
+//                         operational_request_message.clone(),
+//                     ))
+//                     .unwrap();
+//             }
+
+//             for operational_addr in
+// agent_registry.operational_agent_senders.values() {                 let
+// response = operational_addr.receiver.recv().unwrap().unwrap();
+
+//                 operational_responses.push(response);
+//             }
+//             OperationalResponse::AllOperationalStatus(operational_responses)
+//         }
+//     };
+//     let system_responses =
+// SystemResponses::Operational(operational_response);
+//     Ok(HttpResponse::Ok().json(system_responses))
+// }
