@@ -10,26 +10,43 @@ use std::sync::Mutex;
 
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
+use actix_web::web;
 use ordinator_orchestrator::Orchestrator;
 use tracing::Level;
 use tracing::event;
 
+// INFO
+// So the idea is that all the functions should be separate. And the endpoints
+// should simply call the different functions. What is the difference between
+// the orchesatrator functions and handlers? The orchestrator simply has
+// `Communication`s, `SchedulingEnvironment` `SystemSolutions` that you can use.
+// This is what the orchestrator is. The remaining things should come from the
+// handlers. They should provide the information that the orchestrator
+// needs to do what it is supposed to do.
+pub async fn handle_orchestrator_message(
+    orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
+    reg: HttpRequest,
+) -> Result<HttpResponse, actix_web::Error>
+{
+    let mut orchestrator = orchestrator.lock().unwrap();
+
+    Ok(orchestrator
+        .handle_orchestrator_request(orchestrator_request)
+        .await?)
+}
 #[allow(clippy::await_holding_lock)]
 pub async fn http_to_scheduling_system(
     orchestrator: web::Data<Arc<Mutex<Orchestrator>>>,
     _req: HttpRequest,
     // Should all these System Messages be split into `async` functions?
+    // FIX
+    // This means that the SystemMessages should be broken down
     system_messages: web::Json<SystemMessages>,
-) -> Result<HttpResponse, actix_web::Error> {
+) -> Result<HttpResponse, actix_web::Error>
+{
     event!(Level::INFO, orchestrator_request = ?system_messages);
     match system_messages.into_inner() {
-        SystemMessages::Orchestrator(orchestrator_request) => {
-            let mut orchestrator = orchestrator.lock().unwrap();
-
-            Ok(orchestrator
-                .handle_orchestrator_request(orchestrator_request)
-                .await?)
-        }
+        SystemMessages::Orchestrator(orchestrator_request) => {}
         SystemMessages::Strategic(strategic_request) => {
             let asset = strategic_request.asset;
             let orchestrator_guard = orchestrator.lock().unwrap();
@@ -93,7 +110,8 @@ pub async fn http_to_scheduling_system(
 }
 
 #[cfg(test)]
-mod tests {
+mod tests
+{
     use std::collections::HashMap;
 
     use chrono::Utc;
@@ -104,7 +122,8 @@ mod tests {
     use shared_types::scheduling_environment::worker_environment::resources::Resources;
 
     #[test]
-    fn test_day_serialize() {
+    fn test_day_serialize()
+    {
         let mut hash_map_nested = HashMap::<Day, Work>::new();
 
         let mut hash_map = HashMap::<Resources, Days>::new();

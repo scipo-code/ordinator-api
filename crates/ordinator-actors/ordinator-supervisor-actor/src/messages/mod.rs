@@ -15,20 +15,24 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct SupervisorRequest {
+pub struct SupervisorRequest
+{
     pub asset: Asset,
     pub supervisor: SupervisorType,
     pub supervisor_request_message: SupervisorRequestMessage,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum SupervisorType {
+pub enum SupervisorType
+{
     Main,
     Other,
 }
 
-impl Display for SupervisorType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for SupervisorType
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
         match self {
             SupervisorType::Main => write!(f, "main"),
             SupervisorType::Other => todo!(),
@@ -37,20 +41,27 @@ impl Display for SupervisorType {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum SupervisorRequestMessage {
+pub enum SupervisorRequestMessage
+{
     Status(SupervisorStatusMessage),
     Scheduling(SupervisorSchedulingMessage),
     Update,
 }
 
+// Okay so the idea is that the orchestrator should do the routing. That should
+// mean that the message is not really needed here. The better approach will be
+// to make the system work with the correct.
 #[derive(Serialize)]
-pub struct SupervisorResponse {
+pub struct SupervisorResponse
+{
     asset: Asset,
     supervisor_response_message: SupervisorResponseMessage,
 }
 
-impl SupervisorResponse {
-    pub fn new(asset: Asset, supervisor_response_message: SupervisorResponseMessage) -> Self {
+impl SupervisorResponse
+{
+    pub fn new(asset: Asset, supervisor_response_message: SupervisorResponseMessage) -> Self
+    {
         Self {
             asset,
             supervisor_response_message,
@@ -59,7 +70,8 @@ impl SupervisorResponse {
 }
 
 #[derive(Serialize)]
-pub enum SupervisorResponseMessage {
+pub enum SupervisorResponseMessage
+{
     StateLink,
     Status(SupervisorResponseStatus),
     Scheduling(SupervisorResponseScheduling),
@@ -68,8 +80,10 @@ pub enum SupervisorResponseMessage {
     // Test(AlgorithmState<SupervisorInfeasibleCases>),
 }
 
-impl SupervisorResponseMessage {
-    pub fn status(self) -> SupervisorResponseStatus {
+impl SupervisorResponseMessage
+{
+    pub fn status(self) -> SupervisorResponseStatus
+    {
         match self {
             Self::Status(supervisor_response_status) => supervisor_response_status,
             _ => panic!("The underlying variant of the enum was not a status response"),

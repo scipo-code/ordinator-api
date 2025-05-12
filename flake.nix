@@ -39,8 +39,10 @@
             pkgs.openssl_3
             pkgs.pkg-config
             pkgs.taplo
-            pkgs.rust-bin.nightly.latest.default
-                        pkgs.zellij
+            (pkgs.rust-bin.nightly.latest.default.override {
+              extensions = ["rust-src" "rust-analyzer" ];
+            })
+            pkgs.zellij
             pythonEnv
 
           ];

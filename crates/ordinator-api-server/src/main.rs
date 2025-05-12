@@ -29,29 +29,36 @@
 mod handlers;
 mod routes;
 
-use actix_web::App;
-use actix_web::HttpServer;
-use actix_web::web;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use std::sync::Mutex;
+
 // use actix_web::guard;
 // use actix_web::web;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
+use axum::Router;
+use ordinator_orchestrator::Asset;
 // use std::fs::File;
 // use std::io::Read;
 use ordinator_orchestrator::Orchestrator;
+use ordinator_orchestrator::TotalSystemSolution;
 use routes::api::v1::api_scope;
+use tower_http::services::ServeDir;
 
-#[actix_web::main]
-async fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()>
+{
     dotenvy::dotenv()
         .context("You need to provide an .env file. Look at the .env.example for guidance")?;
 
-    let orchestrator = Orchestrator::new().await;
+    // Should the
+    let orchestrator: Arc<Mutex<Orchestrator<TotalSystemSolution>>> = Orchestrator::new().await;
 
     // WARN: Manually add `Asset`s here. Everything added here should be done from
     // the API in actual production. So this is only a temporary solution.
-    orchestrator.lock().unwrap().asset_factory(Asset::Df)?;
+    orchestrator.lock().unwrap().asset_factory(&Asset::DF)?;
 
     // WARN
 
@@ -60,7 +67,7 @@ async fn main() -> Result<()> {
             .app_data(web::Data::new(orchestrator.clone()))
             .service(api_scope())
             .service(
-                actix_files::Files::new("/scheduler", "./static_files/scheduler/dist")
+                actix_files::Files::new("/scheduler")
                     .index_file("index.html")
                     .show_files_listing()
                     .use_last_modified(true),
@@ -87,5 +94,22 @@ async fn main() -> Result<()> {
     .bind(dotenvy::var("ORDINATOR_API_ADDRESS").unwrap())?
     .run()
     .await
-    .map_err(|err| anyhow!(err))
+    .map_err(|err| anyhow!(err));
+    let scheduler_files = ServeDir::new("./static_files/scheduler/dist");
+    let supervisor_files =
+        ServeDir::new("./static_files/supervisor/dist/supervisor-calendar/browser");
+
+    let api = Router::new().
+
+    let app = Router::new()
+        .nest("/api/v1", api_scope())
+        .nest_service("/scheduler", scheduler_files)
+        .nest_service("/supervisor", supervisor_files)
+        .route("/hello", get(|| async { "Hello, world!" }));
+
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    axum_server::bind(addr)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
 }
