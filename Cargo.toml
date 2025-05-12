@@ -28,9 +28,6 @@ debug = true
 panic = 'abort'
 
 [workspace.dependencies]
-actix-files = "*"
-actix-rt = "*"
-actix-web = "*"
 anyhow = "*"
 arc-swap = "*" 
 chrono = { version = "*", features = ["serde"] }
@@ -48,7 +45,7 @@ rgb = "*"
 serde = { version = "*", features = ["derive"] } 
 serde_json = "*"
 strum = "*"
-tokio = "*"
+tokio = {version ="*", features = [ "macros", "rt-multi-thread"]}
 toml = "*"
 tracing = "*"
 tracing-appender = "*"

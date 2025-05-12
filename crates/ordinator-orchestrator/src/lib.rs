@@ -15,7 +15,6 @@ use anyhow::Result;
 use anyhow::bail;
 use arc_swap::ArcSwap;
 use ordinator_configuration::SystemConfigurations;
-use ordinator_contracts::orchestrator::OrchestratorRequest;
 use ordinator_contracts::orchestrator::OrchestratorResponse;
 use ordinator_operational_actor::OperationalApi;
 use ordinator_operational_actor::algorithm::operational_solution::OperationalSolution;
@@ -30,8 +29,10 @@ use ordinator_orchestrator_actor_traits::StateLink;
 pub use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 pub use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SchedulingEnvironment;
-use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+pub use ordinator_scheduling_environment::time_environment::day::Day;
+pub use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::WorkOrders;
+pub use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_strategic_actor::StrategicApi;
 use ordinator_strategic_actor::algorithm::strategic_solution::StrategicSolution;
@@ -45,6 +46,8 @@ use ordinator_tactical_actor::TacticalApi;
 use ordinator_tactical_actor::algorithm::tactical_solution::TacticalSolution;
 pub use ordinator_tactical_actor::messages::TacticalRequestMessage;
 pub use ordinator_tactical_actor::messages::TacticalResponseMessage;
+use serde::Deserialize;
+use serde::Serialize;
 use tracing::instrument;
 
 use self::actor_registry::ActorRegistry;
@@ -124,6 +127,24 @@ where
 
         Ok(())
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum OrchestratorRequest
+{
+    GetWorkOrderStatus(WorkOrderNumber),
+    GetWorkOrdersState(Asset),
+    GetPeriods,
+    GetDays,
+    AgentStatusRequest,
+    // InitializeSystemAgentsFromFile(Asset, ActorSpecifications),
+    CreateSupervisorAgent(Asset, u64, Id),
+    DeleteSupervisorAgent(Asset, String),
+
+    // This should be an API handle not simply
+    // CreateOperationalAgent(Asset, Id, f64, OperationalConfiguration),
+    DeleteOperationalAgent(Asset, String),
+    Export(Asset),
 }
 
 impl<Ss> Orchestrator<Ss>

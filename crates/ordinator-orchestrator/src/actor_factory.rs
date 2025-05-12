@@ -26,6 +26,7 @@ use crate::Orchestrator;
 
 pub type TotalSystemSolution =
     SystemSolution<StrategicSolution, TacticalSolution, SupervisorSolution, OperationalSolution>;
+
 impl<Ss> Orchestrator<Ss>
 where
     Ss: SystemSolutionTrait<

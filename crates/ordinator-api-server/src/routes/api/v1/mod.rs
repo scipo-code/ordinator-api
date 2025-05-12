@@ -1,4 +1,7 @@
 mod strategic;
+mod supervisor;
+mod tactical;
+mod technician;
 
 use axum::Router;
 use strategic::scheduler_nest;
@@ -22,3 +25,22 @@ pub async fn api_scope() -> Router
 //
 // ISSUE #131 TODO [ ]
 // Replace the `SystemMessages` structure with routers instead.
+// pub enum SystemMessages {
+//     Orchestrator(OrchestratorRequest),
+//     Strategic(StrategicRequest),
+//     Tactical(TacticalRequest),
+//     Supervisor(SupervisorRequest),
+//     Operational(OperationalRequest),
+//     Sap,
+// }
+
+// #[derive(Serialize)]
+// pub enum SystemResponses {
+//     Orchestrator(OrchestratorResponse),
+//     Strategic(StrategicResponse),
+//     Tactical(TacticalResponse),
+//     Supervisor(SupervisorResponse),
+//     Operational(OperationalResponse),
+//     Export,
+//     Sap,
+// }

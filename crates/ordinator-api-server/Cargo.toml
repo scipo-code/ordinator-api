@@ -10,9 +10,9 @@ axum = "*"
 axum-server = "*"
 tower = "*"
 tower-http = { version = "*", features = ["fs"]}
-actix-files = { workspace = true}
-actix-rt = { workspace = true }
-actix-web = { workspace = true }
+# actix-files = { workspace = true}
+# actix-rt = { workspace = true }
+# actix-web = { workspace = true }
 anyhow = { workspace = true }
 dotenvy = { workspace = true }
 tokio = { workspace = true }

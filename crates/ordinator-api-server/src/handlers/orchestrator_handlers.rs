@@ -7,22 +7,44 @@ use std::sync::Mutex;
 use actix_web::HttpResponse;
 use actix_web::web;
 use anyhow::Context;
+use axum::Json;
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::response::Response;
+use ordinator_orchestrator::ActivityNumber;
 use ordinator_orchestrator::Asset;
+use ordinator_orchestrator::Day;
 use ordinator_orchestrator::OperationalRequestMessage;
 use ordinator_orchestrator::Orchestrator;
+use ordinator_orchestrator::OrchestratorRequest;
 use ordinator_orchestrator::SystemSolutionTrait;
+use ordinator_orchestrator::TotalSystemSolution;
+use ordinator_orchestrator::WorkOrderNumber;
 use tracing::Level;
 use tracing::event;
 
+// This should be deleted and replaced with the other handler. I do not
+// see a different way around it.
+// pub async fn handle_orchestrator_message<Ss>(
+//     State(orchestrator): State<Arc<Mutex<Orchestrator<Ss>>>>,
+//     Json(reg): Json<OrchestratorRequest>,
+// ) -> Result<Response, axum::Error>
+// {
+//     let mut orchestrator = orchestrator.lock().unwrap();
+
+//     // Every handler should go into the... You are combining the
+//     // handlers with the routes. You should not be doing that...
+//     Ok(orchestrator.handle_orchestrator_request(reg).await?)
+// }
+
 pub async fn scheduler_excel_export<Ss>(
-    orchestrator: web::Data<Arc<Mutex<Orchestrator<Ss>>>>,
+    State(orchestrator): State<Arc<Mutex<Orchestrator<Ss>>>>,
     asset: web::Path<Asset>,
-) -> Result<HttpResponse, actix_web::Error>
+) -> Result<Response, axum::Error>
 where
     Ss: SystemSolutionTrait,
 {
     let (buffer, http_header) = orchestrator
-        .into_inner()
         .lock()
         .unwrap()
         .export_xlsx_solution(asset.into_inner())?;
@@ -36,8 +58,8 @@ where
 }
 
 pub async fn scheduler_asset_names<'a, Ss>(
-    orchestrator: web::Data<Arc<Mutex<Orchestrator<Ss>>>>,
-) -> Result<HttpResponse, actix_web::Error>
+    orchestrator: State<Arc<Mutex<Orchestrator<Ss>>>>,
+) -> Result<HttpResponse, axum::Error>
 where
     Ss: SystemSolutionTrait,
 {
@@ -49,11 +71,16 @@ where
 }
 
 // This should I think that the best thing to do here is to make the
-// system work with the correct api.
+// system work with the correct api. The Handlers should make the
+// messages for the Actors based on the Request. That means that it
+// becomes natural for the types to work with DTO objects on the
+// frontend. Where should these reside? I think that the contracts
+// crate is the best approach. So you make the api crate rely on
+// the orchestrator, and the `constracts` crates.
 pub async fn handle_orchestrator_request<Ss>(
     orchestrator: web::Data<Arc<Mutex<Orchestrator<Ss>>>>,
     orchestrator_request: OrchestratorRequest,
-) -> Result<HttpResponse, actix_web::Error>
+) -> Result<HttpResponse, axum::Error>
 where
     Ss: SystemSolutionTrait,
 {
@@ -63,16 +90,14 @@ where
         .await
 }
 
-async fn orchestrator_requests<Ss>(
-    orchestrator: web::Data<Arc<Mutex<Orchestrator<Ss>>>>,
-    orchestrator_request: OrchestratorRequest,
-) -> Result<HttpResponse, actix_web::Error>
-where
-    Ss: SystemSolutionTrait,
+pub async fn orchestrator_requests(
+    State(orchestrator): State<Arc<Mutex<Orchestrator<TotalSystemSolution>>>>,
+    Json(orchestrator_request): Json<OrchestratorRequest>,
+) -> Result<Response, axum::Error>
 {
     let response = match orchestrator_request {
         OrchestratorRequest::Export(asset) => {
-            let (buffer, http_header) = self.export_xlsx_solution(asset)?;
+            let (buffer, http_header) = export_xlsx_solution(orchestrator, asset)?;
 
             HttpResponse::Ok()
                 .content_type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -80,25 +105,30 @@ where
                 .body(buffer)
         }
         _ => {
-            let response = self.handle(orchestrator_request).await;
-            // This is horrible. I do not think that you should work on this so late
-            // in the evening. Instead focus on doing what actually
-            let system_responses = SystemResponses::Orchestrator(response.unwrap());
-            HttpResponse::Ok().json(system_responses)
+            // let response = orchestrator
+            //     .lock()
+            //     .unwrap()
+            //     .handle(orchestrator_request)
+            //     .await;
+            // // This is horrible. I do not think that you should work on this
+            // so late // in the evening. Instead focus on doing
+            // what actually Json(response)
         }
     };
 
     Ok(response)
 }
 
+// You need to understand how to deal with Generics in a good way in the API of
+// the function.
 pub fn export_xlsx_solution<Ss>(
-    orchestrator: web::Data<Arc<Mutex<Orchestrator<Ss>>>>,
+    orchestrator: Arc<Mutex<Orchestrator<Ss>>>,
     asset: Asset,
-) -> Result<(Vec<u8>, String), actix_web::Error>
+) -> Result<(Vec<u8>, String), axum::Error>
 where
     Ss: SystemSolutionTrait,
 {
-    let shared_solution = self
+    let shared_solution = orchestrator
         .arc_swap_shared_solutions
         .get(&asset)
         .with_context(|| {
@@ -107,7 +137,7 @@ where
                 asset
             )
         })
-        .map_err(actix_web::error::ErrorInternalServerError)?
+        .map_err(axum::Error::new(StatusCode::NOT_FOUND))?
         .0
         .load();
 
@@ -118,7 +148,7 @@ where
         .into_iter()
         // .filter_map(|(won, opt_per)| opt_per.map(|per| (won, per)))
         .collect::<HashMap<_, _>>();
-    let tactical_agent_solution = self
+    let tactical_agent_solution = orchestrator
         .arc_swap_shared_solutions
         .get(&asset)
         .unwrap()
@@ -143,7 +173,12 @@ where
         })
         .collect::<HashMap<WorkOrderNumber, HashMap<ActivityNumber, Day>>>();
 
-    let scheduling_environment_lock = self.scheduling_environment.lock().unwrap();
+    let scheduling_environment_lock = orchestrator
+        .lock()
+        .unwrap()
+        .scheduling_environment
+        .lock()
+        .unwrap();
     let work_orders = scheduling_environment_lock.work_orders.clone();
 
     drop(scheduling_environment_lock);
@@ -167,167 +202,3 @@ where
 // TODO: Move this out
 // How should this look like?
 //
-pub async fn handle_tactical_request<Ss>(
-    orchestrator: web::Data<Arc<Mutex<Orchestrator<Ss>>>>,
-    tactical_request: TacticalRequest,
-) -> Result<HttpResponse, actix_web::Error>
-where
-    Ss: SystemSolutionTrait,
-{
-    let agent_registry_for_asset = match self.agent_registries.get(&tactical_request.asset) {
-        Some(agent_registry) => &agent_registry.tactical_agent_sender,
-        None => {
-            return Ok(HttpResponse::BadRequest()
-                .json("TACTICAL: TACTICAL AGENT NOT INITIALIZED FOR THE ASSET"));
-        }
-    };
-
-    agent_registry_for_asset
-        .sender
-        .send(crate::agents::ActorMessage::Actor(
-            tactical_request.tactical_request_message,
-        ))
-        .map_err(actix_web::error::ErrorInternalServerError)?;
-
-    let response = agent_registry_for_asset
-        .receiver
-        .recv()
-        .map_err(actix_web::error::ErrorInternalServerError)?
-        .map_err(actix_web::error::ErrorInternalServerError)?;
-
-    // We should only have the Message for the particular actor. We should route the
-    // message with the `orchestrator`.
-    let tactical_response = TacticalResponse::new(tactical_request.asset, response);
-    let system_responses = SystemResponses::Tactical(tactical_response);
-    Ok(HttpResponse::Ok().json(system_responses))
-}
-
-// TODO: Move this out
-pub async fn handle_supervisor_request<Ss>(
-    orchestrator: web::Data<Arc<Mutex<Orchestrator<Ss>>>>,
-    supervisor_request: SupervisorRequest,
-) -> Result<HttpResponse, actix_web::Error>
-where
-    Ss: SystemSolutionTrait,
-{
-    event!(Level::INFO, supervisor_request = ?supervisor_request);
-    let supervisor_agent_addrs = match self.agent_registries.get(&supervisor_request.asset) {
-        Some(agent_registry) => &agent_registry.supervisor_agent_senders,
-        None => {
-            return Ok(HttpResponse::BadRequest()
-                .json("SUPERVISOR: SUPERVISOR AGENT NOT INITIALIZED FOR THE ASSET"));
-        }
-    };
-    let supervisor_agent_addr = supervisor_agent_addrs
-                .iter()
-                .find(|(id, _)| id.0 == supervisor_request.supervisor.to_string())
-                .expect("This will error at somepoint you will need to handle if you have added additional supervisors")
-                .1;
-
-    // This was the reason that we wanted the tokio runtime.
-    supervisor_agent_addr
-        .sender
-        .send(crate::agents::ActorMessage::Actor(
-            supervisor_request.supervisor_request_message,
-        ))
-        .map_err(actix_web::error::ErrorInternalServerError)?;
-
-    let response = supervisor_agent_addr
-        .receiver
-        .recv()
-        .map_err(actix_web::error::ErrorInternalServerError)?
-        .map_err(actix_web::error::ErrorInternalServerError)?;
-
-    let supervisor_response = SupervisorResponse::new(supervisor_request.asset, response);
-
-    let system_responses = SystemResponses::Supervisor(supervisor_response);
-    Ok(HttpResponse::Ok().json(system_responses))
-}
-
-// TODO: Move this out
-pub async fn handle_operational_request(
-    orchestrator: web::Data<Arc<Mutex<Orchestrator<Ss>>>>,
-    operational_request: OperationalRequest,
-) -> Result<HttpResponse, actix_web::Error>
-{
-    let operational_response = match operational_request {
-        OperationalRequest::GetIds(asset) => {
-            let mut operational_ids_by_asset: Vec<Id> = Vec::new();
-            self.agent_registries
-                .get(&asset)
-                .expect("This error should be handled higher up")
-                .operational_agent_senders
-                .keys()
-                .for_each(|ele| {
-                    operational_ids_by_asset.push(ele.clone());
-                });
-
-            OperationalResponse::OperationalIds(operational_ids_by_asset)
-        }
-
-        // All of this is a bit out of place. I think that the best approach here is to make the
-        OperationalRequest::ForOperationalAgent((
-            asset,
-            operational_id,
-            operational_request_message,
-        )) => {
-            match self
-                .agent_registries
-                .get(&asset)
-                .expect("This error should be handled higher up")
-                .get_operational_addr(&operational_id)
-            {
-                Some(agent_communication) => {
-                    agent_communication
-                            .sender
-                            .send(crate::agents::ActorMessage::Actor(operational_request_message))
-                            .context("Could not await the message sending, theard problems are the most likely")
-                            .map_err(actix_web::error::ErrorInternalServerError)?;
-
-                    let response = agent_communication
-                        .receiver
-                        .recv()
-                        .map_err(actix_web::error::ErrorInternalServerError)?
-                        .map_err(actix_web::error::ErrorInternalServerError)?;
-
-                    OperationalResponse::OperationalState(response)
-                }
-                None => OperationalResponse::NoOperationalAgentFound(operational_id),
-            }
-        }
-        OperationalRequest::AllOperationalStatus(asset) => {
-            let operational_request_status = OperationalStatusRequest::General;
-            let operational_request_message =
-                OperationalRequestMessage::Status(operational_request_status);
-            let mut operational_responses: Vec<OperationalResponseMessage> = vec![];
-
-            let agent_registry_option = self.agent_registries.get(&asset);
-
-            let agent_registry = match agent_registry_option {
-                Some(agent_registry) => agent_registry,
-                None => {
-                    return Ok(HttpResponse::BadRequest()
-                        .json("STRATEGIC: STRATEGIC AGENT NOT INITIALIZED FOR THE ASSET"));
-                }
-            };
-
-            for operational_addr in agent_registry.operational_agent_senders.values() {
-                operational_addr
-                    .sender
-                    .send(crate::agents::ActorMessage::Actor(
-                        operational_request_message.clone(),
-                    ))
-                    .unwrap();
-            }
-
-            for operational_addr in agent_registry.operational_agent_senders.values() {
-                let response = operational_addr.receiver.recv().unwrap().unwrap();
-
-                operational_responses.push(response);
-            }
-            OperationalResponse::AllOperationalStatus(operational_responses)
-        }
-    };
-    let system_responses = SystemResponses::Operational(operational_response);
-    Ok(HttpResponse::Ok().json(system_responses))
-}

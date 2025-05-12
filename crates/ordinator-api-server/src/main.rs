@@ -33,12 +33,11 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-// use actix_web::guard;
-// use actix_web::web;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use axum::Router;
+use axum::routing::get;
 use ordinator_orchestrator::Asset;
 // use std::fs::File;
 // use std::io::Read;
@@ -62,47 +61,45 @@ async fn main() -> Result<()>
 
     // WARN
 
-    HttpServer::new(move || {
-        App::new()
-            .app_data(web::Data::new(orchestrator.clone()))
-            .service(api_scope())
-            .service(
-                actix_files::Files::new("/scheduler")
-                    .index_file("index.html")
-                    .show_files_listing()
-                    .use_last_modified(true),
-            )
-            .service(
-                actix_files::Files::new(
-                    "/supervisor",
-                    "./static_files/supervisor/dist/supervisor-calendar/browser",
-                )
-                .index_file("index.html")
-                .show_files_listing()
-                .use_last_modified(true),
-            )
-        // TEMP
-        // `http_to_scheduling_system` is the old entrypoint for the
-        // `ordinator-imperium` cli tool .route(
-        //     &dotenvy::var("ORDINATOR_MAIN_ENDPOINT").unwrap(),
-        //     web::post()
-        //         .guard(guard::Header("content-type", "application/json"))
-        //         .to(api::routes::http_to_scheduling_system),
-        // )
-    })
-    .workers(4)
-    .bind(dotenvy::var("ORDINATOR_API_ADDRESS").unwrap())?
-    .run()
-    .await
-    .map_err(|err| anyhow!(err));
+    // HttpServer::new(move || {
+    //     App::new()
+    //         .app_data(web::Data::new(orchestrator.clone()))
+    //         .service(api_scope())
+    //         .service(
+    //             actix_files::Files::new("/scheduler")
+    //                 .index_file("index.html")
+    //                 .show_files_listing()
+    //                 .use_last_modified(true),
+    //         )
+    //         .service(
+    //             actix_files::Files::new(
+    //                 "/supervisor",
+    //                 "./static_files/supervisor/dist/supervisor-calendar/browser",
+    //             )
+    //             .index_file("index.html")
+    //             .show_files_listing()
+    //             .use_last_modified(true),
+    //         )
+    //     // TEMP
+    //     // `http_to_scheduling_system` is the old entrypoint for the
+    //     // `ordinator-imperium` cli tool .route(
+    //     //     &dotenvy::var("ORDINATOR_MAIN_ENDPOINT").unwrap(),
+    //     //     web::post()
+    //     //         .guard(guard::Header("content-type", "application/json"))
+    //     //         .to(api::routes::http_to_scheduling_system),
+    //     // )
+    // })
+    // .workers(4)
+    // .bind(dotenvy::var("ORDINATOR_API_ADDRESS").unwrap())?
+    // .run()
+    // .await
+    // .map_err(|err| anyhow!(err));
     let scheduler_files = ServeDir::new("./static_files/scheduler/dist");
     let supervisor_files =
         ServeDir::new("./static_files/supervisor/dist/supervisor-calendar/browser");
 
-    let api = Router::new().
-
     let app = Router::new()
-        .nest("/api/v1", api_scope())
+        .nest("/api/v1", api_scope().await)
         .nest_service("/scheduler", scheduler_files)
         .nest_service("/supervisor", supervisor_files)
         .route("/hello", get(|| async { "Hello, world!" }));
@@ -111,5 +108,5 @@ async fn main() -> Result<()>
     axum_server::bind(addr)
         .serve(app.into_make_service())
         .await
-        .unwrap();
+        .map_err(|e| anyhow!(e))
 }

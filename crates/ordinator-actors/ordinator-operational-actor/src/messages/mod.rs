@@ -57,6 +57,8 @@ pub enum OperationalRequestMessage
     Time(OperationalTimeRequest),
 }
 
+// Okay, so we will keep these in place. I think that is
+// the best approach here.
 #[derive(Serialize)]
 pub enum OperationalResponseMessage
 {
