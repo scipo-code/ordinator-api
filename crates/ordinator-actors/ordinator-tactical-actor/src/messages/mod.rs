@@ -2,49 +2,28 @@ pub mod message_handlers;
 pub mod requests;
 pub mod responses;
 
-use ordinator_scheduling_environment::Asset;
-use requests::TacticalResourceRequest;
-use requests::TacticalSchedulingRequest;
+use ordinator_actor_core::RequestMessage;
+use requests::TacticalRequestResource;
+use requests::TacticalRequestScheduling;
+use requests::TacticalSchedulingEnvironmentCommands;
 use requests::TacticalStatusMessage;
 use requests::TacticalTimeRequest;
 use responses::TacticalResponseScheduling;
 use responses::TacticalResponseStatus;
 use responses::TacticalResponseTime;
-use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct TacticalRequest {
-    pub asset: Asset,
-    pub tactical_request_message: TacticalRequestMessage,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum TacticalRequestMessage {
-    Status(TacticalStatusMessage),
-    Scheduling(TacticalSchedulingRequest),
-    Resources(TacticalResourceRequest),
-    Days(TacticalTimeRequest),
-    Update,
-}
-
-#[derive(Serialize)]
-pub struct TacticalResponse {
-    asset: Asset,
-    tactical_response_message: TacticalResponseMessage,
-}
-
-impl TacticalResponse {
-    pub fn new(asset: Asset, tactical_response_message: TacticalResponseMessage) -> Self {
-        Self {
-            asset,
-            tactical_response_message,
-        }
-    }
-}
+pub type TacticalRequestMessage = RequestMessage<
+    TacticalStatusMessage,
+    TacticalRequestScheduling,
+    TacticalRequestResource,
+    TacticalTimeRequest,
+    TacticalSchedulingEnvironmentCommands,
+>;
 
 #[derive(Debug, Serialize)]
-pub enum TacticalResponseMessage {
+pub enum TacticalResponseMessage
+{
     FreeStringResponse(String),
     Status(TacticalResponseStatus),
     Scheduling(TacticalResponseScheduling),

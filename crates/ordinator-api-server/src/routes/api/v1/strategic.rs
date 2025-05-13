@@ -1,19 +1,26 @@
+use std::sync::Arc;
+use std::sync::Mutex;
+
 use axum::Router;
 use axum::extract::Path;
 use axum::routing::get;
+use ordinator_orchestrator::Orchestrator;
+use ordinator_orchestrator::TotalSystemSolution;
+
+use crate::handlers::scheduler_excel_export;
+use crate::handlers::strategic_handlers::get_scheduler_work_orders;
 
 // TODO [x]
 // The main idea is to replace all the.
-pub async fn scheduler_nest() -> Router
+pub async fn scheduler_nest(
+    state: Arc<Mutex<Orchestrator<TotalSystemSolution>>>,
+) -> Router<Arc<Mutex<Orchestrator<TotalSystemSolution>>>>
 {
-    Router::new().route("/work_orders/:id", get(get_scheduler_work_orders))
+    Router::new()
+        .route("/work_orders/:id", get(get_scheduler_work_orders))
+        .with_state(state)
 }
 
-pub async fn get_scheduler_work_orders(Some(Path(id)): Option<Path<u64>>)
-{
-    // This should go into the handler, directory. There is no other way around it
-    orchestrator.get_work_order(id)
-}
 // let asset = strategic_request.asset;
 // let orchestrator_guard = orchestrator.lock().unwrap();
 

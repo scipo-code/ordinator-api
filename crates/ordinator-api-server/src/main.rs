@@ -31,7 +31,6 @@ mod routes;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -44,6 +43,7 @@ use ordinator_orchestrator::Asset;
 use ordinator_orchestrator::Orchestrator;
 use ordinator_orchestrator::TotalSystemSolution;
 use routes::api::v1::api_scope;
+use tokio::sync::Mutex;
 use tower_http::services::ServeDir;
 
 #[tokio::main]
@@ -57,6 +57,7 @@ async fn main() -> Result<()>
 
     // WARN: Manually add `Asset`s here. Everything added here should be done from
     // the API in actual production. So this is only a temporary solution.
+
     orchestrator.lock().unwrap().asset_factory(&Asset::DF)?;
 
     // WARN
@@ -99,7 +100,7 @@ async fn main() -> Result<()>
         ServeDir::new("./static_files/supervisor/dist/supervisor-calendar/browser");
 
     let app = Router::new()
-        .nest("/api/v1", api_scope().await)
+        .nest("/api/v1", api_scope(orchestrator).await)
         .nest_service("/scheduler", scheduler_files)
         .nest_service("/supervisor", supervisor_files)
         .route("/hello", get(|| async { "Hello, world!" }));

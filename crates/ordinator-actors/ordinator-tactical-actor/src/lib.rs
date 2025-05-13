@@ -42,7 +42,8 @@ where
 {
     type Target = Actor<TacticalRequestMessage, TacticalResponseMessage, TacticalAlgorithm<Ss>>;
 
-    fn deref(&self) -> &Self::Target {
+    fn deref(&self) -> &Self::Target
+    {
         &self.0
     }
 }
@@ -51,7 +52,8 @@ impl<Ss> DerefMut for TacticalActor<Ss>
 where
     Ss: SystemSolutionTrait<Tactical = TacticalSolution>,
 {
-    fn deref_mut(&mut self) -> &mut Self::Target {
+    fn deref_mut(&mut self) -> &mut Self::Target
+    {
         &mut self.0
     }
 }
@@ -73,8 +75,7 @@ where
             >,
         >,
 {
-    type Communication =
-        Communication<ActorMessage<TacticalRequestMessage>, TacticalResponseMessage>;
+    type Communication = Communication<TacticalRequestMessage, TacticalResponseMessage>;
 
     fn construct_actor(
         id: Id,
@@ -82,7 +83,8 @@ where
         shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
         notify_orchestrator: Arc<dyn OrchestratorNotifier>,
         system_configurations: Arc<ArcSwap<SystemConfigurations>>,
-    ) -> Result<Self::Communication> {
+    ) -> Result<Self::Communication>
+    {
         Actor::<TacticalRequestMessage, TacticalResponseMessage, TacticalAlgorithm<Ss>>::builder()
             .agent_id(Id::new("TacticalAgent", vec![], vec![id.asset().clone()]))
             .scheduling_environment(Arc::clone(&scheduling_environment_guard))

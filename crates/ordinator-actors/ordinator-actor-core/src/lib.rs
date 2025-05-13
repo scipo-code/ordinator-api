@@ -24,6 +24,7 @@ use ordinator_orchestrator_actor_traits::StateLink;
 use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
+use serde::Deserialize;
 use serde::Serialize;
 
 use self::traits::ActorBasedLargeNeighborhoodSearch;
@@ -116,7 +117,7 @@ where
                 // from the fact that the. The Actor needs to run this.
                 // Should the Option be removed? Yes
                 .run_lns_iteration()
-                .with_context(|| format!("{:#?}", schedule_iteration))
+                .with_context(|| format!("{schedule_iteration:#?}"))
                 .unwrap();
 
             schedule_iteration.increment();
@@ -179,8 +180,7 @@ where
     configurations: Option<Arc<ArcSwap<SystemConfigurations>>>,
     notify_orchestrator: Option<Arc<dyn OrchestratorNotifier>>,
     //
-    communication_for_orchestrator:
-        Option<Communication<ActorMessage<ActorRequest>, ActorResponse>>,
+    communication_for_orchestrator: Option<Communication<ActorRequest, ActorResponse>>,
 }
 
 impl<ActorRequest, ActorResponse, SpecificAlgorithm>
@@ -192,7 +192,7 @@ where
     ActorRequest: Send + Sync + 'static,
     ActorResponse: Send + Sync + 'static,
 {
-    pub fn build(self) -> Result<Communication<ActorMessage<ActorRequest>, ActorResponse>>
+    pub fn build(self) -> Result<Communication<ActorRequest, ActorResponse>>
     {
         let mut agent = Actor {
             actor_id: self.agent_id.unwrap(),
@@ -257,20 +257,22 @@ where
         Ok(self)
     }
 
+    // What is the error here? I think that it has to do with the
+    // bounded channel.
     pub fn communication(mut self) -> Self
     {
-        let (sender_to_agent, receiver_from_orchestrator): (
+        let (sender_to_actor, receiver_from_orchestrator): (
             flume::Sender<ActorMessage<ActorRequest>>,
             flume::Receiver<ActorMessage<ActorRequest>>,
         ) = flume::unbounded();
 
-        let (sender_to_orchestrator, receiver_from_agent): (
+        let (sender_to_orchestrator, receiver_from_actor): (
             flume::Sender<Result<ActorResponse>>,
             flume::Receiver<Result<ActorResponse>>,
         ) = flume::unbounded();
 
         self.communication_for_orchestrator =
-            Some(Communication::new(sender_to_agent, receiver_from_agent));
+            Some(Communication::new(sender_to_actor, receiver_from_actor));
 
         self.receiver_from_orchestrator = Some(receiver_from_orchestrator);
         self.sender_to_orchestrator = Some(sender_to_orchestrator);
@@ -338,7 +340,7 @@ impl fmt::Debug for ScheduleIteration
             )
             .bright_magenta();
 
-            write!(f, "{}", string)
+            write!(f, "{string}")
         } else {
             f.debug_struct("ScheduleIteration")
                 .field("loop_iteration", &self.loop_iteration)
@@ -385,8 +387,33 @@ where
     {
         match self {
             ConstraintState::Feasible => write!(f, "FEASIBLE"),
-            ConstraintState::Infeasible(reason) => write!(f, "{}", reason),
+            ConstraintState::Infeasible(reason) => write!(f, "{reason}"),
             ConstraintState::Undetermined => write!(f, "Constraint is not determined yet"),
         }
     }
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub enum RequestMessage<S, Sc, R, T, C>
+{
+    Status(S),
+    Scheduling(Sc),
+    Resource(R),
+    Time(T),
+    SchedulingEnvironment(C),
+    Update,
+}
+
+// You need type safety here I do not see another way around it
+//
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub enum ResponseMessage<S, Sc, R, T, C>
+{
+    Status(S),
+    Scheduling(Sc),
+    Resource(R),
+    Time(T),
+    SchedulingEnvironment(C),
+    Update,
+    Succes,
 }

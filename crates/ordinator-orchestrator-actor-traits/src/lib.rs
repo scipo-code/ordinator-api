@@ -1,14 +1,19 @@
+#![feature(async_fn_in_trait)]
+#![allow(async_fn_in_trait)]
 pub mod delegate;
 pub mod marginal_fitness;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
 
+use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
 use arc_swap::ArcSwap;
-use arc_swap::Guard;
 use chrono::DateTime;
 use chrono::Utc;
 use delegate::Delegate;
@@ -18,9 +23,11 @@ use marginal_fitness::MarginalFitness;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SchedulingEnvironment;
+use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::time_environment::period::Period;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
+use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
 pub trait OrchestratorNotifier: Send + Sync + 'static
@@ -29,33 +36,51 @@ pub trait OrchestratorNotifier: Send + Sync + 'static
         &self,
         work_orders: Vec<WorkOrderNumber>,
         asset: &Asset,
-    ) -> Result<()>;
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
 }
 
-pub struct Communication<Req, Res>
+pub struct Communication<RequestMessage, Res>
 {
-    sender: Sender<Req>,
-    receiver: Receiver<Result<Res>>,
+    sender: Sender<ActorMessage<RequestMessage>>,
+    pub receiver: Receiver<Result<Res>>,
 }
-
-pub trait RequestMessage {}
 
 // StateLink is not a request. It is something different
 // Ahh this is good every Request message from each of the actors
 // should implement a `RequestMessage`. It is a little weird to
 // reuse the `Req` like this. You need to remember this to see
 // what you will learn from it.
-impl<Req, Res> Communication<Req, Res>
+//
+// You are misunderstanding this because you are not using the
+// generics in the correct way. There is something to learn here.
+impl<RequestMessage, Res> Communication<RequestMessage, Res>
 {
-    pub fn new(sender: Sender<Req>, receiver: Receiver<Result<Res>>) -> Self {
+    pub fn new(
+        sender: Sender<ActorMessage<RequestMessage>>,
+        receiver: Receiver<Result<Res>>,
+    ) -> Self
+    {
         Self { sender, receiver }
     }
 
-    pub fn from_agent(&self, message: )
+    // This is being wrapped twice. I think that the best approach is to
+    // make the system function with.
+    pub fn from_agent(&self, message: RequestMessage) -> Result<()>
     {
-        // What is it that you need to do here? You should 
+        // What is it that you need to do here? You should
         let message = ActorMessage::Actor(message);
-        self.sender.send(message);
+        self.sender.send(message).map_err(|e| anyhow!(e.to_string() )).context("The Actor has stopped running. If the reason for this is not obvious, it means that the error handling should be extended.")
+    }
+
+    pub fn from_actor(&self) -> Res
+    {
+        self.receiver.recv().unwrap().unwrap()
+    }
+
+    pub fn from_orchestrator(&self, state_link: StateLink)
+    {
+        let message = ActorMessage::State(state_link);
+        self.sender.send(message).expect("The Actor has stopped running. If the reason for this is not obvious, it means that the error handling should be extended.");
     }
 }
 
@@ -253,8 +278,10 @@ pub trait MessageHandler
     type Req;
     type Res;
 
-    // This has the wrong kind of name. I do not see what else I could do here. Maybe I should
-    // strive 
+    // This has the wrong kind of name. I do not see what else I could do here.
+    // Maybe I should strive
+    // Here it wraps the `Req` in the `ActorMessage` I do not think that this
+    // is the best way of doing it
     fn handle(&mut self, actor_message: ActorMessage<Self::Req>) -> Result<Self::Res>
     {
         match actor_message {
@@ -280,6 +307,8 @@ where
     fn scheduled_task(&self, work_order_number: &WorkOrderNumber) -> Option<&Option<Period>>;
 
     fn supervisor_tasks(&self, periods: &[Period]) -> HashMap<WorkOrderNumber, Period>;
+
+    fn all_scheduled_tasks(&self) -> HashMap<WorkOrderNumber, Period>;
 }
 
 pub trait TacticalInterface
@@ -292,6 +321,8 @@ where
     ) -> Option<(&DateTime<Utc>, &DateTime<Utc>)>;
 
     fn tactical_period(&self, work_order_number: &WorkOrderNumber) -> Option<&Period>;
+
+    fn all_scheduled_tasks(&self) -> HashMap<WorkOrderNumber, BTreeMap<ActivityNumber, Day>>;
 }
 
 // This is a core type that each `Actor` should implement, I think

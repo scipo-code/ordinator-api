@@ -31,10 +31,9 @@ where
     type Req = StrategicRequestMessage;
     type Res = StrategicResponseMessage;
 
-    fn handle_request_message(
-        &mut self,
-        strategic_request_message: Self::Req,
-    ) -> Result<Self::Res> {
+    fn handle_request_message(&mut self, strategic_request_message: Self::Req)
+    -> Result<Self::Res>
+    {
         let strategic_response = match strategic_request_message {
             StrategicRequestMessage::Status(strategic_status_message) => {
                 match strategic_status_message {
@@ -167,7 +166,7 @@ where
                 event!(Level::INFO, strategic_objective_value = ?self.algorithm.solution.objective_value);
                 Ok(StrategicResponseMessage::Scheduling(scheduling_output))
             }
-            StrategicRequestMessage::Resources(resources_message) => {
+            StrategicRequestMessage::Resource(resources_message) => {
                 let resources_output = self.algorithm.update_resources_state(resources_message);
 
                 self.algorithm.calculate_objective_value()?;
@@ -176,7 +175,7 @@ where
                     resources_output.unwrap(),
                 ))
             }
-            StrategicRequestMessage::Periods(periods_message) => {
+            StrategicRequestMessage::Time(periods_message) => {
                 // let mut scheduling_environment_guard =
                 // self.scheduling_environment.lock().unwrap();
 
@@ -203,7 +202,6 @@ where
                 // ))
                 todo!()
             }
-            // Make from implementations for all of this
             StrategicRequestMessage::SchedulingEnvironment(
                 strategic_scheduling_environment_commands,
             ) => match strategic_scheduling_environment_commands {
@@ -367,18 +365,26 @@ where
                             strategic_user_status_codes.work_order_numbers,
                             &self.actor_id.asset(),
                         )
+                        .await
                         .context("Could not notify Orchestrator")?;
 
                     Ok(StrategicResponseMessage::Success)
                 }
             },
+            ordinator_actor_core::RequestMessage::Status(_) => todo!(),
+            ordinator_actor_core::RequestMessage::Scheduling(_) => todo!(),
+            ordinator_actor_core::RequestMessage::Resource(_) => todo!(),
+            ordinator_actor_core::RequestMessage::Time(_) => todo!(),
+            ordinator_actor_core::RequestMessage::SchedulingEnvironment(_) => todo!(),
+            ordinator_actor_core::RequestMessage::Update => todo!(),
         };
         self.algorithm.calculate_objective_value()?;
 
         strategic_response
     }
 
-    fn handle_state_link(&mut self, msg: StateLink) -> Result<StrategicResponseMessage> {
+    fn handle_state_link(&mut self, msg: StateLink) -> Result<StrategicResponseMessage>
+    {
         match msg {
             StateLink::WorkOrders(agent_specific) => {
                 match agent_specific {

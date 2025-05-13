@@ -24,7 +24,8 @@ where
     type Req = OperationalRequestMessage;
     type Res = OperationalResponseMessage;
 
-    fn handle_state_link(&mut self, state_link: StateLink) -> Result<OperationalResponseMessage> {
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<OperationalResponseMessage>
+    {
         event!(
             Level::INFO,
             self.algorithm.operational_parameters =
@@ -47,10 +48,9 @@ where
     fn handle_request_message(
         &mut self,
         request: OperationalRequestMessage,
-    ) -> Result<OperationalResponseMessage> {
+    ) -> Result<OperationalResponseMessage>
+    {
         match request {
-            // You should put the `contract` message types in here. I do not see
-            // any different way of doing it.
             OperationalRequestMessage::Status(_) => {
                 // WARN DEBUG: This should be included if you get an error
                 //     format!(
@@ -89,11 +89,6 @@ where
                     operational_response_status,
                 ))
             }
-            // The messages should change the parameters the SchedulingEnvironment and
-            // this should in turn update the `Parameters` this is the flow that we need
-            // in the program for this to work. The issue here is that we cannot actually
-            // update anything in the `SchedulingEnvironment` as there are no data for
-            // the individual workers.
             OperationalRequestMessage::Scheduling(operational_scheduling_request) => {
                 match operational_scheduling_request {
                     OperationalSchedulingRequest::OperationalIds => todo!(),
@@ -132,9 +127,16 @@ where
                     }
                 }
             }
-
+            // TODO [ ]
+            // Use `helix` to move everything at once!
             OperationalRequestMessage::Resource(_) => todo!(),
             OperationalRequestMessage::Time(_) => todo!(),
+            ordinator_actor_core::RequestMessage::Status(_) => todo!(),
+            ordinator_actor_core::RequestMessage::Scheduling(_) => todo!(),
+            ordinator_actor_core::RequestMessage::Resource(_) => todo!(),
+            ordinator_actor_core::RequestMessage::Time(_) => todo!(),
+            ordinator_actor_core::RequestMessage::SchedulingEnvironment(_) => todo!(),
+            ordinator_actor_core::RequestMessage::Update => todo!(),
         }
     }
 }

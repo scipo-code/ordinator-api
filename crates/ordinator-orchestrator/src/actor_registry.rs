@@ -4,7 +4,6 @@ use anyhow::Result;
 use ordinator_operational_actor::messages::OperationalRequestMessage;
 use ordinator_operational_actor::messages::OperationalResponseMessage;
 use ordinator_operational_actor::messages::responses::OperationalResponseStatus;
-use ordinator_orchestrator_actor_traits::ActorMessage;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_strategic_actor::messages::StrategicRequestMessage;
@@ -15,26 +14,22 @@ use ordinator_supervisor_actor::messages::responses::SupervisorResponseStatus;
 use ordinator_tactical_actor::messages::TacticalRequestMessage;
 use ordinator_tactical_actor::messages::TacticalResponseMessage;
 
-pub struct ActorRegistry {
-    pub strategic_agent_sender:
-        Communication<ActorMessage<StrategicRequestMessage>, StrategicResponseMessage>,
-    pub tactical_agent_sender:
-        Communication<ActorMessage<TacticalRequestMessage>, TacticalResponseMessage>,
-    pub supervisor_agent_senders: HashMap<
-        Id,
-        Communication<ActorMessage<SupervisorRequestMessage>, SupervisorResponseMessage>,
-    >,
-    pub operational_agent_senders: HashMap<
-        Id,
-        Communication<ActorMessage<OperationalRequestMessage>, OperationalResponseMessage>,
-    >,
+pub struct ActorRegistry
+{
+    pub strategic_agent_sender: Communication<StrategicRequestMessage, StrategicResponseMessage>,
+    pub tactical_agent_sender: Communication<TacticalRequestMessage, TacticalResponseMessage>,
+    pub supervisor_agent_senders:
+        HashMap<Id, Communication<SupervisorRequestMessage, SupervisorResponseMessage>>,
+    pub operational_agent_senders:
+        HashMap<Id, Communication<OperationalRequestMessage, OperationalResponseMessage>>,
 }
 
-impl ActorRegistry {
+impl ActorRegistry
+{
     pub fn get_operational_addr(
         &self,
         operational_id: &String,
-    ) -> Option<&Communication<ActorMessage<OperationalRequestMessage>, OperationalResponseMessage>>
+    ) -> Option<&Communication<OperationalRequestMessage, OperationalResponseMessage>>
     {
         let option_id = self
             .operational_agent_senders

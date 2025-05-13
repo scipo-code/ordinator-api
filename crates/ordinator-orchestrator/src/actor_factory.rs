@@ -102,7 +102,7 @@ where
         )
         .with_context(|| format!("Could not create StrategicActor for Asset {}", id.asset()))?;
 
-        self.agent_registries
+        self.actor_registries
             .get_mut(id.asset())
             .expect("The ActorRegistry for asset should exist before creating Actors on it")
             .strategic_agent_sender = communication;
@@ -124,7 +124,7 @@ where
         )
         .with_context(|| format!("Could not create TacticalActor for Asset {}", id.asset()))?;
 
-        self.agent_registries
+        self.actor_registries
             .get_mut(id.asset())
             .expect("The ActorRegistry for asset should exist before creating Actors on it")
             .tactical_agent_sender = communication;
@@ -146,7 +146,7 @@ where
         )
         .with_context(|| format!("Could not create supervisorActor for Asset {}", id.asset()))?;
 
-        self.agent_registries
+        self.actor_registries
             .get_mut(id.asset())
             .expect("The ActorRegistry for asset should exist before creating Actors on it")
             .supervisor_agent_senders
@@ -173,7 +173,7 @@ where
         )
         .with_context(|| format!("Could not create OperationalActor for Asset {}", id.asset()))?;
 
-        self.agent_registries
+        self.actor_registries
             .get_mut(id.asset())
             .expect("The ActorRegistry for asset should exist before creating Actors on it")
             .operational_agent_senders

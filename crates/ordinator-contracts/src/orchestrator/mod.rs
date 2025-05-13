@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::time_environment::period::Period;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
@@ -9,9 +8,7 @@ use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::work_order::work_order_analytic::status_codes::SystemStatusCodes;
 use ordinator_scheduling_environment::work_order::work_order_analytic::status_codes::UserStatusCodes;
 use ordinator_scheduling_environment::work_order::work_order_info::WorkOrderInfo;
-use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
-use serde::Deserialize;
 use serde::Serialize;
 
 // best to simply comment all of this out

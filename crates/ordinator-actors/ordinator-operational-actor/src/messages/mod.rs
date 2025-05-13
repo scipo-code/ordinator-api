@@ -1,6 +1,7 @@
 pub mod message_handlers;
 pub mod requests;
 pub mod responses;
+use ordinator_actor_core::RequestMessage;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use serde::Deserialize;
@@ -9,34 +10,13 @@ use serde::Serialize;
 use self::requests::*;
 use self::responses::*;
 
-#[derive(Deserialize, Serialize, Debug)]
-pub enum OperationalRequest
-{
-    GetIds(Asset),
-    AllOperationalStatus(Asset),
-    ForOperationalAgent((Asset, String, OperationalRequestMessage)),
-}
-
-pub trait Status {}
-pub trait Scheduling {}
-pub trait Resource {}
-pub trait Time {}
-
-pub enum RequestMessage<S, Sc, R, T>
-where
-    S: Status,
-    Sc: Scheduling,
-    R: Resource,
-    T: Time,
-{
-    // I am not sure that this is the best approach for making the
-    // messages. The messages will always have to work on the
-    // `Parameters` and we should use this.
-    Status(S),
-    Scheduling(Sc),
-    Resource(R),
-    Time(T),
-}
+pub type OperationalRequestMessage = RequestMessage<
+    OperationalStatusRequest,
+    OperationalSchedulingRequest,
+    OperationalResourceRequest,
+    OperationalTimeRequest,
+    OperationalSchedulingEnvironmentCommands,
+>;
 
 // You need type safety here I do not see another way around it
 //
@@ -48,17 +28,9 @@ pub enum ResponseMessage<S, Sc, R, T>
     Time(T),
 }
 
-#[derive(Clone, Deserialize, Serialize, Debug)]
-pub enum OperationalRequestMessage
-{
-    Status(OperationalStatusRequest),
-    Scheduling(OperationalSchedulingRequest),
-    Resource(OperationalResourceRequest),
-    Time(OperationalTimeRequest),
-}
-
-// Okay, so we will keep these in place. I think that is
-// the best approach here.
+// You should use the module paths in `operational::response::Status`,
+// `supervisor::request::Status`. Yes that is the correct approach here.
+// I do not think that there is a better way of doing it.
 #[derive(Serialize)]
 pub enum OperationalResponseMessage
 {

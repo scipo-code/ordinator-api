@@ -1,8 +1,9 @@
-pub mod http_to_scheduling_system;
-mod operational_handlers;
-pub mod orchestrator_handlers;
-mod supervisor_handlers;
-mod tactical_handlers;
+pub(crate) mod http_to_scheduling_system;
+pub(crate) mod operational_handlers;
+pub(crate) mod orchestrator_handlers;
+pub(crate) mod strategic_handlers;
+pub(crate) mod supervisor_handlers;
+pub(crate) mod tactical_handlers;
 use anyhow::Result;
 use axum::response::Response;
 

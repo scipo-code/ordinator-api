@@ -42,7 +42,8 @@ where
     type Target =
         Actor<SupervisorRequestMessage, SupervisorResponseMessage, SupervisorAlgorithm<Ss>>;
 
-    fn deref(&self) -> &Self::Target {
+    fn deref(&self) -> &Self::Target
+    {
         &self.0
     }
 }
@@ -51,7 +52,8 @@ impl<Ss> DerefMut for SupervisorActor<Ss>
 where
     Ss: SystemSolutionTrait<Supervisor = SupervisorSolution>,
 {
-    fn deref_mut(&mut self) -> &mut Self::Target {
+    fn deref_mut(&mut self) -> &mut Self::Target
+    {
         &mut self.0
     }
 }
@@ -71,8 +73,7 @@ where
         + Sync
         + From<Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>>,
 {
-    type Communication =
-        Communication<ActorMessage<SupervisorRequestMessage>, SupervisorResponseMessage>;
+    type Communication = Communication<SupervisorRequestMessage, SupervisorResponseMessage>;
 
     fn construct_actor(
         id: Id,
@@ -109,41 +110,4 @@ where
         .notify_orchestrator(notify_orchestrator)
         .build()
     }
-}
-pub fn supervisor_factory<Ss>(
-    id: Id,
-    scheduling_environment_guard: Arc<Mutex<SchedulingEnvironment>>,
-    shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
-    notify_orchestrator: Arc<dyn OrchestratorNotifier>,
-    system_configurations: Arc<ArcSwap<SystemConfigurations>>,
-) -> Result<Communication<ActorMessage<SupervisorRequestMessage>, SupervisorResponseMessage>>
-where
-    Ss: SystemSolutionTrait<Supervisor = SupervisorSolution> + Send + Sync + 'static,
-    SupervisorAlgorithm<Ss>: ActorBasedLargeNeighborhoodSearch
-        + Send
-        + Sync
-        + From<Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>>,
-{
-    Actor::<SupervisorRequestMessage, SupervisorResponseMessage, SupervisorAlgorithm<Ss>>::builder()
-        .agent_id(Id::new("SupervisorAgent", vec![], vec![id.asset().clone()]))
-        .scheduling_environment(Arc::clone(&scheduling_environment_guard))
-        // TODO
-        // Make a builder here!
-        // This is a little difficult. We would like to use the same scheduling environment
-        // Why am I not allowed to propagate the error here?
-        // Why is this so damn difficult for you to understand? What are you not understanding? I
-        // think that taking a short break is a good idea.
-        // The issue is that you do not understand `Fn` traits well enough
-        .algorithm(|ab| {
-            ab.id(id)
-                // So this function returns a `Result`
-                .arc_swap_shared_solution(shared_solution_arc_swap)
-                .parameters_and_solution(&scheduling_environment_guard.lock().unwrap())
-        })?
-        // TODO [x]
-        // These should be created in a single step
-        .communication()
-        .configurations(system_configurations)
-        .notify_orchestrator(notify_orchestrator)
-        .build()
 }

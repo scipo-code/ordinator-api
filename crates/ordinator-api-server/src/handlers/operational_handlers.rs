@@ -12,6 +12,7 @@ use ordinator_orchestrator::Asset;
 use ordinator_orchestrator::Id;
 use ordinator_orchestrator::OperationalRequestMessage;
 use ordinator_orchestrator::OperationalResponseMessage;
+use ordinator_orchestrator::OperationalStatusRequest;
 use ordinator_orchestrator::Orchestrator;
 use ordinator_orchestrator::TotalSystemSolution;
 
@@ -32,7 +33,7 @@ pub async fn operational_ids(
         orchestrator
             .lock()
             .unwrap()
-            .agent_registries
+            .actor_registries
             .get(&asset)
             .expect("This error should be handled higher up")
             .operational_agent_senders
@@ -51,26 +52,24 @@ pub async fn operational_handler_for_operational_agent(
     // INFO; So state link should not be possible to send here. This will be
     // a very good exercise in how to use the `pub` keyword in a good way.
     // I really think that a large `enum` is a fine approach. Otherwise
-    // we will have to turn the many types into a 
-    OperationalRequestMessage::Status();
+    // we will have to turn the many types into a
+    // Should
+    let operational_request_message =
+        OperationalRequestMessage::Status(OperationalStatusRequest::General);
     // OperationalStatusMessage
-    let communication = orchestrator
-        .lock()
-        .unwrap()
-        .agent_registries
+    let orchestrator1 = orchestrator.lock().unwrap();
+    let communication = orchestrator1
+        .actor_registries
         .get(&asset)
         .expect("This error should be handled higher up")
         .get_operational_addr(&technician_id)
         .context("OperationalCommunication not found")?;
 
-    let response = communication
-        .from_agent(message);
-        // TODO [ ] Make an API on the Orchestrator so that only actor messages can be send to
-        // each other. It should not be possible to Send StateLink and jii
-        .send(ActorMessage::Actor(operational_request_message))
+    communication
+        .from_agent(operational_request_message)
         .context("Could not await the message sending, theard problems are the most likely")?;
 
-    let response = communication.receiver.recv()??;
+    let response = communication.from_actor();
 
     Ok(Json(response))
 }

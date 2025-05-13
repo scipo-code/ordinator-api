@@ -3,12 +3,19 @@ mod supervisor;
 mod tactical;
 mod technician;
 
+use std::sync::Arc;
+use std::sync::Mutex;
+
 use axum::Router;
+use ordinator_orchestrator::Orchestrator;
+use ordinator_orchestrator::TotalSystemSolution;
 use strategic::scheduler_nest;
 
-pub async fn api_scope() -> Router
+pub async fn api_scope(
+    state: Arc<Mutex<Orchestrator<TotalSystemSolution>>>,
+) -> Router<Arc<Mutex<Orchestrator<TotalSystemSolution>>>>
 {
-    Router::new().nest("scheduler/", scheduler_nest().await)
+    Router::new().nest("scheduler/", scheduler_nest(state).await)
     // .nest("/supervisor", router)
 }
 // pub fn api_scope() -> actix_web::Scope

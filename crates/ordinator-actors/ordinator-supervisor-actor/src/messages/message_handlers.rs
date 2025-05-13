@@ -26,7 +26,8 @@ where
     type Req = SupervisorRequestMessage;
     type Res = SupervisorResponseMessage;
 
-    fn handle_state_link(&mut self, state_link: StateLink) -> Result<Self::Res> {
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<Self::Res>
+    {
         match state_link {
             StateLink::WorkOrders(agent_specific) => match agent_specific {
                 ActorSpecific::Strategic(changed_work_orders) => {
@@ -34,11 +35,13 @@ where
                     // `scheduling_environment` and the `algorithm`. There is a
                     // couple of issues here relating to how we interact
                     // with the algorithm. I
-                    let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+                    let work_orders = {
+                        let scheduling_environment_guard =
+                            self.scheduling_environment.lock().unwrap();
 
-                    let work_orders = scheduling_environment_guard.work_orders.inner.clone();
+                        scheduling_environment_guard.work_orders.inner.clone()
+                    };
 
-                    drop(scheduling_environment_guard);
                     for work_order_number in changed_work_orders {
                         let work_order =
                             work_orders.get(&work_order_number).with_context(|| {
@@ -100,7 +103,8 @@ where
     fn handle_request_message(
         &mut self,
         supervisor_request_message: SupervisorRequestMessage,
-    ) -> Result<SupervisorResponseMessage> {
+    ) -> Result<SupervisorResponseMessage>
+    {
         event!(Level::WARN, "start_of_supervisor_handler");
 
         match supervisor_request_message {

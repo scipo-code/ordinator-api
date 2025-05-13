@@ -29,7 +29,8 @@ where
     fn handle_request_message(
         &mut self,
         tactical_request: TacticalRequestMessage,
-    ) -> Result<Self::Res> {
+    ) -> Result<Self::Res>
+    {
         match tactical_request {
             TacticalRequestMessage::Status(_tactical_status_message) => {
                 // let status_message = self.status().unwrap();
@@ -39,7 +40,7 @@ where
             TacticalRequestMessage::Scheduling(_tactical_scheduling_message) => {
                 todo!()
             }
-            TacticalRequestMessage::Resources(_tactical_resources_message) => {
+            TacticalRequestMessage::Resource(_tactical_resources_message) => {
                 // let resource_response = self
                 //     .update_resources_state(tactical_resources_message)
                 //     .unwrap();
@@ -47,7 +48,7 @@ where
                     "Implement the Update code here.".to_string(),
                 ))
             }
-            TacticalRequestMessage::Days(_tactical_time_message) => {
+            TacticalRequestMessage::Time(_tactical_time_message) => {
                 todo!()
             }
             TacticalRequestMessage::Update => {
@@ -63,7 +64,8 @@ where
         }
     }
 
-    fn handle_state_link(&mut self, state_link: StateLink) -> Result<Self::Res> {
+    fn handle_state_link(&mut self, state_link: StateLink) -> Result<Self::Res>
+    {
         match state_link {
             StateLink::WorkOrders(agent_specific) => match agent_specific {
                 ActorSpecific::Strategic(changed_work_orders) => {

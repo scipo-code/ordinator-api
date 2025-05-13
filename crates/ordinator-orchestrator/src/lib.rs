@@ -5,8 +5,9 @@ pub mod logging;
 pub mod model_initializers;
 
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Read;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::sync::Weak;
 
 pub use actor_factory::TotalSystemSolution;
@@ -20,8 +21,8 @@ use ordinator_operational_actor::OperationalApi;
 use ordinator_operational_actor::algorithm::operational_solution::OperationalSolution;
 pub use ordinator_operational_actor::messages::OperationalRequestMessage;
 pub use ordinator_operational_actor::messages::OperationalResponseMessage;
+pub use ordinator_operational_actor::messages::requests::OperationalStatusRequest;
 use ordinator_orchestrator_actor_traits::ActorFactory;
-use ordinator_orchestrator_actor_traits::ActorMessage;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
@@ -42,12 +43,17 @@ use ordinator_supervisor_actor::SupervisorApi;
 use ordinator_supervisor_actor::algorithm::supervisor_solution::SupervisorSolution;
 pub use ordinator_supervisor_actor::messages::SupervisorRequestMessage;
 pub use ordinator_supervisor_actor::messages::SupervisorResponseMessage;
+pub use ordinator_supervisor_actor::messages::requests::SupervisorStatusMessage;
+pub use ordinator_supervisor_actor::messages::responses::SupervisorResponseStatus;
 use ordinator_tactical_actor::TacticalApi;
 use ordinator_tactical_actor::algorithm::tactical_solution::TacticalSolution;
 pub use ordinator_tactical_actor::messages::TacticalRequestMessage;
 pub use ordinator_tactical_actor::messages::TacticalResponseMessage;
+pub use ordinator_tactical_actor::messages::requests::TacticalStatusMessage;
+use ordinator_total_data_processing::excel_dumps::create_excel_dump;
 use serde::Deserialize;
 use serde::Serialize;
+use tokio::sync::Mutex;
 use tracing::instrument;
 
 use self::actor_registry::ActorRegistry;
@@ -58,7 +64,7 @@ pub struct Orchestrator<Ss>
 {
     pub scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     pub system_solutions: HashMap<Asset, Arc<ArcSwap<Ss>>>,
-    pub agent_registries: HashMap<Asset, ActorRegistry>,
+    pub actor_registries: HashMap<Asset, ActorRegistry>,
     pub system_configurations: Arc<ArcSwap<SystemConfigurations>>,
     pub database_connections: DataBaseConnection,
     pub actor_notify: Option<Weak<Mutex<Orchestrator<Ss>>>>,
@@ -85,44 +91,39 @@ where
         work_orders: Vec<WorkOrderNumber>,
         asset: &Asset,
     ) -> Result<()>
+// The function should simply be a fire and forget. We should probably, just send a
+    // message to the Orchestrator.
     {
-        let locked_orchestrator = self.0.lock().unwrap();
+        // It is too late to change this at the moment. You have to do something else
+        // instead.
+        let locked_orchestrator = self.0.lock().await;
 
         let agent_registry = locked_orchestrator
-            .agent_registries
+            .actor_registries
             .get(asset)
             .context("Asset should always be there")?;
 
-        let state_link = ActorMessage::State(StateLink::WorkOrders(ActorSpecific::Strategic(
-            work_orders.clone(),
-        )));
+        let state_link = StateLink::WorkOrders(ActorSpecific::Strategic(work_orders.clone()));
 
+        //
         agent_registry
             .strategic_agent_sender
-            .sender
-            .send(state_link)?;
+            .from_orchestrator(state_link);
 
-        let state_link = ActorMessage::State(StateLink::WorkOrders(ActorSpecific::Strategic(
-            work_orders.clone(),
-        )));
+        let state_link = StateLink::WorkOrders(ActorSpecific::Strategic(work_orders.clone()));
 
         agent_registry
             .tactical_agent_sender
-            .sender
-            .send(state_link)?;
+            .from_orchestrator(state_link);
 
         for comm in agent_registry.supervisor_agent_senders.values() {
-            let state_link = ActorMessage::State(StateLink::WorkOrders(ActorSpecific::Strategic(
-                work_orders.clone(),
-            )));
-            comm.sender.send(state_link)?;
+            let state_link = StateLink::WorkOrders(ActorSpecific::Strategic(work_orders.clone()));
+            comm.from_orchestrator(state_link);
         }
 
-        for addr in agent_registry.operational_agent_senders.values() {
-            let state_link = ActorMessage::State(StateLink::WorkOrders(ActorSpecific::Strategic(
-                work_orders.clone(),
-            )));
-            addr.sender.send(state_link)?;
+        for comm in agent_registry.operational_agent_senders.values() {
+            let state_link = StateLink::WorkOrders(ActorSpecific::Strategic(work_orders.clone()));
+            comm.from_orchestrator(state_link);
         }
 
         Ok(())
@@ -147,10 +148,18 @@ pub enum OrchestratorRequest
     Export(Asset),
 }
 
+// These are basically handlers on the `Orchestrator` I think that they
+// should go into the. You have learned so much here but you have to
+// keep going. Remember to follow your guts here.
 impl<Ss> Orchestrator<Ss>
 where
-    Ss: SystemSolutionTrait<Operational = OperationalSolution> + Send + Sync,
-    Arc<Mutex<Orchestrator<Ss>>>: OrchestratorNotifier,
+    Ss: SystemSolutionTrait<
+            Strategic = StrategicSolution,
+            Tactical = TacticalSolution,
+            Supervisor = SupervisorSolution,
+            Operational = OperationalSolution,
+        > + Send
+        + Sync,
 {
     #[instrument(level = "info", skip_all)]
     pub async fn handle(
@@ -248,10 +257,7 @@ where
                     .inner
                     .get(&work_order_number)
                     .with_context(|| {
-                        format!(
-                            "{:?} is not part of the SchedulingEnvironment",
-                            work_order_number
-                        )
+                        format!("{work_order_number:?} is not part of the SchedulingEnvironment")
                     })?;
 
                 let asset = &work_order.work_order_info.functional_location.asset;
@@ -358,12 +364,12 @@ where
             }
             OrchestratorRequest::DeleteSupervisorAgent(asset, id_string) => {
                 let id = self
-                    .agent_registries
+                    .actor_registries
                     .get(&asset)
                     .unwrap()
                     .supervisor_by_id_string(id_string);
 
-                self.agent_registries
+                self.actor_registries
                     .get_mut(&asset)
                     .unwrap()
                     .supervisor_agent_senders
@@ -418,12 +424,12 @@ where
             // }
             OrchestratorRequest::DeleteOperationalAgent(asset, id_string) => {
                 let id = self
-                    .agent_registries
+                    .actor_registries
                     .get(&asset)
                     .unwrap()
                     .supervisor_by_id_string(id_string.clone());
 
-                self.agent_registries
+                self.actor_registries
                     .get_mut(&asset)
                     .unwrap()
                     .operational_agent_senders
@@ -460,21 +466,15 @@ where
 impl ActorRegistry
 {
     fn new(
-        strategic_agent_addr: Communication<
-            ActorMessage<StrategicRequestMessage>,
-            StrategicResponseMessage,
-        >,
-        tactical_agent_addr: Communication<
-            ActorMessage<TacticalRequestMessage>,
-            TacticalResponseMessage,
-        >,
+        strategic_agent_addr: Communication<StrategicRequestMessage, StrategicResponseMessage>,
+        tactical_agent_addr: Communication<TacticalRequestMessage, TacticalResponseMessage>,
         supervisor_agent_addrs: HashMap<
             Id,
-            Communication<ActorMessage<SupervisorRequestMessage>, SupervisorResponseMessage>,
+            Communication<SupervisorRequestMessage, SupervisorResponseMessage>,
         >,
         operational_actor_communication: HashMap<
             Id,
-            Communication<ActorMessage<OperationalRequestMessage>, OperationalResponseMessage>,
+            Communication<OperationalRequestMessage, OperationalResponseMessage>,
         >,
     ) -> Self
     {
@@ -489,10 +489,7 @@ impl ActorRegistry
     pub fn add_supervisor_agent(
         &mut self,
         id: Id,
-        communication: Communication<
-            ActorMessage<SupervisorRequestMessage>,
-            SupervisorResponseMessage,
-        >,
+        communication: Communication<SupervisorRequestMessage, SupervisorResponseMessage>,
     )
     {
         self.supervisor_agent_senders.insert(id, communication);
@@ -501,10 +498,7 @@ impl ActorRegistry
     pub fn add_operational_agent(
         &mut self,
         id: Id,
-        communication: Communication<
-            ActorMessage<OperationalRequestMessage>,
-            OperationalResponseMessage,
-        >,
+        communication: Communication<OperationalRequestMessage, OperationalResponseMessage>,
     )
     {
         self.operational_agent_senders.insert(id, communication);
@@ -550,7 +544,7 @@ where
         let orchestrator = Orchestrator {
             scheduling_environment,
             system_solutions: HashMap::new(),
-            agent_registries: HashMap::new(),
+            actor_registries: HashMap::new(),
             log_handles,
             actor_notify: None,
             system_configurations: configurations,
@@ -658,7 +652,7 @@ where
             operational_communications,
         );
 
-        self.agent_registries.insert(asset.clone(), agent_registry);
+        self.actor_registries.insert(asset.clone(), agent_registry);
         drop(scheduling_environment_guard);
         Ok(self)
     }
@@ -680,3 +674,51 @@ where
 // steel_repl::run_repl(steel_engine).unwrap();
 //     });
 // }
+impl<Ss> Orchestrator<Ss>
+where
+    Ss: SystemSolutionTrait,
+{
+    pub fn export_xlsx_solution(&self, asset: Asset) -> Result<(Vec<u8>, String)>
+    {
+        // let system_solution = self
+        //     .system_solutions
+        //     .get(&asset)
+        //     .with_context(|| {
+        //         format!("Could not retrieve the shared_solution for asset
+        // {asset:#?}")     })?
+        //     .load();
+
+        // This is where it gets a little weird. The handlers should only call methods
+        // on the orchestrator.
+        // This function should lie in the `orchestrator` crate. How in the world did it
+        // ever end up in here
+        // let strategic_agent_solution =
+        // system_solution.strategic().all_scheduled_tasks();
+        // let tactical_agent_solution =
+        // system_solution.tactical().all_scheduled_tasks();
+        let work_orders = {
+            let scheduling_environment_lock = self.scheduling_environment.lock().unwrap();
+            scheduling_environment_lock.work_orders.clone()
+        };
+
+        let xlsx_filename = create_excel_dump(
+            asset.clone(),
+            work_orders,
+            self.system_solutions
+                .get(&asset)
+                .with_context(|| {
+                    format!("You should start up a Scheduling System for Asset {asset}")
+                })?
+                .load(),
+        )
+        .unwrap();
+        let mut buffer = Vec::new();
+        let mut file = File::open(&xlsx_filename).unwrap();
+        file.read_to_end(&mut buffer).unwrap();
+        std::fs::remove_file(xlsx_filename).expect("The XLSX file could not be deleted");
+        let filename = format!("ordinator_xlsx_dump_for_{asset}");
+        let http_header = format!("attachment; filename={filename}");
+
+        Ok((buffer, http_header))
+    }
+}
