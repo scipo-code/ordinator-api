@@ -2,9 +2,7 @@ pub mod message_handlers;
 pub mod requests;
 pub mod responses;
 use ordinator_actor_core::RequestMessage;
-use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
-use serde::Deserialize;
 use serde::Serialize;
 
 use self::requests::*;

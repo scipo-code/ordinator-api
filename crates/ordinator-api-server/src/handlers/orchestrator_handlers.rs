@@ -97,13 +97,11 @@ pub async fn scheduler_asset_names() -> Response
 // stock of this for the whole thing to work.
 #[debug_handler]
 pub async fn orchestrator_requests(
-    State(orchestrator): State<Arc<Mutex<Orchestrator<TotalSystemSolution>>>>,
+    State(orchestrator): State<Arc<Orchestrator<TotalSystemSolution>>>,
     Json(orchestrator_request): Json<OrchestratorRequest>,
 ) -> Result<Response>
 {
     let response = orchestrator
-        .lock()
-        .await
         // So all the handling logic should reside in the Orchestrator itself.
         .handle(orchestrator_request)
         .await

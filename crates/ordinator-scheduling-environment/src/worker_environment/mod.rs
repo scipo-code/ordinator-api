@@ -19,7 +19,8 @@ pub type OperationalId = String;
 // approach is to create something that will allow us to better
 // forcast how the system will behave.
 #[derive(Default, Serialize, Deserialize, Debug)]
-pub struct WorkerEnvironment {
+pub struct WorkerEnvironment
+{
     // I think that the actor environment is the correct term here.
     // Changes to the parameters should be changable in the application
     // itself. Where does that leave all this. Maybe we should actually
@@ -28,27 +29,33 @@ pub struct WorkerEnvironment {
     pub actor_specification: HashMap<Asset, ActorSpecifications>,
 }
 
-pub struct WorkerEnvironmentBuilder {
+pub struct WorkerEnvironmentBuilder
+{
     pub actor_environment: HashMap<Asset, ActorSpecifications>,
 }
 
-impl WorkerEnvironment {
+impl WorkerEnvironment
+{
     // TODO [ ]
     // This should be refactored!
-    pub fn builder() -> WorkerEnvironmentBuilder {
+    pub fn builder() -> WorkerEnvironmentBuilder
+    {
         WorkerEnvironmentBuilder {
             actor_environment: HashMap::default(),
         }
     }
 }
 
-pub enum EmptyFull {
+pub enum EmptyFull
+{
     Empty,
     Full,
 }
 
-impl WorkerEnvironmentBuilder {
-    pub fn build(self) -> WorkerEnvironment {
+impl WorkerEnvironmentBuilder
+{
+    pub fn build(self) -> WorkerEnvironment
+    {
         WorkerEnvironment {
             actor_specification: self.actor_environment,
         }
@@ -58,7 +65,8 @@ impl WorkerEnvironmentBuilder {
     // Ideally we need to provide a resource file for each of the different.
     // assets. That means that this should be callable many times over for
     // this to work.
-    pub fn actor_environment(mut self, asset: Asset) -> Self {
+    pub fn actor_environment(mut self, asset: Asset) -> Self
+    {
         // This should then be changed into something different for this to
         // work. You need to put it into the Asset and the ... I think that
         // it is okay to simply hard code the information for now. Hmm...
@@ -98,19 +106,10 @@ impl WorkerEnvironmentBuilder {
 
         // You should put the data into the toml? Yes I think that is the best approach
         // here.
-        let asset_string = asset.to_string();
-
-        let asset_string_format = asset_string
-            .split('.')
-            .next()
-            .unwrap()
-            .split('_')
-            .last()
-            .expect("This function splits the path by the '.'");
+        let asset_string = asset.to_string().to_lowercase();
 
         let path = format!(
-            "./temp_scheduling_environment_database/actor_specification/actor_specification_{}.toml",
-            asset_string
+            "./temp_scheduling_environment_database/actor_specification/actor_specification_{asset_string}.toml",
         );
 
         let contents = std::fs::read_to_string(path).unwrap();
@@ -122,7 +121,8 @@ impl WorkerEnvironmentBuilder {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ActorSpecifications {
+pub struct ActorSpecifications
+{
     pub strategic: InputStrategic,
     pub tactical: InputTactical,
     pub supervisors: Vec<InputSupervisor>,
@@ -142,7 +142,8 @@ pub struct ActorSpecifications {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TimeInput {
+pub struct TimeInput
+{
     pub number_of_strategic_periods: u64,
     pub number_of_tactical_periods: u64,
     pub number_of_days: u64,
@@ -156,19 +157,22 @@ pub struct TimeInput {
 // TODO #00 #00 #03 [x] Move the `./configuration/work_order_parameters.json`
 // here. Is this
 #[derive(Eq, PartialEq, Serialize, Deserialize, Debug)]
-pub struct InputStrategic {
+pub struct InputStrategic
+{
     pub id: Id,
     pub strategic_options_config: StrategicOptions,
 }
 
 #[derive(Eq, PartialEq, Serialize, Deserialize, Debug)]
-pub struct InputTactical {
+pub struct InputTactical
+{
     pub id: Id,
     pub tactical_options_config: TacticalOptions,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
-pub struct InputSupervisor {
+pub struct InputSupervisor
+{
     pub id: Id,
     pub number_of_supervisor_periods: u64,
     pub supervisor_options: SupervisorOptions,
@@ -177,7 +181,8 @@ pub struct InputSupervisor {
 // TODO [ ]
 // Load in the IDs directly.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct InputOperational {
+pub struct InputOperational
+{
     pub id: Id,
     pub hours_per_day: f64,
     pub operational_configuration: OperationalConfiguration,
@@ -206,7 +211,8 @@ pub struct InputOperational {
 //
 // This has to be Clone. Otherwise you will not be able to understand the
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Debug)]
-pub struct StrategicOptions {
+pub struct StrategicOptions
+{
     pub number_of_removed_work_order: usize,
     pub urgency_weight: usize,
     pub resource_penalty_weight: usize,
@@ -223,30 +229,35 @@ pub struct StrategicOptions {
 
 // The `rng` should not be inside of the `ordinator-scheduling-environment`
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug, Clone)]
-pub struct TacticalOptions {
+pub struct TacticalOptions
+{
     pub number_of_removed_work_orders: usize,
     pub urgency: usize,
     pub resource_penalty: usize,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug, Clone)]
-pub struct SupervisorOptions {
+pub struct SupervisorOptions
+{
     pub number_of_unassigned_work_orders: usize,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug, Clone)]
-pub struct OperationalOptions {
+pub struct OperationalOptions
+{
     pub number_of_removed_activities: usize,
 }
 #[cfg(test)]
-mod tests {
+mod tests
+{
     use chrono::NaiveTime;
 
     use crate::worker_environment::ActorSpecifications;
     use crate::worker_environment::resources::Resources;
 
     #[test]
-    fn test_toml_operational_parsing() {
+    fn test_toml_operational_parsing()
+    {
         let toml_operational_string = r#"
             [[supervisors]]
             id = "main"

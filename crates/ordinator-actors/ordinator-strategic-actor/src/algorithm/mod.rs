@@ -1078,8 +1078,7 @@ where
                 .get(work_order_number)
                 .with_context(|| {
                     format!(
-                        "{:?}\nis not found in the StrategicAlgorithm",
-                        work_order_number
+                        "{work_order_number:?}\nis not found in the StrategicAlgorithm"
                     )
                 })?;
 
@@ -1114,8 +1113,7 @@ where
             self.schedule_forced_work_order(&forced_work_order_numbers)
                 .with_context(|| {
                     format!(
-                        "{:#?} could not be force scheduled",
-                        forced_work_order_numbers
+                        "{forced_work_order_numbers:#?} could not be force scheduled"
                     )
                 })?;
         }
@@ -1202,7 +1200,7 @@ where
                 let inf_work_order_number = self
                     .schedule_strategic_work_order(work_order_number, &period)
                     .with_context(|| {
-                        format!("{:?} could not be scheduled normally", work_order_number)
+                        format!("{work_order_number:?} could not be scheduled normally")
                     })?;
 
                 if let Some(work_order_number) = inf_work_order_number {
@@ -1248,7 +1246,7 @@ where
         // assert!(self.solution.scheduled_periods.values().all(|per| per.is_some()));
         for work_order_number in sampled_work_order_keys {
             self.unschedule_specific_work_order(*work_order_number)
-                .with_context(|| format!("Could not unschedule: {:?}", work_order_number))?;
+                .with_context(|| format!("Could not unschedule: {work_order_number:?}"))?;
 
             let weight = self
                 .parameters
@@ -1270,9 +1268,10 @@ impl<Ss> StrategicAlgorithm<Ss>
 where
     Ss: SystemSolutionTrait,
 {
+    // ISSUE #000
     pub fn update_resources_state(
         &mut self,
-        strategic_resources_request: StrategicRequestResource,
+        _strategic_resources_request: StrategicRequestResource,
     ) -> Result<StrategicResponseResources> {
         // You should have done this! But you will need to
         // work a lot on this! You have to be comfortable with all
@@ -1455,8 +1454,8 @@ where
             .get_mut(&work_order_number)
             .with_context(|| {
                 format!(
-                    "{:?}: was not present in the strategic periods",
-                    work_order_number
+                    "{work_order_number:?}: was not present in the strategic periods"
+                    
                 )
             })?
             .take();
@@ -2119,7 +2118,7 @@ mod tests {
             Period::from_str("2023-W49-50").unwrap(),
         ];
 
-        let latest_period = Period::from_str("2023-W49-50").unwrap();
+        let _latest_period = Period::from_str("2023-W49-50").unwrap();
 
         let mut work_load_1 = HashMap::new();
         let mut work_load_2 = HashMap::new();
@@ -2354,7 +2353,7 @@ mod tests {
 
     #[test]
     fn test_unschedule_work_order_none_in_scheduled_period() -> Result<()> {
-        let work_order_number = WorkOrderNumber(2100000001);
+        let _work_order_number = WorkOrderNumber(2100000001);
         let periods = [Period::from_str("2026-W41-42").unwrap()];
         let mut strategic_resources = StrategicResources::default();
 

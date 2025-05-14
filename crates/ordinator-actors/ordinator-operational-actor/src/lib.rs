@@ -20,7 +20,6 @@ use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::ActorFactory;
-use ordinator_orchestrator_actor_traits::ActorMessage;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;

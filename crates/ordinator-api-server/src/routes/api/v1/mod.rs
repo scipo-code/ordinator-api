@@ -12,8 +12,8 @@ use ordinator_orchestrator::TotalSystemSolution;
 use strategic::scheduler_nest;
 
 pub async fn api_scope(
-    state: Arc<Mutex<Orchestrator<TotalSystemSolution>>>,
-) -> Router<Arc<Mutex<Orchestrator<TotalSystemSolution>>>>
+    state: Arc<Orchestrator<TotalSystemSolution>>,
+) -> Router<Arc<Orchestrator<TotalSystemSolution>>>
 {
     Router::new().nest("scheduler/", scheduler_nest(state).await)
     // .nest("/supervisor", router)

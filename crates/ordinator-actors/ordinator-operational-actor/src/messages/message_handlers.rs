@@ -10,8 +10,8 @@ use tracing::event;
 
 use super::OperationalRequestMessage;
 use super::OperationalResponseMessage;
-use super::OperationalResponseStatus;
-use super::OperationalSchedulingRequest;
+use super::requests::OperationalSchedulingRequest;
+use super::responses::OperationalResponseStatus;
 use crate::OperationalActor;
 use crate::algorithm::operational_solution::OperationalSolution;
 
@@ -51,7 +51,7 @@ where
     ) -> Result<OperationalResponseMessage>
     {
         match request {
-            OperationalRequestMessage::Status(_) => {
+            ordinator_actor_core::RequestMessage::Status(_) => {
                 // WARN DEBUG: This should be included if you get an error
                 //     format!(
                 //         "ID: {}, traits: {}, Objective: {:?}",
@@ -89,7 +89,7 @@ where
                     operational_response_status,
                 ))
             }
-            OperationalRequestMessage::Scheduling(operational_scheduling_request) => {
+            ordinator_actor_core::RequestMessage::Scheduling(operational_scheduling_request) => {
                 match operational_scheduling_request {
                     OperationalSchedulingRequest::OperationalIds => todo!(),
                     OperationalSchedulingRequest::OperationalState(_) => {
@@ -127,12 +127,6 @@ where
                     }
                 }
             }
-            // TODO [ ]
-            // Use `helix` to move everything at once!
-            OperationalRequestMessage::Resource(_) => todo!(),
-            OperationalRequestMessage::Time(_) => todo!(),
-            ordinator_actor_core::RequestMessage::Status(_) => todo!(),
-            ordinator_actor_core::RequestMessage::Scheduling(_) => todo!(),
             ordinator_actor_core::RequestMessage::Resource(_) => todo!(),
             ordinator_actor_core::RequestMessage::Time(_) => todo!(),
             ordinator_actor_core::RequestMessage::SchedulingEnvironment(_) => todo!(),

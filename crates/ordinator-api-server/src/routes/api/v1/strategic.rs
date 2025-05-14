@@ -1,20 +1,17 @@
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use axum::Router;
-use axum::extract::Path;
 use axum::routing::get;
 use ordinator_orchestrator::Orchestrator;
 use ordinator_orchestrator::TotalSystemSolution;
 
-use crate::handlers::scheduler_excel_export;
 use crate::handlers::strategic_handlers::get_scheduler_work_orders;
 
 // TODO [x]
 // The main idea is to replace all the.
 pub async fn scheduler_nest(
-    state: Arc<Mutex<Orchestrator<TotalSystemSolution>>>,
-) -> Router<Arc<Mutex<Orchestrator<TotalSystemSolution>>>>
+    state: Arc<Orchestrator<TotalSystemSolution>>,
+) -> Router<Arc<Orchestrator<TotalSystemSolution>>>
 {
     Router::new()
         .route("/work_orders/:id", get(get_scheduler_work_orders))

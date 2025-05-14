@@ -3,10 +3,11 @@ use std::collections::BTreeMap;
 use chrono::DateTime;
 use chrono::Utc;
 use ordinator_orchestrator_actor_traits::TacticalInterface;
+use ordinator_scheduling_environment::time_environment::period::Period;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
+use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 
 use super::tactical_solution::TacticalSolution;
-use super::tactical_solution::TacticalWhereIsWorkOrder;
 
 impl TacticalInterface for TacticalSolution
 {
@@ -34,10 +35,7 @@ impl TacticalInterface for TacticalSolution
         Some((start, end))
     }
 
-    fn tactical_period(
-        &self,
-        work_order_number: &ordinator_scheduling_environment::work_order::WorkOrderNumber,
-    ) -> Option<&ordinator_scheduling_environment::time_environment::period::Period>
+    fn tactical_period(&self, _work_order_number: &WorkOrderNumber) -> Option<&Period>
     {
         todo!()
     }
@@ -45,7 +43,7 @@ impl TacticalInterface for TacticalSolution
     fn all_scheduled_tasks(
         &self,
     ) -> std::collections::HashMap<
-        ordinator_scheduling_environment::work_order::WorkOrderNumber,
+        WorkOrderNumber,
         std::collections::BTreeMap<
             ordinator_scheduling_environment::work_order::operation::ActivityNumber,
             ordinator_scheduling_environment::time_environment::day::Day,

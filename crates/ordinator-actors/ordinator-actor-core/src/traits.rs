@@ -9,7 +9,8 @@ use serde::Serialize;
 
 pub type ActorLinkToSchedulingEnvironment<'a> = MutexGuard<'a, SchedulingEnvironment>;
 
-pub trait ActorBasedLargeNeighborhoodSearch {
+pub trait ActorBasedLargeNeighborhoodSearch
+{
     type Algorithm: AbLNSUtils;
     type Options;
 
@@ -28,7 +29,8 @@ pub trait ActorBasedLargeNeighborhoodSearch {
     // should ideally also go through this functional process on every iteration.
     // but we do not want that
     // ISSUE #129
-    fn run_lns_iteration(&mut self) -> Result<()> {
+    fn run_lns_iteration(&mut self) -> Result<()>
+    {
         // The options should be a part of the `Algorithm`... No part of the... It
         // should either be a part of the Algorithm or a Part of the Actor. If
         // it is a part of the actor it should be dependency injected. I think that this
@@ -43,10 +45,10 @@ pub trait ActorBasedLargeNeighborhoodSearch {
         let current_solution = self.algorithm_util_methods().clone_algorithm_solution();
 
         self.unschedule()
-            .with_context(|| format!("{:#?}", current_solution))?;
+            .with_context(|| format!("{current_solution:#?}"))?;
 
         self.schedule()
-            .with_context(|| format!("Could not schedule\n{:#?}", current_solution))?;
+            .with_context(|| format!("Could not schedule\n{current_solution:#?}"))?;
 
         let objective_value_type = self.calculate_objective_value()?;
 
@@ -95,7 +97,8 @@ pub trait ActorBasedLargeNeighborhoodSearch {
     /// the shared solution. That means that this method has to look at relevant
     /// state in the others `Agent`s and incorporate that and handled changes in
     /// parameters coming from external inputs.
-    fn update_based_on_shared_solution(&mut self) -> Result<()> {
+    fn update_based_on_shared_solution(&mut self) -> Result<()>
+    {
         self.algorithm_util_methods().load_shared_solution();
 
         let state_change = self.incorporate_shared_state()?;
@@ -111,7 +114,8 @@ pub trait ActorBasedLargeNeighborhoodSearch {
     fn incorporate_shared_state(&mut self) -> Result<bool>;
 }
 
-pub trait AbLNSUtils {
+pub trait AbLNSUtils
+{
     type SolutionType: Solution + Debug + Clone;
 
     fn clone_algorithm_solution(&self) -> Self::SolutionType;
@@ -129,7 +133,8 @@ pub trait AbLNSUtils {
 }
 
 #[allow(dead_code)]
-pub enum ObjectiveValueType<O> {
+pub enum ObjectiveValueType<O>
+{
     Better(O),
     Worse,
     Force,

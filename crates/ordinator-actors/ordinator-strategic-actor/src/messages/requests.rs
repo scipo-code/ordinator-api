@@ -112,9 +112,9 @@ impl Display for StrategicStatusMessage
     {
         match self {
             StrategicStatusMessage::General => write!(f, "general"),
-            StrategicStatusMessage::Period(period) => write!(f, "period: {}", period),
+            StrategicStatusMessage::Period(period) => write!(f, "period: {period}",),
             StrategicStatusMessage::WorkOrder(work_order_number) => {
-                write!(f, "{:?}", work_order_number)
+                write!(f, "{work_order_number:?}",)
             }
         }
     }

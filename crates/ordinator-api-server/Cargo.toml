@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 ordinator-orchestrator = { path = "../ordinator-orchestrator" }
 
-axum = {version = "*", features = ["macros"]}
+axum = {version = "*", features = ["macros", "tokio"]}
 axum-server = "*"
 tower = "*"
 tower-http = { version = "*", features = ["fs"]}

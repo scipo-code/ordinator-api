@@ -8,14 +8,12 @@ pub struct SupervisorResponseResources {}
 pub struct SupervisorResponseScheduling {}
 
 #[derive(Serialize)]
-pub struct SupervisorResponseStatus {
+pub struct SupervisorResponseStatus
+{
     pub supervisor_resource: Vec<Id>,
     pub delegated_work_order_activities: usize,
     pub objective: u64,
 }
-
-#[derive(Serialize)]
-struct SupervisorObjectiveValueResponse {}
 
 #[derive(Serialize)]
 pub struct SupervisorResponseTime {}

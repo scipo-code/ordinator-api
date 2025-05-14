@@ -9,7 +9,7 @@ use ordinator_orchestrator::WorkOrderNumber;
 
 // This is a handler. Not a `Route` you should change that. Keep working.
 pub async fn get_scheduler_work_orders(
-    State(orchestrator): State<Arc<Mutex<Orchestrator<TotalSystemSolution>>>>,
+    State(orchestrator): State<Arc<Orchestrator<TotalSystemSolution>>>,
     Path(i): Path<u64>,
 )
 {

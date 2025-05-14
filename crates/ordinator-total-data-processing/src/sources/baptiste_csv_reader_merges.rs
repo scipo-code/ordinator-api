@@ -81,8 +81,8 @@ pub fn load_csv_data(file_path: &BaptisteToml) -> Result<WorkOrders> {
     )
     .with_context(|| {
         format!(
-            "File {:#?} could not be found while loading data",
-            file_path
+            "File {file_path:#?} could not be found while loading data",
+            
         )
     })?;
 

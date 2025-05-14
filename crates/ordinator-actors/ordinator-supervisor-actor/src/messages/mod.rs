@@ -2,14 +2,10 @@ pub mod message_handlers;
 pub mod requests;
 pub mod responses;
 
-use std::fmt::Display;
-
 use ordinator_actor_core::RequestMessage;
-use ordinator_scheduling_environment::Asset;
 use requests::SupervisorRequestResource;
 use requests::SupervisorRequestScheduling;
 use requests::SupervisorSchedulingEnvironmentCommands;
-use requests::SupervisorSchedulingMessage;
 use requests::SupervisorStatusMessage;
 use requests::SupervisorTimeRequest;
 use responses::SupervisorResponseResources;

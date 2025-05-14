@@ -24,16 +24,16 @@ use ordinator_orchestrator::TotalSystemSolution;
 // best approach is to create something that will allow us... Just
 // do it! Work fast and be prepared to change things back.
 pub async fn operational_ids(
-    State(orchestrator): State<Arc<Mutex<Orchestrator<TotalSystemSolution>>>>,
+    State(orchestrator): State<Arc<Orchestrator<TotalSystemSolution>>>,
     // This is actually not the best way of coding it?
     Path(asset): Path<Asset>,
 ) -> Result<Json<Vec<Id>>>
 {
     Ok(Json(
         orchestrator
+            .actor_registries
             .lock()
             .unwrap()
-            .actor_registries
             .get(&asset)
             .expect("This error should be handled higher up")
             .operational_agent_senders
@@ -44,7 +44,7 @@ pub async fn operational_ids(
 }
 
 pub async fn operational_handler_for_operational_agent(
-    State(orchestrator): State<Arc<Mutex<Orchestrator<TotalSystemSolution>>>>,
+    State(orchestrator): State<Arc<Orchestrator<TotalSystemSolution>>>,
     Path(asset): Path<Asset>,
     Path(technician_id): Path<String>,
 ) -> Result<Json<OperationalResponseMessage>>
@@ -57,9 +57,8 @@ pub async fn operational_handler_for_operational_agent(
     let operational_request_message =
         OperationalRequestMessage::Status(OperationalStatusRequest::General);
     // OperationalStatusMessage
-    let orchestrator1 = orchestrator.lock().unwrap();
-    let communication = orchestrator1
-        .actor_registries
+    let hash_map = orchestrator.actor_registries.lock().unwrap();
+    let communication = hash_map
         .get(&asset)
         .expect("This error should be handled higher up")
         .get_operational_addr(&technician_id)

@@ -17,11 +17,9 @@ use messages::StrategicRequestMessage;
 use messages::StrategicResponseMessage;
 use ordinator_actor_core::Actor;
 use ordinator_actor_core::algorithm::Algorithm;
-use ordinator_actor_core::algorithm::AlgorithmBuilder;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::ActorFactory;
-use ordinator_orchestrator_actor_traits::ActorMessage;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
@@ -60,27 +58,6 @@ where
     }
 }
 
-type Type<Ss> = AlgorithmBuilder<
-    StrategicSolution,
-    StrategicParameters,
-    PriorityQueue<WorkOrderNumber, u64>,
-    Ss,
->;
-
-// This function can only work with the 'SharedSolutionTrait'.
-// You cannot
-// TODO [ ]
-// This should be a trait that should be implemented instead. But first make the
-// function work again. I think that is the best approach here.
-//
-// QUESTION [ ]
-// What the the stance on the 'Configuration'
-// Could the configuration go into the `factory`? I think that
-// this is the the case. The problem is that the ActorSpecification
-// should not. They could come from the `SchedulingEnvironment` I
-// think that the best approach is to make something that is more
-// Having the configuration centralized is a good idea. I think that
-// refactoring it after this works is a better option.
 pub struct StrategicApi {}
 impl<Ss> ActorFactory<Ss> for StrategicApi
 where

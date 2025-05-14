@@ -1,11 +1,8 @@
-#![feature(async_fn_in_trait)]
-#![allow(async_fn_in_trait)]
 pub mod delegate;
 pub mod marginal_fitness;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
@@ -36,7 +33,7 @@ pub trait OrchestratorNotifier: Send + Sync + 'static
         &self,
         work_orders: Vec<WorkOrderNumber>,
         asset: &Asset,
-    ) -> Pin<Box<dyn Future<Output = ()> + Send + '_>>;
+    ) -> Result<()>;
 }
 
 pub struct Communication<RequestMessage, Res>
@@ -140,6 +137,7 @@ pub trait SystemSolutionTrait: Clone
 //
 // TODO [ ]
 // Make this work with the correct way of designing
+#[allow(dead_code, unused_variables)]
 impl<S, T, U, V> SystemSolutionTrait for SystemSolution<S, T, U, V>
 where
     S: StrategicInterface,

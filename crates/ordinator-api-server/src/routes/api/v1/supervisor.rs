@@ -8,7 +8,7 @@ use ordinator_orchestrator::TotalSystemSolution;
 
 use crate::handlers::supervisor_handlers::status;
 
-pub async fn supervisor_routes(state: Arc<Mutex<Orchestrator<TotalSystemSolution>>>) -> Router
+pub async fn supervisor_routes(state: Arc<Orchestrator<TotalSystemSolution>>) -> Router
 {
     Router::new()
         .route("/:asset/:supervisor_id", get(status))

@@ -53,7 +53,6 @@ pub use ordinator_tactical_actor::messages::requests::TacticalStatusMessage;
 use ordinator_total_data_processing::excel_dumps::create_excel_dump;
 use serde::Deserialize;
 use serde::Serialize;
-use tokio::sync::Mutex;
 use tracing::instrument;
 
 use self::actor_registry::ActorRegistry;
@@ -62,16 +61,16 @@ use self::logging::LogHandles;
 
 pub struct Orchestrator<Ss>
 {
-    pub scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
-    pub system_solutions: HashMap<Asset, Arc<ArcSwap<Ss>>>,
-    pub actor_registries: HashMap<Asset, ActorRegistry>,
+    pub scheduling_environment: Arc<std::sync::Mutex<SchedulingEnvironment>>,
+    pub system_solutions: std::sync::Mutex<HashMap<Asset, Arc<ArcSwap<Ss>>>>,
+    pub actor_registries: std::sync::Mutex<HashMap<Asset, ActorRegistry>>,
     pub system_configurations: Arc<ArcSwap<SystemConfigurations>>,
     pub database_connections: DataBaseConnection,
-    pub actor_notify: Option<Weak<Mutex<Orchestrator<Ss>>>>,
+    pub actor_notify: Option<Weak<Orchestrator<Ss>>>,
     pub log_handles: LogHandles,
 }
 
-pub struct NotifyOrchestrator<Ss>(Arc<Mutex<Orchestrator<Ss>>>);
+pub struct NotifyOrchestrator<Ss>(Arc<Orchestrator<Ss>>);
 
 impl<Ss> Clone for NotifyOrchestrator<Ss>
 {
@@ -96,32 +95,31 @@ where
     {
         // It is too late to change this at the moment. You have to do something else
         // instead.
-        let locked_orchestrator = self.0.lock().await;
 
-        let agent_registry = locked_orchestrator
-            .actor_registries
+        let actor_registries = self.0.actor_registries.lock().unwrap();
+        let actor_registry = actor_registries
             .get(asset)
             .context("Asset should always be there")?;
 
         let state_link = StateLink::WorkOrders(ActorSpecific::Strategic(work_orders.clone()));
 
         //
-        agent_registry
+        actor_registry
             .strategic_agent_sender
             .from_orchestrator(state_link);
 
         let state_link = StateLink::WorkOrders(ActorSpecific::Strategic(work_orders.clone()));
 
-        agent_registry
+        actor_registry
             .tactical_agent_sender
             .from_orchestrator(state_link);
 
-        for comm in agent_registry.supervisor_agent_senders.values() {
+        for comm in actor_registry.supervisor_agent_senders.values() {
             let state_link = StateLink::WorkOrders(ActorSpecific::Strategic(work_orders.clone()));
             comm.from_orchestrator(state_link);
         }
 
-        for comm in agent_registry.operational_agent_senders.values() {
+        for comm in actor_registry.operational_agent_senders.values() {
             let state_link = StateLink::WorkOrders(ActorSpecific::Strategic(work_orders.clone()));
             comm.from_orchestrator(state_link);
         }
@@ -163,7 +161,7 @@ where
 {
     #[instrument(level = "info", skip_all)]
     pub async fn handle(
-        &mut self,
+        &self,
         orchestrator_request: OrchestratorRequest,
     ) -> Result<OrchestratorResponse>
     {
@@ -262,7 +260,7 @@ where
 
                 let asset = &work_order.work_order_info.functional_location.asset;
 
-                let api_solution = match self.system_solutions.get(asset) {
+                let api_solution = match self.system_solutions.lock().unwrap().get(asset) {
                     Some(arc_swap_shared_solution) => (arc_swap_shared_solution).load(),
                     None => bail!("Asset: {:?} is not initialzed", &asset),
                 };
@@ -285,7 +283,8 @@ where
                     .filter(|wo| wo.1.work_order_info.functional_location.asset == asset)
                     .collect();
 
-                let loaded_shared_solution = match self.system_solutions.get(&asset) {
+                let loaded_shared_solution = match self.system_solutions.lock().unwrap().get(&asset)
+                {
                     Some(arc_swap_shared_solution) => arc_swap_shared_solution.load(),
                     None => bail!("Ordinator has not been initialized for asset: {}", &asset),
                 };
@@ -365,11 +364,15 @@ where
             OrchestratorRequest::DeleteSupervisorAgent(asset, id_string) => {
                 let id = self
                     .actor_registries
+                    .lock()
+                    .unwrap()
                     .get(&asset)
                     .unwrap()
                     .supervisor_by_id_string(id_string);
 
                 self.actor_registries
+                    .lock()
+                    .unwrap()
                     .get_mut(&asset)
                     .unwrap()
                     .supervisor_agent_senders
@@ -425,11 +428,15 @@ where
             OrchestratorRequest::DeleteOperationalAgent(asset, id_string) => {
                 let id = self
                     .actor_registries
+                    .lock()
+                    .unwrap()
                     .get(&asset)
                     .unwrap()
                     .supervisor_by_id_string(id_string.clone());
 
                 self.actor_registries
+                    .lock()
+                    .unwrap()
                     .get_mut(&asset)
                     .unwrap()
                     .operational_agent_senders
@@ -525,7 +532,7 @@ where
         + Sync
         + 'static,
 {
-    pub async fn new() -> Arc<Mutex<Self>>
+    pub fn new() -> Arc<Self>
     {
         let configurations = SystemConfigurations::read_all_configs().unwrap();
 
@@ -541,26 +548,26 @@ where
         // This simply initializes the WorkerEnvironment, this should be done in the
         // building of the `SchedulingEnvironment` not in here.
 
-        let orchestrator = Orchestrator {
+        let orchestrator: Arc<Orchestrator<Ss>> = Arc::new_cyclic(|weak_self| Orchestrator {
             scheduling_environment,
-            system_solutions: HashMap::new(),
-            actor_registries: HashMap::new(),
+            system_solutions: std::sync::Mutex::new(HashMap::new()),
+            actor_registries: std::sync::Mutex::new(HashMap::new()),
             log_handles,
-            actor_notify: None,
+            actor_notify: Some(weak_self.clone()),
             system_configurations: configurations,
             database_connections,
-        };
-        let arc_orchestrator = Arc::new(Mutex::new(orchestrator));
-
-        arc_orchestrator.lock().unwrap().actor_notify = Some(Arc::downgrade(&arc_orchestrator));
-        arc_orchestrator
+        });
+        orchestrator
     }
 
-    pub fn asset_factory(&mut self, asset: &Asset) -> Result<&mut Self>
+    pub fn asset_factory(&self, asset: &Asset) -> Result<&Self>
     {
         let system_solution = Arc::new(ArcSwap::new(Arc::new(Ss::new())));
 
-        self.system_solutions.insert(asset.clone(), system_solution);
+        self.system_solutions
+            .lock()
+            .unwrap()
+            .insert(asset.clone(), system_solution);
         let dependencies = self.extract_factory_dependencies(asset)?;
 
         let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
@@ -581,7 +588,7 @@ where
             dependencies.2.clone(),
             dependencies.3.clone(),
         )
-        .with_context(|| format!("Could not construct StartegicActor {}", strategic_id))?;
+        .with_context(|| format!("Could not construct StartegicActor {strategic_id}"))?;
 
         // Where should their IDs come from? I think that the best approach is to
         // include them from
@@ -652,7 +659,10 @@ where
             operational_communications,
         );
 
-        self.actor_registries.insert(asset.clone(), agent_registry);
+        self.actor_registries
+            .lock()
+            .unwrap()
+            .insert(asset.clone(), agent_registry);
         drop(scheduling_environment_guard);
         Ok(self)
     }
@@ -705,6 +715,8 @@ where
             asset.clone(),
             work_orders,
             self.system_solutions
+                .lock()
+                .unwrap()
                 .get(&asset)
                 .with_context(|| {
                     format!("You should start up a Scheduling System for Asset {asset}")

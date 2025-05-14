@@ -35,7 +35,7 @@ where
     -> Result<Self::Res>
     {
         let strategic_response = match strategic_request_message {
-            StrategicRequestMessage::Status(strategic_status_message) => {
+            ordinator_actor_core::RequestMessage::Status(strategic_status_message) => {
                 match strategic_status_message {
                     StrategicStatusMessage::General => {
                         // You should not provide a message of this type with the
@@ -104,7 +104,7 @@ where
                     // This should be created in a different way. I think that you should rely
                     // on a lot of `From` implementations here. I think that is the best approach
                     // to fixing this issue.
-                    StrategicStatusMessage::WorkOrder(work_order_number) => {
+                    StrategicStatusMessage::WorkOrder(_work_order_number) => {
                         // TODO [ ]
                         // Make a `From` implementation.
                         // let strategic_solution_for_specific_work_order = self
@@ -147,7 +147,7 @@ where
                     }
                 }
             }
-            StrategicRequestMessage::Scheduling(scheduling_message) => {
+            ordinator_actor_core::RequestMessage::Scheduling(scheduling_message) => {
                 let scheduling_output: StrategicResponseScheduling = self
                     .algorithm
                     .update_scheduling_state(scheduling_message)
@@ -166,7 +166,7 @@ where
                 event!(Level::INFO, strategic_objective_value = ?self.algorithm.solution.objective_value);
                 Ok(StrategicResponseMessage::Scheduling(scheduling_output))
             }
-            StrategicRequestMessage::Resource(resources_message) => {
+            ordinator_actor_core::RequestMessage::Resource(resources_message) => {
                 let resources_output = self.algorithm.update_resources_state(resources_message);
 
                 self.algorithm.calculate_objective_value()?;
@@ -175,7 +175,7 @@ where
                     resources_output.unwrap(),
                 ))
             }
-            StrategicRequestMessage::Time(periods_message) => {
+            ordinator_actor_core::RequestMessage::Time(_periods_message) => {
                 // let mut scheduling_environment_guard =
                 // self.scheduling_environment.lock().unwrap();
 
@@ -202,7 +202,7 @@ where
                 // ))
                 todo!()
             }
-            StrategicRequestMessage::SchedulingEnvironment(
+            ordinator_actor_core::RequestMessage::SchedulingEnvironment(
                 strategic_scheduling_environment_commands,
             ) => match strategic_scheduling_environment_commands {
                 StrategicSchedulingEnvironmentCommands::UserStatus(strategic_user_status_codes) => {
@@ -363,19 +363,13 @@ where
                     self.notify_orchestrator
                         .notify_all_agents_of_work_order_change(
                             strategic_user_status_codes.work_order_numbers,
-                            &self.actor_id.asset(),
+                            self.actor_id.asset(),
                         )
-                        .await
                         .context("Could not notify Orchestrator")?;
 
                     Ok(StrategicResponseMessage::Success)
                 }
             },
-            ordinator_actor_core::RequestMessage::Status(_) => todo!(),
-            ordinator_actor_core::RequestMessage::Scheduling(_) => todo!(),
-            ordinator_actor_core::RequestMessage::Resource(_) => todo!(),
-            ordinator_actor_core::RequestMessage::Time(_) => todo!(),
-            ordinator_actor_core::RequestMessage::SchedulingEnvironment(_) => todo!(),
             ordinator_actor_core::RequestMessage::Update => todo!(),
         };
         self.algorithm.calculate_objective_value()?;
@@ -398,8 +392,8 @@ where
                                 .get(&work_order_number)
                                 .with_context(|| {
                                     format!(
-                                        "{:?} is not present in SchedulingEnvironment",
-                                        work_order_number
+                                        "{work_order_number:?} is not present in SchedulingEnvironment",
+                                        
                                     )
                                 })?;
 

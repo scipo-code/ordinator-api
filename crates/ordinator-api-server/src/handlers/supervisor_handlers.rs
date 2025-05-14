@@ -18,13 +18,12 @@ use ordinator_orchestrator::TotalSystemSolution;
 
 #[debug_handler]
 pub async fn status(
-    State(orchestrator): State<Arc<Mutex<Orchestrator<TotalSystemSolution>>>>,
+    State(orchestrator): State<Arc<Orchestrator<TotalSystemSolution>>>,
     Path((asset, supervisor_id)): Path<(Asset, Id)>,
 ) -> Result<Json<SupervisorResponseMessage>>
 {
-    let orchestrator1 = orchestrator.lock().unwrap();
-    let communication = orchestrator1
-        .actor_registries
+    let lock = orchestrator.actor_registries.lock().unwrap();
+    let communication = lock
         .get(&asset)
         .with_context(|| format!("Asset {asset} is not present in the ActorRegistry"))
         .unwrap()

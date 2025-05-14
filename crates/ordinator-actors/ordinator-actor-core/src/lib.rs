@@ -159,7 +159,7 @@ where
         }
     }
 
-    fn handle_request_message(&mut self, request_message: Self::Req) -> Result<Self::Res>
+    fn handle_request_message(&mut self, _request_message: Self::Req) -> Result<Self::Res>
     {
         // The individual actor has to implement this
         todo!();

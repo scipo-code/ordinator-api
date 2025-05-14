@@ -60,6 +60,8 @@ where
             // best approach here is the make the code work well with the
             Arc::clone(
                 self.system_solutions
+                    .lock()
+                    .unwrap()
                     .get(asset)
                     .with_context(|| format!("Missing SystemSolution for Asset {}", asset))?,
             ),
@@ -102,7 +104,11 @@ where
         )
         .with_context(|| format!("Could not create StrategicActor for Asset {}", id.asset()))?;
 
+        // You should make a method for
+        // `actor_registries.lock().unwrap().get_mut(id.asset()).expect()`
         self.actor_registries
+            .lock()
+            .unwrap()
             .get_mut(id.asset())
             .expect("The ActorRegistry for asset should exist before creating Actors on it")
             .strategic_agent_sender = communication;
@@ -125,6 +131,8 @@ where
         .with_context(|| format!("Could not create TacticalActor for Asset {}", id.asset()))?;
 
         self.actor_registries
+            .lock()
+            .unwrap()
             .get_mut(id.asset())
             .expect("The ActorRegistry for asset should exist before creating Actors on it")
             .tactical_agent_sender = communication;
@@ -147,6 +155,8 @@ where
         .with_context(|| format!("Could not create supervisorActor for Asset {}", id.asset()))?;
 
         self.actor_registries
+            .lock()
+            .unwrap()
             .get_mut(id.asset())
             .expect("The ActorRegistry for asset should exist before creating Actors on it")
             .supervisor_agent_senders
@@ -174,6 +184,8 @@ where
         .with_context(|| format!("Could not create OperationalActor for Asset {}", id.asset()))?;
 
         self.actor_registries
+            .lock()
+            .unwrap()
             .get_mut(id.asset())
             .expect("The ActorRegistry for asset should exist before creating Actors on it")
             .operational_agent_senders

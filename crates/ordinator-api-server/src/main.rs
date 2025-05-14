@@ -43,7 +43,6 @@ use ordinator_orchestrator::Asset;
 use ordinator_orchestrator::Orchestrator;
 use ordinator_orchestrator::TotalSystemSolution;
 use routes::api::v1::api_scope;
-use tokio::sync::Mutex;
 use tower_http::services::ServeDir;
 
 #[tokio::main]
@@ -53,12 +52,13 @@ async fn main() -> Result<()>
         .context("You need to provide an .env file. Look at the .env.example for guidance")?;
 
     // Should the
-    let orchestrator: Arc<Mutex<Orchestrator<TotalSystemSolution>>> = Orchestrator::new().await;
+    // ISSUE #000 Turn the nested `std::sync::Mutex` into `tokio::sync::Mutex`
+    let orchestrator: Arc<Orchestrator<TotalSystemSolution>> = Orchestrator::new();
 
     // WARN: Manually add `Asset`s here. Everything added here should be done from
     // the API in actual production. So this is only a temporary solution.
 
-    orchestrator.lock().unwrap().asset_factory(&Asset::DF)?;
+    orchestrator.asset_factory(&Asset::DF)?;
 
     // WARN
 
@@ -100,10 +100,11 @@ async fn main() -> Result<()>
         ServeDir::new("./static_files/supervisor/dist/supervisor-calendar/browser");
 
     let app = Router::new()
-        .nest("/api/v1", api_scope(orchestrator).await)
+        .nest("/api/v1", api_scope(orchestrator.clone()).await)
         .nest_service("/scheduler", scheduler_files)
         .nest_service("/supervisor", supervisor_files)
-        .route("/hello", get(|| async { "Hello, world!" }));
+        .route("/hello", get(|| async { "Hello, world!" }))
+        .with_state(orchestrator);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     axum_server::bind(addr)

@@ -15,7 +15,8 @@ use ordinator_scheduling_environment::worker_environment::SupervisorOptions;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
 
-pub struct SupervisorParameters {
+pub struct SupervisorParameters
+{
     pub supervisor_work_orders:
         HashMap<WorkOrderNumber, HashMap<ActivityNumber, SupervisorParameter>>,
     pub supervisor_periods: Vec<Period>,
@@ -23,13 +24,15 @@ pub struct SupervisorParameters {
     pub options: SupervisorOptions,
 }
 
-impl Parameters for SupervisorParameters {
+impl Parameters for SupervisorParameters
+{
     type Key = WorkOrderActivity;
 
     fn from_source(
         id: &Id,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
-    ) -> Result<Self> {
+    ) -> Result<Self>
+    {
         let supervisor_periods = &scheduling_environment.time_environment.supervisor_periods;
 
         let mut supervisor_parameters = HashMap::new();
@@ -46,7 +49,7 @@ impl Parameters for SupervisorParameters {
             .supervisors
             .iter()
             .find(|e| e.id == *id)
-            .with_context(|| format!("Missing an Supervisor entry for {}", id))?
+            .with_context(|| format!("Missing an Supervisor entry for {id}"))?
             .supervisor_options
             // ISSUE #130
             .clone();
@@ -107,18 +110,23 @@ impl Parameters for SupervisorParameters {
 
     fn create_and_insert_new_parameter(
         &mut self,
-        key: Self::Key,
-        scheduling_environment: MutexGuard<SchedulingEnvironment>,
-    ) {
+        _key: Self::Key,
+        _scheduling_environment: MutexGuard<SchedulingEnvironment>,
+    )
+    {
         todo!()
     }
 }
 
-impl SupervisorParameters {
+impl SupervisorParameters
+{
+    // ISSUE #000
+    // make-the-actor-create-parameters-directly-from-the-scheduling-environment
     pub(crate) fn supervisor_parameter(
         &self,
         work_order_activity: &WorkOrderActivity,
-    ) -> Result<&SupervisorParameter> {
+    ) -> Result<&SupervisorParameter>
+    {
         let supervisor_parameter = self.supervisor_work_orders
             .get(&work_order_activity.0)
             .context(format!("WorkOrderNumber: {:?} was not part of the SupervisorParameters", work_order_activity.0))?
@@ -128,23 +136,29 @@ impl SupervisorParameters {
         Ok(supervisor_parameter)
     }
 
+    // This should be a part of the `Parameters` trait. You are starting to feel
+    // overwhelmed again. Relax
     pub(crate) fn create_and_insert_supervisor_parameter(
         &mut self,
-        operation: &Operation,
-        work_order_activity: &WorkOrderActivity,
-    ) {
+        _operation: &Operation,
+        _work_order_activity: &WorkOrderActivity,
+    )
+    {
         // DEBUG: Make assertions here!
     }
 }
 
 #[derive(Clone)]
-pub struct SupervisorParameter {
+pub struct SupervisorParameter
+{
     pub resource: Resources,
     pub number: NumberOfPeople,
 }
 
-impl SupervisorParameter {
-    pub fn new(resource: Resources, number: NumberOfPeople) -> Self {
+impl SupervisorParameter
+{
+    pub fn new(resource: Resources, number: NumberOfPeople) -> Self
+    {
         Self { resource, number }
     }
 }
