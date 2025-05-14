@@ -8,7 +8,7 @@ use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::StateLink;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use tracing::Level;
 use tracing::event;
 
@@ -26,7 +26,7 @@ use crate::messages::StrategicResponseScheduling;
 
 impl<Ss> MessageHandler for StrategicActor<Ss>
 where
-    Ss: SystemSolutionTrait<Strategic = StrategicSolution>,
+    Ss: SystemSolutions<Strategic = StrategicSolution>,
 {
     type Req = StrategicRequestMessage;
     type Res = StrategicResponseMessage;

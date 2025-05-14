@@ -99,7 +99,7 @@ where
 
 // This is made completely wrong. I am not sure what the
 // best approach of solving it will be.
-pub trait SystemSolutionTrait: Clone
+pub trait SystemSolutions: Clone
 {
     type Strategic: StrategicInterface;
     type Tactical: TacticalInterface;
@@ -138,7 +138,7 @@ pub trait SystemSolutionTrait: Clone
 // TODO [ ]
 // Make this work with the correct way of designing
 #[allow(dead_code, unused_variables)]
-impl<S, T, U, V> SystemSolutionTrait for SystemSolution<S, T, U, V>
+impl<S, T, U, V> SystemSolutions for SystemSolution<S, T, U, V>
 where
     S: StrategicInterface,
     T: TacticalInterface,
@@ -443,7 +443,7 @@ pub enum ActorSpecific
 
 pub trait ActorFactory<Ss>
 where
-    Ss: SystemSolutionTrait + Sync + Send,
+    Ss: SystemSolutions + Sync + Send,
 {
     type Communication;
 

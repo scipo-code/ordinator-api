@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use anyhow::Context;
 use axum::Json;
 use axum::body::Bytes;
 use axum::debug_handler;
@@ -16,7 +15,6 @@ use ordinator_orchestrator::Asset;
 use ordinator_orchestrator::Orchestrator;
 use ordinator_orchestrator::OrchestratorRequest;
 use ordinator_orchestrator::TotalSystemSolution;
-use tokio::sync::Mutex;
 
 // This should be deleted and replaced with the other handler. I do not
 // see a different way around it.
@@ -33,15 +31,13 @@ use tokio::sync::Mutex;
 // }
 
 pub async fn scheduler_excel_export(
-    State(orchestrator): State<Arc<Mutex<Orchestrator<TotalSystemSolution>>>>,
+    State(orchestrator): State<Arc<Orchestrator<TotalSystemSolution>>>,
     Path(asset): Path<Asset>,
 ) -> Result<Response>
 {
     let mut headers = HeaderMap::new();
 
     let (buffer, http_header) = orchestrator
-        .lock()
-        .await
         .export_xlsx_solution(asset)
         .expect("Could not export xlsx");
 
@@ -95,8 +91,32 @@ pub async fn scheduler_asset_names() -> Response
 // You have made this function, but you do not know where to put the
 // trait bounds. This is a crucial lesson. You need to take good
 // stock of this for the whole thing to work.
+// So here you simply send a single message from the enum and you
+// then get a return value. This handler is actually a helper
+// function.
+//
+//
+//
+pub async fn orchestrator_status(
+    State(orchestrator): State<Arc<Orchestrator<TotalSystemSolution>>>,
+) -> Result<Response>
+{
+    Ok(Json(orchestrator.actor_registries.lock().unwrap().len()).into_response())
+}
+
+pub async fn get_days(
+    orchestrator: State<Arc<Orchestrator<TotalSystemSolution>>>,
+) -> Result<Response>
+{
+    let json = Json(OrchestratorRequest::GetPeriods);
+    orchestrator_helper(orchestrator, json).await
+}
+
+/// This is a helper function for routing message for the orchestrator. Each
+/// `handler` function should ideally use this to send a [`OrchestratorRequest`]
+/// to the orchestrator.
 #[debug_handler]
-pub async fn orchestrator_requests(
+pub async fn orchestrator_helper(
     State(orchestrator): State<Arc<Orchestrator<TotalSystemSolution>>>,
     Json(orchestrator_request): Json<OrchestratorRequest>,
 ) -> Result<Response>

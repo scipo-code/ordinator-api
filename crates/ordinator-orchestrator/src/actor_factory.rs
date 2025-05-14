@@ -10,7 +10,7 @@ use ordinator_operational_actor::algorithm::operational_solution::OperationalSol
 use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::SystemSolution;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
@@ -27,9 +27,16 @@ use crate::Orchestrator;
 pub type TotalSystemSolution =
     SystemSolution<StrategicSolution, TacticalSolution, SupervisorSolution, OperationalSolution>;
 
+type ActorFactoryDependencies<Ss> = (
+    Arc<Mutex<SchedulingEnvironment>>,
+    Arc<ArcSwap<Ss>>,
+    Arc<dyn OrchestratorNotifier>,
+    Arc<ArcSwap<SystemConfigurations>>,
+);
+
 impl<Ss> Orchestrator<Ss>
 where
-    Ss: SystemSolutionTrait<
+    Ss: SystemSolutions<
             Strategic = StrategicSolution,
             Tactical = TacticalSolution,
             Supervisor = SupervisorSolution,
@@ -43,16 +50,7 @@ where
     pub fn extract_factory_dependencies(
         &self,
         asset: &Asset,
-    ) -> Result<(
-        Arc<Mutex<SchedulingEnvironment>>,
-        // This is fundamentally different from the rest of the parameters of the function.
-        // I believe that the best approach is to remove it. That decision has much better
-        // semantics
-        Arc<ArcSwap<Ss>>,
-        // This is sent across thread boundaries. It should be an `Arc<dyn ...>` correct?
-        Arc<dyn OrchestratorNotifier>,
-        Arc<ArcSwap<SystemConfigurations>>,
-    )>
+    ) -> Result<ActorFactoryDependencies<Ss>>
     {
         Ok((
             Arc::clone(&self.scheduling_environment),
@@ -63,7 +61,7 @@ where
                     .lock()
                     .unwrap()
                     .get(asset)
-                    .with_context(|| format!("Missing SystemSolution for Asset {}", asset))?,
+                    .with_context(|| format!("Missing SystemSolution for Asset {asset}"))?,
             ),
             Arc::new(NotifyOrchestrator(
                 self.actor_notify

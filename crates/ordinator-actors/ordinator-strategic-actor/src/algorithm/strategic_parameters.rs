@@ -155,9 +155,20 @@ pub struct WorkOrderParameter
 //
 // This has to be formulated together with the
 // I believe that we should experiment here with making the `Type state`
-// pattern
+// pattern.
+// ISSUE #000 introduce-type-state-pattern-to-handle-complex-business-variants
+// ISSUE #000 read-learning-domain-driven-design
 #[derive(Debug)]
-pub struct WorkOrderParameterBuilder(WorkOrderParameter);
+pub struct WorkOrderParameterBuilder
+{
+    pub locked_in_period: Option<Period>,
+    pub excluded_periods: HashSet<Period>,
+    pub latest_period: Option<Period>,
+    pub weight: Option<u64>,
+    // This weight is derived from the ['StrategicOptions`]. This means that the code should
+    // work better
+    pub work_load: HashMap<Resources, Work>,
+}
 
 // TODO: Use this for testing the scheduling program
 // enum StrategicParameterStates {
@@ -230,14 +241,15 @@ impl WorkOrderParameterBuilder
         // FIX [ ]
         // This is horribly written and very error prone
         // Use a TypeState pattern if you are in doubt.
-        self.0.excluded_periods =
+        self.excluded_periods =
             work_order.find_excluded_periods(periods, &strategic_options.material_to_period);
 
-        self.0.weight = work_order.work_order_value(&strategic_options.work_order_configurations);
+        self.weight =
+            Some(work_order.work_order_value(&strategic_options.work_order_configurations));
 
-        self.0.work_load = work_order.work_order_load();
+        self.work_load = work_order.work_order_load();
 
-        self.0.latest_period = work_order.latest_allowed_finish_period(periods).clone();
+        self.latest_period = Some(work_order.latest_allowed_finish_period(periods).clone());
         // FIX
 
         // Ideally we should split the work orders by the operations in the code. I
@@ -258,8 +270,8 @@ impl WorkOrderParameterBuilder
         {
             match unloading_point_period {
                 Some(unloading_point_period) => {
-                    self.0.locked_in_period = Some(unloading_point_period.clone());
-                    self.0.excluded_periods.remove(unloading_point_period);
+                    self.locked_in_period = Some(unloading_point_period.clone());
+                    self.excluded_periods.remove(unloading_point_period);
                 }
                 None => {
                     let scheduled_period = periods
@@ -270,8 +282,8 @@ impl WorkOrderParameterBuilder
                         .cloned();
 
                     if let Some(locked_in_period) = scheduled_period {
-                        self.0.locked_in_period = Some(locked_in_period.clone());
-                        self.0.excluded_periods.remove(&locked_in_period);
+                        self.locked_in_period = Some(locked_in_period.clone());
+                        self.excluded_periods.remove(&locked_in_period);
                     }
                 }
             }
@@ -279,10 +291,9 @@ impl WorkOrderParameterBuilder
         }
 
         if work_order.vendor() {
-            self.0.locked_in_period = periods.last().cloned();
-            self.0
-                .excluded_periods
-                .remove(self.0.locked_in_period.as_ref().unwrap());
+            self.locked_in_period = periods.last().cloned();
+            self.excluded_periods
+                .remove(self.locked_in_period.as_ref().unwrap());
             return self;
         };
 
@@ -290,22 +301,19 @@ impl WorkOrderParameterBuilder
             if unloading_point_period.is_some()
                 && periods[0..=1].contains(unloading_point_period.unwrap())
             {
-                self.0
-                    .locked_in_period
+                self.locked_in_period
                     .clone_from(&unloading_point_period.cloned());
-                self.0
-                    .excluded_periods
-                    .remove(self.0.locked_in_period.as_ref().unwrap());
+                self.excluded_periods
+                    .remove(self.locked_in_period.as_ref().unwrap());
             } else {
                 let scheduled_period = periods[0..=1].iter().find(|period| {
                     period.contains_date(work_order.work_order_dates.basic_start_date)
                 });
 
                 if let Some(locked_in_period) = scheduled_period {
-                    self.0.locked_in_period = Some(locked_in_period.clone());
-                    self.0
-                        .excluded_periods
-                        .remove(self.0.locked_in_period.as_ref().unwrap());
+                    self.locked_in_period = Some(locked_in_period.clone());
+                    self.excluded_periods
+                        .remove(self.locked_in_period.as_ref().unwrap());
                 }
             }
             return self;
@@ -317,10 +325,9 @@ impl WorkOrderParameterBuilder
                 .find(|period| period.contains_date(work_order.work_order_dates.basic_start_date));
 
             if let Some(locked_in_period) = scheduled_period {
-                self.0.locked_in_period = Some(locked_in_period.clone());
-                self.0
-                    .excluded_periods
-                    .remove(self.0.locked_in_period.as_ref().unwrap());
+                self.locked_in_period = Some(locked_in_period.clone());
+                self.excluded_periods
+                    .remove(self.locked_in_period.as_ref().unwrap());
             }
             return self;
         }
@@ -337,10 +344,9 @@ impl WorkOrderParameterBuilder
         {
             let locked_in_period = unloading_point_period.unwrap();
             if !periods[0..=1].contains(unloading_point_period.as_ref().unwrap()) {
-                self.0.locked_in_period = Some(locked_in_period.clone());
-                self.0
-                    .excluded_periods
-                    .remove(self.0.locked_in_period.as_ref().unwrap());
+                self.locked_in_period = Some(locked_in_period.clone());
+                self.excluded_periods
+                    .remove(self.locked_in_period.as_ref().unwrap());
             }
             return self;
         }
@@ -349,16 +355,20 @@ impl WorkOrderParameterBuilder
 
     pub fn build(self) -> WorkOrderParameter
     {
-        if let Some(ref locked_in_period) = self.0.locked_in_period {
-            assert!(!self.0.excluded_periods.contains(locked_in_period));
+        if let Some(ref locked_in_period) = self.locked_in_period {
+            assert!(!self.excluded_periods.contains(locked_in_period));
         }
 
         WorkOrderParameter {
-            locked_in_period: self.0.locked_in_period,
-            excluded_periods: self.0.excluded_periods,
-            latest_period: self.0.latest_period,
-            weight: self.0.weight,
-            work_load: self.0.work_load,
+            locked_in_period: self.locked_in_period,
+            excluded_periods: self.excluded_periods,
+            latest_period: self
+                .latest_period
+                .expect("There should always be a latest period on a StrategicWorkOrder"),
+            weight: self
+                .weight
+                .expect("There should always a weight on a StrategicWorkOrder"),
+            work_load: self.work_load,
         }
     }
 }
@@ -367,13 +377,14 @@ impl WorkOrderParameter
 {
     pub fn builder() -> WorkOrderParameterBuilder
     {
-        WorkOrderParameterBuilder(WorkOrderParameter {
-            locked_in_period: todo!(),
-            excluded_periods: todo!(),
-            latest_period: todo!(),
-            weight: todo!(),
-            work_load: todo!(),
-        })
+        // SHould we accept a
+        WorkOrderParameterBuilder {
+            locked_in_period: None,
+            excluded_periods: HashSet::default(),
+            latest_period: None,
+            weight: None,
+            work_load: HashMap::default(),
+        }
     }
 }
 

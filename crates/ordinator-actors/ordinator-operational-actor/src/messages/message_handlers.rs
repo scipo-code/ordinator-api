@@ -4,7 +4,7 @@ use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::StateLink;
 use ordinator_orchestrator_actor_traits::SupervisorInterface;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use tracing::Level;
 use tracing::event;
 
@@ -19,7 +19,7 @@ use crate::algorithm::operational_solution::OperationalSolution;
 // the best approach is to make something.
 impl<Ss> MessageHandler for OperationalActor<Ss>
 where
-    Ss: SystemSolutionTrait<Operational = OperationalSolution>,
+    Ss: SystemSolutions<Operational = OperationalSolution>,
 {
     type Req = OperationalRequestMessage;
     type Res = OperationalResponseMessage;

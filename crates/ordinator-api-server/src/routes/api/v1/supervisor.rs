@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use axum::Router;
 use axum::routing::get;
@@ -8,7 +7,9 @@ use ordinator_orchestrator::TotalSystemSolution;
 
 use crate::handlers::supervisor_handlers::status;
 
-pub async fn supervisor_routes(state: Arc<Orchestrator<TotalSystemSolution>>) -> Router
+pub async fn supervisor_routes(
+    state: Arc<Orchestrator<TotalSystemSolution>>,
+) -> Router<Arc<Orchestrator<TotalSystemSolution>>>
 {
     Router::new()
         .route("/:asset/:supervisor_id", get(status))

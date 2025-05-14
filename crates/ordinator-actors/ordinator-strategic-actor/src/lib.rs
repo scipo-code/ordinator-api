@@ -23,7 +23,7 @@ use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
@@ -33,12 +33,12 @@ pub struct StrategicActor<Ss>(
     Actor<StrategicRequestMessage, StrategicResponseMessage, StrategicAlgorithm<Ss>>,
 )
 where
-    Ss: SystemSolutionTrait<Strategic = StrategicSolution>,
+    Ss: SystemSolutions<Strategic = StrategicSolution>,
     Self: MessageHandler<Req = StrategicRequestMessage, Res = StrategicResponseMessage>;
 
 impl<Ss> Deref for StrategicActor<Ss>
 where
-    Ss: SystemSolutionTrait<Strategic = StrategicSolution>,
+    Ss: SystemSolutions<Strategic = StrategicSolution>,
 {
     type Target = Actor<StrategicRequestMessage, StrategicResponseMessage, StrategicAlgorithm<Ss>>;
 
@@ -50,7 +50,7 @@ where
 
 impl<Ss> DerefMut for StrategicActor<Ss>
 where
-    Ss: SystemSolutionTrait<Strategic = StrategicSolution>,
+    Ss: SystemSolutions<Strategic = StrategicSolution>,
 {
     fn deref_mut(&mut self) -> &mut Self::Target
     {
@@ -61,7 +61,7 @@ where
 pub struct StrategicApi {}
 impl<Ss> ActorFactory<Ss> for StrategicApi
 where
-    Ss: SystemSolutionTrait<Strategic = StrategicSolution> + Send + Sync + 'static,
+    Ss: SystemSolutions<Strategic = StrategicSolution> + Send + Sync + 'static,
 {
     type Communication = Communication<StrategicRequestMessage, StrategicResponseMessage>;
 
@@ -73,7 +73,7 @@ where
         system_configurations: Arc<ArcSwap<SystemConfigurations>>,
     ) -> Result<<Self as ActorFactory<Ss>>::Communication>
     where
-        Ss: SystemSolutionTrait<Strategic = StrategicSolution> + Send + Sync + 'static,
+        Ss: SystemSolutions<Strategic = StrategicSolution> + Send + Sync + 'static,
         StrategicAlgorithm<Ss>: ActorBasedLargeNeighborhoodSearch
             + Send
             + Sync

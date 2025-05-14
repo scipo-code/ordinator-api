@@ -1,8 +1,6 @@
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use anyhow::Context;
-use anyhow::anyhow;
 use axum::Json;
 use axum::debug_handler;
 use axum::extract::Path;
@@ -35,7 +33,9 @@ pub async fn status(
             )
         })
         .unwrap();
-    communication.from_agent(SupervisorRequestMessage::Status(General));
+    communication
+        .from_agent(SupervisorRequestMessage::Status(General))
+        .unwrap();
 
     Ok(Json(communication.from_actor()))
 }

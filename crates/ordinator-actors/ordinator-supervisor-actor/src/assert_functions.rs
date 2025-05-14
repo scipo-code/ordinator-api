@@ -4,7 +4,7 @@ use anyhow::Result;
 use anyhow::bail;
 use ordinator_actor_core::Actor;
 use ordinator_orchestrator_actor_traits::StrategicInterface;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use tracing::Level;
 use tracing::event;
@@ -25,7 +25,7 @@ pub trait SupervisorAssertions {
 impl<MessageRequest, MessageResponse, Ss> SupervisorAssertions
     for Actor<MessageRequest, MessageResponse, SupervisorAlgorithm<Ss>>
 where
-    Ss: SystemSolutionTrait<Supervisor = SupervisorSolution>,
+    Ss: SystemSolutions<Supervisor = SupervisorSolution>,
 {
     fn test_symmetric_difference_between_tactical_operations_and_operational_state_machine(
         &self,

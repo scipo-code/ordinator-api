@@ -1,10 +1,8 @@
 use std::collections::HashMap;
-use std::sync::MutexGuard;
 
 use anyhow::Context;
 use anyhow::Result;
 use ordinator_actor_core::traits::ActorLinkToSchedulingEnvironment;
-use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::time_environment::day::Days;
 use ordinator_scheduling_environment::work_order::operation::Work;
@@ -14,19 +12,24 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Eq, PartialEq, Default, Serialize, Deserialize, Debug, Clone)]
-pub struct TacticalResources {
+pub struct TacticalResources
+{
     pub resources: HashMap<Resources, Days>,
 }
-impl TacticalResources {
-    pub fn new(resources: HashMap<Resources, Days>) -> Self {
+impl TacticalResources
+{
+    pub fn new(resources: HashMap<Resources, Days>) -> Self
+    {
         TacticalResources { resources }
     }
 
-    pub fn get_resource(&self, resource: &Resources, day: &Day) -> &Work {
+    pub fn get_resource(&self, resource: &Resources, day: &Day) -> &Work
+    {
         self.resources.get(resource).unwrap().days.get(day).unwrap()
     }
 
-    pub fn new_from_data(resources: Vec<Resources>, tactical_days: Vec<Day>, load: Work) -> Self {
+    pub fn new_from_data(resources: Vec<Resources>, tactical_days: Vec<Day>, load: Work) -> Self
+    {
         let mut resource_capacity: HashMap<Resources, Days> = HashMap::new();
         for resource in resources {
             let mut days = HashMap::new();
@@ -39,7 +42,8 @@ impl TacticalResources {
         TacticalResources::new(resource_capacity)
     }
 
-    pub fn update_resources(&mut self, resources: Self) {
+    pub fn update_resources(&mut self, resources: Self)
+    {
         for resource in resources.resources {
             for day in resource.1.days {
                 *self
@@ -57,7 +61,8 @@ impl TacticalResources {
         &self,
         resource: &Resources,
         period: &ordinator_scheduling_environment::time_environment::period::Period,
-    ) -> Result<Work> {
+    ) -> Result<Work>
+    {
         let days = &self
             .resources
             .get(resource)
@@ -74,8 +79,10 @@ impl TacticalResources {
 
 // Is this the correct way to think about the different things? Yes
 // let the caller decide
-impl<'a> From<(&ActorLinkToSchedulingEnvironment<'a>, &Id)> for TacticalResources {
-    fn from(value: (&ActorLinkToSchedulingEnvironment<'a>, &Id)) -> Self {
+impl<'a> From<(&ActorLinkToSchedulingEnvironment<'a>, &Id)> for TacticalResources
+{
+    fn from(value: (&ActorLinkToSchedulingEnvironment<'a>, &Id)) -> Self
+    {
         // TODO [ ]
         // Move this out of the code and into `configuration`
         let _hours_per_day = 6.0;
@@ -110,7 +117,7 @@ impl<'a> From<(&ActorLinkToSchedulingEnvironment<'a>, &Id)> for TacticalResource
                     // There is a logic error here. If we want to compare with the
                     // `StrategicAgent`.
                     .entry(operational_configuration_all.id.1.first().cloned().unwrap())
-                    .or_insert(Days::default());
+                    .or_default();
 
                 *resource_periods
                     .days

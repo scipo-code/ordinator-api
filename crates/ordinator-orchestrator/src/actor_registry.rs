@@ -1,16 +1,13 @@
 use std::collections::HashMap;
 
-use anyhow::Result;
 use ordinator_operational_actor::messages::OperationalRequestMessage;
 use ordinator_operational_actor::messages::OperationalResponseMessage;
-use ordinator_operational_actor::messages::responses::OperationalResponseStatus;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_strategic_actor::messages::StrategicRequestMessage;
 use ordinator_strategic_actor::messages::StrategicResponseMessage;
 use ordinator_supervisor_actor::messages::SupervisorRequestMessage;
 use ordinator_supervisor_actor::messages::SupervisorResponseMessage;
-use ordinator_supervisor_actor::messages::responses::SupervisorResponseStatus;
 use ordinator_tactical_actor::messages::TacticalRequestMessage;
 use ordinator_tactical_actor::messages::TacticalResponseMessage;
 
@@ -31,12 +28,10 @@ impl ActorRegistry
         operational_id: &String,
     ) -> Option<&Communication<OperationalRequestMessage, OperationalResponseMessage>>
     {
-        let option_id = self
-            .operational_agent_senders
+        self.operational_agent_senders
             .iter()
             .find(|(id, _)| &id.0 == operational_id)
-            .map(|(_, addr)| addr);
-        option_id
+            .map(|(_, addr)| addr)
     }
 
     // This function should be generic over all the different types of messages.

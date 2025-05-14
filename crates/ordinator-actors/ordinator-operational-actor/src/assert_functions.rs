@@ -4,7 +4,7 @@ use chrono::TimeDelta;
 use colored::Colorize;
 use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_orchestrator_actor_traits::SupervisorInterface;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_orchestrator_actor_traits::delegate::Delegate;
 use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
 
@@ -22,7 +22,7 @@ pub trait OperationalAssertions {
 impl<Ss> OperationalAssertions
     for Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     // This also have to be moved out of the code
     // TODO [ ]

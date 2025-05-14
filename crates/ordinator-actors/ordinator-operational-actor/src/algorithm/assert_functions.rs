@@ -1,6 +1,6 @@
 use anyhow::Result;
 use anyhow::ensure;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 
 use super::OperationalAlgorithm;
 
@@ -12,7 +12,7 @@ pub trait OperationalAlgorithmAsserts {
 // These kind of asserts should also look at the `SharedSolution`
 impl<Ss> OperationalAlgorithmAsserts for OperationalAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     fn assert_no_operation_overlap(&self) -> Result<()> {
         let operational_solutions = self

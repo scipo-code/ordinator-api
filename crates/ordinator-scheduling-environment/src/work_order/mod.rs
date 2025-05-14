@@ -157,14 +157,14 @@ pub struct WorkOrder
 pub struct WorkOrderBuilder
 {
     work_order_number: WorkOrderNumber,
-    main_work_center: Resources,
-    operations: Operations,
+    main_work_center: Option<Resources>,
+    operations: Option<Operations>,
     // FIX
     // Every operation needs to have a relation between them. There
     // is no way around this. It should be an enforced invariant.
-    work_order_analytic: WorkOrderAnalytic,
-    work_order_dates: WorkOrderDates,
-    work_order_info: WorkOrderInfo,
+    work_order_analytic: Option<WorkOrderAnalytic>,
+    work_order_dates: Option<WorkOrderDates>,
+    work_order_info: Option<WorkOrderInfo>,
 }
 
 impl WorkOrderBuilder
@@ -173,13 +173,23 @@ impl WorkOrderBuilder
     {
         WorkOrder {
             work_order_number: self.work_order_number,
-            main_work_center: self.main_work_center,
-            operations: self.operations,
+            main_work_center: self
+                .main_work_center
+                .expect("Missing field initializations on the WorkOrderBuilder"),
+            operations: self
+                .operations
+                .expect("Missing field initializations on the WorkOrderBuilder"),
             // TODO [ ]
             // Relations should be a function between the different on the `Operations` field.
-            work_order_analytic: self.work_order_analytic,
-            work_order_dates: self.work_order_dates,
-            work_order_info: self.work_order_info,
+            work_order_analytic: self
+                .work_order_analytic
+                .expect("Missing field initializations on the WorkOrderBuilder"),
+            work_order_dates: self
+                .work_order_dates
+                .expect("Missing field initializations on the WorkOrderBuilder"),
+            work_order_info: self
+                .work_order_info
+                .expect("Missing field initializations on the WorkOrderBuilder"),
         }
     }
 
@@ -191,7 +201,7 @@ impl WorkOrderBuilder
 
     pub fn main_work_center(mut self, main_work_center: Resources) -> Self
     {
-        self.main_work_center = main_work_center;
+        self.main_work_center = Some(main_work_center);
         self
     }
 
@@ -210,6 +220,8 @@ impl WorkOrderBuilder
         let operations_builder = f(operations_builder);
 
         self.operations
+            .as_mut()
+            .unwrap()
             .0
             .insert(operation_number, operations_builder.build());
 
@@ -218,7 +230,7 @@ impl WorkOrderBuilder
 
     pub fn operations(mut self, operations: Operations) -> Self
     {
-        self.operations = operations;
+        self.operations = Some(operations);
         self
     }
 
@@ -230,7 +242,7 @@ impl WorkOrderBuilder
 
         let work_order_analytic_builder = configure(work_order_analytic_builder);
 
-        self.work_order_analytic = work_order_analytic_builder.build();
+        self.work_order_analytic = Some(work_order_analytic_builder.build());
         self
     }
 
@@ -242,7 +254,7 @@ impl WorkOrderBuilder
 
         let work_order_info_builder = configure(work_order_info_builder);
 
-        self.work_order_info = work_order_info_builder.build();
+        self.work_order_info = Some(work_order_info_builder.build());
         self
     }
 
@@ -254,7 +266,7 @@ impl WorkOrderBuilder
 
         let work_order_dates_builder = configure(work_order_dates_builder);
 
-        self.work_order_dates = work_order_dates_builder.build();
+        self.work_order_dates = Some(work_order_dates_builder.build());
         self
     }
 }
@@ -304,11 +316,11 @@ impl WorkOrder
     {
         WorkOrderBuilder {
             work_order_number,
-            main_work_center: todo!(),
-            operations: todo!(),
-            work_order_analytic: todo!(),
-            work_order_dates: todo!(),
-            work_order_info: todo!(),
+            main_work_center: None,
+            operations: None,
+            work_order_analytic: None,
+            work_order_dates: None,
+            work_order_info: None,
         }
     }
 

@@ -5,7 +5,7 @@ use anyhow::Result;
 use anyhow::bail;
 use anyhow::ensure;
 use ordinator_actor_core::algorithm::Algorithm;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
@@ -31,7 +31,7 @@ pub trait StrategicAssertions {
 impl<Ss> StrategicAssertions
     for Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     fn assert_that_capacity_is_respected(
         strategic_loading: &StrategicResources,

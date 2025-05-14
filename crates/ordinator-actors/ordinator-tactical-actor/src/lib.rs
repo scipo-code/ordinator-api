@@ -18,27 +18,25 @@ use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::ActorFactory;
-use ordinator_orchestrator_actor_traits::ActorMessage;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use priority_queue::PriorityQueue;
-use rand::rngs::StdRng;
 
 pub struct TacticalActor<Ss>(
     Actor<TacticalRequestMessage, TacticalResponseMessage, TacticalAlgorithm<Ss>>,
 )
 where
-    Ss: SystemSolutionTrait<Tactical = TacticalSolution>,
+    Ss: SystemSolutions<Tactical = TacticalSolution>,
     Self: MessageHandler<Req = TacticalRequestMessage, Res = TacticalResponseMessage>;
 
 impl<Ss> Deref for TacticalActor<Ss>
 where
-    Ss: SystemSolutionTrait<Tactical = TacticalSolution>,
+    Ss: SystemSolutions<Tactical = TacticalSolution>,
 {
     type Target = Actor<TacticalRequestMessage, TacticalResponseMessage, TacticalAlgorithm<Ss>>;
 
@@ -50,7 +48,7 @@ where
 
 impl<Ss> DerefMut for TacticalActor<Ss>
 where
-    Ss: SystemSolutionTrait<Tactical = TacticalSolution>,
+    Ss: SystemSolutions<Tactical = TacticalSolution>,
 {
     fn deref_mut(&mut self) -> &mut Self::Target
     {
@@ -62,7 +60,7 @@ pub struct TacticalApi {}
 
 impl<Ss> ActorFactory<Ss> for TacticalApi
 where
-    Ss: SystemSolutionTrait<Tactical = TacticalSolution> + Send + Sync + 'static,
+    Ss: SystemSolutions<Tactical = TacticalSolution> + Send + Sync + 'static,
     TacticalAlgorithm<Ss>: ActorBasedLargeNeighborhoodSearch
         + Send
         + Sync

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use arc_swap::Guard;
 use ordinator_orchestrator_actor_traits::OperationalInterface;
 use ordinator_orchestrator_actor_traits::Solution;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_orchestrator_actor_traits::delegate::Delegate;
 use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
@@ -93,7 +93,7 @@ impl SupervisorSolution {
         loaded_shared_solution: &Guard<Arc<Ss>>,
     ) -> Vec<(Id, Delegate, MarginalFitness)>
     where
-        Ss: SystemSolutionTrait,
+        Ss: SystemSolutions,
     {
         self.operational_state_machine
             .iter()

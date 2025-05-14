@@ -22,7 +22,7 @@ use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_actor_core::traits::ObjectiveValueType;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::Solution;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_orchestrator_actor_traits::TacticalInterface;
 use ordinator_scheduling_environment::time_environment::TimeEnvironment;
 use ordinator_scheduling_environment::time_environment::period::Period;
@@ -61,7 +61,7 @@ use crate::messages::responses::StrategicResponseScheduling;
 // important thing here.
 impl<Ss> StrategicAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     pub fn update_the_locked_in_period(
         &mut self,
@@ -336,7 +336,7 @@ pub trait StrategicUtils {
 // not need to have all this code in the
 impl<Ss> StrategicUtils for StrategicAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     // TODO [ ]
     // This should be changed as well. But now I will go home. I think that your
@@ -1027,13 +1027,13 @@ pub struct StrategicAlgorithm<Ss>(
 where
     StrategicSolution: Solution,
     StrategicParameters: Parameters,
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
     Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>:
         AbLNSUtils;
 
 impl<Ss> Deref for StrategicAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     type Target =
         Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
@@ -1044,7 +1044,7 @@ where
 }
 impl<Ss> DerefMut for StrategicAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
@@ -1057,7 +1057,7 @@ where
         AbLNSUtils<SolutionType = StrategicSolution>,
     StrategicSolution: Solution,
     StrategicParameters: Parameters,
-    Ss: SystemSolutionTrait<Strategic = StrategicSolution>,
+    Ss: SystemSolutions<Strategic = StrategicSolution>,
 {
     type Algorithm =
         Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
@@ -1266,7 +1266,7 @@ where
 
 impl<Ss> StrategicAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     // ISSUE #000
     pub fn update_resources_state(
@@ -1514,7 +1514,7 @@ impl<Ss>
     From<Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>>
     for StrategicAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     fn from(
         value: Algorithm<

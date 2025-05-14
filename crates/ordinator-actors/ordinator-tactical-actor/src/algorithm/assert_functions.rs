@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use anyhow::bail;
 use colored::Colorize;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::Work;
@@ -33,7 +33,7 @@ type Type = TacticalParameters;
 impl<Ss> TacticalAssertions
     for Algorithm<TacticalSolution, Type, PriorityQueue<WorkOrderNumber, u64>, Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     fn asset_that_loading_matches_scheduled(&self) -> Result<()> {
         let mut aggregated_load: HashMap<Resources, HashMap<Day, Work>> = HashMap::new();

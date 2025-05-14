@@ -3,7 +3,7 @@ use anyhow::Result;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::StateLink;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_orchestrator_actor_traits::WhereIsWorkOrder;
 
 use super::TacticalRequestMessage;
@@ -21,7 +21,7 @@ use crate::algorithm::tactical_solution::TacticalSolution;
 // way to consolidate your knowledge.
 impl<Ss> MessageHandler for TacticalActor<Ss>
 where
-    Ss: SystemSolutionTrait<Tactical = TacticalSolution>,
+    Ss: SystemSolutions<Tactical = TacticalSolution>,
 {
     type Req = TacticalRequestMessage;
     type Res = TacticalResponseMessage;
@@ -104,7 +104,7 @@ where
                         // You should wrap this up in the `Interface`
 
                         let tactical_parameter =
-                            create_tactical_parameter(work_order, &work_order_configurations);
+                            create_tactical_parameter(work_order, work_order_configurations);
 
                         // It is only the algorithm that can modify parameters. Not the the Actor
                         // directly you should fix this issue soon. What

@@ -1,7 +1,6 @@
-[event-type-colors]
-WrenchTime = "#101010"
-work_Break = "#101010"
-Toolbox = "#101010"
-OffShift = "#101010"
-NonProductiveTime = "#101010"
-Unavailable = "#101010"
+wrench_time = [10,10,10]
+work_break = [10,10,10]
+toolbox = [10,10,10]
+off_shift = [10,10,10]
+non_productive_time = [10,10,10]
+unavailable = [10,10,10]

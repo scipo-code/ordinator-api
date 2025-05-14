@@ -21,7 +21,7 @@ use ordinator_actor_core::traits::ObjectiveValueType;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::StrategicInterface;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_orchestrator_actor_traits::WhereIsWorkOrder;
 use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
@@ -49,7 +49,7 @@ pub struct TacticalAlgorithm<Ss>(
 where
     TacticalSolution: Solution,
     TacticalParameters: Parameters,
-    Ss: SystemSolutionTrait;
+    Ss: SystemSolutions;
 
 // FIX
 // Move the `tactical_days` into the parameters.
@@ -65,7 +65,7 @@ impl<Ss> TacticalAlgorithm<Ss>
 where
     TacticalSolution: Solution,
     TacticalParameters: Parameters,
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     pub fn capacity(&self, resource: &Resources, day: &Day) -> &Work
     {
@@ -195,7 +195,7 @@ where
         AbLNSUtils<SolutionType = TacticalSolution>,
     TacticalSolution: Solution,
     TacticalParameters: Parameters,
-    Ss: SystemSolutionTrait<Tactical = TacticalSolution>,
+    Ss: SystemSolutions<Tactical = TacticalSolution>,
 {
     type Algorithm =
         Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
@@ -500,7 +500,7 @@ enum LoopState
 }
 impl<Ss> Deref for TacticalAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     type Target =
         Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
@@ -512,7 +512,7 @@ where
 }
 impl<Ss> DerefMut for TacticalAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     fn deref_mut(&mut self) -> &mut Self::Target
     {
@@ -524,7 +524,7 @@ impl<Ss> TacticalAlgorithm<Ss>
 where
     TacticalSolution: Solution,
     TacticalParameters: Parameters,
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     fn update_loadings(
         &mut self,
@@ -620,7 +620,7 @@ impl<Ss>
     From<Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>>
     for TacticalAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     fn from(
         value: Algorithm<

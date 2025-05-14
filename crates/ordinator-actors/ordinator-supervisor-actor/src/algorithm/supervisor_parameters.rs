@@ -118,10 +118,12 @@ impl Parameters for SupervisorParameters
     }
 }
 
+#[allow(dead_code)]
 impl SupervisorParameters
 {
     // ISSUE #000
     // make-the-actor-create-parameters-directly-from-the-scheduling-environment
+    //
     pub(crate) fn supervisor_parameter(
         &self,
         work_order_activity: &WorkOrderActivity,

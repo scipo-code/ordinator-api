@@ -23,7 +23,7 @@ use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
@@ -31,12 +31,12 @@ pub struct SupervisorActor<Ss>(
     Actor<SupervisorRequestMessage, SupervisorResponseMessage, SupervisorAlgorithm<Ss>>,
 )
 where
-    Ss: SystemSolutionTrait<Supervisor = SupervisorSolution>,
+    Ss: SystemSolutions<Supervisor = SupervisorSolution>,
     Self: MessageHandler<Req = SupervisorRequestMessage, Res = SupervisorResponseMessage>;
 
 impl<Ss> Deref for SupervisorActor<Ss>
 where
-    Ss: SystemSolutionTrait<Supervisor = SupervisorSolution>,
+    Ss: SystemSolutions<Supervisor = SupervisorSolution>,
 {
     type Target =
         Actor<SupervisorRequestMessage, SupervisorResponseMessage, SupervisorAlgorithm<Ss>>;
@@ -49,7 +49,7 @@ where
 
 impl<Ss> DerefMut for SupervisorActor<Ss>
 where
-    Ss: SystemSolutionTrait<Supervisor = SupervisorSolution>,
+    Ss: SystemSolutions<Supervisor = SupervisorSolution>,
 {
     fn deref_mut(&mut self) -> &mut Self::Target
     {
@@ -66,7 +66,7 @@ pub struct SupervisorApi {}
 // working again.
 impl<Ss> ActorFactory<Ss> for SupervisorApi
 where
-    Ss: SystemSolutionTrait<Supervisor = SupervisorSolution> + Send + Sync + 'static,
+    Ss: SystemSolutions<Supervisor = SupervisorSolution> + Send + Sync + 'static,
     SupervisorAlgorithm<Ss>: ActorBasedLargeNeighborhoodSearch
         + Send
         + Sync
@@ -82,7 +82,7 @@ where
         system_configurations: Arc<ArcSwap<SystemConfigurations>>,
     ) -> Result<Self::Communication>
     where
-        Ss: SystemSolutionTrait<Supervisor = SupervisorSolution> + Send + Sync + 'static,
+        Ss: SystemSolutions<Supervisor = SupervisorSolution> + Send + Sync + 'static,
     {
         Actor::<SupervisorRequestMessage, SupervisorResponseMessage, SupervisorAlgorithm<Ss>>::builder()
         .agent_id(id.clone())

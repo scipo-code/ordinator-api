@@ -8,7 +8,7 @@ use axum::response::Response;
 use axum::response::Result;
 use ordinator_orchestrator::Asset;
 use ordinator_orchestrator::Orchestrator;
-use ordinator_orchestrator::SystemSolutionTrait;
+use ordinator_orchestrator::SystemSolutions;
 use ordinator_orchestrator::TacticalRequestMessage;
 use ordinator_orchestrator::TacticalStatusMessage;
 
@@ -26,7 +26,7 @@ pub async fn status<Ss>(
     Path(asset): Path<Asset>,
 ) -> Result<Response>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     let message = TacticalRequestMessage::Status(TacticalStatusMessage::General);
 
@@ -43,7 +43,7 @@ where
     // an interface to the `Actor` that makes it so that only the
     // `ActorMessage::Request` can be chosen. That means that what really has to
     // change is the way that `Communication is implemented`
-    actor_registry_for_asset.from_agent(message);
+    actor_registry_for_asset.from_agent(message).unwrap();
 
     let response = actor_registry_for_asset.receiver.recv().unwrap().unwrap();
 

@@ -83,7 +83,7 @@ impl Period {
             end_date.iso_week().week()
         };
 
-        let period_string = format!("{}-W{}-{}", year, start_week, end_week,);
+        let period_string = format!("{year}-W{start_week}-{end_week}");
 
         Period {
             id_internal: id,
@@ -181,7 +181,7 @@ fn is_last_three_days_of_year(date: NaiveDate) -> bool {
 impl Display for Period {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let print_string = self.period_string.clone();
-        write!(f, "{}", print_string)
+        write!(f, "{print_string}")
     }
 }
 

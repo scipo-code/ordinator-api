@@ -17,7 +17,7 @@ use ordinator_actor_core::traits::ObjectiveValueType;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::StrategicInterface;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_orchestrator_actor_traits::delegate::Delegate;
 use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
@@ -34,11 +34,11 @@ use tracing::event;
 
 pub struct SupervisorAlgorithm<Ss>(Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>)
 where
-    Ss: SystemSolutionTrait;
+    Ss: SystemSolutions;
 
 impl<Ss> SupervisorAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     pub fn unschedule_specific_work_order(
         &mut self,
@@ -57,7 +57,7 @@ where
         AbLNSUtils<SolutionType = SupervisorSolution>,
     SupervisorSolution: Solution,
     SupervisorParameters: Parameters,
-    Ss: SystemSolutionTrait<Supervisor = SupervisorSolution>,
+    Ss: SystemSolutions<Supervisor = SupervisorSolution>,
 {
     type Algorithm = Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>;
     type Options = SupervisorOptions;
@@ -303,7 +303,7 @@ fn is_assigned_part_of_all(
 }
 impl<Ss> Deref for SupervisorAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     type Target = Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>;
 
@@ -315,7 +315,7 @@ where
 
 impl<Ss> DerefMut for SupervisorAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     fn deref_mut(&mut self) -> &mut Self::Target
     {
@@ -325,7 +325,7 @@ where
 impl<Ss> From<Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>>
     for SupervisorAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     fn from(value: Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>) -> Self
     {

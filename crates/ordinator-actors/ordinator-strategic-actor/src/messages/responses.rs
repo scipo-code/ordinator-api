@@ -1,4 +1,4 @@
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_scheduling_environment::time_environment::period::Period;
 use serde::Deserialize;
 use serde::Serialize;
@@ -70,7 +70,7 @@ pub struct StrategicResponseStatus
 
 impl<Ss> From<&mut StrategicActor<Ss>> for StrategicResponseStatus
 where
-    Ss: SystemSolutionTrait<Strategic = StrategicSolution>,
+    Ss: SystemSolutions<Strategic = StrategicSolution>,
 {
     fn from(value: &mut StrategicActor<Ss>) -> Self
     {

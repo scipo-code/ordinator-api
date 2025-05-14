@@ -23,7 +23,7 @@ use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
@@ -33,12 +33,12 @@ pub struct OperationalActor<Ss>(
     Actor<OperationalRequestMessage, OperationalResponseMessage, OperationalAlgorithm<Ss>>,
 )
 where
-    Ss: SystemSolutionTrait<Operational = OperationalSolution>,
+    Ss: SystemSolutions<Operational = OperationalSolution>,
     Self: MessageHandler<Req = OperationalRequestMessage, Res = OperationalResponseMessage>;
 
 impl<Ss> Deref for OperationalActor<Ss>
 where
-    Ss: SystemSolutionTrait<Operational = OperationalSolution>,
+    Ss: SystemSolutions<Operational = OperationalSolution>,
 {
     type Target =
         Actor<OperationalRequestMessage, OperationalResponseMessage, OperationalAlgorithm<Ss>>;
@@ -51,7 +51,7 @@ where
 
 impl<Ss> DerefMut for OperationalActor<Ss>
 where
-    Ss: SystemSolutionTrait<Operational = OperationalSolution>,
+    Ss: SystemSolutions<Operational = OperationalSolution>,
 {
     fn deref_mut(&mut self) -> &mut Self::Target
     {
@@ -63,7 +63,7 @@ pub struct OperationalApi {}
 
 impl<Ss> ActorFactory<Ss> for OperationalApi
 where
-    Ss: SystemSolutionTrait<Operational = OperationalSolution> + Send + Sync + 'static,
+    Ss: SystemSolutions<Operational = OperationalSolution> + Send + Sync + 'static,
 {
     type Communication = Communication<OperationalRequestMessage, OperationalResponseMessage>;
 
@@ -75,7 +75,7 @@ where
         system_configurations: Arc<ArcSwap<SystemConfigurations>>,
     ) -> Result<Self::Communication>
     where
-        Ss: SystemSolutionTrait<Operational = OperationalSolution> + Send + Sync + 'static,
+        Ss: SystemSolutions<Operational = OperationalSolution> + Send + Sync + 'static,
         OperationalAlgorithm<Ss>: ActorBasedLargeNeighborhoodSearch
             + Send
             + Sync

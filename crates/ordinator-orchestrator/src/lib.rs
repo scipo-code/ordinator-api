@@ -27,7 +27,7 @@ use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::StateLink;
-pub use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+pub use ordinator_orchestrator_actor_traits::SystemSolutions;
 pub use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 pub use ordinator_scheduling_environment::time_environment::day::Day;
@@ -83,7 +83,7 @@ impl<Ss> Clone for NotifyOrchestrator<Ss>
 // WARNING: This should only take immutable references to self!
 impl<Ss> OrchestratorNotifier for NotifyOrchestrator<Ss>
 where
-    Ss: SystemSolutionTrait + Send + Sync + 'static,
+    Ss: SystemSolutions + Send + Sync + 'static,
 {
     fn notify_all_agents_of_work_order_change(
         &self,
@@ -151,7 +151,7 @@ pub enum OrchestratorRequest
 // keep going. Remember to follow your guts here.
 impl<Ss> Orchestrator<Ss>
 where
-    Ss: SystemSolutionTrait<
+    Ss: SystemSolutions<
             Strategic = StrategicSolution,
             Tactical = TacticalSolution,
             Supervisor = SupervisorSolution,
@@ -260,7 +260,7 @@ where
 
                 let asset = &work_order.work_order_info.functional_location.asset;
 
-                let api_solution = match self.system_solutions.lock().unwrap().get(asset) {
+                let _api_solution = match self.system_solutions.lock().unwrap().get(asset) {
                     Some(arc_swap_shared_solution) => (arc_swap_shared_solution).load(),
                     None => bail!("Asset: {:?} is not initialzed", &asset),
                 };
@@ -277,17 +277,17 @@ where
 
                 let cloned_work_orders: &WorkOrders = &scheduling_environment_guard.work_orders;
                 // This is not the correct implementation.
-                let work_orders: Vec<_> = cloned_work_orders
+                let _work_orders: Vec<_> = cloned_work_orders
                     .inner
                     .iter()
                     .filter(|wo| wo.1.work_order_info.functional_location.asset == asset)
                     .collect();
 
-                let loaded_shared_solution = match self.system_solutions.lock().unwrap().get(&asset)
-                {
-                    Some(arc_swap_shared_solution) => arc_swap_shared_solution.load(),
-                    None => bail!("Ordinator has not been initialized for asset: {}", &asset),
-                };
+                let _loaded_shared_solution =
+                    match self.system_solutions.lock().unwrap().get(&asset) {
+                        Some(arc_swap_shared_solution) => arc_swap_shared_solution.load(),
+                        None => bail!("Ordinator has not been initialized for asset: {}", &asset),
+                    };
 
                 // let work_order_configurations = &work_orders.work_order_configurations;
                 // let work_order_responses: HashMap<WorkOrderNumber, WorkOrderResponse> =
@@ -328,16 +328,16 @@ where
                 Ok(tactical_days)
             }
             OrchestratorRequest::CreateSupervisorAgent(
-                asset,
-                number_of_supervisor_periods,
-                id_string,
+                _asset,
+                _number_of_supervisor_periods,
+                _id_string,
             ) => {
                 // FIX
                 // Here you should create the system so that an entry in the
                 // `SchedulingEnvironment` is created.
-                todo!();
+                // todo!();
                 // FIX
-                let notify_orchestrator = NotifyOrchestrator(
+                let _notify_orchestrator = NotifyOrchestrator(
                     self.actor_notify
                         .as_ref()
                         .expect("Orchestrator is initialized with the Option::Some variant")
@@ -378,7 +378,7 @@ where
                     .supervisor_agent_senders
                     .remove(&id);
 
-                let response_string = format!("Supervisor agent deleted with id {}", id);
+                let response_string = format!("Supervisor agent deleted with id {id}");
                 let orchestrator_response = OrchestratorResponse::RequestStatus(response_string);
                 Ok(orchestrator_response)
             }
@@ -442,7 +442,7 @@ where
                     .operational_agent_senders
                     .remove(&id);
 
-                let response_string = format!("Operational agent deleted  with id {}", id_string);
+                let response_string = format!("Operational agent deleted  with id {id_string}");
                 let orchestrator_response = OrchestratorResponse::RequestStatus(response_string);
                 Ok(orchestrator_response)
             }
@@ -523,7 +523,7 @@ impl ActorRegistry
 
 impl<Ss> Orchestrator<Ss>
 where
-    Ss: SystemSolutionTrait<
+    Ss: SystemSolutions<
             Strategic = StrategicSolution,
             Tactical = TacticalSolution,
             Supervisor = SupervisorSolution,
@@ -607,7 +607,7 @@ where
             dependencies.2.clone(),
             dependencies.3.clone(),
         )
-        .with_context(|| format!("{} could not be constructed", tactical_id))?;
+        .with_context(|| format!("{tactical_id} could not be constructed"))?;
 
         // This is a good sign. It means that the system is performing correctly. What
         // should be done about the code in general?
@@ -686,7 +686,7 @@ where
 // }
 impl<Ss> Orchestrator<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     pub fn export_xlsx_solution(&self, asset: Asset) -> Result<(Vec<u8>, String)>
     {

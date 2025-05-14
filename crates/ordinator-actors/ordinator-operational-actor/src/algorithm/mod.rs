@@ -32,7 +32,7 @@ use ordinator_actor_core::traits::ObjectiveValueType;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::StrategicInterface;
 use ordinator_orchestrator_actor_traits::SupervisorInterface;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_orchestrator_actor_traits::TacticalInterface;
 use ordinator_orchestrator_actor_traits::delegate::Delegate;
 use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
@@ -51,7 +51,7 @@ pub struct OperationalAlgorithm<Ss>(
     Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>,
 )
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
     Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>: AbLNSUtils;
 
 #[derive(Clone, Default)]
@@ -82,7 +82,7 @@ pub trait OperationalTraitUtils
 // Do you want this on the OperationalAlgorithm?
 impl<Ss> OperationalTraitUtils for OperationalAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     fn determine_next_event_non_productive(
         &mut self,
@@ -216,7 +216,7 @@ pub enum Unavailability
 
 impl<Ss> Deref for OperationalAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     type Target =
         Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>;
@@ -229,7 +229,7 @@ where
 
 impl<Ss> DerefMut for OperationalAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     fn deref_mut(&mut self) -> &mut Self::Target
     {
@@ -239,7 +239,7 @@ where
 
 impl<Ss> ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait<Operational = OperationalSolution>,
+    Ss: SystemSolutions<Operational = OperationalSolution>,
     Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>:
         AbLNSUtils<SolutionType = OperationalSolution>,
 {
@@ -567,7 +567,7 @@ where
 
 impl<Ss> OperationalAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     fn determine_wrench_time_assignment(
         &self,
@@ -930,7 +930,7 @@ fn equality_between_time_interval_and_assignments(all_events: &Vec<Assignment>)
 impl<Ss> From<Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>>
     for OperationalAlgorithm<Ss>
 where
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     fn from(
         value: Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>,

@@ -7,7 +7,7 @@ use arc_swap::ArcSwap;
 use arc_swap::Guard;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::Solution;
-use ordinator_orchestrator_actor_traits::SystemSolutionTrait;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 
@@ -27,7 +27,7 @@ pub struct Algorithm<S, P, I, Ss>
 where
     S: Solution,
     P: Parameters,
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     pub id: Id,
     pub solution_intermediate: I,
@@ -45,7 +45,7 @@ pub struct AlgorithmBuilder<S, P, I, Ss>
 where
     S: Solution,
     P: Parameters,
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     id: Option<Id>,
     solution_intermediate: I,
@@ -60,9 +60,10 @@ where
     I: Default,
     S: Solution + Debug + Clone,
     P: Parameters,
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
-    pub fn builder() -> AlgorithmBuilder<S, P, I, Ss> {
+    pub fn builder() -> AlgorithmBuilder<S, P, I, Ss>
+    {
         AlgorithmBuilder {
             id: None,
             solution_intermediate: I::default(),
@@ -78,26 +79,30 @@ where
     I: Default,
     S: Solution + Debug + Clone,
     P: Parameters,
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     type SolutionType = S;
 
-    fn clone_algorithm_solution(&self) -> S {
+    fn clone_algorithm_solution(&self) -> S
+    {
         self.solution.clone()
     }
 
-    fn load_shared_solution(&mut self) {
+    fn load_shared_solution(&mut self)
+    {
         self.loaded_shared_solution = self.arc_swap_shared_solution.load();
     }
 
-    fn swap_solution(&mut self, solution: S) {
+    fn swap_solution(&mut self, solution: S)
+    {
         self.solution = solution;
     }
 
     fn update_objective_value(
         &mut self,
         objective_value: <Self::SolutionType as Solution>::ObjectiveValue,
-    ) {
+    )
+    {
         self.solution.update_objective_value(objective_value);
     }
 }
@@ -108,7 +113,7 @@ where
     S: Solution<Parameters = P>,
     P: Parameters,
     I: Default,
-    Ss: SystemSolutionTrait,
+    Ss: SystemSolutions,
 {
     pub fn build<Alg>(self) -> Result<Alg>
     // So here the function will return a `Alg` which is the same as
@@ -134,7 +139,8 @@ where
         Ok(algorithm_inner.into())
     }
 
-    pub fn id(mut self, id: Id) -> Self {
+    pub fn id(mut self, id: Id) -> Self
+    {
         self.id = Some(id);
         self
     }
@@ -149,7 +155,8 @@ where
     pub fn parameters_and_solution(
         mut self,
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
-    ) -> Result<Self> {
+    ) -> Result<Self>
+    {
         let parameters = P::from_source(
             self.id.as_ref().expect("Call `id()` build method first"),
             scheduling_environment,
@@ -166,7 +173,7 @@ where
 
     pub fn arc_swap_shared_solution(mut self, shared_solution_arc_swap: Arc<ArcSwap<Ss>>) -> Self
     where
-        Ss: SystemSolutionTrait,
+        Ss: SystemSolutions,
     {
         self.arc_swap_shared_solution = Some(shared_solution_arc_swap);
         self.loaded_shared_solution = Some(
@@ -182,7 +189,8 @@ where
 // TODO [x]
 // Where should this be moved to? I am not really sure! I think that the best
 // place is the `Algorithm` no I think it is the `ordinator-actors` crate
-pub enum LoadOperation {
+pub enum LoadOperation
+{
     Add,
     Sub,
 }

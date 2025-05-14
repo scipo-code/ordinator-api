@@ -1,13 +1,10 @@
-use std::error::Error;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
 use axum::Json;
 use axum::extract::Path;
 use axum::extract::State;
-use axum::response::Response;
 use ordinator_orchestrator::Asset;
 use ordinator_orchestrator::Id;
 use ordinator_orchestrator::OperationalRequestMessage;
@@ -23,6 +20,7 @@ use ordinator_orchestrator::TotalSystemSolution;
 // is this even worth it? I am not really sure. I think that the
 // best approach is to create something that will allow us... Just
 // do it! Work fast and be prepared to change things back.
+#[allow(unused)]
 pub async fn operational_ids(
     State(orchestrator): State<Arc<Orchestrator<TotalSystemSolution>>>,
     // This is actually not the best way of coding it?
@@ -38,11 +36,12 @@ pub async fn operational_ids(
             .expect("This error should be handled higher up")
             .operational_agent_senders
             .keys()
-            .map(|e| e.clone())
+            .cloned()
             .collect(),
     ))
 }
 
+#[allow(unused)]
 pub async fn operational_handler_for_operational_agent(
     State(orchestrator): State<Arc<Orchestrator<TotalSystemSolution>>>,
     Path(asset): Path<Asset>,
