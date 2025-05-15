@@ -142,6 +142,7 @@ where
     pub fn id(mut self, id: Id) -> Self
     {
         self.id = Some(id);
+        dbg!();
         self
     }
 
@@ -157,17 +158,21 @@ where
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self>
     {
+        dbg!();
         let parameters = P::from_source(
             self.id.as_ref().expect("Call `id()` build method first"),
             scheduling_environment,
         )?;
 
+        dbg!();
         // Okay so the issue here is that the code is not working correctly. So the
         // reason that you. Ahh CRUCIAL INSIGHT... The S is the actual concrete type
         // here and `Solution` was simply the trait... This is a crucial insight here.
         // There is so many
         self.solution = Some(S::new(&parameters));
+        dbg!();
         self.parameters = Some(parameters);
+        dbg!();
         Ok(self)
     }
 
@@ -175,13 +180,16 @@ where
     where
         Ss: SystemSolutions,
     {
+        dbg!();
         self.arc_swap_shared_solution = Some(shared_solution_arc_swap);
+        dbg!();
         self.loaded_shared_solution = Some(
             self.arc_swap_shared_solution
                 .as_ref()
                 .expect("Set the `arc_swap` field first")
                 .load(),
         );
+        dbg!();
         self
     }
 }

@@ -1096,6 +1096,7 @@ where
             let tactical_work_orders = self
                 .loaded_shared_solution
                 .tactical()
+                ?
                 .tactical_period(work_order_number);
 
             if strategic_parameter.locked_in_period.is_some() {

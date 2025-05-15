@@ -71,13 +71,15 @@ impl Parameters for TacticalParameters
 
         let tactical_work_orders: HashMap<WorkOrderNumber, TacticalParameter> = work_orders
             .map(|(won, wo)| {
-                (
+                Ok((
                     *won,
                     // This should also be found inside of the database.
-                    create_tactical_parameter(wo, &tactical_options.work_order_configurations),
-                )
+                    // There is something that has to be inverted here. You are not designing this
+                    // is the best possible way.
+                    create_tactical_parameter(wo, &tactical_options.work_order_configurations)?,
+                ))
             })
-            .collect();
+            .collect::<Result<HashMap<WorkOrderNumber, TacticalParameter>>>()?;
 
         let tactical_days = scheduling_environment.time_environment.days
             [0..tactical_options.tactical.number_of_tactical_days]
@@ -113,7 +115,7 @@ impl Parameters for TacticalParameters
 pub fn create_tactical_parameter(
     work_order: &WorkOrder,
     work_order_configuration: &WorkOrderConfigurations,
-) -> TacticalParameter
+) -> Result<TacticalParameter>
 {
     let operation_parameters = work_order
         .operations
@@ -149,15 +151,15 @@ impl TacticalParameter
         // This should be a part of the options.
         work_order_configuration: &WorkOrderConfigurations,
         operation_parameters: HashMap<ActivityNumber, OperationParameter>,
-    ) -> Self
+    ) -> Result<Self>
     {
-        Self {
+        Ok(Self {
             main_work_center: work_order.main_work_center,
             tactical_operation_parameters: operation_parameters,
-            weight: work_order.work_order_value(work_order_configuration),
+            weight: work_order.work_order_value(work_order_configuration)?,
             relations: work_order.operations.relations(),
             earliest_allowed_start_date: work_order.work_order_dates.earliest_allowed_start_date,
-        }
+        })
     }
 }
 

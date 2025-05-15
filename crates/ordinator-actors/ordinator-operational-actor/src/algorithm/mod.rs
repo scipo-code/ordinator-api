@@ -251,7 +251,7 @@ where
     {
         let operational_shared_solution = self
             .loaded_shared_solution
-            .supervisor()
+            .supervisor()?
             .delegates_for_agent(&self.id);
 
         self.solution
@@ -441,7 +441,7 @@ where
         // it should be named: `task`?
         let work_order_activities = &self
             .loaded_shared_solution
-            .supervisor()
+            .supervisor()?
             .delegated_tasks(&self.id);
 
         for work_order_activity in work_order_activities {
@@ -722,7 +722,7 @@ where
         let tactical_days_option = self
             .loaded_shared_solution
             // Swap the solution in the `ArcSwap`
-            .tactical()
+            .tactical()?
             // FIX [ ]
             // Rename this! It is basically a way of sharing what the
             // `tactical` actor needs to do his scheduling.
@@ -733,7 +733,7 @@ where
         // algorithm always provide a key for each WorkOrderNumber");
         let strategic_period_option = self
             .loaded_shared_solution
-            .strategic()
+            .strategic()?
             .scheduled_task(&work_order_activity.0);
 
         // .expect("This should always be present. If this occurs you should check the

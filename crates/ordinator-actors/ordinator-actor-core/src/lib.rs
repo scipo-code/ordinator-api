@@ -203,6 +203,7 @@ where
             configurations: self.configurations.unwrap(),
             notify_orchestrator: self.notify_orchestrator.unwrap(),
         };
+        dbg!();
         let thread_name = format!(
             "{} for Asset: {}",
             std::any::type_name_of_val(&agent),
@@ -212,10 +213,12 @@ where
                 .first()
                 .expect("Every agent needs to be associated with an Asset"),
         );
+        dbg!();
         std::thread::Builder::new()
             .name(thread_name)
             .spawn(move || agent.run())?;
 
+        dbg!();
         Ok(self.communication_for_orchestrator.unwrap())
     }
 
@@ -230,6 +233,7 @@ where
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     ) -> Self
     {
+        dbg!();
         self.scheduling_environment = Some(scheduling_environment);
         self
     }
@@ -249,11 +253,15 @@ where
         I: Default,
         F: FnOnce(AlgorithmBuilder<S, P, I, Ss>) -> Result<AlgorithmBuilder<S, P, I, Ss>>,
     {
+        dbg!();
         let algorithm_builder = algorithm::Algorithm::builder();
+        dbg!();
 
         let algorithm_builder = configure(algorithm_builder)?;
+        dbg!();
 
         self.algorithm = Some(SpecificAlgorithm::from(algorithm_builder.build()?));
+        dbg!();
         Ok(self)
     }
 
@@ -261,6 +269,7 @@ where
     // bounded channel.
     pub fn communication(mut self) -> Self
     {
+        dbg!();
         let (sender_to_actor, receiver_from_orchestrator): (
             flume::Sender<ActorMessage<ActorRequest>>,
             flume::Receiver<ActorMessage<ActorRequest>>,
@@ -274,6 +283,7 @@ where
         self.communication_for_orchestrator =
             Some(Communication::new(sender_to_actor, receiver_from_actor));
 
+        dbg!();
         self.receiver_from_orchestrator = Some(receiver_from_orchestrator);
         self.sender_to_orchestrator = Some(sender_to_orchestrator);
         self

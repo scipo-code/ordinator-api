@@ -571,17 +571,45 @@ where
         let dependencies = self.extract_factory_dependencies(asset)?;
 
         dbg!();
-        let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+        let (strategic_id, tactical_id, supervisors, operationals) = {
+            let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
+            let strategic_id = scheduling_environment_guard
+                .worker_environment
+                .actor_specification
+                .get(asset)
+                .unwrap()
+                .strategic
+                .id
+                .clone();
+            let tactical_id = scheduling_environment_guard
+                .worker_environment
+                .actor_specification
+                .get(asset)
+                .unwrap()
+                .tactical
+                .id
+                .clone();
+            let supervisors = scheduling_environment_guard
+                .worker_environment
+                .actor_specification
+                .get(asset)
+                .unwrap()
+                .supervisors
+                .iter()
+                .map(|e| e.id.clone())
+                .collect::<Vec<_>>();
+            let operationals = scheduling_environment_guard
+                .worker_environment
+                .actor_specification
+                .get(asset)
+                .unwrap()
+                .operational
+                .iter()
+                .map(|e| e.id.clone())
+                .collect::<Vec<_>>();
 
-        dbg!();
-        let strategic_id = scheduling_environment_guard
-            .worker_environment
-            .actor_specification
-            .get(asset)
-            .unwrap()
-            .strategic
-            .id
-            .clone();
+            (strategic_id, tactical_id, supervisors, operationals)
+        };
 
         dbg!();
         let strategic_communication = StrategicApi::construct_actor(
@@ -596,14 +624,6 @@ where
         dbg!();
         // Where should their IDs come from? I think that the best approach is to
         // include them from
-        let tactical_id = scheduling_environment_guard
-            .worker_environment
-            .actor_specification
-            .get(asset)
-            .unwrap()
-            .tactical
-            .id
-            .clone();
         dbg!();
         let tactical_communication = TacticalApi::construct_actor(
             tactical_id.clone(),
@@ -618,48 +638,35 @@ where
         // This is a good sign. It means that the system is performing correctly. What
         // should be done about the code in general?
         // Why is the supervisor no used here? This is also not created in the best way.
-        let supervisors = &scheduling_environment_guard
-            .worker_environment
-            .actor_specification
-            .get(asset)
-            .unwrap()
-            .supervisors;
 
         dbg!();
         let mut supervisor_communications = HashMap::default();
-        for supervisor in supervisors {
-            dbg!();
+        for supervisor_id in supervisors {
             let supervisor_communication = SupervisorApi::construct_actor(
-                supervisor.id.clone(),
+                supervisor_id.clone(),
                 dependencies.0.clone(),
                 dependencies.1.clone(),
                 dependencies.2.clone(),
                 dependencies.3.clone(),
             )?;
 
-            supervisor_communications.insert(supervisor.id.clone(), supervisor_communication);
+            supervisor_communications.insert(supervisor_id.clone(), supervisor_communication);
         }
 
         dbg!();
-        let operationals = &scheduling_environment_guard
-            .worker_environment
-            .actor_specification
-            .get(asset)
-            .unwrap()
-            .operational;
 
         let mut operational_communications = HashMap::default();
-        for operational in operationals {
+        for operational_id in operationals {
             dbg!();
             let operational_communication = OperationalApi::construct_actor(
-                operational.id.clone(),
+                operational_id.clone(),
                 dependencies.0.clone(),
                 dependencies.1.clone(),
                 dependencies.2.clone(),
                 dependencies.3.clone(),
             )?;
 
-            operational_communications.insert(operational.id.clone(), operational_communication);
+            operational_communications.insert(operational_id.clone(), operational_communication);
         }
 
         dbg!();
@@ -675,7 +682,6 @@ where
             .lock()
             .unwrap()
             .insert(asset.clone(), agent_registry);
-        drop(scheduling_environment_guard);
         dbg!();
         Ok(self)
     }

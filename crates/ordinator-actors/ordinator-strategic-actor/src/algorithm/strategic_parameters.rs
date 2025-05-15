@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::MutexGuard;
 
+use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use ordinator_orchestrator_actor_traits::Parameters;
@@ -79,22 +80,23 @@ impl Parameters for StrategicParameters
             .iter()
             .filter(|(_, wo)| wo.functional_location().asset == *asset)
             .map(|(won, wo)| {
-                (
+                Ok((
                     *won,
                     // TODO #000001 [ ] Move time environment configuraion into
                     // SchedulingEnvironment TODO #000002 [ ] Move work order
-                    // parameters from `./configuration` to `./temp_scheduling_environmen_database`
+                    // parameters from `./configuration` to
+                    // `./temp_scheduling_environmen_database`
                     WorkOrderParameter::builder()
                         .with_scheduling_environment(
                             wo,
                             strategic_periods,
                             work_order_configurations,
                             material_to_period,
-                        )
+                        )?
                         .build(),
-                )
+                ))
             })
-            .collect();
+            .collect::<Result<HashMap<WorkOrderNumber, WorkOrderParameter>>>()?;
 
         let strategic_clustering = StrategicClustering::calculate_clustering_values(
             asset,
@@ -245,14 +247,20 @@ impl WorkOrderParameterBuilder
         periods: &[Period],
         work_order_configurations: &WorkOrderConfigurations,
         material_to_period: &MaterialToPeriod,
-    ) -> Self
+    ) -> Result<Self>
     {
         // FIX [ ]
         // This is horribly written and very error prone
         // Use a TypeState pattern if you are in doubt.
         self.excluded_periods = work_order.find_excluded_periods(periods, material_to_period);
 
-        self.weight = Some(work_order.work_order_value(work_order_configurations));
+        self.weight = Some(
+            work_order
+                .work_order_value(work_order_configurations)
+                .with_context(|| {
+                    format!("Could not calculate the work_order_value for: {work_order}")
+                })?,
+        );
 
         self.work_load = work_order.work_order_load();
 
@@ -294,14 +302,14 @@ impl WorkOrderParameterBuilder
                     }
                 }
             }
-            return self;
+            return Ok(self);
         }
 
         if work_order.vendor() {
             self.locked_in_period = periods.last().cloned();
             self.excluded_periods
                 .remove(self.locked_in_period.as_ref().unwrap());
-            return self;
+            return Ok(self);
         };
 
         if work_order.work_order_analytic.user_status_codes.sch {
@@ -323,7 +331,7 @@ impl WorkOrderParameterBuilder
                         .remove(self.locked_in_period.as_ref().unwrap());
                 }
             }
-            return self;
+            return Ok(self);
         }
 
         if work_order.work_order_analytic.user_status_codes.awsc {
@@ -336,7 +344,7 @@ impl WorkOrderParameterBuilder
                 self.excluded_periods
                     .remove(self.locked_in_period.as_ref().unwrap());
             }
-            return self;
+            return Ok(self);
         }
 
         if work_order
@@ -355,9 +363,9 @@ impl WorkOrderParameterBuilder
                 self.excluded_periods
                     .remove(self.locked_in_period.as_ref().unwrap());
             }
-            return self;
+            return Ok(self);
         }
-        self
+        Ok(self)
     }
 
     pub fn build(self) -> WorkOrderParameter

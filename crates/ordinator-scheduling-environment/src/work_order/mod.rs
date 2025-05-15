@@ -10,6 +10,7 @@ use std::num::ParseIntError;
 use std::str::FromStr;
 
 use anyhow::Result;
+use anyhow::bail;
 use chrono::DateTime;
 use chrono::NaiveDate;
 use chrono::Utc;
@@ -335,7 +336,7 @@ impl WorkOrder
     pub fn work_order_value(
         &self,
         work_order_configurations: &WorkOrderConfigurations,
-    ) -> WorkOrderValue
+    ) -> Result<WorkOrderValue>
     {
         // FIX
         // This should be removed. Where should the global configs be read
@@ -351,23 +352,34 @@ impl WorkOrder
                     work_order_configurations.wdf_priority_map[&int.to_string()]
                         * work_order_configurations.order_type_weights["WDF"]
                 }
-                _ => panic!("Received a wrong input number work order priority"),
+                _ => bail!("Received a wrong input number work order priority: {wdf_priority:#?}"),
             },
             WorkOrderType::Wgn(wgn_priority) => match wgn_priority {
-                Priority::Int(int) if (&0..&8).contains(&int) => {
+                Priority::Int(int) if (&0..=&8).contains(&int) => {
                     work_order_configurations.wgn_priority_map[&int.to_string()]
                         * work_order_configurations.order_type_weights["WGN"]
                 }
-                _ => panic!("Received a wrong input number work order priority"),
+                _ => bail!("Received a wrong input number work order priority: {wgn_priority:#?}"),
             },
             WorkOrderType::Wpm(wpm_priority) => match wpm_priority {
                 Priority::Char(char) if (&'A'..=&'D').contains(&char) => {
                     work_order_configurations.wpm_priority_map[char]
                         * work_order_configurations.order_type_weights["WPM"]
                 }
-                _ => panic!("Received a wrong input number work order priority"),
+                _ => bail!("Received a wrong input number work order priority: {wpm_priority:#?}"),
             },
-            WorkOrderType::Wro(_) => todo!(),
+            // ISSUE #000 handle-the-wro-work-order.
+            WorkOrderType::Wro(wro_priority) => match wro_priority {
+                Priority::Int(int) if (&0..=&8).contains(&int) => {
+                    work_order_configurations.wgn_priority_map[&int.to_string()]
+                        * work_order_configurations.order_type_weights["WGN"]
+                }
+                Priority::Char(char) if (&'A'..=&'D').contains(&char) => {
+                    work_order_configurations.wpm_priority_map[char]
+                        * work_order_configurations.order_type_weights["WPM"]
+                }
+                _ => bail!("Received a wrong input number work order priority: {wro_priority:#?}"),
+            },
             WorkOrderType::Other => work_order_configurations.order_type_weights["Other"],
         };
 
@@ -391,12 +403,13 @@ impl WorkOrder
             work_order_value
         };
 
-        (base_value + status_weight)
+        let weight = (base_value + status_weight)
             * (self
                 .work_order_load()
                 .values()
                 .map(|wor| wor.to_f64())
-                .sum::<f64>() as u64)
+                .sum::<f64>() as u64);
+        Ok(weight)
     }
 
     pub fn work_order_load(&self) -> HashMap<Resources, Work>
@@ -504,9 +517,9 @@ impl WorkOrder
         }
     }
 
-    pub fn latest_allowed_finish_period<'a>(&'a self, _periods: &'a [Period]) -> &'a Period
+    pub fn latest_allowed_finish_period<'a>(&'a self, periods: &'a [Period]) -> &'a Period
     {
-        todo!("Make the code for extracting this information")
+        Self::date_to_period(periods, &self.work_order_dates.latest_allowed_finish_date)
     }
 
     // fn random_latest_periods(&mut self, periods: &[Period]) {

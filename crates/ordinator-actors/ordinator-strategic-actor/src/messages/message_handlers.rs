@@ -408,7 +408,7 @@ where
                                         .periods,
                                     work_order_configurations,
                                     material_to_period,
-                                )
+                                )?
                                 .build();
 
                             drop(scheduling_environment_guard);

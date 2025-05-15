@@ -107,22 +107,22 @@ pub trait SystemSolutions: Clone
     type Operational: OperationalInterface + Solution;
 
     fn new() -> Self;
-    fn strategic(&self) -> &Self::Strategic;
+    fn strategic(&self) -> Result<&Self::Strategic>;
 
     fn strategic_swap(&mut self, id: &Id, solution: Self::Strategic)
     where
         Self::Strategic: Solution;
-    fn tactical(&self) -> &Self::Tactical;
+    fn tactical(&self) -> Result<&Self::Tactical>;
 
     fn tactical_swap(&mut self, id: &Id, solution: Self::Tactical)
     where
         Self::Tactical: Solution;
-    fn supervisor(&self) -> &Self::Supervisor;
+    fn supervisor(&self) -> Result<&Self::Supervisor>;
 
     fn supervisor_swap(&mut self, id: &Id, solution: Self::Supervisor)
     where
         Self::Supervisor: Solution;
-    fn operational(&self, id: &Id) -> &Self::Operational;
+    fn operational(&self, id: &Id) -> Result<&Self::Operational>;
 
     fn all_operational(&self) -> HashSet<Id>;
     // If you make all Id's internal you could simply work on those?
@@ -160,26 +160,32 @@ where
         }
     }
 
-    fn strategic(&self) -> &Self::Strategic
+    fn strategic(&self) -> Result<&Self::Strategic>
     {
-        self.strategic.as_ref().unwrap()
+        self.strategic
+            .as_ref()
+            .with_context(|| "StrategicActor SystemSolution not found")
     }
 
-    fn tactical(&self) -> &Self::Tactical
+    fn tactical(&self) -> Result<&Self::Tactical>
     {
-        self.tactical.as_ref().unwrap()
+        self.tactical
+            .as_ref()
+            .with_context(|| "TacticalActor SystemSolution not found")
     }
 
-    fn supervisor(&self) -> &Self::Supervisor
+    fn supervisor(&self) -> Result<&Self::Supervisor>
     {
-        self.supervisor.as_ref().unwrap()
+        self.supervisor
+            .as_ref()
+            .with_context(|| "SupervisorActor SystemSolution not found")
     }
 
-    fn operational(&self, id: &Id) -> &Self::Operational
+    fn operational(&self, id: &Id) -> Result<&Self::Operational>
     {
         self.operational
             .get(id)
-            .expect("querieed nonexisting operaional agent")
+            .with_context(|| "OperationalActor SystemSolution not found")
     }
 
     // Can you even do this? Is this allowed? I do not t

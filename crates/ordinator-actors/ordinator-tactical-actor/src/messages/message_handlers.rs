@@ -104,7 +104,7 @@ where
                         // You should wrap this up in the `Interface`
 
                         let tactical_parameter =
-                            create_tactical_parameter(work_order, work_order_configurations);
+                            create_tactical_parameter(work_order, work_order_configurations)?;
 
                         // It is only the algorithm that can modify parameters. Not the the Actor
                         // directly you should fix this issue soon. What

@@ -131,7 +131,7 @@ where
                 self.solution.operational_status_by_work_order_activity(
                     work_order_activity,
                     &self.loaded_shared_solution,
-                );
+                )?;
 
             operational_status_by_work_order_activity
                 .retain(|(_, _, mar_fit)| matches!(mar_fit, MarginalFitness::Scheduled(_)));
@@ -224,7 +224,7 @@ where
         // cleaner! Much cleaner,
         let strategic_activities_in_supervisor_period = self
             .loaded_shared_solution
-            .strategic()
+            .strategic()?
             .supervisor_tasks(&self.parameters.supervisor_periods);
 
         // Select only those that are not part of the `SupervisorAgent` already
