@@ -406,7 +406,7 @@ where
                                     work_order,
                                     &scheduling_environment_guard
                                         .time_environment
-                                        .strategic_periods,
+                                        .periods,
                                     options,
                                 )
                                 .build();

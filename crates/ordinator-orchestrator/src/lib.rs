@@ -310,7 +310,7 @@ where
 
                 let periods = scheduling_environment_guard
                     .time_environment
-                    .strategic_periods
+                    .periods
                     .clone();
 
                 let strategic_periods = OrchestratorResponse::Periods(periods);
@@ -319,10 +319,7 @@ where
             OrchestratorRequest::GetDays => {
                 let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
-                let days = scheduling_environment_guard
-                    .time_environment
-                    .tactical_days
-                    .clone();
+                let days = scheduling_environment_guard.time_environment.days.clone();
 
                 let tactical_days = OrchestratorResponse::Days(days);
                 Ok(tactical_days)
@@ -532,14 +529,15 @@ where
         + Sync
         + 'static,
 {
-    pub fn new() -> Arc<Self>
+    pub fn new() -> Result<Arc<Self>>
     {
         let configurations = SystemConfigurations::read_all_configs().unwrap();
 
         let (log_handles, _logging_guard) = logging::setup_logging();
 
         let scheduling_environment =
-            DataBaseConnection::scheduling_environment(configurations.clone());
+            DataBaseConnection::scheduling_environment(configurations.clone())
+                .context("Could not build SchedulingEnvironment")?;
 
         let database_connections = DataBaseConnection::new();
 
@@ -557,7 +555,7 @@ where
             system_configurations: configurations,
             database_connections,
         });
-        orchestrator
+        Ok(orchestrator)
     }
 
     pub fn asset_factory(&self, asset: &Asset) -> Result<&Self>

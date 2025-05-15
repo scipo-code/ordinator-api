@@ -59,16 +59,17 @@ impl IntoSchedulingEnvironment for TotalSap
         // You need to pass the configs
         //
         let time_input_string = fs::read_to_string(
-            "./temp_scheduling_environment/actor_specifications/time_environment/time_input.toml",
+            "./temp_scheduling_environment_database/time_environment/time_input.toml",
         )
         .with_context(|| format!("Could not load TimeEnvironment Config. {}", line!()))?;
-        let time_input: TimeInput = serde_json::from_str(&time_input_string)?;
+        let time_input: TimeInput = toml::from_str(&time_input_string).with_context(|| {
+            format!("Could not deserialize the TimeInput config. Input:\n{time_input_string}")
+        })?;
+
         Ok(SchedulingEnvironment::builder()
-            // TODO [ ]
-            // This should function together with the
             .worker_environment(
                 WorkerEnvironment::builder()
-                    .actor_environment(Asset::DF)
+                    .actor_environment(Asset::DF)?
                     .build(), // Add more assets here.
             )
             .time_environment(create_time_environment(&time_input))

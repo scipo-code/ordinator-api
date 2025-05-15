@@ -13,11 +13,9 @@ use ordinator_scheduling_environment::worker_environment::TimeInput;
 
 // This should be abstracted out be the. All this should be moved to the
 // builder. You are
-pub fn create_time_environment(time_input: &TimeInput) -> TimeEnvironment {
-    let strategic_periods: Vec<Period> = create_periods(time_input.number_of_strategic_periods);
-
-    let tactical_periods: &Vec<Period> =
-        &strategic_periods.clone()[0..time_input.number_of_tactical_periods as usize].to_vec();
+pub fn create_time_environment(time_input: &TimeInput) -> TimeEnvironment
+{
+    let strategic_periods: Vec<Period> = create_periods(time_input.number_of_periods);
 
     let first_period = strategic_periods.first().unwrap().clone();
 
@@ -30,19 +28,13 @@ pub fn create_time_environment(time_input: &TimeInput) -> TimeEnvironment {
         }
         days
     };
-    let supervisor_periods =
-        strategic_periods.clone()[0..time_input.number_of_supervisor_periods as usize].to_vec();
 
-    TimeEnvironment::new(
-        strategic_periods,
-        tactical_periods.to_vec(),
-        tactical_days(time_input.number_of_days),
-        supervisor_periods,
-    )
+    TimeEnvironment::new(strategic_periods, tactical_days(time_input.number_of_days))
 }
 
 // This should be moved to the `scheduling-environment`
-fn create_periods(number_of_periods: u64) -> Vec<Period> {
+fn create_periods(number_of_periods: u64) -> Vec<Period>
+{
     let mut periods: Vec<Period> = Vec::<Period>::new();
     let mut start_date = Utc::now();
 

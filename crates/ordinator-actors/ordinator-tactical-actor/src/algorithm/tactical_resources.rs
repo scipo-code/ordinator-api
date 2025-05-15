@@ -110,7 +110,9 @@ impl<'a> From<(&ActorLinkToSchedulingEnvironment<'a>, &Id)> for TacticalResource
             .operational
             .iter()
         {
-            for (i, day) in value.0.time_environment.tactical_days.iter().enumerate() {
+            // This should not be defined for the `tactical_days`.
+            // ISSUE #000
+            for (i, day) in value.0.time_environment.days.iter().enumerate() {
                 let resource_periods = tactical_resources_inner
                     // FIX
                     // WARN

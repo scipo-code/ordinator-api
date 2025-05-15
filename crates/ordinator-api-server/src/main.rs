@@ -53,7 +53,8 @@ async fn main() -> Result<()>
 
     // Should the
     // ISSUE #000 Turn the nested `std::sync::Mutex` into `tokio::sync::Mutex`
-    let orchestrator: Arc<Orchestrator<TotalSystemSolution>> = Orchestrator::new();
+    let orchestrator: Arc<Orchestrator<TotalSystemSolution>> =
+        Orchestrator::new().context("Orchestrator could not be created")?;
 
     // WARN: Manually add `Asset`s here. Everything added here should be done from
     // the API in actual production. So this is only a temporary solution.

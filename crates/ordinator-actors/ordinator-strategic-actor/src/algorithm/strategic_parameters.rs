@@ -59,7 +59,7 @@ impl Parameters for StrategicParameters
 
         let work_orders = &scheduling_environment.work_orders;
 
-        let strategic_periods = &scheduling_environment.time_environment.strategic_periods;
+        let strategic_periods = &scheduling_environment.time_environment.periods;
 
         let strategic_options = &scheduling_environment
             .worker_environment

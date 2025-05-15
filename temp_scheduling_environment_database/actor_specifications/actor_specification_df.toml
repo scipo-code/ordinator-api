@@ -26,7 +26,7 @@ material_to_period.pmat = 3
 material_to_period.wmat = 3
 
 [tactical]
-number_of_tactical_periods =4
+number_of_tactical_days = 120
 id.resources = []
 id.id = "tactical"
 id.assets = ["Df"]

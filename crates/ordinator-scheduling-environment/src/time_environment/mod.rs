@@ -17,15 +17,16 @@ pub mod period;
 // WARN: Make the fields private. It does not make sense to change these
 // individually. FIX
 // All Periods here refer to the same thing. You should use references
+// This should be build differently
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
-pub struct TimeEnvironment {
-    pub strategic_periods: Vec<Period>,
-    pub tactical_periods: Vec<Period>,
-    pub tactical_days: Vec<Day>,
-    pub supervisor_periods: Vec<Period>,
+pub struct TimeEnvironment
+{
+    pub periods: Vec<Period>,
+    pub days: Vec<Day>,
 }
 #[derive(Eq, PartialEq, Debug, Serialize, Deserialize, Clone)]
-pub struct MaterialToPeriod {
+pub struct MaterialToPeriod
+{
     pub nmat: usize,
     pub smat: usize,
     pub cmat: usize,
@@ -33,55 +34,44 @@ pub struct MaterialToPeriod {
     pub wmat: usize,
 }
 
-impl TimeEnvironment {
-    pub fn new(
-        strategic_periods: Vec<Period>,
-        tactical_periods: Vec<Period>,
-        tactical_days: Vec<Day>,
-        supervisor_periods: Vec<Period>,
-    ) -> Self {
-        TimeEnvironment {
-            strategic_periods,
-            tactical_periods,
-            tactical_days,
-            supervisor_periods,
-        }
+impl TimeEnvironment
+{
+    pub fn new(periods: Vec<Period>, days: Vec<Day>) -> Self
+    {
+        TimeEnvironment { periods, days }
     }
 
-    pub fn builder() -> TimeEnvironmentBuilder {
+    pub fn builder() -> TimeEnvironmentBuilder
+    {
         TimeEnvironmentBuilder::default()
     }
 }
 
 #[derive(Default)]
-pub struct TimeEnvironmentBuilder {
-    pub strategic_periods: Option<Vec<Period>>,
-    pub supervisor_periods: Option<Vec<Period>>,
-    pub tactical_days: Option<Vec<Day>>,
-    pub tactical_periods: Option<Vec<Period>>,
+pub struct TimeEnvironmentBuilder
+{
+    pub periods: Option<Vec<Period>>,
+    pub days: Option<Vec<Day>>,
 }
 
-impl TimeEnvironmentBuilder {
-    pub fn build(self) -> TimeEnvironment {
+impl TimeEnvironmentBuilder
+{
+    pub fn build(self) -> TimeEnvironment
+    {
         TimeEnvironment {
-            strategic_periods: self.strategic_periods.unwrap_or_default(),
-            tactical_periods: self.tactical_periods.unwrap_or_default(),
-            tactical_days: self.tactical_days.unwrap_or_default(),
-            supervisor_periods: self.supervisor_periods.unwrap_or_default(),
+            periods: self.periods.unwrap_or_default(),
+            days: self.days.unwrap_or_default(),
         }
     }
 
-    pub fn strategic_periods(&mut self, strategic_periods: Vec<Period>) -> &mut Self {
-        self.strategic_periods = Some(strategic_periods);
+    pub fn periods(&mut self, periods: Vec<Period>) -> &mut Self
+    {
+        self.periods = Some(periods);
         self
     }
 
-    pub fn tactical_periods(&mut self, tactical_periods: Vec<Period>) -> &mut Self {
-        self.tactical_periods = Some(tactical_periods);
-        self
-    }
-
-    pub fn tactical_days(&mut self, first_day: &str, number_of_tactical_days: u64) -> &mut Self {
+    pub fn tactical_days(&mut self, first_day: &str, number_of_tactical_days: u64) -> &mut Self
+    {
         let mut first_day: DateTime<Utc> =
             first_day.parse().expect("You did not provide a valid date");
         let mut tactical_days = |number_of_tactical_days: u64| -> Vec<Day> {
@@ -92,41 +82,39 @@ impl TimeEnvironmentBuilder {
             }
             days
         };
-        self.tactical_days = Some(tactical_days(number_of_tactical_days));
-        self
-    }
-
-    pub fn supervisor_periods(&mut self, supervisor_periods: Vec<Period>) -> &mut Self {
-        self.supervisor_periods = Some(supervisor_periods);
+        self.days = Some(tactical_days(number_of_tactical_days));
         self
     }
 }
 
 #[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone)]
-pub struct TimeInterval {
+pub struct TimeInterval
+{
     #[serde(deserialize_with = "deserialize_time_interval")]
     pub start: NaiveTime,
     #[serde(deserialize_with = "deserialize_time_interval")]
     pub end: NaiveTime,
 }
 
-impl TimeInterval {
-    pub fn new(start: NaiveTime, end: NaiveTime) -> Self {
+impl TimeInterval
+{
+    pub fn new(start: NaiveTime, end: NaiveTime) -> Self
+    {
         assert_ne!(start, end);
         Self { start, end }
     }
 
-    pub fn from_date_times(
-        start_date_time: DateTime<Utc>,
-        finish_date_time: DateTime<Utc>,
-    ) -> Self {
+    pub fn from_date_times(start_date_time: DateTime<Utc>, finish_date_time: DateTime<Utc>)
+    -> Self
+    {
         Self {
             start: start_date_time.time(),
             end: finish_date_time.time(),
         }
     }
 
-    pub fn contains(&self, date_time: &DateTime<Utc>) -> bool {
+    pub fn contains(&self, date_time: &DateTime<Utc>) -> bool
+    {
         let time = date_time.time();
 
         if self.start > self.end {
@@ -137,7 +125,8 @@ impl TimeInterval {
         }
     }
 
-    pub fn duration(&self) -> TimeDelta {
+    pub fn duration(&self) -> TimeDelta
+    {
         if self.end < self.start {
             TimeDelta::new(86400, 0).unwrap() - (self.end - self.start).abs()
         } else {
@@ -145,7 +134,8 @@ impl TimeInterval {
         }
     }
 
-    pub fn invert(&self) -> TimeInterval {
+    pub fn invert(&self) -> TimeInterval
+    {
         let inverted_start = self.end;
         let inverted_end = self.start;
 

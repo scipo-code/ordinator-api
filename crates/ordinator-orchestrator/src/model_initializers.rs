@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use anyhow::Context;
+use anyhow::Result;
 use arc_swap::Guard;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_scheduling_environment::IntoSchedulingEnvironment;
@@ -9,7 +11,8 @@ use ordinator_total_data_processing::sources::baptiste_csv_reader::TotalSap;
 
 pub fn initialize_scheduling_environment(
     system_configurations: Guard<Arc<SystemConfigurations>>,
-) -> Arc<Mutex<SchedulingEnvironment>> {
+) -> Result<Arc<Mutex<SchedulingEnvironment>>>
+{
     let total_sap = TotalSap::default();
 
     // FIX [ ]
@@ -19,6 +22,7 @@ pub fn initialize_scheduling_environment(
     // `ordinator-orchestrator` crate or the `ordinator-total-data-processing`
     // crate. QUESTION [ ]
     // How should you structure this to make it work in a correct way?
+
     TotalSap::into_scheduling_environment(total_sap, &system_configurations)
-        .expect("Could not load the data from the data file")
+        .context("Could not load the data from the data file")
 }

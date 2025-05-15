@@ -33,15 +33,13 @@ impl Parameters for SupervisorParameters
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self>
     {
-        let supervisor_periods = &scheduling_environment.time_environment.supervisor_periods;
-
         let mut supervisor_parameters = HashMap::new();
 
         // Should you Clone this? Yes.. But ideally you should simply use Functional
         // programming. That is the only way in a situation like this.
         // You should make part of the SchedulingEnvironment reside inside of the
         // Arc<WorkOrders> and the other part an ArcSwap<TimeEnvironment>
-        let options = scheduling_environment
+        let input_supervisor = scheduling_environment
             .worker_environment
             .actor_specification
             .get(id.asset())
@@ -49,11 +47,15 @@ impl Parameters for SupervisorParameters
             .supervisors
             .iter()
             .find(|e| e.id == *id)
-            .with_context(|| format!("Missing an Supervisor entry for {id}"))?
+            .with_context(|| format!("Missing an Supervisor entry for {id}"))?;
+
+        let options = input_supervisor
             .supervisor_options
             // ISSUE #130
             .clone();
 
+        let supervisor_periods = &scheduling_environment.time_environment.periods
+            [0..input_supervisor.number_of_supervisor_periods as usize];
         for (work_order_number, work_order) in scheduling_environment
             .work_orders
             .inner
@@ -102,7 +104,7 @@ impl Parameters for SupervisorParameters
 
         Ok(Self {
             supervisor_work_orders: supervisor_parameters,
-            supervisor_periods: supervisor_periods.clone(),
+            supervisor_periods: supervisor_periods.to_vec(),
             operational_ids,
             options,
         })

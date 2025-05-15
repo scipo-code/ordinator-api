@@ -5,6 +5,8 @@ pub mod worker;
 
 use std::collections::HashMap;
 
+use anyhow::Context;
+use anyhow::Result;
 use crew::OperationalConfiguration;
 use resources::Id;
 use serde::Deserialize;
@@ -65,7 +67,7 @@ impl WorkerEnvironmentBuilder
     // Ideally we need to provide a resource file for each of the different.
     // assets. That means that this should be callable many times over for
     // this to work.
-    pub fn actor_environment(mut self, asset: Asset) -> Self
+    pub fn actor_environment(mut self, asset: Asset) -> Result<Self>
     {
         // This should then be changed into something different for this to
         // work. You need to put it into the Asset and the ... I think that
@@ -96,6 +98,7 @@ impl WorkerEnvironmentBuilder
         //     ),
         //     (
         //         Asset::Test,
+
         //         "./configuration/actor_specification/actor_specification_test.toml",
         //     ),
         //     (
@@ -109,14 +112,23 @@ impl WorkerEnvironmentBuilder
         let asset_string = asset.to_string().to_lowercase();
 
         let path = format!(
-            "./temp_scheduling_environment_database/actor_specification/actor_specification_{asset_string}.toml",
+            "./temp_scheduling_environment_database/actor_specifications/actor_specification_{asset_string}.toml",
         );
 
-        let contents = std::fs::read_to_string(path).unwrap();
-        let actor_specifications: ActorSpecifications = toml::from_str(&contents).unwrap();
+        let contents = std::fs::read_to_string(&path).with_context(|| {
+            format!("Could not read string for ActorSpecification\nPath: {path}")
+        })?;
+        let actor_specifications: ActorSpecifications =
+            toml::from_str(&contents).with_context(|| {
+                format!(
+                    "Could not deserialize into ActorSpecification. File: {}, Line: {}\nContent String\n{contents}",
+                    file!(),
+                    line!()
+                )
+            })?;
 
         self.actor_environment.insert(asset, actor_specifications);
-        self
+        Ok(self)
     }
 }
 
@@ -144,10 +156,8 @@ pub struct ActorSpecifications
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TimeInput
 {
-    pub number_of_strategic_periods: u64,
-    pub number_of_tactical_periods: u64,
+    pub number_of_periods: u64,
     pub number_of_days: u64,
-    pub number_of_supervisor_periods: u64,
 }
 
 // This should be handled as well. What should you do not? I think that a
@@ -160,14 +170,18 @@ pub struct TimeInput
 pub struct InputStrategic
 {
     pub id: Id,
+    pub number_of_strategic_periods: usize,
     pub strategic_options_config: StrategicOptions,
+    pub material_to_period: MaterialToPeriod,
 }
 
 #[derive(Eq, PartialEq, Serialize, Deserialize, Debug)]
 pub struct InputTactical
 {
     pub id: Id,
+    pub number_of_tactical_days: usize,
     pub tactical_options_config: TacticalOptions,
+    pub material_to_period: MaterialToPeriod,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]

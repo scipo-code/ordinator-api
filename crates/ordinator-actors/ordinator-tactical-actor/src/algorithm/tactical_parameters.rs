@@ -44,8 +44,6 @@ impl Parameters for TacticalParameters
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self>
     {
-        let tactical_days = &scheduling_environment.time_environment.tactical_days;
-
         let tactical_options = &scheduling_environment
             .worker_environment
             .actor_specification
@@ -81,9 +79,12 @@ impl Parameters for TacticalParameters
             })
             .collect();
 
+        let tactical_days = scheduling_environment.time_environment.days
+            [0..tactical_options.tactical.number_of_tactical_days]
+            .to_vec();
         Ok(Self {
             tactical_work_orders,
-            tactical_days: tactical_days.clone(),
+            tactical_days,
             tactical_capacity,
             tactical_options: tactical_options.tactical.tactical_options_config.clone(),
         })

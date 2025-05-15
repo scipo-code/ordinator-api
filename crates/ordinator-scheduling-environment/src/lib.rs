@@ -139,8 +139,8 @@ impl fmt::Display for SchedulingEnvironment
         \n  number of tactical days: {}",
             self.work_orders.inner.len(),
             workers,
-            self.time_environment.strategic_periods.len(),
-            self.time_environment.tactical_days.len(),
+            self.time_environment.periods.len(),
+            self.time_environment.days.len(),
         )?;
         Ok(())
     }
