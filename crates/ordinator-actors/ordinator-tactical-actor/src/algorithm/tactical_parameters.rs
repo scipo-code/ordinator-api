@@ -86,7 +86,7 @@ impl Parameters for TacticalParameters
             tactical_work_orders,
             tactical_days,
             tactical_capacity,
-            tactical_options: tactical_options.tactical.tactical_options_config.clone(),
+            tactical_options: tactical_options.tactical.tactical_options.clone(),
         })
     }
 

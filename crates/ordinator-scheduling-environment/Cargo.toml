@@ -11,7 +11,7 @@ clap = { version = "*", features = ["derive"] }
 colored ="*"
 proptest = "*"
 regex = "*"
-rust_decimal = "*"
+rust_decimal = {version = "*", features = ["serde", "serde-with-float"] }
 rust_decimal_macros = "*"
 rust_xlsxwriter = "*"
 serde = { version = "*", features = ["derive"] }

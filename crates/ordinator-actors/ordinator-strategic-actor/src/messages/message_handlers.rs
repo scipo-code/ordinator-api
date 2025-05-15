@@ -396,18 +396,18 @@ where
                                         
                                     )
                                 })?;
+                            let actor_specification = scheduling_environment_guard.worker_environment.actor_specification.get(self.actor_id.asset()).expect("Missing Asset for ActorSpecification");
+                            let work_order_configurations = &actor_specification.work_order_configurations;
+                            let material_to_period = &actor_specification.material_to_period;
 
-                            // This is not made in the best way. I can sense it. What should I do
-                            // about it? I think that the best way is to
-                            // make something that can schedule everything.
-                            let options = &self.algorithm.parameters.strategic_options;
                             let strategic_parameter = WorkOrderParameter::builder()
                                 .with_scheduling_environment(
                                     work_order,
                                     &scheduling_environment_guard
                                         .time_environment
                                         .periods,
-                                    options,
+                                    work_order_configurations,
+                                    material_to_period,
                                 )
                                 .build();
 

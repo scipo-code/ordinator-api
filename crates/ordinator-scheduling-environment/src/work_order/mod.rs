@@ -286,11 +286,11 @@ pub struct WorkOrderConfigurations
     pub order_type_weights: HashMap<String, u64>,
     pub status_weights: HashMap<String, u64>,
     pub vis_priority_map: HashMap<char, u64>,
-    pub wdf_priority_map: HashMap<u64, u64>,
-    pub wgn_priority_map: HashMap<u64, u64>,
+    pub wdf_priority_map: HashMap<String, u64>,
+    pub wgn_priority_map: HashMap<String, u64>,
     pub wpm_priority_map: HashMap<char, u64>,
     pub clustering_weights: ClusteringWeights,
-    pub operating_time: Work,
+    pub operating_time: u64,
 }
 
 #[derive(Eq, PartialEq, Serialize, Deserialize, Debug, Clone)]
@@ -348,14 +348,14 @@ impl WorkOrder
         let base_value = match &self.work_order_info.work_order_type {
             WorkOrderType::Wdf(wdf_priority) => match wdf_priority {
                 Priority::Int(int) if (&0..=&8).contains(&int) => {
-                    work_order_configurations.wdf_priority_map[int]
+                    work_order_configurations.wdf_priority_map[&int.to_string()]
                         * work_order_configurations.order_type_weights["WDF"]
                 }
                 _ => panic!("Received a wrong input number work order priority"),
             },
             WorkOrderType::Wgn(wgn_priority) => match wgn_priority {
                 Priority::Int(int) if (&0..&8).contains(&int) => {
-                    work_order_configurations.wgn_priority_map[int]
+                    work_order_configurations.wgn_priority_map[&int.to_string()]
                         * work_order_configurations.order_type_weights["WGN"]
                 }
                 _ => panic!("Received a wrong input number work order priority"),

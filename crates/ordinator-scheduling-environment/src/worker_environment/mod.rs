@@ -149,7 +149,6 @@ pub struct ActorSpecifications
     // It cannot be like this. The idea of a relational database is beginning
     // to make a lot of sense.
     pub work_order_configurations: WorkOrderConfigurations,
-    pub time_input: TimeInput,
     pub material_to_period: MaterialToPeriod,
 }
 
@@ -171,8 +170,7 @@ pub struct InputStrategic
 {
     pub id: Id,
     pub number_of_strategic_periods: usize,
-    pub strategic_options_config: StrategicOptions,
-    pub material_to_period: MaterialToPeriod,
+    pub strategic_options: StrategicOptions,
 }
 
 #[derive(Eq, PartialEq, Serialize, Deserialize, Debug)]
@@ -180,8 +178,7 @@ pub struct InputTactical
 {
     pub id: Id,
     pub number_of_tactical_days: usize,
-    pub tactical_options_config: TacticalOptions,
-    pub material_to_period: MaterialToPeriod,
+    pub tactical_options: TacticalOptions,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Debug)]
@@ -227,7 +224,7 @@ pub struct InputOperational
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Debug)]
 pub struct StrategicOptions
 {
-    pub number_of_removed_work_order: usize,
+    pub number_of_removed_work_orders: usize,
     pub urgency_weight: usize,
     pub resource_penalty_weight: usize,
     pub clustering_weight: usize,
@@ -237,8 +234,8 @@ pub struct StrategicOptions
     //
     // You can move this directly from the scheduling environment into the
     // Actor. Is the a good idea? I think that it is
-    pub work_order_configurations: WorkOrderConfigurations,
-    pub material_to_period: MaterialToPeriod,
+    // The priority should be the same for each work order, correct? Yes
+    // I think that is the correct answer.
 }
 
 // The `rng` should not be inside of the `ordinator-scheduling-environment`

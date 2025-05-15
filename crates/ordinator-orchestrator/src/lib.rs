@@ -560,16 +560,20 @@ where
 
     pub fn asset_factory(&self, asset: &Asset) -> Result<&Self>
     {
+        dbg!();
         let system_solution = Arc::new(ArcSwap::new(Arc::new(Ss::new())));
 
+        dbg!();
         self.system_solutions
             .lock()
             .unwrap()
             .insert(asset.clone(), system_solution);
         let dependencies = self.extract_factory_dependencies(asset)?;
 
+        dbg!();
         let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
 
+        dbg!();
         let strategic_id = scheduling_environment_guard
             .worker_environment
             .actor_specification
@@ -579,6 +583,7 @@ where
             .id
             .clone();
 
+        dbg!();
         let strategic_communication = StrategicApi::construct_actor(
             strategic_id.clone(),
             dependencies.0.clone(),
@@ -588,6 +593,7 @@ where
         )
         .with_context(|| format!("Could not construct StartegicActor {strategic_id}"))?;
 
+        dbg!();
         // Where should their IDs come from? I think that the best approach is to
         // include them from
         let tactical_id = scheduling_environment_guard
@@ -598,6 +604,7 @@ where
             .tactical
             .id
             .clone();
+        dbg!();
         let tactical_communication = TacticalApi::construct_actor(
             tactical_id.clone(),
             dependencies.0.clone(),
@@ -607,6 +614,7 @@ where
         )
         .with_context(|| format!("{tactical_id} could not be constructed"))?;
 
+        dbg!();
         // This is a good sign. It means that the system is performing correctly. What
         // should be done about the code in general?
         // Why is the supervisor no used here? This is also not created in the best way.
@@ -617,8 +625,10 @@ where
             .unwrap()
             .supervisors;
 
+        dbg!();
         let mut supervisor_communications = HashMap::default();
         for supervisor in supervisors {
+            dbg!();
             let supervisor_communication = SupervisorApi::construct_actor(
                 supervisor.id.clone(),
                 dependencies.0.clone(),
@@ -630,6 +640,7 @@ where
             supervisor_communications.insert(supervisor.id.clone(), supervisor_communication);
         }
 
+        dbg!();
         let operationals = &scheduling_environment_guard
             .worker_environment
             .actor_specification
@@ -639,6 +650,7 @@ where
 
         let mut operational_communications = HashMap::default();
         for operational in operationals {
+            dbg!();
             let operational_communication = OperationalApi::construct_actor(
                 operational.id.clone(),
                 dependencies.0.clone(),
@@ -650,6 +662,7 @@ where
             operational_communications.insert(operational.id.clone(), operational_communication);
         }
 
+        dbg!();
         let agent_registry = ActorRegistry::new(
             strategic_communication,
             tactical_communication,
@@ -657,11 +670,13 @@ where
             operational_communications,
         );
 
+        dbg!();
         self.actor_registries
             .lock()
             .unwrap()
             .insert(asset.clone(), agent_registry);
         drop(scheduling_environment_guard);
+        dbg!();
         Ok(self)
     }
 }

@@ -1238,7 +1238,7 @@ where
                 &mut rng,
                 self.parameters
                     .strategic_options
-                    .number_of_removed_work_order,
+                    .number_of_removed_work_orders,
             )
             .collect::<Vec<_>>()
             .clone();

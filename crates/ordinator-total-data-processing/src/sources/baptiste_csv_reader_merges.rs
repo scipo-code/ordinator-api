@@ -105,7 +105,7 @@ fn create_work_orders(
 
     let arc_mutex_inner_work_orders = Arc::new(Mutex::new(HashMap::new()));
 
-    work_orders.par_iter().for_each(|(work_order_number, work_order_csv): (&WorkOrderNumber, &WorkOrdersCsv)|  {
+    work_orders.into_iter().filter(|e| work_operations_csv.inner.contains_key(&e.0)).collect::<HashMap<_,_>>().par_iter().for_each(|(work_order_number, work_order_csv): (&WorkOrderNumber, &WorkOrdersCsv)|   {
         let main_work_center: Resources = Resources::from_str(
             work_center
                 .get(&work_order_csv.WO_WBS_ID)
@@ -145,10 +145,11 @@ fn create_work_orders(
         let work_order_type = WorkOrderType::new(&work_order_csv.WO_Order_Type, priority.clone())
             .expect("Invalid WorkOrderType's should have been filtered out");
 
+        
         let operations: Operations = work_operations_csv
             .inner
             .get(work_order_number)
-            .expect("What should be done to fix this? Does it make sense if there are no available `Operations`?")
+            .with_context(|| format!("What should be done to fix this? Does it make sense if there are no available `Operations`?\n{work_order_number:#?}")).unwrap()
             .iter()
             .map(|(operations_number, operation_csv)| -> Result<(u64, Operation)> {
                 let resource =

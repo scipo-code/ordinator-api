@@ -59,10 +59,12 @@ async fn main() -> Result<()>
     // WARN: Manually add `Asset`s here. Everything added here should be done from
     // the API in actual production. So this is only a temporary solution.
 
+    dbg!();
     orchestrator.asset_factory(&Asset::DF)?;
 
     // WARN
 
+    dbg!();
     // HttpServer::new(move || {
     //     App::new()
     //         .app_data(web::Data::new(orchestrator.clone()))
@@ -108,6 +110,7 @@ async fn main() -> Result<()>
         .with_state(orchestrator);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    dbg!();
     axum_server::bind(addr)
         .serve(app.into_make_service())
         .await

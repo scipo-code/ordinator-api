@@ -7,9 +7,11 @@ use anyhow::bail;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_scheduling_environment::Asset;
 use ordinator_scheduling_environment::SchedulingEnvironment;
+use ordinator_scheduling_environment::time_environment::MaterialToPeriod;
 use ordinator_scheduling_environment::time_environment::period::Period;
 use ordinator_scheduling_environment::work_order::ClusteringWeights;
 use ordinator_scheduling_environment::work_order::WorkOrder;
+use ordinator_scheduling_environment::work_order::WorkOrderConfigurations;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::WorkOrders;
 use ordinator_scheduling_environment::work_order::operation::Work;
@@ -61,13 +63,14 @@ impl Parameters for StrategicParameters
 
         let strategic_periods = &scheduling_environment.time_environment.periods;
 
-        let strategic_options = &scheduling_environment
+        let actor_specifications = scheduling_environment
             .worker_environment
             .actor_specification
             .get(id.asset())
-            .unwrap()
-            .strategic
-            .strategic_options_config;
+            .unwrap();
+        let strategic_options = &actor_specifications.strategic.strategic_options;
+        let work_order_configurations = &actor_specifications.work_order_configurations;
+        let material_to_period = &actor_specifications.material_to_period;
 
         // You need to develop this together with Dall!
         // Okay so you should put the
@@ -82,7 +85,12 @@ impl Parameters for StrategicParameters
                     // SchedulingEnvironment TODO #000002 [ ] Move work order
                     // parameters from `./configuration` to `./temp_scheduling_environmen_database`
                     WorkOrderParameter::builder()
-                        .with_scheduling_environment(wo, strategic_periods, strategic_options)
+                        .with_scheduling_environment(
+                            wo,
+                            strategic_periods,
+                            work_order_configurations,
+                            material_to_period,
+                        )
                         .build(),
                 )
             })
@@ -91,7 +99,7 @@ impl Parameters for StrategicParameters
         let strategic_clustering = StrategicClustering::calculate_clustering_values(
             asset,
             work_orders,
-            &strategic_options
+            &actor_specifications
                 .work_order_configurations
                 .clustering_weights,
         )?;
@@ -235,17 +243,16 @@ impl WorkOrderParameterBuilder
         mut self,
         work_order: &WorkOrder,
         periods: &[Period],
-        strategic_options: &StrategicOptions,
+        work_order_configurations: &WorkOrderConfigurations,
+        material_to_period: &MaterialToPeriod,
     ) -> Self
     {
         // FIX [ ]
         // This is horribly written and very error prone
         // Use a TypeState pattern if you are in doubt.
-        self.excluded_periods =
-            work_order.find_excluded_periods(periods, &strategic_options.material_to_period);
+        self.excluded_periods = work_order.find_excluded_periods(periods, material_to_period);
 
-        self.weight =
-            Some(work_order.work_order_value(&strategic_options.work_order_configurations));
+        self.weight = Some(work_order.work_order_value(work_order_configurations));
 
         self.work_load = work_order.work_order_load();
 
