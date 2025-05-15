@@ -1,5 +1,8 @@
 [time_input]
+number_of_strategic_periods = 52
+number_of_tactical_periods = 4
 number_of_days = 100
+number_of_supervisor_periods = 3
 
 [material_to_period]
 nmat = 0
@@ -10,7 +13,7 @@ wmat = 3
 
 [strategic]
 number_of_strategic_periods = 52
-id = [ "strategic", [], ["Df"] ]
+id = [ [], "strategic", [] ]
 strategic_options.number_of_removed_work_orders = 25
 strategic_options.urgency_weight = 1
 strategic_options.resource_penalty_weight = 1000000
@@ -23,8 +26,7 @@ material_to_period.pmat = 3
 material_to_period.wmat = 3
 
 [tactical]
-number_of_tactical_periods =4
-id = [ "tactical", [], ["Df"] ]
+id = [ ["Df"], "tactical", [] ]
 tactical_options.number_of_removed_work_orders = 25
 tactical_options.urgency = 1
 tactical_options.resource_penalty = 10000000

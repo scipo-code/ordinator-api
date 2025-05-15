@@ -12,8 +12,6 @@ wmat = 3
 
 [strategic]
 number_of_strategic_periods = 52
-id.resources = []
-id.id = "strategic"
 id.assets ["Df"]
 strategic_options.number_of_removed_work_orders = 25
 strategic_options.urgency_weight = 1
@@ -27,8 +25,7 @@ material_to_period.wmat = 3
 
 [tactical]
 number_of_tactical_periods =4
-id.resources = []
-id.id = "tactical"
+id = [ "strategic", [], "tactical" ]
 id.assets ["Df"]
 tactical_options.number_of_removed_work_orders = 25
 tactical_options.urgency = 1
