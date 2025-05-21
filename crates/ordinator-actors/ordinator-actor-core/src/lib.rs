@@ -14,6 +14,7 @@ use colored::Colorize;
 use flume::Receiver;
 use flume::Sender;
 use ordinator_configuration::SystemConfigurations;
+use ordinator_orchestrator_actor_traits::ActorError;
 use ordinator_orchestrator_actor_traits::ActorMessage;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
@@ -54,6 +55,7 @@ where
     pub sender_to_orchestrator: Sender<Result<ActorResponse>>,
     pub configurations: Arc<ArcSwap<SystemConfigurations>>,
     pub notify_orchestrator: Arc<dyn OrchestratorNotifier>,
+    pub error_channel: Sender<ActorError>,
 }
 
 // TODO [ ]
@@ -67,10 +69,16 @@ where
     ActorRequest: Send + Sync + 'static,
     ActorResponse: Send + Sync + 'static,
 {
-    pub fn run(&mut self) -> Result<()>
+    // This method sends errors to the Orchestrator, which handles the errors
+    // from there.
+    pub fn run(&mut self) -> ()
     {
+        dbg!();
         let mut schedule_iteration = ScheduleIteration::default();
-        self.algorithm
+
+        dbg!();
+        if let Err(actor_error) = self
+            .algorithm
             .schedule()
             .with_context(|| {
                 format!(
@@ -79,15 +87,23 @@ where
                     line!()
                 )
             })
-            .unwrap();
+            .with_context(|| "Could not run initial ScheduleIteration".to_string())
+        {
+            self.error_channel
+                .send(actor_error)
+                .expect("If this happens no amount of error handling will save us")
+        }
 
         schedule_iteration.increment();
 
+        dbg!();
         loop {
             while let Ok(message) = self.receiver_from_orchestrator.try_recv() {
-                self.handle(message).unwrap();
+                self.handle(message)
+                    .expect("Message could not be handled by the Actor");
             }
 
+            dbg!();
             // There is no good way of doing this. You simply have to make the
             // system so that it will always return to the correct state.
             // You have to circumvent the `configurations` here and simply
@@ -112,14 +128,20 @@ where
             // I think that the better appraoch... The other approach was nice in that
             // it made a whole class of bug impossible to represent. What is the best
             // approach to make system design here.
-            self.algorithm
+            if let Err(actor_error) = self
+                .algorithm
                 // Ahh the issue is that you cannot put this kind of thing in here. The issue comes
                 // from the fact that the. The Actor needs to run this.
                 // Should the Option be removed? Yes
                 .run_lns_iteration()
                 .with_context(|| format!("{schedule_iteration:#?}"))
-                .unwrap();
+            {
+                self.error_channel
+                    .send(actor_error)
+                    .expect("If this happens no amount of error handling will save us")
+            }
 
+            dbg!();
             schedule_iteration.increment();
         }
     }
@@ -135,6 +157,7 @@ where
             configurations: None,
             notify_orchestrator: None,
             communication_for_orchestrator: None,
+            error_channel: None,
         }
     }
 }
@@ -181,6 +204,7 @@ where
     notify_orchestrator: Option<Arc<dyn OrchestratorNotifier>>,
     //
     communication_for_orchestrator: Option<Communication<ActorRequest, ActorResponse>>,
+    error_channel: Option<Sender<ActorError>>,
 }
 
 impl<ActorRequest, ActorResponse, SpecificAlgorithm>
@@ -202,6 +226,7 @@ where
             sender_to_orchestrator: self.sender_to_orchestrator.unwrap(),
             configurations: self.configurations.unwrap(),
             notify_orchestrator: self.notify_orchestrator.unwrap(),
+            error_channel: self.error_channel.unwrap(),
         };
         dbg!();
         let thread_name = format!(
@@ -267,7 +292,7 @@ where
 
     // What is the error here? I think that it has to do with the
     // bounded channel.
-    pub fn communication(mut self) -> Self
+    pub fn communication(mut self, error_channel: Sender<ActorError>) -> Self
     {
         dbg!();
         let (sender_to_actor, receiver_from_orchestrator): (
@@ -286,6 +311,7 @@ where
         dbg!();
         self.receiver_from_orchestrator = Some(receiver_from_orchestrator);
         self.sender_to_orchestrator = Some(sender_to_orchestrator);
+        self.error_channel = Some(error_channel);
         self
     }
 

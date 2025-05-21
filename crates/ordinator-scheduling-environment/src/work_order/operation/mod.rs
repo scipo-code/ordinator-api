@@ -38,7 +38,34 @@ impl Operations
 {
     pub fn relations(&self) -> Vec<ActivityRelation>
     {
-        todo!()
+        // How should this be handled? Believe that the best response.
+        self.0
+            .iter()
+            .map_windows(|[first, second]| {
+                if first.1.operation_dates.earliest_start_datetime
+                    == second.1.operation_dates.earliest_start_datetime
+                {
+                    ActivityRelation::StartStart
+                } else if first.1.operation_dates.earliest_finish_datetime
+                    == second.1.operation_dates.earliest_start_datetime
+                {
+                    ActivityRelation::FinishStart
+                } else if first.1.operation_dates.earliest_finish_datetime
+                    < second.1.operation_dates.earliest_start_datetime
+                {
+                    let postpone = second.1.operation_dates.earliest_start_datetime
+                        - first.1.operation_dates.earliest_finish_datetime;
+                    ActivityRelation::Postpone(postpone)
+                } else {
+                    // panic!("This means that the second operation is set to start before the first\nfirst: {} start: \n{}\nfinish: {} \nsecond: {}\nstart: {}\nfinish: {}"
+                    //     ,first.0, first.1.operation_dates.earliest_start_datetime,
+                    // first.1.operation_dates.earliest_finish_datetime,
+                    //     second.0, second.1.operation_dates.earliest_start_datetime,
+                    // second.1.operation_dates.earliest_finish_datetime)
+                    ActivityRelation::FinishStart
+                }
+            })
+            .collect()
     }
 }
 
@@ -268,11 +295,13 @@ impl Work
         self.0
     }
 
-    pub fn in_seconds(&self) -> u64
+    pub fn in_seconds(&self) -> i64
     {
         (self.0 * Decimal::from_u64(3600).unwrap())
-            .to_u64()
-            .unwrap()
+            .to_i64()
+            .unwrap_or_else(|| {
+                panic!("The Work type should always could be represented as a f64\n{self}")
+            })
     }
 
     pub fn to_f64(&self) -> f64

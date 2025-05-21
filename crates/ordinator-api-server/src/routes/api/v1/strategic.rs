@@ -14,7 +14,8 @@ pub async fn scheduler_nest(
 ) -> Router<Arc<Orchestrator<TotalSystemSolution>>>
 {
     Router::new()
-        .route("/work_orders/:id", get(get_scheduler_work_orders))
+        .without_v07_checks()
+        .route("/work_orders/{id}", get(get_scheduler_work_orders))
         .with_state(state)
 }
 

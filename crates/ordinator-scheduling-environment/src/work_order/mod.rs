@@ -11,9 +11,8 @@ use std::str::FromStr;
 
 use anyhow::Result;
 use anyhow::bail;
-use chrono::DateTime;
 use chrono::NaiveDate;
-use chrono::Utc;
+use chrono::TimeDelta;
 use colored::Colorize;
 use serde::Deserialize;
 use serde::Serialize;
@@ -277,7 +276,7 @@ pub enum ActivityRelation
 {
     StartStart,
     FinishStart,
-    Postpone(DateTime<Utc>),
+    Postpone(TimeDelta),
 }
 
 #[allow(dead_code)]

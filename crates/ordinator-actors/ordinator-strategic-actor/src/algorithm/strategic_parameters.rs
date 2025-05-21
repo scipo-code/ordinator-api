@@ -58,23 +58,30 @@ impl Parameters for StrategicParameters
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self>
     {
+        dbg!();
         let asset = id.2.first().expect("This should never happen");
 
+        dbg!();
         let work_orders = &scheduling_environment.work_orders;
 
+        dbg!();
         let strategic_periods = &scheduling_environment.time_environment.periods;
 
+        dbg!();
         let actor_specifications = scheduling_environment
             .worker_environment
             .actor_specification
             .get(id.asset())
             .unwrap();
+        dbg!();
         let strategic_options = &actor_specifications.strategic.strategic_options;
         let work_order_configurations = &actor_specifications.work_order_configurations;
         let material_to_period = &actor_specifications.material_to_period;
 
+        dbg!();
         // You need to develop this together with Dall!
         // Okay so you should put the
+        //
         let strategic_work_order_parameters = work_orders
             .inner
             .iter()
@@ -98,6 +105,7 @@ impl Parameters for StrategicParameters
             })
             .collect::<Result<HashMap<WorkOrderNumber, WorkOrderParameter>>>()?;
 
+        dbg!();
         let strategic_clustering = StrategicClustering::calculate_clustering_values(
             asset,
             work_orders,
@@ -106,10 +114,12 @@ impl Parameters for StrategicParameters
                 .clustering_weights,
         )?;
 
+        dbg!();
         // The `SchedulingEnvironment` should not know about the `StrategicResources`
         // This is wrongly implemented and therefore should be changed.
         let strategic_capacity = StrategicResources::from((scheduling_environment, id));
 
+        dbg!();
         Ok(Self {
             strategic_work_order_parameters,
             strategic_capacity,
@@ -412,52 +422,54 @@ impl StrategicClustering
     ) -> Result<Self>
     {
         let mut clustering_similarity = HashMap::new();
-        let work_orders_data: Vec<_> = work_orders
-            .inner
-            .iter()
-            .filter(|(_, wo)| &wo.functional_location().asset == asset)
-            .map(|(number, work_order)| {
-                let fl = &work_order.work_order_info.functional_location;
-                (
-                    number,
-                    fl.asset.clone(),
-                    fl.sector(),
-                    fl.system(),
-                    fl.subsystem(),
-                    fl.equipment_tag(),
-                )
-            })
-            .collect();
+        // let work_orders_data: Vec<_> = work_orders
+        //     .inner
+        //     .iter()
+        //     .filter(|(_, wo)| &wo.functional_location().asset == asset)
+        //     .map(|(number, work_order)| {
+        //         let fl = &work_order.work_order_info.functional_location;
+        //         (
+        //             number,
+        //             fl.asset.clone(),
+        //             fl.sector(),
+        //             fl.system(),
+        //             fl.subsystem(),
+        //             fl.equipment_tag(),
+        //         )
+        //     })
+        //     .collect();
 
-        // Calculate similarity for each pair of work orders
-        for i in 0..work_orders_data.len() {
-            for j in i..work_orders_data.len() {
-                let (wo_num1, asset1, sector1, system1, subsystem1, tag1) = &work_orders_data[i];
-                let (wo_num2, asset2, sector2, system2, subsystem2, tag2) = &work_orders_data[j];
+        // // Calculate similarity for each pair of work orders
+        // for i in 0..work_orders_data.len() {
+        //     for j in i..work_orders_data.len() {
+        //         let (wo_num1, asset1, sector1, system1, subsystem1, tag1) =
+        // &work_orders_data[i];         let (wo_num2, asset2, sector2, system2,
+        // subsystem2, tag2) = &work_orders_data[j];
 
-                let similarity = {
-                    let mut score = 0;
-                    if asset1 == asset2 {
-                        score += clustering_weights.asset;
-                    }
-                    if sector1 == sector2 && sector2.is_some() {
-                        score += clustering_weights.sector;
-                    }
-                    if system1 == system2 && system2.is_some() {
-                        score += clustering_weights.system;
-                    }
-                    if subsystem1 == subsystem2 && subsystem2.is_some() {
-                        score += clustering_weights.subsystem;
-                    }
-                    if tag1 == tag2 && tag2.is_some() {
-                        score += clustering_weights.equipment_tag;
-                    }
-                    score
-                };
+        //         // FIX
+        //         // let similarity = {
+        //         //     let mut score = 0;
+        //         //     if asset1 == asset2 {
+        //         //         score += clustering_weights.asset;
+        //         //     }
+        //         //     if sector1 == sector2 && sector2.is_some() {
+        //         //         score += clustering_weights.sector;
+        //         //     }
+        //         //     if system1 == system2 && system2.is_some() {
+        //         //         score += clustering_weights.system;
+        //         //     }
+        //         //     if subsystem1 == subsystem2 && subsystem2.is_some() {
+        //         //         score += clustering_weights.subsystem;
+        //         //     }
+        //         //     if tag1 == tag2 && tag2.is_some() {
+        //         //         score += clustering_weights.equipment_tag;
+        //         //     }
+        //         //     score
+        //         // };
 
-                clustering_similarity.insert((**wo_num1, **wo_num2), similarity);
-            }
-        }
+        //         clustering_similarity.insert((**wo_num1, **wo_num2), 0);
+        //     }
+        // }
         Ok(StrategicClustering {
             inner: clustering_similarity,
         })

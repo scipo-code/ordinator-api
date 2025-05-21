@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
+use flume::Receiver;
+use flume::Sender;
 use ordinator_operational_actor::messages::OperationalRequestMessage;
 use ordinator_operational_actor::messages::OperationalResponseMessage;
+use ordinator_orchestrator_actor_traits::ActorError;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_strategic_actor::messages::StrategicRequestMessage;
@@ -19,6 +22,8 @@ pub struct ActorRegistry
         HashMap<Id, Communication<SupervisorRequestMessage, SupervisorResponseMessage>>,
     pub operational_agent_senders:
         HashMap<Id, Communication<OperationalRequestMessage, OperationalResponseMessage>>,
+
+    pub error_channel: (Receiver<ActorError>, Sender<ActorError>),
 }
 
 impl ActorRegistry

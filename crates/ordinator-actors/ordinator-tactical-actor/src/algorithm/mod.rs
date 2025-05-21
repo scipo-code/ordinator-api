@@ -12,6 +12,7 @@ use std::sync::Arc;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
+use chrono::NaiveDate;
 use chrono::TimeDelta;
 use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_actor_core::algorithm::LoadOperation;
@@ -150,15 +151,21 @@ where
 
             // What does it mean that the StrategicAgent does not have the work order yet
             // What should we do to give him the correct state
-            let period_start_date = match &self
+            //
+            // The goal here is to make the code function without the use of the
+            //
+            let strategic_period = &self
                 .loaded_shared_solution
+                // This should be an option instead
                 .strategic()
-                .scheduled_task(work_order_number)
-                .unwrap_or(&Option::None)
-            {
-                Some(period) => period.start_date().date_naive(),
-                None => tactical_parameter.earliest_allowed_start_date,
-            };
+                .ok();
+
+            // You need a thoughtful way of handling this. I think that the best approch
+            // here is to make the
+            let period_start_date: NaiveDate = strategic_period
+                .and_then(|period| period.scheduled_task(work_order_number))
+                .and_then(|d| d.as_ref().map(|e| e.start_date().date_naive()))
+                .unwrap_or(tactical_parameter.earliest_allowed_start_date);
 
             let mut activity_keys: Vec<ActivityNumber> = tactical_parameter
                 .tactical_operation_parameters

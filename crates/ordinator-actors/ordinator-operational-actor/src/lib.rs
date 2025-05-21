@@ -13,12 +13,14 @@ use algorithm::operational_parameter::OperationalParameters;
 use algorithm::operational_solution::OperationalSolution;
 use anyhow::Result;
 use arc_swap::ArcSwap;
+use flume::Sender;
 use messages::OperationalRequestMessage;
 use messages::OperationalResponseMessage;
 use ordinator_actor_core::Actor;
 use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_configuration::SystemConfigurations;
+use ordinator_orchestrator_actor_traits::ActorError;
 use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
@@ -73,6 +75,7 @@ where
         shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
         notify_orchestrator: Arc<dyn OrchestratorNotifier>,
         system_configurations: Arc<ArcSwap<SystemConfigurations>>,
+        error_channel: Sender<ActorError>,
     ) -> Result<Self::Communication>
     where
         Ss: SystemSolutions<Operational = OperationalSolution> + Send + Sync + 'static,
@@ -94,7 +97,7 @@ where
                     &scheduling_environment_guard.lock().unwrap(),
                 )
         })?
-        .communication()
+        .communication(error_channel)
         .configurations(system_configurations)
         .notify_orchestrator(notify_orchestrator)
         .build()

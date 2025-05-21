@@ -1,3 +1,4 @@
+#![feature(iter_map_windows)]
 pub mod time_environment;
 pub mod work_order;
 pub mod worker_environment;

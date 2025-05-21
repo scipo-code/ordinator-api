@@ -131,7 +131,7 @@ impl OperationalParameter
     ) -> Option<Self>
     {
         let combined_time = (work + _preparation).in_seconds();
-        let operation_time_delta = TimeDelta::new(combined_time as i64, 0).unwrap();
+        let operation_time_delta = TimeDelta::new(combined_time, 0).unwrap();
         if work.to_f64() == 0.0 {
             return None;
         }

@@ -11,12 +11,14 @@ use algorithm::tactical_parameters::TacticalParameters;
 use algorithm::tactical_solution::TacticalSolution;
 use anyhow::Result;
 use arc_swap::ArcSwap;
+use flume::Sender;
 use messages::TacticalRequestMessage;
 use messages::TacticalResponseMessage;
 use ordinator_actor_core::Actor;
 use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_configuration::SystemConfigurations;
+use ordinator_orchestrator_actor_traits::ActorError;
 use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
@@ -81,6 +83,7 @@ where
         shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
         notify_orchestrator: Arc<dyn OrchestratorNotifier>,
         system_configurations: Arc<ArcSwap<SystemConfigurations>>,
+        error_channel: Sender<ActorError>,
     ) -> Result<Self::Communication>
     {
         Actor::<TacticalRequestMessage, TacticalResponseMessage, TacticalAlgorithm<Ss>>::builder()
@@ -101,7 +104,7 @@ where
             })?
             // TODO [x]
             // These should be created in a single step
-            .communication()
+            .communication(error_channel)
             .configurations(system_configurations)
             .notify_orchestrator(notify_orchestrator)
             .build()

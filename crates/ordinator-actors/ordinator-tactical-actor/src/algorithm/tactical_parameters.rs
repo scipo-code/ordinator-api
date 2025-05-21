@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::fmt::{self};
@@ -32,9 +33,6 @@ pub struct TacticalParameters
     pub tactical_options: TacticalOptions,
 }
 
-// TODO
-// We should move all the code from the `AgentFactory` in here! That is the
-// best option that we have.
 impl Parameters for TacticalParameters
 {
     type Key = WorkOrderNumber;
@@ -81,8 +79,10 @@ impl Parameters for TacticalParameters
             })
             .collect::<Result<HashMap<WorkOrderNumber, TacticalParameter>>>()?;
 
-        let tactical_days = scheduling_environment.time_environment.days
-            [0..tactical_options.tactical.number_of_tactical_days]
+        let tactical_days = scheduling_environment.time_environment.days[0..min(
+            tactical_options.tactical.number_of_tactical_days,
+            scheduling_environment.time_environment.days.len(),
+        )]
             .to_vec();
         Ok(Self {
             tactical_work_orders,

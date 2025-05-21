@@ -4,9 +4,11 @@ use std::sync::Mutex;
 use anyhow::Context;
 use anyhow::Result;
 use arc_swap::ArcSwap;
+use flume::Sender;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_operational_actor::OperationalApi;
 use ordinator_operational_actor::algorithm::operational_solution::OperationalSolution;
+use ordinator_orchestrator_actor_traits::ActorError;
 use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::SystemSolution;
@@ -32,6 +34,7 @@ type ActorFactoryDependencies<Ss> = (
     Arc<ArcSwap<Ss>>,
     Arc<dyn OrchestratorNotifier>,
     Arc<ArcSwap<SystemConfigurations>>,
+    Sender<ActorError>,
 );
 
 impl<Ss> Orchestrator<Ss>
@@ -47,6 +50,8 @@ where
 {
     // This is a helper function. This is where the problem becomes appearant
     // It should be removed from the function.
+    // TODO [ ] You should move the actor registry out of the factory_dependencies
+    // again.
     pub fn extract_factory_dependencies(
         &self,
         asset: &Asset,
@@ -72,6 +77,14 @@ where
                     .unwrap(),
             )),
             Arc::clone(&self.system_configurations),
+            self.actor_registries
+                .lock()
+                .unwrap()
+                .get(asset)
+                .unwrap()
+                .error_channel
+                .1
+                .clone(),
         ))
     }
 
@@ -99,6 +112,7 @@ where
             build_dependencies.1,
             build_dependencies.2,
             build_dependencies.3,
+            build_dependencies.4,
         )
         .with_context(|| format!("Could not create StrategicActor for Asset {}", id.asset()))?;
 
@@ -125,6 +139,7 @@ where
             build_dependencies.1,
             build_dependencies.2,
             build_dependencies.3,
+            build_dependencies.4,
         )
         .with_context(|| format!("Could not create TacticalActor for Asset {}", id.asset()))?;
 
@@ -149,6 +164,7 @@ where
             build_dependencies.1,
             build_dependencies.2,
             build_dependencies.3,
+            build_dependencies.4,
         )
         .with_context(|| format!("Could not create supervisorActor for Asset {}", id.asset()))?;
 
@@ -178,6 +194,7 @@ where
             build_dependencies.1,
             build_dependencies.2,
             build_dependencies.3,
+            build_dependencies.4,
         )
         .with_context(|| format!("Could not create OperationalActor for Asset {}", id.asset()))?;
 

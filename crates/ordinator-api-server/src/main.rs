@@ -60,7 +60,7 @@ async fn main() -> Result<()>
     // the API in actual production. So this is only a temporary solution.
 
     dbg!();
-    orchestrator.asset_factory(&Asset::DF)?;
+    let (value, error_task) = orchestrator.asset_factory(&Asset::DF)?;
 
     // WARN
 
@@ -110,9 +110,12 @@ async fn main() -> Result<()>
         .with_state(orchestrator);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    dbg!();
-    axum_server::bind(addr)
-        .serve(app.into_make_service())
-        .await
-        .map_err(|e| anyhow!(e))
+    let server = axum_server::bind(addr).serve(app.into_make_service());
+
+    tokio::select! {
+        res = server => res?,
+        res = error_task => res??,
+    }
+
+    Ok(())
 }

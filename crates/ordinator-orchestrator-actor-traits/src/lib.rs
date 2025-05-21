@@ -36,10 +36,11 @@ pub trait OrchestratorNotifier: Send + Sync + 'static
     ) -> Result<()>;
 }
 
+pub type ActorError = anyhow::Error;
 pub struct Communication<RequestMessage, Res>
 {
-    sender: Sender<ActorMessage<RequestMessage>>,
-    pub receiver: Receiver<Result<Res>>,
+    sender_to_actor: Sender<ActorMessage<RequestMessage>>,
+    pub receiver_from_actor: Receiver<Result<Res>>,
 }
 
 // StateLink is not a request. It is something different
@@ -57,7 +58,10 @@ impl<RequestMessage, Res> Communication<RequestMessage, Res>
         receiver: Receiver<Result<Res>>,
     ) -> Self
     {
-        Self { sender, receiver }
+        Self {
+            sender_to_actor: sender,
+            receiver_from_actor: receiver,
+        }
     }
 
     // This is being wrapped twice. I think that the best approach is to
@@ -66,18 +70,18 @@ impl<RequestMessage, Res> Communication<RequestMessage, Res>
     {
         // What is it that you need to do here? You should
         let message = ActorMessage::Actor(message);
-        self.sender.send(message).map_err(|e| anyhow!(e.to_string() )).context("The Actor has stopped running. If the reason for this is not obvious, it means that the error handling should be extended.")
+        self.sender_to_actor.send(message).map_err(|e| anyhow!(e.to_string() )).context("The Actor has stopped running. If the reason for this is not obvious, it means that the error handling should be extended.")
     }
 
     pub fn from_actor(&self) -> Res
     {
-        self.receiver.recv().unwrap().unwrap()
+        self.receiver_from_actor.recv().unwrap().unwrap()
     }
 
     pub fn from_orchestrator(&self, state_link: StateLink)
     {
         let message = ActorMessage::State(state_link);
-        self.sender.send(message).expect("The Actor has stopped running. If the reason for this is not obvious, it means that the error handling should be extended.");
+        self.sender_to_actor.send(message).expect("The Actor has stopped running. If the reason for this is not obvious, it means that the error handling should be extended.");
     }
 }
 
@@ -459,5 +463,6 @@ where
         system_solution_arc_swap: Arc<ArcSwap<Ss>>,
         notify_orchestrator: Arc<dyn OrchestratorNotifier>,
         system_configurations: Arc<ArcSwap<SystemConfigurations>>,
+        error_channel: Sender<ActorError>,
     ) -> Result<Self::Communication>;
 }

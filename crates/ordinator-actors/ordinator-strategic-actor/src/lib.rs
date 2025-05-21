@@ -13,12 +13,14 @@ use algorithm::strategic_parameters::StrategicParameters;
 use algorithm::strategic_solution::StrategicSolution;
 use anyhow::Result;
 use arc_swap::ArcSwap;
+use flume::Sender;
 use messages::StrategicRequestMessage;
 use messages::StrategicResponseMessage;
 use ordinator_actor_core::Actor;
 use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_configuration::SystemConfigurations;
+use ordinator_orchestrator_actor_traits::ActorError;
 use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
@@ -71,6 +73,7 @@ where
         shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
         notify_orchestrator: Arc<dyn OrchestratorNotifier>,
         system_configurations: Arc<ArcSwap<SystemConfigurations>>,
+        error_channel: Sender<ActorError>,
     ) -> Result<<Self as ActorFactory<Ss>>::Communication>
     where
         Ss: SystemSolutions<Strategic = StrategicSolution> + Send + Sync + 'static,
@@ -96,7 +99,7 @@ where
                 .arc_swap_shared_solution(shared_solution_arc_swap)
                 .parameters_and_solution(&scheduling_environment_guard.lock().unwrap())
         })?
-        .communication()
+        .communication(error_channel)
         .configurations(system_configurations)
         .notify_orchestrator(notify_orchestrator)
         .build()

@@ -94,7 +94,8 @@ impl SupervisorSolution
 
     // You have to be afraid of these kind of things here. I believe that the
     // best approach here is to make something that will allow us to work on the
-    //
+    // We want to make this so that the code works on. The code should send the
+    // error to the orchestrator
     pub fn operational_status_by_work_order_activity<Ss>(
         &self,
         work_order_activity: &WorkOrderActivity,
@@ -104,30 +105,21 @@ impl SupervisorSolution
     where
         Ss: SystemSolutions,
     {
-        self.operational_state_machine
-            .iter()
-            .filter(|(id_woa, _)| id_woa.1 == *work_order_activity)
-            .map(|(id_woa, del)| {
-                (
-                    id_woa.0.clone(),
-                    del,
-                    // This is what you want to return. I do not think that
-                    // there is a better approach. You should simply extract
-                    // the most simple part of this.
-                    loaded_shared_solution
-                        .operational(&id_woa.0)?
-                        .marginal_fitness_for_operational_actor(work_order_activity),
-                )
-            })
-            .filter(|id_del_opt_mar_fit| id_del_opt_mar_fit.2.is_some())
-            .map(|id_del_opt_mar_fit| {
-                (
-                    id_del_opt_mar_fit.0,
-                    id_del_opt_mar_fit.1.clone(),
-                    id_del_opt_mar_fit.2.cloned().unwrap(),
-                )
-            })
-            .collect()
+        let mut out = Vec::new();
+
+        for (id_woa, delegate) in &self.operational_state_machine {
+            if id_woa.1 != *work_order_activity {
+                continue;
+            }
+
+            let op = loaded_shared_solution.operational(&id_woa.0)?;
+
+            if let Some(fitness) = op.marginal_fitness_for_operational_actor(work_order_activity) {
+                out.push((id_woa.0.clone(), delegate.clone(), fitness.clone()));
+            }
+        }
+
+        Ok(out)
     }
 
     pub(crate) fn get_iter(

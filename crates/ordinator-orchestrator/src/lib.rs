@@ -13,8 +13,11 @@ use std::sync::Weak;
 pub use actor_factory::TotalSystemSolution;
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
 use arc_swap::ArcSwap;
+use flume::Receiver;
+use flume::Sender;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_contracts::orchestrator::OrchestratorResponse;
 use ordinator_operational_actor::OperationalApi;
@@ -22,6 +25,7 @@ use ordinator_operational_actor::algorithm::operational_solution::OperationalSol
 pub use ordinator_operational_actor::messages::OperationalRequestMessage;
 pub use ordinator_operational_actor::messages::OperationalResponseMessage;
 pub use ordinator_operational_actor::messages::requests::OperationalStatusRequest;
+use ordinator_orchestrator_actor_traits::ActorError;
 use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::Communication;
@@ -480,6 +484,7 @@ impl ActorRegistry
             Id,
             Communication<OperationalRequestMessage, OperationalResponseMessage>,
         >,
+        error_channel: (Receiver<ActorError>, Sender<ActorError>),
     ) -> Self
     {
         ActorRegistry {
@@ -487,6 +492,7 @@ impl ActorRegistry
             tactical_agent_sender: tactical_agent_addr,
             supervisor_agent_senders: supervisor_agent_addrs,
             operational_agent_senders: operational_actor_communication,
+            error_channel,
         }
     }
 
@@ -558,9 +564,23 @@ where
         Ok(orchestrator)
     }
 
-    pub fn asset_factory(&self, asset: &Asset) -> Result<&Self>
+    pub fn asset_factory(
+        &self,
+        asset: &Asset,
+    ) -> Result<(
+        &Self,
+        tokio::task::JoinHandle<std::result::Result<(), anyhow::Error>>,
+    )>
     {
         dbg!();
+
+        // WARN: DO NOT CHANGE THE "0" HERE. It is forcing the Orchestrator to handle
+        // Actor errors before the Actor(s) can continue running.
+        let (error_sender, error_receiver) = flume::bounded::<ActorError>(0);
+
+        let error_task_handle: tokio::task::JoinHandle<std::result::Result<(), anyhow::Error>> =
+            tokio::spawn(actor_error_handler(error_receiver.clone()));
+
         let system_solution = Arc::new(ArcSwap::new(Arc::new(Ss::new())));
 
         dbg!();
@@ -618,6 +638,7 @@ where
             dependencies.1.clone(),
             dependencies.2.clone(),
             dependencies.3.clone(),
+            error_sender.clone(),
         )
         .with_context(|| format!("Could not construct StartegicActor {strategic_id}"))?;
 
@@ -631,6 +652,7 @@ where
             dependencies.1.clone(),
             dependencies.2.clone(),
             dependencies.3.clone(),
+            error_sender.clone(),
         )
         .with_context(|| format!("{tactical_id} could not be constructed"))?;
 
@@ -648,6 +670,7 @@ where
                 dependencies.1.clone(),
                 dependencies.2.clone(),
                 dependencies.3.clone(),
+                error_sender.clone(),
             )?;
 
             supervisor_communications.insert(supervisor_id.clone(), supervisor_communication);
@@ -664,6 +687,7 @@ where
                 dependencies.1.clone(),
                 dependencies.2.clone(),
                 dependencies.3.clone(),
+                error_sender.clone(),
             )?;
 
             operational_communications.insert(operational_id.clone(), operational_communication);
@@ -675,6 +699,7 @@ where
             tactical_communication,
             supervisor_communications,
             operational_communications,
+            (error_receiver, error_sender),
         );
 
         dbg!();
@@ -683,8 +708,22 @@ where
             .unwrap()
             .insert(asset.clone(), agent_registry);
         dbg!();
-        Ok(self)
+
+        Ok((self, error_task_handle))
     }
+}
+
+async fn actor_error_handler(error_receiver: Receiver<ActorError>) -> Result<()>
+{
+    // This function will become important if [`ActorError`]s should
+    // not simply crash the Actors
+    // loop {
+    match error_receiver.recv_async().await {
+        // This is the actor error
+        Ok(actor_error) => Err(actor_error),
+        Err(_) => Err(anyhow!("All actors are down")),
+    }
+    // }
 }
 
 // fn start_steel_repl(arc_orchestrator: ArcOrchestrator) {

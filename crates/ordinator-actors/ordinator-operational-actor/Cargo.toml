@@ -18,6 +18,7 @@ proptest = {workspace = true}
 rand = {workspace = true}
 serde = {workspace = true}
 tracing = {workspace = true}
+flume = { workspace = true}
 
 [dev-dependencies]
 mockall = {workspace = true}

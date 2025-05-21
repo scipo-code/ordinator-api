@@ -239,7 +239,7 @@ where
             .sort_unstable_by(|value1, value2| value1.0.partial_cmp(value2.0).unwrap());
 
         let strategic_period = shared_solution
-            .strategic()
+            .strategic()?
             .scheduled_task(&work_order.work_order_number);
 
         let strategic_schedule = match strategic_period {
@@ -252,7 +252,7 @@ where
 
         for activity in sorted_operations {
             let tactical_solution = shared_solution
-                .tactical()
+                .tactical()?
                 .start_and_finish_dates(&(work_order.work_order_number, *activity.0));
 
             let option_day = match tactical_solution {

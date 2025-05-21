@@ -22,7 +22,8 @@ use super::tactical_solution::TacticalWhereIsWorkOrder;
 type TotalExcessHours = Work;
 
 #[allow(dead_code)]
-pub trait TacticalAssertions {
+pub trait TacticalAssertions
+{
     fn asset_that_loading_matches_scheduled(&self) -> Result<()>;
 
     fn asset_that_capacity_is_not_exceeded(&self) -> Result<TotalExcessHours>;
@@ -35,7 +36,8 @@ impl<Ss> TacticalAssertions
 where
     Ss: SystemSolutions,
 {
-    fn asset_that_loading_matches_scheduled(&self) -> Result<()> {
+    fn asset_that_loading_matches_scheduled(&self) -> Result<()>
+    {
         let mut aggregated_load: HashMap<Resources, HashMap<Day, Work>> = HashMap::new();
 
         for (_work_order_number, solution) in &self
@@ -68,7 +70,10 @@ where
 
                 let zero_work = Work::from(0.0);
                 let agg_load = resource_map.get(day).unwrap_or(&zero_work);
-                let sch_load = self.solution.tactical_loadings.get_resource(&resource, day);
+                let sch_load = self
+                    .solution
+                    .tactical_loadings
+                    .get_resource(&resource, day)?;
 
                 if (agg_load - sch_load).0.round_dp(9) != Work::from(0.0).0 {
                     event!(Level::ERROR, agg_load = ?agg_load, sch_load = ?sch_load, resource = ?resource, day = ?day);
@@ -86,14 +91,15 @@ where
         Ok(())
     }
 
-    fn asset_that_capacity_is_not_exceeded(&self) -> Result<TotalExcessHours> {
+    fn asset_that_capacity_is_not_exceeded(&self) -> Result<TotalExcessHours>
+    {
         let mut total_excess_hours = Work::from(0.0);
         for (resource, days) in &self.solution.tactical_loadings.resources {
             for (day, load) in &days.days {
                 let capacity = self
                     .parameters
                     .tactical_capacity
-                    .get_resource(resource, day);
+                    .get_resource(resource, day)?;
 
                 total_excess_hours += (load - capacity).max(Work::from(0.0));
                 // ensure!(

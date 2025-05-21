@@ -23,9 +23,15 @@ impl TacticalResources
         TacticalResources { resources }
     }
 
-    pub fn get_resource(&self, resource: &Resources, day: &Day) -> &Work
+    // This is a horrible data structure,
+    pub fn get_resource(&self, resource: &Resources, day: &Day) -> Result<&Work>
     {
-        self.resources.get(resource).unwrap().days.get(day).unwrap()
+        self.resources
+            .get(resource)
+            .context("Resource not present")?
+            .days
+            .get(day)
+            .context("Day not present")
     }
 
     pub fn new_from_data(resources: Vec<Resources>, tactical_days: Vec<Day>, load: Work) -> Self

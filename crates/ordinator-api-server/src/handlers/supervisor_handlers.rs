@@ -1,38 +1,47 @@
 use std::sync::Arc;
 
 use anyhow::Context;
+use anyhow::anyhow;
 use axum::Json;
 use axum::debug_handler;
 use axum::extract::Path;
 use axum::extract::State;
 use axum::response::Result;
 use ordinator_orchestrator::Asset;
-use ordinator_orchestrator::Id;
 use ordinator_orchestrator::Orchestrator;
 use ordinator_orchestrator::SupervisorRequestMessage;
 use ordinator_orchestrator::SupervisorResponseMessage;
 use ordinator_orchestrator::SupervisorStatusMessage::General;
 use ordinator_orchestrator::TotalSystemSolution;
 
+use crate::routes::api::AppError;
+
 #[debug_handler]
 pub async fn status(
     State(orchestrator): State<Arc<Orchestrator<TotalSystemSolution>>>,
-    Path((asset, supervisor_id)): Path<(Asset, Id)>,
-) -> Result<Json<SupervisorResponseMessage>>
+    Path((asset, supervisor_id)): Path<(Asset, String)>,
+) -> Result<Json<SupervisorResponseMessage>, AppError>
 {
     let lock = orchestrator.actor_registries.lock().unwrap();
-    let communication = lock
+    let supervisor_agent_senders = &lock
         .get(&asset)
         .with_context(|| format!("Asset {asset} is not present in the ActorRegistry"))
         .unwrap()
-        .supervisor_agent_senders
-        .get(&supervisor_id)
+        .supervisor_agent_senders;
+
+    let supervisor_id = supervisor_agent_senders
+        .keys()
+        .find(|e| e.0 == supervisor_id)
+        .ok_or(AppError::Anyhow(anyhow!("Supervisor Not found")))?;
+
+    let communication = supervisor_agent_senders
+        .get(supervisor_id)
         .with_context(|| {
             format!(
                 "Supervisor {supervisor_id} on Asset {asset} is not present in the ActorRegistry"
             )
-        })
-        .unwrap();
+        })?;
+
     communication
         .from_agent(SupervisorRequestMessage::Status(General))
         .unwrap();

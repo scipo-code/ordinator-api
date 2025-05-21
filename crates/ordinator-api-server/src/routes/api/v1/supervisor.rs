@@ -12,7 +12,7 @@ pub async fn supervisor_routes(
 ) -> Router<Arc<Orchestrator<TotalSystemSolution>>>
 {
     Router::new()
-        .route("/:asset/:supervisor_id", get(status))
+        .route("/{asset}/{supervisor_id}", get(status))
         .with_state(state)
 
     // TODO [ ] Put these into the handler

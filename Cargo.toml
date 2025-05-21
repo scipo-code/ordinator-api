@@ -29,6 +29,7 @@ panic = 'abort'
 
 [workspace.dependencies]
 anyhow = "*"
+thiserror = "*"
 arc-swap = "*" 
 chrono = { version = "*", features = ["serde"] }
 chrono-tz = "*"

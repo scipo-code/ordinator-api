@@ -45,7 +45,11 @@ where
     // change is the way that `Communication is implemented`
     actor_registry_for_asset.from_agent(message).unwrap();
 
-    let response = actor_registry_for_asset.receiver.recv().unwrap().unwrap();
+    let response = actor_registry_for_asset
+        .receiver_from_actor
+        .recv()
+        .unwrap()
+        .unwrap();
 
     Ok(Json(response).into_response())
 }

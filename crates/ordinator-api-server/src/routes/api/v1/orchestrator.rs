@@ -14,7 +14,7 @@ pub async fn export_xlsx(
 ) -> Router<Arc<Orchestrator<TotalSystemSolution>>>
 {
     Router::new()
-        .route("export_xlsx/:asset", get(scheduler_excel_export))
+        .route("/export_xlsx/{asset}", get(scheduler_excel_export))
         .with_state(state)
 }
 
