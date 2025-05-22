@@ -90,23 +90,14 @@ where
         Actor::<SupervisorRequestMessage, SupervisorResponseMessage, SupervisorAlgorithm<Ss>>::builder()
         .agent_id(id.clone())
         .scheduling_environment(Arc::clone(&scheduling_environment_guard))
-        // TODO
-        // Make a builder here!
-        // This is a little difficult. We would like to use the same scheduling environment
-        // Why am I not allowed to propagate the error here?
-        // Why is this so damn difficult for you to understand? What are you not understanding? I think
-        // that taking a short break is a good idea.
-        // The issue is that you do not understand `Fn` traits well enough
         .algorithm(|ab| {
             ab.id(id)
-                // So this function returns a `Result`
-                .arc_swap_shared_solution(shared_solution_arc_swap)
+                // So this function returns a `Result`.
                 .parameters_and_solution(
                     &scheduling_environment_guard.lock().unwrap(),
-                )
+                )?
+                .arc_swap_shared_solution(shared_solution_arc_swap)
         })?
-        // TODO [x]
-        // These should be created in a single step
         .communication(error_channel)
         .configurations(system_configurations)
         .notify_orchestrator(notify_orchestrator)

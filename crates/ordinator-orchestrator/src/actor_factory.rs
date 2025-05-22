@@ -4,11 +4,9 @@ use std::sync::Mutex;
 use anyhow::Context;
 use anyhow::Result;
 use arc_swap::ArcSwap;
-use flume::Sender;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_operational_actor::OperationalApi;
 use ordinator_operational_actor::algorithm::operational_solution::OperationalSolution;
-use ordinator_orchestrator_actor_traits::ActorError;
 use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::SystemSolution;
@@ -26,6 +24,9 @@ use ordinator_tactical_actor::algorithm::tactical_solution::TacticalSolution;
 use crate::NotifyOrchestrator;
 use crate::Orchestrator;
 
+// This is not a good practice. You know that you will end up here again at some
+// point
+//
 pub type TotalSystemSolution =
     SystemSolution<StrategicSolution, TacticalSolution, SupervisorSolution, OperationalSolution>;
 
@@ -34,7 +35,6 @@ type ActorFactoryDependencies<Ss> = (
     Arc<ArcSwap<Ss>>,
     Arc<dyn OrchestratorNotifier>,
     Arc<ArcSwap<SystemConfigurations>>,
-    Sender<ActorError>,
 );
 
 impl<Ss> Orchestrator<Ss>
@@ -77,14 +77,6 @@ where
                     .unwrap(),
             )),
             Arc::clone(&self.system_configurations),
-            self.actor_registries
-                .lock()
-                .unwrap()
-                .get(asset)
-                .unwrap()
-                .error_channel
-                .1
-                .clone(),
         ))
     }
 
@@ -112,7 +104,7 @@ where
             build_dependencies.1,
             build_dependencies.2,
             build_dependencies.3,
-            build_dependencies.4,
+            self.error_channels.0.clone(),
         )
         .with_context(|| format!("Could not create StrategicActor for Asset {}", id.asset()))?;
 
@@ -139,7 +131,7 @@ where
             build_dependencies.1,
             build_dependencies.2,
             build_dependencies.3,
-            build_dependencies.4,
+            self.error_channels.0.clone(),
         )
         .with_context(|| format!("Could not create TacticalActor for Asset {}", id.asset()))?;
 
@@ -164,7 +156,7 @@ where
             build_dependencies.1,
             build_dependencies.2,
             build_dependencies.3,
-            build_dependencies.4,
+            self.error_channels.0.clone(),
         )
         .with_context(|| format!("Could not create supervisorActor for Asset {}", id.asset()))?;
 
@@ -194,7 +186,7 @@ where
             build_dependencies.1,
             build_dependencies.2,
             build_dependencies.3,
-            build_dependencies.4,
+            self.error_channels.0.clone(),
         )
         .with_context(|| format!("Could not create OperationalActor for Asset {}", id.asset()))?;
 

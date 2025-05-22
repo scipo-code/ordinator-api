@@ -7,6 +7,8 @@ use chrono::Utc;
 use colored::Colorize;
 use ordinator_actor_core::traits::ObjectiveValue;
 use ordinator_orchestrator_actor_traits::Solution;
+use ordinator_orchestrator_actor_traits::SwapSolution;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
 use ordinator_scheduling_environment::time_environment::TimeInterval;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
@@ -76,6 +78,30 @@ impl Solution for OperationalSolution
     fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue)
     {
         self.objective_value = other_objective_value;
+    }
+}
+
+// Then here now you need to implement the SwapSolution trait for each System
+//
+// NOTE
+// Take a break before continuing. Now I lost it completely again. I think that
+// we simply have to continue here again.
+//
+// You did this because you needed to have a way of making the
+// system work generically with the swapping operation. Forget the
+// rest for now. That is the crucial part that needs to work
+// before you go home.
+// But the issue now with the Ss is that you only have access to the
+// swapping behavior through methods. That is also an issue here.
+//
+// I am beginning to...
+impl<Ss> SwapSolution<Ss> for OperationalSolution
+where
+    Ss: SystemSolutions<Operational = Self>,
+{
+    fn swap(id: &Id, solution: Self, system_solution: &mut Ss)
+    {
+        system_solution.operational_swap(id, solution);
     }
 }
 

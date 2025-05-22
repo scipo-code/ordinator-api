@@ -116,17 +116,17 @@ pub trait SystemSolutions: Clone
     fn strategic_swap(&mut self, id: &Id, solution: Self::Strategic)
     where
         Self::Strategic: Solution;
-    fn tactical(&self) -> Result<&Self::Tactical>;
+    fn tactical_actor_solution(&self) -> Result<&Self::Tactical>;
 
     fn tactical_swap(&mut self, id: &Id, solution: Self::Tactical)
     where
         Self::Tactical: Solution;
-    fn supervisor(&self) -> Result<&Self::Supervisor>;
+    fn supervisor_actor_solutions(&self) -> Result<&Self::Supervisor>;
 
     fn supervisor_swap(&mut self, id: &Id, solution: Self::Supervisor)
     where
         Self::Supervisor: Solution;
-    fn operational(&self, id: &Id) -> Result<&Self::Operational>;
+    fn operational_actor_solutions(&self, id: &Id) -> Result<&Self::Operational>;
 
     fn all_operational(&self) -> HashSet<Id>;
     // If you make all Id's internal you could simply work on those?
@@ -171,21 +171,21 @@ where
             .with_context(|| "StrategicActor SystemSolution not found")
     }
 
-    fn tactical(&self) -> Result<&Self::Tactical>
+    fn tactical_actor_solution(&self) -> Result<&Self::Tactical>
     {
         self.tactical
             .as_ref()
             .with_context(|| "TacticalActor SystemSolution not found")
     }
 
-    fn supervisor(&self) -> Result<&Self::Supervisor>
+    fn supervisor_actor_solutions(&self) -> Result<&Self::Supervisor>
     {
         self.supervisor
             .as_ref()
             .with_context(|| "SupervisorActor SystemSolution not found")
     }
 
-    fn operational(&self, id: &Id) -> Result<&Self::Operational>
+    fn operational_actor_solutions(&self, id: &Id) -> Result<&Self::Operational>
     {
         self.operational
             .get(id)
@@ -211,14 +211,14 @@ where
     where
         Self::Tactical: Solution,
     {
-        todo!()
+        self.tactical = Some(solution);
     }
 
     fn supervisor_swap(&mut self, id: &Id, solution: Self::Supervisor)
     where
         Self::Supervisor: Solution,
     {
-        todo!()
+        self.supervisor = Some(solution);
     }
 
     fn all_operational(&self) -> HashSet<Id>
@@ -356,6 +356,27 @@ impl<T> WhereIsWorkOrder<T>
     {
         matches!(self, WhereIsWorkOrder::Tactical(_))
     }
+}
+
+// NOTE
+// One thing is for sure here. It does not make sense to
+// have `Ss` and then only have SystemSolution in here.
+// You have a dilemma here then. Either you make the
+// trait Ss or you remove Ss from everywhere in the
+// code. I can feel that is the right question to be
+// asking.
+//
+// I will keep the [`Ss`]
+pub trait SwapSolution<Ss>: Solution + Sized
+where
+    Ss: SystemSolutions,
+{
+    fn swap(id: &Id, solution: Self, system_solution: &mut Ss);
+
+    // fn perform_swap(id: &Id, solution: Self, system_solution:
+    // Self::SystemSolution) {
+    //     Self::swap(id, solution, system_solution);
+    // }
 }
 
 pub trait SupervisorInterface

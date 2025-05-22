@@ -251,7 +251,15 @@ where
     {
         let operational_shared_solution = self
             .loaded_shared_solution
-            .supervisor()?
+            .supervisor_actor_solutions()
+            .with_context(|| {
+                format!(
+                    "SupervisorSolution not available to the OperationalActor:\n{}",
+                    self.id
+                )
+            })?
+            // The fact that this error was not propagated with `with_context` caused you a 5 minute
+            // delay and significant redirections.
             .delegates_for_agent(&self.id);
 
         self.solution
@@ -401,7 +409,12 @@ where
 
         let total_time =
             wrench_time + break_time + off_shift_time + toolbox_time + non_productive_time;
-        assert_eq!(total_time, self.parameters.availability.duration());
+
+        ensure!(
+            total_time == self.parameters.availability.duration(),
+            self.solution_intermediate.0.len()
+        );
+        assert!(total_time == self.parameters.availability.duration());
 
         event!(Level::TRACE, wrench_time = ?wrench_time,
         break_time = ?break_time,
@@ -441,7 +454,8 @@ where
         // it should be named: `task`?
         let work_order_activities = &self
             .loaded_shared_solution
-            .supervisor()?
+            .supervisor_actor_solutions()
+            .with_context(|| "SupervisorSolution is not initialized for the OperationalActor")?
             .delegated_tasks(&self.id);
 
         for work_order_activity in work_order_activities {
@@ -722,7 +736,7 @@ where
         let tactical_days_option = self
             .loaded_shared_solution
             // Swap the solution in the `ArcSwap`
-            .tactical()?
+            .tactical_actor_solution()?
             // FIX [ ]
             // Rename this! It is basically a way of sharing what the
             // `tactical` actor needs to do his scheduling.
@@ -755,7 +769,9 @@ where
             (Some(Some(period)), _) => (period.start_date(), period.end_date()),
 
             _ => bail!(
-                "This means that there is no state in either the Tactical or the Strategic agent"
+                "This means that there is no state in either the Tactical or the Strategic agent\nfile: {}\nline: {}",
+                file!(),
+                line!()
             ),
         };
 

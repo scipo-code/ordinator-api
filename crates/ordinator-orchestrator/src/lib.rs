@@ -57,6 +57,7 @@ pub use ordinator_tactical_actor::messages::requests::TacticalStatusMessage;
 use ordinator_total_data_processing::excel_dumps::create_excel_dump;
 use serde::Deserialize;
 use serde::Serialize;
+use tokio::task::JoinHandle;
 use tracing::instrument;
 
 use self::actor_registry::ActorRegistry;
@@ -68,6 +69,7 @@ pub struct Orchestrator<Ss>
     pub scheduling_environment: Arc<std::sync::Mutex<SchedulingEnvironment>>,
     pub system_solutions: std::sync::Mutex<HashMap<Asset, Arc<ArcSwap<Ss>>>>,
     pub actor_registries: std::sync::Mutex<HashMap<Asset, ActorRegistry>>,
+    pub error_channels: (Sender<ActorError>, Receiver<ActorError>),
     pub system_configurations: Arc<ArcSwap<SystemConfigurations>>,
     pub database_connections: DataBaseConnection,
     pub actor_notify: Option<Weak<Orchestrator<Ss>>>,
@@ -484,7 +486,6 @@ impl ActorRegistry
             Id,
             Communication<OperationalRequestMessage, OperationalResponseMessage>,
         >,
-        error_channel: (Receiver<ActorError>, Sender<ActorError>),
     ) -> Self
     {
         ActorRegistry {
@@ -492,7 +493,6 @@ impl ActorRegistry
             tactical_agent_sender: tactical_agent_addr,
             supervisor_agent_senders: supervisor_agent_addrs,
             operational_agent_senders: operational_actor_communication,
-            error_channel,
         }
     }
 
@@ -535,7 +535,7 @@ where
         + Sync
         + 'static,
 {
-    pub fn new() -> Result<Arc<Self>>
+    pub fn new() -> Result<(Arc<Self>, JoinHandle<Result<()>>)>
     {
         let configurations = SystemConfigurations::read_all_configs().unwrap();
 
@@ -550,7 +550,11 @@ where
         // The configurations are already in place, you should strive to make the system
         // as self contained as possible.
         // This simply initializes the WorkerEnvironment, this should be done in the
-        // building of the `SchedulingEnvironment` not in here.
+        // building of the `SchedulingEnvironment` not in here
+        let error_channels: (Sender<ActorError>, Receiver<ActorError>) = flume::bounded(0);
+
+        let error_task_handle: JoinHandle<Result<()>> =
+            tokio::spawn(Self::actor_error_handler(error_channels.1.clone()));
 
         let orchestrator: Arc<Orchestrator<Ss>> = Arc::new_cyclic(|weak_self| Orchestrator {
             scheduling_environment,
@@ -560,26 +564,28 @@ where
             actor_notify: Some(weak_self.clone()),
             system_configurations: configurations,
             database_connections,
+            error_channels,
         });
-        Ok(orchestrator)
+        Ok((orchestrator, error_task_handle))
     }
 
-    pub fn asset_factory(
-        &self,
-        asset: &Asset,
-    ) -> Result<(
-        &Self,
-        tokio::task::JoinHandle<std::result::Result<(), anyhow::Error>>,
-    )>
+    async fn actor_error_handler(error_receiver: Receiver<ActorError>) -> Result<()>
     {
-        dbg!();
+        // This function will become important if [`ActorError`]s should
+        // not simply crash the Actors
+        // loop {
+        match error_receiver.recv_async().await {
+            // This is the actor error
+            Ok(actor_error) => Err(actor_error),
+            Err(_) => Err(anyhow!("All actors are down")),
+        }
+        // }
+    }
 
+    pub fn asset_factory(&self, asset: &Asset) -> Result<&Self>
+    {
         // WARN: DO NOT CHANGE THE "0" HERE. It is forcing the Orchestrator to handle
         // Actor errors before the Actor(s) can continue running.
-        let (error_sender, error_receiver) = flume::bounded::<ActorError>(0);
-
-        let error_task_handle: tokio::task::JoinHandle<std::result::Result<(), anyhow::Error>> =
-            tokio::spawn(actor_error_handler(error_receiver.clone()));
 
         let system_solution = Arc::new(ArcSwap::new(Arc::new(Ss::new())));
 
@@ -638,7 +644,7 @@ where
             dependencies.1.clone(),
             dependencies.2.clone(),
             dependencies.3.clone(),
-            error_sender.clone(),
+            self.error_channels.0.clone(),
         )
         .with_context(|| format!("Could not construct StartegicActor {strategic_id}"))?;
 
@@ -652,7 +658,7 @@ where
             dependencies.1.clone(),
             dependencies.2.clone(),
             dependencies.3.clone(),
-            error_sender.clone(),
+            self.error_channels.0.clone(),
         )
         .with_context(|| format!("{tactical_id} could not be constructed"))?;
 
@@ -670,7 +676,7 @@ where
                 dependencies.1.clone(),
                 dependencies.2.clone(),
                 dependencies.3.clone(),
-                error_sender.clone(),
+                self.error_channels.0.clone(),
             )?;
 
             supervisor_communications.insert(supervisor_id.clone(), supervisor_communication);
@@ -687,7 +693,7 @@ where
                 dependencies.1.clone(),
                 dependencies.2.clone(),
                 dependencies.3.clone(),
-                error_sender.clone(),
+                self.error_channels.0.clone(),
             )?;
 
             operational_communications.insert(operational_id.clone(), operational_communication);
@@ -699,31 +705,16 @@ where
             tactical_communication,
             supervisor_communications,
             operational_communications,
-            (error_receiver, error_sender),
         );
 
-        dbg!();
         self.actor_registries
             .lock()
             .unwrap()
             .insert(asset.clone(), agent_registry);
         dbg!();
 
-        Ok((self, error_task_handle))
+        Ok(self)
     }
-}
-
-async fn actor_error_handler(error_receiver: Receiver<ActorError>) -> Result<()>
-{
-    // This function will become important if [`ActorError`]s should
-    // not simply crash the Actors
-    // loop {
-    match error_receiver.recv_async().await {
-        // This is the actor error
-        Ok(actor_error) => Err(actor_error),
-        Err(_) => Err(anyhow!("All actors are down")),
-    }
-    // }
 }
 
 // fn start_steel_repl(arc_orchestrator: ArcOrchestrator) {

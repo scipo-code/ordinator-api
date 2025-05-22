@@ -22,6 +22,7 @@ use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::StateLink;
+use ordinator_orchestrator_actor_traits::SwapSolution;
 use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
@@ -272,13 +273,15 @@ where
     pub fn algorithm<F, S, P, I, Ss>(mut self, configure: F) -> Result<Self>
     where
         SpecificAlgorithm: From<algorithm::Algorithm<S, P, I, Ss>>,
-        S: Solution<Parameters = P> + Debug + Clone,
+        // I do not think that this should be implemented on the
+        // You are over engineering it here but I do not see what
+        // other options that we have for making this a success.
+        S: Solution<Parameters = P> + Debug + Clone + SwapSolution<Ss>,
         Ss: SystemSolutions,
         P: Parameters,
         I: Default,
         F: FnOnce(AlgorithmBuilder<S, P, I, Ss>) -> Result<AlgorithmBuilder<S, P, I, Ss>>,
     {
-        dbg!();
         let algorithm_builder = algorithm::Algorithm::builder();
         dbg!();
 

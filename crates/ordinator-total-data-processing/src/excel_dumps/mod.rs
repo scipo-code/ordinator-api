@@ -252,7 +252,7 @@ where
 
         for activity in sorted_operations {
             let tactical_solution = shared_solution
-                .tactical()?
+                .tactical_actor_solution()?
                 .start_and_finish_dates(&(work_order.work_order_number, *activity.0));
 
             let option_day = match tactical_solution {

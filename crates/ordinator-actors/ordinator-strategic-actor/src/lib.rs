@@ -96,8 +96,8 @@ where
         .algorithm(|ab| {
             ab.id(id)
                 // So this function returns a `Result`
+                .parameters_and_solution(&scheduling_environment_guard.lock().unwrap())?
                 .arc_swap_shared_solution(shared_solution_arc_swap)
-                .parameters_and_solution(&scheduling_environment_guard.lock().unwrap())
         })?
         .communication(error_channel)
         .configurations(system_configurations)

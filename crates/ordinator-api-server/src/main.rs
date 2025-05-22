@@ -34,7 +34,6 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
-use anyhow::anyhow;
 use axum::Router;
 use axum::routing::get;
 use ordinator_orchestrator::Asset;
@@ -43,6 +42,7 @@ use ordinator_orchestrator::Asset;
 use ordinator_orchestrator::Orchestrator;
 use ordinator_orchestrator::TotalSystemSolution;
 use routes::api::v1::api_scope;
+use tokio::task::JoinHandle;
 use tower_http::services::ServeDir;
 
 #[tokio::main]
@@ -53,14 +53,15 @@ async fn main() -> Result<()>
 
     // Should the
     // ISSUE #000 Turn the nested `std::sync::Mutex` into `tokio::sync::Mutex`
-    let orchestrator: Arc<Orchestrator<TotalSystemSolution>> =
-        Orchestrator::new().context("Orchestrator could not be created")?;
+    let (orchestrator, error_handle): (
+        Arc<Orchestrator<TotalSystemSolution>>,
+        JoinHandle<Result<()>>,
+    ) = Orchestrator::new().context("Orchestrator could not be created")?;
 
     // WARN: Manually add `Asset`s here. Everything added here should be done from
     // the API in actual production. So this is only a temporary solution.
 
-    dbg!();
-    let (value, error_task) = orchestrator.asset_factory(&Asset::DF)?;
+    orchestrator.asset_factory(&Asset::DF)?;
 
     // WARN
 
@@ -114,7 +115,7 @@ async fn main() -> Result<()>
 
     tokio::select! {
         res = server => res?,
-        res = error_task => res??,
+        res = error_handle => res??,
     }
 
     Ok(())

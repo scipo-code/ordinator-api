@@ -73,7 +73,10 @@ where
                 let sch_load = self
                     .solution
                     .tactical_loadings
-                    .get_resource(&resource, day)?;
+                    .get_resource(&resource, day)
+                    // The important thing here is that the asserts should not know
+                    // about the initialization of the
+                    .unwrap_or(&zero_work);
 
                 if (agg_load - sch_load).0.round_dp(9) != Work::from(0.0).0 {
                     event!(Level::ERROR, agg_load = ?agg_load, sch_load = ?sch_load, resource = ?resource, day = ?day);

@@ -17,6 +17,7 @@ use ordinator_actor_core::traits::ObjectiveValueType;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::StrategicInterface;
+use ordinator_orchestrator_actor_traits::SwapSolution;
 use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_orchestrator_actor_traits::delegate::Delegate;
 use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
@@ -62,6 +63,7 @@ where
     type Algorithm = Algorithm<SupervisorSolution, SupervisorParameters, (), Ss>;
     type Options = SupervisorOptions;
 
+    // I think that we can move this out
     fn make_atomic_pointer_swap(&mut self)
     {
         // Performance enhancements:
@@ -72,10 +74,28 @@ where
         //   shared_solution = Arc::new(SharedSolution { tactical:
         //   self.tactical_solution.clone(), // Copy over other fields without cloning
         //   ..(**old).clone() });
+        // NOTE
+        // Every actor will have to specify how to make this work
+        // on its own. There is no other way of doing it I think.
+        //
+        // Yes you have to make it like that. Also I can sense that
+        // you will have to make the code work more efficiently with the
+        // `SchedulingEnvironment` in the future.
+        //
+        // I do not see what other way we could make this work. The best
+        // approach would possibly be
         self.arc_swap_shared_solution.rcu(|old| {
-            let mut shared_solution = (**old).clone();
-            shared_solution.supervisor_swap(&self.id, self.solution.clone());
-            Arc::new(shared_solution)
+            let mut system_solutions = (**old).clone();
+            // You have to invert the dependency here.
+            // I cannot see how to make this function in a correct
+            // manner. The best possible way here is to make the system work with
+            // the required,
+            SwapSolution::swap(&self.id, self.solution.clone(), &mut system_solutions);
+            // <SupervisorSolution as SwapSolution>::swap(self.id, self.solution,
+            // system_solutions) swap(self.id, self.solution.clone(),
+            // shared_solution)
+            system_solutions.supervisor_swap(&self.id, self.solution.clone());
+            Arc::new(system_solutions)
         });
     }
 

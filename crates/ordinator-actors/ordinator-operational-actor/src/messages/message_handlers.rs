@@ -70,7 +70,7 @@ where
                 let (assign, assess, unassign): (u64, u64, u64) = self
                     .algorithm
                     .loaded_shared_solution
-                    .supervisor()?
+                    .supervisor_actor_solutions()?
                     .count_delegate_types(&self.actor_id);
 
                 // Remember that the business types should not be the same type as the

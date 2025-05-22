@@ -261,7 +261,7 @@ where
     fn schedule(&mut self) -> Result<()>
     {
         self.asset_that_loading_matches_scheduled()
-            .with_context(|| format!("TESTING_ASSERTION on line: {}", line!()))?;
+            .with_context(|| format!("TESTING_ASSERTION\nfile: {}\nline: {}", file!(), line!()))?;
         for (work_order_number, solution) in &self.solution.tactical_work_orders.0.clone() {
             let tactical_parameter = self
                 .parameters
@@ -457,7 +457,9 @@ where
             self.solution
                 .tactical_insert_work_order(current_work_order_number, operation_solutions);
             self.asset_that_loading_matches_scheduled()
-                .with_context(|| format!("TESTING_ASSERTION on line: {}", line!()))?;
+                .with_context(|| {
+                    format!("TESTING_ASSERTION\nfile: {}\nline: {}", file!(), line!())
+                })?;
         }
         Ok(())
     }
@@ -495,7 +497,7 @@ where
 
     fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm
     {
-        todo!()
+        &mut self.0
     }
 }
 

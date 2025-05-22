@@ -1093,15 +1093,16 @@ where
             //
             // If this value is some. It means that the Tactical Algorithm has scheduled the
             // work order.
-            let tactical_work_orders = self
+            let tactical_scheduled_period = self
                 .loaded_shared_solution
-                .tactical()
-                ?
-                .tactical_period(work_order_number);
+                .tactical_actor_solution()
+                .ok()
+                .and_then(|solution| solution.tactical_period(work_order_number));
 
+                
             if strategic_parameter.locked_in_period.is_some() {
                 work_order_numbers.push(ForcedWorkOrder::Locked(*work_order_number));
-            } else if let Some(tactical_period) = tactical_work_orders {
+            } else if let Some(tactical_period) = tactical_scheduled_period {
                 work_order_numbers.push(ForcedWorkOrder::FromTactical((
                     *work_order_number,
                     tactical_period.clone(),
@@ -1178,6 +1179,7 @@ where
     // locked_in_period constaint in simply handled in there.
     #[instrument(level = "trace", skip_all)]
     fn schedule(&mut self) -> Result<()> {
+        dbg!();
         // WARNING
         // I am not sure that this is the correct place of putting this.
         // What should we change here? I think that the best thing would be to make this

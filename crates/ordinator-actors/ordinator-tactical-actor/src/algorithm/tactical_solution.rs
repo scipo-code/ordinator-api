@@ -5,6 +5,8 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use ordinator_orchestrator_actor_traits::Solution;
+use ordinator_orchestrator_actor_traits::SwapSolution;
+use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_orchestrator_actor_traits::WhereIsWorkOrder;
 use ordinator_scheduling_environment::time_environment::day::Day;
 use ordinator_scheduling_environment::time_environment::day::Days;
@@ -14,6 +16,7 @@ use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
 use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
 use ordinator_scheduling_environment::worker_environment::TacticalOptions;
+use ordinator_scheduling_environment::worker_environment::resources::Id;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use serde::Deserialize;
 use serde::Serialize;
@@ -93,6 +96,16 @@ impl Solution for TacticalSolution
     fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue)
     {
         self.objective_value = other_objective_value;
+    }
+}
+
+impl<Ss> SwapSolution<Ss> for TacticalSolution
+where
+    Ss: SystemSolutions<Tactical = TacticalSolution>,
+{
+    fn swap(id: &Id, solution: Self, system_solution: &mut Ss)
+    {
+        system_solution.tactical_swap(id, solution);
     }
 }
 

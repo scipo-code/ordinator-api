@@ -28,10 +28,10 @@ impl TacticalResources
     {
         self.resources
             .get(resource)
-            .context("Resource not present")?
+            .with_context(|| format!("Resource not present {resource}"))?
             .days
             .get(day)
-            .context("Day not present")
+            .with_context(|| format!("Day not present {day}"))
     }
 
     pub fn new_from_data(resources: Vec<Resources>, tactical_days: Vec<Day>, load: Work) -> Self

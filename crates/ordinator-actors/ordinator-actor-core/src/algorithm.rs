@@ -7,6 +7,7 @@ use arc_swap::ArcSwap;
 use arc_swap::Guard;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::Solution;
+use ordinator_orchestrator_actor_traits::SwapSolution;
 use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
@@ -108,9 +109,13 @@ where
 }
 
 // Why does this function require a `Alg` that is `Result<Alg>`
+// Then each Solution will have to implement the trait for a
+// specific concrete type. I think that is the best approach here
+// Do you want to rethink this before. The issue here is that
+// we might have to make a lot of different
 impl<S, P, I, Ss> AlgorithmBuilder<S, P, I, Ss>
 where
-    S: Solution<Parameters = P>,
+    S: SwapSolution<Ss> + Solution<Parameters = P> + Clone,
     P: Parameters,
     I: Default,
     Ss: SystemSolutions,
@@ -176,13 +181,31 @@ where
         Ok(self)
     }
 
-    pub fn arc_swap_shared_solution(mut self, shared_solution_arc_swap: Arc<ArcSwap<Ss>>) -> Self
+    pub fn arc_swap_shared_solution(
+        mut self,
+        shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
+    ) -> Result<Self>
     where
         Ss: SystemSolutions,
     {
-        dbg!();
         self.arc_swap_shared_solution = Some(shared_solution_arc_swap);
-        dbg!();
+        // CRUCIAL INSIGHT
+        // The individual solutions should specify how to swap the
+        // solution in the [`SystemSolution`]. It is not the task
+        // of the system solution to know this.
+        // This is crucial
+        self.arc_swap_shared_solution.as_ref().unwrap().rcu(|old| {
+            let mut system_solution = (**old).clone();
+            // SwapSolution takes a mutable reference to the `SystemSolution`
+            SwapSolution::swap(
+                self.id.as_ref().unwrap(),
+                self.solution.as_ref().unwrap().clone(),
+                &mut system_solution,
+            );
+            Arc::new(system_solution)
+        });
+        // self.arc_swap_shared_solution(shared_solution_arc_swap);
+
         self.loaded_shared_solution = Some(
             self.arc_swap_shared_solution
                 .as_ref()
@@ -190,7 +213,7 @@ where
                 .load(),
         );
         dbg!();
-        self
+        Ok(self)
     }
 }
 

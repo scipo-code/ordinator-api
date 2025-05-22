@@ -32,7 +32,7 @@ where
     {
         for delegate in self
             .loaded_shared_solution
-            .supervisor()?
+            .supervisor_actor_solutions()?
             .delegates_for_agent(&self.id)
             .values()
         {
