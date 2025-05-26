@@ -203,3 +203,13 @@ will make imperium significantly more ergonomic.
 <!-- done with Profiling using a flamegraph. -->
 
 
+# Error handling
+Error handling is used extensively to test the validity of the system. That means that
+Results are used for business logic invariants as well. To make the system standardized
+colors are used to standardize the understanding of the colors.
+
+* Time related: Green
+* Job related: Yellow
+* Resources related: Blue
+* Objective: Purple
+* 

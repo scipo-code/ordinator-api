@@ -1,3 +1,5 @@
+use anyhow::Result;
+use anyhow::ensure;
 use chrono::DateTime;
 use chrono::Days;
 use chrono::NaiveTime;
@@ -98,10 +100,13 @@ pub struct TimeInterval
 
 impl TimeInterval
 {
-    pub fn new(start: NaiveTime, end: NaiveTime) -> Self
+    pub fn new(start: NaiveTime, end: NaiveTime) -> Result<Self>
     {
-        assert_ne!(start, end);
-        Self { start, end }
+        ensure!(
+            start != end,
+            "The duratation of a time interval has to be non-zero"
+        );
+        Ok(Self { start, end })
     }
 
     pub fn from_date_times(start_date_time: DateTime<Utc>, finish_date_time: DateTime<Utc>)

@@ -3,6 +3,7 @@ use std::sync::MutexGuard;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::ensure;
 use chrono::TimeDelta;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_scheduling_environment::SchedulingEnvironment;
@@ -49,10 +50,15 @@ impl Parameters for OperationalParameters
                     operation.operation_analytic.preparation_time,
                 );
 
-                let operational_parameter = match operational_parameter_option {
+                // Are we mutating this function?
+                let operational_parameter = match operational_parameter_option.ok() {
                     Some(operational_parameter) => operational_parameter,
                     None => continue,
                 };
+                ensure!(
+                    !operational_parameter.work.is_zero(),
+                    "Work for an activity should never be zero in the OperationalActor"
+                );
 
                 work_order_parameters.insert(work_order_activity, operational_parameter);
             }
@@ -128,14 +134,14 @@ impl OperationalParameter
         // end_window: DateTime<Utc>,
         // delegated: Delegate,
         // marginal_fitness: MarginalFitness,
-    ) -> Option<Self>
+    ) -> Result<Self>
     {
+        //
         let combined_time = (work + _preparation).in_seconds();
         let operation_time_delta = TimeDelta::new(combined_time, 0).unwrap();
-        if work.to_f64() == 0.0 {
-            return None;
-        }
-        Some(Self {
+        ensure!(work.to_f64() > 0.0);
+        ensure!(operation_time_delta > TimeDelta::new(0, 0).unwrap());
+        Ok(Self {
             work,
             _preparation,
             operation_time_delta,

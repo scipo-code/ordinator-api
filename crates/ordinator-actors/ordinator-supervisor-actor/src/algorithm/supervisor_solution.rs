@@ -30,7 +30,7 @@ impl Solution for SupervisorSolution
     type ObjectiveValue = SupervisorObjectiveValue;
     type Parameters = SupervisorParameters;
 
-    fn new(parameters: &Self::Parameters) -> Self
+    fn new(parameters: &Self::Parameters) -> Result<Self>
     {
         // The SupervisorParameters should have knowledge of the agents.
 
@@ -60,10 +60,10 @@ impl Solution for SupervisorSolution
 
         let objective_value = Self::ObjectiveValue::default();
 
-        Self {
+        Ok(Self {
             objective_value,
             operational_state_machine,
-        }
+        })
     }
 
     fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue)

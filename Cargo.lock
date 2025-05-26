@@ -1241,6 +1241,7 @@ dependencies = [
  "flume",
  "ordinator-configuration",
  "ordinator-scheduling-environment",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

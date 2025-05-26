@@ -35,8 +35,27 @@ pub trait OrchestratorNotifier: Send + Sync + 'static
         asset: &Asset,
     ) -> Result<()>;
 }
+use thiserror::Error;
+#[derive(Error, Debug)]
+pub enum ActorError
+{
+    #[error("{info:#?}")]
+    OptimizationError
+    {
+        info: ErrorInfo
+    },
+}
 
-pub type ActorError = anyhow::Error;
+use std::fmt::Debug;
+#[derive(Debug)]
+pub struct ErrorInfo
+{
+    pub symptom: &'static str,
+    pub hypothesis: &'static str,
+    pub location: &'static std::panic::Location<'static>,
+    pub action: &'static str,
+    pub context: Box<dyn Debug + Send + Sync + 'static>,
+}
 pub struct Communication<RequestMessage, Res>
 {
     sender_to_actor: Sender<ActorMessage<RequestMessage>>,
@@ -263,7 +282,7 @@ where
 // `from` trait. Meaning that we should focus on making the system
 // work with the
 // Should this function have an option or not? Yes it should.
-pub trait Solution
+pub trait Solution: Sized
 {
     type ObjectiveValue;
     type Parameters;
@@ -276,7 +295,7 @@ pub trait Solution
     // Should you have the options here? I think that you should derive the...
     //
     // The solution should only contain the things that actually change.
-    fn new(parameters: &Self::Parameters) -> Self;
+    fn new(parameters: &Self::Parameters) -> Result<Self>;
 
     fn update_objective_value(&mut self, other_objective: Self::ObjectiveValue);
 }
@@ -484,6 +503,6 @@ where
         system_solution_arc_swap: Arc<ArcSwap<Ss>>,
         notify_orchestrator: Arc<dyn OrchestratorNotifier>,
         system_configurations: Arc<ArcSwap<SystemConfigurations>>,
-        error_channel: Sender<ActorError>,
+        error_channel: Sender<anyhow::Error>,
     ) -> Result<Self::Communication>;
 }

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use anyhow::Result;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::SwapSolution;
 use ordinator_orchestrator_actor_traits::SystemSolutions;
@@ -55,7 +56,7 @@ impl Solution for StrategicSolution
     type ObjectiveValue = StrategicObjectiveValue;
     type Parameters = StrategicParameters;
 
-    fn new(parameters: &Self::Parameters) -> Self
+    fn new(parameters: &Self::Parameters) -> Result<Self>
     {
         let strategic_loadings = parameters
             .strategic_capacity
@@ -100,11 +101,11 @@ impl Solution for StrategicSolution
         //
         //
         let strategic_objective_value = StrategicObjectiveValue::new(&parameters.strategic_options);
-        Self {
+        Ok(Self {
             objective_value: strategic_objective_value,
             strategic_scheduled_work_orders,
             strategic_loadings,
-        }
+        })
     }
 
     fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue)

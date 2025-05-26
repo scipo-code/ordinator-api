@@ -25,7 +25,6 @@ use ordinator_operational_actor::algorithm::operational_solution::OperationalSol
 pub use ordinator_operational_actor::messages::OperationalRequestMessage;
 pub use ordinator_operational_actor::messages::OperationalResponseMessage;
 pub use ordinator_operational_actor::messages::requests::OperationalStatusRequest;
-use ordinator_orchestrator_actor_traits::ActorError;
 use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
 use ordinator_orchestrator_actor_traits::Communication;
@@ -69,7 +68,7 @@ pub struct Orchestrator<Ss>
     pub scheduling_environment: Arc<std::sync::Mutex<SchedulingEnvironment>>,
     pub system_solutions: std::sync::Mutex<HashMap<Asset, Arc<ArcSwap<Ss>>>>,
     pub actor_registries: std::sync::Mutex<HashMap<Asset, ActorRegistry>>,
-    pub error_channels: (Sender<ActorError>, Receiver<ActorError>),
+    pub error_channels: (Sender<anyhow::Error>, Receiver<anyhow::Error>),
     pub system_configurations: Arc<ArcSwap<SystemConfigurations>>,
     pub database_connections: DataBaseConnection,
     pub actor_notify: Option<Weak<Orchestrator<Ss>>>,
@@ -551,7 +550,10 @@ where
         // as self contained as possible.
         // This simply initializes the WorkerEnvironment, this should be done in the
         // building of the `SchedulingEnvironment` not in here
-        let error_channels: (Sender<ActorError>, Receiver<ActorError>) = flume::bounded(0);
+        //
+        // This is a huge no go. you should have done this in an entirely different way
+        // to make this system work.
+        let error_channels: (Sender<anyhow::Error>, Receiver<anyhow::Error>) = flume::bounded(0);
 
         let error_task_handle: JoinHandle<Result<()>> =
             tokio::spawn(Self::actor_error_handler(error_channels.1.clone()));
@@ -569,7 +571,7 @@ where
         Ok((orchestrator, error_task_handle))
     }
 
-    async fn actor_error_handler(error_receiver: Receiver<ActorError>) -> Result<()>
+    async fn actor_error_handler(error_receiver: Receiver<anyhow::Error>) -> Result<()>
     {
         // This function will become important if [`ActorError`]s should
         // not simply crash the Actors
@@ -589,14 +591,14 @@ where
 
         let system_solution = Arc::new(ArcSwap::new(Arc::new(Ss::new())));
 
-        dbg!();
+        
         self.system_solutions
             .lock()
             .unwrap()
             .insert(asset.clone(), system_solution);
         let dependencies = self.extract_factory_dependencies(asset)?;
 
-        dbg!();
+        
         let (strategic_id, tactical_id, supervisors, operationals) = {
             let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
             let strategic_id = scheduling_environment_guard
@@ -637,7 +639,7 @@ where
             (strategic_id, tactical_id, supervisors, operationals)
         };
 
-        dbg!();
+        
         let strategic_communication = StrategicApi::construct_actor(
             strategic_id.clone(),
             dependencies.0.clone(),
@@ -648,10 +650,10 @@ where
         )
         .with_context(|| format!("Could not construct StartegicActor {strategic_id}"))?;
 
-        dbg!();
+        
         // Where should their IDs come from? I think that the best approach is to
         // include them from
-        dbg!();
+        
         let tactical_communication = TacticalApi::construct_actor(
             tactical_id.clone(),
             dependencies.0.clone(),
@@ -662,12 +664,12 @@ where
         )
         .with_context(|| format!("{tactical_id} could not be constructed"))?;
 
-        dbg!();
+        
         // This is a good sign. It means that the system is performing correctly. What
         // should be done about the code in general?
         // Why is the supervisor no used here? This is also not created in the best way.
 
-        dbg!();
+        
         let mut supervisor_communications = HashMap::default();
         for supervisor_id in supervisors {
             let supervisor_communication = SupervisorApi::construct_actor(
@@ -682,11 +684,11 @@ where
             supervisor_communications.insert(supervisor_id.clone(), supervisor_communication);
         }
 
-        dbg!();
+        
 
         let mut operational_communications = HashMap::default();
         for operational_id in operationals {
-            dbg!();
+            
             let operational_communication = OperationalApi::construct_actor(
                 operational_id.clone(),
                 dependencies.0.clone(),
@@ -699,7 +701,7 @@ where
             operational_communications.insert(operational_id.clone(), operational_communication);
         }
 
-        dbg!();
+        
         let agent_registry = ActorRegistry::new(
             strategic_communication,
             tactical_communication,
@@ -711,7 +713,7 @@ where
             .lock()
             .unwrap()
             .insert(asset.clone(), agent_registry);
-        dbg!();
+        
 
         Ok(self)
     }

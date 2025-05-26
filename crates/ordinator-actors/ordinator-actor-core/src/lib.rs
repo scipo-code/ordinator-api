@@ -9,12 +9,12 @@ use std::sync::Mutex;
 use algorithm::AlgorithmBuilder;
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
 use arc_swap::ArcSwap;
 use colored::Colorize;
 use flume::Receiver;
 use flume::Sender;
 use ordinator_configuration::SystemConfigurations;
-use ordinator_orchestrator_actor_traits::ActorError;
 use ordinator_orchestrator_actor_traits::ActorMessage;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
@@ -56,7 +56,7 @@ where
     pub sender_to_orchestrator: Sender<Result<ActorResponse>>,
     pub configurations: Arc<ArcSwap<SystemConfigurations>>,
     pub notify_orchestrator: Arc<dyn OrchestratorNotifier>,
-    pub error_channel: Sender<ActorError>,
+    pub error_channel: Sender<anyhow::Error>,
 }
 
 // TODO [ ]
@@ -74,37 +74,33 @@ where
     // from there.
     pub fn run(&mut self) -> ()
     {
-        dbg!();
         let mut schedule_iteration = ScheduleIteration::default();
 
-        dbg!();
-        if let Err(actor_error) = self
-            .algorithm
-            .schedule()
-            .with_context(|| {
-                format!(
-                    "Could not perform initial schedule iteration\nfile: {}\nline: {}",
-                    file!(),
-                    line!()
-                )
-            })
-            .with_context(|| "Could not run initial ScheduleIteration".to_string())
-        {
+        // I do not understand what I should be doing here? I think that the best
+        // approach is to understand this as well as I can.
+
+        if let Err(actor_error) = self.algorithm.schedule().with_context(|| {
+            format!(
+                "Could not perform initial schedule iteration for\nActor: {}\nfile: {}\nline: {}",
+                self.actor_id,
+                file!(),
+                line!()
+            )
+        }) {
             self.error_channel
-                .send(actor_error)
+                .send(anyhow!(actor_error))
                 .expect("If this happens no amount of error handling will save us")
         }
 
         schedule_iteration.increment();
 
-        dbg!();
         loop {
+            dbg!(&self.actor_id);
             while let Ok(message) = self.receiver_from_orchestrator.try_recv() {
                 self.handle(message)
                     .expect("Message could not be handled by the Actor");
             }
 
-            dbg!();
             // There is no good way of doing this. You simply have to make the
             // system so that it will always return to the correct state.
             // You have to circumvent the `configurations` here and simply
@@ -142,7 +138,6 @@ where
                     .expect("If this happens no amount of error handling will save us")
             }
 
-            dbg!();
             schedule_iteration.increment();
         }
     }
@@ -205,7 +200,7 @@ where
     notify_orchestrator: Option<Arc<dyn OrchestratorNotifier>>,
     //
     communication_for_orchestrator: Option<Communication<ActorRequest, ActorResponse>>,
-    error_channel: Option<Sender<ActorError>>,
+    error_channel: Option<Sender<anyhow::Error>>,
 }
 
 impl<ActorRequest, ActorResponse, SpecificAlgorithm>
@@ -229,7 +224,7 @@ where
             notify_orchestrator: self.notify_orchestrator.unwrap(),
             error_channel: self.error_channel.unwrap(),
         };
-        dbg!();
+
         let thread_name = format!(
             "{} for Asset: {}",
             std::any::type_name_of_val(&agent),
@@ -239,12 +234,11 @@ where
                 .first()
                 .expect("Every agent needs to be associated with an Asset"),
         );
-        dbg!();
+
         std::thread::Builder::new()
             .name(thread_name)
             .spawn(move || agent.run())?;
 
-        dbg!();
         Ok(self.communication_for_orchestrator.unwrap())
     }
 
@@ -259,7 +253,6 @@ where
         scheduling_environment: Arc<Mutex<SchedulingEnvironment>>,
     ) -> Self
     {
-        dbg!();
         self.scheduling_environment = Some(scheduling_environment);
         self
     }
@@ -283,21 +276,18 @@ where
         F: FnOnce(AlgorithmBuilder<S, P, I, Ss>) -> Result<AlgorithmBuilder<S, P, I, Ss>>,
     {
         let algorithm_builder = algorithm::Algorithm::builder();
-        dbg!();
 
         let algorithm_builder = configure(algorithm_builder)?;
-        dbg!();
 
         self.algorithm = Some(SpecificAlgorithm::from(algorithm_builder.build()?));
-        dbg!();
+
         Ok(self)
     }
 
     // What is the error here? I think that it has to do with the
     // bounded channel.
-    pub fn communication(mut self, error_channel: Sender<ActorError>) -> Self
+    pub fn communication(mut self, error_channel: Sender<anyhow::Error>) -> Self
     {
-        dbg!();
         let (sender_to_actor, receiver_from_orchestrator): (
             flume::Sender<ActorMessage<ActorRequest>>,
             flume::Receiver<ActorMessage<ActorRequest>>,
@@ -311,7 +301,6 @@ where
         self.communication_for_orchestrator =
             Some(Communication::new(sender_to_actor, receiver_from_actor));
 
-        dbg!();
         self.receiver_from_orchestrator = Some(receiver_from_orchestrator);
         self.sender_to_orchestrator = Some(sender_to_orchestrator);
         self.error_channel = Some(error_channel);

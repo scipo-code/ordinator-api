@@ -63,7 +63,7 @@ impl Solution for TacticalSolution
     type ObjectiveValue = TacticalObjectiveValue;
     type Parameters = TacticalParameters;
 
-    fn new(parameters: &Self::Parameters) -> Self
+    fn new(parameters: &Self::Parameters) -> Result<Self>
     {
         let tactical_loadings_inner: HashMap<Resources, Days> = parameters
             .tactical_capacity
@@ -86,11 +86,11 @@ impl Solution for TacticalSolution
             .collect();
 
         // You are still learning this.
-        Self {
+        Ok(Self {
             objective_value: TacticalObjectiveValue::new(&parameters.tactical_options),
             tactical_work_orders: TacticalScheduledWorkOrders(tactical_scheduled_work_orders_inner),
             tactical_loadings: TacticalResources::new(tactical_loadings_inner),
-        }
+        })
     }
 
     fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue)

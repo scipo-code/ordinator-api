@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 
 use chrono::NaiveTime;
+use colored::Colorize;
 use rust_xlsxwriter::IntoExcelData;
 use serde::Deserialize;
 use serde::Serialize;
@@ -357,7 +358,15 @@ impl Display for Id
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
     {
-        write!(f, "{} | {:?}", self.0, self.1)
+        write!(
+            f,
+            "{}",
+            format!(
+                "Id: {} | resources: {:?} | asset: {:?}",
+                self.0, self.1, self.2
+            )
+            .blue()
+        )
     }
 }
 

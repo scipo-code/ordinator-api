@@ -18,7 +18,6 @@ use ordinator_actor_core::Actor;
 use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_configuration::SystemConfigurations;
-use ordinator_orchestrator_actor_traits::ActorError;
 use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::Communication;
 use ordinator_orchestrator_actor_traits::MessageHandler;
@@ -83,7 +82,7 @@ where
         shared_solution_arc_swap: Arc<ArcSwap<Ss>>,
         notify_orchestrator: Arc<dyn OrchestratorNotifier>,
         system_configurations: Arc<ArcSwap<SystemConfigurations>>,
-        error_channel: Sender<ActorError>,
+        error_channel: Sender<anyhow::Error>,
     ) -> Result<Self::Communication>
     {
         Actor::<TacticalRequestMessage, TacticalResponseMessage, TacticalAlgorithm<Ss>>::builder()

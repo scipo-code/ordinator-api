@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::ensure;
 use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_actor_core::traits::AbLNSUtils;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
@@ -23,7 +24,9 @@ use ordinator_orchestrator_actor_traits::delegate::Delegate;
 use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
+use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::worker_environment::SupervisorOptions;
+use rand::Rng;
 use rand::rng;
 use rand::seq::IndexedRandom;
 use supervisor_parameters::SupervisorParameters;
@@ -137,6 +140,7 @@ where
 
     fn schedule(&mut self) -> Result<()>
     {
+        // What is the criteria for handling this in practice?
         for work_order_activity in &self.solution.get_work_order_activities() {
             let number = self
                 .parameters
@@ -272,14 +276,19 @@ where
 
             for activity_number in activity_number {
                 for operational_id in &all_operational_actors {
-                    let supervisor_parameter_resource = &self
+                    let supervisor_parameter = self
                         .parameters
                         .supervisor_work_orders
                         .get(work_order_number)
                         .context("Missing WorkOrder Parameter in Supervisor")?
                         .get(&activity_number)
-                        .context("Missing Activity Parameter in Supervisor")?
-                        .resource;
+                        .context("Missing Activity Parameter in Supervisor")?;
+
+                    let supervisor_parameter_resource = &supervisor_parameter.resource;
+
+                    if &supervisor_parameter.work == &Work::from(0.0) {
+                        continue;
+                    };
 
                     if operational_id.1.contains(supervisor_parameter_resource) {
                         let work_order_activity = (*work_order_number, activity_number);
@@ -303,6 +312,13 @@ where
             .operational_state_machine
             .retain(|id_woa, _| strategic_activities_hash_set.contains(&id_woa.1.0));
 
+        let value = self
+            .solution
+            .operational_state_machine
+            .iter()
+            .map(|e| e.0.1.0)
+            .collect::<HashSet<_>>();
+        ensure!(strategic_activities_hash_set == value);
         Ok(true)
     }
 

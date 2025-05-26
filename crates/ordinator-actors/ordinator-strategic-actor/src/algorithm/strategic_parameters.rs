@@ -58,34 +58,38 @@ impl Parameters for StrategicParameters
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self>
     {
-        dbg!();
+        
         let asset = id.2.first().expect("This should never happen");
 
-        dbg!();
+        
         let work_orders = &scheduling_environment.work_orders;
 
-        dbg!();
+        
         let strategic_periods = &scheduling_environment.time_environment.periods;
 
-        dbg!();
+        
         let actor_specifications = scheduling_environment
             .worker_environment
             .actor_specification
             .get(id.asset())
             .unwrap();
-        dbg!();
+        
         let strategic_options = &actor_specifications.strategic.strategic_options;
         let work_order_configurations = &actor_specifications.work_order_configurations;
         let material_to_period = &actor_specifications.material_to_period;
 
-        dbg!();
+        
         // You need to develop this together with Dall!
         // Okay so you should put the
         //
-        let strategic_work_order_parameters = work_orders
+        let filter = work_orders
             .inner
             .iter()
-            .filter(|(_, wo)| wo.functional_location().asset == *asset)
+            .filter(|(_, wo)| wo.functional_location().asset == *asset);
+
+        // ISSUE #000
+        // This is crucial to fix correctly now
+        let strategic_work_order_parameters = filter
             .map(|(won, wo)| {
                 Ok((
                     *won,
@@ -93,7 +97,10 @@ impl Parameters for StrategicParameters
                     // SchedulingEnvironment TODO #000002 [ ] Move work order
                     // parameters from `./configuration` to
                     // `./temp_scheduling_environmen_database`
+                    // You shoul
                     WorkOrderParameter::builder()
+                        // This should be created with a list of work order numbers instead
+                        // of the current implementation.
                         .with_scheduling_environment(
                             wo,
                             strategic_periods,
@@ -105,7 +112,7 @@ impl Parameters for StrategicParameters
             })
             .collect::<Result<HashMap<WorkOrderNumber, WorkOrderParameter>>>()?;
 
-        dbg!();
+        
         let strategic_clustering = StrategicClustering::calculate_clustering_values(
             asset,
             work_orders,
@@ -114,12 +121,12 @@ impl Parameters for StrategicParameters
                 .clustering_weights,
         )?;
 
-        dbg!();
+        
         // The `SchedulingEnvironment` should not know about the `StrategicResources`
         // This is wrongly implemented and therefore should be changed.
         let strategic_capacity = StrategicResources::from((scheduling_environment, id));
 
-        dbg!();
+        
         Ok(Self {
             strategic_work_order_parameters,
             strategic_capacity,
@@ -251,6 +258,7 @@ impl WorkOrderParameterBuilder
     // The higher level Parameters implementation includes the
     // `SchedulingEnvironment` that means that it should be possible to include
     // the `WorkOrderConfigurations` here.
+    //
     pub fn with_scheduling_environment(
         mut self,
         work_order: &WorkOrder,

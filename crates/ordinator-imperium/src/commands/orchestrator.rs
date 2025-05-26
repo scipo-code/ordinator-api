@@ -128,7 +128,7 @@ impl OrchestratorCommands {
                     SchedulingEnvironmentCommands::TimeEnvironment(time_environment_commands) => {
                         match time_environment_commands {
                             TimeEnvironmentCommands::GetPeriods => {
-                                dbg!();
+                                
                                 println!("Debug message");
                                 SystemMessages::Orchestrator(OrchestratorRequest::GetPeriods)
                             }

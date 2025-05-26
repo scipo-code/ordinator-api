@@ -10,7 +10,6 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
-use anyhow::bail;
 use anyhow::ensure;
 use assert_functions::OperationalAlgorithmAsserts;
 use chrono::DateTime;
@@ -63,14 +62,14 @@ pub trait OperationalTraitUtils
         &mut self,
         current_time: &mut DateTime<Utc>,
         next_operation: Option<OperationalAssignment>,
-    ) -> (DateTime<Utc>, OperationalEvents);
+    ) -> Result<(DateTime<Utc>, OperationalEvents)>;
 
     fn determine_time_interval_of_function(
         &mut self,
         next_operation: Option<OperationalAssignment>,
         current_time: &DateTime<Utc>,
         interval: TimeInterval,
-    ) -> TimeInterval;
+    ) -> Result<TimeInterval>;
 
     fn update_marginal_fitness(
         &mut self,
@@ -88,58 +87,64 @@ where
         &mut self,
         current_time: &mut DateTime<Utc>,
         next_operation: Option<OperationalAssignment>,
-    ) -> (DateTime<Utc>, OperationalEvents)
+    ) -> Result<(DateTime<Utc>, OperationalEvents)>
     {
         if self.0.parameters.break_interval.contains(current_time) {
             let time_interval = self.determine_time_interval_of_function(
                 next_operation,
                 current_time,
                 self.0.parameters.break_interval.clone(),
-            );
+            )?;
             let new_current_time = *current_time + time_interval.duration();
-            (new_current_time, OperationalEvents::Break(time_interval))
+            Ok((new_current_time, OperationalEvents::Break(time_interval)))
         } else if self.0.parameters.off_shift_interval.contains(current_time) {
             let time_interval = self.determine_time_interval_of_function(
                 next_operation,
                 current_time,
                 self.0.parameters.off_shift_interval.clone(),
-            );
+            )?;
             let new_current_time = *current_time + time_interval.duration();
-            (
+            Ok((
                 new_current_time,
                 OperationalEvents::OffShift(self.0.parameters.off_shift_interval.clone()),
-            )
+            ))
         } else if self.0.parameters.toolbox_interval.contains(current_time) {
             let time_interval = self.determine_time_interval_of_function(
                 next_operation,
                 current_time,
                 self.0.parameters.toolbox_interval.clone(),
-            );
+            )?;
             let new_current_time = *current_time + time_interval.duration();
-            (
+            Ok((
                 new_current_time,
                 OperationalEvents::Toolbox(self.0.parameters.toolbox_interval.clone()),
-            )
+            ))
         } else {
             let start = *current_time;
             let (time_until_next_event, next_operational_event) =
-                self.determine_next_event(current_time);
+                self.determine_next_event(current_time).with_context(|| {
+                    format!(
+                        "Could not determine the next event\n{}:{}",
+                        file!(),
+                        line!()
+                    )
+                })?;
             let mut new_current_time = *current_time + time_until_next_event;
 
             if *current_time == new_current_time {
-                (
+                Ok((
                     new_current_time + next_operational_event.time_delta(),
                     next_operational_event,
-                )
+                ))
             } else {
                 if self.0.parameters.availability.finish_date < new_current_time {
                     new_current_time = self.0.parameters.availability.finish_date;
                 }
-                let time_interval = TimeInterval::new(start.time(), new_current_time.time());
-                (
+                let time_interval = TimeInterval::new(start.time(), new_current_time.time())?;
+                Ok((
                     new_current_time,
                     OperationalEvents::NonProductiveTime(time_interval),
-                )
+                ))
             }
         }
     }
@@ -147,12 +152,15 @@ where
     // This function makes sure that the created event is adjusted to fit the
     // schedule if there has been any manual intervention in the schedule for
     // the OperationalAgent.
+    //
+    // You should feel good about this! Maturity comes here from accepting your
+    // own weaknesses.
     fn determine_time_interval_of_function(
         &mut self,
         next_operation: Option<OperationalAssignment>,
         current_time: &DateTime<Utc>,
         interval: TimeInterval,
-    ) -> TimeInterval
+    ) -> Result<TimeInterval>
     {
         // What is this code actually trying to do? I think
         let time_interval: TimeInterval = match next_operation {
@@ -161,15 +169,15 @@ where
                     TimeInterval::new(
                         current_time.time(),
                         interval.end.min(operational_solution.start_time().time()),
-                    )
+                    )?
                 } else {
-                    TimeInterval::new(current_time.time(), interval.end)
+                    TimeInterval::new(current_time.time(), interval.end)?
                 }
             }
 
-            None => TimeInterval::new(current_time.time(), interval.end),
+            None => TimeInterval::new(current_time.time(), interval.end)?,
         };
-        time_interval
+        Ok(time_interval)
     }
 
     // This is a problem. What should you do about it? I think that the best thing
@@ -467,16 +475,25 @@ where
                 Some(operational_parameter) => operational_parameter,
                 None => continue,
             };
+            ensure!(!operational_parameter.work.is_zero());
 
             let start_time = self
                 .determine_first_available_start_time(work_order_activity, operational_parameter)
                 .with_context(|| format!("{work_order_activity:#?}"))?;
 
-            let assignments = self.determine_wrench_time_assignment(
-                *work_order_activity,
-                operational_parameter,
-                start_time,
-            );
+            let assignments = self
+                .determine_wrench_time_assignment(
+                    *work_order_activity,
+                    operational_parameter,
+                    start_time,
+                )
+                .with_context(|| {
+                    format!(
+                        "Error in determining the wrench time assignment for OperationalActor\n{}\n{work_order_activity:#?}\nstart_time: {start_time}\navailability: {:#?}",
+                        self.id,
+                        self.parameters.availability,
+                    )
+                })?;
 
             self.solution.try_insert(*work_order_activity, assignments);
         }
@@ -494,27 +511,31 @@ where
                         .determine_next_event_non_productive(
                             &mut current_time,
                             Some(operational_solution),
-                        );
-                    assert!(!operational_event.is_wrench_time());
-                    assert_eq!(
-                        operational_event.time_delta(),
-                        new_current_time - current_time
-                    );
+                        )?;
+                    ensure!(!operational_event.is_wrench_time());
+                    ensure!(operational_event.time_delta() == new_current_time - current_time);
+                    // The amount of business logic that has to go into all of this is enourmous.
                     let assignment =
-                        Assignment::new(operational_event, current_time, new_current_time);
+                        Assignment::new(operational_event, current_time, new_current_time)
+                            .with_context(|| {
+                                "Could not create the a work assignment".to_string()
+                            })?;
                     current_time = new_current_time;
+
+                    // You need to assign the reason for the error every where. This is crucial.
                     self.solution_intermediate.0.push(assignment);
                 }
+                // I think that this should be renamed.
                 ContainOrNextOrNone::None => {
-                    let (new_current_time, operational_event) =
-                        self.determine_next_event_non_productive(&mut current_time, None);
-                    assert!(!operational_event.is_wrench_time());
-                    assert_eq!(
-                        operational_event.time_delta(),
-                        new_current_time - current_time
-                    );
+                    let (new_current_time, operational_event) = self
+                        .determine_next_event_non_productive(&mut current_time, None)
+                        .with_context(|| {
+                            "Could not determine the next non-productive event".to_string()
+                        })?;
+                    ensure!(!operational_event.is_wrench_time());
+                    ensure!(operational_event.time_delta() == new_current_time - current_time);
                     let assignment =
-                        Assignment::new(operational_event, current_time, new_current_time);
+                        Assignment::new(operational_event, current_time, new_current_time)?;
                     current_time = new_current_time;
                     self.solution_intermediate.0.push(assignment);
                 }
@@ -583,58 +604,84 @@ impl<Ss> OperationalAlgorithm<Ss>
 where
     Ss: SystemSolutions,
 {
+    // Okay, you got an error here, but you do not understand where it came from.
+    // That means that you did the error handling incorrectly.
     fn determine_wrench_time_assignment(
         &self,
         work_order_activity: WorkOrderActivity,
+        // You have to handle the case where the
         operational_parameter: &OperationalParameter,
         start_time: DateTime<Utc>,
-    ) -> Vec<Assignment>
+    ) -> Result<Vec<Assignment>>
     {
-        assert_ne!(operational_parameter.work, Work::from(0.0));
-        assert!(!operational_parameter.operation_time_delta.is_zero());
+        ensure!(operational_parameter.work != Work::from(0.0));
+        // WARN
+        // There is a much better way of expressing the this.
+        ensure!(!operational_parameter.operation_time_delta.is_zero());
         let mut assigned_work: Vec<Assignment> = vec![];
         let mut remaining_combined_work = operational_parameter.operation_time_delta;
         let mut current_time = start_time;
 
         while !remaining_combined_work.is_zero() {
-            let next_event = self.determine_next_event(&current_time);
+            let next_event = self.determine_next_event(&current_time).with_context(|| {
+                format!("Next event was not created correctly\ncurrent time: {current_time}\nremaining_work: {remaining_combined_work}\nassigned_work: {assigned_work:#?}")
+            })?;
 
             if next_event.0.is_zero() {
                 let finish_time = current_time + next_event.1.time_delta();
-                assigned_work.push(Assignment::new(next_event.1, current_time, finish_time));
+                assigned_work.push(
+                    Assignment::new(next_event.1, current_time, finish_time)
+                        .with_context(|| "Could not create the a work assignment".to_string())?,
+                );
                 current_time = finish_time;
             } else if next_event.0 < remaining_combined_work {
-                assigned_work.push(Assignment::new(
-                    OperationalEvents::WrenchTime((
-                        TimeInterval::new(
-                            current_time.time(),
-                            (current_time + next_event.0).time(),
-                        ),
-                        work_order_activity,
-                    )),
-                    current_time,
-                    current_time + next_event.0,
-                ));
+                assigned_work.push(
+                    Assignment::new(
+                        OperationalEvents::WrenchTime((
+                            TimeInterval::new(
+                                current_time.time(),
+                                (current_time + next_event.0).time(),
+                            )
+                            .with_context(|| "Could not create a valid TimeInterval".to_string())?,
+                            work_order_activity,
+                        )),
+                        current_time,
+                        current_time + next_event.0,
+                    )
+                    .with_context(|| format!("{}:{}", file!(), line!()))?,
+                );
                 current_time += next_event.0;
                 remaining_combined_work -= next_event.0;
+                ensure!(remaining_combined_work >= TimeDelta::new(0, 0).unwrap());
             } else if next_event.0 >= remaining_combined_work {
-                assigned_work.push(Assignment::new(
-                    OperationalEvents::WrenchTime((
-                        TimeInterval::new(
-                            current_time.time(),
-                            (current_time + remaining_combined_work).time(),
-                        ),
-                        work_order_activity,
-                    )),
-                    current_time,
-                    current_time + remaining_combined_work,
-                ));
+                ensure!(
+                    remaining_combined_work
+                        > TimeDelta::new(0, 0).context("Could not create a valid TimeDelta")?,
+                    format!(
+                        "next_event: {next_event:#?}\nremaining_combined_work: {remaining_combined_work:#?}\ncurrent_time: {current_time}"
+                    )
+                );
+                assigned_work.push(
+                    Assignment::new(
+                        OperationalEvents::WrenchTime((
+                            TimeInterval::new(
+                                current_time.time(),
+                                (current_time + remaining_combined_work).time(),
+                            )
+                            .with_context(|| "Could not create a valid TimeInterval".to_string())?,
+                            work_order_activity,
+                        )),
+                        current_time,
+                        current_time + remaining_combined_work,
+                    )
+                    .with_context(|| format!("{}:{}", file!(), line!()))?,
+                );
                 current_time += next_event.0;
                 remaining_combined_work = TimeDelta::zero();
             }
         }
         assert_ne!(assigned_work.len(), 0);
-        assigned_work
+        Ok(assigned_work)
     }
 
     fn unschedule_single_work_order_activity(
@@ -665,7 +712,15 @@ where
         Ok(())
     }
 
-    fn determine_next_event(&self, current_time: &DateTime<Utc>) -> (TimeDelta, OperationalEvents)
+    /// Determining the next event in the operational sequencing.
+    /// The TimeDelta return is the time until the next event and
+    /// `OperationalEvents` is the next upcoming event. This means that
+    /// the TimeDelta here is the effective time that can be used
+    /// for wrench time and preparation time.
+    fn determine_next_event(
+        &self,
+        current_time: &DateTime<Utc>,
+    ) -> Result<(TimeDelta, OperationalEvents)>
     {
         let break_diff = (
             self.parameters.break_interval.start - current_time.time(),
@@ -682,12 +737,69 @@ where
             OperationalEvents::OffShift(self.parameters.off_shift_interval.clone()),
         );
 
-        [break_diff, toolbox_diff, off_shift_diff]
+        // So the current time is wrong. I think tha
+        // ensure!(
+        //     break_diff.0 > TimeDelta::new(0, 0).unwrap(),
+        //     format!(
+        //         "Current time: {current_time}\nbreak_diff: {break_diff:#?}\n{}:{}",
+        //         file!(),
+        //         line!()
+        //     )
+        // );
+        // ensure!(
+        //     toolbox_diff.0 > TimeDelta::new(0, 0).unwrap(),
+        //     format!(
+        //         "Current time: {current_time}\ntoolbox_diff:
+        // {toolbox_diff:#?}\n{}:{}",         file!(),
+        //         line!()
+        //     )
+        // );
+        // ensure!(
+        //     off_shift_diff.0 > TimeDelta::new(0, 0).unwrap(),
+        //     format!(
+        //         "Current time: {current_time}\noff_shift_diff:
+        // {off_shift_diff:#?}\n{}:{}",         file!(),
+        //         line!()
+        //     )
+        // );
+        // FIX
+        // This is completely idiotic! We should never duplicate the state
+        // This is so fucking dumb. NEVER EVER DO THIS AGAIN!
+        // This is wrong, the time delta is the time until you hit
+        // the next event.
+        // ensure!(
+        //     break_diff.1.time_delta() == break_diff.0,
+        //     format!(
+        //         "Current time: {current_time}\nbreak_diff: {break_diff:#?}\n{}:{}",
+        //         file!(),
+        //         line!()
+        //     )
+        // );
+        // ensure!(
+        //     toolbox_diff.1.time_delta() == break_diff.0,
+        //     format!(
+        //         "Current time: {current_time}\ntoolbox_diff:
+        // {toolbox_diff:#?}\n{}:{}",         file!(),
+        //         line!()
+        //     )
+        // );
+        // ensure!(
+        //     off_shift_diff.1.time_delta() == break_diff.0,
+        //     format!(
+        //         "Current time: {current_time}\noff_shift_diff:
+        // {off_shift_diff:#?}\n{}:{}",         file!(),
+        //         line!()
+        //     )
+        // );
+
+        Ok([break_diff, toolbox_diff, off_shift_diff]
             .iter()
+            // I think that this is an issue.
             .filter(|&diff_event| diff_event.0.num_seconds() >= 0)
+            .inspect(|s| println!("{s:#?}"))
             .min_by_key(|&diff_event| diff_event.0.num_seconds())
             .cloned()
-            .unwrap()
+            .unwrap())
     }
 
     fn determine_first_available_start_time(
@@ -767,12 +879,42 @@ where
             ),
             (_, Some(d)) => d,
             (Some(Some(period)), _) => (period.start_date(), period.end_date()),
-
-            _ => bail!(
-                "This means that there is no state in either the Tactical or the Strategic agent\nfile: {}\nline: {}",
-                file!(),
-                line!()
+            (Some(None), _) => (
+                &self.parameters.availability.start_date,
+                &self.parameters.availability.finish_date,
             ),
+            // WARN
+            // This kind of code should be made with `AppError`. You should have a centralized error
+            // strategy aimed at making quick iterations on the scheduling logic.
+            // _ => bail!(
+            //     "This means that there is no state in either the Tactical or the Strategic agent.
+            // This should not be possible as the \     OperationalActor gets its state
+            // from either of those. An exception is if the the WorkOrder has left the
+            // StrategicActor or \     the TacticalActor, and the supervisor still have
+            // the WorkOrderActivity in his state.\nSupervisorActor state: \
+            //     \nIs WorkOrder {:#?} present in StrategicActor: {:?} \
+            //     \nIs WorkOrder {:#?} present in TacticalActor : {:?} \
+            //     \nIs WorkOrderActivity {:?} present in SupervisorActor: {:?} \
+            //     \n{}:{}",
+            //     work_order_activity.0,
+            //     self.loaded_shared_solution
+            //         .strategic()
+            //         .unwrap()
+            //         .scheduled_task(&work_order_activity.0),
+            //     work_order_activity.0,
+            //     self.loaded_shared_solution
+            //         .tactical_actor_solution()
+            //         .unwrap()
+            //         .start_and_finish_dates(work_order_activity),
+            //     work_order_activity,
+            //     self.loaded_shared_solution
+            //         .supervisor_actor_solutions()
+            //         .unwrap()
+            //         .delegates_for_agent(&self.id)
+            //         .contains_key(work_order_activity),
+            //     file!(),
+            //     line!()
+            // ),
         };
 
         for operational_solution in self.solution.scheduled_work_order_activities.windows(2) {
@@ -791,7 +933,14 @@ where
                 };
 
                 loop {
-                    let (time_to_next_event, next_event) = self.determine_next_event(&current_time);
+                    let (time_to_next_event, next_event) =
+                        self.determine_next_event(&current_time).with_context(|| {
+                            format!(
+                                "Could not determine the next event\n{}:{}",
+                                file!(),
+                                line!()
+                            )
+                        })?;
 
                     if time_to_next_event.is_zero() {
                         current_time += next_event.time_delta();
@@ -820,7 +969,14 @@ where
         };
 
         loop {
-            let (time_to_next_event, next_event) = self.determine_next_event(&current_time);
+            let (time_to_next_event, next_event) =
+                self.determine_next_event(&current_time).with_context(|| {
+                    format!(
+                        "Could not determine the next event\n{}:{}",
+                        file!(),
+                        line!()
+                    )
+                })?;
 
             if time_to_next_event.is_zero() {
                 current_time += next_event.time_delta();

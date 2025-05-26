@@ -11,4 +11,5 @@ anyhow = {workspace = true}
 arc-swap = {workspace = true}
 chrono.workspace = true
 flume = {workspace = true}
+thiserror.workspace = true
 

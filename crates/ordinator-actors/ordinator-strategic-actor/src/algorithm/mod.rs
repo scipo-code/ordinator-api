@@ -1179,7 +1179,7 @@ where
     // locked_in_period constaint in simply handled in there.
     #[instrument(level = "trace", skip_all)]
     fn schedule(&mut self) -> Result<()> {
-        dbg!();
+        
         // WARNING
         // I am not sure that this is the correct place of putting this.
         // What should we change here? I think that the best thing would be to make this

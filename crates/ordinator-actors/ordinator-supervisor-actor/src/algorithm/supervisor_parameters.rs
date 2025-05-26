@@ -10,6 +10,7 @@ use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
 use ordinator_scheduling_environment::work_order::operation::Operation;
+use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::work_order::operation::operation_info::NumberOfPeople;
 use ordinator_scheduling_environment::worker_environment::SupervisorOptions;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
@@ -75,7 +76,11 @@ impl Parameters for SupervisorParameters
                 .map(|(acn, op)| {
                     (
                         *acn,
-                        SupervisorParameter::new(op.resource, op.operation_info.number),
+                        SupervisorParameter::new(
+                            op.resource,
+                            op.operation_info.number,
+                            op.operation_info.work,
+                        ),
                     )
                 })
                 .collect();
@@ -157,12 +162,17 @@ pub struct SupervisorParameter
 {
     pub resource: Resources,
     pub number: NumberOfPeople,
+    pub work: Work,
 }
 
 impl SupervisorParameter
 {
-    pub fn new(resource: Resources, number: NumberOfPeople) -> Self
+    pub fn new(resource: Resources, number: NumberOfPeople, work: Work) -> Self
     {
-        Self { resource, number }
+        Self {
+            resource,
+            number,
+            work,
+        }
     }
 }

@@ -290,6 +290,11 @@ impl Work
         Work(u32_f32)
     }
 
+    pub fn is_zero(&self) -> bool
+    {
+        self == &Work::from(0.0)
+    }
+
     pub(crate) fn work(&self) -> Decimal
     {
         self.0

@@ -108,7 +108,7 @@ mod tests
             .unwrap()
             .to_utc();
 
-        let time_interval = TimeInterval::new(start_time, end_time);
+        let time_interval = TimeInterval::new(start_time, end_time).unwrap();
 
         assert!(time_interval.contains(&current_time));
     }
@@ -122,7 +122,7 @@ mod tests
             .unwrap()
             .to_utc();
 
-        let time_interval = TimeInterval::new(start_time, end_time);
+        let time_interval = TimeInterval::new(start_time, end_time).unwrap();
 
         assert!(time_interval.contains(&current_time));
     }
@@ -137,7 +137,7 @@ mod tests
             .unwrap()
             .to_utc();
 
-        let time_interval = TimeInterval::new(start_time, end_time);
+        let time_interval = TimeInterval::new(start_time, end_time).unwrap();
 
         assert!(!time_interval.contains(&current_time));
     }
@@ -151,7 +151,9 @@ mod tests
             .unwrap()
             .to_utc();
 
-        let time_interval = TimeInterval::new(start_time, end_time);
+        // Making Vec based datastructures will be cricial. You should learn how to make
+        // a good and solid API for this
+        let time_interval = TimeInterval::new(start_time, end_time).unwrap();
 
         assert!(!time_interval.contains(&current_time));
     }

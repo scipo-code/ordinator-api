@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::ensure;
 use chrono::DateTime;
 use chrono::Utc;
 use colored::Colorize;
@@ -51,15 +52,17 @@ impl Solution for OperationalSolution
     type ObjectiveValue = OperationalObjectiveValue;
     type Parameters = OperationalParameters;
 
-    fn new(parameters: &Self::Parameters) -> Self
+    fn new(parameters: &Self::Parameters) -> Result<Self>
     {
         let mut scheduled_work_order_activities = Vec::new();
 
-        let start_event =
-            Assignment::make_unavailable_event(Unavailability::Beginning, &parameters.availability);
+        let start_event = Assignment::make_unavailable_event(
+            Unavailability::Beginning,
+            &parameters.availability,
+        )?;
 
         let end_event =
-            Assignment::make_unavailable_event(Unavailability::End, &parameters.availability);
+            Assignment::make_unavailable_event(Unavailability::End, &parameters.availability)?;
 
         let unavailability_start_event = OperationalAssignment::new(vec![start_event]);
 
@@ -69,10 +72,10 @@ impl Solution for OperationalSolution
 
         scheduled_work_order_activities.push(((WorkOrderNumber(0), 0), unavailability_end_event));
 
-        Self {
+        Ok(Self {
             objective_value: OperationalObjectiveValue(0),
             scheduled_work_order_activities,
-        }
+        })
     }
 
     fn update_objective_value(&mut self, other_objective_value: Self::ObjectiveValue)
@@ -288,22 +291,54 @@ pub struct Assignment
     pub finish: DateTime<Utc>,
 }
 
+// This is implemented incorrectly. I think that the best approach
+// here is to make the code function so that there is only a single
+// source of truth.
 impl Assignment
 {
-    pub fn new(event_type: OperationalEvents, start: DateTime<Utc>, finish: DateTime<Utc>) -> Self
+    pub fn new(
+        event_type: OperationalEvents,
+        start: DateTime<Utc>,
+        finish: DateTime<Utc>,
+    ) -> Result<Self>
     {
-        assert_eq!(event_type.time_delta(), finish - start);
-        assert!(start < finish);
-        assert_eq!(event_type.start_time(), start.time());
-        assert_eq!(event_type.finish_time(), finish.time());
-        Self {
+        ensure!(
+            event_type.time_delta() == finish - start,
+            format!(
+                "EventType: {:?}\nstart: {}\nfinish: {}",
+                event_type, start, finish
+            )
+        );
+        ensure!(
+            start < finish,
+            format!(
+                "EventType: {:?}\nstart: {}\nfinish: {}",
+                event_type, start, finish
+            )
+        );
+        ensure!(
+            event_type.start_time() == start.time(),
+            format!(
+                "EventType: {:?}\nstart: {}\nfinish: {}",
+                event_type, start, finish
+            )
+        );
+        ensure!(
+            event_type.finish_time() == finish.time(),
+            format!(
+                "EventType: {:?}\nstart: {}\nfinish: {}",
+                event_type, start, finish
+            )
+        );
+        Ok(Self {
             operational_events: event_type,
             start,
             finish,
-        }
+        })
     }
 
-    pub fn make_unavailable_event(kind: Unavailability, availability: &Availability) -> Self
+    pub fn make_unavailable_event(kind: Unavailability, availability: &Availability)
+    -> Result<Self>
     {
         match kind {
             Unavailability::Beginning => {
