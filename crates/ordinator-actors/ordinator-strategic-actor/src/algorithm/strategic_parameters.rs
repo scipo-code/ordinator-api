@@ -58,27 +58,22 @@ impl Parameters for StrategicParameters
         scheduling_environment: &MutexGuard<SchedulingEnvironment>,
     ) -> Result<Self>
     {
-        
         let asset = id.2.first().expect("This should never happen");
 
-        
         let work_orders = &scheduling_environment.work_orders;
 
-        
         let strategic_periods = &scheduling_environment.time_environment.periods;
 
-        
         let actor_specifications = scheduling_environment
             .worker_environment
             .actor_specification
             .get(id.asset())
             .unwrap();
-        
+
         let strategic_options = &actor_specifications.strategic.strategic_options;
         let work_order_configurations = &actor_specifications.work_order_configurations;
         let material_to_period = &actor_specifications.material_to_period;
 
-        
         // You need to develop this together with Dall!
         // Okay so you should put the
         //
@@ -112,7 +107,6 @@ impl Parameters for StrategicParameters
             })
             .collect::<Result<HashMap<WorkOrderNumber, WorkOrderParameter>>>()?;
 
-        
         let strategic_clustering = StrategicClustering::calculate_clustering_values(
             asset,
             work_orders,
@@ -121,12 +115,10 @@ impl Parameters for StrategicParameters
                 .clustering_weights,
         )?;
 
-        
         // The `SchedulingEnvironment` should not know about the `StrategicResources`
         // This is wrongly implemented and therefore should be changed.
         let strategic_capacity = StrategicResources::from((scheduling_environment, id));
 
-        
         Ok(Self {
             strategic_work_order_parameters,
             strategic_capacity,

@@ -1,28 +1,29 @@
 use std::io::Read;
 
-use clap::{Args, Subcommand};
+use clap::Args;
+use clap::Subcommand;
 use reqwest::blocking::Client;
-use shared_types::{
-    agents::supervisor::{
-        requests::{
-            supervisor_scheduling_message::SupervisorSchedulingMessage,
-            supervisor_status_message::SupervisorStatusMessage,
-        },
-        SupervisorRequest, SupervisorRequestMessage, SupervisorType,
-    },
-    scheduling_environment::worker_environment::resources::Id,
-    Asset, SystemMessages,
-};
+use shared_types::agents::supervisor::requests::supervisor_scheduling_message::SupervisorSchedulingMessage;
+use shared_types::agents::supervisor::requests::supervisor_status_message::SupervisorStatusMessage;
+use shared_types::agents::supervisor::SupervisorRequest;
+use shared_types::agents::supervisor::SupervisorRequestMessage;
+use shared_types::agents::supervisor::SupervisorType;
+use shared_types::scheduling_environment::worker_environment::resources::Id;
+use shared_types::Asset;
+use shared_types::SystemMessages;
 
 #[derive(Subcommand, Debug)]
-pub enum SupervisorCommands {
+pub enum SupervisorCommands
+{
     /// Get the status of a SupervisorAgent
-    Status {
+    Status
+    {
         asset: Asset,
         supervisor: SupervisorType,
     },
     /// Get the commands for manually scheduling a work order activity.
-    Scheduling {
+    Scheduling
+    {
         asset: Asset,
         supervisor_type: SupervisorType,
         #[clap(subcommand)]
@@ -31,20 +32,24 @@ pub enum SupervisorCommands {
 }
 
 #[derive(Subcommand, Debug)]
-pub enum SchedulingCommands {
+pub enum SchedulingCommands
+{
     /// Schedule a specific work order activity to an operational agent
     Schedule(Assign),
 }
 
 #[derive(Args, Debug)]
-pub struct Assign {
+pub struct Assign
+{
     work_order_number: u64,
     activity_number: u64,
     id_operational: String,
 }
 
-impl SupervisorCommands {
-    pub fn execute(&self, client: &Client) -> SystemMessages {
+impl SupervisorCommands
+{
+    pub fn execute(&self, client: &Client) -> SystemMessages
+    {
         match self {
             SupervisorCommands::Status { asset, supervisor } => {
                 let supervisor_status_message = SupervisorStatusMessage::General;
@@ -58,7 +63,6 @@ impl SupervisorCommands {
                     supervisor_request_message,
                 };
 
-                dbg!("Before the SystemMessages:: generation");
                 SystemMessages::Supervisor(supervisor_request)
             }
             SupervisorCommands::Scheduling {
@@ -90,7 +94,8 @@ impl SupervisorCommands {
     }
 }
 
-fn get_id_operational(client: &Client, id_operational: String) -> Id {
+fn get_id_operational(client: &Client, id_operational: String) -> Id
+{
     let url: String = "http://".to_string()
         + &dotenvy::var("IMPERIUM_ADDRESS").unwrap()
         + &dotenvy::var("ORDINATOR_MAIN_ENDPOINT)").unwrap();

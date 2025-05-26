@@ -15,6 +15,8 @@ pub mod tj20;
 pub mod tj30;
 pub mod tj30t;
 
+use anyhow::Result;
+use anyhow::ensure;
 use chrono::NaiveDate;
 use chrono::NaiveTime;
 use rust_decimal::Decimal;
@@ -48,33 +50,33 @@ pub struct CURR(Decimal);
 #[allow(dead_code)]
 pub struct LANG(String);
 
-impl TryFrom<DATS> for NaiveDate {
-    type Error = String;
+impl TryFrom<DATS> for NaiveDate
+{
+    type Error = anyhow::Error;
 
-    fn try_from(value: DATS) -> Result<NaiveDate, Self::Error> {
+    fn try_from(value: DATS) -> Result<NaiveDate, Self::Error>
+    {
         let string = value.0.trim_end_matches(".0");
 
-        if string == "0" {
-            dbg!(string, &value.0);
-            return Err("Empty DATS value".to_string());
-        };
+        ensure!(string != "0", "Empty DATS value");
 
         let naive_date_result = NaiveDate::parse_from_str(string, "%Y%m%d");
 
         match naive_date_result {
             Ok(naive_date) => Ok(naive_date),
             Err(_) => {
-                dbg!(&string);
                 panic!(
-                    "DATS can, according to SAP documentation only be of the form 'YYYYMMDD' or '0' for empty"
+                    "DATS can, according to SAP documentation only be of the form 'YYYYMMDD' or '0' for empty\nDATS string: {string}"
                 );
             }
         }
     }
 }
 
-impl From<NaiveDate> for DATS {
-    fn from(value: NaiveDate) -> Self {
+impl From<NaiveDate> for DATS
+{
+    fn from(value: NaiveDate) -> Self
+    {
         let string = value.to_string();
 
         // string.remove_matches("-");
@@ -82,8 +84,10 @@ impl From<NaiveDate> for DATS {
     }
 }
 
-impl From<TIMS> for NaiveTime {
-    fn from(value: TIMS) -> Self {
+impl From<TIMS> for NaiveTime
+{
+    fn from(value: TIMS) -> Self
+    {
         let mut string = value.0;
         let mut seconds = vec![];
         let mut minutes = vec![];
@@ -126,13 +130,15 @@ impl From<TIMS> for NaiveTime {
         NaiveTime::from_hms_opt(hours, minutes, seconds).unwrap()
     }
 }
-impl IntoExcelData for DATS {
+impl IntoExcelData for DATS
+{
     fn write(
         self,
         worksheet: &mut rust_xlsxwriter::Worksheet,
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
-    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+    ) -> Result<&mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
+    {
         let value = self.0;
         worksheet.write_string(row, col, value)
     }
@@ -143,14 +149,16 @@ impl IntoExcelData for DATS {
         row: rust_xlsxwriter::RowNum,
         col: rust_xlsxwriter::ColNum,
         format: &rust_xlsxwriter::Format,
-    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError> {
+    ) -> Result<&'a mut rust_xlsxwriter::Worksheet, rust_xlsxwriter::XlsxError>
+    {
         let value = self.0;
         worksheet.write_string_with_format(row, col, value, format)
     }
 }
 
 #[cfg(test)]
-mod tests {
+mod tests
+{
     use chrono::NaiveDate;
     use chrono::NaiveTime;
 
@@ -159,7 +167,8 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn test_TIMS_into_trait_impl_1() {
+    fn test_TIMS_into_trait_impl_1()
+    {
         let tims = TIMS("80142".to_string());
 
         let naive_time: NaiveTime = tims.into();
@@ -168,7 +177,8 @@ mod tests {
     }
     #[test]
     #[allow(non_snake_case)]
-    fn test_TIMS_into_trait_impl_2() {
+    fn test_TIMS_into_trait_impl_2()
+    {
         let tims = TIMS("180142".to_string());
 
         let naive_time: NaiveTime = tims.into();
@@ -177,7 +187,8 @@ mod tests {
     }
     #[test]
     #[allow(non_snake_case)]
-    fn test_TIMS_into_trait_impl_3() {
+    fn test_TIMS_into_trait_impl_3()
+    {
         let tims = TIMS("80000".to_string());
 
         let naive_time: NaiveTime = tims.into();
@@ -187,7 +198,8 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn test_TIMS_into_trait_impl_4() {
+    fn test_TIMS_into_trait_impl_4()
+    {
         let tims = TIMS("00000".to_string());
 
         let naive_time: NaiveTime = tims.into();
@@ -197,7 +209,8 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn test_TIMS_into_trait_impl_5() {
+    fn test_TIMS_into_trait_impl_5()
+    {
         let tims = TIMS("240000".to_string());
 
         let naive_time: NaiveTime = tims.into();
@@ -207,7 +220,8 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn test_DATS() {
+    fn test_DATS()
+    {
         let dats = DATS("20250103".to_string());
 
         let naive_date: NaiveDate = dats.try_into().unwrap();

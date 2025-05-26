@@ -27,9 +27,9 @@ impl FromStr for SystemCondition
 {
     type Err = ParseError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err>
+    fn from_str(system_condition_str: &str) -> Result<Self, Self::Err>
     {
-        let system_condition = match s {
+        let system_condition = match system_condition_str {
             "A" => SystemCondition::A,
             "B" => SystemCondition::B,
             "C" => SystemCondition::C,
@@ -41,8 +41,9 @@ impl FromStr for SystemCondition
             "I" => SystemCondition::I,
             "J" => SystemCondition::J,
             _ => {
-                dbg!(&s);
-                panic!("SystemCondition should be a capital character between [A-J]");
+                panic!(
+                    "SystemCondition should be a capital character between [A-J]\n{system_condition_str}"
+                );
             }
         };
         Ok(system_condition)

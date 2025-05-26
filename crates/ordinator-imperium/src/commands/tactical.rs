@@ -2,29 +2,32 @@ use std::collections::HashMap;
 
 use clap::Subcommand;
 use reqwest::blocking::Client;
-use shared_types::{
-    agents::tactical::{
-        requests::{
-            tactical_resources_message::TacticalResourceRequest,
-            tactical_status_message::TacticalStatusMessage,
-        },
-        Days, TacticalRequest, TacticalRequestMessage, TacticalResources,
-    },
-    scheduling_environment::{
-        time_environment::day::Day, work_order::operation::Work,
-        worker_environment::resources::Resources,
-    },
-    Asset, ActorSpecifications, SystemMessages,
-};
+use shared_types::agents::tactical::requests::tactical_resources_message::TacticalResourceRequest;
+use shared_types::agents::tactical::requests::tactical_status_message::TacticalStatusMessage;
+use shared_types::agents::tactical::Days;
+use shared_types::agents::tactical::TacticalRequest;
+use shared_types::agents::tactical::TacticalRequestMessage;
+use shared_types::agents::tactical::TacticalResources;
+use shared_types::scheduling_environment::time_environment::day::Day;
+use shared_types::scheduling_environment::work_order::operation::Work;
+use shared_types::scheduling_environment::worker_environment::resources::Resources;
+use shared_types::ActorSpecifications;
+use shared_types::Asset;
+use shared_types::SystemMessages;
 
 use super::orchestrator;
 
 #[derive(Subcommand, Debug)]
-pub enum TacticalCommands {
+pub enum TacticalCommands
+{
     /// Get the status of the tactical agent
-    Status { asset: Asset },
+    Status
+    {
+        asset: Asset
+    },
     /// Get the objectives of the tactical agent
-    Resources {
+    Resources
+    {
         asset: Asset,
         #[clap(subcommand)]
         resource_commands: ResourceCommands,
@@ -35,12 +38,12 @@ pub enum TacticalCommands {
     Days,
 }
 
-impl TacticalCommands {
-    pub fn execute(&self, client: &Client) -> shared_types::SystemMessages {
+impl TacticalCommands
+{
+    pub fn execute(&self, client: &Client) -> shared_types::SystemMessages
+    {
         match self {
             TacticalCommands::Status { asset } => {
-                dbg!("TacticalAgent Status Message");
-
                 let tactical_request = TacticalRequest {
                     asset: asset.clone(),
                     tactical_request_message: TacticalRequestMessage::Status(
@@ -139,25 +142,33 @@ impl TacticalCommands {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum ResourceCommands {
-    Loading {
+pub enum ResourceCommands
+{
+    Loading
+    {
         days_end: u32,
         select_resources: Option<Vec<Resources>>,
     },
-    Capacity {
+    Capacity
+    {
         days_end: u32,
         select_resources: Option<Vec<Resources>>,
     },
-    PercentageLoading {
+    PercentageLoading
+    {
         days_end: u32,
         select_resources: Option<Vec<Resources>>,
     },
     /// Set a capacity based on a file
-    LoadCapacityFile { toml_path: String },
+    LoadCapacityFile
+    {
+        toml_path: String
+    },
 }
 
 /// I will need to generate the manual resources for the tactical agent.
-fn generate_manual_resources(client: &Client, toml_path: String) -> TacticalResources {
+fn generate_manual_resources(client: &Client, toml_path: String) -> TacticalResources
+{
     let days: Vec<Day> = orchestrator::tactical_days(client);
     let contents = std::fs::read_to_string(toml_path).unwrap();
 

@@ -212,4 +212,4 @@ colors are used to standardize the understanding of the colors.
 * Job related: Yellow
 * Resources related: Blue
 * Objective: Purple
-* 
+

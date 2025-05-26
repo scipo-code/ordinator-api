@@ -8,7 +8,7 @@ use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_orchestrator_actor_traits::delegate::Delegate;
 use ordinator_orchestrator_actor_traits::marginal_fitness::MarginalFitness;
 
-use super::algorithm::OperationalNonProductive;
+use super::algorithm::FillinOperationalEvents;
 use super::algorithm::operational_parameter::OperationalParameters;
 use crate::algorithm::operational_events::OperationalEvents;
 use crate::algorithm::operational_solution::OperationalSolution;
@@ -21,7 +21,7 @@ pub trait OperationalAssertions
 }
 
 impl<Ss> OperationalAssertions
-    for Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>
+    for Algorithm<OperationalSolution, OperationalParameters, FillinOperationalEvents, Ss>
 where
     Ss: SystemSolutions,
 {

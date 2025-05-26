@@ -31,6 +31,7 @@ use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::worker_environment::StrategicOptions;
 use ordinator_scheduling_environment::worker_environment::resources::Resources;
 use priority_queue::PriorityQueue;
+use rand::distr::weighted::Weight;
 use rand::prelude::SliceRandom;
 use rand::seq::IndexedRandom;
 use strategic_parameters::StrategicClustering;
@@ -182,15 +183,19 @@ where
                 work_order_latest_allowed_finish_period,
             );
 
-            let period_penalty = non_zero_period_difference
-                * self
+            let work_order_value = self
                     .parameters
                     .strategic_work_order_parameters
                     .get(work_order_number)
                     .unwrap()
                     .weight;
 
-            strategic_objective_value.urgency.1 += period_penalty;
+            let period_penalty = non_zero_period_difference
+                * work_order_value;
+
+            strategic_objective_value.urgency.1.checked_add_assign(&period_penalty)
+                .ok()
+                .with_context(|| format!("Overflow on the strategic urgency.\nperiod penalty: {period_penalty}\nperiod difference: {non_zero_period_difference}\nwork_order_value: {work_order_value}"))?;
         }
         Ok(())
     }
@@ -541,6 +546,7 @@ where
         }
     }
 
+    /// This was such a stupid direction to take the code in.
     /// This function is created to find the best permutation of all the work
     /// order assignments to all technicians. This function has two
     /// purposes:
@@ -1164,6 +1170,7 @@ where
 
         // This should not happen. We should always work on self and then
         // substitute out the remaining parts.
+        panic!();
         if strategic_objective_value.objective_value < self.solution.objective_value.objective_value
         {
             event!(Level::INFO, strategic_objective_value_better = ?strategic_objective_value);
@@ -1996,7 +2003,6 @@ mod tests {
         strategic_resources.insert_operational_resource(period.clone(), operational_resource_1);
         strategic_resources.insert_operational_resource(period.clone(), operational_resource_2);
 
-        dbg!(&strategic_resources_option);
         assert_eq!(strategic_resources, strategic_resources_option.unwrap());
     }
 

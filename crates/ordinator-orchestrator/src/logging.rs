@@ -20,14 +20,18 @@ use tracing_subscriber::prelude::*;
 use tracing_subscriber::reload;
 use tracing_subscriber::reload::Handle;
 
-type LogLayer =
-    Filtered<Layer<Registry, JsonFields, Format<Json>, NonBlocking>, EnvFilter, Registry>;
+type LogLayer = Handle<
+    Filtered<Layer<Registry, JsonFields, Format<Json>, NonBlocking>, EnvFilter, Registry>,
+    Registry,
+>;
 type ProfilingLayer = Filtered<FlameLayer<Registry, BufWriter<File>>, EnvFilter, Registry>;
 
-#[derive(Clone, Debug)]
-pub struct LogHandles {
-    pub file_handle: Handle<LogLayer, Registry>,
+#[derive(Debug)]
+pub struct LogHandles
+{
+    pub file_handle: LogLayer,
     pub _flame_handle: Handle<ProfilingLayer, Registry>,
+    pub _guard: WorkerGuard,
 }
 
 // TODO [ ]
@@ -54,7 +58,8 @@ pub struct LogHandles {
 //     }
 // }
 
-pub fn setup_logging() -> (LogHandles, WorkerGuard) {
+pub fn setup_logging() -> LogHandles
+{
     let previous_log_files = fs::read_dir(
         dotenvy::var("ORDINATOR_LOG_DIR")
             .expect("The ORDINATOR_LOG_DIR environment variables should always be set."),
@@ -85,14 +90,24 @@ pub fn setup_logging() -> (LogHandles, WorkerGuard) {
 
     let file_layer = fmt::layer()
         .with_writer(non_blocking)
-        .json() // Output logs in JSON format
+        .json()
+        .with_ansi(true)
         .with_file(true) // Include file name in logs
         .with_thread_ids(true)
+        .with_thread_names(true)
         .with_line_number(true) // Include line number in logs
-        .with_current_span(true)
         .with_filter(EnvFilter::from_env("TRACING_LEVEL"));
 
-    let (file_layer, file_handle) = reload::Layer::new(file_layer);
+    let (file_layer, file_handle): (
+        reload::Layer<
+            Filtered<Layer<Registry, JsonFields, Format<Json>, NonBlocking>, EnvFilter, Registry>,
+            Registry,
+        >,
+        Handle<
+            Filtered<Layer<Registry, JsonFields, Format<Json>, NonBlocking>, EnvFilter, Registry>,
+            Registry,
+        >,
+    ) = reload::Layer::new(file_layer);
 
     let flame_layer = FlameLayer::with_file(
         env::var("PROFILING_FILE").expect("A file name for the profiling data has to be set"),
@@ -104,12 +119,15 @@ pub fn setup_logging() -> (LogHandles, WorkerGuard) {
 
     let layers = vec![file_layer.boxed(), flame_layer.boxed()];
 
+    // So the `schedule()` function works correctly. But where is the bug
+    // introduced? I really have to find this as the next step. I do not see a
+    // different way of going about it.
     tracing_subscriber::registry().with(layers).init();
 
     event!(Level::INFO, "starting loging");
-    let log_handles = LogHandles {
+    LogHandles {
         file_handle,
         _flame_handle,
-    };
-    (log_handles, _guard)
+        _guard,
+    }
 }

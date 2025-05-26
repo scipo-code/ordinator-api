@@ -33,13 +33,14 @@ pub struct StrategicObjectiveValue
 }
 
 impl StrategicObjectiveValue
+
 {
     pub fn new(strategic_options: &StrategicOptions) -> Self
     {
         Self {
-            objective_value: 0,
-            urgency: (strategic_options.urgency_weight, u64::MAX),
-            resource_penalty: (strategic_options.resource_penalty_weight, u64::MAX),
+            objective_value: u64::MAX,
+            urgency: (strategic_options.urgency_weight, u64::MIN),
+            resource_penalty: (strategic_options.resource_penalty_weight, u64::MIN),
             clustering_value: (strategic_options.clustering_weight, u64::MIN),
         }
     }

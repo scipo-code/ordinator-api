@@ -362,7 +362,7 @@ impl Display for Id
             f,
             "{}",
             format!(
-                "Id: {} | resources: {:?} | asset: {:?}",
+                "Id: {:?} | resources: {:?} | asset: {:?}",
                 self.0, self.1, self.2
             )
             .blue()

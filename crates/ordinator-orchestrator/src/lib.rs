@@ -538,7 +538,7 @@ where
     {
         let configurations = SystemConfigurations::read_all_configs().unwrap();
 
-        let (log_handles, _logging_guard) = logging::setup_logging();
+        let log_handles = logging::setup_logging();
 
         let scheduling_environment =
             DataBaseConnection::scheduling_environment(configurations.clone())
@@ -591,14 +591,12 @@ where
 
         let system_solution = Arc::new(ArcSwap::new(Arc::new(Ss::new())));
 
-        
         self.system_solutions
             .lock()
             .unwrap()
             .insert(asset.clone(), system_solution);
         let dependencies = self.extract_factory_dependencies(asset)?;
 
-        
         let (strategic_id, tactical_id, supervisors, operationals) = {
             let scheduling_environment_guard = self.scheduling_environment.lock().unwrap();
             let strategic_id = scheduling_environment_guard
@@ -639,7 +637,6 @@ where
             (strategic_id, tactical_id, supervisors, operationals)
         };
 
-        
         let strategic_communication = StrategicApi::construct_actor(
             strategic_id.clone(),
             dependencies.0.clone(),
@@ -650,10 +647,9 @@ where
         )
         .with_context(|| format!("Could not construct StartegicActor {strategic_id}"))?;
 
-        
         // Where should their IDs come from? I think that the best approach is to
         // include them from
-        
+
         let tactical_communication = TacticalApi::construct_actor(
             tactical_id.clone(),
             dependencies.0.clone(),
@@ -664,12 +660,10 @@ where
         )
         .with_context(|| format!("{tactical_id} could not be constructed"))?;
 
-        
         // This is a good sign. It means that the system is performing correctly. What
         // should be done about the code in general?
         // Why is the supervisor no used here? This is also not created in the best way.
 
-        
         let mut supervisor_communications = HashMap::default();
         for supervisor_id in supervisors {
             let supervisor_communication = SupervisorApi::construct_actor(
@@ -684,11 +678,8 @@ where
             supervisor_communications.insert(supervisor_id.clone(), supervisor_communication);
         }
 
-        
-
         let mut operational_communications = HashMap::default();
         for operational_id in operationals {
-            
             let operational_communication = OperationalApi::construct_actor(
                 operational_id.clone(),
                 dependencies.0.clone(),
@@ -701,7 +692,6 @@ where
             operational_communications.insert(operational_id.clone(), operational_communication);
         }
 
-        
         let agent_registry = ActorRegistry::new(
             strategic_communication,
             tactical_communication,
@@ -713,7 +703,6 @@ where
             .lock()
             .unwrap()
             .insert(asset.clone(), agent_registry);
-        
 
         Ok(self)
     }

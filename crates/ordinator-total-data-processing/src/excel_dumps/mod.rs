@@ -224,7 +224,6 @@ where
 {
     let mut all_rows: Vec<RowNames> = Vec::new();
 
-    dbg!("Total WorkOrder(s):", work_orders.inner.len());
     let work_orders_by_asset: Vec<WorkOrder> = work_orders
         .inner
         .into_iter()

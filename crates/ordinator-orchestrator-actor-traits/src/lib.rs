@@ -284,7 +284,7 @@ where
 // Should this function have an option or not? Yes it should.
 pub trait Solution: Sized
 {
-    type ObjectiveValue;
+    type ObjectiveValue: Debug;
     type Parameters;
 
     // The weightings are found inside of the

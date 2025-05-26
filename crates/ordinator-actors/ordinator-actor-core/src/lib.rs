@@ -81,7 +81,7 @@ where
 
         if let Err(actor_error) = self.algorithm.schedule().with_context(|| {
             format!(
-                "Could not perform initial schedule iteration for\nActor: {}\nfile: {}\nline: {}",
+                "{schedule_iteration:#?}\nActor: {}\nLocation: {}:{}",
                 self.actor_id,
                 file!(),
                 line!()
@@ -89,42 +89,21 @@ where
         }) {
             self.error_channel
                 .send(anyhow!(actor_error))
-                .expect("If this happens no amount of error handling will save us")
+                .expect("If this happens no amount of error handling will save the program")
         }
 
         schedule_iteration.increment();
 
         loop {
-            dbg!(&self.actor_id);
             while let Ok(message) = self.receiver_from_orchestrator.try_recv() {
-                self.handle(message)
-                    .expect("Message could not be handled by the Actor");
+                match self.handle(message) {
+                    Ok(_) => (),
+                    Err(e) => self.error_channel.send(e).expect(
+                        "If this happens no amount of error handling will save the program",
+                    ),
+                }
             }
 
-            // There is no good way of doing this. You simply have to make the
-            // system so that it will always return to the correct state.
-            // You have to circumvent the `configurations` here and simply
-            // have the system run on the data. I do not see what other options
-            // that we have here. You could simply use an arc swap again. I think
-            // that is a good decision. You should use `ArcSwap` for the
-            // configurations as well. Yes or no? Yes, that is a good idea.
-            //
-            // I think that this is the best way of doing it, but how should we
-            // get the code inside of the algorithm? The idea of putting it into the
-            // algorithm is probably not such a good idea. I cannot see what other
-            // appraoch that we should.
-            // So is this even possible to do here? I am not really sure. I think that the
-            // best approach is to make the system. How do I make a function here that
-            // accepts the correct number of.
-            // You have to make a method for getting the functionality out.
-
-            // You cannot make this lock on every iteration. I think that the best approach
-            // will be to make the code run with the o
-            //
-            // What should you do here to get the most out of the code?
-            // I think that the better appraoch... The other approach was nice in that
-            // it made a whole class of bug impossible to represent. What is the best
-            // approach to make system design here.
             if let Err(actor_error) = self
                 .algorithm
                 // Ahh the issue is that you cannot put this kind of thing in here. The issue comes
@@ -135,7 +114,7 @@ where
             {
                 self.error_channel
                     .send(actor_error)
-                    .expect("If this happens no amount of error handling will save us")
+                    .expect("If this happens no amount of error handling will save the program")
             }
 
             schedule_iteration.increment();
@@ -225,15 +204,7 @@ where
             error_channel: self.error_channel.unwrap(),
         };
 
-        let thread_name = format!(
-            "{} for Asset: {}",
-            std::any::type_name_of_val(&agent),
-            agent
-                .actor_id
-                .2
-                .first()
-                .expect("Every agent needs to be associated with an Asset"),
-        );
+        let thread_name = agent.actor_id.to_string();
 
         std::thread::Builder::new()
             .name(thread_name)

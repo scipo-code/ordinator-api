@@ -26,7 +26,6 @@ use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 use ordinator_scheduling_environment::work_order::operation::ActivityNumber;
 use ordinator_scheduling_environment::work_order::operation::Work;
 use ordinator_scheduling_environment::worker_environment::SupervisorOptions;
-use rand::Rng;
 use rand::rng;
 use rand::seq::IndexedRandom;
 use supervisor_parameters::SupervisorParameters;
@@ -169,10 +168,7 @@ where
                 }
             });
 
-            if !operational_status_by_work_order_activity.is_empty() {
-
-                // dbg!(operational_status_by_work_order_activity.len());
-            };
+            if !operational_status_by_work_order_activity.is_empty() {};
 
             let number_of_assigned = operational_status_by_work_order_activity
                 .iter()
@@ -286,7 +282,7 @@ where
 
                     let supervisor_parameter_resource = &supervisor_parameter.resource;
 
-                    if &supervisor_parameter.work == &Work::from(0.0) {
+                    if supervisor_parameter.work == Work::from(0.0) {
                         continue;
                     };
 

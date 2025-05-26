@@ -47,26 +47,27 @@ use tracing::Level;
 use tracing::event;
 
 pub struct OperationalAlgorithm<Ss>(
-    Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>,
+    Algorithm<OperationalSolution, OperationalParameters, FillinOperationalEvents, Ss>,
 )
 where
     Ss: SystemSolutions,
-    Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>: AbLNSUtils;
+    Algorithm<OperationalSolution, OperationalParameters, FillinOperationalEvents, Ss>: AbLNSUtils;
 
-#[derive(Clone, Default)]
-pub struct OperationalNonProductive(pub Vec<Assignment>);
+// This has the wrong name, it is simply the fill out.
+#[derive(Clone, Default, Debug)]
+pub struct FillinOperationalEvents(pub Vec<Assignment>);
 
 pub trait OperationalTraitUtils
 {
     fn determine_next_event_non_productive(
         &mut self,
         current_time: &mut DateTime<Utc>,
-        next_operation: Option<OperationalAssignment>,
+        next_operation: Option<&OperationalAssignment>,
     ) -> Result<(DateTime<Utc>, OperationalEvents)>;
 
     fn determine_time_interval_of_function(
         &mut self,
-        next_operation: Option<OperationalAssignment>,
+        next_operation: Option<&OperationalAssignment>,
         current_time: &DateTime<Utc>,
         interval: TimeInterval,
     ) -> Result<TimeInterval>;
@@ -86,9 +87,11 @@ where
     fn determine_next_event_non_productive(
         &mut self,
         current_time: &mut DateTime<Utc>,
-        next_operation: Option<OperationalAssignment>,
+        next_operation: Option<&OperationalAssignment>,
     ) -> Result<(DateTime<Utc>, OperationalEvents)>
     {
+        // So the error is in here now. That means that we should strive for
+        // making this
         if self.0.parameters.break_interval.contains(current_time) {
             let time_interval = self.determine_time_interval_of_function(
                 next_operation,
@@ -120,6 +123,8 @@ where
                 OperationalEvents::Toolbox(self.0.parameters.toolbox_interval.clone()),
             ))
         } else {
+            // All this is much more complex than it needs to be. I can feel it.
+            //
             let start = *current_time;
             let (time_until_next_event, next_operational_event) =
                 self.determine_next_event(current_time).with_context(|| {
@@ -129,6 +134,7 @@ where
                         line!()
                     )
                 })?;
+            // We should think of this in
             let mut new_current_time = *current_time + time_until_next_event;
 
             if *current_time == new_current_time {
@@ -137,12 +143,17 @@ where
                     next_operational_event,
                 ))
             } else {
+                // TODO [x] BREAK
                 if self.0.parameters.availability.finish_date < new_current_time {
                     new_current_time = self.0.parameters.availability.finish_date;
                 }
                 let time_interval = TimeInterval::new(start.time(), new_current_time.time())?;
                 Ok((
                     new_current_time,
+                    // So the issue is here. This is the only place that the
+                    // `OperationalEvents::NonProductiveTime` is instantiated.
+                    // Should you simply continue here? You should take a break now. Meditate
+                    // is the best course of action.
                     OperationalEvents::NonProductiveTime(time_interval),
                 ))
             }
@@ -157,7 +168,7 @@ where
     // own weaknesses.
     fn determine_time_interval_of_function(
         &mut self,
-        next_operation: Option<OperationalAssignment>,
+        next_operation: Option<&OperationalAssignment>,
         current_time: &DateTime<Utc>,
         interval: TimeInterval,
     ) -> Result<TimeInterval>
@@ -227,7 +238,7 @@ where
     Ss: SystemSolutions,
 {
     type Target =
-        Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>;
+        Algorithm<OperationalSolution, OperationalParameters, FillinOperationalEvents, Ss>;
 
     fn deref(&self) -> &Self::Target
     {
@@ -248,11 +259,11 @@ where
 impl<Ss> ActorBasedLargeNeighborhoodSearch for OperationalAlgorithm<Ss>
 where
     Ss: SystemSolutions<Operational = OperationalSolution>,
-    Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>:
+    Algorithm<OperationalSolution, OperationalParameters, FillinOperationalEvents, Ss>:
         AbLNSUtils<SolutionType = OperationalSolution>,
 {
     type Algorithm =
-        Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>;
+        Algorithm<OperationalSolution, OperationalParameters, FillinOperationalEvents, Ss>;
     type Options = OperationalOptions;
 
     fn incorporate_shared_state(&mut self) -> Result<bool>
@@ -296,6 +307,7 @@ where
         //   shared_solution = Arc::new(SharedSolution { tactical:
         //   self.tactical_solution.clone(), // Copy over other fields without cloning
         //   ..(**old).clone() });
+        // This should be abstracted away at some point.
         self.arc_swap_shared_solution.rcu(|old| {
             let mut shared_solution = (**old).clone();
             shared_solution.operational_swap(&self.id, self.solution.clone());
@@ -326,6 +338,14 @@ where
             .into_iter()
             .chain(self.solution_intermediate.0.clone())
             .sorted_unstable_by_key(|ass| ass.start);
+
+        no_overlap(&all_events.clone().collect::<Vec<_>>()).with_context(|| {
+            format!(
+                "Overlap between work order activities\n{}:{}",
+                file!(),
+                line!()
+            )
+        })?;
 
         let mut current_time = self.parameters.availability.start_date;
 
@@ -408,12 +428,13 @@ where
         // assert_eq!(current_time, self.availability.end_date);
         equality_between_time_interval_and_assignments(&all_events.clone().collect::<Vec<_>>());
 
-        assert!(is_assignments_in_bounds(
+        ensure!(is_assignments_in_bounds(
             &all_events.clone().collect(),
             &self.parameters.availability
         ));
 
-        assert!(no_overlap(&all_events.collect::<Vec<_>>()));
+        no_overlap(&all_events.collect::<Vec<_>>())
+            .with_context(|| "Overlap between work order activities".to_string())?;
 
         let total_time =
             wrench_time + break_time + off_shift_time + toolbox_time + non_productive_time;
@@ -498,31 +519,82 @@ where
             self.solution.try_insert(*work_order_activity, assignments);
         }
 
+        let operational_events: Vec<Assignment> = self
+            .solution
+            .scheduled_work_order_activities
+            .iter()
+            .flat_map(|(_, os)| os.assignments.iter())
+            .cloned()
+            .collect();
+
+        event!(Level::DEBUG, operational_events_len = ?operational_events.iter().filter(|val| val.operational_events.is_wrench_time()).collect::<Vec<_>>().len());
+
+        let all_events = operational_events
+            .into_iter()
+            .chain(self.solution_intermediate.0.clone())
+            .sorted_unstable_by_key(|ass| ass.start);
+        no_overlap(&all_events.collect::<Vec<_>>())
+            .with_context(|| "Overlap between work order activities".to_string())?;
         let mut current_time = self.parameters.availability.start_date;
 
         // Fill the schedule
+        // What does `ContainOrNextOrNone` even mean here? The fact that you do not know
+        // is a serious issue.
         loop {
             match self.solution.containing_operational_solution(current_time) {
-                ContainOrNextOrNone::Contain(operational_solution) => {
-                    current_time = operational_solution.finish_time();
+                ContainOrNextOrNone::Contain(individual_operational_assignment) => {
+                    current_time = individual_operational_assignment.finish_time();
                 }
-                ContainOrNextOrNone::Next(operational_solution) => {
+
+                // You are having trouble here because you have not named things correctly. That is
+                // the main issue here.
+                ContainOrNextOrNone::Next(individual_operational_assignment) => {
                     let (new_current_time, operational_event) = self
                         .determine_next_event_non_productive(
                             &mut current_time,
-                            Some(operational_solution),
+                            Some(&individual_operational_assignment),
                         )?;
                     ensure!(!operational_event.is_wrench_time());
                     ensure!(operational_event.time_delta() == new_current_time - current_time);
                     // The amount of business logic that has to go into all of this is enourmous.
                     let assignment =
                         Assignment::new(operational_event, current_time, new_current_time)
-                            .with_context(|| {
-                                "Could not create the a work assignment".to_string()
-                            })?;
+                            .with_context(|| format!("Could not create the a work assignment\ncurrent_time: {current_time}\n new_current_time: {new_current_time}"))?;
+
                     current_time = new_current_time;
 
                     // You need to assign the reason for the error every where. This is crucial.
+                    // Okay so what should happen to these two? I think that the best approach
+                    // is to simply.
+                    //
+                    // The issue with using a debugger is that you would have to note down
+                    // where everything lies in order for it to work correctly
+                    // What do we want to test now?
+                    // ensure!(
+                    //     (event_1.finish <= event_2.start) || (event_2.finish <= event_1.start),
+                    //     "event_1: {event_1:#?}\nevent_2: {event_2:#?}"
+                    // );
+                    // Remain calm. That is crucial.
+                    ensure!(
+                        individual_operational_assignment
+                            .assignments
+                            .first()
+                            .context("operational_solution should not be empty")?
+                            .start
+                            >= assignment.finish,
+                        "{:<30}: {current_time}\n\n{:<30}: {:#?}\n\n{:<30}: {:#?}\n\n{:<30}: {:#?}",
+                        "current_time",
+                        "operational_solution_finish",
+                        // Why is there only a single element in this one? That is a
+                        // mistake that should be fixed.
+                        individual_operational_assignment.assignments,
+                        "assignment",
+                        assignment,
+                        "non_productive",
+                        self.solution_intermediate,
+                    );
+                    // This is the error. Hmm... The question then becomes who
+                    // should handle the hjjk
                     self.solution_intermediate.0.push(assignment);
                 }
                 // I think that this should be renamed.
@@ -541,12 +613,45 @@ where
                 }
             };
 
+            let operational_events: Vec<Assignment> = self
+                .solution
+                .scheduled_work_order_activities
+                .iter()
+                .flat_map(|(_, os)| os.assignments.iter())
+                .cloned()
+                .collect();
+
+            event!(Level::DEBUG, operational_events_len = ?operational_events.iter().filter(|val| val.operational_events.is_wrench_time()).collect::<Vec<_>>().len());
+
+            let all_events = operational_events
+                .into_iter()
+                .chain(self.solution_intermediate.0.clone())
+                .sorted_unstable_by_key(|ass| ass.start);
+
+            no_overlap(&all_events.collect::<Vec<_>>())
+                .with_context(|| "Overlap between work order activities".to_string())?;
             if current_time >= self.parameters.availability.finish_date {
                 self.solution_intermediate.0.last_mut().unwrap().finish =
                     self.parameters.availability.finish_date;
                 break;
             };
         }
+        let operational_events: Vec<Assignment> = self
+            .solution
+            .scheduled_work_order_activities
+            .iter()
+            .flat_map(|(_, os)| os.assignments.iter())
+            .cloned()
+            .collect();
+
+        event!(Level::DEBUG, operational_events_len = ?operational_events.iter().filter(|val| val.operational_events.is_wrench_time()).collect::<Vec<_>>().len());
+
+        let all_events = operational_events
+            .into_iter()
+            .chain(self.solution_intermediate.0.clone())
+            .sorted_unstable_by_key(|ass| ass.start);
+        no_overlap(&all_events.collect::<Vec<_>>())
+            .with_context(|| "Overlap between work order activities".to_string())?;
 
         Ok(())
     }
@@ -565,6 +670,26 @@ where
                 .map(|operational_solution| operational_solution.0)
                 .collect();
 
+        ensure!(
+            (self
+                .solution
+                .scheduled_work_order_activities
+                .first()
+                .unwrap()
+                .0
+                .0
+                == WorkOrderNumber(0))
+        );
+        ensure!(
+            (self
+                .solution
+                .scheduled_work_order_activities
+                .last()
+                .unwrap()
+                .0
+                .0
+                == WorkOrderNumber(0))
+        );
         for operational_solution in &operational_solutions_filtered {
             self.unschedule_single_work_order_activity((
                 operational_solution.0,
@@ -583,20 +708,6 @@ where
     fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm
     {
         &mut self.0
-    }
-
-    fn update_based_on_shared_solution(&mut self) -> Result<()>
-    {
-        self.algorithm_util_methods().load_shared_solution();
-
-        let state_change = self.incorporate_shared_state()?;
-
-        if state_change {
-            self.calculate_objective_value()?;
-            self.make_atomic_pointer_swap();
-        }
-
-        Ok(())
     }
 }
 
@@ -695,12 +806,10 @@ where
                 .iter()
                 .any(|os| os.0 == work_order_and_activity_number)
         );
-        dbg!(&self.solution.scheduled_work_order_activities.len());
 
         self.solution
             .scheduled_work_order_activities
             .retain(|os| os.0 != work_order_and_activity_number);
-        dbg!(&self.solution.scheduled_work_order_activities.len());
 
         ensure!(
             !self
@@ -794,9 +903,7 @@ where
 
         Ok([break_diff, toolbox_diff, off_shift_diff]
             .iter()
-            // I think that this is an issue.
             .filter(|&diff_event| diff_event.0.num_seconds() >= 0)
-            .inspect(|s| println!("{s:#?}"))
             .min_by_key(|&diff_event| diff_event.0.num_seconds())
             .cloned()
             .unwrap())
@@ -1027,7 +1134,7 @@ where
     }
 }
 
-fn no_overlap(events: &Vec<Assignment>) -> bool
+fn no_overlap(events: &Vec<Assignment>) -> Result<()>
 {
     for event_1 in events {
         for event_2 in events {
@@ -1035,16 +1142,13 @@ fn no_overlap(events: &Vec<Assignment>) -> bool
                 continue;
             }
 
-            if (event_1.finish <= event_2.start) || (event_2.finish <= event_1.start) {
-                continue;
-            } else {
-                dbg!(event_1);
-                dbg!(event_2);
-                return false;
-            }
+            ensure!(
+                (event_1.finish <= event_2.start) || (event_2.finish <= event_1.start),
+                "event_1: {event_1:#?}\nevent_2: {event_2:#?}"
+            );
         }
     }
-    true
+    Ok(())
 }
 
 fn no_overlap_by_ref(events: Vec<&Assignment>) -> bool
@@ -1058,8 +1162,6 @@ fn no_overlap_by_ref(events: Vec<&Assignment>) -> bool
             if (event_1.finish <= event_2.start) || (event_2.finish <= event_1.start) {
                 continue;
             } else {
-                dbg!(event_1);
-                dbg!(event_2);
                 return false;
             }
         }
@@ -1071,11 +1173,9 @@ fn is_assignments_in_bounds(events: &Vec<Assignment>, availability: &Availabilit
 {
     for event in events {
         if event.start < availability.start_date && !event.operational_events.unavail() {
-            dbg!(event, availability);
             return false;
         }
         if availability.finish_date < event.finish && !event.operational_events.unavail() {
-            dbg!(event, availability);
             return false;
         }
     }
@@ -1099,13 +1199,13 @@ fn equality_between_time_interval_and_assignments(all_events: &Vec<Assignment>)
         )
     }
 }
-impl<Ss> From<Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>>
+impl<Ss> From<Algorithm<OperationalSolution, OperationalParameters, FillinOperationalEvents, Ss>>
     for OperationalAlgorithm<Ss>
 where
     Ss: SystemSolutions,
 {
     fn from(
-        value: Algorithm<OperationalSolution, OperationalParameters, OperationalNonProductive, Ss>,
+        value: Algorithm<OperationalSolution, OperationalParameters, FillinOperationalEvents, Ss>,
     ) -> Self
     {
         OperationalAlgorithm(value)

@@ -6,6 +6,8 @@ use anyhow::Result;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_scheduling_environment::SchedulingEnvironment;
 use serde::Serialize;
+use tracing::Level;
+use tracing::event;
 
 pub type ActorLinkToSchedulingEnvironment<'a> = MutexGuard<'a, SchedulingEnvironment>;
 
@@ -39,7 +41,13 @@ pub trait ActorBasedLargeNeighborhoodSearch
 
         // You still have the same problem. Why do you keep running in circles? I do not
         // understand it. You have to fix this. You will work longer hours.
-        self.update_based_on_shared_solution()?;
+        self.update_based_on_system_solution().with_context(|| {
+            format!(
+                "Could not update the Algorithm state based on SystemSolution\nLocation: {}:{}",
+                file!(),
+                line!()
+            )
+        })?;
 
         // But that means that we cannot code this
         let current_solution = self.algorithm_util_methods().clone_algorithm_solution();
@@ -50,7 +58,18 @@ pub trait ActorBasedLargeNeighborhoodSearch
         self.schedule()
             .with_context(|| format!("Could not schedule\n{current_solution:#?}"))?;
 
-        let objective_value_type = self.calculate_objective_value()?;
+        let objective_value_type = self.calculate_objective_value().with_context(|| {
+            format!(
+                "Could not calculate the objective value\nLocation: {}:{}",
+                file!(),
+                line!()
+            )
+        })?;
+
+        event!(
+            Level::INFO,
+            better_objective = ?objective_value_type
+        );
 
         match objective_value_type {
             ObjectiveValueType::Better(objective_value) => {
@@ -97,14 +116,17 @@ pub trait ActorBasedLargeNeighborhoodSearch
     /// the shared solution. That means that this method has to look at relevant
     /// state in the others `Agent`s and incorporate that and handled changes in
     /// parameters coming from external inputs.
-    fn update_based_on_shared_solution(&mut self) -> Result<()>
+    fn update_based_on_system_solution(&mut self) -> Result<()>
     {
         self.algorithm_util_methods().load_shared_solution();
 
         let state_change = self.incorporate_shared_state()?;
 
         if state_change {
-            self.calculate_objective_value()?;
+            self.schedule().unwrap();
+            // We have to determine where the error is located. If this fails we have to go
+            // into the crate and start unit testing.
+            self.calculate_objective_value().with_context(|| format!("Could not calculate the objective value after a incorporating state from the system solution\nLocation: {}:{}", file!(), line!()))?;
             self.make_atomic_pointer_swap();
         }
 
@@ -132,7 +154,7 @@ pub trait AbLNSUtils
     fn swap_solution(&mut self, solution: Self::SolutionType);
 }
 
-#[allow(dead_code)]
+#[derive(Debug)]
 pub enum ObjectiveValueType<O>
 {
     Better(O),
