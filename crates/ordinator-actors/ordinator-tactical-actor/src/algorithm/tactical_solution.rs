@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fmt::Display;
 
@@ -211,7 +212,7 @@ impl TacticalScheduledWorkOrders
 }
 
 #[derive(PartialEq, Eq, Debug, Default, Clone)]
-pub struct TacticalScheduledOperations(pub HashMap<ActivityNumber, OperationSolution>);
+pub struct TacticalScheduledOperations(pub BTreeMap<ActivityNumber, OperationSolution>);
 
 //
 impl TacticalScheduledOperations

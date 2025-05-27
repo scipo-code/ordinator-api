@@ -4,6 +4,7 @@ use chrono::DateTime;
 use chrono::Utc;
 use ordinator_orchestrator_actor_traits::TacticalInterface;
 use ordinator_scheduling_environment::time_environment::period::Period;
+use ordinator_scheduling_environment::work_order::WorkOrder;
 use ordinator_scheduling_environment::work_order::WorkOrderActivity;
 use ordinator_scheduling_environment::work_order::WorkOrderNumber;
 
@@ -35,9 +36,24 @@ impl TacticalInterface for TacticalSolution
         Some((start, end))
     }
 
-    fn tactical_period(&self, _work_order_number: &WorkOrderNumber) -> Option<&Period>
+    fn tactical_period<'a>(
+        &self,
+        _work_order_number: &WorkOrderNumber,
+        periods: &'a [Period],
+    ) -> Option<&'a Period>
     {
-        todo!()
+        match self.tactical_work_orders.0.get(_work_order_number) {
+            Some(c) => match c {
+                ordinator_orchestrator_actor_traits::WhereIsWorkOrder::Strategic => None,
+                ordinator_orchestrator_actor_traits::WhereIsWorkOrder::Tactical(wo) => {
+                    let first_activity = wo.0.first_key_value();
+                    let first_date = first_activity?.1.scheduled.first()?.0.date();
+                    Some(WorkOrder::date_to_period(periods, &first_date.date_naive()))
+                }
+                ordinator_orchestrator_actor_traits::WhereIsWorkOrder::NotScheduled => None,
+            },
+            None => None,
+        }
     }
 
     fn all_scheduled_tasks(

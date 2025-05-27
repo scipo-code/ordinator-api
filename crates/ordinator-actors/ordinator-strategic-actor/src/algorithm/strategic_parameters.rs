@@ -422,54 +422,52 @@ impl StrategicClustering
     ) -> Result<Self>
     {
         let mut clustering_similarity = HashMap::new();
-        // let work_orders_data: Vec<_> = work_orders
-        //     .inner
-        //     .iter()
-        //     .filter(|(_, wo)| &wo.functional_location().asset == asset)
-        //     .map(|(number, work_order)| {
-        //         let fl = &work_order.work_order_info.functional_location;
-        //         (
-        //             number,
-        //             fl.asset.clone(),
-        //             fl.sector(),
-        //             fl.system(),
-        //             fl.subsystem(),
-        //             fl.equipment_tag(),
-        //         )
-        //     })
-        //     .collect();
+        let work_orders_data: Vec<_> = work_orders
+            .inner
+            .iter()
+            .filter(|(_, wo)| &wo.functional_location().asset == asset)
+            .map(|(number, work_order)| {
+                let fl = &work_order.work_order_info.functional_location;
+                (
+                    number,
+                    fl.asset.clone(),
+                    fl.sector(),
+                    fl.system(),
+                    fl.subsystem(),
+                    fl.equipment_tag(),
+                )
+            })
+            .collect();
 
-        // // Calculate similarity for each pair of work orders
-        // for i in 0..work_orders_data.len() {
-        //     for j in i..work_orders_data.len() {
-        //         let (wo_num1, asset1, sector1, system1, subsystem1, tag1) =
-        // &work_orders_data[i];         let (wo_num2, asset2, sector2, system2,
-        // subsystem2, tag2) = &work_orders_data[j];
+        // Calculate similarity for each pair of work orders
+        for i in 0..work_orders_data.len() {
+            for j in i..work_orders_data.len() {
+                let (wo_num1, asset1, sector1, system1, subsystem1, tag1) = &work_orders_data[i];
+                let (wo_num2, asset2, sector2, system2, subsystem2, tag2) = &work_orders_data[j];
 
-        //         // FIX
-        //         // let similarity = {
-        //         //     let mut score = 0;
-        //         //     if asset1 == asset2 {
-        //         //         score += clustering_weights.asset;
-        //         //     }
-        //         //     if sector1 == sector2 && sector2.is_some() {
-        //         //         score += clustering_weights.sector;
-        //         //     }
-        //         //     if system1 == system2 && system2.is_some() {
-        //         //         score += clustering_weights.system;
-        //         //     }
-        //         //     if subsystem1 == subsystem2 && subsystem2.is_some() {
-        //         //         score += clustering_weights.subsystem;
-        //         //     }
-        //         //     if tag1 == tag2 && tag2.is_some() {
-        //         //         score += clustering_weights.equipment_tag;
-        //         //     }
-        //         //     score
-        //         // };
+                let similarity = {
+                    let mut score = 0;
+                    if asset1 == asset2 {
+                        score += clustering_weights.asset;
+                    }
+                    if sector1 == sector2 && sector2.is_some() {
+                        score += clustering_weights.sector;
+                    }
+                    if system1 == system2 && system2.is_some() {
+                        score += clustering_weights.system;
+                    }
+                    if subsystem1 == subsystem2 && subsystem2.is_some() {
+                        score += clustering_weights.subsystem;
+                    }
+                    if tag1 == tag2 && tag2.is_some() {
+                        score += clustering_weights.equipment_tag;
+                    }
+                    score
+                };
 
-        //         clustering_similarity.insert((**wo_num1, **wo_num2), 0);
-        //     }
-        // }
+                clustering_similarity.insert((**wo_num1, **wo_num2), similarity);
+            }
+        }
         Ok(StrategicClustering {
             inner: clustering_similarity,
         })

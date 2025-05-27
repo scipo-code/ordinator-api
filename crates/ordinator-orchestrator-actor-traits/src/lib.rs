@@ -347,7 +347,11 @@ where
         work_order_activity: &WorkOrderActivity,
     ) -> Option<(&DateTime<Utc>, &DateTime<Utc>)>;
 
-    fn tactical_period(&self, work_order_number: &WorkOrderNumber) -> Option<&Period>;
+    fn tactical_period<'a>(
+        &self,
+        work_order_number: &WorkOrderNumber,
+        periods: &'a [Period],
+    ) -> Option<&'a Period>;
 
     fn all_scheduled_tasks(&self) -> HashMap<WorkOrderNumber, BTreeMap<ActivityNumber, Day>>;
 }

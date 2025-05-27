@@ -11,6 +11,7 @@ use std::ops::Deref;
 use std::ops::DerefMut;
 use std::sync::Arc;
 
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::ensure;
@@ -60,6 +61,264 @@ use crate::messages::responses::StrategicResponseScheduling;
 // many generic things have to be changed in 4 different places, even though you
 // want the same behavior. I think that making the behavior generic is the most
 // important thing here.
+
+
+pub struct StrategicAlgorithm<Ss>(
+    pub Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>,
+)
+where
+    StrategicSolution: Solution,
+    StrategicParameters: Parameters,
+    Ss: SystemSolutions,
+    Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>:
+        AbLNSUtils;
+
+impl<Ss> Deref for StrategicAlgorithm<Ss>
+where
+    Ss: SystemSolutions,
+{
+    type Target =
+        Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<Ss> DerefMut for StrategicAlgorithm<Ss>
+where
+    Ss: SystemSolutions,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<Ss> ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm<Ss>
+where
+    Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>:
+        AbLNSUtils<SolutionType = StrategicSolution>,
+    StrategicSolution: Solution,
+    StrategicParameters: Parameters,
+    Ss: SystemSolutions<Strategic = StrategicSolution>,
+{
+    type Algorithm =
+        Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
+    type Options = StrategicOptions;
+
+    fn incorporate_shared_state(&mut self) -> Result<bool> {
+        let mut work_order_numbers: Vec<ForcedWorkOrder> = vec![];
+        dbg!();
+        let mut state_change = false;
+
+        // This is the problem. What is the best way around it?
+        // We should create a method to update the
+        for (work_order_number, strategic_parameter) in
+            self.parameters.strategic_work_order_parameters.iter()
+        {
+            let scheduled_period = self
+                .solution
+                .strategic_scheduled_work_orders
+                .get(work_order_number)
+                .with_context(|| {
+                    format!(
+                        "{work_order_number:?}\nis not found in the StrategicAlgorithm"
+                    )
+                })?;
+
+            if scheduled_period == &strategic_parameter.locked_in_period {
+                continue;
+            }
+
+            // One of the most important things to understand is the trade off coming from
+            // encapsulation. That is the most difficult thing in all this. I think that
+            // there are many possible different trade offs that can be made
+            // here but the most important is getting this running and quickly.
+            //
+            // If this value is some. It means that the Tactical Algorithm has scheduled the
+            // work order.
+            let tactical_scheduled_period = self
+                .loaded_shared_solution
+                .tactical_actor_solution()
+                .ok()
+                .and_then(|solution| solution.tactical_period(work_order_number, &self.parameters.strategic_periods));
+
+                
+            if strategic_parameter.locked_in_period.is_some() {
+                work_order_numbers.push(ForcedWorkOrder::Locked(*work_order_number));
+            } else if let Some(tactical_period) = tactical_scheduled_period {
+                work_order_numbers.push(ForcedWorkOrder::FromTactical((
+                    *work_order_number,
+                    tactical_period.clone(),
+                )));
+            }
+        }
+
+        dbg!();
+        for (count, forced_work_order_numbers) in work_order_numbers.iter().enumerate() {
+            state_change = true;
+            dbg!("Iteration: {} of {}", count,  work_order_numbers.len());
+            self.schedule_forced_work_order(forced_work_order_numbers)
+                .with_context(|| {
+                    format!(
+                        "{forced_work_order_numbers:#?} could not be force scheduled"
+                    )
+                })?;
+        }
+
+        dbg!();
+        Ok(state_change)
+    }
+
+    fn make_atomic_pointer_swap(&mut self) {
+        // Performance enhancements:
+        // * COW: #[derive(Clone)] struct SharedSolution<'a> { tactical: Cow<'a,
+        //   TacticalSolution>, // other fields... }
+        //
+        // * Reuse the old SharedSolution, cloning only the fields that are needed. let
+        //   shared_solution = Arc::new(SharedSolution { tactical:
+        //   self.tactical_solution.clone(), // Copy over other fields without cloning
+        //   ..(**old).clone() });
+        self.arc_swap_shared_solution.rcu(|old| {
+            let mut shared_solution = (**old).clone();
+            // TODO [ ]
+            // Make a swap here.
+            // Should you make a swap here? Yes that is the next piece of code that is
+            // crucial for this to work.
+            shared_solution.strategic_swap(&self.id, self.solution.clone());
+            Arc::new(shared_solution)
+        });
+    }
+
+    fn calculate_objective_value(
+        &mut self,
+    ) -> Result<
+        ObjectiveValueType<
+            <<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue,
+        >,
+    > {
+        let mut strategic_objective_value =
+            StrategicObjectiveValue::new(&self.parameters.strategic_options);
+
+        self.determine_urgency(&mut strategic_objective_value)
+            .context("could not determine strategic urgency")?;
+
+        self.determine_resource_penalty(&mut strategic_objective_value);
+
+        self.determine_clustering(&mut strategic_objective_value).context("Could not determine StrategicObjective value")?;
+
+        strategic_objective_value.aggregate_objectives();
+
+        // This should not happen. We should always work on self and then
+        // substitute out the remaining parts.
+        // panic!();
+        if strategic_objective_value.objective_value < self.solution.objective_value.objective_value
+        {
+            event!(Level::INFO, strategic_objective_value_better = ?strategic_objective_value);
+            Ok(ObjectiveValueType::Better(strategic_objective_value))
+        } else {
+            event!(Level::INFO, strategic_objective_value_worse = ?strategic_objective_value);
+            Ok(ObjectiveValueType::Worse)
+        }
+    }
+
+    fn schedule(&mut self) -> Result<()> {
+        // WARNING
+        // I am not sure that this is the correct place of putting this.
+        // What should we change here? I think that the best thing would be to make this
+        // as Hmm... you need to think hard about this. You were using the
+        // schedule_forced to handle the state updates. That is not the correct
+        // approach here. I think that we instead should strive to make a clean
+        // schedule function. and then we should make a shared_state_update
+        // function. Maybe it is also time to clean up in all this code.
+        dbg!();
+        while !self.solution_intermediate.is_empty() {
+            dbg!();
+            for period in self.parameters.strategic_periods.clone() {
+                let (work_order_number, weight) = match self.solution_intermediate.pop() {
+                    Some((work_order_number, weight)) => {
+        dbg!();
+                        (work_order_number, weight)
+                    },
+
+                    None => {
+        dbg!();
+                        break;
+                    }
+                };
+
+                // You are a little overloaded! I think that you should forget about this for
+                // now, but remember about it.
+                let inf_work_order_number = self
+                    .schedule_strategic_work_order(work_order_number, &period)
+                    .with_context(|| {
+                        format!("{work_order_number:?} could not be scheduled normally")
+                    })?;
+
+        dbg!();
+                if let Some(work_order_number) = inf_work_order_number {
+                    if &period != self.parameters.strategic_periods.last().unwrap() {
+                        self.solution_intermediate.push(work_order_number, weight);
+                    }
+                }
+            }
+        }
+        dbg!();
+        Ok(())
+    }
+
+    fn unschedule(&mut self) -> Result<()> {
+        dbg!();
+        let mut rng = rand::rng();
+        let strategic_work_orders = &self.solution.strategic_scheduled_work_orders;
+
+        let strategic_parameters = &self.parameters.strategic_work_order_parameters;
+
+        let mut filtered_keys: Vec<_> = strategic_work_orders
+            .iter()
+            .filter(|(won, _)| {
+                strategic_parameters
+                    .get(won)
+                    .unwrap()
+                    .locked_in_period
+                    .is_none()
+            })
+            .map(|(&won, _)| won)
+            .collect();
+
+        filtered_keys.sort();
+
+        let sampled_work_order_keys = filtered_keys
+            .choose_multiple(
+                &mut rng,
+                self.parameters
+                    .strategic_options
+                    .number_of_removed_work_orders,
+            )
+            .collect::<Vec<_>>()
+            .clone();
+
+        // assert!(self.solution.scheduled_periods.values().all(|per| per.is_some()));
+        for work_order_number in sampled_work_order_keys {
+            self.unschedule_specific_work_order(*work_order_number)
+                .with_context(|| format!("Could not unschedule: {work_order_number:?}"))?;
+
+            let weight = self
+                .parameters
+                .strategic_work_order_parameters
+                .get(work_order_number)
+                .context("Parameters should always be available")?
+                .weight;
+            self.solution_intermediate.push(*work_order_number, weight);
+        }
+        dbg!();
+        Ok(())
+    }
+
+    fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm {
+        &mut self.0
+    }
+}
+
 impl<Ss> StrategicAlgorithm<Ss>
 where
     Ss: SystemSolutions,
@@ -200,7 +459,7 @@ where
         Ok(())
     }
 
-    fn determine_clustering(&mut self, strategic_objective_value: &mut StrategicObjectiveValue) {
+    fn determine_clustering(&mut self, strategic_objective_value: &mut StrategicObjectiveValue) -> anyhow::Result<()> {
         for period in &self.parameters.strategic_periods {
             // Precompute scheduled work orders for the current period
             let scheduled_work_orders_by_period: Vec<_> = self
@@ -243,7 +502,7 @@ where
                                 scheduled_work_orders_by_period[j]
                             )
                         })
-                        .unwrap();
+                        .context("clustering_value not available. Did you disable it to increase startup times? That is the most likely scenario")?;
 
                     // Increment the clustering value in the objective
                     strategic_objective_value.clustering_value.1 +=
@@ -251,6 +510,7 @@ where
                 }
             }
         }
+        Ok(())
     }
 
     // The resource penalty should simply be calculated on the total amount of
@@ -279,6 +539,8 @@ where
     }
 }
 
+// This should be in a different place as well. I think that the best approach
+// will be to consolidate this together with the other models.
 #[derive(Debug)]
 pub enum ForcedWorkOrder {
     Locked(WorkOrderNumber),
@@ -375,14 +637,17 @@ where
         // The issue is that it always returns here and it should not be doing
         // that. If it is the last period it should go through but not be added
         // to the priority queue.
+        dbg!();
         if strategic_parameter.excluded_periods.contains(period) {
             return Ok(Some(work_order_number));
         }
 
+        dbg!();
         if self.parameters.period_locks.contains(period) {
             return Ok(Some(work_order_number));
         }
 
+        dbg!();
         let resource_use_option = self
             .determine_best_permutation(work_load.clone(), period, ScheduleWorkOrder::Normal)
             .with_context(|| {
@@ -399,11 +664,13 @@ where
             None => return Ok(Some(work_order_number)),
         };
 
+        dbg!();
         let previous_period = self
             .solution
             .strategic_scheduled_work_orders
             .insert(work_order_number, Some(period.clone()));
 
+        dbg!();
         ensure!(
             previous_period.as_ref().unwrap().is_none(),
             "Previous period: {:#?}\nNew period: {:#?}\nStrategicParameter: {:#?}\nfile: {}\nline: {}",
@@ -416,7 +683,9 @@ where
 
         resource_use.assert_well_shaped_resources()?;
 
+        dbg!();
         self.update_loadings(resource_use, LoadOperation::Add);
+        dbg!();
         Ok(None)
     }
 
@@ -436,6 +705,7 @@ where
                     )
                 })?;
         }
+        dbg!();
 
         let locked_in_period = match &force_schedule_work_order {
             ForcedWorkOrder::Locked(work_order_number) => self
@@ -445,6 +715,7 @@ where
             ForcedWorkOrder::FromTactical((_, period)) => period.clone(),
         };
 
+        dbg!();
         // Should the update loadings also be included here? I do not think that is a
         // good idea. What other things could we do?
         self.update_the_locked_in_period(
@@ -458,6 +729,7 @@ where
             )
         })?;
 
+        dbg!();
         let work_load = self
             .parameters
             .strategic_work_order_parameters
@@ -466,14 +738,18 @@ where
             .work_load
             .clone();
 
+        dbg!();
         let strategic_resources = self
             .determine_best_permutation(work_load, &locked_in_period, ScheduleWorkOrder::Forced)
             .with_context(|| format!("{:?}\ncould not be\n{:#?}", force_schedule_work_order, ScheduleWorkOrder::Forced))?
             .expect("It should always be possible to determine a resource permutation for a forced work order");
 
+        dbg!();
         strategic_resources.assert_well_shaped_resources()?;
 
+        dbg!();
         self.update_loadings(strategic_resources, LoadOperation::Add);
+        dbg!();
         Ok(())
     }
 
@@ -563,6 +839,7 @@ where
         let mut best_total_excess = Work::from(-999999999.0);
         let mut best_work_order_resource_loadings = StrategicResources::default();
 
+        dbg!();
         let capacity_resources = self
             .parameters
             .strategic_capacity
@@ -580,6 +857,7 @@ where
         {
             return Ok(None);
         }
+        dbg!();
 
         let strategic_resources_loading: HashMap<String, OperationalResource> = self
             .solution
@@ -595,6 +873,7 @@ where
         let difference_resources =
             determine_difference_resources(capacity_resources, &strategic_resources_loading);
 
+        dbg!();
         // Perform 10 different technician permutations
         for _ in 0..10 {
             let mut technician_permutation = difference_resources
@@ -700,6 +979,7 @@ where
                     Some(strategic_resource_loadings) => strategic_resource_loadings,
                     None => continue,
                 };
+        dbg!();
 
                 match schedule {
                     ScheduleWorkOrder::Normal => {
@@ -766,7 +1046,7 @@ where
             ScheduleWorkOrder::Normal => Ok(None),
             ScheduleWorkOrder::Forced => Ok(Some(best_work_order_resource_loadings)),
             ScheduleWorkOrder::Unschedule => {
-                unreachable!("Unscheduling work order should always be possible");
+                bail!("Unscheduling work order should always be possible\nwork_order: {period:#?}")
             }
         }
     }
@@ -1027,252 +1307,7 @@ pub fn calculate_period_difference(scheduled_period: &Period, latest_period: &Pe
     std::cmp::max(days / 7, 0) as u64
 }
 
-pub struct StrategicAlgorithm<Ss>(
-    pub Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>,
-)
-where
-    StrategicSolution: Solution,
-    StrategicParameters: Parameters,
-    Ss: SystemSolutions,
-    Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>:
-        AbLNSUtils;
 
-impl<Ss> Deref for StrategicAlgorithm<Ss>
-where
-    Ss: SystemSolutions,
-{
-    type Target =
-        Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl<Ss> DerefMut for StrategicAlgorithm<Ss>
-where
-    Ss: SystemSolutions,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl<Ss> ActorBasedLargeNeighborhoodSearch for StrategicAlgorithm<Ss>
-where
-    Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>:
-        AbLNSUtils<SolutionType = StrategicSolution>,
-    StrategicSolution: Solution,
-    StrategicParameters: Parameters,
-    Ss: SystemSolutions<Strategic = StrategicSolution>,
-{
-    type Algorithm =
-        Algorithm<StrategicSolution, StrategicParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
-    type Options = StrategicOptions;
-
-    fn incorporate_shared_state(&mut self) -> Result<bool> {
-        let mut work_order_numbers: Vec<ForcedWorkOrder> = vec![];
-        let mut state_change = false;
-
-        // This is the problem. What is the best way around it?
-        // We should create a method to update the
-        for (work_order_number, strategic_parameter) in
-            self.parameters.strategic_work_order_parameters.iter()
-        {
-            let scheduled_period = self
-                .solution
-                .strategic_scheduled_work_orders
-                .get(work_order_number)
-                .with_context(|| {
-                    format!(
-                        "{work_order_number:?}\nis not found in the StrategicAlgorithm"
-                    )
-                })?;
-
-            if scheduled_period == &strategic_parameter.locked_in_period {
-                continue;
-            }
-
-            // One of the most important things to understand is the trade off coming from
-            // encapsulation. That is the most difficult thing in all this. I think that
-            // there are many possible different trade offs that can be made
-            // here but the most important is getting this running and quickly.
-            //
-            // If this value is some. It means that the Tactical Algorithm has scheduled the
-            // work order.
-            let tactical_scheduled_period = self
-                .loaded_shared_solution
-                .tactical_actor_solution()
-                .ok()
-                .and_then(|solution| solution.tactical_period(work_order_number));
-
-                
-            if strategic_parameter.locked_in_period.is_some() {
-                work_order_numbers.push(ForcedWorkOrder::Locked(*work_order_number));
-            } else if let Some(tactical_period) = tactical_scheduled_period {
-                work_order_numbers.push(ForcedWorkOrder::FromTactical((
-                    *work_order_number,
-                    tactical_period.clone(),
-                )));
-            }
-        }
-
-        for forced_work_order_numbers in work_order_numbers {
-            state_change = true;
-            self.schedule_forced_work_order(&forced_work_order_numbers)
-                .with_context(|| {
-                    format!(
-                        "{forced_work_order_numbers:#?} could not be force scheduled"
-                    )
-                })?;
-        }
-
-        Ok(state_change)
-    }
-
-    fn make_atomic_pointer_swap(&mut self) {
-        // Performance enhancements:
-        // * COW: #[derive(Clone)] struct SharedSolution<'a> { tactical: Cow<'a,
-        //   TacticalSolution>, // other fields... }
-        //
-        // * Reuse the old SharedSolution, cloning only the fields that are needed. let
-        //   shared_solution = Arc::new(SharedSolution { tactical:
-        //   self.tactical_solution.clone(), // Copy over other fields without cloning
-        //   ..(**old).clone() });
-        self.arc_swap_shared_solution.rcu(|old| {
-            let mut shared_solution = (**old).clone();
-            // TODO [ ]
-            // Make a swap here.
-            // Should you make a swap here? Yes that is the next piece of code that is
-            // crucial for this to work.
-            shared_solution.strategic_swap(&self.id, self.solution.clone());
-            Arc::new(shared_solution)
-        });
-    }
-
-    fn calculate_objective_value(
-        &mut self,
-    ) -> Result<
-        ObjectiveValueType<
-            <<Self::Algorithm as AbLNSUtils>::SolutionType as Solution>::ObjectiveValue,
-        >,
-    > {
-        let mut strategic_objective_value =
-            StrategicObjectiveValue::new(&self.parameters.strategic_options);
-
-        self.determine_urgency(&mut strategic_objective_value)
-            .context("could not determine strategic urgency")?;
-
-        self.determine_resource_penalty(&mut strategic_objective_value);
-
-        self.determine_clustering(&mut strategic_objective_value);
-
-        strategic_objective_value.aggregate_objectives();
-
-        // This should not happen. We should always work on self and then
-        // substitute out the remaining parts.
-        panic!();
-        if strategic_objective_value.objective_value < self.solution.objective_value.objective_value
-        {
-            event!(Level::INFO, strategic_objective_value_better = ?strategic_objective_value);
-            Ok(ObjectiveValueType::Better(strategic_objective_value))
-        } else {
-            event!(Level::INFO, strategic_objective_value_worse = ?strategic_objective_value);
-            Ok(ObjectiveValueType::Worse)
-        }
-    }
-
-    // This should be the main schedule function. And each agent should use this
-    // one. All work order should go into the priority queue and then the
-    // locked_in_period constaint in simply handled in there.
-    #[instrument(level = "trace", skip_all)]
-    fn schedule(&mut self) -> Result<()> {
-        
-        // WARNING
-        // I am not sure that this is the correct place of putting this.
-        // What should we change here? I think that the best thing would be to make this
-        // as Hmm... you need to think hard about this. You were using the
-        // schedule_forced to handle the state updates. That is not the correct
-        // approach here. I think that we instead should strive to make a clean
-        // schedule function. and then we should make a shared_state_update
-        // function. Maybe it is also time to clean up in all this code.
-        while !self.solution_intermediate.is_empty() {
-            for period in self.parameters.strategic_periods.clone() {
-                let (work_order_number, weight) = match self.solution_intermediate.pop() {
-                    Some((work_order_number, weight)) => (work_order_number, weight),
-
-                    None => {
-                        break;
-                    }
-                };
-
-                // You are a little overloaded! I think that you should forget about this for
-                // now, but remember about it.
-                let inf_work_order_number = self
-                    .schedule_strategic_work_order(work_order_number, &period)
-                    .with_context(|| {
-                        format!("{work_order_number:?} could not be scheduled normally")
-                    })?;
-
-                if let Some(work_order_number) = inf_work_order_number {
-                    if &period != self.parameters.strategic_periods.last().unwrap() {
-                        self.solution_intermediate.push(work_order_number, weight);
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
-    fn unschedule(&mut self) -> Result<()> {
-        let mut rng = rand::rng();
-        let strategic_work_orders = &self.solution.strategic_scheduled_work_orders;
-
-        let strategic_parameters = &self.parameters.strategic_work_order_parameters;
-
-        let mut filtered_keys: Vec<_> = strategic_work_orders
-            .iter()
-            .filter(|(won, _)| {
-                strategic_parameters
-                    .get(won)
-                    .unwrap()
-                    .locked_in_period
-                    .is_none()
-            })
-            .map(|(&won, _)| won)
-            .collect();
-
-        filtered_keys.sort();
-
-        let sampled_work_order_keys = filtered_keys
-            .choose_multiple(
-                &mut rng,
-                self.parameters
-                    .strategic_options
-                    .number_of_removed_work_orders,
-            )
-            .collect::<Vec<_>>()
-            .clone();
-
-        // assert!(self.solution.scheduled_periods.values().all(|per| per.is_some()));
-        for work_order_number in sampled_work_order_keys {
-            self.unschedule_specific_work_order(*work_order_number)
-                .with_context(|| format!("Could not unschedule: {work_order_number:?}"))?;
-
-            let weight = self
-                .parameters
-                .strategic_work_order_parameters
-                .get(work_order_number)
-                .context("Parameters should always be available")?
-                .weight;
-            self.solution_intermediate.push(*work_order_number, weight);
-        }
-        Ok(())
-    }
-
-    fn algorithm_util_methods(&mut self) -> &mut Self::Algorithm {
-        &mut self.0
-    }
-}
 
 impl<Ss> StrategicAlgorithm<Ss>
 where
@@ -1469,6 +1504,7 @@ where
                 )
             })?
             .take();
+        dbg!();
 
         if let Some(unschedule_from_period) = unschedule_from_period {
             let strategic_parameter = self
