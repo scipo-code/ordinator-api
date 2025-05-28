@@ -15,12 +15,11 @@ impl std::fmt::Debug for MarginalFitness
         match self {
             MarginalFitness::Scheduled(time) => write!(
                 f,
-                "{}::{}({}, {:?}, {:?})",
+                "{}::Scheduled({}, {:?}, {:?})",
                 std::any::type_name::<MarginalFitness>()
                     .split("::")
                     .last()
                     .unwrap(),
-                "Scheduled",
                 time,
                 time / 3600,
                 time / 3600 / 24,

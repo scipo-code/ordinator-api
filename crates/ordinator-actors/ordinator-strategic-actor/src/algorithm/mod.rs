@@ -1054,7 +1054,7 @@ where
                         
                             acc + res_fil.1.total_hours
                     })));
-                bail!("Unscheduling work order should always be possible\n{period:#?}\nStrategic loadings: {:#?}\nStrategic capacities: {:#?}\nWork load: {:?}\nTotal available resources for each trait: {:#?}\nUnsuccessful work_load_permutations: {:#?}",
+                bail!("Unscheduling work order should always be possible\n{period:#?}\nStrategic loadings: {:#?}\nStrategic capacities: {:#?}\nWork load: {:#?}\nTotal available resources for each trait: {:#?}\nUnsuccessful work_load_permutations: {:#?}",
 
                     strategic_loading_resources, strategic_capacity_resources, work_load,
                     combined_work,
