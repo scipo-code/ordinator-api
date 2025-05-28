@@ -9,8 +9,10 @@ use std::collections::HashSet;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
+use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
+use anyhow::ensure;
 use chrono::NaiveDate;
 use chrono::TimeDelta;
 use colored::Colorize;
@@ -405,21 +407,27 @@ impl WorkOrder
         let weight = (base_value + status_weight)
             * (self
                 .work_order_load()
+                .context("An error occured line creating the work_order_load")?
                 .values()
                 .map(|wor| wor.to_f64())
                 .sum::<f64>() as u64);
         Ok(weight)
     }
 
-    pub fn work_order_load(&self) -> HashMap<Resources, Work>
+    pub fn work_order_load(&self) -> Result<HashMap<Resources, Work>>
     {
         self.operations
             .0
             .values()
-            .fold(HashMap::default(), |mut acc, ele_opr| {
+            .try_fold(HashMap::default(), |mut acc, ele_opr: &Operation| {
+                ensure!(
+                    ele_opr.operation_info.work_remaining >= Work::from(0.0),
+                    "{:#?}",
+                    ele_opr
+                );
                 *acc.entry(ele_opr.resource).or_insert(Work::from(0.0)) +=
                     ele_opr.operation_info.work_remaining;
-                acc
+                Ok(acc)
             })
     }
 
@@ -624,6 +632,7 @@ mod tests
         assert_eq!(
             *work_order
                 .work_order_load()
+                .unwrap()
                 .get(&Resources::from_str("PRODTECH").unwrap())
                 .unwrap(),
             Work::from(50.0)
@@ -631,6 +640,7 @@ mod tests
         assert_eq!(
             *work_order
                 .work_order_load()
+                .unwrap()
                 .get(&Resources::from_str("MTN-MECH").unwrap())
                 .unwrap(),
             Work::from(50.0)

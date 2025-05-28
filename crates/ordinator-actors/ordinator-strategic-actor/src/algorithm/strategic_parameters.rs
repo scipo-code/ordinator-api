@@ -272,7 +272,9 @@ impl WorkOrderParameterBuilder
                 })?,
         );
 
-        self.work_load = work_order.work_order_load();
+        self.work_load = work_order
+            .work_order_load()
+            .context("Could not determine the work order load")?;
 
         self.latest_period = Some(work_order.latest_allowed_finish_period(periods).clone());
         // FIX

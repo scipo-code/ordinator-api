@@ -168,7 +168,20 @@ fn create_work_orders(
 
                 let actual_work = operation_csv.OPR_Actual_Work.clone().parse::<f64>().unwrap_or_default();
 
-                let remaining_work = operation_csv.OPR_Planned_Work.clone().parse::<f64>().unwrap_or_default() - operation_csv.OPR_Actual_Work.clone().parse::<f64>().unwrap_or_default();
+                // This is an error! Your error handling stopped this right in its tracks. You should make the
+                // code do the thing 
+                // This should not actually happen. I think that the best approach here is to make the system
+                // 
+                // We are lacking the `remaining_work` in the model. And then is the biggest issue at the moment.
+                // 
+                let remaining_work = {
+                    let work_remaining = operation_csv.OPR_Planned_Work.clone().parse::<f64>().unwrap_or_default() - operation_csv.OPR_Actual_Work.clone().parse::<f64>().unwrap_or_default();
+                    if work_remaining < 0.0 {
+                       0.0 
+                    } else {
+                        work_remaining 
+                    }
+                };
 
                 // We need to use the DATS here! I think that is the only way forward! I think that to scale this
                 // we also need to be very clear on the remaining types of the system.
@@ -185,6 +198,7 @@ fn create_work_orders(
                 let utc_end_datetime = naive_end_datetime.and_utc();
 
 
+                // This is very good! The model should take in raw values and then verify them.
                 let operation = Operation::builder(*operations_number, resource)
                     .unloading_point(unloading_point)
                     .operation_info(|oib| {

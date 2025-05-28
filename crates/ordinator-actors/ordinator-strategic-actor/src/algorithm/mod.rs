@@ -5,10 +5,12 @@ pub mod strategic_resources;
 pub mod strategic_solution;
 
 use std::any::type_name;
+use std::arch::asm;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ops::Deref;
 use std::ops::DerefMut;
+use std::panic::Location;
 use std::sync::Arc;
 
 use anyhow::bail;
@@ -153,7 +155,6 @@ where
             }
         }
 
-        dbg!();
         for (count, forced_work_order_numbers) in work_order_numbers.iter().enumerate() {
             state_change = true;
             dbg!("Iteration: {} of {}", count,  work_order_numbers.len());
@@ -165,7 +166,6 @@ where
                 })?;
         }
 
-        dbg!();
         Ok(state_change)
     }
 
@@ -835,12 +835,12 @@ where
         period: &Period,
         schedule: ScheduleWorkOrder,
     ) -> Result<Option<StrategicResources>> {
+        ensure!(work_load.iter().all(|e| e.1 >= &Work::from(0.0)), "");
         let mut rng = rand::rng();
         let mut best_total_excess = Work::from(-999999999.0);
         let mut best_work_order_resource_loadings = StrategicResources::default();
 
-        dbg!();
-        let capacity_resources = self
+        let strategic_capacity_resources = self
             .parameters
             .strategic_capacity
             .0
@@ -849,7 +849,7 @@ where
 
         if matches!(schedule, ScheduleWorkOrder::Normal)
             && !work_load.keys().collect::<HashSet<&Resources>>().is_subset(
-                &capacity_resources
+                &strategic_capacity_resources
                     .values()
                     .flat_map(|ele| ele.skill_hours.keys())
                     .collect::<HashSet<&Resources>>(),
@@ -857,9 +857,8 @@ where
         {
             return Ok(None);
         }
-        dbg!();
 
-        let strategic_resources_loading: HashMap<String, OperationalResource> = self
+        let strategic_loading_resources: HashMap<String, OperationalResource> = self
             .solution
             .strategic_loadings
             .0
@@ -871,10 +870,11 @@ where
         // * val < 0: loading is higher than capacity
         // * val > 0: capacity is higher than loading
         let difference_resources =
-            determine_difference_resources(capacity_resources, &strategic_resources_loading);
+            determine_difference_resources(strategic_capacity_resources, &strategic_loading_resources);
 
-        dbg!();
         // Perform 10 different technician permutations
+        let mut error_for_unschedule = vec![];
+        let mut store_strategic_resources_options = vec![];
         for _ in 0..10 {
             let mut technician_permutation = difference_resources
                 .clone()
@@ -887,12 +887,13 @@ where
                 let mut work_load_permutation = work_load.clone().into_iter().collect::<Vec<_>>();
                 work_load_permutation.shuffle(&mut rng);
 
+                error_for_unschedule.push(work_load_permutation.clone());
                 let strategic_resource_loadings_option = match schedule {
                     ScheduleWorkOrder::Normal => determine_normal_work_order_resource_loadings(
                         period,
                         &mut technician_permutation,
                         &mut work_load_permutation,
-                    ),
+                    ).with_context(|| "An error occured while calculating the normal scheduling loading".to_string())?,
                     ScheduleWorkOrder::Forced => {
                         let strategic_resource_loadings_option =
                             determine_forced_work_order_resource_loadings(
@@ -901,7 +902,7 @@ where
                                 &mut best_work_order_resource_loadings,
                                 &mut technician_permutation,
                                 &mut work_load_permutation,
-                            );
+                            ).context("incorrectly determine forced work order loadings\n{period}")?;
 
                         assert_work_load_equal_to_strategic_resource(
                             period,
@@ -933,7 +934,7 @@ where
                             .map(|(i, v)| (v.id, i))
                             .collect();
 
-                        let strategic_resources_loading_vec: Vec<_> = strategic_resources_loading
+                        let strategic_resources_loading_vec: Vec<_> = strategic_loading_resources
                             .clone()
                             .into_iter()
                             .sorted_by_key(|ele| order_map.get(&ele.0))
@@ -945,7 +946,8 @@ where
                                 period,
                                 &strategic_resources_loading_vec,
                                 &mut work_load_permutation,
-                            );
+                            ).with_context(||format!("Error in resource calculation\n{period:#?}\nStrategic loadings: {strategic_loading_resources:#?}\nStrategic capacities: {strategic_capacity_resources:#?}\nWork load: {work_load:?}"))?;
+                        store_strategic_resources_options.push(strategic_resources_option.clone());
 
                         if let Some(ref strategic_resources) = strategic_resources_option {
                             assert_work_load_equal_to_strategic_resource(
@@ -957,7 +959,7 @@ where
                             .with_context(|| {
                                 format!(
                                     "strategic_resources_loading: {:#?}\nfile: {}\nline: {}",
-                                    &strategic_resources_loading,
+                                    &strategic_loading_resources,
                                     file!(),
                                     line!()
                                 )
@@ -979,7 +981,6 @@ where
                     Some(strategic_resource_loadings) => strategic_resource_loadings,
                     None => continue,
                 };
-        dbg!();
 
                 match schedule {
                     ScheduleWorkOrder::Normal => {
@@ -1030,7 +1031,7 @@ where
                             &work_load,
                             LoadOperation::Sub,
                         )
-                        .with_context(|| format!("file: {}\nline: {}", file!(), line!()))?;
+                        .with_context(|| format!("Location: {}", Location::caller()))?;
 
                         if work_load_permutation
                             .iter()
@@ -1046,7 +1047,20 @@ where
             ScheduleWorkOrder::Normal => Ok(None),
             ScheduleWorkOrder::Forced => Ok(Some(best_work_order_resource_loadings)),
             ScheduleWorkOrder::Unschedule => {
-                bail!("Unscheduling work order should always be possible\nwork_order: {period:#?}")
+                // NOTE
+                // This error has a serious issue. The thing is that the Error 
+                    let combined_work = work_load.iter().map(|e| (e.0 ,strategic_loading_resources.iter()
+                        .filter(|res| res.1.skill_hours.contains_key(e.0))
+                        .fold(Work::from(0.0),|acc, res_fil| {
+                        
+                            acc + res_fil.1.total_hours
+                    })));
+                bail!("Unscheduling work order should always be possible\n{period:#?}\nStrategic loadings: {:#?}\nStrategic capacities: {:#?}\nWork load: {:?}\nTotal available resources for each trait: {:#?}\nUnsuccessful work_load_permutations: {:#?}",
+
+                    strategic_loading_resources, strategic_capacity_resources, work_load,
+                    combined_work,
+                error_for_unschedule)
+                
             }
         }
     }
@@ -1094,7 +1108,7 @@ fn determine_unschedule_work_resource_loadings(
     period: &Period,
     loading_resources: &[OperationalResource],
     work_load_permutation: &mut [(Resources, Work)],
-) -> Option<StrategicResources> {
+) -> Result<Option<StrategicResources>> {
     let mut strategic_resources = StrategicResources::default();
     let mut loading_resources_cloned = loading_resources.to_vec();
     for (resources, work) in work_load_permutation.iter_mut() {
@@ -1110,11 +1124,16 @@ fn determine_unschedule_work_resource_loadings(
         // want to determine the best possible way to visit the structure to
         // make a correct scheduling approach.
         //
-        //
+        // You should use the `Result::Err` to jump out of the function with the required information
+        // You are not doing this correctly. You have to test the functions.
         for operational_resource in loading_resources_cloned.iter_mut() {
+            unsafe { asm!("INT3")}
+
             if !operational_resource.skill_hours.contains_key(resources) {
                 continue;
             }
+            ensure!(operational_resource.skill_hours.iter().all(|e| e.1 == &operational_resource.total_hours),
+                "Each skill_hours should always be equal to the value of the total_hours\n{}", std::panic::Location::caller());
 
             if operational_resource.total_hours >= *work {
                 operational_resource.total_hours -= *work;
@@ -1132,6 +1151,8 @@ fn determine_unschedule_work_resource_loadings(
                 );
 
                 *work = Work::from(0.0);
+            ensure!(operational_resource.skill_hours.iter().all(|e| e.1 == &operational_resource.total_hours),
+                "Each skill_hours should always be equal to the value of the total_hours\noperational_resource: {:#?}\n{}", operational_resource, std::panic::Location::caller());
 
                 break;
             } else {
@@ -1150,17 +1171,21 @@ fn determine_unschedule_work_resource_loadings(
                     .iter_mut()
                     .for_each(|ele| *ele.1 = Work::from(0.0));
 
+            ensure!(operational_resource.skill_hours.iter().all(|e| e.1 == &operational_resource.total_hours),
+                "Each skill_hours should always be equal to the value of the total_hours\noperational_resource: {:#?}\n{}", operational_resource, std::panic::Location::caller());
                 continue;
             }
         }
     }
+
+    // So it returns an `Option::None` if it was not possible to determine this correctly.
     if work_load_permutation
         .iter()
         .all(|ele| ele.1 == Work::from(0.0))
     {
-        Some(strategic_resources)
+        Ok(Some(strategic_resources))
     } else {
-        None
+        Ok(None)
     }
     // If all work_load_permutation are Work::from(0.0) we can simply return the
     // value.
@@ -1174,8 +1199,10 @@ fn determine_forced_work_order_resource_loadings(
     best_work_order_resource_loadings: &mut StrategicResources,
     technician_permutation: &mut [OperationalResource],
     work_load_permutation: &mut [(Resources, Work)],
-) -> Option<StrategicResources> {
+) -> Result<Option<StrategicResources>> {
     let mut work_order_resource_loadings = StrategicResources::default();
+    // FIX [ ]
+    // There may need to be a `Vec` to handle the case of multiple Technicians.
     for (resources, work) in work_load_permutation.iter_mut() {
         let mut qualified_technicians = technician_permutation
             .iter_mut()
@@ -1184,20 +1211,35 @@ fn determine_forced_work_order_resource_loadings(
 
         // If there are no qualified technicians. All technicians should be assumed to
         // be responsible? Yes let us just do that!
+        //
+        // You are a pathetic idiot! You are risking everything because you
+        // do not know... 
+        // 
+        let mut resources_store_dummy:Option<OperationalResource> = None;
         if qualified_technicians.is_empty() {
-            qualified_technicians = technician_permutation.iter_mut().collect();
-        }
+            let operational_resource = OperationalResource::new(&(resources.to_string() + "_dummy"), Work::from(0.0), vec![*resources]);
+            resources_store_dummy = Some(operational_resource);
+            qualified_technicians.push(resources_store_dummy.as_mut().unwrap());
+        };
+
 
         let work_load_by_resources_by_technician =
             work.divide_work(Work::from(qualified_technicians.len() as f64));
 
         for operational_resource in qualified_technicians {
+            ensure!(operational_resource.skill_hours.iter().all(|e| e.1 == &operational_resource.total_hours),
+                "Each skill_hours should always be equal to the value of the total_hours\n{}", std::panic::Location::caller());
             operational_resource.total_hours -= work_load_by_resources_by_technician;
             operational_resource
                 .skill_hours
                 .iter_mut()
                 .for_each(|(_, wor)| *wor -= work_load_by_resources_by_technician);
+            // So here you are inserting the work_load for that particular skill. You have to instead make a dummy
+            // here. I do not see what other options that we have?
+            //
+            // You cannot give vendor work to the 
             work_order_resource_loadings.update_load(
+
                 period,
                 *resources,
                 work_load_by_resources_by_technician,
@@ -1214,19 +1256,19 @@ fn determine_forced_work_order_resource_loadings(
 
     if total_excess == Work::from(0.0) {
         *best_work_order_resource_loadings = work_order_resource_loadings.clone();
-        return Some(work_order_resource_loadings);
+        return Ok(Some(work_order_resource_loadings));
     } else if total_excess > *best_total_excess {
         *best_work_order_resource_loadings = work_order_resource_loadings.clone();
         *best_total_excess = total_excess;
     }
-    None
+    Ok(None)
 }
 
 fn determine_normal_work_order_resource_loadings(
     period: &Period,
     technician_permutation: &mut [OperationalResource],
     work_load_permutation: &mut Vec<(Resources, Work)>,
-) -> Option<StrategicResources> {
+) -> Result<Option<StrategicResources>>{
     let mut work_order_resource_loadings = StrategicResources::default();
     for operation_load in work_load_permutation {
         for operational_resource in technician_permutation.iter_mut() {
@@ -1252,6 +1294,8 @@ fn determine_normal_work_order_resource_loadings(
                     LoadOperation::Add,
                 );
                 operation_load.1 = Work::from(0.0);
+            ensure!(operational_resource.skill_hours.iter().all(|e| e.1 == &operational_resource.total_hours),
+                "Each skill_hours should always be equal to the value of the total_hours\n{}", std::panic::Location::caller());
                 break;
             } else {
                 operation_load.1 -= operational_resource.total_hours;
@@ -1267,14 +1311,16 @@ fn determine_normal_work_order_resource_loadings(
                     operational_resource,
                     LoadOperation::Add,
                 );
+            ensure!(operational_resource.skill_hours.iter().all(|e| e.1 == &operational_resource.total_hours),
+                "Each skill_hours should always be equal to the value of the total_hours\n{}", std::panic::Location::caller());
             }
         }
 
         if operation_load.1 != Work::from(0.0) {
-            return None;
+            return Ok(None);
         }
     }
-    Some(work_order_resource_loadings)
+    Ok(Some(work_order_resource_loadings))
 }
 
 fn determine_difference_resources(
@@ -1504,7 +1550,6 @@ where
                 )
             })?
             .take();
-        dbg!();
 
         if let Some(unschedule_from_period) = unschedule_from_period {
             let strategic_parameter = self
@@ -1512,6 +1557,7 @@ where
                 .strategic_work_order_parameters
                 .get(&work_order_number)
                 .unwrap();
+
             let work_load = strategic_parameter.work_load.clone();
 
             let strategic_resources = self
@@ -1826,7 +1872,7 @@ mod tests {
             &period,
             &mut technician_permutation,
             &mut work_load_permutation,
-        );
+        ).unwrap();
 
         assert!(strategic_resource_option.is_none());
     }
@@ -1858,7 +1904,7 @@ mod tests {
             &period,
             &mut technician_permutation,
             &mut work_load_permutation,
-        );
+        ).unwrap();
 
         assert!(strategic_resource_option.is_some());
 
@@ -1912,7 +1958,7 @@ mod tests {
             &mut best_strategic_resource,
             &mut technician_permutation,
             &mut work_load_permutation,
-        );
+        ).with_context(|| format!("Incorrectly determined the forced work order loadings\n{}", std::panic::Location::caller())).unwrap();
 
         assert!(strategic_resources.is_none());
 
@@ -1966,7 +2012,7 @@ mod tests {
             &mut best_strategic_resource,
             &mut technician_permutation,
             &mut work_load_permutation,
-        );
+        ).unwrap();
 
         assert!(strategic_resources_option.is_some());
         let operational_resource_1 = OperationalResource::new(
@@ -2020,7 +2066,7 @@ mod tests {
             &mut best_strategic_resource,
             &mut technician_permutation,
             &mut work_load_permutation,
-        );
+        ).unwrap();
 
         assert!(strategic_resources_option.is_some());
         // Is this the right way of doing things? I do not think that it is...
@@ -2068,7 +2114,7 @@ mod tests {
             &period,
             &loading_resources,
             &mut work_load_permutation,
-        );
+        ).unwrap();
 
         assert!(strategic_resources_option.is_some());
 
@@ -2127,7 +2173,7 @@ mod tests {
             &period,
             &loading_resources,
             &mut work_load_permutation.clone(),
-        );
+        ).unwrap();
 
         super::assert_work_load_equal_to_strategic_resource(
             &period,

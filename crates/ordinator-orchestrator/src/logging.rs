@@ -98,16 +98,7 @@ pub fn setup_logging() -> LogHandles
         .with_line_number(true) // Include line number in logs
         .with_filter(EnvFilter::from_env("TRACING_LEVEL"));
 
-    let (file_layer, file_handle): (
-        reload::Layer<
-            Filtered<Layer<Registry, JsonFields, Format<Json>, NonBlocking>, EnvFilter, Registry>,
-            Registry,
-        >,
-        Handle<
-            Filtered<Layer<Registry, JsonFields, Format<Json>, NonBlocking>, EnvFilter, Registry>,
-            Registry,
-        >,
-    ) = reload::Layer::new(file_layer);
+    let (file_layer, file_handle) = reload::Layer::new(file_layer);
 
     let flame_layer = FlameLayer::with_file(
         env::var("PROFILING_FILE").expect("A file name for the profiling data has to be set"),

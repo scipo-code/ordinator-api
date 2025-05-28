@@ -63,18 +63,21 @@ impl OperationInfoBuilder
 
     pub fn work_remaining(mut self, work_remaining: f64) -> Self
     {
+        assert!(work_remaining >= 0.0);
         self.work_remaining = Some(Work::from(work_remaining));
         self
     }
 
     pub fn work_actual(mut self, work_actual: f64) -> Self
     {
+        assert!(work_actual >= 0.0);
         self.work_actual = Some(Work::from(work_actual));
         self
     }
 
     pub fn work(mut self, work: f64) -> Self
     {
+        assert!(work >= 0.0);
         self.work = Some(Work::from(work));
         self
     }

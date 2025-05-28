@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
 
 use anyhow::Result;
+use colored::Colorize;
 use ordinator_orchestrator_actor_traits::Solution;
 use ordinator_orchestrator_actor_traits::SwapSolution;
 use ordinator_orchestrator_actor_traits::SystemSolutions;
@@ -15,12 +17,42 @@ use super::strategic_parameters::StrategicParameters;
 use super::strategic_resources::OperationalResource;
 use super::strategic_resources::StrategicResources;
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct StrategicSolution
 {
     pub objective_value: StrategicObjectiveValue,
     pub strategic_scheduled_work_orders: HashMap<WorkOrderNumber, Option<Period>>,
     pub strategic_loadings: StrategicResources,
+}
+impl Debug for StrategicSolution
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
+        if f.alternate() {
+            write!(
+                f,
+                "{}",
+                format!(
+                    "{:#?}\n{:<30}{}\n{:<30}{}",
+                    self.objective_value,
+                    "Scheduled work orders: ",
+                    self.strategic_scheduled_work_orders
+                        .iter()
+                        .filter(|e| e.1.is_some())
+                        .count(),
+                    "Total work orders: ",
+                    self.strategic_scheduled_work_orders.len()
+                )
+                .purple()
+            )
+        } else {
+            write!(
+                f,
+                "{:#?}{:#?}{:#?}",
+                self.objective_value, self.strategic_scheduled_work_orders, self.strategic_loadings
+            )
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -33,7 +65,6 @@ pub struct StrategicObjectiveValue
 }
 
 impl StrategicObjectiveValue
-
 {
     pub fn new(strategic_options: &StrategicOptions) -> Self
     {

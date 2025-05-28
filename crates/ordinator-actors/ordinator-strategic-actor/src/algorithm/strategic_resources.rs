@@ -105,7 +105,8 @@ impl OperationalResource
 {
     pub fn new(id: &str, total_hours: Work, skills: Vec<Resources>) -> Self
     {
-        let skill_hours = skills.iter().map(|ski| (*ski, total_hours)).collect();
+        let skill_hours: HashMap<Resources, Work> =
+            skills.iter().map(|ski| (*ski, total_hours)).collect();
 
         Self {
             id: id.to_string(),

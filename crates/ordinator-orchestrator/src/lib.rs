@@ -20,6 +20,7 @@ use flume::Receiver;
 use flume::Sender;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_contracts::orchestrator::OrchestratorResponse;
+use ordinator_operational_actor::OperationalApi;
 use ordinator_operational_actor::algorithm::operational_solution::OperationalSolution;
 pub use ordinator_operational_actor::messages::OperationalRequestMessage;
 pub use ordinator_operational_actor::messages::OperationalResponseMessage;
@@ -41,6 +42,7 @@ use ordinator_strategic_actor::StrategicApi;
 use ordinator_strategic_actor::algorithm::strategic_solution::StrategicSolution;
 pub use ordinator_strategic_actor::messages::StrategicRequestMessage;
 pub use ordinator_strategic_actor::messages::StrategicResponseMessage;
+use ordinator_supervisor_actor::SupervisorApi;
 use ordinator_supervisor_actor::algorithm::supervisor_solution::SupervisorSolution;
 pub use ordinator_supervisor_actor::messages::SupervisorRequestMessage;
 pub use ordinator_supervisor_actor::messages::SupervisorResponseMessage;
@@ -664,32 +666,32 @@ where
         // way.
 
         let mut supervisor_communications = HashMap::default();
-        // for supervisor_id in supervisors {
-        //     let supervisor_communication = SupervisorApi::construct_actor(
-        //         supervisor_id.clone(),
-        //         dependencies.0.clone(),
-        //         dependencies.1.clone(),
-        //         dependencies.2.clone(),
-        //         dependencies.3.clone(),
-        //         self.error_channels.0.clone(),
-        //     )?;
+        for supervisor_id in supervisors {
+            let supervisor_communication = SupervisorApi::construct_actor(
+                supervisor_id.clone(),
+                dependencies.0.clone(),
+                dependencies.1.clone(),
+                dependencies.2.clone(),
+                dependencies.3.clone(),
+                self.error_channels.0.clone(),
+            )?;
 
-        //     supervisor_communications.insert(supervisor_id.clone(),
-        // supervisor_communication); }
+            supervisor_communications.insert(supervisor_id.clone(), supervisor_communication);
+        }
 
         let mut operational_communications = HashMap::default();
-        // for operational_id in operationals {
-        //     let operational_communication = OperationalApi::construct_actor(
-        //         operational_id.clone(),
-        //         dependencies.0.clone(),
-        //         dependencies.1.clone(),
-        //         dependencies.2.clone(),
-        //         dependencies.3.clone(),
-        //         self.error_channels.0.clone(),
-        //     )?;
+        for operational_id in operationals {
+            let operational_communication = OperationalApi::construct_actor(
+                operational_id.clone(),
+                dependencies.0.clone(),
+                dependencies.1.clone(),
+                dependencies.2.clone(),
+                dependencies.3.clone(),
+                self.error_channels.0.clone(),
+            )?;
 
-        //     operational_communications.insert(operational_id.clone(),
-        // operational_communication); }
+            operational_communications.insert(operational_id.clone(), operational_communication);
+        }
 
         // The flexibility of making a `HashMap` is a good idea.
         let agent_registry = ActorRegistry::new(
