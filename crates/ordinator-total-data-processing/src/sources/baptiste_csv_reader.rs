@@ -483,7 +483,10 @@ mod tests
     {
         let mut path = PathBuf::new();
 
-        path.push("../temp_scheduling_environment_database/mid_work_operations.csv");
+        path.push("../../temp_scheduling_environment_database/mid_work_operations.csv");
+        dbg!(std::env::current_dir().unwrap());
+        dbg!(std::fs::canonicalize(path.clone()).unwrap());
+
         populate_csv_structures::<WorkOperationsCsv>(&path).unwrap();
     }
 }

@@ -19,7 +19,8 @@ use self::work_order_text::WorkOrderText;
 use self::work_order_type::WorkOrderType;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct WorkOrderInfo {
+pub struct WorkOrderInfo
+{
     pub priority: Priority,
     pub work_order_type: WorkOrderType,
     pub functional_location: FunctionalLocation,
@@ -30,7 +31,8 @@ pub struct WorkOrderInfo {
 }
 
 #[derive(Default)]
-pub struct WorkOrderInfoBuilder {
+pub struct WorkOrderInfoBuilder
+{
     priority: Option<Priority>,
     work_order_type: Option<WorkOrderType>,
     functional_location: Option<FunctionalLocation>,
@@ -40,8 +42,10 @@ pub struct WorkOrderInfoBuilder {
     work_order_info_detail: Option<WorkOrderInfoDetail>,
 }
 
-impl WorkOrderInfo {
-    pub fn builder() -> WorkOrderInfoBuilder {
+impl WorkOrderInfo
+{
+    pub fn builder() -> WorkOrderInfoBuilder
+    {
         WorkOrderInfoBuilder::default()
     }
 
@@ -53,7 +57,8 @@ impl WorkOrderInfo {
         revision: Revision,
         system_condition: SystemCondition,
         work_order_info_detail: WorkOrderInfoDetail,
-    ) -> Self {
+    ) -> Self
+    {
         WorkOrderInfo {
             priority,
             work_order_type,
@@ -66,9 +71,16 @@ impl WorkOrderInfo {
     }
 }
 
-impl WorkOrderInfoBuilder {
-    pub fn build(self) -> WorkOrderInfo {
+impl WorkOrderInfoBuilder
+{
+    pub fn build(self) -> WorkOrderInfo
+    {
         WorkOrderInfo {
+            // All this unwrap is not really a good idea. I think that the best
+            // approach here will be to make a decision about making the
+            // code run with the `unwrap()`, or making it type safe?
+            //
+            // I think that we should just call the error.
             priority: self.priority.unwrap(),
             work_order_type: self.work_order_type.unwrap(),
             functional_location: self.functional_location.unwrap(),
@@ -79,52 +91,62 @@ impl WorkOrderInfoBuilder {
         }
     }
 
-    pub fn priority(mut self, priority: Priority) -> Self {
+    pub fn priority(mut self, priority: Priority) -> Self
+    {
         self.priority = Some(priority);
         self
     }
 
-    pub fn work_order_type(mut self, work_order_type: WorkOrderType) -> Self {
+    pub fn work_order_type(mut self, work_order_type: WorkOrderType) -> Self
+    {
         self.work_order_type = Some(work_order_type);
         self
     }
 
-    pub fn functional_location(mut self, functional_location: FunctionalLocation) -> Self {
+    pub fn functional_location(mut self, functional_location: FunctionalLocation) -> Self
+    {
         self.functional_location = Some(functional_location);
         self
     }
 
-    pub fn work_order_text(mut self, work_order_text: WorkOrderText) -> Self {
+    pub fn work_order_text(mut self, work_order_text: WorkOrderText) -> Self
+    {
         self.work_order_text = Some(work_order_text);
         self
     }
 
-    pub fn revision(mut self, revision: Revision) -> Self {
+    pub fn revision(mut self, revision: Revision) -> Self
+    {
         self.revision = Some(revision);
         self
     }
 
-    pub fn system_condition(mut self, system_condition: SystemCondition) -> Self {
+    pub fn system_condition(mut self, system_condition: SystemCondition) -> Self
+    {
         self.system_condition = Some(system_condition);
         self
     }
 
-    pub fn work_order_info_detail(mut self, work_order_info_detail: WorkOrderInfoDetail) -> Self {
+    pub fn work_order_info_detail(mut self, work_order_info_detail: WorkOrderInfoDetail) -> Self
+    {
         self.work_order_info_detail = Some(work_order_info_detail);
         self
     }
 
-    pub fn functional_location_from_str(mut self, functional_location: &str) -> Self {
+    pub fn functional_location_from_str(mut self, functional_location: &str) -> Self
+    {
         self.functional_location = Some(FunctionalLocation::new(functional_location));
         self
     }
 
-    pub fn revision_from_str(mut self, revision: &str) -> Self {
+    pub fn revision_from_str(mut self, revision: &str) -> Self
+    {
         self.revision = Some(Revision::new(revision));
         self
     }
 
-    pub fn system_condition_from_str(mut self, system_condition: &str) -> Result<Self> {
+    pub fn system_condition_from_str(mut self, system_condition: &str) -> Result<Self>
+    {
         self.system_condition = Some(SystemCondition::from_str(system_condition)?);
         Ok(self)
     }
@@ -133,7 +155,8 @@ impl WorkOrderInfoBuilder {
 // WARN
 // You should be careful with this here.
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct WorkOrderInfoDetail {
+pub struct WorkOrderInfoDetail
+{
     pub subnetwork: String,
     pub maintenance_plan: String,
     pub planner_group: String,
@@ -142,7 +165,8 @@ pub struct WorkOrderInfoDetail {
     pub room: String,
 }
 
-impl WorkOrderInfoDetail {
+impl WorkOrderInfoDetail
+{
     pub fn new(
         subnetwork: String,
         maintenance_plan: String,
@@ -150,7 +174,8 @@ impl WorkOrderInfoDetail {
         maintenance_plant: String,
         pm_collective: String,
         room: String,
-    ) -> Self {
+    ) -> Self
+    {
         Self {
             subnetwork,
             maintenance_plan,

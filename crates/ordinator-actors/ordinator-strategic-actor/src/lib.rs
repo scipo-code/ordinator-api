@@ -113,22 +113,26 @@ mod tests
     use ordinator_scheduling_environment::work_order::work_order_dates::unloading_point::UnloadingPoint;
     use ordinator_scheduling_environment::worker_environment::resources::Resources;
 
-    #[test]
-    fn test_extract_state_to_scheduler_overview()
-    {
-        WorkOrder::builder(WorkOrderNumber(2100000001))
-            .operations_builder(10, Resources::MtnMech, |e| {
-                e.operation_info(|e| e.work_remaining(1.0))
-                    .unloading_point(UnloadingPoint::default())
-            })
-            .operations_builder(20, Resources::MtnMech, |e| {
-                e.operation_info(|e| e.work_remaining(1.0))
-                    .unloading_point(UnloadingPoint::default())
-            })
-            .operations_builder(30, Resources::MtnMech, |e| {
-                e.operation_info(|e| e.work_remaining(1.0))
-                    .unloading_point(UnloadingPoint::default())
-            })
-            .build();
-    }
+    // You should make this again at a later date.
+    // TODO [ ]
+    // Make this test after determining what should be done about the
+    // builders
+    // #[test]
+    // fn test_extract_state_to_scheduler_overview()
+    // {
+    //     WorkOrder::builder(WorkOrderNumber(2100000001))
+    //         .operations_builder(10, Resources::MtnMech, |e| {
+    //             e.operation_info(|e| e.work_remaining(1.0))
+    //                 .unloading_point(UnloadingPoint::default())
+    //         })
+    //         .operations_builder(20, Resources::MtnMech, |e| {
+    //             e.operation_info(|e| e.work_remaining(1.0))
+    //                 .unloading_point(UnloadingPoint::default())
+    //         })
+    //         .operations_builder(30, Resources::MtnMech, |e| {
+    //             e.operation_info(|e| e.work_remaining(1.0))
+    //                 .unloading_point(UnloadingPoint::default())
+    //         })
+    //         .build();
+    // }
 } // Crucial note, all algorithm tests have to be made in the integration tests

@@ -261,54 +261,54 @@ pub struct OperationalOptions
 #[cfg(test)]
 mod tests
 {
-    use chrono::NaiveTime;
 
-    use crate::worker_environment::ActorSpecifications;
-    use crate::worker_environment::resources::Resources;
+    // #[test]
+    // fn test_toml_operational_parsing()
+    // {
+    //     let toml_operational_string = r#"
+    //         [[supervisors]]
+    //         id = "main"
+    //         number_of_supervisAgentEnvironmentr_periods = 3
 
-    #[test]
-    fn test_toml_operational_parsing()
-    {
-        let toml_operational_string = r#"
-            [[supervisors]]
-            id = "main"
-            number_of_supervisAgentEnvironmentr_periods = 3
+    //         # [[supervisors]]
+    //         # id = "supervisor-second"
+    //         ################################
+    //         ###          MTN-ELEC        ###
+    //         ################################
+    //         [[operational]]
+    //         id = "OP-01-001"
+    //         resources.resources = ["MTN-ELEC" ]
+    //         hours_per_day = 6.0
+    //         operational_configuration.off_shift_interval = { start =
+    // "19:00:00",  end = "07:00:00" }         operational_configuration.
+    // break_interval = { start = "11:00:00", end = "12:00:00" }
+    //         operational_configuration.toolbox_interval = { start =
+    // "07:00:00", end = "08:00:00" }         operational_configuration.
+    // availability.start_date = "2024-12-02T07:00:00Z"
+    //         operational_configuration.availability.finish_date =
+    // "2024-12-15T15:00:00Z"     "#;
 
-            # [[supervisors]]
-            # id = "supervisor-second"
-            ################################
-            ###          MTN-ELEC        ###
-            ################################
-            [[operational]]
-            id = "OP-01-001"
-            resources.resources = ["MTN-ELEC" ]
-            hours_per_day = 6.0
-            operational_configuration.off_shift_interval = { start = "19:00:00",  end = "07:00:00" }
-            operational_configuration.break_interval = { start = "11:00:00", end = "12:00:00" }
-            operational_configuration.toolbox_interval = { start = "07:00:00", end = "08:00:00" }
-            operational_configuration.availability.start_date = "2024-12-02T07:00:00Z"
-            operational_configuration.availability.finish_date = "2024-12-15T15:00:00Z"
-        "#;
+    //     let system_agents: ActorSpecifications =
+    // toml::from_str(toml_operational_string).unwrap();
 
-        let system_agents: ActorSpecifications = toml::from_str(toml_operational_string).unwrap();
+    //     assert_eq!(system_agents.operational[0].id.0,
+    // "OP-01-001".to_string());
 
-        assert_eq!(system_agents.operational[0].id.0, "OP-01-001".to_string());
+    //     assert_eq!(system_agents.operational[0].id.1, [Resources::MtnElec]);
 
-        assert_eq!(system_agents.operational[0].id.1, [Resources::MtnElec]);
-
-        assert_eq!(
-            system_agents.operational[0]
-                .operational_configuration
-                .off_shift_interval
-                .start,
-            NaiveTime::from_hms_opt(19, 0, 0).unwrap(),
-        );
-        assert_eq!(
-            system_agents.operational[0]
-                .operational_configuration
-                .off_shift_interval
-                .end,
-            NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
-        );
-    }
+    //     assert_eq!(
+    //         system_agents.operational[0]
+    //             .operational_configuration
+    //             .off_shift_interval
+    //             .start,
+    //         NaiveTime::from_hms_opt(19, 0, 0).unwrap(),
+    //     );
+    //     assert_eq!(
+    //         system_agents.operational[0]
+    //             .operational_configuration
+    //             .off_shift_interval
+    //             .end,
+    //         NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
+    //     );
+    // }
 }

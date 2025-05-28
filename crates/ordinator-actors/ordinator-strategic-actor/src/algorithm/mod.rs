@@ -5,7 +5,6 @@ pub mod strategic_resources;
 pub mod strategic_solution;
 
 use std::any::type_name;
-use std::arch::asm;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ops::Deref;
@@ -1127,7 +1126,6 @@ fn determine_unschedule_work_resource_loadings(
         // You should use the `Result::Err` to jump out of the function with the required information
         // You are not doing this correctly. You have to test the functions.
         for operational_resource in loading_resources_cloned.iter_mut() {
-            unsafe { asm!("INT3")}
 
             if !operational_resource.skill_hours.contains_key(resources) {
                 continue;
@@ -1215,7 +1213,7 @@ fn determine_forced_work_order_resource_loadings(
         // You are a pathetic idiot! You are risking everything because you
         // do not know... 
         // 
-        let mut resources_store_dummy:Option<OperationalResource> = None;
+        let mut resources_store_dummy: Option<OperationalResource> = None;
         if qualified_technicians.is_empty() {
             let operational_resource = OperationalResource::new(&(resources.to_string() + "_dummy"), Work::from(0.0), vec![*resources]);
             resources_store_dummy = Some(operational_resource);
@@ -2040,12 +2038,12 @@ mod tests {
         let mut technician_permutation = vec![
             OperationalResource::new(
                 "OP_TEST_0",
-                Work::from(40.0),
+                Work::from(30.0),
                 vec![Resources::MtnMech, Resources::MtnElec],
             ),
             OperationalResource::new(
                 "OP_TEST_1",
-                Work::from(40.0),
+                Work::from(30.0),
                 vec![Resources::MtnScaf, Resources::MtnElec],
             ),
         ];
@@ -2072,18 +2070,25 @@ mod tests {
         // Is this the right way of doing things? I do not think that it is...
         let operational_resource_1 = OperationalResource::new(
             "OP_TEST_0",
-            Work::from(40.0),
-            vec![Resources::MtnMech, Resources::MtnElec, Resources::VenMech],
+            Work::from(30.0),
+            vec![Resources::MtnMech, Resources::MtnElec],
         );
         let operational_resource_2 = OperationalResource::new(
             "OP_TEST_1",
-            Work::from(40.0),
-            vec![Resources::MtnScaf, Resources::MtnElec, Resources::VenMech],
+            Work::from(30.0),
+            vec![Resources::MtnScaf, Resources::MtnElec],
         );
+        let operational_resource_3 = OperationalResource::new(
+            "VEN-MECH_dummy",
+            Work::from(20.0),
+            vec![Resources::VenMech],
+        );
+
         let mut strategic_resources = StrategicResources::default();
 
         strategic_resources.insert_operational_resource(period.clone(), operational_resource_1);
         strategic_resources.insert_operational_resource(period.clone(), operational_resource_2);
+        strategic_resources.insert_operational_resource(period.clone(), operational_resource_3);
 
         assert_eq!(strategic_resources, strategic_resources_option.unwrap());
     }
@@ -2110,13 +2115,13 @@ mod tests {
             ),
         ];
 
-        let strategic_resources_option = determine_unschedule_work_resource_loadings(
+        let strategic_resources_option_calculated = determine_unschedule_work_resource_loadings(
             &period,
             &loading_resources,
             &mut work_load_permutation,
         ).unwrap();
 
-        assert!(strategic_resources_option.is_some());
+        assert!(strategic_resources_option_calculated.is_some());
 
         let operational_resource_1 = OperationalResource::new(
             "OP_TEST_0",
@@ -2128,12 +2133,12 @@ mod tests {
             Work::from(-20.0),
             vec![Resources::MtnScaf, Resources::MtnElec],
         );
-        let mut strategic_resources = StrategicResources::default();
+        let mut strategic_resources_manual = StrategicResources::default();
 
-        strategic_resources.insert_operational_resource(period.clone(), operational_resource_1);
-        strategic_resources.insert_operational_resource(period.clone(), operational_resource_2);
+        strategic_resources_manual.insert_operational_resource(period.clone(), operational_resource_1);
+        strategic_resources_manual.insert_operational_resource(period.clone(), operational_resource_2);
 
-        assert_eq!(strategic_resources, strategic_resources_option.unwrap());
+        assert_eq!(strategic_resources_manual, strategic_resources_option_calculated.unwrap());
     }
 
     #[test]
@@ -2190,7 +2195,7 @@ mod tests {
         // Work::from(-20.0), vec![Resources::MtnScaf, Resources::MtnElec]); let
         // mut strategic_resources = StrategicResources::default();
 
-        // strategic_resources.insert_operational_resource(period.clone(),
+        // strategic_resources.insert_operatensureonal_resource(period.clone(),
         // operational_resource_1); strategic_resources.
         // insert_operational_resource(period.clone(), operational_resource_2);
 

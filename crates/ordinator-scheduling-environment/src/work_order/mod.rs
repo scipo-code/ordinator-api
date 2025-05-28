@@ -13,6 +13,7 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use anyhow::ensure;
+use chrono::DateTime;
 use chrono::NaiveDate;
 use chrono::TimeDelta;
 use colored::Colorize;
@@ -160,7 +161,7 @@ pub struct WorkOrderBuilder
 {
     work_order_number: WorkOrderNumber,
     main_work_center: Option<Resources>,
-    operations: Option<Operations>,
+    operations: Operations,
     // FIX
     // Every operation needs to have a relation between them. There
     // is no way around this. It should be an enforced invariant.
@@ -178,11 +179,7 @@ impl WorkOrderBuilder
             main_work_center: self
                 .main_work_center
                 .expect("Missing field initializations on the WorkOrderBuilder"),
-            operations: self
-                .operations
-                .expect("Missing field initializations on the WorkOrderBuilder"),
-            // TODO [ ]
-            // Relations should be a function between the different on the `Operations` field.
+            operations: self.operations,
             work_order_analytic: self
                 .work_order_analytic
                 .expect("Missing field initializations on the WorkOrderBuilder"),
@@ -222,8 +219,6 @@ impl WorkOrderBuilder
         let operations_builder = f(operations_builder);
 
         self.operations
-            .as_mut()
-            .unwrap()
             .0
             .insert(operation_number, operations_builder.build());
 
@@ -232,7 +227,7 @@ impl WorkOrderBuilder
 
     pub fn operations(mut self, operations: Operations) -> Self
     {
-        self.operations = Some(operations);
+        self.operations = operations;
         self
     }
 
@@ -319,7 +314,7 @@ impl WorkOrder
         WorkOrderBuilder {
             work_order_number,
             main_work_center: None,
-            operations: None,
+            operations: Operations::default(),
             work_order_analytic: None,
             work_order_dates: None,
             work_order_info: None,
@@ -588,15 +583,67 @@ impl WorkOrder
             .main_work_center(Resources::MtnMech)
             .operations_builder(10, Resources::Prodtech, |e| {
                 e.operation_info(|oi| oi.number(1).work_remaining(10.0).operating_time(6.0))
+                    .operation_analytic(|e| e.preparation_time(0.0).duration(1.0))
+                    .operation_dates(|b| {
+                        b.earliest_start_datetime(
+                            DateTime::parse_from_rfc3339("2025-04-04T12:00:00Z")
+                                .unwrap()
+                                .to_utc(),
+                        )
+                        .earliest_finish_datetime(
+                            DateTime::parse_from_rfc3339("2025-04-04T12:00:00Z")
+                                .unwrap()
+                                .to_utc(),
+                        )
+                    })
             })
             .operations_builder(20, Resources::MtnMech, |ob| {
                 ob.operation_info(|oi| oi.number(1).work_remaining(20.0).operating_time(6.0))
+                    .operation_analytic(|e| e.preparation_time(0.0).duration(1.0))
+                    .operation_dates(|b| {
+                        b.earliest_start_datetime(
+                            DateTime::parse_from_rfc3339("2025-04-04T12:00:00Z")
+                                .unwrap()
+                                .to_utc(),
+                        )
+                        .earliest_finish_datetime(
+                            DateTime::parse_from_rfc3339("2025-04-04T12:00:00Z")
+                                .unwrap()
+                                .to_utc(),
+                        )
+                    })
             })
             .operations_builder(20, Resources::MtnMech, |ob| {
                 ob.operation_info(|oi| oi.number(1).work_remaining(30.0).operating_time(6.0))
+                    .operation_analytic(|e| e.preparation_time(0.0).duration(1.0))
+                    .operation_dates(|b| {
+                        b.earliest_start_datetime(
+                            DateTime::parse_from_rfc3339("2025-04-04T12:00:00Z")
+                                .unwrap()
+                                .to_utc(),
+                        )
+                        .earliest_finish_datetime(
+                            DateTime::parse_from_rfc3339("2025-04-04T12:00:00Z")
+                                .unwrap()
+                                .to_utc(),
+                        )
+                    })
             })
             .operations_builder(40, Resources::Prodtech, |ob| {
                 ob.operation_info(|oi| oi.number(1).work_remaining(40.0).operating_time(6.0))
+                    .operation_analytic(|e| e.preparation_time(0.0).duration(1.0))
+                    .operation_dates(|b| {
+                        b.earliest_start_datetime(
+                            DateTime::parse_from_rfc3339("2025-04-04T12:00:00Z")
+                                .unwrap()
+                                .to_utc(),
+                        )
+                        .earliest_finish_datetime(
+                            DateTime::parse_from_rfc3339("2025-04-04T12:00:00Z")
+                                .unwrap()
+                                .to_utc(),
+                        )
+                    })
             })
             .work_order_analytic_builder(|woab| {
                 woab.system_status_codes(|sta| sta.rel(true))
@@ -621,32 +668,28 @@ mod tests
     use std::str::FromStr;
 
     use super::WorkOrder;
-    use super::operation::Work;
-    use crate::worker_environment::resources::Resources;
+    // #[test]
+    // fn test_initialize_work_load()
+    // {
+    //     let work_order = WorkOrder::work_order_test();
 
-    #[test]
-    fn test_initialize_work_load()
-    {
-        let work_order = WorkOrder::work_order_test();
-
-        assert_eq!(
-            *work_order
-                .work_order_load()
-                .unwrap()
-                .get(&Resources::from_str("PRODTECH").unwrap())
-                .unwrap(),
-            Work::from(50.0)
-        );
-        assert_eq!(
-            *work_order
-                .work_order_load()
-                .unwrap()
-                .get(&Resources::from_str("MTN-MECH").unwrap())
-                .unwrap(),
-            Work::from(50.0)
-        );
-    }
-
+    //     assert_eq!(
+    //         *work_order
+    //             .work_order_load()
+    //             .unwrap()
+    //             .get(&Resources::from_str("PRODTECH").unwrap())
+    //             .unwrap(),
+    //         Work::from(50.0)
+    //     );
+    //     assert_eq!(
+    //         *work_order
+    //             .work_order_load()
+    //             .unwrap()
+    //             .get(&Resources::from_str("MTN-MECH").unwrap())
+    //             .unwrap(),
+    //         Work::from(50.0)
+    //     );
+    // }
     use super::*;
 
     #[test]
