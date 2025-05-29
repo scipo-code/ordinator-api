@@ -872,7 +872,7 @@ where
             determine_difference_resources(strategic_capacity_resources, &strategic_loading_resources);
 
         // Perform 10 different technician permutations
-        let mut error_for_unschedule = vec![];
+        let mut error_for_unschedule = HashSet::new();
         let mut store_strategic_resources_options = vec![];
         for _ in 0..10 {
             let mut technician_permutation = difference_resources
@@ -886,7 +886,7 @@ where
                 let mut work_load_permutation = work_load.clone().into_iter().collect::<Vec<_>>();
                 work_load_permutation.shuffle(&mut rng);
 
-                error_for_unschedule.push(work_load_permutation.clone());
+                error_for_unschedule.insert(work_load_permutation.clone());
                 let strategic_resource_loadings_option = match schedule {
                     ScheduleWorkOrder::Normal => determine_normal_work_order_resource_loadings(
                         period,
@@ -925,7 +925,25 @@ where
 
                         strategic_resource_loadings_option
                     }
+
+                    // You are seeing a rounding issue here. Your mind cannot handle this.
                     ScheduleWorkOrder::Unschedule => {
+                        // TODO [x] Remake the `combined_loadings` to handle individual resources
+                        // TODO [ ] Fix the rounding issue
+                        ensure!(combined_loadings(&work_load, &strategic_loading_resources).iter().all(|(res, work)| work >= work_load.get(res).unwrap()), "The amount of work loaded into the schedule and the work_load of the work order does not match.\n\
+                            possible errors:\n\
+                            * Rounding error\n\
+                            * Calculation error\n\
+                            * Timing error in either pointer swaps or user-input message\n\
+                            combined_loadings: {:#?}\n\
+                            combined_work_load: {:#?}\n\
+                            work_load: {:#?}\n\
+                            Location: {}",
+                            combined_loadings(&work_load, &strategic_loading_resources),
+                            work_load.clone().into_values().sum::<Work>(),
+                            work_load,
+                            Location::caller(),
+                        );
                         let order_map: HashMap<_, _> = technician_permutation
                             .clone()
                             .into_iter()
@@ -940,12 +958,22 @@ where
                             .map(|ele| ele.1)
                             .collect();
 
+                        // NOTE [ ] 
+                        // You can make the architecture even cleaner, if you remove the parameters, and simply define the
+                        // parameters as a function directly on the `SchedulingEnvironment` you can really achieve a lot
+                        // of state reduction. 
+                        //
+                        // `Fn(SchedulingEnvironment) -> NumberOfPeople`
+                        // `Fn(SchedulingEnvironment) -> work_order_load`
+                        //
+                        // The main issue with this is that the code will have to trade state for computation.
                         let strategic_resources_option =
                             determine_unschedule_work_resource_loadings(
                                 period,
                                 &strategic_resources_loading_vec,
                                 &mut work_load_permutation,
                             ).with_context(||format!("Error in resource calculation\n{period:#?}\nStrategic loadings: {strategic_loading_resources:#?}\nStrategic capacities: {strategic_capacity_resources:#?}\nWork load: {work_load:?}"))?;
+
                         store_strategic_resources_options.push(strategic_resources_option.clone());
 
                         if let Some(ref strategic_resources) = strategic_resources_option {
@@ -1024,6 +1052,20 @@ where
                     }
                     // It is always possible to unschedule work, so therefore we can simply
                     ScheduleWorkOrder::Unschedule => {
+                        ensure!(combined_loadings(&work_load, &strategic_loading_resources).iter().all(|(res, work)| work >= work_load.get(res).unwrap()), "The amount of work loaded into the schedule and the work_load of the work order does not match.\n\
+                            possible errors:\n\
+                            * Rounding error\n\
+                            * Calculation error\n\
+                            * Timing error in either pointer swaps or user-input message\n\
+                            combined_loadings: {:#?}\n\
+                            combined_work_load: {:#?}\n\
+                            work_load: {:#?}\n\
+                            Location: {}",
+                            combined_loadings(&work_load, &strategic_loading_resources),
+                            work_load.clone().into_values().sum::<Work>(),
+                            work_load,
+                            Location::caller(),
+                        );
                         assert_work_load_equal_to_strategic_resource(
                             period,
                             &strategic_resource_loadings,
@@ -1046,23 +1088,67 @@ where
             ScheduleWorkOrder::Normal => Ok(None),
             ScheduleWorkOrder::Forced => Ok(Some(best_work_order_resource_loadings)),
             ScheduleWorkOrder::Unschedule => {
-                // NOTE
-                // This error has a serious issue. The thing is that the Error 
-                    let combined_work = work_load.iter().map(|e| (e.0 ,strategic_loading_resources.iter()
-                        .filter(|res| res.1.skill_hours.contains_key(e.0))
-                        .fold(Work::from(0.0),|acc, res_fil| {
-                        
-                            acc + res_fil.1.total_hours
-                    })));
-                bail!("Unscheduling work order should always be possible\n{period:#?}\nStrategic loadings: {:#?}\nStrategic capacities: {:#?}\nWork load: {:#?}\nTotal available resources for each trait: {:#?}\nUnsuccessful work_load_permutations: {:#?}",
+                // NOTE [ ]
+                // You made a crucial debugging error here. And you made it because you were tired from
+                // coding too much during a week.
 
-                    strategic_loading_resources, strategic_capacity_resources, work_load,
-                    combined_work,
-                error_for_unschedule)
-                
+                ensure!(combined_loadings(&work_load, &strategic_loading_resources).iter().all(|(res, work)| work >= work_load.get(res).unwrap()), "The amount of work loaded into the schedule and the work_load of the work order does not match.\n\
+                    possible errors:\n\
+                    * Rounding error\n\
+                    * Calculation error\n\
+                    * Timing error in either pointer swaps or user-input message\n\
+                    combined_loadings: {:#?}\n\
+                    combined_work_load: {:#?}\n\
+                    work_load: {:#?}\n\
+                    Location: {}",
+                    combined_loadings(&work_load, &strategic_loading_resources),
+                    work_load.clone().into_values().sum::<Work>(),
+                    work_load,
+                    Location::caller(),
+                );
+                let filtered_strategic_loading_resources: Vec<_> = strategic_loading_resources.iter()
+                    .filter(|e| work_load.keys().any(|res| e.1.skill_hours.contains_key(res))).collect();
+
+                let filtered_strategic_capacity_resources: Vec<_> = strategic_capacity_resources.iter()
+                    .filter(|e| work_load.keys().any(|res| e.1.skill_hours.contains_key(res))).collect();
+
+                // We have found what it is that we have to `ensure!` Good job @
+                bail!(
+                    "Unscheduling work order should always be possible\n\
+                    {period:#?}\n\
+                    Strategic loadings: {:#?}\n\
+                    Strategic capacities: {:#?}\n\
+                    Work load: {:#?}\n\
+                    Stored strategic resources options: {:#?}\n\
+                    Unsuccessful work_load_permutations: {:#?}",
+                    filtered_strategic_loading_resources,
+                    filtered_strategic_capacity_resources,
+                    work_load,
+                    store_strategic_resources_options,
+                    error_for_unschedule
+                )
             }
         }
     }
+}
+
+fn combined_loadings(work_load: &HashMap<Resources, Work>, strategic_loading_resources: &HashMap<String, OperationalResource>) -> HashMap<Resources, Work> {
+    
+    // We want this as a HashMap, with one for each resource.
+    let mut strategic_loading: HashMap<Resources, Work, _> = HashMap::default();
+    for resource in strategic_loading_resources
+        .iter()
+        .filter(|(_, res)| work_load.keys().any(|res_work_load| res.skill_hours.contains_key(res_work_load))) {
+
+        for skill in resource.1.skill_hours.keys() {
+        strategic_loading.entry(*skill).and_modify(|e| *e += resource.1.total_hours).or_insert(resource.1.total_hours);
+            
+        }
+
+        
+        
+    }
+    strategic_loading
 }
 
 fn assert_work_load_equal_to_strategic_resource(
@@ -1212,7 +1298,10 @@ fn determine_forced_work_order_resource_loadings(
         //
         // You are a pathetic idiot! You are risking everything because you
         // do not know... 
-        // 
+        //
+        // NOTE [ ]
+        // Where is the code being calculated that causes this issue? I think that the issue
+        // is with the 
         let mut resources_store_dummy: Option<OperationalResource> = None;
         if qualified_technicians.is_empty() {
             let operational_resource = OperationalResource::new(&(resources.to_string() + "_dummy"), Work::from(0.0), vec![*resources]);

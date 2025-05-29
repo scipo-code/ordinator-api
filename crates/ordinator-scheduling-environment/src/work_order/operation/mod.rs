@@ -3,6 +3,7 @@ pub mod operation_info;
 
 use std::collections::BTreeMap;
 use std::fmt::Display;
+use std::iter::Sum;
 use std::num::ParseFloatError;
 use std::str::FromStr;
 
@@ -260,6 +261,14 @@ impl std::fmt::Debug for Work
         } else {
             f.debug_struct("Work").field("", &self.0).finish()
         }
+    }
+}
+
+impl Sum for Work
+{
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self
+    {
+        iter.fold(Work::from(0.0), |acc, work| acc + work)
     }
 }
 
