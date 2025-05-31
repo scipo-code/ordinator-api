@@ -1,17 +1,17 @@
 import { HashRouter, Route, Routes } from "react-router-dom";
-import Index from "./pages/Index";
-import AssetPage from "./pages/AssetPage"; 
-import NotFound from "./pages/NotFound"; 
+import AssetDashboard from "./pages/AssetDashboard"; 
+// import NotFound from "./pages/NotFound"; 
 import "./App.css";
+import Layout from "./Layout";
 
 function App() {
   return (
       <HashRouter basename="/">
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/dashboard/:asset" element={<AssetPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Layout>
+          <Routes>
+            <Route path="/dashboard/:asset" element={<AssetDashboard />} />
+          </Routes>
+        </Layout>
       </HashRouter>
   );
 }
