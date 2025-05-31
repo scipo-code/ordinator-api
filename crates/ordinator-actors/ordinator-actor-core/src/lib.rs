@@ -110,10 +110,7 @@ where
                 .throttling
                 .get_throttling(&self.actor_id.0)
             {
-                Ok(id) => {
-                    println!("{id}");
-                    id
-                }
+                Ok(throttling) => throttling,
                 Err(err) => {
                     self.error_channel
                         .send(err)

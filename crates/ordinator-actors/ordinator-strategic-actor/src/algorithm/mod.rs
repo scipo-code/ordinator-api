@@ -266,7 +266,6 @@ where
     }
 
     fn unschedule(&mut self) -> Result<()> {
-        dbg!();
         let mut rng = rand::rng();
         let strategic_work_orders = &self.solution.strategic_scheduled_work_orders;
 

@@ -39,6 +39,7 @@ pub trait ActorBasedLargeNeighborhoodSearch
         // is the best approach
         //
 
+        return Ok(());
         // You still have the same problem. Why do you keep running in circles? I do not
         // understand it. You have to fix this. You will work longer hours.
         self.update_based_on_system_solution().with_context(|| {
