@@ -31,6 +31,7 @@
             pkgs.clang
             pkgs.flamegraph
             pkgs.git
+            pkgs.just
             pkgs.jq
             pkgs.libunwind
             pkgs.libxlsxwriter

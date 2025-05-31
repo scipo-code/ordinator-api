@@ -229,18 +229,14 @@ where
         // approach here. I think that we instead should strive to make a clean
         // schedule function. and then we should make a shared_state_update
         // function. Maybe it is also time to clean up in all this code.
-        dbg!();
         while !self.solution_intermediate.is_empty() {
-            dbg!();
             for period in self.parameters.strategic_periods.clone() {
                 let (work_order_number, weight) = match self.solution_intermediate.pop() {
                     Some((work_order_number, weight)) => {
-        dbg!();
                         (work_order_number, weight)
                     },
 
                     None => {
-        dbg!();
                         break;
                     }
                 };
@@ -253,7 +249,6 @@ where
                         format!("{work_order_number:?} could not be scheduled normally")
                     })?;
 
-        dbg!();
                 if let Some(work_order_number) = inf_work_order_number {
                     if &period != self.parameters.strategic_periods.last().unwrap() {
                         self.solution_intermediate.push(work_order_number, weight);
@@ -261,7 +256,6 @@ where
                 }
             }
         }
-        dbg!();
         Ok(())
     }
 
