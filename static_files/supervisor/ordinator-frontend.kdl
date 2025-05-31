@@ -21,6 +21,15 @@ layout {
 	      // plugin location="tab-bar"
 	      plugin location="compact-bar"
 	    }
+	}
+	tab name="ord" {
+		pane split_direction="vertical" {
+			pane focus=true size="70%" 
+			pane name="ord" 
+		}  
+	    pane size=1 borderless=true {
+	      plugin location="compact-bar"
+	    }
     }
 }
 
