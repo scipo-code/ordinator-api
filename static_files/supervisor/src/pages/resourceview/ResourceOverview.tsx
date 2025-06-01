@@ -3,19 +3,20 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Container } from "@/components/Container";
 import { DataTable } from "./data-table";
 
+import { SupervisorResourcesApi} from "../../../../../crates/ordinator-contracts/bindings/SupervisorResourcesApi.ts"
+
 import { getResources } from "@/hooks/GetResources"; 
-
-
 
 export default function ResourceOverview({asset}: Asset) {
 
+  console.log("Here")
   const {
     data,
     error,
     isLoading,
     refetch,
   } = getResources(asset);
-  
+  console.log(data)
   if (isLoading) {
     return <p>Loading...</p>
   }
@@ -33,7 +34,7 @@ export default function ResourceOverview({asset}: Asset) {
   );
 }
 
-function makeTableRows(apiData: AssetResourceApiResponse): ResourceTableRow[] {
+function makeTableRows(apiData: SupervisorResourcesApi): ResourceTableRow[] {
   return apiData.data.map((entry, index) => {
     const periodObj = apiData.metadata.periods.find((p) => p.id === entry.periodId)
     const periodId = periodObj ? periodObj.id : entry.periodId
@@ -48,13 +49,13 @@ function makeTableRows(apiData: AssetResourceApiResponse): ResourceTableRow[] {
   })
 }
 
-function makeColumns(apiData: AssetResourceApiResponse): ColumnDef<ResourceTableRow>[] {
+function makeColumns(apiData: SupervisorResourcesApi): ColumnDef<ResourceTableRow>[] {
   const periodColumn: ColumnDef<ResourceTableRow> = {
     accessorKey: "periodLabel",
     header: "Period"
   }
 
-  const resourceColumn: ColumnDef<ResourceTableRow>[] = apiData.metadata.resources.map((r) => ({
+  const resourceColumn: ColumnDef<ResourceTableRow>[] = apiData.id.resources.map((r) => ({
     accessorKey: r.id,
     header: r.label
   }))

@@ -11,21 +11,3 @@ export type ResourceTableRow = {
   periodLabel: string;
   [workCenter: string]: number | string;
 };
-
-export interface AssetResourceApiResponse {
-  asset: string;
-  metadata: {
-    periods: Array<{
-      id: string;
-      label: string;
-    }>;
-    resources: Array<{
-      id: string;
-      label: string;
-    }>;
-  };
-  data: Array<{
-    periodId: string;
-    values: Record<string, number>;
-  }>;
-}

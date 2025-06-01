@@ -8,6 +8,7 @@ import { getResources } from "@/hooks/GetResources";
 
 
 export default function ResourceOverview({asset}: ResourceProps) {
+  console.log("Here")
 
   const {
     data,
@@ -16,6 +17,7 @@ export default function ResourceOverview({asset}: ResourceProps) {
     refetch,
   } = getResources(asset);
   
+
   if (isLoading) {
     return <p>Loading...</p>
   }
@@ -23,6 +25,8 @@ export default function ResourceOverview({asset}: ResourceProps) {
     return <p>Error: {error.message}</p>
   }
 
+
+  console.log(data)
   const columns = makeColumns(data!);
   const tableData = makeTableRows(data!);
 
@@ -49,6 +53,7 @@ function makeTableRows(apiData: AssetResourceApiResponse): ResourceTableRow[] {
 }
 
 function makeColumns(apiData: AssetResourceApiResponse): ColumnDef<ResourceTableRow>[] {
+  console.log("Debug")
   const periodColumn: ColumnDef<ResourceTableRow> = {
     accessorKey: "periodLabel",
     header: "Period"

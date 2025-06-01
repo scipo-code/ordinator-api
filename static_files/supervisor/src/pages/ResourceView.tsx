@@ -18,9 +18,11 @@ export default function ResourceView() {
           <TabsTrigger value="resource-aggregated">Aggregated Resources</TabsTrigger>
         </TabsList>
         <TabsContent value="resource-people">
+
           <p>Resource people table </p>
         </TabsContent>
         <TabsContent value="resource-aggregated">
+
           <ResourceOverview asset={asset}/>
         </TabsContent>
       </Tabs>

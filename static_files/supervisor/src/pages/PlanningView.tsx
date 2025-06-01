@@ -4,6 +4,7 @@ import PlanningTable from "./planningview/PlanningTable";
 
 export default function PlanningView() {
   const { asset } = useParams<{ asset: string}>();
+  console.log("Here")
 
   if (!asset) {
     throw new Error("Asset is required");

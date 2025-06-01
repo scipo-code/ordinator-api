@@ -9,6 +9,7 @@ import { getResources } from "@/hooks/GetResources";
 
 export default function PlanningTable({asset}: Asset) {
 
+  console.log("Here")
   const {
     data,
     error,

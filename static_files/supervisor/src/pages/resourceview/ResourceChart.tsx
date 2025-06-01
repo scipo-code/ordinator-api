@@ -18,6 +18,7 @@ const fallbackColors = [
 
 
 export function ResourceChart({ asset }: Asset) {
+  console.log("ResourcesChart: line 21")
   const {
     data,
     error,
