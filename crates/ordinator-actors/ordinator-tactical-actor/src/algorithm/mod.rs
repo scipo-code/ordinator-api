@@ -261,7 +261,6 @@ where
 
     fn schedule(&mut self) -> Result<()>
     {
-        return Ok(());
         self.asset_that_loading_matches_scheduled()
             .with_context(|| format!("TESTING_ASSERTION\nfile: {}\nline: {}", file!(), line!()))?;
         for (work_order_number, solution) in &self.solution.tactical_work_orders.0.clone() {
@@ -468,7 +467,6 @@ where
 
     fn unschedule(&mut self) -> Result<()>
     {
-        return Ok(());
         let mut rng = rng();
         let work_order_numbers: Vec<WorkOrderNumber> = self
             .solution

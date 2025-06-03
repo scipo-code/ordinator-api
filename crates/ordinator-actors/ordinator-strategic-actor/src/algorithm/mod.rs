@@ -899,7 +899,7 @@ where
             technician_permutation.shuffle(&mut rng);
 
             // Perform 10 different work_load permutations
-            for i in 0..10 {
+            for _ in 0..10 {
                 let mut work_load_permutation = work_load.clone().into_iter().collect::<Vec<_>>();
 
 
