@@ -1,7 +1,7 @@
 use anyhow::Result;
 use anyhow::bail;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
-use ordinator_orchestrator_actor_traits::MessageHandler;
+use ordinator_orchestrator_actor_traits::CommandHandler;
 use ordinator_orchestrator_actor_traits::StateLink;
 use ordinator_orchestrator_actor_traits::SupervisorInterface;
 use ordinator_orchestrator_actor_traits::SystemSolutions;
@@ -17,7 +17,7 @@ use crate::algorithm::operational_solution::OperationalSolution;
 
 // Was this actually needed? I am not really sure here I believe that
 // the best approach is to make something.
-impl<Ss> MessageHandler for OperationalActor<Ss>
+impl<Ss> CommandHandler for OperationalActor<Ss>
 where
     Ss: SystemSolutions<Operational = OperationalSolution>,
 {

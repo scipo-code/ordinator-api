@@ -354,18 +354,16 @@ impl Shift
     }
 }
 
+// NOTE [ ]
+// Only the `Debug::alternate()` can be colored.
 impl Display for Id
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
     {
         write!(
             f,
-            "{}",
-            format!(
-                "Id: {:?} | resources: {:?} | asset: {:?}",
-                self.0, self.1, self.2
-            )
-            .blue()
+            "Id: {:?} | resources: {:?} | asset: {:?}",
+            self.0, self.1, self.2
         )
     }
 }

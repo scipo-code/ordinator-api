@@ -22,7 +22,7 @@ use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::Communication;
-use ordinator_orchestrator_actor_traits::MessageHandler;
+use ordinator_orchestrator_actor_traits::CommandHandler;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_scheduling_environment::SchedulingEnvironment;
@@ -35,7 +35,7 @@ pub struct OperationalActor<Ss>(
 )
 where
     Ss: SystemSolutions<Operational = OperationalSolution>,
-    Self: MessageHandler<Req = OperationalRequestMessage, Res = OperationalResponseMessage>;
+    Self: CommandHandler<Req = OperationalRequestMessage, Res = OperationalResponseMessage>;
 
 impl<Ss> Deref for OperationalActor<Ss>
 where

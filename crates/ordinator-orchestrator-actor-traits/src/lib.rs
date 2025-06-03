@@ -300,7 +300,13 @@ pub trait Solution: Sized
     fn update_objective_value(&mut self, other_objective: Self::ObjectiveValue);
 }
 
-pub trait MessageHandler
+// NOTE [ ]
+// You are actually turning this `MessageHandler` into a CQRS pattern. All reads
+// will be done through the `Orchestrator` and only commands will be send
+// through the `MassageHandler` channel.
+/// This trait should be implemented by every Actor so that it will be able to
+/// receive messages from the user and the [`Orchestrator`].  
+pub trait CommandHandler
 {
     type Req;
     type Res;

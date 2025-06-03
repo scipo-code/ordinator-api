@@ -6,7 +6,7 @@ use anyhow::bail;
 use colored::Colorize;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
-use ordinator_orchestrator_actor_traits::MessageHandler;
+use ordinator_orchestrator_actor_traits::CommandHandler;
 use ordinator_orchestrator_actor_traits::StateLink;
 use ordinator_orchestrator_actor_traits::SystemSolutions;
 use tracing::Level;
@@ -24,7 +24,7 @@ use crate::algorithm::strategic_solution::StrategicSolution;
 use crate::messages::StrategicRequestScheduling;
 use crate::messages::StrategicResponseScheduling;
 
-impl<Ss> MessageHandler for StrategicActor<Ss>
+impl<Ss> CommandHandler for StrategicActor<Ss>
 where
     Ss: SystemSolutions<Strategic = StrategicSolution>,
 {

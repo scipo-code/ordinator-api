@@ -21,8 +21,8 @@ use ordinator_actor_core::algorithm::Algorithm;
 use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::ActorFactory;
+use ordinator_orchestrator_actor_traits::CommandHandler;
 use ordinator_orchestrator_actor_traits::Communication;
-use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_scheduling_environment::SchedulingEnvironment;
@@ -35,7 +35,7 @@ pub struct StrategicActor<Ss>(
 )
 where
     Ss: SystemSolutions<Strategic = StrategicSolution>,
-    Self: MessageHandler<Req = StrategicRequestMessage, Res = StrategicResponseMessage>;
+    Self: CommandHandler<Req = StrategicRequestMessage, Res = StrategicResponseMessage>;
 
 impl<Ss> Deref for StrategicActor<Ss>
 where

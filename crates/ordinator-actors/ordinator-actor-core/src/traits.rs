@@ -120,7 +120,7 @@ pub trait ActorBasedLargeNeighborhoodSearch
     {
         self.algorithm_util_methods().load_shared_solution();
 
-        let state_change = self.incorporate_shared_state()?;
+        let state_change = self.incorporate_system_solution()?;
 
         if state_change {
             self.schedule().unwrap();
@@ -133,7 +133,7 @@ pub trait ActorBasedLargeNeighborhoodSearch
         Ok(())
     }
 
-    fn incorporate_shared_state(&mut self) -> Result<bool>;
+    fn incorporate_system_solution(&mut self) -> Result<bool>;
 }
 
 pub trait AbLNSUtils

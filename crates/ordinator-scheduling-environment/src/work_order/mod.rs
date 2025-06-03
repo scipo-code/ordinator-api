@@ -421,7 +421,7 @@ impl WorkOrder
                     ele_opr
                 );
                 *acc.entry(ele_opr.resource).or_insert(Work::from(0.0)) +=
-                    ele_opr.operation_info.work_remaining;
+                    ele_opr.operation_info.work_remaining.round();
                 Ok(acc)
             })
     }

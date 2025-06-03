@@ -20,7 +20,7 @@ use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::Communication;
-use ordinator_orchestrator_actor_traits::MessageHandler;
+use ordinator_orchestrator_actor_traits::CommandHandler;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_scheduling_environment::SchedulingEnvironment;
@@ -33,7 +33,7 @@ pub struct TacticalActor<Ss>(
 )
 where
     Ss: SystemSolutions<Tactical = TacticalSolution>,
-    Self: MessageHandler<Req = TacticalRequestMessage, Res = TacticalResponseMessage>;
+    Self: CommandHandler<Req = TacticalRequestMessage, Res = TacticalResponseMessage>;
 
 impl<Ss> Deref for TacticalActor<Ss>
 where

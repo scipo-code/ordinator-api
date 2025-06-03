@@ -266,7 +266,7 @@ where
         Algorithm<OperationalSolution, OperationalParameters, FillinOperationalEvents, Ss>;
     type Options = OperationalOptions;
 
-    fn incorporate_shared_state(&mut self) -> Result<bool>
+    fn incorporate_system_solution(&mut self) -> Result<bool>
     {
         let operational_shared_solution = self
             .loaded_shared_solution
