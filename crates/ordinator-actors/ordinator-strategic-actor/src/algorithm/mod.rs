@@ -1421,6 +1421,10 @@ fn determine_normal_work_order_resource_loadings(
         ensure!(work_load_permutation.iter().all(|e| e.1 == Work::from(0.0)), "Some of the individual work_loads were negative\nwork_load_permutation: {:#?}", work_load_permutation);
         return Ok(None);
     }
+    if technician_permutation.iter().fold(Work::from(0.0), |acc, e| acc + e.total_hours) ==
+        work_load_permutation.iter().fold(Work::from(0.0), |acc, e| acc + e.1) {
+        return Ok(None)
+    }
 
     for operation_load in &mut *work_load_permutation {
         for operational_resource in technician_permutation.iter_mut() {
@@ -2073,7 +2077,8 @@ mod tests {
     }
 
     #[test]
-    fn test_determine_normal_work_order_resource_loadings_1() {
+    #[should_panic]
+    fn test_determine_normal_work_order_resource_loadings_0() {
         let period = Period::from_str("2025-W23-24").unwrap();
 
         let mut technician_permutation = vec![
@@ -2095,6 +2100,7 @@ mod tests {
             (Resources::MtnScaf, Work::from(30.0)),
         ];
 
+        // Ahh you should use your tests
         let strategic_resource_option = super::determine_normal_work_order_resource_loadings(
             &period,
             &mut technician_permutation,
@@ -2102,6 +2108,39 @@ mod tests {
         ).unwrap();
 
         assert!(strategic_resource_option.is_none());
+    }
+    #[test]
+    fn test_determine_normal_work_order_resource_loadings_1() -> Result<()>{
+        let period = Period::from_str("2025-W23-24").unwrap();
+
+        let mut technician_permutation = vec![
+            OperationalResource::new(
+                "OP_TEST_0",
+                Work::from(40.0),
+                vec![Resources::MtnMech, Resources::MtnElec],
+            ),
+            OperationalResource::new(
+                "OP_TEST_1",
+                Work::from(40.0),
+                vec![Resources::MtnScaf, Resources::MtnElec],
+            ),
+        ];
+
+        let mut work_load_permutation = vec![
+            (Resources::MtnMech, Work::from(30.0)),
+            (Resources::MtnElec, Work::from(30.0)),
+            (Resources::MtnScaf, Work::from(20.0)),
+        ];
+
+        // Ahh you should use your tests
+        let strategic_resource_option = super::determine_normal_work_order_resource_loadings(
+            &period,
+            &mut technician_permutation,
+            &mut work_load_permutation,
+        ).context("Test failed")?;
+
+        assert!(strategic_resource_option.is_none());
+        Ok(())
     }
 
     #[test]
@@ -2191,12 +2230,12 @@ mod tests {
 
         let operational_resource_1 = OperationalResource::new(
             "OP_TEST_0",
-            Work::from(45.0),
+            Work::from(40.0),
             vec![Resources::MtnMech, Resources::MtnElec],
         );
         let operational_resource_2 = OperationalResource::new(
             "OP_TEST_1",
-            Work::from(45.0),
+            Work::from(50.0),
             vec![Resources::MtnScaf, Resources::MtnElec],
         );
         let mut strategic_resources = StrategicResources::default();
@@ -2244,12 +2283,12 @@ mod tests {
         assert!(strategic_resources_option.is_some());
         let operational_resource_1 = OperationalResource::new(
             "OP_TEST_0",
-            Work::from(30.0),
+            Work::from(40.0),
             vec![Resources::MtnMech, Resources::MtnElec],
         );
         let operational_resource_2 = OperationalResource::new(
             "OP_TEST_1",
-            Work::from(30.0),
+            Work::from(20.0),
             vec![Resources::MtnScaf, Resources::MtnElec],
         );
         let mut strategic_resources = StrategicResources::default();
