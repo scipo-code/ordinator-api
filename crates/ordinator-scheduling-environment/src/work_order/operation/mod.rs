@@ -8,6 +8,8 @@ use std::num::ParseFloatError;
 use std::str::FromStr;
 
 use anyhow::Context;
+use anyhow::Result;
+use anyhow::ensure;
 use chrono::DateTime;
 use chrono::Utc;
 use colored::Colorize;
@@ -283,8 +285,17 @@ impl FromStr for Work
         Ok(Work::from(value))
     }
 }
+
 impl Work
 {
+    pub fn round(self) -> Self
+    {
+        Self(
+            self.0
+                .round_dp_with_strategy(5, RoundingStrategy::MidpointNearestEven),
+        )
+    }
+
     pub fn from(work: f64) -> Self
     {
         let u32_f32 = Decimal::from_f64(work)
@@ -328,10 +339,29 @@ impl Work
         Work(self.0 / Decimal::from_u64(number).unwrap())
     }
 
-    pub fn divide_work(&self, work: Work) -> Work
+    pub fn divide_work(&self, qualified_technicians: Vec<Work>) -> Result<Vec<Work>>
     {
-        let value = self.0 / work.0;
-        Work(value)
+        // This is the error// You do not want to devide the work, but instead
+        // you
+
+        let mut total_work = *self;
+        let mut work_vec = vec![];
+        for technician in qualified_technicians {
+            if total_work >= technician {
+                work_vec.push(technician);
+                total_work -= technician
+            } else if total_work <= technician {
+                work_vec.push(total_work);
+                total_work = Work::from(0.0);
+                break;
+            }
+        }
+        if total_work != Work::from(0.0) {
+            work_vec[0] += total_work;
+            total_work = Work::from(0.0);
+        }
+        ensure!(total_work == Work::from(0.0));
+        Ok(work_vec)
     }
 
     pub fn equal(&self, aggregate_strategic_resource: Work) -> bool

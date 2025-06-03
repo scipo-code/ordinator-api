@@ -7,6 +7,7 @@ pub mod tactical_solution;
 use std::cmp::Ordering;
 use std::ops::Deref;
 use std::ops::DerefMut;
+use std::panic::Location;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -208,7 +209,7 @@ where
         Algorithm<TacticalSolution, TacticalParameters, PriorityQueue<WorkOrderNumber, u64>, Ss>;
     type Options = TacticalOptions;
 
-    fn incorporate_shared_state(&mut self) -> Result<bool>
+    fn incorporate_system_solution(&mut self) -> Result<bool>
     {
         Ok(true)
     }
@@ -467,6 +468,7 @@ where
 
     fn unschedule(&mut self) -> Result<()>
     {
+        return Ok(());
         let mut rng = rng();
         let work_order_numbers: Vec<WorkOrderNumber> = self
             .solution
@@ -487,9 +489,10 @@ where
             self.unschedule_specific_work_order(*work_order_number)
                 .with_context(|| {
                     format!(
-                        "Could not unschedule tactical work order: {:?} on line: {}",
+                        "Could not unschedule tactical work order: {:?}\n\
+                        Location: {}",
                         work_order_number,
-                        line!(),
+                        Location::caller(),
                     )
                 })?;
         }

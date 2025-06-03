@@ -146,6 +146,9 @@ impl fmt::Display for SchedulingEnvironment
         Ok(())
     }
 }
+
+// TODO [ ]
+// Move to configuration files
 #[derive(PartialEq, Eq, Hash, Serialize, Deserialize, Debug, Clone, EnumIter)]
 pub enum Asset
 {

@@ -4,7 +4,7 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
-use ordinator_orchestrator_actor_traits::MessageHandler;
+use ordinator_orchestrator_actor_traits::CommandHandler;
 use ordinator_orchestrator_actor_traits::StateLink;
 use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_scheduling_environment::worker_environment::resources::Id;
@@ -19,7 +19,7 @@ use crate::algorithm::supervisor_solution::SupervisorSolution;
 use crate::messages::responses::SupervisorResponseScheduling;
 use crate::messages::responses::SupervisorResponseStatus;
 
-impl<Ss> MessageHandler for SupervisorActor<Ss>
+impl<Ss> CommandHandler for SupervisorActor<Ss>
 where
     Ss: SystemSolutions<Supervisor = SupervisorSolution>,
 {

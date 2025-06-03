@@ -15,7 +15,7 @@ build-linux:
     cargo build --release
 
 tr REGEX:
-    tail -F logging/logs/ordinator.developer.log | rg {{ REGEX }}
+    tail -F logging/logs/ordinator.developer.log | rg {{ REGEX }} | jq
     
 call-strategic-inclusion-script:
     #!/usr/bin/env nu

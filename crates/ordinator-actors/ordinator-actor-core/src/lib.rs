@@ -3,6 +3,7 @@ pub mod traits;
 
 use std::fmt::Debug;
 use std::fmt::{self};
+use std::panic::Location;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -16,8 +17,8 @@ use flume::Receiver;
 use flume::Sender;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::ActorMessage;
+use ordinator_orchestrator_actor_traits::CommandHandler;
 use ordinator_orchestrator_actor_traits::Communication;
-use ordinator_orchestrator_actor_traits::MessageHandler;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::Parameters;
 use ordinator_orchestrator_actor_traits::Solution;
@@ -46,7 +47,7 @@ where
     // Look into whether it is possible for you to make a
     // blanket implementation that simply makes the
     // Actor implementations provide functions.
-    Self: MessageHandler<Req = ActorRequest, Res = ActorResponse>,
+    Self: CommandHandler<Req = ActorRequest, Res = ActorResponse>,
     Algorithm: ActorBasedLargeNeighborhoodSearch,
 {
     pub actor_id: Id,
@@ -65,7 +66,7 @@ where
 // important thing here
 impl<ActorRequest, ActorResponse, Algorithm> Actor<ActorRequest, ActorResponse, Algorithm>
 where
-    Self: MessageHandler<Req = ActorRequest, Res = ActorResponse>,
+    Self: CommandHandler<Req = ActorRequest, Res = ActorResponse>,
     Algorithm: ActorBasedLargeNeighborhoodSearch,
     ActorRequest: Send + Sync + 'static,
     ActorResponse: Send + Sync + 'static,
@@ -81,10 +82,9 @@ where
 
         if let Err(actor_error) = self.algorithm.schedule().with_context(|| {
             format!(
-                "{schedule_iteration:#?}\nActor: {}\nLocation: {}:{}",
+                "{schedule_iteration:#?}\nActor: {}\nLocation: {}",
                 self.actor_id,
-                file!(),
-                line!()
+                Location::caller(),
             )
         }) {
             self.error_channel
@@ -110,10 +110,7 @@ where
                 .throttling
                 .get_throttling(&self.actor_id.0)
             {
-                Ok(id) => {
-                    println!("{id}");
-                    id
-                }
+                Ok(throttle) => throttle,
                 Err(err) => {
                     self.error_channel
                         .send(err)
@@ -130,7 +127,13 @@ where
                 // from the fact that the. The Actor needs to run this.
                 // Should the Option be removed? Yes
                 .run_lns_iteration()
-                .with_context(|| format!("{schedule_iteration:#?}"))
+                .with_context(|| {
+                    format!(
+                        "{schedule_iteration:#?}\nActor: {}\nLocation: {}",
+                        self.actor_id,
+                        Location::caller(),
+                    )
+                })
             {
                 self.error_channel
                     .send(actor_error)
@@ -160,7 +163,7 @@ where
 // Is what you are getting from this worth it? I do not really
 // think so. You will have to make a new function in the
 // other
-impl<ActorRequest, ActorResponse, Algorithm> MessageHandler
+impl<ActorRequest, ActorResponse, Algorithm> CommandHandler
     for Actor<ActorRequest, ActorResponse, Algorithm>
 where
     Algorithm: ActorBasedLargeNeighborhoodSearch,
@@ -206,7 +209,7 @@ impl<ActorRequest, ActorResponse, SpecificAlgorithm>
     ActorBuilder<ActorRequest, ActorResponse, SpecificAlgorithm>
 where
     Actor<ActorRequest, ActorResponse, SpecificAlgorithm>:
-        MessageHandler<Req = ActorRequest, Res = ActorResponse>,
+        CommandHandler<Req = ActorRequest, Res = ActorResponse>,
     SpecificAlgorithm: ActorBasedLargeNeighborhoodSearch + Send + 'static,
     ActorRequest: Send + Sync + 'static,
     ActorResponse: Send + Sync + 'static,

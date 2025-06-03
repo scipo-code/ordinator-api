@@ -22,7 +22,7 @@ use ordinator_actor_core::traits::ActorBasedLargeNeighborhoodSearch;
 use ordinator_configuration::SystemConfigurations;
 use ordinator_orchestrator_actor_traits::ActorFactory;
 use ordinator_orchestrator_actor_traits::Communication;
-use ordinator_orchestrator_actor_traits::MessageHandler;
+use ordinator_orchestrator_actor_traits::CommandHandler;
 use ordinator_orchestrator_actor_traits::OrchestratorNotifier;
 use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_scheduling_environment::SchedulingEnvironment;
@@ -33,7 +33,7 @@ pub struct SupervisorActor<Ss>(
 )
 where
     Ss: SystemSolutions<Supervisor = SupervisorSolution>,
-    Self: MessageHandler<Req = SupervisorRequestMessage, Res = SupervisorResponseMessage>;
+    Self: CommandHandler<Req = SupervisorRequestMessage, Res = SupervisorResponseMessage>;
 
 impl<Ss> Deref for SupervisorActor<Ss>
 where

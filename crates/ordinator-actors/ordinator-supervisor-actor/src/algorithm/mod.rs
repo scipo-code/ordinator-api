@@ -229,7 +229,7 @@ where
         // old_state).unwrap();
     }
 
-    fn incorporate_shared_state(&mut self) -> Result<bool>
+    fn incorporate_system_solution(&mut self) -> Result<bool>
     {
         // List current activities in the `SupervisorAgent`
         let current_activities = self

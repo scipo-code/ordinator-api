@@ -1,7 +1,7 @@
 use anyhow::Context;
 use anyhow::Result;
 use ordinator_orchestrator_actor_traits::ActorSpecific;
-use ordinator_orchestrator_actor_traits::MessageHandler;
+use ordinator_orchestrator_actor_traits::CommandHandler;
 use ordinator_orchestrator_actor_traits::StateLink;
 use ordinator_orchestrator_actor_traits::SystemSolutions;
 use ordinator_orchestrator_actor_traits::WhereIsWorkOrder;
@@ -19,7 +19,7 @@ use crate::algorithm::tactical_solution::TacticalSolution;
 // way that you will find out is by creating the system in the new way you are
 // so much out of the water here that getting it to compile and run is the only
 // way to consolidate your knowledge.
-impl<Ss> MessageHandler for TacticalActor<Ss>
+impl<Ss> CommandHandler for TacticalActor<Ss>
 where
     Ss: SystemSolutions<Tactical = TacticalSolution>,
 {
