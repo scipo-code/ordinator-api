@@ -314,7 +314,18 @@ where
             .iter()
             .map(|e| e.0.1.0)
             .collect::<HashSet<_>>();
-        ensure!(strategic_activities_hash_set == value);
+        ensure!(
+            strategic_activities_hash_set == value,
+            "Strategic activities: {:#?}\n\
+             Supervisor solution: {:#?}\n\
+             difference between the first and the second: {:#?}\n\
+             difference between the second and the first: {:#?}",
+            strategic_activities_hash_set,
+            value,
+            strategic_activities_hash_set.difference(&value),
+            value.difference(&strategic_activities_hash_set),
+        );
+
         Ok(true)
     }
 
