@@ -154,9 +154,8 @@ where
         }
 
         // Ahh forced is always part of the `incorporate` shared state.
-        for (count, forced_work_order_numbers) in work_order_numbers.iter().enumerate() {
+        for forced_work_order_numbers in work_order_numbers.iter() {
             state_change = true;
-            dbg!("Iteration: {} of {}", count,  work_order_numbers.len());
             self.schedule_forced_strategic_work_order(forced_work_order_numbers)
                 .with_context(|| {
                     format!(
@@ -851,7 +850,6 @@ where
         period: &Period,
         schedule: ScheduleWorkOrder,
     ) -> Result<Option<StrategicResources>> {
-        ensure!(work_load.iter().all(|e| e.1 >= &Work::from(0.0)), "");
         let mut rng = rand::rng();
         let mut best_total_excess = Work::from(-999999999.0);
         let mut best_work_order_resource_loadings = StrategicResources::default();
@@ -899,7 +897,7 @@ where
             technician_permutation.shuffle(&mut rng);
 
             // Perform 10 different work_load permutations
-            for i in 0..10 {
+            for _ in 0..10 {
                 let mut work_load_permutation = work_load.clone().into_iter().collect::<Vec<_>>();
 
 
@@ -907,10 +905,6 @@ where
 
                 error_for_unschedule.insert(work_load_permutation.clone());
                 let strategic_resource_loadings_option = match schedule {
-                    // FIX
-                    //
-                    // After this we should be able to make a series of asserts. I think that the
-                    // best way of doing this is k
                     ScheduleWorkOrder::Normal => determine_normal_work_order_resource_loadings(
                         period,
                         &mut technician_permutation,

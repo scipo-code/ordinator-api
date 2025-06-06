@@ -69,16 +69,16 @@ where
     TacticalParameters: Parameters,
     Ss: SystemSolutions,
 {
-    pub fn capacity(&self, resource: &Resources, day: &Day) -> &Work
+    pub fn capacity(&self, resource: &Resources, day: &Day) -> Result<&Work>
     {
         self.parameters
             .tactical_capacity
             .resources
             .get(resource)
-            .unwrap()
+            .with_context(|| format!("No entry for resource{resource}"))?
             .days
             .get(day)
-            .unwrap()
+            .with_context(|| format!("No entry for resource{resource}\nOn day: {day}"))
     }
 
     pub fn capacity_mut(&mut self, resource: &Resources, day: &Day) -> &mut Work
@@ -123,7 +123,10 @@ where
         let mut objective_value_from_excess = 0;
         for resource in self.parameters.tactical_capacity.resources.keys() {
             for day in self.parameters.tactical_days.clone() {
-                let excess_capacity = self.loading(resource, &day) - self.capacity(resource, &day);
+                let excess_capacity = self.loading(resource, &day)
+                    - self
+                        .capacity(resource, &day)
+                        .expect("Resource should be available");
 
                 if excess_capacity > Work::from(0.0) {
                     objective_value_from_excess += excess_capacity.to_f64() as u64;
@@ -240,6 +243,7 @@ where
     >
     {
         let options = &self.parameters.tactical_options;
+
         let mut tactical_objective_value = TacticalObjectiveValue::new(options);
 
         self.determine_tardiness(&mut tactical_objective_value);
@@ -261,9 +265,15 @@ where
 
     fn schedule(&mut self) -> Result<()>
     {
-        return Ok(());
+        // The code here is all wrong. It is not as performant as it should be
+        // and it is not as maintainable as it could be. It has been
+        // designed for being understandable and that is also good.
+        //
+        // Just be aware of the issue.
+
         self.asset_that_loading_matches_scheduled()
             .with_context(|| format!("TESTING_ASSERTION\nfile: {}\nline: {}", file!(), line!()))?;
+
         for (work_order_number, solution) in &self.solution.tactical_work_orders.0.clone() {
             let tactical_parameter = self
                 .parameters
@@ -291,6 +301,7 @@ where
         let mut counter = 0;
         // The issue is that the code here is running a lot of iterations. What should
         // we do about this? I am not really sure! I thi
+
         'back_to_loop_state_handle: loop {
             counter += 1;
 
@@ -300,6 +311,7 @@ where
                 start_day_index = start_day_index,
                 priority_queue_len = self.solution_intermediate.len(),
             );
+
             let tactical_parameter = match loop_state {
                 LoopState::Unscheduled => {
                     start_day_index += 1;
@@ -314,7 +326,7 @@ where
                     current_work_order_number = match self.solution_intermediate.pop() {
                         Some((work_order_number, _)) => work_order_number,
                         None => {
-                            event!(Level::INFO, "main_loop break");
+                            event!(Level::DEBUG, "main_loop break");
                             break;
                         }
                     };
@@ -333,7 +345,7 @@ where
                     current_work_order_number = match self.solution_intermediate.pop() {
                         Some((work_order_number, _)) => work_order_number,
                         None => {
-                            event!(Level::INFO, "main_loop break");
+                            event!(Level::DEBUG, "main_loop break");
                             break;
                         }
                     };
@@ -415,6 +427,7 @@ where
                 let mut activity_load = Vec::<(Day, Work)>::new();
                 // The breaks here mean that the code might input a partial work order
                 // This should not matter for correctness.
+
                 for load in loadings {
                     let day = match current_day.peek() {
                         Some(day) => (*day).clone(),
@@ -422,6 +435,7 @@ where
                             break;
                         }
                     };
+
                     activity_load.push((day, load));
 
                     current_day.next();
@@ -448,13 +462,12 @@ where
                     current_work_order_number,
                     *activity,
                 );
+
                 operation_solutions.insert_operation_solution(*activity, operation_solution);
             }
 
             self.update_loadings(&operation_solutions, LoadOperation::Add)?;
             loop_state = LoopState::Scheduled;
-
-            event!(Level::INFO, "{}", operation_solutions);
 
             self.solution
                 .tactical_insert_work_order(current_work_order_number, operation_solutions);
@@ -466,9 +479,14 @@ where
         Ok(())
     }
 
+    // So what should be checked to understand this?
+    // We know that the error is not in the creation of the parameters
+    //
+    // TODO [ ]
+    // Confirm that it is the `schedule` method that is causing the issue
+    // Remember that you should only change one thing at a time.
     fn unschedule(&mut self) -> Result<()>
     {
-        return Ok(());
         let mut rng = rng();
         let work_order_numbers: Vec<WorkOrderNumber> = self
             .solution
@@ -485,6 +503,8 @@ where
                 .number_of_removed_work_orders,
         );
 
+        // How can you make something that will allow us to catch the
+        // error instantneously?
         for work_order_number in random_work_order_numbers {
             self.unschedule_specific_work_order(*work_order_number)
                 .with_context(|| {
@@ -588,7 +608,7 @@ where
 
     fn remaining_capacity(&self, resource: &Resources, day: &Day) -> Option<Work>
     {
-        let remaining_capacity = self.capacity(resource, day) - self.loading(resource, day);
+        let remaining_capacity = self.capacity(resource, day).ok()? - self.loading(resource, day);
 
         if remaining_capacity <= Work::from(0.0) {
             None

@@ -197,7 +197,7 @@ fn create_work_orders(
                 let utc_start_datetime = naive_start_datetime.and_utc();
                 let utc_end_datetime = naive_end_datetime.and_utc();
 
-
+                // Operating time is on the resource, not on the 
                 // This is very good! The model should take in raw values and then verify them.
                 let operation = Operation::builder(*operations_number, resource)
                     .unloading_point(unloading_point)
@@ -208,6 +208,7 @@ fn create_work_orders(
                             .work_actual(actual_work)
                             .work(planned_work)
                     })
+
                     .operation_analytic(|oab| {
                         // TODO [ ]
                         // Add `.duration(f64)` here if needed.

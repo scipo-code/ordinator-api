@@ -61,10 +61,6 @@ impl Parameters for TacticalParameters
             // QUESTION: Is this actually true?
             .filter(|(_, wo)| &wo.functional_location().asset == id.2.first().unwrap());
 
-        // This is what you get from working with Rust, you get all the nice things and
-        // then this is what you have to deal with. What is the correct approach
-        // here? You need to understand what the goal of the code is to be able
-        // to fix this.
         let tactical_capacity = TacticalResources::from((scheduling_environment, id));
 
         let tactical_work_orders: HashMap<WorkOrderNumber, TacticalParameter> = work_orders
@@ -117,17 +113,15 @@ pub fn create_tactical_parameter(
     work_order_configuration: &WorkOrderConfigurations,
 ) -> Result<TacticalParameter>
 {
-    let operation_parameters = work_order
-        .operations
-        .0
-        .iter()
-        .map(|(acn, op)| {
-            (
-                *acn,
-                OperationParameter::new(work_order.work_order_number, op),
-            )
-        })
-        .collect::<HashMap<_, _>>();
+    let mut operation_parameters = HashMap::new();
+    for (activity_number, operation) in &work_order.operations.0 {
+        let operation_parameter = OperationParameter::new(
+            work_order.work_order_number,
+            operation,
+            Work::from(work_order_configuration.operating_time as f64),
+        )?;
+        operation_parameters.insert(*activity_number, operation_parameter);
+    }
 
     TacticalParameter::new(work_order, work_order_configuration, operation_parameters)
 }
@@ -176,18 +170,22 @@ pub struct OperationParameter
 
 impl OperationParameter
 {
-    pub fn new(work_order_number: WorkOrderNumber, operation: &Operation) -> Self
+    pub fn new(
+        work_order_number: WorkOrderNumber,
+        operation: &Operation,
+        operating_time: Work,
+    ) -> Result<Self>
     {
-        Self {
+        Ok(Self {
             work_order_number,
             number: operation.operation_info.number,
             // FIX
             // This should also have been created differently.
             duration: operation.operation_analytic.duration,
-            operating_time: operation.operation_info.operating_time,
+            operating_time,
             work_remaining: operation.operation_info.work_remaining,
             resource: operation.resource,
-        }
+        })
     }
 }
 
