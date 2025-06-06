@@ -12,18 +12,16 @@ pub struct OperationInfo
     pub work_remaining: Work,
     pub work_actual: Work,
     pub work: Work,
-    pub operating_time: Work,
 }
 
 // Good! The fields should be optional in the OperationInfoBuilder, not the
-// OperationInfo
+// OperationInfo.
 pub struct OperationInfoBuilder
 {
     number: Option<NumberOfPeople>,
     work_remaining: Option<Work>,
     work_actual: Option<Work>,
     work: Option<Work>,
-    operating_time: Option<Work>,
 }
 
 impl OperationInfo
@@ -35,7 +33,6 @@ impl OperationInfo
             work_remaining: None,
             work_actual: None,
             work: None,
-            operating_time: None,
         }
     }
 }
@@ -46,12 +43,11 @@ impl OperationInfoBuilder
     {
         OperationInfo {
             number: self.number.unwrap_or(1),
-            work_remaining: self.work_remaining.unwrap_or_default(),
-            work_actual: self.work_actual.unwrap_or_default(),
-            work: self.work.unwrap_or_default(),
-            // FIX [ ]
-            // The default operating time should come from the
-            operating_time: self.operating_time.unwrap_or_default(),
+            work_remaining: self
+                .work_remaining
+                .expect("`Work` values cannot be missing"),
+            work_actual: self.work_actual.expect("`Work` values cannot be missing"),
+            work: self.work.expect("`Work` values cannot be missing"),
         }
     }
 
@@ -79,12 +75,6 @@ impl OperationInfoBuilder
     {
         assert!(work >= 0.0);
         self.work = Some(Work::from(work));
-        self
-    }
-
-    pub fn operating_time(mut self, operating_time: f64) -> Self
-    {
-        self.operating_time = Some(Work::from(operating_time));
         self
     }
 }

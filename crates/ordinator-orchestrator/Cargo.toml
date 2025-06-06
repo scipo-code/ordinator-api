@@ -17,6 +17,8 @@ ordinator-supervisor-actor = {path = "../ordinator-actors/ordinator-supervisor-a
 ordinator-operational-actor = {path = "../ordinator-actors/ordinator-operational-actor"}
 
 
+
+
 anyhow = { workspace = true }
 arc-swap = {workspace = true}
 dotenvy = { workspace = true}
@@ -29,3 +31,5 @@ tracing = {workspace = true}
 tracing-appender = {workspace = true}
 tracing-flame = {workspace = true}
 tracing-subscriber = {workspace = true}
+
+file-rotate = "*"

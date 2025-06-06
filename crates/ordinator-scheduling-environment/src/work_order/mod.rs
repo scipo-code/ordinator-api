@@ -276,6 +276,8 @@ pub enum ActivityRelation
     Postpone(TimeDelta),
 }
 
+// `operating_time` is separate from the work order data and should be removed
+// from the `scheduling_environment`
 #[allow(dead_code)]
 #[derive(Eq, PartialEq, Serialize, Deserialize, Debug, Clone)]
 pub struct WorkOrderConfigurations
@@ -582,7 +584,7 @@ impl WorkOrder
         WorkOrder::builder(WorkOrderNumber(2100000001))
             .main_work_center(Resources::MtnMech)
             .operations_builder(10, Resources::Prodtech, |e| {
-                e.operation_info(|oi| oi.number(1).work_remaining(10.0).operating_time(6.0))
+                e.operation_info(|oi| oi.number(1).work_remaining(10.0))
                     .operation_analytic(|e| e.preparation_time(0.0).duration(1.0))
                     .operation_dates(|b| {
                         b.earliest_start_datetime(
@@ -598,7 +600,7 @@ impl WorkOrder
                     })
             })
             .operations_builder(20, Resources::MtnMech, |ob| {
-                ob.operation_info(|oi| oi.number(1).work_remaining(20.0).operating_time(6.0))
+                ob.operation_info(|oi| oi.number(1).work_remaining(20.0))
                     .operation_analytic(|e| e.preparation_time(0.0).duration(1.0))
                     .operation_dates(|b| {
                         b.earliest_start_datetime(
@@ -614,7 +616,7 @@ impl WorkOrder
                     })
             })
             .operations_builder(20, Resources::MtnMech, |ob| {
-                ob.operation_info(|oi| oi.number(1).work_remaining(30.0).operating_time(6.0))
+                ob.operation_info(|oi| oi.number(1).work_remaining(30.0))
                     .operation_analytic(|e| e.preparation_time(0.0).duration(1.0))
                     .operation_dates(|b| {
                         b.earliest_start_datetime(
@@ -630,7 +632,7 @@ impl WorkOrder
                     })
             })
             .operations_builder(40, Resources::Prodtech, |ob| {
-                ob.operation_info(|oi| oi.number(1).work_remaining(40.0).operating_time(6.0))
+                ob.operation_info(|oi| oi.number(1).work_remaining(40.0))
                     .operation_analytic(|e| e.preparation_time(0.0).duration(1.0))
                     .operation_dates(|b| {
                         b.earliest_start_datetime(
